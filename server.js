@@ -4,12 +4,14 @@ const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const cors = require('cors');
 
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
+app.use(cors());
 
 const buyOrdersFilePath = path.join(__dirname, 'buyOrders.json');
 const sellOrdersFilePath = path.join(__dirname, 'sellOrders.json');
