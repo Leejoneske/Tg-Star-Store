@@ -1,9 +1,0 @@
-[build]
-  command = "npm install && npm run build"  # Install dependencies and run build script
-  publish = "public"                       # Serve the frontend from the "public" folder
-  functions = "functions"                  # Netlify Functions for backend logic
-
-[[redirects]]
-  from = "/api/*"                          # Redirect API requests to Netlify Functions
-  to = "/.netlify/functions/:splat"        # Map to the functions folder
-  status = 200                             # HTTP status code for the redirect
