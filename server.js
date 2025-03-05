@@ -74,6 +74,12 @@ async function updateOrderMessages(order, newStatus, reason = '') {
         }
     }
 }
+//webhook
+app.post('/webhook', (req, res) => {
+  const update = req.body;
+  const chatId = update.message.chat.id;
+  const text = update.message.text;
+
 
 app.get('/api/get-wallet-address', (req, res) => {
     const walletAddress = process.env.WALLET_ADDRESS;
