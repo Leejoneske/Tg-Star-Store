@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - StarStore</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f3f4f6;
+        }
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+        .logo-header {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4f46e5;
+            text-align: center;
+            padding: 16px;
+            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 40;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .side-menu {
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: 64%;
+            height: 100%;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+        .side-menu.active {
+            left: 0;
+        }
+        .menu-item {
+            padding: 12px 16px;
+            font-size: 16px;
+            color: #4f46e5;
+            transition: all 0.2s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .menu-item:hover {
+            background: #f3f4f6;
+            transform: translateX(5px);
+        }
+        .footer {
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            color: #6b7280;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            width: 100%;
+            max-width: 480px;
+        }
+        .footer a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+        <div class="side-menu" id="sideMenu">
+            <div class="p-6">
+                <div class="text-xl font-bold mb-8">Menu</div>
+                <nav class="space-y-2">
+                    <a href="index.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                        Home
+                    </a>
+                    <a href="sell.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                        Sell
+                    </a>
+                    <a href="history.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                        History
+                    </a>
+                    <a href="referral.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                        Referral
+                    </a>
+                    <a href="about.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                        About
+                    </a>
+                </nav>
+            </div>
+        </div>
+
+        <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+            <button onclick="toggleMenu()" class="p-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <div class="logo-header">StarStore</div>
+            <div class="w-6"></div>
+        </div>
+
+        <div class="p-6">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-4">Welcome to StarStore</h1>
+                <p class="text-gray-600">Your trusted platform for Telegram Premium and Stars</p>
+            </div>
+
+            <div class="bg-indigo-50 rounded-xl p-6 mb-8">
+                <h2 class="text-xl font-bold text-indigo-600 mb-3">Our Mission</h2>
+                <p class="text-gray-700">We aim to provide a seamless and secure platform for Telegram users to enhance their experience through premium features and star purchases. Our commitment is to deliver exceptional service while maintaining transparency and trust.</p>
+            </div>
+
+            <div class="mb-8">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Key Features</h2>
+                <div class="grid grid-cols-1 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div class="flex items-start">
+                            <div class="bg-indigo-100 p-3 rounded-lg">
+                                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-semibold text-gray-800">Secure Transactions</h3>
+                                <p class="text-gray-600">Your payments are protected with TON blockchain technology</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div class="flex items-start">
+                            <div class="bg-indigo-100 p-3 rounded-lg">
+                                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-semibold text-gray-800">Instant Delivery</h3>
+                                <p class="text-gray-600">Receive your purchases immediately after payment confirmation</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div class="flex items-start">
+                            <div class="bg-indigo-100 p-3 rounded-lg">
+                                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-semibold text-gray-800">24/7 Support</h3>
+                                <p class="text-gray-600">Our team is always ready to assist you with any questions</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-8">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Our Impact</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                        <div class="text-2xl font-bold text-indigo-600">50K+</div>
+                        <div class="text-sm text-gray-600">Active Users</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                        <div class="text-2xl font-bold text-indigo-600">100K+</div>
+                        <div class="text-sm text-gray-600">Transactions</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                        <div class="text-2xl font-bold text-indigo-600">99.9%</div>
+                        <div class="text-sm text-gray-600">Success Rate</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                        <div class="text-2xl font-bold text-indigo-600">4.9/5</div>
+                        <div class="text-sm text-gray-600">User Rating</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 rounded-xl p-6 mb-8">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Get in Touch</h2>
+                <p class="text-gray-600 mb-4">Have questions or need support? Our team is here to help! Use the /help command in the chat to get assistance.</p>
+                <button id="contactSupport" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
+                    Contact Support
+                </button>
+            </div>
+        </div>
+
+        <div class="footer">
+            Powered by THLF | <a href="https://telegram.org/privacy-tpa" target="_blank" rel="noopener noreferrer">Terms & Conditions</a>
+        </div>
+    </div>
+
+    <script>
+        function toggleMenu() {
+            const menuOverlay = document.getElementById('menuOverlay');
+            const sideMenu = document.getElementById('sideMenu');
+            menuOverlay.classList.toggle('active');
+            sideMenu.classList.toggle('active');
+        }
+
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                toggleMenu();
+            });
+        });
+// Add functionality to the "Contact Support" button
+const contactSupportButton = document.getElementById('contactSupport');
+contactSupportButton.addEventListener('click', () => {
+    // Replace 'your_support_bot' with your bot's username
+    const botUsername = 'TgStarStore_bot';
+    
+    // Create a deep link to open the bot and send the /help command
+    const deepLink = `https://t.me/${botUsername}?start=/help`;
+    
+    // Open the deep link in a new tab
+    window.open(deepLink, '_blank');
+});
+    </script>
+</body>
+</html>
