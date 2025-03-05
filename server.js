@@ -979,7 +979,7 @@ setInterval(expireGiveaways, 60 * 60 * 1000);
 const fetch = require('node-fetch');
 
 setInterval(() => {
-  fetch('https://tg-star-store-production.up.railway.app')
+  fetch('https://google.com')
     .then(response => console.log('Ping successful'))
     .catch(err => console.error('Ping failed:', err));
 }, 4 * 60 * 1000);
