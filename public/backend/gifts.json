@@ -1,0 +1,124 @@
+{
+  "gifts": [
+    {
+      "id": "CDDDIG",
+      "telegramId": 5107333540,
+      "username": "leejoneske",
+      "stars": 15,
+      "walletAddress": "0:100debdccd2e0270fb24434ab56c9c8a3e70139466c78d97bf7659ccb6d701e7",
+      "status": "completed",
+      "dateCreated": "2025-03-03T22:00:28.626Z",
+      "adminMessages": [
+        {
+          "adminId": "5107333540",
+          "messageId": 840
+        },
+        {
+          "adminId": "6403188727",
+          "messageId": 841
+        }
+      ],
+      "giveawayCode": "testing"
+    },
+    {
+      "id": "DUZ4AK",
+      "telegramId": 5107333540,
+      "username": "leejoneske",
+      "stars": 15,
+      "walletAddress": "0:100debdccd2e0270fb24434ab56c9c8a3e70139466c78d97bf7659ccb6d701e7",
+      "status": "completed",
+      "dateCreated": "2025-03-03T22:22:29.253Z",
+      "adminMessages": [
+        {
+          "adminId": "5107333540",
+          "messageId": 860
+        },
+        {
+          "adminId": "6403188727",
+          "messageId": 861
+        }
+      ],
+      "giveawayCode": "testtwo"
+    },
+    {
+      "id": "G3MR3G",
+      "telegramId": 5953938402,
+      "username": "hhdhshje",
+      "stars": 15,
+      "walletAddress": "0:100debdccd2e0270fb24434ab56c9c8a3e70139466c78d97bf7659ccb6d701e7",
+      "status": "completed",
+      "dateCreated": "2025-03-03T22:29:24.617Z",
+      "adminMessages": [
+        {
+          "adminId": "5107333540",
+          "messageId": 875
+        },
+        {
+          "adminId": "6403188727",
+          "messageId": 876
+        }
+      ],
+      "giveawayCode": "test five"
+    },
+    {
+      "id": "8CHFKE",
+      "telegramId": 5107333540,
+      "username": "leejoneske",
+      "stars": 15,
+      "walletAddress": "0:100debdccd2e0270fb24434ab56c9c8a3e70139466c78d97bf7659ccb6d701e7",
+      "status": "completed",
+      "dateCreated": "2025-03-03T22:40:27.783Z",
+      "adminMessages": [
+        {
+          "adminId": "5107333540",
+          "messageId": 891
+        },
+        {
+          "adminId": "6403188727",
+          "messageId": 892
+        }
+      ],
+      "giveawayCode": "testthree"
+    },
+    {
+      "id": "GR4MZG",
+      "telegramId": 5107333540,
+      "username": "leejoneske",
+      "stars": 15,
+      "walletAddress": "0:100debdccd2e0270fb24434ab56c9c8a3e70139466c78d97bf7659ccb6d701e7",
+      "status": "completed",
+      "dateCreated": "2025-03-03T23:08:44.687Z",
+      "adminMessages": [
+        {
+          "adminId": "5107333540",
+          "messageId": 922
+        },
+        {
+          "adminId": "6403188727",
+          "messageId": 923
+        }
+      ],
+      "giveawayCode": "ForAdminsTest"
+    },
+    {
+      "id": "F37W8B",
+      "telegramId": 5107333540,
+      "username": "leejoneske",
+      "stars": 15,
+      "walletAddress": "0:100debdccd2e0270fb24434ab56c9c8a3e70139466c78d97bf7659ccb6d701e7",
+      "status": "completed",
+      "dateCreated": "2025-03-04T08:40:52.807Z",
+      "adminMessages": [
+        {
+          "adminId": "5107333540",
+          "messageId": 1065
+        },
+        {
+          "adminId": "6403188727",
+          "messageId": 1066
+        }
+      ],
+      "giveawayCode": "Testten"
+    }
+  ]
+}

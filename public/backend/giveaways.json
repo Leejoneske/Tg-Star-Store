@@ -1,0 +1,131 @@
+{
+  "giveaways": [
+    {
+      "code": "testing",
+      "limit": 1,
+      "claimed": 1,
+      "users": [
+        5107333540
+      ],
+      "status": "completed",
+      "createdAt": "2025-03-03T21:18:20.331Z",
+      "expiresAt": "2025-04-02T21:18:20.331Z"
+    },
+    {
+      "code": "testtwo",
+      "limit": 1,
+      "claimed": 1,
+      "users": [
+        5107333540
+      ],
+      "status": "completed",
+      "createdAt": "2025-03-03T21:45:00.823Z",
+      "expiresAt": "2025-04-02T21:45:00.823Z"
+    },
+    {
+      "code": "testthree",
+      "limit": 1,
+      "claimed": 1,
+      "users": [
+        5107333540
+      ],
+      "status": "completed",
+      "createdAt": "2025-03-03T21:59:50.075Z",
+      "expiresAt": "2025-04-02T21:59:50.075Z"
+    },
+    {
+      "code": "testfour",
+      "limit": 1,
+      "claimed": 1,
+      "users": [
+        5107333540
+      ],
+      "status": "rejected",
+      "createdAt": "2025-03-03T22:21:56.698Z",
+      "expiresAt": "2025-04-02T22:21:56.698Z"
+    },
+    {
+      "code": "test five",
+      "limit": 1,
+      "claimed": 1,
+      "users": [
+        5953938402
+      ],
+      "status": "completed",
+      "createdAt": "2025-03-03T22:28:32.478Z",
+      "expiresAt": "2025-04-02T22:28:32.478Z"
+    },
+    {
+      "code": "ForAdminsTest",
+      "limit": 1,
+      "claimed": 1,
+      "users": [
+        5107333540
+      ],
+      "status": "completed",
+      "createdAt": "2025-03-03T22:31:57.344Z",
+      "expiresAt": "2025-04-02T22:31:57.344Z"
+    },
+    {
+      "code": "Testten",
+      "limit": 1,
+      "claimed": 1,
+      "users": [
+        5107333540
+      ],
+      "status": "completed",
+      "createdAt": "2025-03-03T22:44:07.736Z",
+      "expiresAt": "2025-04-02T22:44:07.736Z"
+    },
+    {
+      "code": "yamwisho",
+      "limit": 1,
+      "claimed": 1,
+      "users": [
+        5107333540
+      ],
+      "status": "active",
+      "createdAt": "2025-03-03T23:08:16.957Z",
+      "expiresAt": "2025-04-02T23:08:16.957Z"
+    },
+    {
+      "code": "StarsFree",
+      "limit": 20,
+      "claimed": 4,
+      "users": [
+        6507626450,
+        7148187798,
+        6403188727,
+        7179169316
+      ],
+      "status": "active",
+      "createdAt": "2025-03-04T05:44:46.397Z",
+      "expiresAt": "2025-04-03T05:44:46.397Z"
+    },
+    {
+      "code": "FreeStars#15",
+      "limit": 30,
+      "claimed": 6,
+      "users": [
+        6507626450,
+        7148187798,
+        5107333540,
+        7994088273,
+        7179169316,
+        6147140960
+      ],
+      "status": "active",
+      "createdAt": "2025-03-04T05:47:42.949Z",
+      "expiresAt": "2025-04-03T05:47:42.949Z"
+    },
+    {
+      "code": "StarsFree",
+      "limit": 1,
+      "claimed": 0,
+      "users": [],
+      "status": "active",
+      "createdAt": "2025-03-04T06:08:44.902Z",
+      "expiresAt": "2025-04-03T06:08:44.902Z"
+    }
+  ]
+}
