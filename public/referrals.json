@@ -1,0 +1,89 @@
+{
+  "referrals": [
+    {
+      "referrerUserId": "5107333540",
+      "referredUserId": 5107333540,
+      "status": "active",
+      "dateReferred": "2025-02-23T20:13:07.393Z",
+      "dateCompleted": "2025-02-23T22:22:39.328Z"
+    },
+    {
+      "referrerUserId": "5107333540",
+      "referredUserId": 6219064422,
+      "status": "pending",
+      "dateReferred": "2025-02-24T03:16:05.035Z"
+    },
+    {
+      "referrerUserId": "5107333540",
+      "referredUserId": 7295830495,
+      "status": "pending",
+      "dateReferred": "2025-02-24T06:27:55.007Z"
+    },
+    {
+      "referrerUserId": "5107333540",
+      "referredUserId": 593607305,
+      "status": "pending",
+      "dateReferred": "2025-02-24T07:00:51.989Z"
+    },
+    {
+      "referrerUserId": "724924541",
+      "referredUserId": 6507626450,
+      "status": "pending",
+      "dateReferred": "2025-02-26T07:28:28.637Z"
+    },
+    {
+      "referrerUserId": "724924541",
+      "referredUserId": 7171056775,
+      "status": "pending",
+      "dateReferred": "2025-02-26T08:08:56.981Z"
+    },
+    {
+      "referrerUserId": "724924541",
+      "referredUserId": 5463285352,
+      "status": "pending",
+      "dateReferred": "2025-02-26T08:09:39.595Z"
+    },
+    {
+      "referrerUserId": "724924541",
+      "referredUserId": 5728662210,
+      "status": "pending",
+      "dateReferred": "2025-02-26T13:51:57.039Z"
+    },
+    {
+      "referrerUserId": "724924541",
+      "referredUserId": 5725304944,
+      "status": "pending",
+      "dateReferred": "2025-02-26T14:12:00.630Z"
+    },
+    {
+      "referrerUserId": "724924541",
+      "referredUserId": 6780775007,
+      "status": "pending",
+      "dateReferred": "2025-02-26T15:17:06.731Z"
+    },
+    {
+      "referrerUserId": "724924541",
+      "referredUserId": 5727553370,
+      "status": "pending",
+      "dateReferred": "2025-02-26T16:18:34.108Z"
+    },
+    {
+      "referrerUserId": "724924541",
+      "referredUserId": 901153431,
+      "status": "pending",
+      "dateReferred": "2025-02-26T16:35:28.233Z"
+    },
+    {
+      "referrerUserId": "724924541",
+      "referredUserId": 1263117154,
+      "status": "pending",
+      "dateReferred": "2025-02-26T17:07:09.894Z"
+    },
+    {
+      "referrerUserId": "724924541",
+      "referredUserId": 7141225647,
+      "status": "pending",
+      "dateReferred": "2025-02-26T17:55:14.080Z"
+    }
+  ]
+}
