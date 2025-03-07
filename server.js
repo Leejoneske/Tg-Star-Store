@@ -22,6 +22,8 @@ const cancelledOrdersFilePath = path.join(__dirname, 'cancelledOrders.json');
 const bannedUsersFilePath = path.join(__dirname, 'bannedUsers.json');
 const giveawaysFilePath = path.join(__dirname, 'giveaways.json');
 const giftsFilePath = path.join(__dirname, 'gifts.json');
+const reverseOrdersFilePath = path.join(__dirname, "reverseOrders.json");
+
 
 function readDataFromFile(filePath, defaultValue = {}) {
     if (fs.existsSync(filePath)) {
@@ -43,6 +45,7 @@ let cancelledOrdersData = readDataFromFile(cancelledOrdersFilePath, { orders: []
 let bannedUsersData = readDataFromFile(bannedUsersFilePath, { users: [] });
 let giveawaysData = readDataFromFile(giveawaysFilePath, { giveaways: [] });
 let giftsData = readDataFromFile(giftsFilePath, { gifts: [] });
+let reverseOrdersData = readDataFromFile(reverseOrdersFilePath, { orders: [] });
 
 const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
 
@@ -978,6 +981,142 @@ function expireGiveaways() {
 setInterval(expireGiveaways, 60 * 60 * 1000);
 
 
+//stars reverse request
+bot.onText(/\/reverse (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const orderId = match[1].trim(); // Extract the order ID from the command
+
+    // Find the sell order
+    const order = sellOrdersData.orders.find(
+        (o) => o.id === orderId && o.telegramId === chatId
+    );
+
+    if (!order) {
+        return bot.sendMessage(chatId, "❌ Order not found or you are not the owner of this order.");
+    }
+
+    if (order.status !== "pending") {
+        return bot.sendMessage(
+            chatId,
+            `❌ This order cannot be reversed because it is already ${order.status}.`
+        );
+    }
+
+    if (!order.reversible) {
+        return bot.sendMessage(chatId, "❌ This order is not reversible.");
+    }
+
+    // Create a reversal request
+    const reversalRequest = {
+        id: generateOrderId(), // Generate a unique reversal ID
+        originalOrderId: order.id,
+        telegramId: chatId,
+        username: order.username,
+        stars: order.stars,
+        status: "pending", // Reversal status
+        dateRequested: new Date().toISOString(),
+    };
+
+    // Save the reversal request to reverseOrders.json
+    reverseOrdersData.orders.push(reversalRequest);
+    writeDataToFile(reverseOrdersFilePath, reverseOrdersData);
+
+    // Notify the user
+    bot.sendMessage(
+        chatId,
+        `🔄 Reversal request submitted for order ID: ${order.id}. Waiting for admin approval.`
+    );
+
+    // Notify admins
+    const adminMessage = `🔄 New Reversal Request!\n\nReversal ID: ${reversalRequest.id}\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}`;
+    const adminKeyboard = {
+        inline_keyboard: [
+            [
+                { text: "✅ Approve", callback_data: `approve_reversal_${reversalRequest.id}` },
+                { text: "❌ Decline", callback_data: `decline_reversal_${reversalRequest.id}` },
+            ],
+        ],
+    };
+
+    for (const adminId of adminIds) {
+        try {
+            await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+        } catch (err) {
+            console.error(`Failed to notify admin ${adminId}:`, err);
+        }
+    }
+});
+
+bot.on("callback_query", async (query) => {
+    const chatId = query.message.chat.id;
+    const data = query.data;
+
+    if (data.startsWith("approve_reversal_") || data.startsWith("decline_reversal_")) {
+        const reversalId = data.split("_")[2]; // Extract the reversal ID
+        const reversalRequest = reverseOrdersData.orders.find((o) => o.id === reversalId);
+
+        if (!reversalRequest) {
+            return bot.answerCallbackQuery(query.id, { text: "Reversal request not found." });
+        }
+
+        if (data.startsWith("approve_reversal_")) {
+            // Approve the reversal
+            reversalRequest.status = "approved";
+            reversalRequest.dateApproved = new Date().toISOString();
+
+            // Update the original sell order
+            const originalOrder = sellOrdersData.orders.find(
+                (o) => o.id === reversalRequest.originalOrderId
+            );
+            if (originalOrder) {
+                originalOrder.status = "reversed";
+                originalOrder.dateReversed = new Date().toISOString();
+            }
+
+            // Notify the user
+            bot.sendMessage(
+                reversalRequest.telegramId,
+                `✅ Your reversal request for order ID: ${reversalRequest.originalOrderId} has been approved.`
+            );
+
+            // Notify admins
+            bot.answerCallbackQuery(query.id, { text: "Reversal approved." });
+        } else if (data.startsWith("decline_reversal_")) {
+            // Decline the reversal
+            reversalRequest.status = "declined";
+            reversalRequest.dateDeclined = new Date().toISOString();
+
+            // Notify the user
+            bot.sendMessage(
+                reversalRequest.telegramId,
+                `❌ Your reversal request for order ID: ${reversalRequest.originalOrderId} has been declined.`
+            );
+
+            // Notify admins
+            bot.answerCallbackQuery(query.id, { text: "Reversal declined." });
+        }
+
+        // Save the updated reversal request
+        writeDataToFile(reverseOrdersFilePath, reverseOrdersData);
+
+        // Save the updated sell order
+        writeDataToFile(sellOrdersFilePath, sellOrdersData);
+
+        // Remove the inline keyboard from the admin message
+        try {
+            await bot.editMessageReplyMarkup(
+                { inline_keyboard: [] },
+                {
+                    chat_id: chatId,
+                    message_id: query.message.message_id,
+                }
+            );
+        } catch (err) {
+            console.error("Failed to edit message reply markup:", err);
+        }
+    }
+});
+//end of reverse
 
 const fetch = require('node-fetch');
 
