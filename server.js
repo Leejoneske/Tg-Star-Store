@@ -7,7 +7,7 @@ const axios = require('axios');
 
 
 const app = express();
-const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
+const bot = new TelegramBot(process.env.BOT_TOKEN);
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
@@ -49,7 +49,17 @@ const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
+//webhook
+app.post('/webhook', (req, res) => {
+  const update = req.body;
+  bot.processUpdate(update);
+  res.sendStatus(200);
+    
+    bot.setWebHook(`${process.env.RAILWAY_URL}/webhook`)
+  .then(() => console.log('Webhook set successfully'))
+  .catch(err => console.error('Failed to set webhook:', err));
 
+    
 // Function to update order messages
 async function updateOrderMessages(order, newStatus, reason = '') {
     const statusMessage = newStatus === 'completed' ? '✅ Order Completed' :
