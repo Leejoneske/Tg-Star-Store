@@ -50,15 +50,17 @@ function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
 //webhook
+// Webhook route
 app.post('/webhook', (req, res) => {
   const update = req.body;
-  bot.processUpdate(update);
-  res.sendStatus(200);
-    
-    bot.setWebHook(`${process.env.RAILWAY_URL}/webhook`)
+  bot.processUpdate(update); // Pass the update to the bot
+  res.sendStatus(200); // Acknowledge receipt of the update
+});
+
+// Set webhook URL (run this once to configure the webhook)
+bot.setWebHook(`${process.env.RAILWAY_URL}/webhook`)
   .then(() => console.log('Webhook set successfully'))
   .catch(err => console.error('Failed to set webhook:', err));
-
     
 // Function to update order messages
 async function updateOrderMessages(order, newStatus, reason = '') {
