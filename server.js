@@ -207,17 +207,43 @@ app.post("/api/sell-orders", async (req, res) => {
         }
 
         const order = {
-            id: generateOrderId(),
+            id: generateOrderId(), // Generate a unique order ID
             telegramId,
             username,
             stars,
             walletAddress,
             status: "queue", // Initial status
             dateCreated: new Date().toISOString(),
+            adminMessages: [], // Store admin messages for updates
         };
 
+        // Save the order to sellOrders.json
         sellOrdersData.orders.push(order);
         writeDataToFile(sellOrdersFilePath, sellOrdersData);
+
+        // Notify the user
+        const userMessage = `🛒 Sell order created!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Queue (Waiting for payment)`;
+        await bot.sendMessage(telegramId, userMessage);
+
+        // Notify admins
+        const adminMessage = `🛒 New Sell Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nStars: ${order.stars}\nWallet Address: ${walletAddress}`;
+        const adminKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Mark as Complete", callback_data: `complete_${order.id}` },
+                    { text: "❌ Decline Order", callback_data: `decline_${order.id}` },
+                ],
+            ],
+        };
+
+        for (const adminId of adminIds) {
+            try {
+                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+                order.adminMessages.push({ adminId, messageId: message.message_id });
+            } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
+            }
+        }
 
         res.json({ success: true, order });
     } catch (err) {
@@ -225,7 +251,6 @@ app.post("/api/sell-orders", async (req, res) => {
         res.status(500).json({ error: "Failed to create sell order" });
     }
 });
-
 
 async function createTelegramInvoice(chatId, orderId, stars, description) {
     try {
@@ -277,17 +302,21 @@ bot.on('pre_checkout_query', (query) => {
 bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
 
+    // Find the sell order
     const order = sellOrdersData.orders.find((o) => o.id === orderId);
 
     if (order) {
+        // Update the order status to "pending"
         order.status = "pending";
         order.datePaid = new Date().toISOString();
         writeDataToFile(sellOrdersFilePath, sellOrdersData);
 
+        // Notify the user
         const userMessage = `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for admin verification)`;
         await bot.sendMessage(order.telegramId, userMessage);
 
-        const adminMessage = `🛒 New Payment Received!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}\nWallet Address: ${order.walletAddress}`;
+        // Notify admins
+        const adminMessage = `🛒 Payment Received!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}\nWallet Address: ${order.walletAddress}`;
         const adminKeyboard = {
             inline_keyboard: [
                 [
@@ -315,25 +344,50 @@ bot.on("callback_query", async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
 
-    if (data.startsWith("complete_")) {
+    if (data.startsWith("complete_") || data.startsWith("decline_")) {
         const orderId = data.split("_")[1];
 
+        // Find the sell order
         const order = sellOrdersData.orders.find((o) => o.id === orderId);
 
         if (!order) {
             return bot.answerCallbackQuery(query.id, { text: "Order not found." });
         }
 
-        order.status = "completed";
-        order.dateCompleted = new Date().toISOString();
+        if (data.startsWith("complete_")) {
+            // Mark the order as completed
+            order.status = "completed";
+            order.dateCompleted = new Date().toISOString();
+
+            // Notify the user
+            const userMessage = `✅ Your order has been completed!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Completed`;
+            await bot.sendMessage(order.telegramId, userMessage);
+
+            // Notify admins
+            const adminMessage = `✅ Order Completed!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}`;
+            await bot.sendMessage(chatId, adminMessage);
+
+            bot.answerCallbackQuery(query.id, { text: "Order marked as completed." });
+        } else if (data.startsWith("decline_")) {
+            // Mark the order as declined
+            order.status = "declined";
+            order.dateDeclined = new Date().toISOString();
+
+            // Notify the user
+            const userMessage = `❌ Your order has been declined.\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Declined`;
+            await bot.sendMessage(order.telegramId, userMessage);
+
+            // Notify admins
+            const adminMessage = `❌ Order Declined!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}`;
+            await bot.sendMessage(chatId, adminMessage);
+
+            bot.answerCallbackQuery(query.id, { text: "Order declined." });
+        }
+
+        // Save the updated order status
         writeDataToFile(sellOrdersFilePath, sellOrdersData);
 
-        const userMessage = `✅ Your order has been completed!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Completed`;
-        await bot.sendMessage(order.telegramId, userMessage);
-
-        const adminMessage = `✅ Order Completed!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}`;
-        await bot.sendMessage(chatId, adminMessage);
-
+        // Remove the inline keyboard from the admin message
         try {
             await bot.editMessageReplyMarkup(
                 { inline_keyboard: [] },
@@ -345,40 +399,6 @@ bot.on("callback_query", async (query) => {
         } catch (err) {
             console.error("Failed to edit message reply markup:", err);
         }
-
-        bot.answerCallbackQuery(query.id, { text: "Order marked as completed." });
-    } else if (data.startsWith("decline_")) {
-        const orderId = data.split("_")[1];
-
-        const order = sellOrdersData.orders.find((o) => o.id === orderId);
-
-        if (!order) {
-            return bot.answerCallbackQuery(query.id, { text: "Order not found." });
-        }
-
-        order.status = "declined";
-        order.dateDeclined = new Date().toISOString();
-        writeDataToFile(sellOrdersFilePath, sellOrdersData);
-
-        const userMessage = `❌ Your order has been declined.\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Declined`;
-        await bot.sendMessage(order.telegramId, userMessage);
-
-        const adminMessage = `❌ Order Declined!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}`;
-        await bot.sendMessage(chatId, adminMessage);
-
-        try {
-            await bot.editMessageReplyMarkup(
-                { inline_keyboard: [] },
-                {
-                    chat_id: chatId,
-                    message_id: query.message.message_id,
-                }
-            );
-        } catch (err) {
-            console.error("Failed to edit message reply markup:", err);
-        }
-
-        bot.answerCallbackQuery(query.id, { text: "Order declined." });
     }
 });
 
