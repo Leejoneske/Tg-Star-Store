@@ -238,7 +238,24 @@ app.post("/api/sell-orders", async (req, res) => {
         console.error("Sell order creation error:", err);
         res.status(500).json({ error: "Failed to create sell order" });
     }
+
+    // Find all admin messages for the original order
+for (const adminMessage of originalOrder.adminMessages) {
+    try {
+        await bot.editMessageReplyMarkup(
+            { inline_keyboard: [] },
+            {
+                chat_id: adminMessage.adminId,
+                message_id: adminMessage.messageId,
+            }
+        );
+    } catch (err) {
+        console.error(`Failed to remove inline buttons for admin ${adminMessage.adminId}:`, err);
+    }
+}
 });
+
+
 
 async function createTelegramInvoice(chatId, orderId, stars, description) {
     try {
@@ -1000,6 +1017,31 @@ setInterval(expireGiveaways, 60 * 60 * 1000);
 
 
 //stars reverse request
+//invoice to reverse stars
+async function sendStarsBack(telegramId, stars) {
+    try {
+        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendInvoice`, {
+            chat_id: telegramId,
+            title: `Refund of ${stars} Telegram Stars`,
+            description: `You are receiving ${stars} Telegram Stars as a refund.`,
+            payload: `refund_${Date.now()}`, // Unique payload for the refund
+            currency: "XTR", // Telegram Stars currency
+            prices: [{ label: "Refund", amount: stars * 100 }], // Amount in cents
+        });
+
+        if (response.data.ok) {
+            return true;
+        } else {
+            throw new Error(response.data.description || "Failed to send stars back.");
+        }
+    } catch (err) {
+        console.error("Error sending stars back:", err);
+        throw err;
+    }
+}
+
+//reverse request
+
 bot.onText(/\/reverse (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const orderId = match[1].trim(); // Extract the order ID from the command
@@ -1090,16 +1132,24 @@ bot.on("callback_query", async (query) => {
         }
 
         if (data.startsWith("approve_reversal_")) {
-            // Approve the reversal
+            // Send stars back to the user
+            try {
+                await sendStarsBack(reversalRequest.telegramId, reversalRequest.stars);
+            } catch (err) {
+                console.error("Failed to send stars back:", err);
+                return bot.answerCallbackQuery(query.id, { text: "Failed to send stars back. Please try again." });
+            }
+
+            // Mark the reversal as approved
             reversalRequest.status = "approved";
             reversalRequest.dateApproved = new Date().toISOString();
 
-            // Update the original order
+            // Mark the original order as reversed
             originalOrder.status = "reversed";
             originalOrder.dateReversed = new Date().toISOString();
 
             // Notify the user
-            const userMessage = `✅ Your reversal request for order ID: ${originalOrder.id} has been approved.`;
+            const userMessage = `✅ Your reversal request for order ID: ${originalOrder.id} has been approved. ${reversalRequest.stars} stars have been refunded.`;
             await bot.sendMessage(reversalRequest.telegramId, userMessage);
 
             // Notify admins
@@ -1108,7 +1158,7 @@ bot.on("callback_query", async (query) => {
 
             bot.answerCallbackQuery(query.id, { text: "Reversal approved." });
         } else if (data.startsWith("decline_reversal_")) {
-            // Decline the reversal
+            // Mark the reversal as declined
             reversalRequest.status = "declined";
             reversalRequest.dateDeclined = new Date().toISOString();
 
