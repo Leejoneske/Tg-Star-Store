@@ -286,65 +286,7 @@ bot.on('pre_checkout_query', (query) => {
 });
 
 
-bot.on("successful_payment", async (msg) => {
-    const orderId = msg.successful_payment.invoice_payload;
 
-    // Find the sell order
-    const order = sellOrdersData.orders.find((o) => o.id === orderId);
-
-    if (order) {
-        // Update the order status to "pending" (if not already)
-        order.status = "pending";
-        order.datePaid = new Date().toISOString();
-        writeDataToFile(sellOrdersFilePath, sellOrdersData);
-
-        // Notify the user
-        const userMessage = `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for admin verification)`;
-        await bot.sendMessage(order.telegramId, userMessage);
-
-        // Notify admins
-        const adminMessage = `🛒 Payment Received!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}\nWallet Address: ${order.walletAddress}`;
-        const adminKeyboard = {
-            inline_keyboard: [
-                [
-                    { text: "✅ Mark as Complete", callback_data: `complete_${order.id}` },
-                    { text: "❌ Decline Order", callback_data: `decline_${order.id}` },
-                ],
-            ],
-        };
-
-        for (const adminId of adminIds) {
-            try {
-                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
-                order.adminMessages.push({ adminId, messageId: message.message_id });
-            } catch (err) {
-                console.error(`Failed to notify admin ${adminId}:`, err);
-            bot.on("successful_payment", async (msg) => {
-    const orderId = msg.successful_payment.invoice_payload;
-
-    // Find the sell order
-    const order = sellOrdersData.orders.find((o) => o.id === orderId);
-
-    if (order) {
-        // Update the order status to "pending" (if not already)
-        order.status = "pending";
-        order.datePaid = new Date().toISOString();
-        writeDataToFile(sellOrdersFilePath, sellOrdersData);
-
-        // Notify the user
-        const userMessage = `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for admin verification)`;
-        await bot.sendMessage(order.telegramId, userMessage);
-
-        // Notify admins
-        const adminMessage = `🛒 Payment Received!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}\nWallet Address: ${order.walletAddress}`;
-        const adminKeyboard = {
-            inline_keyboard: [
-                [
-                    { text: "✅ Mark as Complete", callback_data: `complete_${order.id}` },
-                    { text: "❌ Decline Order", callback_data: `decline_${order.id}` },
-                ],
-            ],
-        };
 bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
 
@@ -384,6 +326,7 @@ bot.on("successful_payment", async (msg) => {
         await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Please contact support.");
     }
 });
+        
 
 
 bot.on("callback_query", async (query) => {
