@@ -195,7 +195,6 @@ app.post('/api/orders/create', async (req, res) => {
 
 
 app.post("/api/sell-orders", async (req, res) => {
-app.post("/api/sell-orders", async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress } = req.body;
 
