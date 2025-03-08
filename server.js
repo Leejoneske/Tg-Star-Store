@@ -1020,13 +1020,10 @@ setInterval(expireGiveaways, 60 * 60 * 1000);
 //invoice to reverse stars
 async function sendStarsBack(telegramId, stars) {
     try {
-        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendInvoice`, {
+        // Use Telegram's API to send stars back to the user
+        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
             chat_id: telegramId,
-            title: `Refund of ${stars} Telegram Stars`,
-            description: `You are receiving ${stars} Telegram Stars as a refund.`,
-            payload: `refund_${Date.now()}`, // Unique payload for the refund
-            currency: "XTR", // Telegram Stars currency
-            prices: [{ label: "Refund", amount: stars * 100 }], // Amount in cents
+            text: `You have received ${stars} Telegram Stars as a refund.`,
         });
 
         if (response.data.ok) {
