@@ -195,6 +195,7 @@ app.post('/api/orders/create', async (req, res) => {
 
 
 app.post("/api/sell-orders", async (req, res) => {
+app.post("/api/sell-orders", async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress } = req.body;
 
@@ -221,11 +222,18 @@ app.post("/api/sell-orders", async (req, res) => {
         sellOrdersData.orders.push(order);
         writeDataToFile(sellOrdersFilePath, sellOrdersData);
 
-        // Notify the user
-        const userMessage = `🛒 Sell order created!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)`;
+        // Generate the payment link
+        const paymentLink = await createTelegramInvoice(telegramId, order.id, stars, `Purchase of ${stars} Telegram Stars`);
+
+        if (!paymentLink) {
+            return res.status(500).json({ error: "Failed to generate payment link" });
+        }
+
+        // Send the payment link to the user (no order details yet)
+        const userMessage = `🛒 Please complete your payment here: ${paymentLink}`;
         await bot.sendMessage(telegramId, userMessage);
 
-        res.json({ success: true, order });
+        res.json({ success: true, order, paymentLink });
     } catch (err) {
         console.error("Sell order creation error:", err);
         res.status(500).json({ error: "Failed to create sell order" });
@@ -279,6 +287,65 @@ bot.on('pre_checkout_query', (query) => {
 });
 
 
+bot.on("successful_payment", async (msg) => {
+    const orderId = msg.successful_payment.invoice_payload;
+
+    // Find the sell order
+    const order = sellOrdersData.orders.find((o) => o.id === orderId);
+
+    if (order) {
+        // Update the order status to "pending" (if not already)
+        order.status = "pending";
+        order.datePaid = new Date().toISOString();
+        writeDataToFile(sellOrdersFilePath, sellOrdersData);
+
+        // Notify the user
+        const userMessage = `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for admin verification)`;
+        await bot.sendMessage(order.telegramId, userMessage);
+
+        // Notify admins
+        const adminMessage = `🛒 Payment Received!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}\nWallet Address: ${order.walletAddress}`;
+        const adminKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Mark as Complete", callback_data: `complete_${order.id}` },
+                    { text: "❌ Decline Order", callback_data: `decline_${order.id}` },
+                ],
+            ],
+        };
+
+        for (const adminId of adminIds) {
+            try {
+                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+                order.adminMessages.push({ adminId, messageId: message.message_id });
+            } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
+            bot.on("successful_payment", async (msg) => {
+    const orderId = msg.successful_payment.invoice_payload;
+
+    // Find the sell order
+    const order = sellOrdersData.orders.find((o) => o.id === orderId);
+
+    if (order) {
+        // Update the order status to "pending" (if not already)
+        order.status = "pending";
+        order.datePaid = new Date().toISOString();
+        writeDataToFile(sellOrdersFilePath, sellOrdersData);
+
+        // Notify the user
+        const userMessage = `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for admin verification)`;
+        await bot.sendMessage(order.telegramId, userMessage);
+
+        // Notify admins
+        const adminMessage = `🛒 Payment Received!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}\nWallet Address: ${order.walletAddress}`;
+        const adminKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Mark as Complete", callback_data: `complete_${order.id}` },
+                    { text: "❌ Decline Order", callback_data: `decline_${order.id}` },
+                ],
+            ],
+        };
 bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
 
