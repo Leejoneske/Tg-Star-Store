@@ -193,16 +193,17 @@ app.post('/api/orders/create', async (req, res) => {
     }
 });
 
-app.post('/api/sell-orders', async (req, res) => {
+
+app.post("/api/sell-orders", async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress } = req.body;
 
         if (!telegramId || !stars || !walletAddress) {
-            return res.status(400).json({ error: 'Missing required fields' });
+            return res.status(400).json({ error: "Missing required fields" });
         }
 
         if (bannedUsersData.users.includes(telegramId.toString())) {
-            return res.status(403).json({ error: 'You are banned from placing orders' });
+            return res.status(403).json({ error: "You are banned from placing orders" });
         }
 
         const order = {
@@ -211,23 +212,20 @@ app.post('/api/sell-orders', async (req, res) => {
             username,
             stars,
             walletAddress,
-            status: 'pending',
-            dateCreated: new Date(),
-            adminMessages: []
+            status: "queue", // Initial status
+            dateCreated: new Date().toISOString(),
         };
 
-        // Save the order to sellOrders.json
         sellOrdersData.orders.push(order);
         writeDataToFile(sellOrdersFilePath, sellOrdersData);
 
-        const paymentLink = await createTelegramInvoice(telegramId, order.id, stars, `Purchase of ${stars} Telegram Stars`);
-
-        res.json({ success: true, paymentLink });
+        res.json({ success: true, order });
     } catch (err) {
-        console.error('Sell order creation error:', err);
-        res.status(500).json({ error: 'Failed to create sell order' });
+        console.error("Sell order creation error:", err);
+        res.status(500).json({ error: "Failed to create sell order" });
     }
 });
+
 
 async function createTelegramInvoice(chatId, orderId, stars, description) {
     try {
@@ -276,40 +274,27 @@ bot.on('pre_checkout_query', (query) => {
 });
 
 
-bot.on('successful_payment', async (msg) => {
+bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
 
-    // Check sell orders first
-    let order = sellOrdersData.orders.find(o => o.id === orderId);
-
-    // If not found in sell orders, check buy orders
-    if (!order) {
-        order = buyOrdersData.orders.find(o => o.id === orderId);
-    }
+    const order = sellOrdersData.orders.find((o) => o.id === orderId);
 
     if (order) {
-        order.status = 'completed';
-        order.completedAt = new Date();
+        order.status = "pending";
+        order.datePaid = new Date().toISOString();
+        writeDataToFile(sellOrdersFilePath, sellOrdersData);
 
-        // Save the updated order status
-        if (sellOrdersData.orders.includes(order)) {
-            writeDataToFile(sellOrdersFilePath, sellOrdersData);
-        } else {
-            writeDataToFile(buyOrdersFilePath, buyOrdersData);
-        }
-
-        const userMessage = `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Completed`;
-
-        // Send the message to the user without the "Cancel Order" button
+        const userMessage = `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for admin verification)`;
         await bot.sendMessage(order.telegramId, userMessage);
 
-        // Notify admins about the completed sell order
-        const adminMessage = `🛒 Sell Order Completed!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}\nWallet Address: ${order.walletAddress}`;
+        const adminMessage = `🛒 New Payment Received!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}\nWallet Address: ${order.walletAddress}`;
         const adminKeyboard = {
-            inline_keyboard: [[
-                { text: 'Mark as Complete', callback_data: `complete_${order.id}` },
-                { text: 'Decline Order', callback_data: `decline_${order.id}` }
-            ]]
+            inline_keyboard: [
+                [
+                    { text: "✅ Mark as Complete", callback_data: `complete_${order.id}` },
+                    { text: "❌ Decline Order", callback_data: `decline_${order.id}` },
+                ],
+            ],
         };
 
         for (const adminId of adminIds) {
@@ -317,63 +302,87 @@ bot.on('successful_payment', async (msg) => {
                 const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
                 order.adminMessages.push({ adminId, messageId: message.message_id });
             } catch (err) {
-                console.error(`Failed to send message to admin ${adminId}:`, err);
+                console.error(`Failed to notify admin ${adminId}:`, err);
             }
         }
     } else {
-        await bot.sendMessage(msg.chat.id, '❌ Payment was successful, but the order was not found. Please contact support.');
+        await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Please contact support.");
     }
 });
 
 
-
-
-bot.on('callback_query', async (query) => {
+bot.on("callback_query", async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
-    const orderId = data.split('_')[1];
 
-    // Check sell orders first
-    let order = sellOrdersData.orders.find(o => o.id === orderId);
+    if (data.startsWith("complete_")) {
+        const orderId = data.split("_")[1];
 
-    // If not found in sell orders, check buy orders
-    if (!order) {
-        order = buyOrdersData.orders.find(o => o.id === orderId);
-    }
+        const order = sellOrdersData.orders.find((o) => o.id === orderId);
 
-    if (!order) {
-        bot.answerCallbackQuery(query.id, { text: 'Order not found' });
-        return;
-    }
-
-    if (data.startsWith('complete_')) {
-        order.status = 'completed';
-        order.completedAt = new Date();
-
-        // Save the updated order status
-        if (sellOrdersData.orders.includes(order)) {
-            writeDataToFile(sellOrdersFilePath, sellOrdersData);
-        } else {
-            writeDataToFile(buyOrdersFilePath, buyOrdersData);
+        if (!order) {
+            return bot.answerCallbackQuery(query.id, { text: "Order not found." });
         }
 
-        await updateOrderMessages(order, 'completed');
-        bot.answerCallbackQuery(query.id, { text: 'Order marked as completed' });
-    } else if (data.startsWith('decline_')) {
-        order.status = 'declined';
-        order.declinedAt = new Date();
+        order.status = "completed";
+        order.dateCompleted = new Date().toISOString();
+        writeDataToFile(sellOrdersFilePath, sellOrdersData);
 
-        // Save the updated order status
-        if (sellOrdersData.orders.includes(order)) {
-            writeDataToFile(sellOrdersFilePath, sellOrdersData);
-        } else {
-            writeDataToFile(buyOrdersFilePath, buyOrdersData);
+        const userMessage = `✅ Your order has been completed!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Completed`;
+        await bot.sendMessage(order.telegramId, userMessage);
+
+        const adminMessage = `✅ Order Completed!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}`;
+        await bot.sendMessage(chatId, adminMessage);
+
+        try {
+            await bot.editMessageReplyMarkup(
+                { inline_keyboard: [] },
+                {
+                    chat_id: chatId,
+                    message_id: query.message.message_id,
+                }
+            );
+        } catch (err) {
+            console.error("Failed to edit message reply markup:", err);
         }
 
-        await updateOrderMessages(order, 'declined', 'Order declined by admin');
-        bot.answerCallbackQuery(query.id, { text: 'Order declined' });
+        bot.answerCallbackQuery(query.id, { text: "Order marked as completed." });
+    } else if (data.startsWith("decline_")) {
+        const orderId = data.split("_")[1];
+
+        const order = sellOrdersData.orders.find((o) => o.id === orderId);
+
+        if (!order) {
+            return bot.answerCallbackQuery(query.id, { text: "Order not found." });
+        }
+
+        order.status = "declined";
+        order.dateDeclined = new Date().toISOString();
+        writeDataToFile(sellOrdersFilePath, sellOrdersData);
+
+        const userMessage = `❌ Your order has been declined.\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Declined`;
+        await bot.sendMessage(order.telegramId, userMessage);
+
+        const adminMessage = `❌ Order Declined!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}`;
+        await bot.sendMessage(chatId, adminMessage);
+
+        try {
+            await bot.editMessageReplyMarkup(
+                { inline_keyboard: [] },
+                {
+                    chat_id: chatId,
+                    message_id: query.message.message_id,
+                }
+            );
+        } catch (err) {
+            console.error("Failed to edit message reply markup:", err);
+        }
+
+        bot.answerCallbackQuery(query.id, { text: "Order declined." });
     }
 });
+
+
 
 bot.onText(/\/ban (.+)/, (msg, match) => {
     const chatId = msg.chat.id;
