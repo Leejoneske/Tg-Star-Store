@@ -212,7 +212,7 @@ app.post("/api/sell-orders", async (req, res) => {
             username,
             stars,
             walletAddress,
-            status: "queue", // Initial status
+            status: "pending", // Initial status
             dateCreated: new Date().toISOString(),
             adminMessages: [], // Store admin messages for updates
         };
@@ -222,28 +222,8 @@ app.post("/api/sell-orders", async (req, res) => {
         writeDataToFile(sellOrdersFilePath, sellOrdersData);
 
         // Notify the user
-        const userMessage = `🛒 Sell order created!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Queue (Waiting for payment)`;
+        const userMessage = `🛒 Sell order created!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)`;
         await bot.sendMessage(telegramId, userMessage);
-
-        // Notify admins
-        const adminMessage = `🛒 New Sell Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nStars: ${order.stars}\nWallet Address: ${walletAddress}`;
-        const adminKeyboard = {
-            inline_keyboard: [
-                [
-                    { text: "✅ Mark as Complete", callback_data: `complete_${order.id}` },
-                    { text: "❌ Decline Order", callback_data: `decline_${order.id}` },
-                ],
-            ],
-        };
-
-        for (const adminId of adminIds) {
-            try {
-                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
-                order.adminMessages.push({ adminId, messageId: message.message_id });
-            } catch (err) {
-                console.error(`Failed to notify admin ${adminId}:`, err);
-            }
-        }
 
         res.json({ success: true, order });
     } catch (err) {
@@ -306,7 +286,7 @@ bot.on("successful_payment", async (msg) => {
     const order = sellOrdersData.orders.find((o) => o.id === orderId);
 
     if (order) {
-        // Update the order status to "pending"
+        // Update the order status to "pending" (if not already)
         order.status = "pending";
         order.datePaid = new Date().toISOString();
         writeDataToFile(sellOrdersFilePath, sellOrdersData);
