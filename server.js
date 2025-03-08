@@ -229,8 +229,8 @@ app.post("/api/sell-orders", async (req, res) => {
             return res.status(500).json({ error: "Failed to generate payment link" });
         }
 
-        // Send the payment link to the user (no order details yet)
-        const userMessage = `🛒 Please complete your payment here: ${paymentLink}`;
+        // Notify the user with the payment link
+        const userMessage = `🛒 Sell order created!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\nPay here: ${paymentLink}`;
         await bot.sendMessage(telegramId, userMessage);
 
         res.json({ success: true, order, paymentLink });
@@ -329,7 +329,6 @@ bot.on("successful_payment", async (msg) => {
 });
         
 
-
 bot.on("callback_query", async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
@@ -393,8 +392,7 @@ bot.on("callback_query", async (query) => {
     }
 });
 
-
-
+    
 bot.onText(/\/ban (.+)/, (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, '❌ Unauthorized');
