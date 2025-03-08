@@ -1074,10 +1074,21 @@ bot.on("callback_query", async (query) => {
 
     if (data.startsWith("approve_reversal_") || data.startsWith("decline_reversal_")) {
         const reversalId = data.split("_")[2]; // Extract the reversal ID
+
+        // Find the reversal request
         const reversalRequest = reverseOrdersData.orders.find((o) => o.id === reversalId);
 
         if (!reversalRequest) {
             return bot.answerCallbackQuery(query.id, { text: "Reversal request not found." });
+        }
+
+        // Find the original order
+        const originalOrder = sellOrdersData.orders.find(
+            (o) => o.id === reversalRequest.originalOrderId
+        );
+
+        if (!originalOrder) {
+            return bot.answerCallbackQuery(query.id, { text: "Original order not found." });
         }
 
         if (data.startsWith("approve_reversal_")) {
@@ -1085,22 +1096,18 @@ bot.on("callback_query", async (query) => {
             reversalRequest.status = "approved";
             reversalRequest.dateApproved = new Date().toISOString();
 
-            // Update the original sell order
-            const originalOrder = sellOrdersData.orders.find(
-                (o) => o.id === reversalRequest.originalOrderId
-            );
-            if (originalOrder) {
-                originalOrder.status = "reversed";
-                originalOrder.dateReversed = new Date().toISOString();
-            }
+            // Update the original order
+            originalOrder.status = "reversed";
+            originalOrder.dateReversed = new Date().toISOString();
 
             // Notify the user
-            bot.sendMessage(
-                reversalRequest.telegramId,
-                `✅ Your reversal request for order ID: ${reversalRequest.originalOrderId} has been approved.`
-            );
+            const userMessage = `✅ Your reversal request for order ID: ${originalOrder.id} has been approved.`;
+            await bot.sendMessage(reversalRequest.telegramId, userMessage);
 
             // Notify admins
+            const adminMessage = `✅ Reversal Approved!\n\nReversal ID: ${reversalRequest.id}\nOrder ID: ${originalOrder.id}\nUser: @${originalOrder.username}\nStars: ${originalOrder.stars}`;
+            await bot.sendMessage(chatId, adminMessage);
+
             bot.answerCallbackQuery(query.id, { text: "Reversal approved." });
         } else if (data.startsWith("decline_reversal_")) {
             // Decline the reversal
@@ -1108,19 +1115,20 @@ bot.on("callback_query", async (query) => {
             reversalRequest.dateDeclined = new Date().toISOString();
 
             // Notify the user
-            bot.sendMessage(
-                reversalRequest.telegramId,
-                `❌ Your reversal request for order ID: ${reversalRequest.originalOrderId} has been declined.`
-            );
+            const userMessage = `❌ Your reversal request for order ID: ${originalOrder.id} has been declined.`;
+            await bot.sendMessage(reversalRequest.telegramId, userMessage);
 
             // Notify admins
+            const adminMessage = `❌ Reversal Declined!\n\nReversal ID: ${reversalRequest.id}\nOrder ID: ${originalOrder.id}\nUser: @${originalOrder.username}\nStars: ${originalOrder.stars}`;
+            await bot.sendMessage(chatId, adminMessage);
+
             bot.answerCallbackQuery(query.id, { text: "Reversal declined." });
         }
 
         // Save the updated reversal request
         writeDataToFile(reverseOrdersFilePath, reverseOrdersData);
 
-        // Save the updated sell order
+        // Save the updated original order
         writeDataToFile(sellOrdersFilePath, sellOrdersData);
 
         // Remove the inline keyboard from the admin message
@@ -1129,28 +1137,6 @@ bot.on("callback_query", async (query) => {
                 { inline_keyboard: [] },
                 {
                     chat_id: chatId,
-                    message_id: query.message.message_id,
-                }
-            );
-        } catch (err) {
-            console.error("Failed to edit message reply markup:", err);
-        }
-    }
-});
-        // Remove the inline keyboard from the admin message
-        try {
-            await bot.editMessageReplyMarkup(
-                { inline_keyboard: [] },
-                {
-                    chat_id: chatId,
-                    message_id: query.message.message_id,
-                }
-            );
-        } catch (err) {
-            console.error("Failed to edit message reply markup:", err);
-        }
-    }
-});  chat_id: chatId,
                     message_id: query.message.message_id,
                 }
             );
