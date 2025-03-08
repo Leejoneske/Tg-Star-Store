@@ -213,6 +213,7 @@ app.post("/api/sell-orders", async (req, res) => {
             stars,
             walletAddress,
             status: "pending", // Initial status
+            reversible: true, // Orders are reversible by default
             dateCreated: new Date().toISOString(),
             adminMessages: [], // Store admin messages for updates
         };
@@ -346,6 +347,7 @@ bot.on("callback_query", async (query) => {
         if (data.startsWith("complete_")) {
             // Mark the order as completed
             order.status = "completed";
+            order.reversible = false; // Order is no longer reversible
             order.dateCompleted = new Date().toISOString();
 
             // Notify the user
@@ -1065,6 +1067,61 @@ bot.onText(/\/reverse (.+)/, async (msg, match) => {
     }
 });
 
+
+bot.on("callback_query", async (query) => {
+    const chatId = query.message.chat.id;
+    const data = query.data;
+
+    if (data.startsWith("approve_reversal_") || data.startsWith("decline_reversal_")) {
+        const reversalId = data.split("_")[2]; // Extract the reversal ID
+        const reversalRequest = reverseOrdersData.orders.find((o) => o.id === reversalId);
+
+        if (!reversalRequest) {
+            return bot.answerCallbackQuery(query.id, { text: "Reversal request not found." });
+        }
+
+        if (data.startsWith("approve_reversal_")) {
+            // Approve the reversal
+            reversalRequest.status = "approved";
+            reversalRequest.dateApproved = new Date().toISOString();
+
+            // Update the original sell order
+            const originalOrder = sellOrdersData.orders.find(
+                (o) => o.id === reversalRequest.originalOrderId
+            );
+            if (originalOrder) {
+                originalOrder.status = "reversed";
+                originalOrder.dateReversed = new Date().toISOString();
+            }
+
+            // Notify the user
+            bot.sendMessage(
+                reversalRequest.telegramId,
+                `✅ Your reversal request for order ID: ${reversalRequest.originalOrderId} has been approved.`
+            );
+
+            // Notify admins
+            bot.answerCallbackQuery(query.id, { text: "Reversal approved." });
+        } else if (data.startsWith("decline_reversal_")) {
+            // Decline the reversal
+            reversalRequest.status = "declined";
+            reversalRequest.dateDeclined = new Date().toISOString();
+
+            // Notify the user
+            bot.sendMessage(
+                reversalRequest.telegramId,
+                `❌ Your reversal request for order ID: ${reversalRequest.originalOrderId} has been declined.`
+            );
+
+            // Notify admins
+            bot.answerCallbackQuery(query.id, { text: "Reversal declined." });
+        }
+
+        // Save the updated reversal request
+        writeDataToFile(reverseOrdersFilePath, reverseOrdersData);
+
+        // Save the updated sell order
+        writeDataToFile(sellOrdersFilePath, sellOrdersData);
 bot.on("callback_query", async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
@@ -1126,6 +1183,156 @@ bot.on("callback_query", async (query) => {
                 { inline_keyboard: [] },
                 {
                     chat_id: chatId,
+                    message_id: query.message.message_id,
+                }
+            );
+        } catch (err) {
+            console.error("Failed to edit message reply markup:", err);
+        }
+    }
+});
+        // Remove the inline keyboard from the admin message
+        try {
+            await bot.editMessageReplyMarkup(
+                { inline_keyboard: [] },
+                {
+                  bot.on("callback_query", async (query) => {
+    const chatId = query.message.chat.id;
+    const data = query.data;
+
+    if (data.startsWith("approve_reversal_") || data.startsWith("decline_reversal_")) {
+        const reversalId = data.split("_")[2]; // Extract the reversal ID
+        const reversalRequest = reverseOrdersData.orders.find((o) => o.id === reversalId);
+
+        if (!reversalRequest) {
+            return bot.answerCallbackQuery(query.id, { text: "Reversal request not found." });
+        }
+
+        if (data.startsWith("approve_reversal_")) {
+            // Approve the reversal
+            reversalRequest.status = "approved";
+            reversalRequest.dateApproved = new Date().toISOString();
+
+            // Update the original sell order
+            const originalOrder = sellOrdersData.orders.find(
+                (o) => o.id === reversalRequest.originalOrderId
+            );
+            if (originalOrder) {
+                originalOrder.status = "reversed";
+                originalOrder.dateReversed = new Date().toISOString();
+            }
+
+            // Notify the user
+            bot.sendMessage(
+                reversalRequest.telegramId,
+                `✅ Your reversal request for order ID: ${reversalRequest.originalOrderId} has been approved.`
+            );
+
+            // Notify admins
+            bot.answerCallbackQuery(query.id, { text: "Reversal approved." });
+        } else if (data.startsWith("decline_reversal_")) {
+            // Decline the reversal
+            reversalRequest.status = "declined";
+            reversalRequest.dateDeclined = new Date().toISOString();
+
+            // Notify the user
+            bot.sendMessage(
+                reversalRequest.telegramId,
+                `❌ Your reversal request for order ID: ${reversalRequest.originalOrderId} has been declined.`
+            );
+
+            // Notify admins
+            bot.answerCallbackQuery(query.id, { text: "Reversal declined." });
+        }
+
+        // Save the updated reversal request
+        writeDataToFile(reverseOrdersFilePath, reverseOrdersData);
+
+        // Save the updated sell order
+        writeDataToFile(sellOrdersFilePath, sellOrdersData);
+bot.on("callback_query", async (query) => {
+    const chatId = query.message.chat.id;
+    const data = query.data;
+
+    if (data.startsWith("approve_reversal_") || data.startsWith("decline_reversal_")) {
+        const reversalId = data.split("_")[2]; // Extract the reversal ID
+        const reversalRequest = reverseOrdersData.orders.find((o) => o.id === reversalId);
+
+        if (!reversalRequest) {
+            return bot.answerCallbackQuery(query.id, { text: "Reversal request not found." });
+        }
+
+        if (data.startsWith("approve_reversal_")) {
+            // Approve the reversal
+            reversalRequest.status = "approved";
+            reversalRequest.dateApproved = new Date().toISOString();
+
+            // Update the original sell order
+            const originalOrder = sellOrdersData.orders.find(
+                (o) => o.id === reversalRequest.originalOrderId
+            );
+            if (originalOrder) {
+                originalOrder.status = "reversed";
+                originalOrder.dateReversed = new Date().toISOString();
+            }
+
+            // Notify the user
+            bot.sendMessage(
+                reversalRequest.telegramId,
+                `✅ Your reversal request for order ID: ${reversalRequest.originalOrderId} has been approved.`
+            );
+
+            // Notify admins
+            bot.answerCallbackQuery(query.id, { text: "Reversal approved." });
+        } else if (data.startsWith("decline_reversal_")) {
+            // Decline the reversal
+            reversalRequest.status = "declined";
+            reversalRequest.dateDeclined = new Date().toISOString();
+
+            // Notify the user
+            bot.sendMessage(
+                reversalRequest.telegramId,
+                `❌ Your reversal request for order ID: ${reversalRequest.originalOrderId} has been declined.`
+            );
+
+            // Notify admins
+            bot.answerCallbackQuery(query.id, { text: "Reversal declined." });
+        }
+
+        // Save the updated reversal request
+        writeDataToFile(reverseOrdersFilePath, reverseOrdersData);
+
+        // Save the updated sell order
+        writeDataToFile(sellOrdersFilePath, sellOrdersData);
+
+        // Remove the inline keyboard from the admin message
+        try {
+            await bot.editMessageReplyMarkup(
+                { inline_keyboard: [] },
+                {
+                    chat_id: chatId,
+                    message_id: query.message.message_id,
+                }
+            );
+        } catch (err) {
+            console.error("Failed to edit message reply markup:", err);
+        }
+    }
+});
+        // Remove the inline keyboard from the admin message
+        try {
+            await bot.editMessageReplyMarkup(
+                { inline_keyboard: [] },
+                {
+                    chat_id: chatId,
+                    message_id: query.message.message_id,
+                }
+            );
+        } catch (err) {
+            console.error("Failed to edit message reply markup:", err);
+        }
+    }
+});  chat_id: chatId,
                     message_id: query.message.message_id,
                 }
             );
