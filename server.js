@@ -371,44 +371,46 @@ bot.on("successful_payment", async (msg) => {
     }
 });
 
-bot.on("callback_query", async (query) => {
+bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
 
-    if (data.startsWith("complete_") || data.startsWith("decline_")) {
-        const orderId = data.split("_")[1];
+    if (data.startsWith('complete_') || data.startsWith('decline_')) {
+        const orderId = data.split('_')[1];
 
-        const order = await SellOrder.findOne({ id: orderId });
+        const buyOrder = await BuyOrder.findOne({ id: orderId });
+        const sellOrder = await SellOrder.findOne({ id: orderId });
+
+        const order = buyOrder || sellOrder;
 
         if (!order) {
-            return bot.answerCallbackQuery(query.id, { text: "Order not found." });
+            return bot.answerCallbackQuery(query.id, { text: 'Order not found.' });
         }
 
-        if (data.startsWith("complete_")) {
-            order.status = "completed";
-            order.reversible = false;
-            order.dateCompleted = new Date();
+        if (data.startsWith('complete_')) {
+            order.status = 'completed';
+            order.completedAt = new Date();
             await order.save();
 
-            const userMessage = `✅ Your order has been completed!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Completed`;
+            const userMessage = `✅ Your order (ID: ${order.id}) has been confirmed!\n\nThank you for using StarStore!`;
             await bot.sendMessage(order.telegramId, userMessage);
 
-            const adminMessage = `✅ Order Completed!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}`;
+            const adminMessage = `✅ Order Confirmed!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nAmount: ${order.amount} USDT\nStatus: Completed`;
             await bot.sendMessage(chatId, adminMessage);
 
-            bot.answerCallbackQuery(query.id, { text: "Order marked as completed." });
-        } else if (data.startsWith("decline_")) {
-            order.status = "declined";
-            order.dateDeclined = new Date();
+            bot.answerCallbackQuery(query.id, { text: 'Order confirmed' });
+        } else if (data.startsWith('decline_')) {
+            order.status = 'declined';
+            order.declinedAt = new Date();
             await order.save();
 
-            const userMessage = `❌ Your order has been declined.\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Declined`;
+            const userMessage = `❌ Your order (ID: ${order.id}) has been declined.\n\nPlease contact support if you believe this is a mistake.`;
             await bot.sendMessage(order.telegramId, userMessage);
 
-            const adminMessage = `❌ Order Declined!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nStars: ${order.stars}`;
+            const adminMessage = `❌ Order Declined!\n\nOrder ID: ${order.id}\nUser: @${order.username}\nAmount: ${order.amount} USDT\nStatus: Declined`;
             await bot.sendMessage(chatId, adminMessage);
 
-            bot.answerCallbackQuery(query.id, { text: "Order declined." });
+            bot.answerCallbackQuery(query.id, { text: 'Order declined' });
         }
 
         try {
@@ -420,7 +422,7 @@ bot.on("callback_query", async (query) => {
                 }
             );
         } catch (err) {
-            console.error("Failed to edit message reply markup:", err);
+            console.error('Failed to edit message reply markup:', err);
         }
     }
 });
