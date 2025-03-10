@@ -305,7 +305,7 @@ function updateTransactionHistoryUI(filter = 'all', search = '', page = 1) {
                 <div class="history-card p-4" onclick="showTransactionDetails('${transaction.id}')">
                     <div class="flex justify-between items-center">
                         <div>
-                            <p class="font-medium">${transaction.type || 'Stars Purchase'} - ${transaction.amount} TON</p>
+                            <p class="font-medium">${transaction.type || 'Stars Purchase'} - ${transaction.amount} USDT</p>
                             <p class="text-sm text-gray-500">${new Date(transaction.dateCreated).toLocaleString()}</p>
                         </div>
                         <div>
@@ -385,7 +385,7 @@ function showTransactionDetails(transactionId) {
             html: `
                 <p><strong>ID:</strong> ${transaction.id}</p>
                 <p><strong>Type:</strong> ${transaction.type || 'Stars Purchase'}</p>
-                <p><strong>Amount:</strong> ${transaction.amount} TON</p>
+                <p><strong>Amount:</strong> ${transaction.amount} USDT</p>
                 <p><strong>Status:</strong> ${transaction.status}</p>
                 <p><strong>Date:</strong> ${new Date(transaction.dateCreated).toLocaleString()}</p>
             `,
