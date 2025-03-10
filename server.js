@@ -602,6 +602,23 @@ app.get('/api/referrals/:userId', async (req, res) => {
     res.json(response);
 });
 
+bot.onText(/\/referrals/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    const referrals = await Referral.find({ referrerUserId: chatId.toString() });
+
+    if (referrals.length > 0) {
+        const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
+        const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
+
+        const message = `📊 Your Referrals:\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}`;
+        await bot.sendMessage(chatId, message);
+    } else {
+        await bot.sendMessage(chatId, 'You have no referrals yet.');
+    }
+});
+
+
 app.post('/api/orders/create', async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
