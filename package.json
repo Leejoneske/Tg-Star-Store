@@ -20,7 +20,7 @@
     "fs": "^0.0.2",
     "node-telegram-bot-api": "^0.66.0",
     "path": "^0.12.7",
-    "sweetalert2": "^11.17.2"
+    "sweetalert2": "^11.17.2",
     "node-fetch": "^2.6.0"
   },
   "devDependencies": {
