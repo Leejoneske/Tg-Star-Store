@@ -1121,36 +1121,6 @@ bot.on("callback_query", async (query) => {
     }
 });
 
-//temporary code for uploading users
-
-const User = mongoose.model('User', userSchema);
-const Referral = mongoose.model('Referral', referralSchema);
-
-const usersFilePath = path.join(__dirname, 'users.json');
-const referralsFilePath = path.join(__dirname, 'referrals.json');
-
-const usersData = JSON.parse(fs.readFileSync(usersFilePath, 'utf8')).users;
-const referralsData = JSON.parse(fs.readFileSync(referralsFilePath, 'utf8')).referrals;
-
-async function uploadData() {
-    try {
-        const usersCount = usersData.length;
-        const referralsCount = referralsData.length;
-
-        await User.insertMany(usersData);
-        await Referral.insertMany(referralsData);
-        console.log(`✅ Uploaded ${usersCount} users and ${referralsCount} referrals to MongoDB.`);
-    } catch (err) {
-        console.error('❌ Error uploading data:', err);
-    } finally {
-        mongoose.connection.close();
-    }
-}
-
-uploadData();
-//end of user upload
-
-
 const fetch = require('node-fetch');
 
 setInterval(() => {
