@@ -370,10 +370,7 @@ bot.on("successful_payment", async (msg) => {
         await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Please contact support.");
     }
 });
-
-
-    if (data.startsWith('complete_') || data.startsWith('decline_')) {
-    
+  
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
