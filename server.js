@@ -428,6 +428,25 @@ bot.on('callback_query', async (query) => {
         }
     }
 });
+// quarry database to get sell order
+app.get("/api/sell-orders", async (req, res) => {
+    try {
+        const { telegramId } = req.query;
+
+        if (!telegramId) {
+            return res.status(400).json({ error: "Missing telegramId" });
+        }
+
+        const transactions = await SellOrder.find({ telegramId })
+            .sort({ dateCreated: -1 }) 
+            .limit(3); 
+
+        res.json(transactions);
+    } catch (err) {
+        console.error("Error fetching transactions:", err);
+        res.status(500).json({ error: "Failed to fetch transactions" });
+    }
+});
 
 bot.onText(/\/ban (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
