@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@tonconnect/ui": "^2.0.11",
+    "mongoose": "^8.0.0",
     "axios": "^1.8.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -20,6 +21,7 @@
     "node-telegram-bot-api": "^0.66.0",
     "path": "^0.12.7",
     "sweetalert2": "^11.17.2"
+    "node-fetch": "^2.6.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
