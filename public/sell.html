@@ -504,6 +504,62 @@ confirmPaymentBtn.addEventListener('click', async () => {
     }
 });
 
+ //order transactions display 
+const fetchTransactions = async () => {
+    try {
+        const response = await axios.get('/api/sell-orders', {
+            params: {
+                telegramId: Telegram.WebApp.initDataUnsafe.user.id,
+                limit: 3
+            }
+        });
+
+        const transactionsList = document.getElementById('transactionsList');
+        transactionsList.innerHTML = '';
+
+        if (response.data.length > 0) {
+            response.data.forEach(transaction => {
+                const transactionItem = document.createElement('div');
+                transactionItem.className = 'transaction-item';
+
+                const transactionInfo = document.createElement('div');
+                transactionInfo.className = 'transaction-info';
+
+                const starsAmount = document.createElement('div');
+                starsAmount.className = 'font-bold';
+                starsAmount.textContent = `${transaction.stars} Stars`;
+
+                const dateCreated = document.createElement('div');
+                dateCreated.className = 'text-sm text-gray-500';
+                dateCreated.textContent = new Date(transaction.dateCreated).toLocaleString();
+
+                transactionInfo.appendChild(starsAmount);
+                transactionInfo.appendChild(dateCreated);
+
+                const transactionStatus = document.createElement('div');
+                transactionStatus.className = `transaction-status ${transaction.status === 'pending' ? 'status-pending' : transaction.status === 'completed' ? 'status-completed' : 'status-declined'}`;
+                transactionStatus.textContent = transaction.status;
+
+                transactionItem.appendChild(transactionInfo);
+                transactionItem.appendChild(transactionStatus);
+
+                transactionsList.appendChild(transactionItem);
+            });
+        } else {
+            const noTransactions = document.createElement('div');
+            noTransactions.className = 'text-gray-500 text-center py-4 text-sm';
+            noTransactions.textContent = 'No transactions yet';
+            transactionsList.appendChild(noTransactions);
+        }
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+    }
+};
+
+fetchTransactions();
+setInterval(fetchTransactions, 5000);
+        
+
 Telegram.WebApp.onEvent('viewportChanged', () => {
     Telegram.WebApp.expand();
 });
