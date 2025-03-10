@@ -371,6 +371,9 @@ bot.on("successful_payment", async (msg) => {
     }
 });
 
+
+    if (data.startsWith('complete_') || data.startsWith('decline_')) {
+    
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
@@ -606,6 +609,24 @@ app.get('/api/referrals/:userId', async (req, res) => {
     res.json(response);
 });
 
+bot.onText(/\/referrals/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    const referrals = await Referral.find({ referrerUserId: chatId.toString() });
+
+    if (referrals.length > 0) {
+        const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
+        const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
+
+        let message = `📊 Your Referrals:\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
+        message += 'Your pending referrals will be active when they make a purchase.';
+
+        await bot.sendMessage(chatId, message);
+    } else {
+        await bot.sendMessage(chatId, 'You have no referrals yet.');
+    }
+});        
+
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
@@ -623,11 +644,8 @@ bot.on('message', async (msg) => {
     } else if (sellOrder) {
         const message = `🛒 Sell Order Details:\n\nOrder ID: ${sellOrder.id}\nStars: ${sellOrder.stars}\nStatus: ${sellOrder.status}`;
         await bot.sendMessage(chatId, message);
-    } else {
-        await bot.sendMessage(chatId, 'Order not found.');
     }
 });
-
 
 app.post('/api/orders/create', async (req, res) => {
     try {
