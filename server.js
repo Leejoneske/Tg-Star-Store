@@ -413,16 +413,18 @@ bot.on('callback_query', async (query) => {
             bot.answerCallbackQuery(query.id, { text: 'Order declined' });
         }
 
-        try {
-            await bot.editMessageReplyMarkup(
-                { inline_keyboard: [] },
-                {
-                    chat_id: chatId,
-                    message_id: query.message.message_id,
-                }
-            );
-        } catch (err) {
-            console.error('Failed to edit message reply markup:', err);
+        for (const adminMessage of order.adminMessages) {
+            try {
+                await bot.editMessageReplyMarkup(
+                    { inline_keyboard: [] },
+                    {
+                        chat_id: adminMessage.adminId,
+                        message_id: adminMessage.messageId,
+                    }
+                );
+            } catch (err) {
+                console.error(`Failed to remove buttons for admin ${adminMessage.adminId}:`, err);
+            }
         }
     }
 });
@@ -604,19 +606,25 @@ app.get('/api/referrals/:userId', async (req, res) => {
     res.json(response);
 });
 
-bot.onText(/\/referrals/, async (msg) => {
+bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
+    const text = msg.text;
 
-    const referrals = await Referral.find({ referrerUserId: chatId.toString() });
+    if (!text) return;
 
-    if (referrals.length > 0) {
-        const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
-        const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
+    const orderId = text.startsWith('/order ') ? text.split(' ')[1] : text;
 
-        const message = `📊 Your Referrals:\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}`;
+    const buyOrder = await BuyOrder.findOne({ id: orderId, telegramId: chatId });
+    const sellOrder = await SellOrder.findOne({ id: orderId, telegramId: chatId });
+
+    if (buyOrder) {
+        const message = `🛒 Buy Order Details:\n\nOrder ID: ${buyOrder.id}\nAmount: ${buyOrder.amount} USDT\nStatus: ${buyOrder.status}`;
+        await bot.sendMessage(chatId, message);
+    } else if (sellOrder) {
+        const message = `🛒 Sell Order Details:\n\nOrder ID: ${sellOrder.id}\nStars: ${sellOrder.stars}\nStatus: ${sellOrder.status}`;
         await bot.sendMessage(chatId, message);
     } else {
-        await bot.sendMessage(chatId, 'You have no referrals yet.');
+        await bot.sendMessage(chatId, 'Order not found.');
     }
 });
 
@@ -1112,6 +1120,47 @@ bot.on("callback_query", async (query) => {
         }
     }
 });
+
+//temporary code for uploading users
+const userSchema = new mongoose.Schema({
+    id: String,
+    username: String
+});
+
+const referralSchema = new mongoose.Schema({
+    referredUserId: String,
+    referrerUserId: String,
+    status: String,
+    dateReferred: Date,
+    dateCompleted: Date
+});
+const User = mongoose.model('User', userSchema);
+const Referral = mongoose.model('Referral', referralSchema);
+
+const usersFilePath = path.join(__dirname, 'users.json');
+const referralsFilePath = path.join(__dirname, 'referrals.json');
+
+const usersData = JSON.parse(fs.readFileSync(usersFilePath, 'utf8')).users;
+const referralsData = JSON.parse(fs.readFileSync(referralsFilePath, 'utf8')).referrals;
+
+async function uploadData() {
+    try {
+        const usersCount = usersData.length;
+        const referralsCount = referralsData.length;
+
+        await User.insertMany(usersData);
+        await Referral.insertMany(referralsData);
+        console.log(`✅ Uploaded ${usersCount} users and ${referralsCount} referrals to MongoDB.`);
+    } catch (err) {
+        console.error('❌ Error uploading data:', err);
+    } finally {
+        mongoose.connection.close();
+    }
+}
+
+uploadData();
+//end of user upload
+
 
 const fetch = require('node-fetch');
 
