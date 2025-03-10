@@ -584,6 +584,7 @@ bot.onText(/\/notify (.+)/, async (msg, match) => {
     const notificationMessage = match[1];
     const timestamp = new Date().toLocaleTimeString();
 
+    await Notification.deleteMany({});
     await Notification.create({ message: notificationMessage, timestamp });
 
     bot.sendMessage(chatId, `✅ Notification sent at ${timestamp}:\n\n${notificationMessage}`)
@@ -1152,6 +1153,22 @@ bot.on("callback_query", async (query) => {
         } catch (err) {
             console.error("Failed to edit message reply markup:", err);
         }
+    }
+});
+
+bot.onText(/\/users/, async (msg) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) {
+        bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        return;
+    }
+
+    try {
+        const userCount = await User.countDocuments({});
+        bot.sendMessage(chatId, `📊 Total users in the database: ${userCount}`);
+    } catch (err) {
+        console.error('Error fetching user count:', err);
+        bot.sendMessage(chatId, '❌ Failed to fetch user count.');
     }
 });
 
