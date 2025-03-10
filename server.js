@@ -1122,18 +1122,7 @@ bot.on("callback_query", async (query) => {
 });
 
 //temporary code for uploading users
-const userSchema = new mongoose.Schema({
-    id: String,
-    username: String
-});
 
-const referralSchema = new mongoose.Schema({
-    referredUserId: String,
-    referrerUserId: String,
-    status: String,
-    dateReferred: Date,
-    dateCompleted: Date
-});
 const User = mongoose.model('User', userSchema);
 const Referral = mongoose.model('Referral', referralSchema);
 
