@@ -509,8 +509,7 @@ const fetchTransactions = async () => {
     try {
         const response = await axios.get('/api/sell-orders', {
             params: {
-                telegramId: Telegram.WebApp.initDataUnsafe.user.id,
-                limit: 3
+                telegramId: Telegram.WebApp.initDataUnsafe.user.id
             }
         });
 
@@ -558,8 +557,8 @@ const fetchTransactions = async () => {
 
 fetchTransactions();
 setInterval(fetchTransactions, 5000);
-        
 
+        
 Telegram.WebApp.onEvent('viewportChanged', () => {
     Telegram.WebApp.expand();
 });
