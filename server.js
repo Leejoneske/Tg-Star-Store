@@ -632,7 +632,7 @@ bot.onText(/\/referrals/, async (msg) => {
         await bot.sendMessage(chatId, 'You have no referrals yet.');
     }
 });        
-// giveaway
+
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
@@ -652,6 +652,8 @@ bot.on('message', async (msg) => {
         await bot.sendMessage(chatId, message);
     }
 });
+
+//giveaways
 
 function createGiveaway(code, limit) {
     const giveaway = new Giveaway({
@@ -686,7 +688,7 @@ bot.onText(/\/create_giveaway(?: (.+) (.+))?/, (msg, match) => {
 
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
-    const userId = msg.from.id;
+    const userId = msg.from.id.toString(); // Ensure userId is a string
     const text = msg.text;
 
     if (!text) return;
@@ -712,7 +714,7 @@ bot.on('message', async (msg) => {
         }
 
         giveaway.claimed += 1;
-        giveaway.users.push(userId);
+        giveaway.users.push(userId); // Save userId as a string
         await giveaway.save();
 
         bot.sendMessage(chatId, '🎉 You have successfully claimed the giveaway! You will receive 15 stars when you buy any package.');
@@ -732,7 +734,7 @@ bot.on('callback_query', async (query) => {
             order.completedAt = new Date();
             await order.save();
 
-            const giveaway = await Giveaway.findOne({ users: order.telegramId, status: 'active' });
+            const giveaway = await Giveaway.findOne({ users: order.telegramId.toString(), status: 'active' });
 
             if (giveaway) {
                 const giftOrder = new Gift({
@@ -797,7 +799,7 @@ bot.on('callback_query', async (query) => {
             order.declinedAt = new Date();
             await order.save();
 
-            const giveaway = await Giveaway.findOne({ users: order.telegramId, status: 'active' });
+            const giveaway = await Giveaway.findOne({ users: order.telegramId.toString(), status: 'active' });
 
             if (giveaway) {
                 giveaway.status = 'rejected';
