@@ -688,138 +688,108 @@ bot.onText(/\/create_giveaway(?: (.+) (.+))?/, (msg, match) => {
 
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
-    const userId = msg.from.id.toString(); // Ensure userId is a string
+    const userId = msg.from.id.toString();
     const text = msg.text;
 
     if (!text) return;
 
-    const giveaway = await Giveaway.findOne({ code: text, status: 'active' });
+    const giveaway = await Giveaway.findOne({ code: text });
 
-    if (giveaway) {
-        if (giveaway.users.includes(userId)) {
-            bot.sendMessage(chatId, 'You have already claimed this code.');
-            return;
-        }
+    if (!giveaway) return;
 
-        if (giveaway.claimed >= giveaway.limit) {
-            bot.sendMessage(chatId, 'This code has reached its claim limit.');
-            return;
-        }
-
-        if (new Date() > giveaway.expiresAt) {
-            giveaway.status = 'expired';
-            await giveaway.save();
-            bot.sendMessage(chatId, 'This code has expired.');
-            return;
-        }
-
-        giveaway.claimed += 1;
-        giveaway.users.push(userId); // Save userId as a string
-        await giveaway.save();
-
-        bot.sendMessage(chatId, '🎉 You have successfully claimed the giveaway! You will receive 15 stars when you buy any package.');
+    if (giveaway.status === 'expired') {
+        bot.sendMessage(chatId, '❌ This giveaway code has expired.');
+        return;
     }
+
+    if (giveaway.claimed >= giveaway.limit) {
+        bot.sendMessage(chatId, '❌ This giveaway code has reached its claim limit.');
+        return;
+    }
+
+    if (giveaway.users.includes(userId)) {
+        bot.sendMessage(chatId, '❌ You have already claimed this giveaway code.');
+        return;
+    }
+
+    giveaway.claimed += 1;
+    giveaway.users.push(userId);
+    await giveaway.save();
+
+    bot.sendMessage(chatId, '🎉 You have successfully claimed the giveaway! You will receive 15 stars when you buy any package.');
 });
 
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
 
-    if (data.startsWith('complete_')) {
-        const orderId = data.split('_')[1];
-        const order = await BuyOrder.findOne({ id: orderId });
+    if (data.startsWith('confirm_gift_')) {
+        const giftOrderId = data.split('_')[2];
+        const giftOrder = await Gift.findOne({ id: giftOrderId });
 
-        if (order) {
-            order.status = 'completed';
-            order.completedAt = new Date();
-            await order.save();
+        if (giftOrder) {
+            giftOrder.status = 'completed';
+            await giftOrder.save();
 
-            const giveaway = await Giveaway.findOne({ users: order.telegramId.toString(), status: 'active' });
+            const userMessage = `🎉 Your giveaway order (ID: ${giftOrder.id}) has been confirmed!\n\nYou have received 15 bonus stars. Thank you for using StarStore!`;
+            await bot.sendMessage(giftOrder.telegramId, userMessage);
 
-            if (giveaway) {
-                const giftOrder = new Gift({
-                    id: generateOrderId(),
-                    telegramId: order.telegramId,
-                    username: order.username,
-                    stars: 15,
-                    walletAddress: order.walletAddress,
-                    status: 'pending',
-                    dateCreated: new Date(),
-                    adminMessages: [],
-                    giveawayCode: giveaway.code
-                });
+            const adminMessage = `✅ Giveaway Order Confirmed!\n\nOrder ID: ${giftOrder.id}\nUser: @${giftOrder.username} (ID: ${giftOrder.telegramId})\nStars: 15 (Giveaway)\nCode: ${giftOrder.giveawayCode}`;
 
-                await giftOrder.save();
-
-                const userGiftMessage = `🎉 You have received 15 bonus stars from the giveaway!\n\nYour giveaway order (ID: ${giftOrder.id}) is pending admin approval.`;
-                await bot.sendMessage(order.telegramId, userGiftMessage);
-
-                const adminGiftMessage = `🎉 New Giveaway Order!\n\nOrder ID: ${giftOrder.id}\nUser: @${order.username} (ID: ${order.telegramId})\nStars: 15 (Giveaway)\nCode: ${giveaway.code}`;
-
-                const adminGiftKeyboard = {
-                    inline_keyboard: [
-                        [
-                            { text: 'Confirm', callback_data: `confirm_gift_${giftOrder.id}` },
-                            { text: 'Decline', callback_data: `decline_gift_${giftOrder.id}` }
-                        ]
-                    ]
-                };
-
-                for (const adminId of adminIds) {
-                    try {
-                        const message = await bot.sendMessage(adminId, adminGiftMessage, { reply_markup: adminGiftKeyboard });
-                        giftOrder.adminMessages.push({ adminId, messageId: message.message_id });
-                    } catch (err) {
-                        console.error(`Failed to send message to admin ${adminId}:`, err);
-                    }
-                }
-
-                giveaway.status = 'completed';
-                await giveaway.save();
-            }
-
-            const adminMessage = `✅ Order Confirmed!\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})\nAmount: ${order.amount} USDT\nStatus: Completed`;
-
-            for (const adminId of adminIds) {
+            for (const adminMessageInfo of giftOrder.adminMessages) {
                 try {
-                    await bot.sendMessage(adminId, adminMessage);
+                    await bot.editMessageText(adminMessage, {
+                        chat_id: adminMessageInfo.adminId,
+                        message_id: adminMessageInfo.messageId
+                    });
+                    await bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
+                        chat_id: adminMessageInfo.adminId,
+                        message_id: adminMessageInfo.messageId
+                    });
                 } catch (err) {
-                    console.error(`Failed to send message to admin ${adminId}:`, err);
+                    console.error(`Failed to update message for admin ${adminMessageInfo.adminId}:`, err);
                 }
             }
 
-            bot.answerCallbackQuery(query.id, { text: 'Order confirmed' });
+            bot.answerCallbackQuery(query.id, { text: 'Giveaway order confirmed' });
         }
-    } else if (data.startsWith('decline_')) {
-        const orderId = data.split('_')[1];
-        const order = await BuyOrder.findOne({ id: orderId });
+    } else if (data.startsWith('decline_gift_')) {
+        const giftOrderId = data.split('_')[2];
+        const giftOrder = await Gift.findOne({ id: giftOrderId });
 
-        if (order) {
-            order.status = 'declined';
-            order.declinedAt = new Date();
-            await order.save();
+        if (giftOrder) {
+            giftOrder.status = 'declined';
+            await giftOrder.save();
 
-            const giveaway = await Giveaway.findOne({ users: order.telegramId.toString(), status: 'active' });
+            const giveaway = await Giveaway.findOne({ code: giftOrder.giveawayCode });
 
             if (giveaway) {
-                giveaway.status = 'rejected';
+                giveaway.users = giveaway.users.filter(user => user !== giftOrder.telegramId);
+                giveaway.claimed -= 1;
                 await giveaway.save();
-
-                const userGiftMessage = `❌ Your giveaway code (${giveaway.code}) has been rejected because your order was declined.`;
-                await bot.sendMessage(order.telegramId, userGiftMessage);
             }
 
-            const adminMessage = `❌ Order Declined!\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})\nAmount: ${order.amount} USDT\nStatus: Declined`;
+            const userMessage = `❌ Your giveaway order (ID: ${giftOrder.id}) has been declined.\n\nPlease contact support if you believe this is a mistake.`;
+            await bot.sendMessage(giftOrder.telegramId, userMessage);
 
-            for (const adminId of adminIds) {
+            const adminMessage = `❌ Giveaway Order Declined!\n\nOrder ID: ${giftOrder.id}\nUser: @${giftOrder.username} (ID: ${giftOrder.telegramId})\nStars: 15 (Giveaway)\nCode: ${giftOrder.giveawayCode}`;
+
+            for (const adminMessageInfo of giftOrder.adminMessages) {
                 try {
-                    await bot.sendMessage(adminId, adminMessage);
+                    await bot.editMessageText(adminMessage, {
+                        chat_id: adminMessageInfo.adminId,
+                        message_id: adminMessageInfo.messageId
+                    });
+                    await bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
+                        chat_id: adminMessageInfo.adminId,
+                        message_id: adminMessageInfo.messageId
+                    });
                 } catch (err) {
-                    console.error(`Failed to send message to admin ${adminId}:`, err);
+                    console.error(`Failed to update message for admin ${adminMessageInfo.adminId}:`, err);
                 }
             }
 
-            bot.answerCallbackQuery(query.id, { text: 'Order declined' });
+            bot.answerCallbackQuery(query.id, { text: 'Giveaway order declined' });
         }
     }
 });
