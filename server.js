@@ -809,7 +809,6 @@ bot.on('callback_query', async (query) => {
 
             if (giveaway) {
                 giveaway.users = giveaway.users.filter(user => user !== order.telegramId);
-                giveaway.claimed -= 1;
                 await giveaway.save();
 
                 const userMessage = `❌ Your giveaway code (${giveaway.code}) has been rejected because your order was declined.`;
@@ -872,14 +871,6 @@ bot.on('callback_query', async (query) => {
         if (giftOrder) {
             giftOrder.status = 'declined';
             await giftOrder.save();
-
-            const giveaway = await Giveaway.findOne({ code: giftOrder.giveawayCode });
-
-            if (giveaway) {
-                giveaway.users = giveaway.users.filter(user => user !== giftOrder.telegramId);
-                giveaway.claimed -= 1;
-                await giveaway.save();
-            }
 
             const userMessage = `❌ Your giveaway order (ID: ${giftOrder.id}) has been declined.\n\nPlease contact support if you believe this is a mistake.`;
             await bot.sendMessage(giftOrder.telegramId, userMessage);
