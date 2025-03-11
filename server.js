@@ -755,11 +755,15 @@ bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
 
-    if (data.startsWith('complete_')) {
+    if (data.startsWith('complete_') || data.startsWith('decline_')) {
         const orderId = data.split('_')[1];
-        const order = await BuyOrder.findOne({ id: orderId });
+        const order = await BuyOrder.findOne({ id: orderId }) || await SellOrder.findOne({ id: orderId });
 
-        if (order) {
+        if (!order) {
+            return bot.answerCallbackQuery(query.id, { text: 'Order not found.' });
+        }
+
+        if (data.startsWith('complete_')) {
             order.status = 'completed';
             order.completedAt = new Date();
             await order.save();
@@ -787,7 +791,7 @@ bot.on('callback_query', async (query) => {
                 const userGiftMessage = `🎉 You have received 15 bonus stars from the giveaway!\n\nYour giveaway order (ID: ${giftOrder.id}) is pending admin approval.`;
                 await bot.sendMessage(order.telegramId, userGiftMessage);
 
-                const adminGiftMessage = `🎉 New Giveaway Order!\n\nOrder ID: ${giftOrder.id}\nUser: @${order.username} (ID: ${order.telegramId})\nStars: 15 (Giveaway)\nCode: ${giveaway.code}`;
+                const adminGiftMessage = `🎉 New Giveaway Order!\n\nOrder ID: ${giftOrder.id}\nUser: @${order.username}\nStars: 15 (Giveaway)\nCode: ${giveaway.code}`;
 
                 const adminGiftKeyboard = {
                     inline_keyboard: [
@@ -810,24 +814,7 @@ bot.on('callback_query', async (query) => {
                 giveaway.status = 'completed';
                 await giveaway.save();
             }
-
-            const adminMessage = `✅ Order Confirmed!\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})\nAmount: ${order.amount} USDT\nStatus: Completed`;
-
-            for (const adminId of adminIds) {
-                try {
-                    await bot.sendMessage(adminId, adminMessage);
-                } catch (err) {
-                    console.error(`Failed to send message to admin ${adminId}:`, err);
-                }
-            }
-
-            bot.answerCallbackQuery(query.id, { text: 'Order confirmed' });
-        }
-    } else if (data.startsWith('decline_')) {
-        const orderId = data.split('_')[1];
-        const order = await BuyOrder.findOne({ id: orderId });
-
-        if (order) {
+        } else if (data.startsWith('decline_')) {
             order.status = 'declined';
             order.declinedAt = new Date();
             await order.save();
@@ -838,25 +825,15 @@ bot.on('callback_query', async (query) => {
             const giveaway = await Giveaway.findOne({ users: order.telegramId, status: 'active' });
 
             if (giveaway) {
-                giveaway.status = 'rejected';
+                giveaway.status = 'terminated';
                 await giveaway.save();
 
-                const userGiftMessage = `❌ Your giveaway code (${giveaway.code}) has been rejected because your order was declined.`;
+                const userGiftMessage = `❌ Your giveaway code (${giveaway.code}) has been terminated because your order was declined.`;
                 await bot.sendMessage(order.telegramId, userGiftMessage);
             }
-
-            const adminMessage = `❌ Order Declined!\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})\nAmount: ${order.amount} USDT\nStatus: Declined`;
-
-            for (const adminId of adminIds) {
-                try {
-                    await bot.sendMessage(adminId, adminMessage);
-                } catch (err) {
-                    console.error(`Failed to send message to admin ${adminId}:`, err);
-                }
-            }
-
-            bot.answerCallbackQuery(query.id, { text: 'Order declined' });
         }
+
+        bot.answerCallbackQuery(query.id, { text: `Order ${order.status}` });
     }
 });
 
@@ -995,7 +972,7 @@ bot.on('message', async (msg) => {
         giveaway.users.push(userId);
         await giveaway.save();
 
-        bot.sendMessage(chatId, '🎉 You have successfully claimed the giveaway! You will receive 15 stars when you buy any package.');
+        bot.sendMessage(chatId, '🎉 You have successfully claimed the giveaway! You will receive 15 bonus stars when you make a purchase.');
     }
 });
 
