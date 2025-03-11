@@ -653,43 +653,6 @@ bot.on('message', async (msg) => {
     }
 });
 
-
-                
-bot.on('message', async (msg) => {
-    const chatId = msg.chat.id;
-    const userId = msg.from.id;
-    const text = msg.text;
-
-    if (!text) return;
-
-    const giveaway = await Giveaway.findOne({ code: text, status: 'active' });
-
-    if (giveaway) {
-        if (giveaway.users.includes(userId)) {
-            bot.sendMessage(chatId, 'You have already claimed this code.');
-            return;
-        }
-
-        if (giveaway.claimed >= giveaway.limit) {
-            bot.sendMessage(chatId, 'This code has reached its claim limit.');
-            return;
-        }
-
-        if (new Date() > giveaway.expiresAt) {
-            giveaway.status = 'expired';
-            await giveaway.save();
-            bot.sendMessage(chatId, 'This code has expired.');
-            return;
-        }
-
-        giveaway.claimed += 1;
-        giveaway.users.push(userId);
-        await giveaway.save();
-
-        bot.sendMessage(chatId, '🎉 You have successfully claimed the giveaway! You will receive 15 bonus stars when you make a purchase.');
-    }
-});
-
 app.post('/api/orders/create', async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
@@ -786,7 +749,7 @@ app.post('/api/orders/create', async (req, res) => {
         console.error('Order creation error:', err);
         res.status(500).json({ error: 'Failed to create order' });
     }
-});            
+});
 
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
