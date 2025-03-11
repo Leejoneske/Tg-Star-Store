@@ -735,45 +735,53 @@ bot.on('callback_query', async (query) => {
             const giveaway = await Giveaway.findOne({ users: order.telegramId.toString(), status: 'active' });
 
             if (giveaway) {
-                const giftOrder = new Gift({
-                    id: generateOrderId(),
+                const existingGiftOrder = await Gift.findOne({
                     telegramId: order.telegramId,
-                    username: order.username,
-                    stars: 15,
-                    walletAddress: order.walletAddress,
-                    status: 'pending',
-                    dateCreated: new Date(),
-                    adminMessages: [],
-                    giveawayCode: giveaway.code
+                    giveawayCode: giveaway.code,
+                    status: { $in: ['completed', 'rejected'] }
                 });
 
-                await giftOrder.save();
+                if (!existingGiftOrder) {
+                    const giftOrder = new Gift({
+                        id: generateOrderId(),
+                        telegramId: order.telegramId,
+                        username: order.username,
+                        stars: 15,
+                        walletAddress: order.walletAddress,
+                        status: 'pending',
+                        dateCreated: new Date(),
+                        adminMessages: [],
+                        giveawayCode: giveaway.code
+                    });
 
-                const userGiftMessage = `🎉 You have received 15 bonus stars from the giveaway!\n\nYour giveaway order (ID: ${giftOrder.id}) is pending admin approval.`;
-                await bot.sendMessage(order.telegramId, userGiftMessage);
+                    await giftOrder.save();
 
-                const adminGiftMessage = `🎉 New Giveaway Order!\n\nOrder ID: ${giftOrder.id}\nUser: @${order.username} (ID: ${order.telegramId})\nStars: 15 (Giveaway)\nCode: ${giveaway.code}`;
+                    const userGiftMessage = `🎉 You have received 15 bonus stars from the giveaway!\n\nYour giveaway order (ID: ${giftOrder.id}) is pending admin approval.`;
+                    await bot.sendMessage(order.telegramId, userGiftMessage);
 
-                const adminGiftKeyboard = {
-                    inline_keyboard: [
-                        [
-                            { text: 'Confirm', callback_data: `confirm_gift_${giftOrder.id}` },
-                            { text: 'Decline', callback_data: `decline_gift_${giftOrder.id}` }
+                    const adminGiftMessage = `🎉 New Giveaway Order!\n\nOrder ID: ${giftOrder.id}\nUser: @${order.username} (ID: ${order.telegramId})\nStars: 15 (Giveaway)\nCode: ${giveaway.code}`;
+
+                    const adminGiftKeyboard = {
+                        inline_keyboard: [
+                            [
+                                { text: 'Confirm', callback_data: `confirm_gift_${giftOrder.id}` },
+                                { text: 'Decline', callback_data: `decline_gift_${giftOrder.id}` }
+                            ]
                         ]
-                    ]
-                };
+                    };
 
-                for (const adminId of adminIds) {
-                    try {
-                        const message = await bot.sendMessage(adminId, adminGiftMessage, { reply_markup: adminGiftKeyboard });
-                        giftOrder.adminMessages.push({ adminId, messageId: message.message_id });
-                    } catch (err) {
-                        console.error(`Failed to send message to admin ${adminId}:`, err);
+                    for (const adminId of adminIds) {
+                        try {
+                            const message = await bot.sendMessage(adminId, adminGiftMessage, { reply_markup: adminGiftKeyboard });
+                            giftOrder.adminMessages.push({ adminId, messageId: message.message_id });
+                        } catch (err) {
+                            console.error(`Failed to send message to admin ${adminId}:`, err);
+                        }
                     }
-                }
 
-                giveaway.status = 'completed';
-                await giveaway.save();
+                    giveaway.status = 'completed';
+                    await giveaway.save();
+                }
             }
 
             const adminMessage = `✅ Order Confirmed!\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})\nAmount: ${order.amount} USDT\nStatus: Completed`;
@@ -790,8 +798,7 @@ bot.on('callback_query', async (query) => {
         }
     }
 });
-
-
+            
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
@@ -865,7 +872,7 @@ bot.on('callback_query', async (query) => {
             bot.answerCallbackQuery(query.id, { text: 'Giveaway order declined' });
         }
     }
-});
+});                    
             
 function expireGiveaways() {
     const now = new Date();
