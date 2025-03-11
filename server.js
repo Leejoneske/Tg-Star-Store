@@ -796,9 +796,41 @@ bot.on('callback_query', async (query) => {
 
             bot.answerCallbackQuery(query.id, { text: 'Order confirmed' });
         }
+    } else if (data.startsWith('decline_')) {
+        const orderId = data.split('_')[1];
+        const order = await BuyOrder.findOne({ id: orderId });
+
+        if (order) {
+            order.status = 'declined';
+            order.declinedAt = new Date();
+            await order.save();
+
+            const giveaway = await Giveaway.findOne({ users: order.telegramId.toString(), status: 'active' });
+
+            if (giveaway) {
+                giveaway.users = giveaway.users.filter(user => user !== order.telegramId);
+                giveaway.claimed -= 1;
+                await giveaway.save();
+
+                const userMessage = `❌ Your giveaway code (${giveaway.code}) has been rejected because your order was declined.`;
+                await bot.sendMessage(order.telegramId, userMessage);
+            }
+
+            const adminMessage = `❌ Order Declined!\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})\nAmount: ${order.amount} USDT\nStatus: Declined`;
+
+            for (const adminId of adminIds) {
+                try {
+                    await bot.sendMessage(adminId, adminMessage);
+                } catch (err) {
+                    console.error(`Failed to send message to admin ${adminId}:`, err);
+                }
+            }
+
+            bot.answerCallbackQuery(query.id, { text: 'Order declined' });
+        }
     }
 });
-            
+
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
@@ -872,8 +904,8 @@ bot.on('callback_query', async (query) => {
             bot.answerCallbackQuery(query.id, { text: 'Giveaway order declined' });
         }
     }
-});                    
-            
+});
+
 function expireGiveaways() {
     const now = new Date();
     Giveaway.updateMany({ status: 'active', expiresAt: { $lt: now } }, { status: 'expired' }).exec();
