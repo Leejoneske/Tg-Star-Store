@@ -544,28 +544,40 @@ bot.onText(/\/reply (.+)/, (msg, match) => {
         });
 });
 
-bot.onText(/\/broadcast/, (msg) => {
+bot.onText(/\/broadcast (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, '❌ Unauthorized');
 
-    bot.sendMessage(chatId, 'Enter broadcast message:');
-    bot.once('message', async (msg) => {
-        const message = msg.text || msg.caption;
-        const media = msg.photo || msg.document || msg.video || msg.audio;
+    // Check if the user is an admin
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
 
-        let successCount = 0, failCount = 0;
-        const users = await User.find({});
-        for (const user of users) {
-            try {
-                media ? await bot.sendMediaGroup(user.id, media, { caption: message }) : await bot.sendMessage(user.id, message);
-                successCount++;
-            } catch (err) {
-                console.error(`Failed to send to ${user.id}:`, err);
-                failCount++;
-            }
+    // Extract the broadcast message from the command
+    const broadcastMessage = match[1].trim();
+
+    if (!broadcastMessage) {
+        return bot.sendMessage(chatId, '❌ Please provide a message to broadcast.');
+    }
+
+    // Fetch all users from the database
+    const users = await User.find({});
+
+    let successCount = 0;
+    let failCount = 0;
+
+    // Send the broadcast message to all users
+    for (const user of users) {
+        try {
+            await bot.sendMessage(user.id, broadcastMessage);
+            successCount++;
+        } catch (err) {
+            console.error(`Failed to send broadcast to user ${user.id}:`, err);
+            failCount++;
         }
-        bot.sendMessage(chatId, `📢 Broadcast results:\n✅ ${successCount} | ❌ ${failCount}`);
-    });
+    }
+
+    // Notify the admin about the broadcast result
+    bot.sendMessage(chatId, `📢 Broadcast results:\n✅ ${successCount} messages sent successfully\n❌ ${failCount} messages failed to send.`);
 });
 
 app.get('/api/notifications', async (req, res) => {
