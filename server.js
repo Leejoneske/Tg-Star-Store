@@ -725,8 +725,9 @@ bot.on('message', async (msg) => {
             return;
         }
 
+        // Update the giveaway with the new user claim
         giveaway.claimed += 1;
-        giveaway.users.push({ userId, status: 'pending' });
+        giveaway.users.push({ userId, status: 'pending' }); // Ensure this is an object
         await giveaway.save();
 
         bot.sendMessage(chatId, '🎉 You have successfully claimed the giveaway! You will receive 15 stars when you buy any package.');
