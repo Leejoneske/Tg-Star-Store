@@ -479,7 +479,7 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
-    const deepLinkParam = match[1]?.trim();  
+    const deepLinkParam = match[1]?.trim();
 
     const user = await User.findOne({ id: chatId });
 
@@ -490,7 +490,7 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     bot.sendMessage(chatId, `👋 Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`);
 
     if (deepLinkParam) {
-        bot.sendMessage(chatId, deepLinkParam);
+        bot.emit('message', { chat: { id: chatId }, text: deepLinkParam, from: msg.from });
     }
 });
 
