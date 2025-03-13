@@ -696,7 +696,6 @@ bot.onText(/\/create_giveaway(?: (.+) (.+))?/, (msg, match) => {
     bot.sendMessage(chatId, `✅ Giveaway created!\nCode: ${code}\nLimit: ${limit}`);
 });
 
-
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id.toString();
@@ -708,7 +707,8 @@ bot.on('message', async (msg) => {
 
     if (giveaway) {
         // Check if the user has already claimed the giveaway
-        if (giveaway.users.includes(userId)) {
+        const userClaimed = giveaway.users.some(user => user.userId === userId);
+        if (userClaimed) {
             bot.sendMessage(chatId, '❌ You have already claimed this giveaway code.');
             return;
         }
@@ -726,7 +726,7 @@ bot.on('message', async (msg) => {
         }
 
         giveaway.claimed += 1;
-        giveaway.users.push(userId);
+        giveaway.users.push({ userId, status: 'pending' });
         await giveaway.save();
 
         bot.sendMessage(chatId, '🎉 You have successfully claimed the giveaway! You will receive 15 stars when you buy any package.');
