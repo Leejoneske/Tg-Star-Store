@@ -475,9 +475,11 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
     }
 });
 
-bot.onText(/\/start/, async (msg) => {
+//added deep link detection
+bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
+    const deepLinkParam = match[1]?.trim();  
 
     const user = await User.findOne({ id: chatId });
 
@@ -486,7 +488,12 @@ bot.onText(/\/start/, async (msg) => {
     }
 
     bot.sendMessage(chatId, `👋 Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`);
+
+    if (deepLinkParam) {
+        bot.sendMessage(chatId, deepLinkParam);
+    }
 });
+
 
 bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
