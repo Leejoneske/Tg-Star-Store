@@ -747,13 +747,14 @@ bot.on('callback_query', async (query) => {
             order.completedAt = new Date();
             await order.save();
 
+            // Check if the user has an active giveaway
             const giveaway = await Giveaway.findOne({ 
-                users: order.telegramId.toString(), 
-                status: 'active' 
+                users: { $elemMatch: { userId: order.telegramId.toString(), status: 'pending' } },
+                status: 'active'
             });
 
             if (giveaway) {
-                // Create a gift order
+                // Create a gift order for the giveaway
                 const giftOrder = new Gift({
                     id: generateOrderId(),
                     telegramId: order.telegramId,
@@ -768,9 +769,11 @@ bot.on('callback_query', async (query) => {
 
                 await giftOrder.save();
 
+                // Notify the user about the gift order
                 const userGiftMessage = `🎉 You have received 15 bonus stars from the giveaway!\n\nYour giveaway order (ID: ${giftOrder.id}) is pending admin approval.`;
                 await bot.sendMessage(order.telegramId, userGiftMessage);
 
+                // Notify admins about the new gift order
                 const adminGiftMessage = `🎉 New Giveaway Order!\n\nOrder ID: ${giftOrder.id}\nUser: @${order.username} (ID: ${order.telegramId})\nStars: 15 (Giveaway)\nCode: ${giveaway.code}`;
 
                 const adminGiftKeyboard = {
@@ -791,14 +794,15 @@ bot.on('callback_query', async (query) => {
                     }
                 }
 
-                // Check if the giveaway limit has been reached
-                if (giveaway.claimed >= giveaway.limit) {
-                    giveaway.status = 'completed';
+                // Mark the giveaway as complete for this user
+                const userIndex = giveaway.users.findIndex(user => user.userId === order.telegramId.toString());
+                if (userIndex !== -1) {
+                    giveaway.users[userIndex].status = 'completed';
+                    await giveaway.save();
                 }
-
-                await giveaway.save();
             }
 
+            // Notify admins about the completed order
             const adminMessage = `✅ Order Confirmed!\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})\nAmount: ${order.amount} USDT\nStatus: Completed`;
 
             for (const adminId of adminIds) {
@@ -820,6 +824,26 @@ bot.on('callback_query', async (query) => {
             order.declinedAt = new Date();
             await order.save();
 
+            // Check if the user has an active giveaway
+            const giveaway = await Giveaway.findOne({ 
+                users: { $elemMatch: { userId: order.telegramId.toString(), status: 'pending' } },
+                status: 'active'
+            });
+
+            if (giveaway) {
+                // Mark the giveaway as rejected for this user
+                const userIndex = giveaway.users.findIndex(user => user.userId === order.telegramId.toString());
+                if (userIndex !== -1) {
+                    giveaway.users[userIndex].status = 'rejected';
+                    await giveaway.save();
+                }
+
+                // Notify the user that their giveaway has been rejected
+                const userMessage = `❌ Your giveaway has been rejected because your purchase (Order ID: ${order.id}) was declined.`;
+                await bot.sendMessage(order.telegramId, userMessage);
+            }
+
+            // Notify admins about the declined order
             const adminMessage = `❌ Order Declined!\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})\nAmount: ${order.amount} USDT\nStatus: Declined`;
 
             for (const adminId of adminIds) {
