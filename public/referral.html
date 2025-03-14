@@ -374,213 +374,214 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
     <script>
-        Telegram.WebApp.ready();
-        const user = Telegram.WebApp.initDataUnsafe.user;
-        let referralData = {
-            count: 0,
-            earnedStars: 0,
-            referralCode: '',
-            recentReferrals: [],
-            claimedTiers: []
-        };
+    Telegram.WebApp.ready();
+    const user = Telegram.WebApp.initDataUnsafe.user;
+    let referralData = {
+        count: 0,
+        earnedStars: 0,
+        referralCode: '',
+        recentReferrals: [],
+        claimedTiers: []
+    };
 
-        function initUser() {
-            if (user) {
-                referralData.referralCode = `ref_${user.id}`;
-                const referralLink = `https://t.me/TgStarStore_bot?start=${referralData.referralCode}`;
-                document.getElementById('referralLink').textContent = referralLink;
-                fetchReferralData();
-            }
+    function initUser() {
+        if (user) {
+            referralData.referralCode = `ref_${user.id}`;
+            const referralLink = `https://t.me/TgStarStore_bot?start=${referralData.referralCode}`;
+            document.getElementById('referralLink').textContent = referralLink;
+            fetchReferralData();
         }
+    }
 
-        async function fetchReferralData() {
-            try {
-                const response = await axios.get(`/api/referrals/${user.id}`);
-                if (response.data) {
-                    referralData = response.data;
-                    updateReferralUI();
-                } else {
-                    console.log('No referral data found for this user.');
-                    updateReferralUI();
-                }
-            } catch (error) {
-                console.error('Failed to fetch referral data:', error);
+    async function fetchReferralData() {
+        try {
+            const response = await axios.get(`/api/referrals/${user.id}`);
+            if (response.data) {
+                referralData = response.data;
+                updateReferralUI();
+            } else {
+                console.log('No referral data found for this user.');
                 updateReferralUI();
             }
+        } catch (error) {
+            console.error('Failed to fetch referral data:', error);
+            updateReferralUI();
+        }
+    }
+
+    function updateReferralUI() {
+        document.getElementById('referralCount').textContent = referralData.count;
+        document.getElementById('earnedStars').textContent = referralData.earnedStars;
+
+        let currentTier, nextTierTarget, currentProgress;
+        if (referralData.count < 3) {
+            currentTier = 0;
+            nextTierTarget = 3;
+            currentProgress = referralData.count;
+            document.getElementById('nextReward').textContent = '0.5 USDT';
+        } else if (referralData.count < 9) {
+            currentTier = 1;
+            nextTierTarget = 9;
+            currentProgress = referralData.count - 3;
+            document.getElementById('nextReward').textContent = '2 USDT';
+        } else if (referralData.count < 15) {
+            currentTier = 2;
+            nextTierTarget = 15;
+            currentProgress = referralData.count - 9;
+            document.getElementById('nextReward').textContent = '5 USDT';
+        } else {
+            currentTier = 3;
+            nextTierTarget = 15;
+            currentProgress = 6;
+            document.getElementById('nextReward').textContent = 'Max Tier Reached!';
         }
 
-        function updateReferralUI() {
-            document.getElementById('referralCount').textContent = referralData.count;
-            document.getElementById('earnedStars').textContent = referralData.earnedStars;
+        const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 3 : 9)) : 6;
+        const progressPercent = (currentProgress / progressTarget) * 100;
+        document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
+        document.getElementById('currentProgress').textContent = currentProgress;
+        document.getElementById('targetProgress').textContent = progressTarget;
 
-            let currentTier, nextTierTarget, currentProgress;
-            if (referralData.count < 3) {
-                currentTier = 0;
-                nextTierTarget = 3;
-                currentProgress = referralData.count;
-                document.getElementById('nextReward').textContent = '0.5 USDT';
-            } else if (referralData.count < 9) {
-                currentTier = 1;
-                nextTierTarget = 9;
-                currentProgress = referralData.count - 3;
-                document.getElementById('nextReward').textContent = '2 USDT';
-            } else if (referralData.count < 15) {
-                currentTier = 2;
-                nextTierTarget = 15;
-                currentProgress = referralData.count - 9;
-                document.getElementById('nextReward').textContent = '5 USDT';
-            } else {
-                currentTier = 3;
-                nextTierTarget = 15;
-                currentProgress = 6;
-                document.getElementById('nextReward').textContent = 'Max Tier Reached!';
-            }
-
-            const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 3 : 9)) : 6;
-            const progressPercent = (currentProgress / progressTarget) * 100;
-            document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
-            document.getElementById('currentProgress').textContent = currentProgress;
-            document.getElementById('targetProgress').textContent = progressTarget;
-
-            const recentReferralsContainer = document.getElementById('recentReferrals');
-            recentReferralsContainer.innerHTML = '';
-            if (referralData.recentReferrals.length === 0) {
-                recentReferralsContainer.innerHTML = `
-                    <div class="text-center p-4 text-gray-500">
-                        <p>No referrals yet. Share your link to start earning!</p>
-                    </div>
-                `;
-            } else {
-                referralData.recentReferrals.forEach(referral => {
-                    const timeLabel = referral.daysAgo === 0 ? 'Today' : 
-                                    referral.daysAgo === 1 ? 'Yesterday' : 
-                                    `${referral.daysAgo} days ago`;
-                    const statusBadge = referral.status === 'active' ? 
-                        `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Active</span>` :
-                        `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Pending</span>`;
-                    recentReferralsContainer.innerHTML += `
-                        <div class="referral-card p-3 flex justify-between items-center">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
-                                    ${referral.name.charAt(0)}
-                                </div>
-                                <div>
-                                    <p class="font-medium">@${referral.name}</p>
-                                    <p class="text-xs text-gray-500">${timeLabel}</p>
-                                </div>
+        const recentReferralsContainer = document.getElementById('recentReferrals');
+        recentReferralsContainer.innerHTML = '';
+        if (referralData.recentReferrals.length === 0) {
+            recentReferralsContainer.innerHTML = `
+                <div class="text-center p-4 text-gray-500">
+                    <p>No referrals yet. Share your link to start earning!</p>
+                </div>
+            `;
+        } else {
+            referralData.recentReferrals.forEach(referral => {
+                const timeLabel = referral.daysAgo === 0 ? 'Today' : 
+                                referral.daysAgo === 1 ? 'Yesterday' : 
+                                `${referral.daysAgo} days ago`;
+                const statusBadge = referral.status === 'active' ? 
+                    `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Active</span>` :
+                    `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Pending</span>`;
+                recentReferralsContainer.innerHTML += `
+                    <div class="referral-card p-3 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+                                ${referral.name.charAt(0)}
                             </div>
                             <div>
-                                ${statusBadge}
+                                <p class="font-medium">@${referral.name}</p>
+                                <p class="text-xs text-gray-500">${timeLabel}</p>
                             </div>
                         </div>
-                    `;
-                });
-            }
-
-            document.getElementById('menuNotificationDot').style.display = referralData.recentReferrals.some(r => r.daysAgo === 0) ? 'block' : 'none';
-
-            const claimButtons = ['claimTier1', 'claimTier2', 'claimTier3'];
-            claimButtons.forEach((buttonId, index) => {
-                const button = document.getElementById(buttonId);
-                if (referralData.claimedTiers.includes(index + 1)) {
-                    button.disabled = true;
-                    button.textContent = 'Claimed';
-                    button.style.display = 'none';
-                } else {
-                    button.disabled = referralData.count < (index === 0 ? 3 : index === 1 ? 9 : 15);
-                }
+                        <div>
+                            ${statusBadge}
+                        </div>
+                    </div>
+                `;
             });
         }
 
-        async function claimReward(tier) {
-            const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
-            const confirmResult = await Swal.fire({
-                title: 'Confirm Withdrawal',
-                text: `You are about to withdraw $${rewardAmount}. Continue?`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Yes, withdraw',
-                cancelButtonText: 'Cancel'
-            });
+        const claimButtons = ['claimTier1', 'claimTier2', 'claimTier3'];
+        claimButtons.forEach((buttonId, index) => {
+            const button = document.getElementById(buttonId);
+            if (referralData.claimedTiers && referralData.claimedTiers.includes(index + 1)) {
+                button.disabled = true;
+                button.textContent = 'Claimed';
+                button.style.display = 'none';
+            } else {
+                button.disabled = referralData.count < (index === 0 ? 3 : index === 1 ? 9 : 15);
+            }
+        });
+    }
 
-            if (confirmResult.isConfirmed) {
-                try {
-                    const response = await axios.post('/api/claim-reward', {
-                        userId: user.id,
-                        tier: tier,
-                        amount: rewardAmount
+    async function claimReward(tier) {
+        const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
+        const confirmResult = await Swal.fire({
+            title: 'Confirm Withdrawal',
+            text: `You are about to withdraw $${rewardAmount}. Continue?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, withdraw',
+            cancelButtonText: 'Cancel'
+        });
+
+        if (confirmResult.isConfirmed) {
+            try {
+                const response = await axios.post('/api/claim-reward', {
+                    userId: user.id,
+                    tier: tier,
+                    amount: rewardAmount
+                });
+
+                if (response.data.success) {
+                    referralData.claimedTiers.push(tier);
+                    updateReferralUI();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Withdrawal Successful',
+                        text: `$${rewardAmount} has been added to your account.`
                     });
-
-                    if (response.data.success) {
-                        referralData.claimedTiers.push(tier);
-                        updateReferralUI();
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Withdrawal Successful',
-                            text: `$${rewardAmount} has been added to your account.`
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Withdrawal Failed',
-                            text: response.data.error || 'Failed to process withdrawal.'
-                        });
-                    }
-                } catch (error) {
-                    console.error('Failed to claim reward:', error);
+                } else {
                     Swal.fire({
                         icon: 'error',
                         title: 'Withdrawal Failed',
-                        text: 'An error occurred while processing your withdrawal.'
+                        text: response.data.error || 'Failed to process withdrawal.'
                     });
                 }
-            }
-        }
-
-        function copyReferralLink() {
-            const referralLink = document.getElementById('referralLink').textContent;
-            navigator.clipboard.writeText(referralLink).then(() => {
+            } catch (error) {
+                console.error('Failed to claim reward:', error);
                 Swal.fire({
-                    icon: 'success',
-                    title: 'Copied!',
-                    text: 'Referral link copied to clipboard',
-                    timer: 1500,
-                    showConfirmButton: false
+                    icon: 'error',
+                    title: 'Withdrawal Failed',
+                    text: error.response?.data?.error || 'An unexpected error occurred. Please try again later.'
                 });
-            }).catch(err => {
-                console.error('Failed to copy: ', err);
+            }
+        }
+    }
+
+    function copyReferralLink() {
+        const referralLink = document.getElementById('referralLink').textContent;
+        navigator.clipboard.writeText(referralLink).then(() => {
+            Swal.fire({
+                icon: 'success',
+                title: 'Copied!',
+                text: 'Referral link copied to clipboard',
+                timer: 1500,
+                showConfirmButton: false
             });
-        }
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+    }
 
-        function shareReferralLink() {
-            const referralLink = document.getElementById('referralLink').textContent;
-            const shareText = `Join StarStore and get exclusive Telegram stars and premium! Use my referral link: ${referralLink}`;
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Join StarStore!',
-                    text: shareText,
-                    url: referralLink
-                }).catch(error => {
-                    console.log('Error sharing:', error);
-                    fallbackShare();
-                });
-            } else {
+    function shareReferralLink() {
+        const referralLink = document.getElementById('referralLink').textContent;
+        const shareText = `Join StarStore and get exclusive Telegram stars and premium! Use my referral link: ${referralLink}`;
+        if (navigator.share) {
+            navigator.share({
+                title: 'Join StarStore!',
+                text: shareText,
+                url: referralLink
+            }).catch(error => {
+                console.log('Error sharing:', error);
                 fallbackShare();
-            }
-            function fallbackShare() {
-                Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
-            }
+            });
+        } else {
+            fallbackShare();
         }
-
-        function toggleMenu() {
-            const menuOverlay = document.getElementById('menuOverlay');
-            const sideMenu = document.getElementById('sideMenu');
-            menuOverlay.classList.toggle('active');
-            sideMenu.classList.toggle('active');
+        function fallbackShare() {
+            Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
         }
+    }
 
-        initUser();
-    </script>
+    function toggleMenu() {
+        const menuOverlay = document.getElementById('menuOverlay');
+        const sideMenu = document.getElementById('sideMenu');
+        menuOverlay.classList.toggle('active');
+        sideMenu.classList.toggle('active');
+    }
+
+    initUser();
+</script>
+                    
+    
 </body>
 </html>
