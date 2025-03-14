@@ -69,7 +69,6 @@
             background: #f9fafb;
             transform: scale(1.02);
         }
-        
         .menu-overlay {
             position: fixed;
             top: 0;
@@ -262,11 +261,11 @@
                 </div>
                 
                 <div>
-                    <p class="text-sm font-medium mb-1">Next Reward: <span id="nextReward">10 Stars</span></p>
+                    <p class="text-sm font-medium mb-1">Next Reward: <span id="nextReward">0.5 USDT</span></p>
                     <div class="referral-progress-container">
                         <div class="referral-progress-bar" id="referralProgress" style="width: 0%"></div>
                     </div>
-                    <p class="text-xs opacity-90"><span id="currentProgress">0</span>/<span id="targetProgress">5</span> referrals to next tier</p>
+                    <p class="text-xs opacity-90"><span id="currentProgress">0</span>/<span id="targetProgress">3</span> referrals to next tier</p>
                 </div>
             </div>
             
@@ -303,33 +302,36 @@
                         <div class="flex justify-between items-start mb-2">
                             <div>
                                 <span class="tier-badge">Tier 1</span>
-                                <h3 class="text-lg font-semibold mt-2">5 Referrals</h3>
-                                <p class="text-sm text-gray-600">Get 10 stars bonus</p>
+                                <h3 class="text-lg font-semibold mt-2">3 Referrals</h3>
+                                <p class="text-sm text-gray-600">Get 0.5 USDT bonus</p>
                             </div>
-                            <div class="text-2xl font-bold text-indigo-600">+10⭐</div>
+                            <div class="text-2xl font-bold text-indigo-600">+$0.5</div>
                         </div>
+                        <button id="claimTier1" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md mt-2 disabled:opacity-50" onclick="claimReward(1)">Claim</button>
                     </div>
                     
                     <div class="reward-card p-4">
                         <div class="flex justify-between items-start mb-2">
                             <div>
                                 <span class="tier-badge">Tier 2</span>
-                                <h3 class="text-lg font-semibold mt-2">15 Referrals</h3>
-                                <p class="text-sm text-gray-600">Get 50 stars bonus</p>
+                                <h3 class="text-lg font-semibold mt-2">9 Referrals</h3>
+                                <p class="text-sm text-gray-600">Get 2 USDT bonus</p>
                             </div>
-                            <div class="text-2xl font-bold text-indigo-600">+50⭐</div>
+                            <div class="text-2xl font-bold text-indigo-600">+$2</div>
                         </div>
+                        <button id="claimTier2" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md mt-2 disabled:opacity-50" onclick="claimReward(2)">Claim</button>
                     </div>
                     
                     <div class="reward-card p-4">
                         <div class="flex justify-between items-start mb-2">
                             <div>
                                 <span class="tier-badge">Tier 3</span>
-                                <h3 class="text-lg font-semibold mt-2">30 Referrals</h3>
-                                <p class="text-sm text-gray-600">Get 1 month Premium</p>
+                                <h3 class="text-lg font-semibold mt-2">15 Referrals</h3>
+                                <p class="text-sm text-gray-600">Get 5 USDT bonus</p>
                             </div>
-                            <div class="text-2xl font-bold text-indigo-600">+🔮</div>
+                            <div class="text-2xl font-bold text-indigo-600">+$5</div>
                         </div>
+                        <button id="claimTier3" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md mt-2 disabled:opacity-50" onclick="claimReward(3)">Claim</button>
                     </div>
                 </div>
             </div>
@@ -357,7 +359,7 @@
                     <div class="step-number">3</div>
                     <div>
                         <h3 class="font-medium">Earn rewards</h3>
-                        <p class="text-sm text-gray-600">Get stars for each referral and unlock tier bonuses</p>
+                        <p class="text-sm text-gray-600">Get USDT for each referral and unlock tier bonuses</p>
                     </div>
                 </div>
             </div>
@@ -365,164 +367,220 @@
             <div class="mb-6">
                 <h2 class="text-xl font-bold mb-4">Recent Referrals</h2>
                 <div id="recentReferrals" class="space-y-3">
-                    <!-- Will be populated by JavaScript -->
                 </div>
             </div>
         </div>
-  </div>
+    </div>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-   <script>
-  Telegram.WebApp.ready();
-const user = Telegram.WebApp.initDataUnsafe.user;
-let referralData = {
-    count: 0,
-    earnedStars: 0,
-    referralCode: '',
-    recentReferrals: []
-};
+    <script>
+        Telegram.WebApp.ready();
+        const user = Telegram.WebApp.initDataUnsafe.user;
+        let referralData = {
+            count: 0,
+            earnedStars: 0,
+            referralCode: '',
+            recentReferrals: [],
+            claimedTiers: []
+        };
 
-function initUser() {
-    if (user) {
-        referralData.referralCode = `ref_${user.id}`;
-        const referralLink = `https://t.me/TgStarStore_bot?start=${referralData.referralCode}`;
-        document.getElementById('referralLink').textContent = referralLink;
-        fetchReferralData();
-    }
-}
-
-async function fetchReferralData() {
-    try {
-        const response = await axios.get(`/api/referrals/${user.id}`);
-        if (response.data) {
-            referralData = response.data;
-            updateReferralUI();
-        } else {
-            console.log('No referral data found for this user.');
-            updateReferralUI();
+        function initUser() {
+            if (user) {
+                referralData.referralCode = `ref_${user.id}`;
+                const referralLink = `https://t.me/TgStarStore_bot?start=${referralData.referralCode}`;
+                document.getElementById('referralLink').textContent = referralLink;
+                fetchReferralData();
+            }
         }
-    } catch (error) {
-        console.error('Failed to fetch referral data:', error);
-        updateReferralUI();
-    }
-}
 
-function updateReferralUI() {
-    document.getElementById('referralCount').textContent = referralData.count;
-    document.getElementById('earnedStars').textContent = referralData.earnedStars;
+        async function fetchReferralData() {
+            try {
+                const response = await axios.get(`/api/referrals/${user.id}`);
+                if (response.data) {
+                    referralData = response.data;
+                    updateReferralUI();
+                } else {
+                    console.log('No referral data found for this user.');
+                    updateReferralUI();
+                }
+            } catch (error) {
+                console.error('Failed to fetch referral data:', error);
+                updateReferralUI();
+            }
+        }
 
-    let currentTier, nextTierTarget, currentProgress;
-    if (referralData.count < 5) {
-        currentTier = 0;
-        nextTierTarget = 5;
-        currentProgress = referralData.count;
-        document.getElementById('nextReward').textContent = '10 Stars';
-    } else if (referralData.count < 15) {
-        currentTier = 1;
-        nextTierTarget = 15;
-        currentProgress = referralData.count - 5;
-        document.getElementById('nextReward').textContent = '50 Stars';
-    } else if (referralData.count < 30) {
-        currentTier = 2;
-        nextTierTarget = 30;
-        currentProgress = referralData.count - 15;
-        document.getElementById('nextReward').textContent = '1 Month Premium';
-    } else {
-        currentTier = 3;
-        nextTierTarget = 30;
-        currentProgress = 15;
-        document.getElementById('nextReward').textContent = 'Max Tier Reached!';
-    }
+        function updateReferralUI() {
+            document.getElementById('referralCount').textContent = referralData.count;
+            document.getElementById('earnedStars').textContent = referralData.earnedStars;
 
-    const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 5 : 15)) : 15;
-    const progressPercent = (currentProgress / progressTarget) * 100;
-    document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
-    document.getElementById('currentProgress').textContent = currentProgress;
-    document.getElementById('targetProgress').textContent = progressTarget;
+            let currentTier, nextTierTarget, currentProgress;
+            if (referralData.count < 3) {
+                currentTier = 0;
+                nextTierTarget = 3;
+                currentProgress = referralData.count;
+                document.getElementById('nextReward').textContent = '0.5 USDT';
+            } else if (referralData.count < 9) {
+                currentTier = 1;
+                nextTierTarget = 9;
+                currentProgress = referralData.count - 3;
+                document.getElementById('nextReward').textContent = '2 USDT';
+            } else if (referralData.count < 15) {
+                currentTier = 2;
+                nextTierTarget = 15;
+                currentProgress = referralData.count - 9;
+                document.getElementById('nextReward').textContent = '5 USDT';
+            } else {
+                currentTier = 3;
+                nextTierTarget = 15;
+                currentProgress = 6;
+                document.getElementById('nextReward').textContent = 'Max Tier Reached!';
+            }
 
-    const recentReferralsContainer = document.getElementById('recentReferrals');
-    recentReferralsContainer.innerHTML = '';
-    if (referralData.recentReferrals.length === 0) {
-        recentReferralsContainer.innerHTML = `
-            <div class="text-center p-4 text-gray-500">
-                <p>No referrals yet. Share your link to start earning!</p>
-            </div>
-        `;
-    } else {
-        referralData.recentReferrals.forEach(referral => {
-            const timeLabel = referral.daysAgo === 0 ? 'Today' : 
-                            referral.daysAgo === 1 ? 'Yesterday' : 
-                            `${referral.daysAgo} days ago`;
-            const statusBadge = referral.status === 'active' ? 
-                `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Active</span>` :
-                `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Pending</span>`;
-            recentReferralsContainer.innerHTML += `
-                <div class="referral-card p-3 flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
-                            ${referral.name.charAt(0)}
-                        </div>
-                        <div>
-                            <p class="font-medium">@${referral.name}</p>
-                            <p class="text-xs text-gray-500">${timeLabel}</p>
-                        </div>
+            const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 3 : 9)) : 6;
+            const progressPercent = (currentProgress / progressTarget) * 100;
+            document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
+            document.getElementById('currentProgress').textContent = currentProgress;
+            document.getElementById('targetProgress').textContent = progressTarget;
+
+            const recentReferralsContainer = document.getElementById('recentReferrals');
+            recentReferralsContainer.innerHTML = '';
+            if (referralData.recentReferrals.length === 0) {
+                recentReferralsContainer.innerHTML = `
+                    <div class="text-center p-4 text-gray-500">
+                        <p>No referrals yet. Share your link to start earning!</p>
                     </div>
-                    <div>
-                        ${statusBadge}
-                    </div>
-                </div>
-            `;
-        });
-    }
+                `;
+            } else {
+                referralData.recentReferrals.forEach(referral => {
+                    const timeLabel = referral.daysAgo === 0 ? 'Today' : 
+                                    referral.daysAgo === 1 ? 'Yesterday' : 
+                                    `${referral.daysAgo} days ago`;
+                    const statusBadge = referral.status === 'active' ? 
+                        `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Active</span>` :
+                        `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Pending</span>`;
+                    recentReferralsContainer.innerHTML += `
+                        <div class="referral-card p-3 flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+                                    ${referral.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <p class="font-medium">@${referral.name}</p>
+                                    <p class="text-xs text-gray-500">${timeLabel}</p>
+                                </div>
+                            </div>
+                            <div>
+                                ${statusBadge}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
 
-    document.getElementById('menuNotificationDot').style.display = referralData.recentReferrals.some(r => r.daysAgo === 0) ? 'block' : 'none';
-}
+            document.getElementById('menuNotificationDot').style.display = referralData.recentReferrals.some(r => r.daysAgo === 0) ? 'block' : 'none';
 
-function copyReferralLink() {
-    const referralLink = document.getElementById('referralLink').textContent;
-    navigator.clipboard.writeText(referralLink).then(() => {
-        Swal.fire({
-            icon: 'success',
-            title: 'Copied!',
-            text: 'Referral link copied to clipboard',
-            timer: 1500,
-            showConfirmButton: false
-        });
-    }).catch(err => {
-        console.error('Failed to copy: ', err);
-    });
-}
+            const claimButtons = ['claimTier1', 'claimTier2', 'claimTier3'];
+            claimButtons.forEach((buttonId, index) => {
+                const button = document.getElementById(buttonId);
+                if (referralData.claimedTiers.includes(index + 1)) {
+                    button.disabled = true;
+                    button.textContent = 'Claimed';
+                    button.style.display = 'none';
+                } else {
+                    button.disabled = referralData.count < (index === 0 ? 3 : index === 1 ? 9 : 15);
+                }
+            });
+        }
 
-function shareReferralLink() {
-    const referralLink = document.getElementById('referralLink').textContent;
-    const shareText = `Join StarStore and get exclusive Telegram stars and premium! Use my referral link: ${referralLink}`;
-    if (navigator.share) {
-        navigator.share({
-            title: 'Join StarStore!',
-            text: shareText,
-            url: referralLink
-        }).catch(error => {
-            console.log('Error sharing:', error);
-            fallbackShare();
-        });
-    } else {
-        fallbackShare();
-    }
-    function fallbackShare() {
-        Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
-    }
-}
+        async function claimReward(tier) {
+            const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
+            const confirmResult = await Swal.fire({
+                title: 'Confirm Withdrawal',
+                text: `You are about to withdraw $${rewardAmount}. Continue?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, withdraw',
+                cancelButtonText: 'Cancel'
+            });
 
-function toggleMenu() {
-    const menuOverlay = document.getElementById('menuOverlay');
-    const sideMenu = document.getElementById('sideMenu');
-    menuOverlay.classList.toggle('active');
-    sideMenu.classList.toggle('active');
-}
+            if (confirmResult.isConfirmed) {
+                try {
+                    const response = await axios.post('/api/claim-reward', {
+                        userId: user.id,
+                        tier: tier,
+                        amount: rewardAmount
+                    });
 
-initUser();
-  </script>
-    
+                    if (response.data.success) {
+                        referralData.claimedTiers.push(tier);
+                        updateReferralUI();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Withdrawal Successful',
+                            text: `$${rewardAmount} has been added to your account.`
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Withdrawal Failed',
+                            text: response.data.error || 'Failed to process withdrawal.'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Failed to claim reward:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Withdrawal Failed',
+                        text: 'An error occurred while processing your withdrawal.'
+                    });
+                }
+            }
+        }
+
+        function copyReferralLink() {
+            const referralLink = document.getElementById('referralLink').textContent;
+            navigator.clipboard.writeText(referralLink).then(() => {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Copied!',
+                    text: 'Referral link copied to clipboard',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        function shareReferralLink() {
+            const referralLink = document.getElementById('referralLink').textContent;
+            const shareText = `Join StarStore and get exclusive Telegram stars and premium! Use my referral link: ${referralLink}`;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Join StarStore!',
+                    text: shareText,
+                    url: referralLink
+                }).catch(error => {
+                    console.log('Error sharing:', error);
+                    fallbackShare();
+                });
+            } else {
+                fallbackShare();
+            }
+            function fallbackShare() {
+                Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
+            }
+        }
+
+        function toggleMenu() {
+            const menuOverlay = document.getElementById('menuOverlay');
+            const sideMenu = document.getElementById('sideMenu');
+            menuOverlay.classList.toggle('active');
+            sideMenu.classList.toggle('active');
+        }
+
+        initUser();
+    </script>
 </body>
 </html>
