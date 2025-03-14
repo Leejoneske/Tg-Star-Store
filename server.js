@@ -1330,14 +1330,6 @@ bot.onText(/\/users/, async (msg) => {
     }
 });
 
-const fetch = require('node-fetch');
-
-setInterval(() => {
-  fetch('https://tg-star-store-production.up.railway.app')
-    .then(response => console.log('Ping successful'))
-    .catch(err => console.error('Ping failed:', err));
-}, 4 * 60 * 1000);
-
 const PORT = process.env.PORT || 3000;
 
 
