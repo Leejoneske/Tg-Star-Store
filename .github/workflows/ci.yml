@@ -1,31 +1,29 @@
-name: CI
+name: Deploy to Railway
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: 22
-          cache: 'npm'
+          node-version: 18
 
       - name: Install dependencies
         run: npm install
 
-      - name: Run tests (if applicable)
-        run: npm test
-
-      - name: Start the server (if applicable)
-        run: npm start
+      - name: Deploy to Railway
+        uses: railwayapp/action@v1
+        with:
+          service: your-service-name
+          environment: production
+        env:
+          ADMIN_TELEGRAM_IDS: ${{ secrets.ADMIN_TELEGRAM_IDS }}
