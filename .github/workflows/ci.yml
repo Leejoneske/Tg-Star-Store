@@ -27,8 +27,5 @@ jobs:
       - name: Run tests (if applicable)
         run: npm test
 
-      - name: Build the project (if applicable)
-        run: npm run build
-
       - name: Start the server (if applicable)
         run: npm start
