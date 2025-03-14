@@ -1029,6 +1029,83 @@ app.post('/api/claim-reward', async (req, res) => {
 });
 
 // Handle admin confirmation/decline of reward orders
+app.post('/api/claim-reward', async (req, res) => {
+    try {
+        const { userId, tier, amount } = req.body;
+
+        if (!userId || !tier || !amount) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const user = await User.findOne({ id: userId });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const referral = await Referral.findOne({ referrerUserId: userId });
+        if (!referral) {
+            return res.status(404).json({ error: 'Referral data not found' });
+        }
+
+        if (referral.claimedTiers && referral.claimedTiers.includes(tier)) {
+            return res.status(400).json({ error: 'Reward already claimed for this tier' });
+        }
+
+        const referralCount = referral.referredUsers?.length || 0;
+        const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
+
+        if (referralCount < requiredReferrals) {
+            return res.status(400).json({ error: `You need ${requiredReferrals} referrals to claim this reward` });
+        }
+
+        const rewardOrder = new Gift({
+            id: generateOrderId(),
+            telegramId: userId,
+            username: user.username,
+            stars: 0,
+            walletAddress: '',
+            status: 'pending',
+            dateCreated: new Date(),
+            adminMessages: [],
+            giveawayCode: `referral_tier_${tier}`,
+            rewardAmount: amount
+        });
+
+        await rewardOrder.save();
+
+        if (!referral.claimedTiers) {
+            referral.claimedTiers = [];
+        }
+        referral.claimedTiers.push(tier);
+        await referral.save();
+
+        const adminMessage = `🎉 New Referral Reward Order!\n\nOrder ID: ${rewardOrder.id}\nUser: @${user.username} (ID: ${userId})\nTier: ${tier}\nAmount: $${amount}`;
+
+        const adminKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: 'Confirm', callback_data: `confirm_reward_${rewardOrder.id}` },
+                    { text: 'Decline', callback_data: `decline_reward_${rewardOrder.id}` }
+                ]
+            ]
+        };
+
+        for (const adminId of adminIds) {
+            try {
+                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+                rewardOrder.adminMessages.push({ adminId, messageId: message.message_id });
+            } catch (err) {
+                console.error(`Failed to send message to admin ${adminId}:`, err);
+            }
+        }
+
+        res.json({ success: true, order: rewardOrder });
+    } catch (err) {
+        console.error('Claim reward error:', err);
+        res.status(500).json({ error: 'An unexpected error occurred. Please try again later.' });
+    }
+});
+
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
