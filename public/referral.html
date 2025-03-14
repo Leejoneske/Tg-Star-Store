@@ -374,8 +374,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
-    <script>
+<script>
     Telegram.WebApp.ready();
     const user = Telegram.WebApp.initDataUnsafe.user;
     let referralData = {
@@ -485,9 +484,17 @@
             if (referralData.claimedTiers && referralData.claimedTiers.includes(index + 1)) {
                 button.disabled = true;
                 button.textContent = 'Claimed';
+                button.classList.add('opacity-50', 'cursor-not-allowed');
                 button.style.display = 'none';
             } else {
-                button.disabled = referralData.count < (index === 0 ? 3 : index === 1 ? 9 : 15);
+                const requiredReferrals = index === 0 ? 3 : index === 1 ? 9 : 15;
+                if (referralData.count < requiredReferrals) {
+                    button.disabled = true;
+                    button.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    button.disabled = false;
+                    button.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
             }
         });
     }
@@ -581,7 +588,8 @@
 
     initUser();
 </script>
-                    
+    
+           
     
 </body>
 </html>
