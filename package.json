@@ -27,6 +27,7 @@
     "nodemon": "^3.0.2",
     "sweetalert2": "^11.10.5",
     "@tonconnect/sdk": "ton-connect/sdk",
+    "@tonconnect/ui": "^2.0.11",
     "cors": "^2.8.5",
     "body-parser": "^1.20.2",
     "helmet": "^7.1.0",
