@@ -307,7 +307,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="text-2xl font-bold text-indigo-600">+$0.5</div>
-                                <button id="claimTier1" class="bg-green-500 text-white py-1 px-3 rounded-md text-sm disabled:opacity-50" onclick="claimReward(1)">Claim</button>
+                                <button id="claimTier1" class="bg-green-500 text-white py-1 px-3 rounded-md text-sm" onclick="claimReward(1)">Claim</button>
                             </div>
                         </div>
                     </div>
@@ -321,7 +321,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="text-2xl font-bold text-indigo-600">+$2</div>
-                                <button id="claimTier2" class="bg-green-500 text-white py-1 px-3 rounded-md text-sm disabled:opacity-50" onclick="claimReward(2)">Claim</button>
+                                <button id="claimTier2" class="bg-green-500 text-white py-1 px-3 rounded-md text-sm" onclick="claimReward(2)">Claim</button>
                             </div>
                         </div>
                     </div>
@@ -335,7 +335,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="text-2xl font-bold text-indigo-600">+$5</div>
-                                <button id="claimTier3" class="bg-green-500 text-white py-1 px-3 rounded-md text-sm disabled:opacity-50" onclick="claimReward(3)">Claim</button>
+                                <button id="claimTier3" class="bg-green-500 text-white py-1 px-3 rounded-md text-sm" onclick="claimReward(3)">Claim</button>
                             </div>
                         </div>
                     </div>
@@ -373,6 +373,9 @@
             <div class="mb-6">
                 <h2 class="text-xl font-bold mb-4">Recent Referrals</h2>
                 <div id="recentReferrals" class="space-y-3">
+                    <div class="text-center p-4 text-gray-500">
+                        <p>No referrals yet. Share your link to start earning!</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -482,28 +485,6 @@
                     `;
                 });
             }
-
-            const claimButtons = ['claimTier1', 'claimTier2', 'claimTier3'];
-            claimButtons.forEach((buttonId, index) => {
-                const button = document.getElementById(buttonId);
-                if (referralData.claimedTiers && referralData.claimedTiers.includes(index + 1)) {
-                    button.disabled = true;
-                    button.textContent = 'Claimed';
-                    button.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-400');
-                    button.classList.remove('bg-green-500');
-                } else {
-                    const requiredReferrals = index === 0 ? 3 : index === 1 ? 9 : 15;
-                    if (referralData.count < requiredReferrals) {
-                        button.disabled = true;
-                        button.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-400');
-                        button.classList.remove('bg-green-500');
-                    } else {
-                        button.disabled = false;
-                        button.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-400');
-                        button.classList.add('bg-green-500');
-                    }
-                }
-            });
         }
 
         async function claimReward(tier) {
