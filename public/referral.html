@@ -397,17 +397,24 @@ let referralData = {
 
 function initUser() {
     if (user) {
+        // Set the referral code based on the user's ID
         referralData.referralCode = `ref_${user.id}`;
         const referralLink = `https://t.me/TgStarStore_bot?start=${referralData.referralCode}`;
         document.getElementById('referralLink').textContent = referralLink;
+
+        // Fetch referral data for the logged-in user
         fetchReferralData();
+    } else {
+        console.error('User not logged in or user data not available.');
     }
 }
 
 async function fetchReferralData() {
     try {
+        // Fetch referral data from the backend API
         const response = await axios.get(`/api/referrals/${user.id}`);
         if (response.data) {
+            // Update referralData with the fetched data
             referralData = response.data;
             updateReferralUI();
         } else {
@@ -607,6 +614,8 @@ function toggleMenu() {
 }
 
 initUser();
+
+            
             </script>
 </body>
 </html>
