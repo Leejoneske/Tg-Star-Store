@@ -1,4 +1,4 @@
-name: Deploy to Railway
+name: Build and Test
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -20,5 +20,5 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Deploy to Railway
-        run: railway up
+      - name: Run application (optional)
+        run: npm start
