@@ -385,14 +385,13 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
             <script>
-            Telegram.WebApp.ready();
+                Telegram.WebApp.ready();
 const user = Telegram.WebApp.initDataUnsafe.user;
 let referralData = {
     count: 0, // Total referrals (both active and pending)
-    activeReferrals: 0, // Number of active referrals
-    earnedUSDT: 0, // Earned USDT
+    earnedStars: 0, // Earned stars
     referralCode: '', // Referral code
-    recentReferrals: [], // Latest 3 referrals (both active and pending)
+    recentReferrals: [], // Latest referrals (both active and pending)
     claimedTiers: [] // Tiers that have been claimed
 };
 
@@ -412,6 +411,7 @@ async function fetchReferralData() {
             referralData = response.data;
             updateReferralUI();
         } else {
+            console.log('No referral data found for this user.');
             updateReferralUI();
         }
     } catch (error) {
@@ -424,35 +424,35 @@ function updateReferralUI() {
     // Update referral count (total referrals)
     document.getElementById('referralCount').textContent = referralData.count;
 
-    // Update earned USDT (based on active referrals)
-    document.getElementById('earnedUSDT').textContent = `$${referralData.earnedUSDT.toFixed(2)}`;
+    // Update earned stars
+    document.getElementById('earnedStars').textContent = referralData.earnedStars;
 
-    // Update progress bar (based on active referrals)
+    // Update progress bar (based on total referrals)
     let currentTier, nextTierTarget, currentProgress;
-    if (referralData.activeReferrals < 3) {
+    if (referralData.count < 5) {
         currentTier = 0;
-        nextTierTarget = 3;
-        currentProgress = referralData.activeReferrals;
-        document.getElementById('nextReward').textContent = '0.5 USDT';
-    } else if (referralData.activeReferrals < 9) {
+        nextTierTarget = 5;
+        currentProgress = referralData.count;
+        document.getElementById('nextReward').textContent = '10 Stars';
+    } else if (referralData.count < 15) {
         currentTier = 1;
-        nextTierTarget = 9;
-        currentProgress = referralData.activeReferrals - 3;
-        document.getElementById('nextReward').textContent = '2 USDT';
-    } else if (referralData.activeReferrals < 15) {
-        currentTier = 2;
         nextTierTarget = 15;
-        currentProgress = referralData.activeReferrals - 9;
-        document.getElementById('nextReward').textContent = '5 USDT';
+        currentProgress = referralData.count - 5;
+        document.getElementById('nextReward').textContent = '50 Stars';
+    } else if (referralData.count < 30) {
+        currentTier = 2;
+        nextTierTarget = 30;
+        currentProgress = referralData.count - 15;
+        document.getElementById('nextReward').textContent = '1 Month Premium';
     } else {
         currentTier = 3;
-        nextTierTarget = 15;
-        currentProgress = 6;
+        nextTierTarget = 30;
+        currentProgress = 15;
         document.getElementById('nextReward').textContent = 'Max Tier Reached!';
     }
 
     // Calculate progress bar width
-    const progressTarget = nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 3 : 9));
+    const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 5 : 15)) : 15;
     const progressPercent = (currentProgress / progressTarget) * 100;
     document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
     document.getElementById('currentProgress').textContent = currentProgress;
@@ -493,17 +493,20 @@ function updateReferralUI() {
             `;
         });
     }
+
+    // Show notification dot if there are new referrals today
+    document.getElementById('menuNotificationDot').style.display = referralData.recentReferrals.some(r => r.daysAgo === 0) ? 'block' : 'none';
 }
 
 async function claimReward(tier) {
-    const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
-    const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
+    const rewardAmount = tier === 1 ? 10 : tier === 2 ? 50 : 100; // Adjust reward amounts as needed
+    const requiredReferrals = tier === 1 ? 5 : tier === 2 ? 15 : 30;
 
-    if (referralData.activeReferrals < requiredReferrals) {
+    if (referralData.count < requiredReferrals) {
         Swal.fire({
             icon: 'error',
             title: 'Withdrawal Failed',
-            text: `You need ${requiredReferrals} active referrals to claim this reward.`
+            text: `You need ${requiredReferrals} referrals to claim this reward.`
         });
         return;
     }
@@ -519,10 +522,10 @@ async function claimReward(tier) {
 
     const confirmResult = await Swal.fire({
         title: 'Confirm Withdrawal',
-        text: `You are about to withdraw $${rewardAmount}. Continue?`,
+        text: `You are about to claim ${rewardAmount} stars. Continue?`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Yes, withdraw',
+        confirmButtonText: 'Yes, claim',
         cancelButtonText: 'Cancel'
     });
 
@@ -536,12 +539,12 @@ async function claimReward(tier) {
 
             if (response.data.success) {
                 referralData.claimedTiers.push(tier);
-                referralData.earnedUSDT += rewardAmount;
+                referralData.earnedStars += rewardAmount;
                 updateReferralUI();
                 Swal.fire({
                     icon: 'success',
                     title: 'Withdrawal Successful',
-                    text: `$${rewardAmount} has been added to your account.`
+                    text: `${rewardAmount} stars have been added to your account.`
                 });
             } else {
                 Swal.fire({
