@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@tonconnect/ui": "^2.0.11",
-    "@tonconnect/sdk": "ton-connect/sdk",
     "mongoose": "^8.0.3",
     "axios": "^1.8.1",
     "dotenv": "^16.4.7",
