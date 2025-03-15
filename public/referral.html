@@ -460,7 +460,7 @@
                     </div>
                 `;
             } else {
-                referralData.recentReferrals.forEach(referral => {
+                referralData.recentReferrals.slice(0, 3).forEach(referral => {
                     const timeLabel = referral.daysAgo === 0 ? 'Today' : 
                                     referral.daysAgo === 1 ? 'Yesterday' : 
                                     `${referral.daysAgo} days ago`;
