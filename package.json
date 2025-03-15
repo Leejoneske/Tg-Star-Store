@@ -1,18 +1,32 @@
 {
-  "name": "starstore",
+  "name": "tg-star-store",
   "version": "1.0.0",
-  "description": "StarStore application",
+  "description": "Telegram Star Store backend application",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"No tests specified\""
+    "dev": "nodemon server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [
+    "telegram",
+    "bot",
+    "store",
+    "stars",
+    "premium"
+  ],
+  "author": "Lee Jones",
+  "license": "MIT",
   "dependencies": {
-    "dotenv": "^16.0.3",
+    "axios": "^1.6.2",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "mongoose": "^8.0.3",
+    "node-fetch": "^2.6.7",
     "node-telegram-bot-api": "^0.61.0",
-    "axios": "^1.6.2",
-    "sweetalert2": "^11.10.5"
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
