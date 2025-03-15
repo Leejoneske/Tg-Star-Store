@@ -452,7 +452,7 @@ function updateReferralUI() {
     }
 
     // Calculate progress bar width
-    const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 3 : 9)) : 6;
+    const progressTarget = nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 3 : 9));
     const progressPercent = (currentProgress / progressTarget) * 100;
     document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
     document.getElementById('currentProgress').textContent = currentProgress;
