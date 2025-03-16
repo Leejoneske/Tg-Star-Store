@@ -389,7 +389,7 @@
 const user = Telegram.WebApp.initDataUnsafe.user;
 let referralData = {
     count: 0, // Total referrals (both active and pending)
-    earnedStars: 0, // Earned stars
+    earnedUSDT: 0, // Earned USDT
     referralCode: '', // Referral code
     recentReferrals: [], // Latest referrals (both active and pending)
     claimedTiers: [] // Tiers that have been claimed
@@ -429,35 +429,35 @@ function updateReferralUI() {
     // Update referral count (total referrals)
     document.getElementById('referralCount').textContent = referralData.count;
 
-    // Update earned stars
-    document.getElementById('earnedStars').textContent = referralData.earnedStars;
+    // Update earned USDT
+    document.getElementById('earnedUSDT').textContent = `$${referralData.earnedUSDT.toFixed(2)}`;
 
     // Update progress bar (based on total referrals)
     let currentTier, nextTierTarget, currentProgress;
-    if (referralData.count < 5) {
+    if (referralData.count < 3) {
         currentTier = 0;
-        nextTierTarget = 5;
+        nextTierTarget = 3;
         currentProgress = referralData.count;
-        document.getElementById('nextReward').textContent = '10 Stars';
-    } else if (referralData.count < 15) {
+        document.getElementById('nextReward').textContent = '0.5 USDT';
+    } else if (referralData.count < 9) {
         currentTier = 1;
-        nextTierTarget = 15;
-        currentProgress = referralData.count - 5;
-        document.getElementById('nextReward').textContent = '50 Stars';
-    } else if (referralData.count < 30) {
+        nextTierTarget = 9;
+        currentProgress = referralData.count - 3;
+        document.getElementById('nextReward').textContent = '2 USDT';
+    } else if (referralData.count < 15) {
         currentTier = 2;
-        nextTierTarget = 30;
-        currentProgress = referralData.count - 15;
-        document.getElementById('nextReward').textContent = '1 Month Premium';
+        nextTierTarget = 15;
+        currentProgress = referralData.count - 9;
+        document.getElementById('nextReward').textContent = '5 USDT';
     } else {
         currentTier = 3;
-        nextTierTarget = 30;
-        currentProgress = 15;
+        nextTierTarget = 15;
+        currentProgress = 6;
         document.getElementById('nextReward').textContent = 'Max Tier Reached!';
     }
 
     // Calculate progress bar width
-    const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 5 : 15)) : 15;
+    const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 3 : 9)) : 6;
     const progressPercent = (currentProgress / progressTarget) * 100;
     document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
     document.getElementById('currentProgress').textContent = currentProgress;
@@ -504,8 +504,8 @@ function updateReferralUI() {
 }
 
 async function claimReward(tier) {
-    const rewardAmount = tier === 1 ? 10 : tier === 2 ? 50 : 100; // Adjust reward amounts as needed
-    const requiredReferrals = tier === 1 ? 5 : tier === 2 ? 15 : 30;
+    const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
+    const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
 
     if (referralData.count < requiredReferrals) {
         Swal.fire({
@@ -527,10 +527,10 @@ async function claimReward(tier) {
 
     const confirmResult = await Swal.fire({
         title: 'Confirm Withdrawal',
-        text: `You are about to claim ${rewardAmount} stars. Continue?`,
+        text: `You are about to withdraw $${rewardAmount}. Continue?`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Yes, claim',
+        confirmButtonText: 'Yes, withdraw',
         cancelButtonText: 'Cancel'
     });
 
@@ -544,12 +544,12 @@ async function claimReward(tier) {
 
             if (response.data.success) {
                 referralData.claimedTiers.push(tier);
-                referralData.earnedStars += rewardAmount;
+                referralData.earnedUSDT += rewardAmount;
                 updateReferralUI();
                 Swal.fire({
                     icon: 'success',
                     title: 'Withdrawal Successful',
-                    text: `${rewardAmount} stars have been added to your account.`
+                    text: `$${rewardAmount} has been added to your account.`
                 });
             } else {
                 Swal.fire({
