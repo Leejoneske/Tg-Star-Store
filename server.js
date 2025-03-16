@@ -648,6 +648,8 @@ app.get('/api/referrals/:userId', async (req, res) => {
 bot.onText(/\/referrals/, async (msg) => {
     const chatId = msg.chat.id;
 
+    const referralLink = `https://t.me/TgStarStore_bot?start=ref_${chatId}`;
+
     const referrals = await Referral.find({ referrerUserId: chatId.toString() });
 
     if (referrals.length > 0) {
@@ -655,13 +657,39 @@ bot.onText(/\/referrals/, async (msg) => {
         const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
 
         let message = `📊 Your Referrals:\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
-        message += 'Your pending referrals will be active when they make a purchase.';
+        message += 'Your pending referrals will be active when they make a purchase.\n\n';
+        message += `🔗 Your Referral Link:\n${referralLink}`;
 
-        await bot.sendMessage(chatId, message);
+        const keyboard = {
+            inline_keyboard: [
+                [{ text: 'Copy Referral Link', callback_data: `copy_${referralLink}` }]
+            ]
+        };
+
+        await bot.sendMessage(chatId, message, { reply_markup: keyboard });
     } else {
-        await bot.sendMessage(chatId, 'You have no referrals yet.');
+        const message = `You have no referrals yet.\n\n🔗 Your Referral Link:\n${referralLink}`;
+
+        const keyboard = {
+            inline_keyboard: [
+                [{ text: 'Copy Referral Link', callback_data: `copy_${referralLink}` }]
+            ]
+        };
+
+        await bot.sendMessage(chatId, message, { reply_markup: keyboard });
     }
-});        
+});
+
+bot.on('callback_query', async (query) => {
+    const chatId = query.message.chat.id;
+    const data = query.data;
+
+    if (data.startsWith('copy_')) {
+        const referralLink = data.split('_')[1];
+        await bot.answerCallbackQuery(query.id, { text: 'Referral link copied to clipboard!' });
+        await bot.sendMessage(chatId, referralLink);
+    }
+});
 
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
