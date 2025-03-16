@@ -482,7 +482,7 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
-    const deepLinkParam = match[1]?.trim();
+    const deepLinkParam = match[1]?.trim(); // Capture the deep link parameter
 
     const user = await User.findOne({ id: chatId });
 
@@ -490,9 +490,20 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         await User.create({ id: chatId, username });
     }
 
-    bot.sendMessage(chatId, `👋 Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`);
+    // Welcome message
+    const welcomeMessage = `👋 Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`;
+    const keyboard = {
+        inline_keyboard: [
+            [{ text: 'Launch App', url: `https://t.me/TgStarStore_bot?startapp` }]
+        ]
+    };
 
+    // Send the welcome message with the "Launch App" button
+    await bot.sendMessage(chatId, welcomeMessage, { reply_markup: keyboard });
+
+    // Handle deep link parameters
     if (deepLinkParam) {
+        // Emit the deep link parameter as a message
         bot.emit('message', { chat: { id: chatId }, text: deepLinkParam, from: msg.from });
     }
 });
