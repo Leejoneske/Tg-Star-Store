@@ -385,7 +385,7 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
             <script>
-                Telegram.WebApp.ready();
+            Telegram.WebApp.ready();
 const user = Telegram.WebApp.initDataUnsafe.user;
 let referralData = {
     count: 0, // Total referrals (both active and pending)
@@ -434,15 +434,15 @@ function updateReferralUI() {
 
     // Update progress bar (based on total referrals)
     let currentTier, nextTierTarget, currentProgress;
-    if (referralData.count < 3) {
+    if (referralData.count < 1) { // Changed from 3 to 1
         currentTier = 0;
-        nextTierTarget = 3;
+        nextTierTarget = 1; // Changed from 3 to 1
         currentProgress = referralData.count;
         document.getElementById('nextReward').textContent = '0.5 USDT';
     } else if (referralData.count < 9) {
         currentTier = 1;
         nextTierTarget = 9;
-        currentProgress = referralData.count - 3;
+        currentProgress = referralData.count - 1; // Adjusted for Tier 1 = 1 referral
         document.getElementById('nextReward').textContent = '2 USDT';
     } else if (referralData.count < 15) {
         currentTier = 2;
@@ -457,7 +457,7 @@ function updateReferralUI() {
     }
 
     // Calculate progress bar width
-    const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 3 : 9)) : 6;
+    const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 1 : 9)) : 6; // Adjusted for Tier 1 = 1 referral
     const progressPercent = (currentProgress / progressTarget) * 100;
     document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
     document.getElementById('currentProgress').textContent = currentProgress;
@@ -505,7 +505,7 @@ function updateReferralUI() {
 
 async function claimReward(tier) {
     const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
-    const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
+    const requiredReferrals = tier === 1 ? 1 : tier === 2 ? 9 : 15; // Changed from 3 to 1
 
     if (referralData.count < requiredReferrals) {
         Swal.fire({
