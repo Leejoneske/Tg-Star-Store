@@ -397,12 +397,9 @@ let referralData = {
 
 function initUser() {
     if (user) {
-        // Set the referral code based on the user's ID
         referralData.referralCode = `ref_${user.id}`;
         const referralLink = `https://t.me/TgStarStore_bot?start=${referralData.referralCode}`;
         document.getElementById('referralLink').textContent = referralLink;
-
-        // Fetch referral data for the logged-in user
         fetchReferralData();
     } else {
         console.error('User not logged in or user data not available.');
@@ -411,10 +408,9 @@ function initUser() {
 
 async function fetchReferralData() {
     try {
-        // Fetch referral data from the backend API
         const response = await axios.get(`/api/referrals/${user.id}`);
+        console.log('Backend Response:', response.data); // Log the backend response
         if (response.data) {
-            // Update referralData with the fetched data
             referralData = response.data;
             updateReferralUI();
         } else {
@@ -428,6 +424,8 @@ async function fetchReferralData() {
 }
 
 function updateReferralUI() {
+    console.log('Recent Referrals:', referralData.recentReferrals); // Log recent referrals
+
     // Update referral count (total referrals)
     document.getElementById('referralCount').textContent = referralData.count;
 
@@ -614,8 +612,6 @@ function toggleMenu() {
 }
 
 initUser();
-
-            
             </script>
 </body>
 </html>
