@@ -624,14 +624,22 @@ app.get('/api/referrals/:userId', async (req, res) => {
     const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
     const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
 
+    // Fetch usernames for referred users
+    const recentReferralsWithNames = await Promise.all(
+        latestReferrals.map(async (ref) => {
+            const user = await User.findOne({ id: ref.referredUserId });
+            return {
+                name: user ? user.username : ref.referredUserId, // Fallback to userId if username is not found
+                status: ref.status,
+                daysAgo: Math.floor((new Date() - new Date(ref.dateReferred)) / (1000 * 60 * 60 * 24))
+            };
+        })
+    );
+
     const response = {
         count: activeReferrals,
-        earnedStars: activeReferrals * 10,
-        recentReferrals: latestReferrals.map(ref => ({
-            name: ref.referredUserId,
-            status: ref.status,
-            daysAgo: Math.floor((new Date() - new Date(ref.dateReferred)) / (1000 * 60 * 60 * 24))
-        }))
+        earnedUSDT: activeReferrals * 0.5, // Adjust based on your reward logic
+        recentReferrals: recentReferralsWithNames
     };
 
     res.json(response);
