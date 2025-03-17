@@ -646,14 +646,15 @@ app.get('/api/referrals/:userId', async (req, res) => {
 
     const response = {
         count: activeReferrals,
-        earnedUSDT: activeReferrals * 0.5, // Adjust based on your reward logic
+        earnedUSDT: activeReferrals * 0.5, 
         recentReferrals: recentReferralsWithNames
     };
 
     res.json(response);
 });
 
-bot.onText(/\/referrals/, async (msg) => {
+// Handle both /referrals command and plain text "referrals"
+bot.onText(/\/referrals|referrals/i, async (msg) => {
     const chatId = msg.chat.id;
 
     const referralLink = `https://t.me/TgStarStore_bot?start=ref_${chatId}`;
@@ -687,7 +688,6 @@ bot.onText(/\/referrals/, async (msg) => {
         await bot.sendMessage(chatId, message, { reply_markup: keyboard });
     }
 });
-
 
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
