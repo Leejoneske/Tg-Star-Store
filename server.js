@@ -552,40 +552,60 @@ bot.onText(/\/reply (.+)/, (msg, match) => {
         });
 });
 
-bot.onText(/\/broadcast (.+)/, async (msg, match) => {
+//broadcast noe supports rich media text including porn
+bot.onText(/\/broadcast/, async (msg) => {
     const chatId = msg.chat.id;
 
-    // Check if the user is an admin
+    
     if (!adminIds.includes(chatId.toString())) {
         return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
+    await bot.sendMessage(chatId, 'Enter the broadcast message (text, photo, audio, etc.):');
 
-    // Extract the broadcast message from the command
-    const broadcastMessage = match[1].trim();
+    // Listen for the admin's next message
+    bot.once('message', async (adminMsg) => {
+        const users = await User.find({});
+        let successCount = 0;
+        let failCount = 0;
 
-    if (!broadcastMessage) {
-        return bot.sendMessage(chatId, '❌ Please provide a message to broadcast.');
-    }
+        // Extract media and metadata from the admin's message
+        const messageType = adminMsg.photo ? 'photo' :
+                           adminMsg.audio ? 'audio' :
+                           adminMsg.video ? 'video' :
+                           adminMsg.document ? 'document' :
+                           'text';
 
-    // Fetch all users from the database
-    const users = await User.find({});
+        const caption = adminMsg.caption || '';
+        const mediaId = adminMsg.photo ? adminMsg.photo[0].file_id :
+                       adminMsg.audio ? adminMsg.audio.file_id :
+                       adminMsg.video ? adminMsg.video.file_id :
+                       adminMsg.document ? adminMsg.document.file_id :
+                       null;
 
-    let successCount = 0;
-    let failCount = 0;
-
-    // Send the broadcast message to all users
-    for (const user of users) {
-        try {
-            await bot.sendMessage(user.id, broadcastMessage);
-            successCount++;
-        } catch (err) {
-            console.error(`Failed to send broadcast to user ${user.id}:`, err);
-            failCount++;
+        // Broadcast the message to all kang'ethes
+        for (const user of users) {
+            try {
+                if (messageType === 'text') {
+                    // Broadcast text message
+                    await bot.sendMessage(user.id, adminMsg.text || caption);
+                } else {
+                    // Broadcast media message
+                    await bot.sendMediaGroup(user.id, [{
+                        type: messageType,
+                        media: mediaId,
+                        caption: caption
+                    }]);
+                }
+                successCount++;
+            } catch (err) {
+                console.error(`Failed to send broadcast to user ${user.id}:`, err);
+                failCount++;
+            }
         }
-    }
 
-    // Notify the admin about the broadcast result
-    bot.sendMessage(chatId, `📢 Broadcast results:\n✅ ${successCount} messages sent successfully\n❌ ${failCount} messages failed to send.`);
+        // Notify the admin about the broadcast result
+        bot.sendMessage(chatId, `📢 Broadcast results:\n✅ ${successCount} messages sent successfully\n❌ ${failCount} messages failed to send.`);
+    });
 });
 
 app.get('/api/notifications', async (req, res) => {
