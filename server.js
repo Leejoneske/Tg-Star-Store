@@ -482,37 +482,28 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
-    const deepLinkParam = match[1]?.trim(); // Capture the deep link parameter
+    const deepLinkParam = match[1]?.trim();
 
-    // Check if the user exists in the database
     const user = await User.findOne({ id: chatId });
 
     if (!user) {
-        // If the user doesn't exist, add them to the database
         await User.create({ id: chatId, username });
-        console.log(`New user added: ${username} (ID: ${chatId})`);
     }
 
-    // Welcome message
     const welcomeMessage = `👋 Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`;
 
-    // Inline keyboard with a "Launch App" button
     const keyboard = {
         inline_keyboard: [
             [{ text: 'Launch App', url: `https://t.me/TgStarStore_bot?startapp` }]
         ]
     };
 
-    // Send the welcome message with the "Launch App" button
     await bot.sendMessage(chatId, welcomeMessage, { reply_markup: keyboard });
 
-    // Handle deep link parameters
     if (deepLinkParam) {
-        // Emit the deep link parameter as a message to the bot itself
         bot.emit('message', { chat: { id: chatId }, text: deepLinkParam, from: msg.from });
     }
 });
-
 
 
 bot.onText(/\/help/, (msg) => {
