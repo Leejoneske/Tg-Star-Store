@@ -656,55 +656,38 @@ app.get('/api/referrals/:userId', async (req, res) => {
 bot.onText(/\/referrals/, async (msg) => {
     const chatId = msg.chat.id;
 
-    // Generate the referral link
     const referralLink = `https://t.me/TgStarStore_bot?start=ref_${chatId}`;
 
-    // Fetch the user's referrals
     const referrals = await Referral.find({ referrerUserId: chatId.toString() });
 
     if (referrals.length > 0) {
         const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
         const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
 
-        // Build the message
         let message = `📊 Your Referrals:\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
         message += 'Your pending referrals will be active when they make a purchase.\n\n';
         message += `🔗 Your Referral Link:\n${referralLink}`;
 
-        // Inline keyboard with a "Copy Referral Link" button
         const keyboard = {
             inline_keyboard: [
-                [{ text: 'Copy Referral Link', callback_data: 'copy_referral' }]
+                [{ text: 'Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }]
             ]
         };
 
-        // Send the message with the inline keyboard
         await bot.sendMessage(chatId, message, { reply_markup: keyboard });
     } else {
-        // If no referrals, send a message with the referral link
         const message = `You have no referrals yet.\n\n🔗 Your Referral Link:\n${referralLink}`;
 
-        // Inline keyboard with a "Copy Referral Link" button
         const keyboard = {
             inline_keyboard: [
-                [{ text: 'Copy Referral Link', callback_data: 'copy_referral' }]
+                [{ text: 'Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }]
             ]
         };
 
-        // Send the message with the inline keyboard
         await bot.sendMessage(chatId, message, { reply_markup: keyboard });
     }
 });
 
-bot.on('callback_query', async (query) => {
-    const chatId = query.message.chat.id;
-    const data = query.data;
-
-    if (data === 'copy_referral') {
-        // Acknowledge the button click
-        await bot.answerCallbackQuery(query.id, { text: 'Referral link is ready to be copied from the message above.' });
-    }
-});
 
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
