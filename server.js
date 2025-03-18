@@ -1227,7 +1227,168 @@ bot.on('callback_query', async (query) => {
     }
 });
 //end of claim request
-    
+
+// Handle Sell Order Recreation
+bot.onText(/\/cso-(\S+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const orderId = match[1];
+
+    let order = await SellOrder.findOne({ id: orderId });
+
+    if (!order) {
+        pendingManualOrders[chatId] = { type: "sell", step: "username", data: {} };
+        return bot.sendMessage(chatId, "❌ Sell order not found. Please enter the *username* for this order:", { parse_mode: "Markdown" });
+    }
+
+    recreateOrder(order, "sell");
+});
+
+// Handle Buy Order Recreation
+bot.onText(/\/cbo-(\S+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const orderId = match[1];
+
+    let order = await BuyOrder.findOne({ id: orderId });
+
+    if (!order) {
+        pendingManualOrders[chatId] = { type: "buy", step: "username", data: {} };
+        return bot.sendMessage(chatId, "❌ Buy order not found. Please enter the *username* for this order:", { parse_mode: "Markdown" });
+    }
+
+    recreateOrder(order, "buy");
+});
+
+// Handle Step-by-Step Manual Order Entry
+bot.on("message", async (msg) => {
+    const chatId = msg.chat.id;
+    if (!ADMIN_IDS.includes(chatId)) return;
+    if (!pendingManualOrders[chatId]) return;
+
+    let orderFlow = pendingManualOrders[chatId];
+
+    switch (orderFlow.step) {
+        case "username":
+            orderFlow.data.username = msg.text;
+            orderFlow.step = orderFlow.type === "buy" ? "amount" : "stars";
+            bot.sendMessage(chatId, `✅ Username saved. Now enter the *${orderFlow.step}* amount:`, { parse_mode: "Markdown" });
+            break;
+
+        case "amount":
+            if (isNaN(msg.text)) return bot.sendMessage(chatId, "❌ Invalid amount. Please enter a number.");
+            orderFlow.data.amount = parseInt(msg.text);
+            orderFlow.step = "stars";
+            bot.sendMessage(chatId, "✅ Amount saved. Now enter the *stars* amount:", { parse_mode: "Markdown" });
+            break;
+
+        case "stars":
+            if (isNaN(msg.text)) return bot.sendMessage(chatId, "❌ Invalid stars. Please enter a number.");
+            orderFlow.data.stars = parseInt(msg.text);
+            orderFlow.step = "wallet";
+            bot.sendMessage(chatId, "✅ Stars saved. Now enter the *wallet address*:", { parse_mode: "Markdown" });
+            break;
+
+        case "wallet":
+            orderFlow.data.walletAddress = msg.text;
+            finalizeManualOrder(chatId, orderFlow);
+            break;
+    }
+});
+
+// Finalize and Save Order
+const finalizeManualOrder = async (chatId, orderFlow) => {
+    let order;
+    const orderId = `${orderFlow.type === "sell" ? "CSO" : "CBO"}-${Date.now()}`;
+
+    if (orderFlow.type === "sell") {
+        order = new SellOrder({
+            id: orderId,
+            telegramId: chatId,
+            username: orderFlow.data.username,
+            stars: orderFlow.data.stars,
+            walletAddress: orderFlow.data.walletAddress,
+            status: "pending",
+            dateCreated: new Date()
+        });
+    } else {
+        order = new BuyOrder({
+            id: orderId,
+            telegramId: chatId,
+            username: orderFlow.data.username,
+            amount: orderFlow.data.amount,
+            stars: orderFlow.data.stars,
+            walletAddress: orderFlow.data.walletAddress,
+            status: "pending",
+            dateCreated: new Date()
+        });
+    }
+
+    await order.save();
+    delete pendingManualOrders[chatId];
+
+    recreateOrder(order, orderFlow.type);
+};
+
+// Function to Notify User & Admins About the Order
+const recreateOrder = (order, type) => {
+    const orderDetails = `
+📌 *${type.toUpperCase()} Order Created*
+🆔 *Order ID:* ${order.id}
+👤 *User:* ${order.username}
+${type === "buy" ? `💰 *Amount:* ${order.amount} | ⭐ *Stars:* ${order.stars} | 🏦 *Wallet:* ${order.walletAddress}` : `⭐ *Stars:* ${order.stars} | 🏦 *Wallet:* ${order.walletAddress}`}
+📅 *Date:* ${order.dateCreated}
+🚀 *Status:* Pending Confirmation
+    `;
+
+    // Notify the user
+    bot.sendMessage(order.telegramId, `📌 *Your ${type} order has been recreated.*\n${orderDetails}`, { parse_mode: "Markdown" });
+
+    // Send to Admins for Confirmation
+    ADMIN_IDS.forEach(adminId => {
+        bot.sendMessage(adminId, `${orderDetails}\n🔹 *Click the button below to confirm:*`, {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: "✅ Confirm Order", callback_data: `confirm_${type}_${order.id}` }]
+                ]
+            }
+        });
+    });
+};
+
+// Handle Order Confirmation
+bot.on("callback_query", async (query) => {
+    const data = query.data.split("_");
+    const action = data[0]; // confirm
+    const type = data[1]; // buy or sell
+    const orderId = data[2];
+
+    if (action === "confirm") {
+        let order = type === "buy" ? await BuyOrder.findOne({ id: orderId }) : await SellOrder.findOne({ id: orderId });
+
+        if (!order) {
+            return bot.answerCallbackQuery(query.id, { text: "❌ Order not found!" });
+        }
+
+        order.status = "confirmed";
+        await order.save();
+
+        bot.editMessageReplyMarkup(
+            { inline_keyboard: [[{ text: "✅ Order Confirmed", callback_data: "confirmed" }]] },
+            { chat_id: query.message.chat.id, message_id: query.message.message_id }
+        );
+
+        // Notify User & Admins
+        bot.sendMessage(order.telegramId, `✅ *Your ${type} order (${order.id}) has been confirmed!*`, { parse_mode: "Markdown" });
+
+        ADMIN_IDS.forEach(adminId => {
+            bot.sendMessage(adminId, `✅ *${type.toUpperCase()} order (${order.id}) has been confirmed.*`);
+        });
+
+        bot.answerCallbackQuery(query.id, { text: "✅ Order confirmed successfully!" });
+    }
+});
+
+
 //refund for stars sell
 async function sendStarsBack(telegramId, stars) {
     try {
