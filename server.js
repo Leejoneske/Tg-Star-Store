@@ -232,18 +232,6 @@ app.post('/api/orders/create', async (req, res) => {
             }
         }
 
-        const referral = await Referral.findOne({ referredUserId: telegramId });
-
-        if (referral && referral.status === 'pending') {
-            referral.status = 'active';
-            referral.dateCompleted = new Date();
-            await referral.save();
-
-            await bot.sendMessage(
-                referral.referrerUserId,
-                `🎉 Your referral @${username} has made a purchase! Thank you for bringing them to StarStore.`
-            );
-        }
 
         res.json({ success: true, order });
     } catch (err) {
@@ -251,6 +239,59 @@ app.post('/api/orders/create', async (req, res) => {
         res.status(500).json({ error: 'Failed to create order' });
     }
 });
+
+bot.on('callback_query', async (query) => {
+    const action = query.data;
+    const adminId = query.from.id;
+    
+    if (action.startsWith('complete_')) {
+        const orderId = action.split('_')[1];
+        try {
+            const order = await BuyOrder.findOne({ id: orderId });
+            
+            if (order) {
+                order.status = 'completed';
+                order.dateCompleted = new Date();
+                await order.save();
+                
+                const referral = await Referral.findOne({ 
+                    referredUserId: order.telegramId,
+                    status: 'pending'
+                });
+                
+                if (referral) {
+                    referral.status = 'active';
+                    referral.dateCompleted = new Date();
+                    await referral.save();
+                    
+                    await bot.sendMessage(
+                        referral.referrerUserId,
+                        `🎉 Your referral @${order.username} has made a purchase! Thank you for bringing them to StarStore.`
+                    );
+                }
+            }
+        } catch (err) {
+            console.error('Error completing order:', err);
+        }
+    } 
+    else if (action.startsWith('decline_')) {
+        const orderId = action.split('_')[1];
+        try {
+            const order = await BuyOrder.findOne({ id: orderId });
+            
+            if (order) {
+                order.status = 'declined';
+                order.dateDeclined = new Date();
+                await order.save();
+            }
+        } catch (err) {
+            console.error('Error declining order:', err);
+        }
+    }
+});
+//end of buy order and referral check 
+
+
 app.post("/api/sell-orders", async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress } = req.body;
