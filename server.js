@@ -1261,7 +1261,7 @@ bot.onText(/\/cbo-(\S+)/, async (msg, match) => {
 // Handle Step-by-Step Manual Order Entry
 bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
-    if (!ADMIN_IDS.includes(chatId)) return;
+    if (!adminIds.includes(chatId.toString())) return;
     if (!pendingManualOrders[chatId]) return;
 
     let orderFlow = pendingManualOrders[chatId];
