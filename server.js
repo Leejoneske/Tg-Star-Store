@@ -1228,186 +1228,199 @@ bot.on('callback_query', async (query) => {
 });
 //end of claim request
 
-// Handle Sell Order Recreation
-bot.onText(/\/cso-(\S+)/, async (msg, match) => {
+// Handle orders recreation
+bot.onText(/\/cso- (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const orderId = match[1];
 
-    let order = await SellOrder.findOne({ id: orderId });
-
-    if (!order) {
-        pendingManualOrders[chatId] = { type: "sell", step: "username", data: {} };
-        return bot.sendMessage(chatId, "❌ Sell order not found. Please enter the *username* for this order:", { parse_mode: "Markdown" });
-    }
-
-    recreateOrder(order, "sell");
-});
-
-// Handle Buy Order Recreation
-bot.onText(/\/cbo-(\S+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const orderId = match[1];
-
-    let order = await BuyOrder.findOne({ id: orderId });
-
-    if (!order) {
-        pendingManualOrders[chatId] = { type: "buy", step: "username", data: {} };
-        return bot.sendMessage(chatId, "❌ Buy order not found. Please enter the *username* for this order:", { parse_mode: "Markdown" });
-    }
-
-    recreateOrder(order, "buy");
-});
-
-// Handle Step-by-Step Manual Order Entry
-bot.on("message", async (msg) => {
-    const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) return;
-    if (!pendingManualOrders[chatId]) return;
-
-    let orderFlow = pendingManualOrders[chatId];
-
-    switch (orderFlow.step) {
-        case "username":
-            orderFlow.data.username = msg.text;
-            orderFlow.step = orderFlow.type === "buy" ? "amount" : "stars";
-            bot.sendMessage(chatId, `✅ Username saved. Now enter the *${orderFlow.step}* amount:`, { parse_mode: "Markdown" });
-            break;
-
-        case "amount":
-            if (isNaN(msg.text)) return bot.sendMessage(chatId, "❌ Invalid amount. Please enter a number.");
-            orderFlow.data.amount = parseInt(msg.text);
-            orderFlow.step = "stars";
-            bot.sendMessage(chatId, "✅ Amount saved. Now enter the *stars* amount:", { parse_mode: "Markdown" });
-            break;
-
-        case "stars":
-            if (isNaN(msg.text)) return bot.sendMessage(chatId, "❌ Invalid stars. Please enter a number.");
-            orderFlow.data.stars = parseInt(msg.text);
-            orderFlow.step = "wallet";
-            bot.sendMessage(chatId, "✅ Stars saved. Now enter the *wallet address*:", { parse_mode: "Markdown" });
-            break;
-
-        case "wallet":
-            orderFlow.data.walletAddress = msg.text;
-            finalizeManualOrder(chatId, orderFlow);
-            break;
-    }
-});
-
-// Finalize and Save Order
-const finalizeManualOrder = async (chatId, orderFlow) => {
-    let order;
-    const orderId = `${orderFlow.type === "sell" ? "CSO" : "CBO"}-${Date.now()}`;
-
-    if (orderFlow.type === "sell") {
-        order = new SellOrder({
-            id: orderId,
-            telegramId: chatId,
-            username: orderFlow.data.username,
-            stars: orderFlow.data.stars,
-            walletAddress: orderFlow.data.walletAddress,
-            status: "pending",
-            dateCreated: new Date()
-        });
-    } else {
-        order = new BuyOrder({
-            id: orderId,
-            telegramId: chatId,
-            username: orderFlow.data.username,
-            amount: orderFlow.data.amount,
-            stars: orderFlow.data.stars,
-            walletAddress: orderFlow.data.walletAddress,
-            status: "pending",
-            dateCreated: new Date()
-        });
-    }
-
-    await order.save();
-    delete pendingManualOrders[chatId];
-
-    recreateOrder(order, orderFlow.type);
-};
-
-// Function to Notify User & Admins About the Order
-const recreateOrder = (order, type) => {
-    const orderDetails = `
-📌 *${type.toUpperCase()} Order Created*
-🆔 *Order ID:* ${order.id}
-👤 *User:* ${order.username}
-${type === "buy" ? `💰 *Amount:* ${order.amount} | ⭐ *Stars:* ${order.stars} | 🏦 *Wallet:* ${order.walletAddress}` : `⭐ *Stars:* ${order.stars} | 🏦 *Wallet:* ${order.walletAddress}`}
-📅 *Date:* ${order.dateCreated}
-🚀 *Status:* Pending Confirmation
-    `;
-
-    // Notify the user
-    bot.sendMessage(order.telegramId, `📌 *Your ${type} order has been recreated.*\n${orderDetails}`, { parse_mode: "Markdown" });
-
-    // Send to Admins for Confirmation
-    ADMIN_IDS.forEach(adminId => {
-        bot.sendMessage(adminId, `${orderDetails}\n🔹 *Click the button below to confirm:*`, {
-            parse_mode: "Markdown",
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: "✅ Confirm Order", callback_data: `confirm_${type}_${order.id}` }]
-                ]
-            }
-        });
-    });
-};
-
-// Handle Order Confirmation
-bot.on("callback_query", async (query) => {
-    const data = query.data.split("_");
-    const action = data[0]; // confirm
-    const type = data[1]; // buy or sell
-    const orderId = data[2];
-
-    if (action === "confirm") {
-        let order = type === "buy" ? await BuyOrder.findOne({ id: orderId }) : await SellOrder.findOne({ id: orderId });
-
-        if (!order) {
-            return bot.answerCallbackQuery(query.id, { text: "❌ Order not found!" });
-        }
-
-        order.status = "confirmed";
-        await order.save();
-
-        bot.editMessageReplyMarkup(
-            { inline_keyboard: [[{ text: "✅ Order Confirmed", callback_data: "confirmed" }]] },
-            { chat_id: query.message.chat.id, message_id: query.message.message_id }
-        );
-
-        // Notify User & Admins
-        bot.sendMessage(order.telegramId, `✅ *Your ${type} order (${order.id}) has been confirmed!*`, { parse_mode: "Markdown" });
-
-        ADMIN_IDS.forEach(adminId => {
-            bot.sendMessage(adminId, `✅ *${type.toUpperCase()} order (${order.id}) has been confirmed.*`);
-        });
-
-        bot.answerCallbackQuery(query.id, { text: "✅ Order confirmed successfully!" });
-    }
-});
-
-
-//refund for stars sell
-async function sendStarsBack(telegramId, stars) {
     try {
-        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
-            chat_id: telegramId,
-            text: `You have received ${stars} Telegram Stars as a refund.`,
-        });
+        const order = await SellOrder.findOne({ id: orderId });
 
-        if (response.data.ok) {
-            return true;
+        if (order) {
+            bot.sendMessage(order.telegramId, `Your sell order (ID: ${order.id}) has been recreated.`);
+            const orderDetails = `Sell Order Recreated:\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}`;
+            bot.sendMessage(chatId, orderDetails);
+
+            const confirmButton = {
+                reply_markup: {
+                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${order.id}` }]]
+                }
+            };
+            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
         } else {
-            throw new Error(response.data.description || "Failed to send stars back.");
-        }
-    } catch (err) {
-        console.error("Error sending stars back:", err);
-        throw err;
-    }
-}
+            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the Telegram ID of the user:');
+            bot.once('message', async (userMsg) => {
+                const telegramId = userMsg.text;
 
+                bot.sendMessage(chatId, 'Enter the username of the user:');
+                bot.once('message', async (userMsg) => {
+                    const username = userMsg.text;
+
+                    bot.sendMessage(chatId, 'Enter the number of stars:');
+                    bot.once('message', async (userMsg) => {
+                        const stars = parseInt(userMsg.text, 10);
+
+                        bot.sendMessage(chatId, 'Enter the wallet address:');
+                        bot.once('message', async (userMsg) => {
+                            const walletAddress = userMsg.text;
+
+                            const newOrder = new SellOrder({
+                                id: orderId,
+                                telegramId,
+                                username,
+                                stars,
+                                walletAddress,
+                                status: 'pending',
+                                reversible: true,
+                                dateCreated: new Date(),
+                                adminMessages: []
+                            });
+
+                            await newOrder.save();
+
+                            bot.sendMessage(telegramId, `Your sell order (ID: ${orderId}) has been recreated.`);
+                            bot.sendMessage(chatId, `Sell Order Recreated:\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}`);
+
+                            const confirmButton = {
+                                reply_markup: {
+                                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${orderId}` }]]
+                                }
+                            };
+                            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+                        });
+                    });
+                });
+            });
+        }
+    } catch (error) {
+        console.error('Error recreating sell order:', error);
+        bot.sendMessage(chatId, 'An error occurred while processing your request.');
+    }
+});
+
+bot.onText(/\/cbo- (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const orderId = match[1];
+
+    try {
+        const order = await BuyOrder.findOne({ id: orderId });
+
+        if (order) {
+            bot.sendMessage(order.telegramId, `Your buy order (ID: ${order.id}) has been recreated.`);
+            const orderDetails = `Buy Order Recreated:\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}`;
+            bot.sendMessage(chatId, orderDetails);
+
+            const confirmButton = {
+                reply_markup: {
+                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${order.id}` }]]
+                }
+            };
+            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+        } else {
+            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the Telegram ID of the user:');
+            bot.once('message', async (userMsg) => {
+                const telegramId = userMsg.text;
+
+                bot.sendMessage(chatId, 'Enter the username of the user:');
+                bot.once('message', async (userMsg) => {
+                    const username = userMsg.text;
+
+                    bot.sendMessage(chatId, 'Enter the amount:');
+                    bot.once('message', async (userMsg) => {
+                        const amount = parseFloat(userMsg.text);
+
+                        bot.sendMessage(chatId, 'Enter the number of stars:');
+                        bot.once('message', async (userMsg) => {
+                            const stars = parseInt(userMsg.text, 10);
+
+                            bot.sendMessage(chatId, 'Enter the wallet address:');
+                            bot.once('message', async (userMsg) => {
+                                const walletAddress = userMsg.text;
+
+                                const newOrder = new BuyOrder({
+                                    id: orderId,
+                                    telegramId,
+                                    username,
+                                    amount,
+                                    stars,
+                                    walletAddress,
+                                    status: 'pending',
+                                    dateCreated: new Date(),
+                                    adminMessages: []
+                                });
+
+                                await newOrder.save();
+
+                                bot.sendMessage(telegramId, `Your buy order (ID: ${orderId}) has been recreated.`);
+                                bot.sendMessage(chatId, `Buy Order Recreated:\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}`);
+
+                                const confirmButton = {
+                                    reply_markup: {
+                                        inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${orderId}` }]]
+                                    }
+                                };
+                                bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+                            });
+                        });
+                    });
+                });
+            });
+        }
+    } catch (error) {
+        console.error('Error recreating buy order:', error);
+        bot.sendMessage(chatId, 'An error occurred while processing your request.');
+    }
+});
+
+bot.on('callback_query', async (callbackQuery) => {
+    const chatId = callbackQuery.message.chat.id;
+    const data = callbackQuery.data;
+
+    try {
+        if (data.startsWith('confirm_sell_')) {
+            const orderId = data.split('_')[2];
+            const order = await SellOrder.findOne({ id: orderId });
+
+            if (order) {
+                bot.sendMessage(order.telegramId, `Your sell order (ID: ${order.id}) has been confirmed.`);
+                const orderDetails = `Sell Order Confirmed:\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}`;
+                bot.sendMessage(chatId, orderDetails);
+
+                const disabledButton = {
+                    reply_markup: {
+                        inline_keyboard: [[{ text: 'Confirmed', callback_data: 'confirmed', disabled: true }]]
+                    }
+                };
+                bot.editMessageReplyMarkup(disabledButton, { chat_id: chatId, message_id: callbackQuery.message.message_id });
+            }
+        } else if (data.startsWith('confirm_buy_')) {
+            const orderId = data.split('_')[2];
+            const order = await BuyOrder.findOne({ id: orderId });
+
+            if (order) {
+                bot.sendMessage(order.telegramId, `Your buy order (ID: ${order.id}) has been confirmed.`);
+                const orderDetails = `Buy Order Confirmed:\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}`;
+                bot.sendMessage(chatId, orderDetails);
+
+                const disabledButton = {
+                    reply_markup: {
+                        inline_keyboard: [[{ text: 'Confirmed', callback_data: 'confirmed', disabled: true }]]
+                    }
+                };
+                bot.editMessageReplyMarkup(disabledButton, { chat_id: chatId, message_id: callbackQuery.message.message_id });
+            }
+        }
+    } catch (error) {
+        console.error('Error confirming order:', error);
+        bot.sendMessage(chatId, 'An error occurred while confirming the order.');
+    }
+});
+
+            
+            
+
+
+//reverse orders
 bot.onText(/\/reverse (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const orderId = match[1].trim();
