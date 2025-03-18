@@ -481,55 +481,78 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
 //added deep link detection
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
-    const username = msg.from.username;
+    const username = msg.from.username || 'user'; // Fallback if username is null
     const deepLinkParam = match[1]?.trim();
-
-    const user = await User.findOne({ id: chatId });
-
-    if (!user) {
-        await User.create({ id: chatId, username });
-    }
-
-    const welcomeMessage = `👋 Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`;
-
-    const keyboard = {
-        inline_keyboard: [
-            [{ text: 'Launch App', url: `https://t.me/TgStarStore_bot?startapp` }]
-        ]
-    };
-
-    await bot.sendMessage(chatId, welcomeMessage, { reply_markup: keyboard });
-
-    if (deepLinkParam) {
-        bot.emit('message', { chat: { id: chatId }, text: deepLinkParam, from: msg.from });
-
-        if (deepLinkParam.startsWith('ref_')) {
+    
+    try {
+        // Check if user exists
+        let user = await User.findOne({ id: chatId });
+        
+        // Create user if they don't exist
+        if (!user) {
+            user = await User.create({ id: chatId, username });
+        }
+        
+        const welcomeMessage = `👋 Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`;
+        const keyboard = {
+            inline_keyboard: [
+                [{ text: 'Launch App', url: `https://t.me/TgStarStore_bot?startapp` }]
+            ]
+        };
+        
+        await bot.sendMessage(chatId, welcomeMessage, { reply_markup: keyboard });
+        
+        // Handle referral logic - only if there's a deep link parameter
+        if (deepLinkParam && deepLinkParam.startsWith('ref_')) {
             const referrerUserId = deepLinkParam.split('_')[1];
-
-            try {
-                const existingReferral = await Referral.findOne({
+            
+            // Validate referrer ID format
+            if (!referrerUserId || !/^\d+$/.test(referrerUserId)) {
+                console.error('Invalid referrer ID format:', referrerUserId);
+                return;
+            }
+            
+            // Don't allow self-referrals
+            if (referrerUserId === chatId.toString()) {
+                console.log('Self-referral attempt blocked:', chatId);
+                return;
+            }
+            
+            // Check if referrer exists in user database
+            const referrer = await User.findOne({ id: referrerUserId });
+            if (!referrer) {
+                console.error('Referrer not found in database:', referrerUserId);
+                return;
+            }
+            
+            // Check if this user has already been referred by this referrer
+            const existingReferral = await Referral.findOne({
+                referrerUserId: referrerUserId,
+                referredUserId: chatId.toString()
+            });
+            
+            if (!existingReferral) {
+                // Create a new referral with status "pending" as in your original code
+                const newReferral = new Referral({
                     referrerUserId: referrerUserId,
-                    referredUserId: chatId.toString()
+                    referredUserId: chatId.toString(),
+                    status: 'pending',
+                    dateCreated: new Date()
                 });
-
-                if (!existingReferral) {
-                    const newReferral = new Referral({
-                        referrerUserId: referrerUserId,
-                        referredUserId: chatId.toString(),
-                        status: 'pending',
-                        dateCreated: new Date()
-                    });
-
-                    await newReferral.save();
-
-                    bot.sendMessage(referrerUserId, `🎉 A new user has signed up using your referral link! Their user ID: ${chatId}.`);
-                }
-            } catch (error) {
-                console.error('Error handling referral:', error);
+                
+                await newReferral.save();
+                
+                // Notify referrer
+                bot.sendMessage(referrerUserId, `🎉 A new user has signed up using your referral link! Their user ID: ${chatId}.`);
             }
         }
+        // No else clause needed - users without referrals are just regular users
+        
+    } catch (error) {
+        console.error('Error in start handler:', error);
     }
 });
+
 
 bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
