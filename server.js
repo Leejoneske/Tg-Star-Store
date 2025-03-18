@@ -502,9 +502,34 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
 
     if (deepLinkParam) {
         bot.emit('message', { chat: { id: chatId }, text: deepLinkParam, from: msg.from });
+
+        if (deepLinkParam.startsWith('ref_')) {
+            const referrerUserId = deepLinkParam.split('_')[1];
+
+            try {
+                const existingReferral = await Referral.findOne({
+                    referrerUserId: referrerUserId,
+                    referredUserId: chatId.toString()
+                });
+
+                if (!existingReferral) {
+                    const newReferral = new Referral({
+                        referrerUserId: referrerUserId,
+                        referredUserId: chatId.toString(),
+                        status: 'pending',
+                        dateCreated: new Date()
+                    });
+
+                    await newReferral.save();
+
+                    bot.sendMessage(referrerUserId, `🎉 A new user has signed up using your referral link! Their user ID: ${chatId}.`);
+                }
+            } catch (error) {
+                console.error('Error handling referral:', error);
+            }
+        }
     }
 });
-
 
 bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
