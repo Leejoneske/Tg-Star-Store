@@ -106,7 +106,14 @@ const botBalanceSchema = new mongoose.Schema({
     balance: { type: Number, default: 0 } 
 });
 
+const cacheSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    username: { type: String, required: true },
+    date: { type: Date, default: Date.now }
+});
 
+
+const Cache = mongoose.model('Cache', cacheSchema);
 const BotBalance = mongoose.model('BotBalance', botBalanceSchema);
 const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
 const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
@@ -1554,20 +1561,30 @@ bot.on('callback_query', async (query) => {
 });  
             
    //second user detection for adding users incase the start command doesn't work or not reachable 
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const username = msg.from.username || 'user';
+
+    try {
+        const existingCache = await Cache.findOne({ id: chatId });
+        if (!existingCache) {
+            await Cache.create({ id: chatId, username: username });
+        }
+    } catch (error) {
+        console.error('Error caching user interaction:', error);
+    }
+});
 
 bot.onText(/\/detect_users/, async (msg) => {
     const chatId = msg.chat.id;
 
     try {
-        const allUsers = await User.find({});
-
-        let totalDetected = 0;
+        const cachedUsers = await Cache.find({});
+        let totalDetected = cachedUsers.length;
         let totalAdded = 0;
         let totalFailed = 0;
 
-        for (const user of allUsers) {
-            totalDetected++;
-
+        for (const user of cachedUsers) {
             try {
                 const existingUser = await User.findOne({ id: user.id });
                 if (!existingUser) {
@@ -1580,6 +1597,9 @@ bot.onText(/\/detect_users/, async (msg) => {
             }
         }
 
+        // Clear the cache after processing
+        await Cache.deleteMany({});
+
         const reportMessage = `User Detection Report:\n\nTotal Detected: ${totalDetected}\nTotal Added: ${totalAdded}\nTotal Failed: ${totalFailed}`;
         bot.sendMessage(chatId, reportMessage);
     } catch (error) {
@@ -1587,7 +1607,6 @@ bot.onText(/\/detect_users/, async (msg) => {
         bot.sendMessage(chatId, 'An error occurred while detecting users.');
     }
 });
-
 
 
 //reverse orders
