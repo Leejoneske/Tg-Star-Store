@@ -1308,7 +1308,7 @@ bot.on('callback_query', async (query) => {
 });
 //end of claim request
 
-// Handle orders recreation
+// Handle orders recreation                     
 bot.onText(/\/cso- (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const orderId = match[1];
@@ -1318,30 +1318,32 @@ bot.onText(/\/cso- (.+)/, async (msg, match) => {
 
         if (order) {
             bot.sendMessage(order.telegramId, `Your sell order (ID: ${order.id}) has been recreated.`);
-            const orderDetails = `Sell Order Recreated:\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}`;
+            const orderDetails = `Sell Order Recreated:\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(chatId, orderDetails);
 
             const confirmButton = {
                 reply_markup: {
-                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${order.id}` }]]
+                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${order.id}_${chatId}` }]]
                 }
             };
             bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
         } else {
             bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the Telegram ID of the user:');
-            bot.once('message', async (userMsg) => {
+            let adminChatId = chatId;
+
+            bot.once('message', { chatId: adminChatId }, async (userMsg) => {
                 const telegramId = userMsg.text;
 
-                bot.sendMessage(chatId, 'Enter the username of the user:');
-                bot.once('message', async (userMsg) => {
+                bot.sendMessage(adminChatId, 'Enter the username of the user:');
+                bot.once('message', { chatId: adminChatId }, async (userMsg) => {
                     const username = userMsg.text;
 
-                    bot.sendMessage(chatId, 'Enter the number of stars:');
-                    bot.once('message', async (userMsg) => {
+                    bot.sendMessage(adminChatId, 'Enter the number of stars:');
+                    bot.once('message', { chatId: adminChatId }, async (userMsg) => {
                         const stars = parseInt(userMsg.text, 10);
 
-                        bot.sendMessage(chatId, 'Enter the wallet address:');
-                        bot.once('message', async (userMsg) => {
+                        bot.sendMessage(adminChatId, 'Enter the wallet address:');
+                        bot.once('message', { chatId: adminChatId }, async (userMsg) => {
                             const walletAddress = userMsg.text;
 
                             const newOrder = new SellOrder({
@@ -1359,14 +1361,14 @@ bot.onText(/\/cso- (.+)/, async (msg, match) => {
                             await newOrder.save();
 
                             bot.sendMessage(telegramId, `Your sell order (ID: ${orderId}) has been recreated.`);
-                            bot.sendMessage(chatId, `Sell Order Recreated:\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}`);
+                            bot.sendMessage(adminChatId, `Sell Order Recreated:\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`);
 
                             const confirmButton = {
                                 reply_markup: {
-                                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${orderId}` }]]
+                                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${orderId}_${adminChatId}` }]]
                                 }
                             };
-                            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+                            bot.sendMessage(adminChatId, 'Please confirm the order:', confirmButton);
                         });
                     });
                 });
@@ -1387,34 +1389,36 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
 
         if (order) {
             bot.sendMessage(order.telegramId, `Your buy order (ID: ${order.id}) has been recreated.`);
-            const orderDetails = `Buy Order Recreated:\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}`;
+            const orderDetails = `Buy Order Recreated:\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(chatId, orderDetails);
 
             const confirmButton = {
                 reply_markup: {
-                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${order.id}` }]]
+                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${order.id}_${chatId}` }]]
                 }
             };
             bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
         } else {
             bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the Telegram ID of the user:');
-            bot.once('message', async (userMsg) => {
+            let adminChatId = chatId;
+
+            bot.once('message', { chatId: adminChatId }, async (userMsg) => {
                 const telegramId = userMsg.text;
 
-                bot.sendMessage(chatId, 'Enter the username of the user:');
-                bot.once('message', async (userMsg) => {
+                bot.sendMessage(adminChatId, 'Enter the username of the user:');
+                bot.once('message', { chatId: adminChatId }, async (userMsg) => {
                     const username = userMsg.text;
 
-                    bot.sendMessage(chatId, 'Enter the amount:');
-                    bot.once('message', async (userMsg) => {
+                    bot.sendMessage(adminChatId, 'Enter the amount:');
+                    bot.once('message', { chatId: adminChatId }, async (userMsg) => {
                         const amount = parseFloat(userMsg.text);
 
-                        bot.sendMessage(chatId, 'Enter the number of stars:');
-                        bot.once('message', async (userMsg) => {
+                        bot.sendMessage(adminChatId, 'Enter the number of stars:');
+                        bot.once('message', { chatId: adminChatId }, async (userMsg) => {
                             const stars = parseInt(userMsg.text, 10);
 
-                            bot.sendMessage(chatId, 'Enter the wallet address:');
-                            bot.once('message', async (userMsg) => {
+                            bot.sendMessage(adminChatId, 'Enter the wallet address:');
+                            bot.once('message', { chatId: adminChatId }, async (userMsg) => {
                                 const walletAddress = userMsg.text;
 
                                 const newOrder = new BuyOrder({
@@ -1432,14 +1436,14 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
                                 await newOrder.save();
 
                                 bot.sendMessage(telegramId, `Your buy order (ID: ${orderId}) has been recreated.`);
-                                bot.sendMessage(chatId, `Buy Order Recreated:\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}`);
+                                bot.sendMessage(adminChatId, `Buy Order Recreated:\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`);
 
                                 const confirmButton = {
                                     reply_markup: {
-                                        inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${orderId}` }]]
+                                        inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${orderId}_${adminChatId}` }]]
                                     }
                                 };
-                                bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+                                bot.sendMessage(adminChatId, 'Please confirm the order:', confirmButton);
                             });
                         });
                     });
@@ -1458,13 +1462,13 @@ bot.on('callback_query', async (callbackQuery) => {
 
     try {
         if (data.startsWith('confirm_sell_')) {
-            const orderId = data.split('_')[2];
+            const [_, __, orderId, adminChatId] = data.split('_');
             const order = await SellOrder.findOne({ id: orderId });
 
             if (order) {
                 bot.sendMessage(order.telegramId, `Your sell order (ID: ${order.id}) has been confirmed.`);
-                const orderDetails = `Sell Order Confirmed:\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}`;
-                bot.sendMessage(chatId, orderDetails);
+                const orderDetails = `Sell Order Confirmed:\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                bot.sendMessage(adminChatId, orderDetails);
 
                 const disabledButton = {
                     reply_markup: {
@@ -1474,13 +1478,13 @@ bot.on('callback_query', async (callbackQuery) => {
                 bot.editMessageReplyMarkup(disabledButton, { chat_id: chatId, message_id: callbackQuery.message.message_id });
             }
         } else if (data.startsWith('confirm_buy_')) {
-            const orderId = data.split('_')[2];
+            const [_, __, orderId, adminChatId] = data.split('_');
             const order = await BuyOrder.findOne({ id: orderId });
 
             if (order) {
                 bot.sendMessage(order.telegramId, `Your buy order (ID: ${order.id}) has been confirmed.`);
-                const orderDetails = `Buy Order Confirmed:\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}`;
-                bot.sendMessage(chatId, orderDetails);
+                const orderDetails = `Buy Order Confirmed:\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                bot.sendMessage(adminChatId, orderDetails);
 
                 const disabledButton = {
                     reply_markup: {
@@ -1494,7 +1498,7 @@ bot.on('callback_query', async (callbackQuery) => {
         console.error('Error confirming order:', error);
         bot.sendMessage(chatId, 'An error occurred while confirming the order.');
     }
-});
+});            
 
             
             
