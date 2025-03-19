@@ -101,6 +101,13 @@ const reverseOrderSchema = new mongoose.Schema({
     dateRequested: Date
 });
 
+const botBalanceSchema = new mongoose.Schema({
+    id: { type: String, default: "bot", unique: true }, 
+    balance: { type: Number, default: 0 } 
+});
+
+
+const BotBalance = mongoose.model('BotBalance', botBalanceSchema);
 const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
 const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
 const User = mongoose.model('User', userSchema);
@@ -1523,6 +1530,11 @@ bot.onText(/\/reverse (.+)/, async (msg, match) => {
         return bot.sendMessage(chatId, "❌ This order is not reversible.");
     }
 
+    const orderAgeInDays = (new Date() - order.dateCreated) / (1000 * 60 * 60 * 24);
+    if (orderAgeInDays > 15) {
+        return bot.sendMessage(chatId, "❌ This order cannot be reversed because it is older than 15 days.");
+    }
+
     const reversalRequest = new ReverseOrder({
         id: generateOrderId(),
         originalOrderId: order.id,
@@ -1577,7 +1589,19 @@ bot.on("callback_query", async (query) => {
 
         if (data.startsWith("approve_reversal_")) {
             try {
-                await sendStarsBack(reversalRequest.telegramId, reversalRequest.stars);
+                const botBalance = await BotBalance.findOne({ id: "bot" });
+                if (!botBalance) {
+                    const newBotBalance = new BotBalance({ id: "bot", balance: 1000 });
+                    await newBotBalance.save();
+                    return bot.answerCallbackQuery(query.id, { text: "Insufficient bot balance to process the reversal." });
+                }
+                if (botBalance.balance < reversalRequest.stars) {
+                    return bot.answerCallbackQuery(query.id, { text: "Insufficient bot balance to process the reversal." });
+                }
+
+                await transferStars("bot", reversalRequest.telegramId, reversalRequest.stars);
+                botBalance.balance -= reversalRequest.stars;
+                await botBalance.save();
             } catch (err) {
                 console.error("Failed to send stars back:", err);
                 return bot.answerCallbackQuery(query.id, { text: "Failed to send stars back. Please try again." });
@@ -1626,6 +1650,32 @@ bot.on("callback_query", async (query) => {
     }
 });
 
+async function transferStars(fromUserId, toUserId, stars) {
+    try {
+        const fromUser = await User.findOne({ id: fromUserId });
+        if (!fromUser || fromUser.stars < stars) {
+            throw new Error('Insufficient stars to transfer.');
+        }
+        fromUser.stars -= stars;
+        await fromUser.save();
+
+        const toUser = await User.findOne({ id: toUserId });
+        if (!toUser) {
+            throw new Error('Receiver not found.');
+        }
+        toUser.stars += stars;
+        await toUser.save();
+
+        console.log(`Transferred ${stars} stars from ${fromUserId} to ${toUserId}.`);
+    } catch (error) {
+        console.error('Error transferring stars:', error);
+        throw error;
+    }
+}
+
+
+    
+//get users from db
 bot.onText(/\/users/, async (msg) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) {
