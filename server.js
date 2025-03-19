@@ -1553,7 +1553,41 @@ bot.on('callback_query', async (query) => {
     }
 });  
             
-            
+   //second user detection for adding users incase the start command doesn't work or not reachable 
+
+bot.onText(/\/detect_users/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    try {
+        const allUsers = await User.find({});
+
+        let totalDetected = 0;
+        let totalAdded = 0;
+        let totalFailed = 0;
+
+        for (const user of allUsers) {
+            totalDetected++;
+
+            try {
+                const existingUser = await User.findOne({ id: user.id });
+                if (!existingUser) {
+                    await User.create({ id: user.id, username: user.username });
+                    totalAdded++;
+                }
+            } catch (error) {
+                console.error(`Failed to add user ${user.id}:`, error);
+                totalFailed++;
+            }
+        }
+
+        const reportMessage = `User Detection Report:\n\nTotal Detected: ${totalDetected}\nTotal Added: ${totalAdded}\nTotal Failed: ${totalFailed}`;
+        bot.sendMessage(chatId, reportMessage);
+    } catch (error) {
+        console.error('Error detecting users:', error);
+        bot.sendMessage(chatId, 'An error occurred while detecting users.');
+    }
+});
+
 
 
 //reverse orders
