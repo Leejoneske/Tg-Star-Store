@@ -477,7 +477,54 @@
       
     }
       fetchNotifications();
-      
+
+
+          
+  // 1. Detect if user is Russian (Telegram or manual switch)
+  function shouldTranslateToRussian() {
+    return (
+      window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code === 'ru' ||
+      localStorage.getItem('forceRussian') === 'true'
+    );
+  }
+
+  // 2. Load Google Translate API *silently*
+  function loadStealthTranslator() {
+    if (!shouldTranslateToRussian()) return;
+
+    const script = document.createElement('script');
+    script.src = 'https://translate.google.com/translate_a/element.js?cb=onGoogleTranslateLoaded';
+    script.async = true;
+    document.head.appendChild(script);
+  }
+
+  // 3. Force Russian translation without showing widget
+  function onGoogleTranslateLoaded() {
+    if (!shouldTranslateToRussian()) return;
+
+    new google.translate.TranslateElement({
+      pageLanguage: 'en',
+      includedLanguages: 'en,ru',
+      layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+      autoDisplay: false // ← Critical: Hides the widget
+    }, 'google_translate_element');
+
+    // Programmatically trigger translation
+    setTimeout(() => {
+      const select = document.querySelector('.goog-te-combo');
+      if (select) {
+        select.value = 'ru';
+        select.dispatchEvent(new Event('change'));
+      }
+    }, 1000);
+  }
+
+  // 4. Initialize on page load
+  document.addEventListener('DOMContentLoaded', loadStealthTranslator);
+</script>
+
+<!-- Hidden container (required by Google but invisible) -->
+<div id="google_translate_element" style="display:none"></div>
 </script>
   
   </body>
