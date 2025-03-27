@@ -1781,56 +1781,62 @@ async function transferStars(fromUserId, toUserId, stars) {
         throw error;
     }
 }
+//get user to verify with Wallet 
 
-
-bot.command('generate_claim', async (ctx) => {
+bot.onText(/\/generate_claim/, async (msg) => {
   const claimCode = Math.random().toString(36).slice(2, 8).toUpperCase();
-  await Claim.create({ claimCode, adminId: ctx.chat.id });
-  ctx.reply(`User claim link:\nt.me/${ctx.botInfo.username}?start=${claimCode}`);
+  await Claim.create({ claimCode, adminId: msg.chat.id });
+  bot.sendMessage(msg.chat.id, `User claim link:\nt.me/${bot.options.username}?start=${claimCode}`);
 });
 
-bot.start(async (ctx) => {
-  const claim = await Claim.findOne({ claimCode: ctx.startPayload });
-  if (!claim) return ctx.reply('Expired link');
-  
-  ctx.reply('Verify:', {
-    reply_markup: { inline_keyboard: [[
-      { text: "I'M HUMAN", callback_data: `verify_${claim.claimCode}` }
-    ]]}
+// User starts bot with claim code
+bot.onText(/\/start (.+)/, async (msg, match) => {
+  const claim = await Claim.findOne({ claimCode: match[1] });
+  if (!claim) return bot.sendMessage(msg.chat.id, 'Expired link');
+
+  bot.sendMessage(msg.chat.id, 'Verify:', {
+    reply_markup: {
+      inline_keyboard: [[{ text: "I'M HUMAN", callback_data: `verify_${claim.claimCode}` }]]
+    }
   });
 });
 
-bot.action(/verify_(.+)/, async (ctx) => {
+// Handle verification button
+bot.on('callback_query', async (query) => {
+  const claimCode = query.data.split('_')[1];
   const claim = await Claim.findOneAndUpdate(
-    { claimCode: ctx.match[1] },
-    { userId: ctx.from.id, username: ctx.from.username }
+    { claimCode },
+    { userId: query.from.id, username: query.from.username }
   );
-  ctx.reply('Send wallet address:');
+  bot.sendMessage(query.message.chat.id, 'Send wallet address:');
 });
 
-bot.on('text', async (ctx) => {
-  const claim = await Claim.findOne({ userId: ctx.from.id });
-  if (!claim) return;
+// Handle wallet submission
+bot.on('message', async (msg) => {
+  if (!msg.text || msg.text.startsWith('/')) return;
   
-  await ctx.reply(`Confirm:\n${ctx.message.text}`, {
-    reply_markup: { inline_keyboard: [[
-      { text: "CONFIRM", callback_data: `confirm_${claim.claimCode}_${ctx.message.text}` }
-    ]]}
+  const claim = await Claim.findOne({ userId: msg.from.id });
+  if (!claim) return;
+
+  bot.sendMessage(msg.chat.id, `Confirm:\n${msg.text}`, {
+    reply_markup: {
+      inline_keyboard: [[{ text: "CONFIRM", callback_data: `confirm_${claim.claimCode}_${msg.text}` }]]
+    }
   });
 });
 
-bot.action(/confirm_(.+)_(.+)/, async (ctx) => {
+// Final confirmation
+bot.on('callback_query', async (query) => {
+  if (!query.data.startsWith('confirm_')) return;
+  
+  const [_, claimCode, wallet] = query.data.split('_');
   await Claim.findOneAndUpdate(
-    { claimCode: ctx.match[1] },
-    { wallet: ctx.match[2] }
+    { claimCode },
+    { wallet }
   );
-  ctx.telegram.sendMessage(
-    ctx.callbackQuery.message.chat.id,
-    'Submission complete'
-  );
+  bot.sendMessage(query.message.chat.id, 'Submission complete');
 });
 
-bot.launch();
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
