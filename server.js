@@ -1797,45 +1797,66 @@ bot.onText(/\/generate_claim/, async (msg) => {
   );
 });
 
-// User starts with claim link
+// Handle claim link start
 bot.onText(/\/start (.+)/, async (msg, match) => {
-  const claim = await Claim.findOne({ claimCode: match[1] });
-  if (!claim) return bot.sendMessage(msg.chat.id, '❌ Link expired or invalid');
+  const claim = await Claim.findOne({ claimCode: match[1], status: 'pending' });
+  if (!claim) return bot.sendMessage(msg.chat.id, 'This claim link has expired or already been used');
 
-  // Store user ID and username immediately
   await Claim.updateOne(
     { claimCode: match[1] },
-    { userId: msg.from.id, username: msg.from.username || 'No username' }
-  );
-
-  // Request wallet address
-  bot.sendMessage(msg.chat.id, 'Please enter your wallet address:');
-});
-
-// Handle wallet submission
-bot.on('message', async (msg) => {
-  // Ignore commands and non-text messages
-  if (msg.text.startsWith('/') || !msg.text) return;
-
-  const claim = await Claim.findOne({ userId: msg.from.id });
-  if (!claim) return;
-
-  // Save wallet and notify admin
-  await Claim.updateOne(
-    { _id: claim._id },
-    { wallet: msg.text.trim() }
+    { 
+      userId: msg.from.id,
+      username: msg.from.username || 'no_username',
+      status: 'active'
+    }
   );
 
   bot.sendMessage(
-    claim.adminId,
-    `✅ New Wallet Submission\n\n` +
-    `User: @${claim.username}\n` +
-    `ID: ${claim.userId}\n` +
-    `Wallet: ${msg.text.trim()}\n` +
-    `Code: ${claim.claimCode}`
+  msg.chat.id,
+  'WALLET SUBMISSION\n\n' +
+  'Please send your complete wallet address.\n' +
+  'Ensure it matches the required format.\n\n' +
+  'Expires in 24 hours',
+  { parse_mode: 'Markdown' }
+);
+
+// Handle wallet submission
+bot.on('message', async (msg) => {
+  if (msg.text.startsWith('/') || !msg.text.trim()) return;
+
+  const claim = await Claim.findOne({ userId: msg.from.id, status: 'active' });
+  if (!claim) return;
+
+  const wallet = msg.text.trim();
+  
+  await Claim.updateOne(
+    { _id: claim._id },
+    { 
+      wallet: wallet,
+      status: 'completed',
+      completedAt: new Date() 
+    }
   );
 
-  bot.sendMessage(msg.chat.id, 'Thank you! Your wallet has been submitted.');
+  await bot.sendMessage(
+    msg.chat.id,
+    'Submission Complete\n\n' +
+    'Your wallet address has been received:\n' +
+    `${wallet}\n\n` +
+    'The admin has been notified.',
+    { parse_mode: 'Markdown' }
+  );
+
+  await bot.sendMessage(
+    claim.adminId,
+    'New Wallet Submission\n\n' +
+    `User: @${claim.username}\n` +
+    `ID: ${claim.userId}\n` +
+    `Claim Code: ${claim.claimCode}\n` +
+    `Wallet: ${wallet}\n` +
+    `Submitted at: ${new Date().toLocaleString()}`,
+    { parse_mode: 'Markdown' }
+  );
 });
 
 
