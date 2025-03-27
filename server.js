@@ -1772,8 +1772,45 @@ async function transferStars(fromUserId, toUserId, stars) {
 }
 
 
-    
-//get users from db
+//admin to find user from db
+bot.command('find', async (ctx) => {
+    try {
+        const searchTerm = ctx.message.text.split(' ')[1]?.replace(/^@/, '');
+        
+        if (!searchTerm) {
+            return ctx.reply('Please specify a user ID or username\nExample: /find 12345 or /find @username');
+        }
+
+        const user = await User.findOne({
+            $or: [
+                { id: searchTerm },
+                { username: searchTerm.toLowerCase() }
+            ]
+        });
+
+        if (!user) {
+            return ctx.reply('❌ User not found in database');
+        }
+
+        let response = `🔍 *User Found*\n` +
+                      `🆔 *ID:* \`${user.id}\`\n` +
+                      `👤 *Username:* ${user.username ? '@' + user.username : 'Not set'}`;
+
+        if (user.first_name) response += `\n📛 *First Name:* ${user.first_name}`;
+        if (user.last_name) response += `\n📛 *Last Name:* ${user.last_name}`;
+
+        await ctx.replyWithMarkdown(response, {
+            reply_to_message_id: ctx.message.message_id
+        });
+
+    } catch (error) {
+        console.error('Find command error:', error);
+        ctx.reply('⚠️ An error occurred while searching');
+    }
+});
+
+
+//get total users from db
 bot.onText(/\/users/, async (msg) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) {
