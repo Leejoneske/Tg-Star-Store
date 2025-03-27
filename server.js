@@ -1776,7 +1776,7 @@ async function transferStars(fromUserId, toUserId, stars) {
 bot.onText(/\/find (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     
-    // Using your existing admin check
+    // Admin check (using your existing adminIds)
     if (!adminIds.includes(chatId.toString())) {
         return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
@@ -1784,9 +1784,10 @@ bot.onText(/\/find (.+)/, async (msg, match) => {
     const searchTerm = match[1].trim();
     
     try {
-        const user = await User.findOne({
+        // Search using your exact document structure
+        const user = await db.collection('users').findOne({
             $or: [
-                { id: searchTerm },
+                { id: searchTerm },  // Matches your "id" field
                 { username: searchTerm.replace(/^@/, '').toLowerCase() }
             ]
         });
@@ -1795,12 +1796,12 @@ bot.onText(/\/find (.+)/, async (msg, match) => {
             return bot.sendMessage(chatId, 'User not found in database');
         }
 
-        // Minimal response with only ID and username
-        bot.sendMessage(
-            chatId,
-            `User found:\nID: ${user.id}\nUsername: ${user.username || 'None'}`,
-            { parse_mode: 'Markdown' }
-        );
+        // Exact output format matching your document structure
+        const response = `User found:\n` +
+                         `ID: ${user.id}\n` +
+                         `Username: ${user.username || 'None'}`;
+
+        bot.sendMessage(chatId, response);
 
     } catch (err) {
         console.error('Search error:', err);
