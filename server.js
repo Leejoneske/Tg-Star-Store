@@ -1797,40 +1797,45 @@ bot.onText(/\/generate_claim/, async (msg) => {
   );
 });
 
-// User claims
+// User starts with claim link
 bot.onText(/\/start (.+)/, async (msg, match) => {
   const claim = await Claim.findOne({ claimCode: match[1] });
-  if (!claim) return bot.sendMessage(msg.chat.id, '❌ Link expired (valid for 24 hours)');
+  if (!claim) return bot.sendMessage(msg.chat.id, '❌ Link expired or invalid');
 
-  bot.sendMessage(msg.chat.id, '✅ Verified! Send your wallet address:');
+  // Store user ID and username immediately
+  await Claim.updateOne(
+    { claimCode: match[1] },
+    { userId: msg.from.id, username: msg.from.username || 'No username' }
+  );
+
+  // Request wallet address
+  bot.sendMessage(msg.chat.id, 'Please enter your wallet address:');
 });
 
 // Handle wallet submission
 bot.on('message', async (msg) => {
-  if (msg.text.startsWith('/')) return;
-  
-  const claim = await Claim.findOne({ 
-    adminId: { $exists: true },
-    userId: msg.from.id 
-  });
+  // Ignore commands and non-text messages
+  if (msg.text.startsWith('/') || !msg.text) return;
+
+  const claim = await Claim.findOne({ userId: msg.from.id });
   if (!claim) return;
 
+  // Save wallet and notify admin
   await Claim.updateOne(
     { _id: claim._id },
-    { wallet: msg.text, userId: msg.from.id, username: msg.from.username }
+    { wallet: msg.text.trim() }
   );
 
-  // Notify admin
   bot.sendMessage(
     claim.adminId,
-    `💰 New Wallet Submission\n\n` +
-    `👤 User: @${msg.from.username || 'N/A'}\n` +
-    `🆔 ID: ${msg.from.id}\n` +
-    `🔗 Claim Code: ${claim.claimCode}\n` +
-    `📌 Wallet: ${msg.text}`
+    `✅ New Wallet Submission\n\n` +
+    `User: @${claim.username}\n` +
+    `ID: ${claim.userId}\n` +
+    `Wallet: ${msg.text.trim()}\n` +
+    `Code: ${claim.claimCode}`
   );
 
-  bot.sendMessage(msg.chat.id, '✔️ Wallet submitted successfully!');
+  bot.sendMessage(msg.chat.id, 'Thank you! Your wallet has been submitted.');
 });
 
 
