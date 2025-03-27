@@ -1773,39 +1773,40 @@ async function transferStars(fromUserId, toUserId, stars) {
 
 
 //admin to find user from db
-bot.command('find', async (ctx) => {
-    try {
-        const searchTerm = ctx.message.text.split(' ')[1]?.replace(/^@/, '');
+bot.on('text', async (ctx) => {
+    const text = ctx.message.text;
+    
+    // Check if message is the search command (e.g., "/find 123" or "/find @username")
+    if (text.startsWith('/find ')) {
+        const searchTerm = text.split(' ')[1]?.replace(/^@/, '');
         
         if (!searchTerm) {
-            return ctx.reply('Please specify a user ID or username\nExample: /find 12345 or /find @username');
+            return ctx.reply('Please provide a user ID or username after /find');
         }
 
-        const user = await User.findOne({
-            $or: [
-                { id: searchTerm },
-                { username: searchTerm.toLowerCase() }
-            ]
-        });
+        try {
+            const user = await User.findOne({
+                $or: [
+                    { id: searchTerm },
+                    { username: searchTerm.toLowerCase() }
+                ]
+            });
 
-        if (!user) {
-            return ctx.reply('❌ User not found in database');
+            if (!user) {
+                return ctx.reply('User not found in database');
+            }
+
+            ctx.replyWithMarkdown(
+                `*User Found:*\n` +
+                `🆔 ID: \`${user.id}\`\n` +
+                `👤 Username: ${user.username ? '@' + user.username : 'None'}\n` +
+                `📛 First Name: ${user.first_name || 'None'}\n` +
+                `📛 Last Name: ${user.last_name || 'None'}`
+            );
+        } catch (error) {
+            console.error('Search error:', error);
+            ctx.reply('Error searching database');
         }
-
-        let response = `🔍 *User Found*\n` +
-                      `🆔 *ID:* \`${user.id}\`\n` +
-                      `👤 *Username:* ${user.username ? '@' + user.username : 'Not set'}`;
-
-        if (user.first_name) response += `\n📛 *First Name:* ${user.first_name}`;
-        if (user.last_name) response += `\n📛 *Last Name:* ${user.last_name}`;
-
-        await ctx.replyWithMarkdown(response, {
-            reply_to_message_id: ctx.message.message_id
-        });
-
-    } catch (error) {
-        console.error('Find command error:', error);
-        ctx.reply('⚠️ An error occurred while searching');
     }
 });
 
