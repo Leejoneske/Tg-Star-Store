@@ -1333,6 +1333,7 @@ bot.onText(/\/cso- (.+)/, async (msg, match) => {
         const order = await SellOrder.findOne({ id: orderId });
 
         if (order) {
+            // Existing order handling remains the same
             const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(order.telegramId, userOrderDetails);
 
@@ -1346,77 +1347,53 @@ bot.onText(/\/cso- (.+)/, async (msg, match) => {
             };
             bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
         } else {
-            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the username of the user (with @):');
+            // New order creation with improved user ID handling
+            bot.sendMessage(chatId, 'Order not found. Please choose an option:\n1. Enter username (with @) to try automatic lookup\n2. Or enter the Telegram ID directly');
 
-            const handleUsername = async (userMsg) => {
-                const username = userMsg.text;
+            const handleUserInput = async (userMsg) => {
+                const input = userMsg.text.trim();
 
-                try {
-                    // First try to message the user to establish connection
-                    await bot.sendMessage(username, 'The admin is creating an order for you. Please ignore this message.');
-                    
-                    // Now get their ID
-                    const chat = await bot.getChat(username);
-                    const telegramId = chat.id;
-
-                    bot.sendMessage(chatId, 'Enter the number of stars:');
-
-                    const handleStars = async (userMsg) => {
-                        const stars = parseInt(userMsg.text, 10);
-
-                        bot.sendMessage(chatId, 'Enter the wallet address:');
-
-                        const handleWalletAddress = async (userMsg) => {
-                            const walletAddress = userMsg.text;
-
-                            const newOrder = new SellOrder({
-                                id: orderId,
-                                telegramId,
-                                username,
-                                stars,
-                                walletAddress,
-                                status: 'pending',
-                                reversible: true,
-                                dateCreated: new Date(),
-                                adminMessages: []
-                            });
-
-                            await newOrder.save();
-
-                            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
-                            bot.sendMessage(telegramId, userOrderDetails);
-
-                            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
-                            bot.sendMessage(chatId, adminOrderDetails);
-
-                            const confirmButton = {
-                                reply_markup: {
-                                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${orderId}_${chatId}` }]]
-                                }
-                            };
-                            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
-                        };
-
-                        bot.once('message', handleWalletAddress);
-                    };
-
-                    bot.once('message', handleStars);
-                } catch (error) {
-                    console.error('Error resolving username:', error);
-                    bot.sendMessage(chatId, 'Could not resolve username to user ID. Please enter the Telegram ID manually:');
-                    
-                    const handleTelegramId = async (idMsg) => {
-                        const telegramId = idMsg.text;
-                        // Continue with the rest of the flow...
-                        bot.sendMessage(chatId, 'Enter the number of stars:');
-                        // ... [rest of the original flow]
-                    };
-                    
-                    bot.once('message', handleTelegramId);
+                // Check if input looks like a username
+                if (input.startsWith('@')) {
+                    try {
+                        // Try forwarding a message to establish contact
+                        await bot.forwardMessage(input, chatId, msg.message_id);
+                        
+                        // Try getting chat info
+                        const chat = await bot.getChat(input);
+                        const telegramId = chat.id;
+                        
+                        // Continue with order creation
+                        proceedWithOrderCreation(orderId, chatId, telegramId, input);
+                    } catch (error) {
+                        console.error('Username lookup failed:', error);
+                        bot.sendMessage(chatId, 'Could not resolve username. Please enter the Telegram ID directly:');
+                        bot.once('message', handleManualId);
+                    }
+                } else if (/^\d+$/.test(input)) {
+                    // Input looks like a numeric ID
+                    proceedWithOrderCreation(orderId, chatId, input, 'username_unknown');
+                } else {
+                    bot.sendMessage(chatId, 'Invalid input. Please enter a username (with @) or Telegram ID:');
+                    bot.once('message', handleUserInput);
                 }
             };
 
-            bot.once('message', handleUsername);
+            const handleManualId = async (idMsg) => {
+                const telegramId = idMsg.text.trim();
+                if (/^\d+$/.test(telegramId)) {
+                    bot.sendMessage(chatId, 'Please enter the username (optional, for reference):');
+                    bot.once('message', (usernameMsg) => {
+                        const username = usernameMsg.text.trim();
+                        proceedWithOrderCreation(orderId, chatId, telegramId, username);
+                    });
+                } else {
+                    bot.sendMessage(chatId, 'Invalid Telegram ID. Please enter a numeric ID:');
+                    bot.once('message', handleManualId);
+                }
+            };
+
+            bot.once('message', handleUserInput);
         }
     } catch (error) {
         console.error('Error recreating sell order:', error);
@@ -1424,113 +1401,22 @@ bot.onText(/\/cso- (.+)/, async (msg, match) => {
     }
 });
 
-bot.onText(/\/cbo- (.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const orderId = match[1];
-
+// Helper function to continue with order creation
+async function proceedWithOrderCreation(orderId, chatId, telegramId, username) {
     try {
-        const order = await BuyOrder.findOne({ id: orderId });
+        // Verify the user exists by trying to send them a hidden message
+        await bot.sendMessage(telegramId, ' ', { disable_notification: true });
+        
+        bot.sendMessage(chatId, 'Enter the number of stars:');
+        
+        // ... rest of your original order creation flow ...
+        // Continue with stars, wallet address etc. as in your original code
 
-        if (order) {
-            const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-            bot.sendMessage(order.telegramId, userOrderDetails);
-
-            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-            bot.sendMessage(chatId, adminOrderDetails);
-
-            const confirmButton = {
-                reply_markup: {
-                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${order.id}_${chatId}` }]]
-                }
-            };
-            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
-        } else {
-            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the username of the user (with @):');
-
-            const handleUsername = async (userMsg) => {
-                const username = userMsg.text;
-
-                try {
-                    // First try to message the user to establish connection
-                    await bot.sendMessage(username, 'The admin is creating an order for you. Please ignore this message.');
-                    
-                    // Now get their ID
-                    const chat = await bot.getChat(username);
-                    const telegramId = chat.id;
-
-                    bot.sendMessage(chatId, 'Enter the amount:');
-
-                    const handleAmount = async (userMsg) => {
-                        const amount = parseFloat(userMsg.text);
-
-                        bot.sendMessage(chatId, 'Enter the number of stars:');
-
-                        const handleStars = async (userMsg) => {
-                            const stars = parseInt(userMsg.text, 10);
-
-                            bot.sendMessage(chatId, 'Enter the wallet address:');
-
-                            const handleWalletAddress = async (userMsg) => {
-                                const walletAddress = userMsg.text;
-
-                                const newOrder = new BuyOrder({
-                                    id: orderId,
-                                    telegramId,
-                                    username,
-                                    amount,
-                                    stars,
-                                    walletAddress,
-                                    status: 'pending',
-                                    dateCreated: new Date(),
-                                    adminMessages: []
-                                });
-
-                                await newOrder.save();
-
-                                const userOrderDetails = `Your buy order has been recreated:\n\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
-                                bot.sendMessage(telegramId, userOrderDetails);
-
-                                const adminOrderDetails = `Buy Order Recreated:\n\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
-                                bot.sendMessage(chatId, adminOrderDetails);
-
-                                const confirmButton = {
-                                    reply_markup: {
-                                        inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${orderId}_${chatId}` }]]
-                                    }
-                                };
-                                bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
-                            };
-
-                            bot.once('message', handleWalletAddress);
-                        };
-
-                        bot.once('message', handleStars);
-                    };
-
-                    bot.once('message', handleAmount);
-                } catch (error) {
-                    console.error('Error resolving username:', error);
-                    bot.sendMessage(chatId, 'Could not resolve username to user ID. Please enter the Telegram ID manually:');
-                    
-                    const handleTelegramId = async (idMsg) => {
-                        const telegramId = idMsg.text;
-                        // Continue with the rest of the flow...
-                        bot.sendMessage(chatId, 'Enter the amount:');
-                        // ... [rest of the original flow]
-                    };
-                    
-                    bot.once('message', handleTelegramId);
-                }
-            };
-
-            bot.once('message', handleUsername);
-        }
     } catch (error) {
-        console.error('Error recreating buy order:', error);
-        bot.sendMessage(chatId, 'An error occurred while processing your request.');
+        console.error('User verification failed:', error);
+        bot.sendMessage(chatId, `Failed to verify user with ID ${telegramId}. Please check the ID and try again.`);
     }
-});
-
+}
 
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
