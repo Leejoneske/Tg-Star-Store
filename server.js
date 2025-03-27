@@ -1846,6 +1846,7 @@ bot.on('message', async (msg) => {
     'The admin has been notified.',
     { parse_mode: 'Markdown' }
   );
+    });
 
   await bot.sendMessage(
     claim.adminId,
