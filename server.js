@@ -1345,15 +1345,15 @@ bot.on('callback_query', async (query) => {
             };
             bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
         } else {
-            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the Telegram ID of the user:');
+            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the username of the user (with @):');
 
-            const handleTelegramId = async (userMsg) => {
-                const telegramId = userMsg.text;
+            const handleUsername = async (userMsg) => {
+                const username = userMsg.text;
 
-                bot.sendMessage(chatId, 'Enter the username of the user:');
-
-                const handleUsername = async (userMsg) => {
-                    const username = userMsg.text;
+                try {
+                    // Try to get user ID by resolving the username
+                    const chat = await bot.getChat(username);
+                    const telegramId = chat.id;
 
                     bot.sendMessage(chatId, 'Enter the number of stars:');
 
@@ -1397,12 +1397,13 @@ bot.on('callback_query', async (query) => {
                     };
 
                     bot.once('message', handleStars);
-                };
-
-                bot.once('message', handleUsername);
+                } catch (error) {
+                    console.error('Error resolving username:', error);
+                    bot.sendMessage(chatId, 'Could not resolve username to user ID. Please make sure the user has a public username and you entered it correctly (with @).');
+                }
             };
 
-            bot.once('message', handleTelegramId);
+            bot.once('message', handleUsername);
         }
     } catch (error) {
         console.error('Error recreating sell order:', error);
@@ -1431,15 +1432,15 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
             };
             bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
         } else {
-            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the Telegram ID of the user:');
+            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the username of the user (with @):');
 
-            const handleTelegramId = async (userMsg) => {
-                const telegramId = userMsg.text;
+            const handleUsername = async (userMsg) => {
+                const username = userMsg.text;
 
-                bot.sendMessage(chatId, 'Enter the username of the user:');
-
-                const handleUsername = async (userMsg) => {
-                    const username = userMsg.text;
+                try {
+                    // Try to get user ID by resolving the username
+                    const chat = await bot.getChat(username);
+                    const telegramId = chat.id;
 
                     bot.sendMessage(chatId, 'Enter the amount:');
 
@@ -1491,18 +1492,21 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
                     };
 
                     bot.once('message', handleAmount);
-                };
-
-                bot.once('message', handleUsername);
+                } catch (error) {
+                    console.error('Error resolving username:', error);
+                    bot.sendMessage(chatId, 'Could not resolve username to user ID. Please make sure the user has a public username and you entered it correctly (with @).');
+                }
             };
 
-            bot.once('message', handleTelegramId);
+            bot.once('message', handleUsername);
         }
     } catch (error) {
         console.error('Error recreating buy order:', error);
         bot.sendMessage(chatId, 'An error occurred while processing your request.');
     }
 });
+
+
 
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
