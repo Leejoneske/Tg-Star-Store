@@ -1798,75 +1798,89 @@ bot.onText(/\/generate_claim/, async (msg) => {
 });
 
 // Handle claim link start
-// Handle claim link start
-bot.onText(/\/start (.+)/, async (msg, match) => {
-  const claim = await Claim.findOne({ claimCode: match[1] });
-  
-  // Check if claim exists and hasn't been completed
-  if (!claim || claim.status === 'completed') {
-    return bot.sendMessage(msg.chat.id, 'This claim link is invalid or has already been used');
-  }
+bot.onText(/\/start (.+)/, (msg, match) => {
+  (async () => {
+    try {
+      const claim = await Claim.findOne({ claimCode: match[1] });
+      
+      if (!claim) {
+        return bot.sendMessage(msg.chat.id, 'This claim link is invalid');
+      }
 
-  // Update claim with user info
-  await Claim.updateOne(
-    { claimCode: match[1] },
-    { 
-      userId: msg.from.id,
-      username: msg.from.username || 'no_username',
-      status: 'active'
+      if (claim.status === 'completed') {
+        return bot.sendMessage(msg.chat.id, 'This link has already been used');
+      }
+
+      await Claim.updateOne(
+        { claimCode: match[1] },
+        { 
+          userId: msg.from.id,
+          username: msg.from.username || 'no_username',
+          status: 'active'
+        }
+      );
+
+      await bot.sendMessage(
+        msg.chat.id,
+        'WALLET SUBMISSION\n\n' +
+        'Please send your complete wallet address.\n' +
+        'Ensure it matches the required format.\n\n' +
+        'Expires in 24 hours',
+        { parse_mode: 'Markdown' }
+      );
+    } catch (err) {
+      console.error('Error in /start handler:', err);
     }
-  );
-
-  bot.sendMessage(
-    msg.chat.id,
-    'WALLET SUBMISSION\n\n' +
-    'Please send your complete wallet address.\n' +
-    'Ensure it matches the required format.\n\n' +
-    'Expires in 24 hours',
-    { parse_mode: 'Markdown' }
-  );
+  })();
 });
 
 // Handle wallet submission
-bot.on('message', async (msg) => {
-  if (msg.text.startsWith('/') || !msg.text.trim()) return;
+bot.on('message', (msg) => {
+  (async () => {
+    try {
+      if (msg.text.startsWith('/') || !msg.text.trim()) return;
 
-  const claim = await Claim.findOne({ userId: msg.from.id, status: 'active' });
-  if (!claim) return;
+      const claim = await Claim.findOne({ 
+        userId: msg.from.id, 
+        status: 'active' 
+      });
+      if (!claim) return;
 
-  const wallet = msg.text.trim();
-  
-  await Claim.updateOne(
-    { _id: claim._id },
-    { 
-      wallet: wallet,
-      status: 'completed',
-      completedAt: new Date() 
+      const wallet = msg.text.trim();
+      
+      await Claim.updateOne(
+        { _id: claim._id },
+        { 
+          wallet: wallet,
+          status: 'completed',
+          completedAt: new Date() 
+        }
+      );
+
+      await bot.sendMessage(
+        msg.chat.id,
+        'Submission Complete\n\n' +
+        'Your wallet address has been received:\n' +
+        `${wallet}\n\n` +
+        'The admin has been notified.',
+        { parse_mode: 'Markdown' }
+      );
+
+      await bot.sendMessage(
+        claim.adminId,
+        'New Wallet Submission\n\n' +
+        `User: @${claim.username}\n` +
+        `ID: ${claim.userId}\n` +
+        `Claim Code: ${claim.claimCode}\n` +
+        `Wallet: ${wallet}\n` +
+        `Submitted at: ${new Date().toLocaleString()}`,
+        { parse_mode: 'Markdown' }
+      );
+    } catch (err) {
+      console.error('Error in message handler:', err);
     }
-  );
-
-  await bot.sendMessage(
-    msg.chat.id,
-    'Submission Complete\n\n' +
-    'Your wallet address has been received:\n' +
-    `${wallet}\n\n` +
-    'The admin has been notified.',
-    { parse_mode: 'Markdown' }
-  );
-    });
-
-  await bot.sendMessage(
-    claim.adminId,
-    'New Wallet Submission\n\n' +
-    `User: @${claim.username}\n` +
-    `ID: ${claim.userId}\n` +
-    `Claim Code: ${claim.claimCode}\n` +
-    `Wallet: ${wallet}\n` +
-    `Submitted at: ${new Date().toLocaleString()}`,
-    { parse_mode: 'Markdown' }
-  );
+  })();
 });
-
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
