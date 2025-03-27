@@ -1324,7 +1324,8 @@ bot.on('callback_query', async (query) => {
 //end of claim request
 
 // Handle orders recreation                     
-   bot.onText(/\/cso- (.+)/, async (msg, match) => {
+
+bot.onText(/\/cso- (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const orderId = match[1];
 
@@ -1351,7 +1352,10 @@ bot.on('callback_query', async (query) => {
                 const username = userMsg.text;
 
                 try {
-                    // Try to get user ID by resolving the username
+                    // First try to message the user to establish connection
+                    await bot.sendMessage(username, 'The admin is creating an order for you. Please ignore this message.');
+                    
+                    // Now get their ID
                     const chat = await bot.getChat(username);
                     const telegramId = chat.id;
 
@@ -1399,7 +1403,16 @@ bot.on('callback_query', async (query) => {
                     bot.once('message', handleStars);
                 } catch (error) {
                     console.error('Error resolving username:', error);
-                    bot.sendMessage(chatId, 'Could not resolve username to user ID. Please make sure the user has a public username and you entered it correctly (with @).');
+                    bot.sendMessage(chatId, 'Could not resolve username to user ID. Please enter the Telegram ID manually:');
+                    
+                    const handleTelegramId = async (idMsg) => {
+                        const telegramId = idMsg.text;
+                        // Continue with the rest of the flow...
+                        bot.sendMessage(chatId, 'Enter the number of stars:');
+                        // ... [rest of the original flow]
+                    };
+                    
+                    bot.once('message', handleTelegramId);
                 }
             };
 
@@ -1438,7 +1451,10 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
                 const username = userMsg.text;
 
                 try {
-                    // Try to get user ID by resolving the username
+                    // First try to message the user to establish connection
+                    await bot.sendMessage(username, 'The admin is creating an order for you. Please ignore this message.');
+                    
+                    // Now get their ID
                     const chat = await bot.getChat(username);
                     const telegramId = chat.id;
 
@@ -1494,7 +1510,16 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
                     bot.once('message', handleAmount);
                 } catch (error) {
                     console.error('Error resolving username:', error);
-                    bot.sendMessage(chatId, 'Could not resolve username to user ID. Please make sure the user has a public username and you entered it correctly (with @).');
+                    bot.sendMessage(chatId, 'Could not resolve username to user ID. Please enter the Telegram ID manually:');
+                    
+                    const handleTelegramId = async (idMsg) => {
+                        const telegramId = idMsg.text;
+                        // Continue with the rest of the flow...
+                        bot.sendMessage(chatId, 'Enter the amount:');
+                        // ... [rest of the original flow]
+                    };
+                    
+                    bot.once('message', handleTelegramId);
                 }
             };
 
@@ -1505,7 +1530,6 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
         bot.sendMessage(chatId, 'An error occurred while processing your request.');
     }
 });
-
 
 
 bot.on('callback_query', async (query) => {
