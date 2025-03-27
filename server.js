@@ -1797,6 +1797,7 @@ bot.onText(/\/generate_claim/, async (msg) => {
   );
 });
 // Store user states
+// Store user states
 const userStates = new Map();
 
 // Handle claim link start
@@ -1839,7 +1840,6 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
       chatId,
       'WALLET SUBMISSION\n\n' +
       'Please send your complete wallet address.\n' +
-      'Ensure it matches the required format.\n\n' +
       'Expires in 24 hours',
       { parse_mode: 'Markdown' }
     );
@@ -1867,16 +1867,6 @@ bot.on('message', async (msg) => {
     // Check if state is awaiting wallet
     if (userState.state === 'awaiting_wallet') {
       const wallet = msg.text.trim();
-      
-      // Basic wallet validation (modify as needed)
-      const walletRegex = /^(0x)?[0-9a-fA-F]{40}$/; // Ethereum address example
-      if (!walletRegex.test(wallet)) {
-        await bot.sendMessage(
-          chatId,
-          'Invalid wallet address. Please send a valid wallet address.'
-        );
-        return;
-      }
       
       // Find the claim
       const claim = await Claim.findOne({ 
