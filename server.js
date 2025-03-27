@@ -1798,10 +1798,16 @@ bot.onText(/\/generate_claim/, async (msg) => {
 });
 
 // Handle claim link start
+// Handle claim link start
 bot.onText(/\/start (.+)/, async (msg, match) => {
-  const claim = await Claim.findOne({ claimCode: match[1], status: 'pending' });
-  if (!claim) return bot.sendMessage(msg.chat.id, 'This claim link has expired or already been used');
+  const claim = await Claim.findOne({ claimCode: match[1] });
+  
+  // Check if claim exists and hasn't been completed
+  if (!claim || claim.status === 'completed') {
+    return bot.sendMessage(msg.chat.id, 'This claim link is invalid or has already been used');
+  }
 
+  // Update claim with user info
   await Claim.updateOne(
     { claimCode: match[1] },
     { 
@@ -1812,13 +1818,14 @@ bot.onText(/\/start (.+)/, async (msg, match) => {
   );
 
   bot.sendMessage(
-  msg.chat.id,
-  'WALLET SUBMISSION\n\n' +
-  'Please send your complete wallet address.\n' +
-  'Ensure it matches the required format.\n\n' +
-  'Expires in 24 hours',
-  { parse_mode: 'Markdown' }
-);
+    msg.chat.id,
+    'WALLET SUBMISSION\n\n' +
+    'Please send your complete wallet address.\n' +
+    'Ensure it matches the required format.\n\n' +
+    'Expires in 24 hours',
+    { parse_mode: 'Markdown' }
+  );
+});
 
 // Handle wallet submission
 bot.on('message', async (msg) => {
