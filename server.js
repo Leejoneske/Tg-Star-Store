@@ -1797,103 +1797,44 @@ bot.onText(/\/generate_claim/, async (msg) => {
   );
 });
 
-// Initialize message listener first to prevent missing submissions
-let activeUsers = new Set();
+// Store active claims in memory (no database needed for this basic flow)
+const activeClaims = new Map();
 
 // Handle claim link start
-bot.onText(/\/start (.+)/, (msg, match) => {
-    (async () => {
-        try {
-            const claim = await Claim.findOne({ claimCode: match[1] });
-            
-            if (!claim) {
-                return bot.sendMessage(msg.chat.id, 'This claim link is invalid');
-            }
-
-            if (claim.status === 'completed') {
-                return bot.sendMessage(msg.chat.id, 'This link has already been used');
-            }
-
-            await Claim.updateOne(
-                { claimCode: match[1] },
-                { 
-                    userId: msg.from.id,
-                    username: msg.from.username || 'no_username',
-                    status: 'active'
-                }
-            );
-
-            activeUsers.add(msg.from.id); // Track active session
-
-            await bot.sendMessage(
-                msg.chat.id,
-                'WALLET SUBMISSION\n\n' +
-                'Please send your complete wallet address.\n' +
-                'Ensure it matches the required format.\n\n' +
-                'Expires in 24 hours',
-                { parse_mode: 'Markdown' }
-            );
-        } catch (err) {
-            console.error('Error in /start handler:', err);
-        }
-    })();
+bot.onText(/\/start (.+)/, (msg) => {
+    const claimCode = msg.text.split(' ')[1];
+    activeClaims.set(msg.from.id, claimCode);
+    
+    bot.sendMessage(
+        msg.chat.id,
+        'Please submit your wallet address:',
+        { parse_mode: 'Markdown' }
+    );
 });
 
-// Persistent message handler
+// Handle wallet submission
 bot.on('message', (msg) => {
-    (async () => {
-        try {
-            // Skip commands and non-text messages
-            if (msg.text.startsWith('/') || !msg.text.trim() || !activeUsers.has(msg.from.id)) {
-                return;
-            }
-
-            const claim = await Claim.findOne({ 
-                userId: msg.from.id, 
-                status: 'active' 
-            });
-
-            if (!claim) {
-                activeUsers.delete(msg.from.id);
-                return;
-            }
-
-            const wallet = msg.text.trim();
-            
-            await Claim.updateOne(
-                { _id: claim._id },
-                { 
-                    wallet: wallet,
-                    status: 'completed',
-                    completedAt: new Date() 
-                }
-            );
-
-            activeUsers.delete(msg.from.id); // Clear active session
-
-            await bot.sendMessage(
-                msg.chat.id,
-                'Submission Complete\n\n' +
-                'Your wallet address has been received:\n' +
-                `${wallet}\n\n` +
-                'The admin has been notified.',
-                { parse_mode: 'Markdown' }
-            );
-
-            await bot.sendMessage(
-                claim.adminId,
-                'New Wallet Submission\n\n' +
-                `User: @${claim.username}\n` +
-                `ID: ${claim.userId}\n` +
-                `Claim Code: ${claim.claimCode}\n` +
-                `Wallet: ${wallet}\n` +
-                `Submitted at: ${new Date().toLocaleString()}`,
-                { parse_mode: 'Markdown' }
-            );
-        } catch (err) {
-            console.error('Error in message handler:', err);
-        }
-    })();
+    if (!activeClaims.has(msg.from.id)) return;
+    if (msg.text.startsWith('/')) return;
+    
+    const wallet = msg.text.trim();
+    const claimCode = activeClaims.get(msg.from.id);
+    
+    // 1. Thank user
+    bot.sendMessage(
+        msg.chat.id,
+        `Thank you! Your wallet address ${wallet} has been received.`,
+        { parse_mode: 'Markdown' }
+    );
+    
+    // 2. Notify admin (optional)
+    bot.sendMessage(
+        ADMIN_CHAT_ID, // Replace with your admin chat ID
+        `New wallet submission:\n\nUser: @${msg.from.username || 'N/A'}\nWallet: ${wallet}\nClaim Code: ${claimCode}`
+    );
+    
+    // 3. Clean up
+    activeClaims.delete(msg.from.id);
 });
 
 //get total users from db
