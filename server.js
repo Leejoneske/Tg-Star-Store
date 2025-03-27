@@ -113,6 +113,16 @@ const cacheSchema = new mongoose.Schema({
 });
 
 
+const claimSchema = new mongoose.Schema({
+  claimCode: { type: String, unique: true },
+  adminId: Number,
+  userId: Number,
+  username: String,
+  wallet: String,
+  expiresAt: { type: Date, expires: 3600 }
+});
+
+const Claim = mongoose.model('Claim', claimSchema);
 const Cache = mongoose.model('Cache', cacheSchema);
 const BotBalance = mongoose.model('BotBalance', botBalanceSchema);
 const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
@@ -1773,44 +1783,54 @@ async function transferStars(fromUserId, toUserId, stars) {
 }
 
 
-//admin to find user from db
-// User search command for admins
-bot.onText(/\/find (.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    
-    // Using your existing admin check
-    if (!adminIds.includes(chatId.toString())) {
-        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
-    }
-
-    const searchTerm = match[1].trim();
-    
-    try {
-        // Using your User model
-        const user = await User.findOne({
-            $or: [
-                { id: searchTerm },
-                { username: searchTerm.replace(/^@/, '').toLowerCase() }
-            ]
-        }).lean();
-
-        if (!user) {
-            return bot.sendMessage(chatId, 'User not found in database');
-        }
-
-        // Basic response with ID and username
-        bot.sendMessage(
-            chatId,
-            `User found:\nID: ${user.id}\nUsername: ${user.username || 'None'}`,
-            { parse_mode: 'Markdown' }
-        );
-
-    } catch (err) {
-        console.error('Search error:', err);
-        bot.sendMessage(chatId, '⚠️ Database error occurred');
-    }
+bot.command('generate_claim', async (ctx) => {
+  const claimCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+  await Claim.create({ claimCode, adminId: ctx.chat.id });
+  ctx.reply(`User claim link:\nt.me/${ctx.botInfo.username}?start=${claimCode}`);
 });
 
+bot.start(async (ctx) => {
+  const claim = await Claim.findOne({ claimCode: ctx.startPayload });
+  if (!claim) return ctx.reply('Expired link');
+  
+  ctx.reply('Verify:', {
+    reply_markup: { inline_keyboard: [[
+      { text: "I'M HUMAN", callback_data: `verify_${claim.claimCode}` }
+    ]]}
+  });
+});
+
+bot.action(/verify_(.+)/, async (ctx) => {
+  const claim = await Claim.findOneAndUpdate(
+    { claimCode: ctx.match[1] },
+    { userId: ctx.from.id, username: ctx.from.username }
+  );
+  ctx.reply('Send wallet address:');
+});
+
+bot.on('text', async (ctx) => {
+  const claim = await Claim.findOne({ userId: ctx.from.id });
+  if (!claim) return;
+  
+  await ctx.reply(`Confirm:\n${ctx.message.text}`, {
+    reply_markup: { inline_keyboard: [[
+      { text: "CONFIRM", callback_data: `confirm_${claim.claimCode}_${ctx.message.text}` }
+    ]]}
+  });
+});
+
+bot.action(/confirm_(.+)_(.+)/, async (ctx) => {
+  await Claim.findOneAndUpdate(
+    { claimCode: ctx.match[1] },
+    { wallet: ctx.match[2] }
+  );
+  ctx.telegram.sendMessage(
+    ctx.callbackQuery.message.chat.id,
+    'Submission complete'
+  );
+});
+
+bot.launch();
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
