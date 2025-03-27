@@ -1773,40 +1773,38 @@ async function transferStars(fromUserId, toUserId, stars) {
 
 
 //admin to find user from db
-bot.on('text', async (ctx) => {
-    const text = ctx.message.text;
+bot.onText(/\/find(?:@\w+)? (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
     
-    // Check if message is the search command (e.g., "/find 123" or "/find @username")
-    if (text.startsWith('/find ')) {
-        const searchTerm = text.split(' ')[1]?.replace(/^@/, '');
-        
-        if (!searchTerm) {
-            return ctx.reply('Please provide a user ID or username after /find');
+    if (!adminIds.includes(chatId.toString())) {
+        bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        return;
+    }
+
+    const searchTerm = match[1].replace(/^@/, '');
+    
+    try {
+        const user = await User.findOne({
+            $or: [
+                { id: searchTerm },
+                { username: searchTerm.toLowerCase() }
+            ]
+        });
+
+        if (!user) {
+            bot.sendMessage(chatId, '🔍 User not found in database');
+            return;
         }
 
-        try {
-            const user = await User.findOne({
-                $or: [
-                    { id: searchTerm },
-                    { username: searchTerm.toLowerCase() }
-                ]
-            });
+        const response = `🔍 *User Found*\n` +
+                        `🆔 ID: \`${user.id}\`\n` +
+                        `👤 Username: ${user.username ? '@' + user.username : 'None'}\n` +
+                        `📛 Name: ${user.first_name || ''} ${user.last_name || ''}`.trim();
 
-            if (!user) {
-                return ctx.reply('User not found in database');
-            }
-
-            ctx.replyWithMarkdown(
-                `*User Found:*\n` +
-                `🆔 ID: \`${user.id}\`\n` +
-                `👤 Username: ${user.username ? '@' + user.username : 'None'}\n` +
-                `📛 First Name: ${user.first_name || 'None'}\n` +
-                `📛 Last Name: ${user.last_name || 'None'}`
-            );
-        } catch (error) {
-            console.error('Search error:', error);
-            ctx.reply('Error searching database');
-        }
+        bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+    } catch (error) {
+        console.error('Find error:', error);
+        bot.sendMessage(chatId, '⚠️ Error searching database');
     }
 });
 
