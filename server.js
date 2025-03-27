@@ -1796,7 +1796,9 @@ bot.onText(/\/generate_claim/, async (msg) => {
     { disable_web_page_preview: true }
   );
 });
-// Store user states
+
+
+// Handle all incoming messages
 // Store user states
 const userStates = new Map();
 
@@ -1862,7 +1864,22 @@ bot.on('message', async (msg) => {
     const userState = userStates.get(userId);
     
     // If no active state, ignore
-    if (!userState) return;
+    if (!userState) {
+      // Check if claim is already completed for this user
+      const existingClaim = await Claim.findOne({ 
+        userId: userId, 
+        status: 'completed'
+      });
+      
+      if (existingClaim) {
+        return bot.sendMessage(
+          chatId, 
+          'Your claim has already been submitted. No further actions are allowed.'
+        );
+      }
+      
+      return;
+    }
     
     // Check if state is awaiting wallet
     if (userState.state === 'awaiting_wallet') {
@@ -1899,7 +1916,7 @@ bot.on('message', async (msg) => {
         'Submission Complete\n\n' +
         'Your wallet address has been received:\n' +
         `${wallet}\n\n` +
-        'The admin has been notified.',
+        'The admin has been notified. No further changes can be made.',
         { parse_mode: 'Markdown' }
       );
       
@@ -1931,8 +1948,6 @@ setInterval(() => {
     }
   }
 }, 60 * 60 * 1000); // Check every hour
-
-
 // Handle wallet submission
 
 
