@@ -1773,38 +1773,38 @@ async function transferStars(fromUserId, toUserId, stars) {
 
 
 //admin to find user from db
-bot.onText(/\/find(?:@\w+)? (.+)/, async (msg, match) => {
+bot.onText(/\/find (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     
+    // Using your existing admin check
     if (!adminIds.includes(chatId.toString())) {
-        bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
-        return;
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
 
-    const searchTerm = match[1].replace(/^@/, '');
+    const searchTerm = match[1].trim();
     
     try {
         const user = await User.findOne({
             $or: [
                 { id: searchTerm },
-                { username: searchTerm.toLowerCase() }
+                { username: searchTerm.replace(/^@/, '').toLowerCase() }
             ]
         });
 
         if (!user) {
-            bot.sendMessage(chatId, '🔍 User not found in database');
-            return;
+            return bot.sendMessage(chatId, 'User not found in database');
         }
 
-        const response = `🔍 *User Found*\n` +
-                        `🆔 ID: \`${user.id}\`\n` +
-                        `👤 Username: ${user.username ? '@' + user.username : 'None'}\n` +
-                        `📛 Name: ${user.first_name || ''} ${user.last_name || ''}`.trim();
+        // Minimal response with only ID and username
+        bot.sendMessage(
+            chatId,
+            `User found:\nID: ${user.id}\nUsername: ${user.username || 'None'}`,
+            { parse_mode: 'Markdown' }
+        );
 
-        bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
-    } catch (error) {
-        console.error('Find error:', error);
-        bot.sendMessage(chatId, '⚠️ Error searching database');
+    } catch (err) {
+        console.error('Search error:', err);
+        bot.sendMessage(chatId, 'Error searching database');
     }
 });
 
