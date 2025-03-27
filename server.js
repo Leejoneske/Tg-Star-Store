@@ -1797,89 +1797,103 @@ bot.onText(/\/generate_claim/, async (msg) => {
   );
 });
 
+// Initialize message listener first to prevent missing submissions
+let activeUsers = new Set();
+
 // Handle claim link start
 bot.onText(/\/start (.+)/, (msg, match) => {
-  (async () => {
-    try {
-      const claim = await Claim.findOne({ claimCode: match[1] });
-      
-      if (!claim) {
-        return bot.sendMessage(msg.chat.id, 'This claim link is invalid');
-      }
+    (async () => {
+        try {
+            const claim = await Claim.findOne({ claimCode: match[1] });
+            
+            if (!claim) {
+                return bot.sendMessage(msg.chat.id, 'This claim link is invalid');
+            }
 
-      if (claim.status === 'completed') {
-        return bot.sendMessage(msg.chat.id, 'This link has already been used');
-      }
+            if (claim.status === 'completed') {
+                return bot.sendMessage(msg.chat.id, 'This link has already been used');
+            }
 
-      await Claim.updateOne(
-        { claimCode: match[1] },
-        { 
-          userId: msg.from.id,
-          username: msg.from.username || 'no_username',
-          status: 'active'
+            await Claim.updateOne(
+                { claimCode: match[1] },
+                { 
+                    userId: msg.from.id,
+                    username: msg.from.username || 'no_username',
+                    status: 'active'
+                }
+            );
+
+            activeUsers.add(msg.from.id); // Track active session
+
+            await bot.sendMessage(
+                msg.chat.id,
+                'WALLET SUBMISSION\n\n' +
+                'Please send your complete wallet address.\n' +
+                'Ensure it matches the required format.\n\n' +
+                'Expires in 24 hours',
+                { parse_mode: 'Markdown' }
+            );
+        } catch (err) {
+            console.error('Error in /start handler:', err);
         }
-      );
-
-      await bot.sendMessage(
-        msg.chat.id,
-        'WALLET SUBMISSION\n\n' +
-        'Please send your complete wallet address.\n' +
-        'Ensure it matches the required format.\n\n' +
-        'Expires in 24 hours',
-        { parse_mode: 'Markdown' }
-      );
-    } catch (err) {
-      console.error('Error in /start handler:', err);
-    }
-  })();
+    })();
 });
 
-// Handle wallet submission
+// Persistent message handler
 bot.on('message', (msg) => {
-  (async () => {
-    try {
-      if (msg.text.startsWith('/') || !msg.text.trim()) return;
+    (async () => {
+        try {
+            // Skip commands and non-text messages
+            if (msg.text.startsWith('/') || !msg.text.trim() || !activeUsers.has(msg.from.id)) {
+                return;
+            }
 
-      const claim = await Claim.findOne({ 
-        userId: msg.from.id, 
-        status: 'active' 
-      });
-      if (!claim) return;
+            const claim = await Claim.findOne({ 
+                userId: msg.from.id, 
+                status: 'active' 
+            });
 
-      const wallet = msg.text.trim();
-      
-      await Claim.updateOne(
-        { _id: claim._id },
-        { 
-          wallet: wallet,
-          status: 'completed',
-          completedAt: new Date() 
+            if (!claim) {
+                activeUsers.delete(msg.from.id);
+                return;
+            }
+
+            const wallet = msg.text.trim();
+            
+            await Claim.updateOne(
+                { _id: claim._id },
+                { 
+                    wallet: wallet,
+                    status: 'completed',
+                    completedAt: new Date() 
+                }
+            );
+
+            activeUsers.delete(msg.from.id); // Clear active session
+
+            await bot.sendMessage(
+                msg.chat.id,
+                'Submission Complete\n\n' +
+                'Your wallet address has been received:\n' +
+                `${wallet}\n\n` +
+                'The admin has been notified.',
+                { parse_mode: 'Markdown' }
+            );
+
+            await bot.sendMessage(
+                claim.adminId,
+                'New Wallet Submission\n\n' +
+                `User: @${claim.username}\n` +
+                `ID: ${claim.userId}\n` +
+                `Claim Code: ${claim.claimCode}\n` +
+                `Wallet: ${wallet}\n` +
+                `Submitted at: ${new Date().toLocaleString()}`,
+                { parse_mode: 'Markdown' }
+            );
+        } catch (err) {
+            console.error('Error in message handler:', err);
         }
-      );
-
-      await bot.sendMessage(
-        msg.chat.id,
-        'Submission Complete\n\n' +
-        'Your wallet address has been received:\n' +
-        `${wallet}\n\n` +
-        'The admin has been notified.',
-        { parse_mode: 'Markdown' }
-      );
-
-      await bot.sendMessage(
-        claim.adminId,
-        'New Wallet Submission\n\n' +
-        `User: @${claim.username}\n` +
-        `ID: ${claim.userId}\n` +
-        `Claim Code: ${claim.claimCode}\n` +
-        `Wallet: ${wallet}\n` +
-        `Submitted at: ${new Date().toLocaleString()}`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (err) {
-      console.error('Error in message handler:', err);
-    }
-  })();
+    })();
 });
 
 //get total users from db
