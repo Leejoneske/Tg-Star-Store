@@ -119,7 +119,11 @@ const claimSchema = new mongoose.Schema({
   userId: Number,
   username: String,
   wallet: String,
-  expiresAt: { type: Date, expires: 3600 }
+  expiresAt: { 
+    type: Date, 
+    default: () => new Date(Date.now() + 24 * 60 * 60 * 1000), 
+    expires: 0 
+  }
 });
 
 const Claim = mongoose.model('Claim', claimSchema);
@@ -1786,55 +1790,47 @@ async function transferStars(fromUserId, toUserId, stars) {
 bot.onText(/\/generate_claim/, async (msg) => {
   const claimCode = Math.random().toString(36).slice(2, 8).toUpperCase();
   await Claim.create({ claimCode, adminId: msg.chat.id });
-  bot.sendMessage(msg.chat.id, `User claim link:\nt.me/${bot.options.username}?start=${claimCode}`);
+  bot.sendMessage(
+    msg.chat.id, 
+    `🔗 Share this 24-hour claim link:\n\nhttps://t.me/TgStarStore_bot?start=${claimCode}`,
+    { disable_web_page_preview: true }
+  );
 });
 
-// User starts bot with claim code
+// User claims
 bot.onText(/\/start (.+)/, async (msg, match) => {
   const claim = await Claim.findOne({ claimCode: match[1] });
-  if (!claim) return bot.sendMessage(msg.chat.id, 'Expired link');
+  if (!claim) return bot.sendMessage(msg.chat.id, '❌ Link expired (valid for 24 hours)');
 
-  bot.sendMessage(msg.chat.id, 'Verify:', {
-    reply_markup: {
-      inline_keyboard: [[{ text: "I'M HUMAN", callback_data: `verify_${claim.claimCode}` }]]
-    }
-  });
-});
-
-// Handle verification button
-bot.on('callback_query', async (query) => {
-  const claimCode = query.data.split('_')[1];
-  const claim = await Claim.findOneAndUpdate(
-    { claimCode },
-    { userId: query.from.id, username: query.from.username }
-  );
-  bot.sendMessage(query.message.chat.id, 'Send wallet address:');
+  bot.sendMessage(msg.chat.id, '✅ Verified! Send your wallet address:');
 });
 
 // Handle wallet submission
 bot.on('message', async (msg) => {
-  if (!msg.text || msg.text.startsWith('/')) return;
+  if (msg.text.startsWith('/')) return;
   
-  const claim = await Claim.findOne({ userId: msg.from.id });
+  const claim = await Claim.findOne({ 
+    adminId: { $exists: true },
+    userId: msg.from.id 
+  });
   if (!claim) return;
 
-  bot.sendMessage(msg.chat.id, `Confirm:\n${msg.text}`, {
-    reply_markup: {
-      inline_keyboard: [[{ text: "CONFIRM", callback_data: `confirm_${claim.claimCode}_${msg.text}` }]]
-    }
-  });
-});
-
-// Final confirmation
-bot.on('callback_query', async (query) => {
-  if (!query.data.startsWith('confirm_')) return;
-  
-  const [_, claimCode, wallet] = query.data.split('_');
-  await Claim.findOneAndUpdate(
-    { claimCode },
-    { wallet }
+  await Claim.updateOne(
+    { _id: claim._id },
+    { wallet: msg.text, userId: msg.from.id, username: msg.from.username }
   );
-  bot.sendMessage(query.message.chat.id, 'Submission complete');
+
+  // Notify admin
+  bot.sendMessage(
+    claim.adminId,
+    `💰 New Wallet Submission\n\n` +
+    `👤 User: @${msg.from.username || 'N/A'}\n` +
+    `🆔 ID: ${msg.from.id}\n` +
+    `🔗 Claim Code: ${claim.claimCode}\n` +
+    `📌 Wallet: ${msg.text}`
+  );
+
+  bot.sendMessage(msg.chat.id, '✔️ Wallet submitted successfully!');
 });
 
 
