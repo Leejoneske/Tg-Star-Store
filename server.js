@@ -1324,100 +1324,44 @@ bot.on('callback_query', async (query) => {
 //end of claim request
 
 // Handle orders recreation                     
-
-bot.onText(/\/cso- (.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const orderId = match[1];
-
-    try {
-        const order = await SellOrder.findOne({ id: orderId });
-
-        if (order) {
-            // Existing order handling remains the same
-            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-            bot.sendMessage(order.telegramId, userOrderDetails);
-
-            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-            bot.sendMessage(chatId, adminOrderDetails);
-
-            const confirmButton = {
-                reply_markup: {
-                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${order.id}_${chatId}` }]]
-                }
-            };
-            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
-        } else {
-            // New order creation with improved user ID handling
-            bot.sendMessage(chatId, 'Order not found. Please choose an option:\n1. Enter username (with @) to try automatic lookup\n2. Or enter the Telegram ID directly');
-
-            const handleUserInput = async (userMsg) => {
-                const input = userMsg.text.trim();
-
-                // Check if input looks like a username
-                if (input.startsWith('@')) {
-                    try {
-                        // Try forwarding a message to establish contact
-                        await bot.forwardMessage(input, chatId, msg.message_id);
-                        
-                        // Try getting chat info
-                        const chat = await bot.getChat(input);
-                        const telegramId = chat.id;
-                        
-                        // Continue with order creation
-                        proceedWithOrderCreation(orderId, chatId, telegramId, input);
-                    } catch (error) {
-                        console.error('Username lookup failed:', error);
-                        bot.sendMessage(chatId, 'Could not resolve username. Please enter the Telegram ID directly:');
-                        bot.once('message', handleManualId);
-                    }
-                } else if (/^\d+$/.test(input)) {
-                    // Input looks like a numeric ID
-                    proceedWithOrderCreation(orderId, chatId, input, 'username_unknown');
-                } else {
-                    bot.sendMessage(chatId, 'Invalid input. Please enter a username (with @) or Telegram ID:');
-                    bot.once('message', handleUserInput);
-                }
-            };
-
-            const handleManualId = async (idMsg) => {
-                const telegramId = idMsg.text.trim();
-                if (/^\d+$/.test(telegramId)) {
-                    bot.sendMessage(chatId, 'Please enter the username (optional, for reference):');
-                    bot.once('message', (usernameMsg) => {
-                        const username = usernameMsg.text.trim();
-                        proceedWithOrderCreation(orderId, chatId, telegramId, username);
-                    });
-                } else {
-                    bot.sendMessage(chatId, 'Invalid Telegram ID. Please enter a numeric ID:');
-                    bot.once('message', handleManualId);
-                }
-            };
-
-            bot.once('message', handleUserInput);
+bot.onText(/\/create_order/, async (msg) => {
+    const adminChat = msg.chat.id;
+    
+    // 1. Admin provides username
+    bot.sendMessage(adminChat, "Enter @username:");
+    
+    bot.once('message', async (usernameMsg) => {
+        const username = usernameMsg.text.replace('@', '').trim();
+        
+        try {
+            // 2. Attempt direct message
+            await bot.sendMessage(
+                `@${username}`,
+                "Please reply with /confirm to verify"
+            );
+            
+            // 3. Wait for user response
+            bot.onceText(/\/confirm/, (userMsg) => {
+                // Now we have userMsg.from.id reliably
+                const userId = userMsg.from.id;
+                
+                // Proceed with order creation...
+            });
+            
+        } catch (error) {
+            // Fallback flow
+            bot.sendMessage(
+                adminChat,
+                "Couldn't message @username directly.\n" +
+                "Ask user to:\n" +
+                "1. Start this bot: t.me/YourBot\n" +
+                "2. Then try again"
+            );
         }
-    } catch (error) {
-        console.error('Error recreating sell order:', error);
-        bot.sendMessage(chatId, 'An error occurred while processing your request.');
-    }
+    });
 });
 
-// Helper function to continue with order creation
-async function proceedWithOrderCreation(orderId, chatId, telegramId, username) {
-    try {
-        // Verify the user exists by trying to send them a hidden message
-        await bot.sendMessage(telegramId, ' ', { disable_notification: true });
-        
-        bot.sendMessage(chatId, 'Enter the number of stars:');
-        
-        // ... rest of your original order creation flow ...
-        // Continue with stars, wallet address etc. as in your original code
-
-    } catch (error) {
-        console.error('User verification failed:', error);
-        bot.sendMessage(chatId, `Failed to verify user with ID ${telegramId}. Please check the ID and try again.`);
-    }
-}
-
+                
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
