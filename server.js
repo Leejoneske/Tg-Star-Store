@@ -1796,95 +1796,101 @@ bot.onText(/\/generate_claim/, async (msg) => {
     { disable_web_page_preview: true }
   );
 });
+// Store user states
+const userStates = new Map();
 
 // Handle claim link start
-const claimSessions = new Map(); // Store active claim sessions
+bot.onText(/\/start (.+)/, async (msg, match) => {
+  try {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    const claimCode = match[1];
 
-bot.onText(/\/start (.+)/, (msg, match) => {
-  (async () => {
-    try {
-      const claim = await Claim.findOne({ claimCode: match[1] });
-      
-      if (!claim) {
-        return bot.sendMessage(msg.chat.id, 'This claim link is invalid');
-      }
-      if (claim.status === 'completed') {
-        return bot.sendMessage(msg.chat.id, 'This link has already been used');
-      }
-      
-      // Update claim status
-      await Claim.updateOne(
-        { claimCode: match[1] },
-        { 
-          userId: msg.from.id,
-          username: msg.from.username || 'no_username',
-          status: 'active'
-        }
-      );
-      
-      // Store active session with timeout
-      claimSessions.set(msg.from.id, {
-        claimCode: match[1],
-        createdAt: Date.now(),
-        timeout: setTimeout(() => {
-          // Remove session after 24 hours
-          if (claimSessions.has(msg.from.id)) {
-            claimSessions.delete(msg.from.id);
-            bot.sendMessage(msg.chat.id, 'Wallet submission timed out. Please start over.');
-          }
-        }, 24 * 60 * 60 * 1000) // 24 hours
-      });
-      
-      await bot.sendMessage(
-        msg.chat.id,
-        'WALLET SUBMISSION\n\n' +
-        'Please send your complete wallet address.\n' +
-        'Ensure it matches the required format.\n\n' +
-        'Expires in 24 hours',
-        { parse_mode: 'Markdown' }
-      );
-    } catch (err) {
-      console.error('Error in /start handler:', err);
-      await bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+    // Find the claim
+    const claim = await Claim.findOne({ claimCode: claimCode });
+    
+    if (!claim) {
+      return bot.sendMessage(chatId, 'This claim link is invalid');
     }
-  })();
+    
+    if (claim.status === 'completed') {
+      return bot.sendMessage(chatId, 'This link has already been used');
+    }
+    
+    // Update claim with user info
+    await Claim.updateOne(
+      { claimCode: claimCode },
+      { 
+        userId: userId,
+        username: msg.from.username || 'no_username',
+        status: 'awaiting_wallet'
+      }
+    );
+    
+    // Store user state
+    userStates.set(userId, {
+      state: 'awaiting_wallet',
+      claimCode: claimCode,
+      createdAt: Date.now()
+    });
+    
+    // Send wallet submission prompt
+    await bot.sendMessage(
+      chatId,
+      'WALLET SUBMISSION\n\n' +
+      'Please send your complete wallet address.\n' +
+      'Ensure it matches the required format.\n\n' +
+      'Expires in 24 hours',
+      { parse_mode: 'Markdown' }
+    );
+  } catch (err) {
+    console.error('Error in /start handler:', err);
+    bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+  }
 });
 
-// Handle wallet submission
-bot.on('message', (msg) => {
-  (async () => {
-    try {
-      // Ignore commands and empty messages
-      if (msg.text.startsWith('/') || !msg.text.trim()) return;
-      
-      // Check if there's an active session for this user
-      const activeSession = claimSessions.get(msg.from.id);
-      if (!activeSession) return;
-      
-      const claim = await Claim.findOne({ 
-        userId: msg.from.id, 
-        status: 'active',
-        claimCode: activeSession.claimCode
-      });
-      
-      if (!claim) {
-        claimSessions.delete(msg.from.id);
-        return;
-      }
-      
+// Handle all incoming messages
+bot.on('message', async (msg) => {
+  try {
+    // Ignore commands
+    if (msg.text.startsWith('/')) return;
+    
+    const userId = msg.from.id;
+    const chatId = msg.chat.id;
+    
+    // Check if user has an active state
+    const userState = userStates.get(userId);
+    
+    // If no active state, ignore
+    if (!userState) return;
+    
+    // Check if state is awaiting wallet
+    if (userState.state === 'awaiting_wallet') {
       const wallet = msg.text.trim();
       
-      // Validate wallet address (add your specific validation logic here)
-      const walletRegex = /^(0x)?[0-9a-fA-F]{40}$/; // Example Ethereum address regex
+      // Basic wallet validation (modify as needed)
+      const walletRegex = /^(0x)?[0-9a-fA-F]{40}$/; // Ethereum address example
       if (!walletRegex.test(wallet)) {
         await bot.sendMessage(
-          msg.chat.id,
+          chatId,
           'Invalid wallet address. Please send a valid wallet address.'
         );
         return;
       }
       
-      // Update claim with wallet and mark as completed
+      // Find the claim
+      const claim = await Claim.findOne({ 
+        userId: userId, 
+        claimCode: userState.claimCode,
+        status: 'awaiting_wallet'
+      });
+      
+      if (!claim) {
+        userStates.delete(userId);
+        return bot.sendMessage(chatId, 'Your claim session has expired.');
+      }
+      
+      // Update claim with wallet
       await Claim.updateOne(
         { _id: claim._id },
         { 
@@ -1894,13 +1900,12 @@ bot.on('message', (msg) => {
         }
       );
       
-      // Clear the timeout and session
-      clearTimeout(activeSession.timeout);
-      claimSessions.delete(msg.from.id);
+      // Remove user state
+      userStates.delete(userId);
       
       // Send confirmation to user
       await bot.sendMessage(
-        msg.chat.id,
+        chatId,
         'Submission Complete\n\n' +
         'Your wallet address has been received:\n' +
         `${wallet}\n\n` +
@@ -1919,23 +1924,27 @@ bot.on('message', (msg) => {
         `Submitted at: ${new Date().toLocaleString()}`,
         { parse_mode: 'Markdown' }
       );
-    } catch (err) {
-      console.error('Error in message handler:', err);
-      await bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
     }
-  })();
+  } catch (err) {
+    console.error('Error in message handler:', err);
+    bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
+  }
 });
 
-// Optional: Clean up expired sessions periodically
+// Cleanup expired states
 setInterval(() => {
   const now = Date.now();
-  for (const [userId, session] of claimSessions.entries()) {
-    if (now - session.createdAt > 24 * 60 * 60 * 1000) {
-      clearTimeout(session.timeout);
-      claimSessions.delete(userId);
+  for (const [userId, state] of userStates.entries()) {
+    // Remove states older than 24 hours
+    if (now - state.createdAt > 24 * 60 * 60 * 1000) {
+      userStates.delete(userId);
     }
   }
 }, 60 * 60 * 1000); // Check every hour
+
+
+// Handle wallet submission
+
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
