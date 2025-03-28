@@ -569,6 +569,23 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         };
         
         await bot.sendMessage(chatId, welcomeMessage, { reply_markup: keyboard });
+
+        // ===== CLAIM CODE HANDLING =====
+        if (deepLinkParam && deepLinkParam.startsWith('CLAIM_')) {
+            const claim = await Claim.findOne({
+                claimCode: deepLinkParam,
+                expiresAt: { $gt: new Date() }
+            });
+            
+            if (claim && !claim.userId) {
+                await bot.sendMessage(
+                    chatId,
+                    "💰 Please submit your wallet address to claim your reward:\n\n" +
+                    "Type or paste your wallet address now:"
+                );
+                return; // Stop here to wait for wallet input
+            }
+        }
         
         if (deepLinkParam && deepLinkParam.startsWith('ref_')) {
             const referrerUserId = deepLinkParam.split('_')[1];
@@ -1785,78 +1802,75 @@ async function transferStars(fromUserId, toUserId, stars) {
         throw error;
     }
 }
-//get user to verify with Wallet 
-// Active claim codes tracker (complementary to your MongoDB)
-const activeClaims = new Map(); // Format: { claimCode: adminId }
 
-// Admin generates claim link (your existing code - no changes needed)
+
+// Add this new handler for claim generation
 bot.onText(/\/generate_claim/, async (msg) => {
-  const claimCode = Math.random().toString(36).slice(2, 8).toUpperCase();
-  await Claim.create({ claimCode, adminId: msg.chat.id });
-  activeClaims.set(claimCode, msg.chat.id); // Track active code
+  const claimCode = "CLAIM_" + Math.random().toString(36).slice(2, 6).toUpperCase();
+  
+  await Claim.create({
+    claimCode,
+    adminId: msg.chat.id,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+  });
+
   bot.sendMessage(
-    msg.chat.id, 
-    `🔗 Share this 24-hour claim link:\n\nhttps://t.me/TgStarStore_bot?start=${claimCode}`,
+    msg.chat.id,
+    `🔗 Share this claim link (expires in 24 hours):\n\n` +
+    `https://t.me/TgStarStore_bot?start=${claimCode}`,
     { disable_web_page_preview: true }
   );
 });
 
-// Wallet submission handler (works alongside your start command)
+// Handle wallet submissions
 bot.on('message', async (msg) => {
-  if (!msg.text || msg.text.startsWith('/')) return;
-
-  // Check if user has pending claim
-  const claim = await Claim.findOne({ 
-    userId: msg.chat.id, 
-    wallet: { $exists: false },
-    expiresAt: { $gt: new Date() }
-  });
-
-  if (!claim || !activeClaims.has(claim.claimCode)) return;
-
-  // Process submission
-  await Claim.updateOne(
-    { _id: claim._id },
-    { 
-      $set: { 
-        wallet: msg.text.trim(),
-        username: msg.from.username || 'N/A' 
-      } 
-    }
-  );
-
-  // Notify user
-  await bot.sendMessage(
-    msg.chat.id,
-    `✅ Wallet submitted successfully!\n\n` +
-    `Address: \`${msg.text.trim()}\`\n\n` +
-    `Thank you for your participation.`,
-    { parse_mode: "Markdown" }
-  );
-
-  // Notify admin
-  await bot.sendMessage(
-    claim.adminId,
-    `📥 New Wallet Submission\n\n` +
-    `User: @${msg.from.username || 'N/A'} (${msg.chat.id})\n` +
-    `Wallet: \`${msg.text.trim()}\`\n` +
-    `Claim Code: ${claim.claimCode}`,
-    { parse_mode: "Markdown" }
-  );
-
-  // Cleanup
-  activeClaims.delete(claim.claimCode);
+    if (!msg.text || msg.text.startsWith('/')) return;
+    
+    // Check for pending claims
+    const claim = await Claim.findOne({
+        userId: { $exists: false },
+        expiresAt: { $gt: new Date() },
+        $or: [
+            { claimCode: msg.text.trim() }, // For direct code entry
+            { claimCode: await Claim.findOne({ 
+                userId: msg.chat.id,
+                wallet: { $exists: false }
+            })?.claimCode }
+        ]
+    });
+    
+    if (!claim) return;
+    
+    // Update claim record
+    await Claim.updateOne(
+        { _id: claim._id },
+        { 
+            $set: { 
+                userId: msg.chat.id,
+                wallet: msg.text.trim(),
+                username: msg.from.username || 'N/A' 
+            } 
+        }
+    );
+    
+    // Notify user
+    await bot.sendMessage(
+        msg.chat.id,
+        `✅ Wallet submitted successfully!\n` +
+        `You will receive your payments soon.`,
+        { parse_mode: "Markdown" }
+    );
+    
+    // Notify admin
+    await bot.sendMessage(
+        claim.adminId,
+        `📥 New wallet submission\n` +
+        `User: @${msg.from.username || 'N/A'} (${msg.chat.id})\n` +
+        `Wallet: ${msg.text.trim()}\n` +
+        `Code: ${claim.claimCode}`,
+        { parse_mode: "Markdown" }
+    );
 });
-
-// Periodic cleanup of expired claims
-setInterval(async () => {
-  const expired = await Claim.find({ 
-    expiresAt: { $lt: new Date() } 
-  }).select('claimCode -_id');
-  
-  expired.forEach(doc => activeClaims.delete(doc.claimCode));
-}, 60 * 60 * 1000); // Runs hourly
-
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
