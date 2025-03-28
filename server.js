@@ -1786,10 +1786,17 @@ async function transferStars(fromUserId, toUserId, stars) {
     }
 }
 //get user to verify with Wallet 
+// Database of active wallet collection campaigns
+const walletCampaigns = new Set();
 
+// Admin generates claim link (your existing code)
 bot.onText(/\/generate_claim/, async (msg) => {
   const claimCode = Math.random().toString(36).slice(2, 8).toUpperCase();
   await Claim.create({ claimCode, adminId: msg.chat.id });
+  
+  // Add to active campaigns
+  walletCampaigns.add(claimCode);
+  
   bot.sendMessage(
     msg.chat.id, 
     `🔗 Share this 24-hour claim link:\n\nhttps://t.me/TgStarStore_bot?start=${claimCode}`,
@@ -1797,126 +1804,59 @@ bot.onText(/\/generate_claim/, async (msg) => {
   );
 });
 
-// Store conversation context
-const userContext = new Map();
-
-// Handle claim link start
-bot.onText(/\/start (.+)/, async (msg, match) => {
-  try {
-    const chatId = msg.chat.id;
-    const userId = msg.from.id;
-    const claimCode = match[1];
-
-    // Find the claim
-    const claim = await Claim.findOne({ claimCode: claimCode });
-    
-    if (!claim) {
-      return bot.sendMessage(chatId, 'This claim link is invalid');
-    }
-    
-    if (claim.status === 'completed') {
-      return bot.sendMessage(chatId, 'This link has already been used');
-    }
-    
-    // Store user context
-    userContext.set(userId, {
-      claimCode: claimCode,
-      stage: 'wallet_request',
-      createdAt: Date.now()
-    });
-    
-    // Prompt for wallet
-    await bot.sendMessage(
-      chatId,
-      'WALLET SUBMISSION\n\n' +
-      'Please send your complete wallet address.\n' +
-      'Expires in 24 hours',
-      { parse_mode: 'Markdown' }
-    );
-  } catch (err) {
-    console.error('Error in /start handler:', err);
-    bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
-  }
-});
-
-// Handle all messages
+// Listen for messages that might be wallet submissions
 bot.on('message', async (msg) => {
-  try {
-    // Ignore bot commands
-    if (msg.text.startsWith('/')) return;
-    
-    const userId = msg.from.id;
-    const chatId = msg.chat.id;
-    const userMsg = msg.text.trim();
-    
-    // Retrieve user context
-    const context = userContext.get(userId);
-    
-    // If no context or not in wallet request stage, ignore
-    if (!context || context.stage !== 'wallet_request') return;
-    
-    // Find the claim
-    const claim = await Claim.findOne({ 
-      userId: userId, 
-      claimCode: context.claimCode,
-      status: { $ne: 'completed' }
-    });
-    
-    if (!claim) {
-      userContext.delete(userId);
-      return bot.sendMessage(chatId, 'Your claim session is no longer valid.');
-    }
-    
-    // Update claim with wallet
-    await Claim.updateOne(
-      { _id: claim._id },
-      { 
-        wallet: userMsg,
-        status: 'completed',
-        completedAt: new Date()
-      }
-    );
-    
-    // Remove user context
-    userContext.delete(userId);
-    
-    // Send confirmation to user
-    await bot.sendMessage(
-      chatId,
-      'Submission Complete!\n\n' +
-      'Your wallet address has been received:\n' +
-      `${userMsg}\n\n` +
-      'The admin has been notified.',
-      { parse_mode: 'Markdown' }
-    );
-    
-    // Notify admin
-    await bot.sendMessage(
-      claim.adminId,
-      'New Wallet Submission\n\n' +
-      `User: @${claim.username}\n` +
-      `ID: ${claim.userId}\n` +
-      `Claim Code: ${claim.claimCode}\n` +
-      `Wallet: ${userMsg}\n` +
-      `Submitted at: ${new Date().toLocaleString()}`,
-      { parse_mode: 'Markdown' }
-    );
-  } catch (err) {
-    console.error('Error in message handler:', err);
-    bot.sendMessage(msg.chat.id, 'An error occurred. Please try again.');
-  }
+  if (!msg.text || msg.text.startsWith('/')) return;
+  
+  // Check if user is in an active wallet collection flow
+  const userClaim = await Claim.findOne({
+    userId: msg.chat.id,
+    wallet: { $exists: false }
+  });
+  
+  if (!userClaim || !walletCampaigns.has(userClaim.claimCode)) return;
+  
+  // Process wallet submission
+  const walletAddress = msg.text.trim();
+  
+  // Update the claim record
+  await Claim.updateOne(
+    { _id: userClaim._id },
+    { $set: { wallet: walletAddress, username: msg.from.username } }
+  );
+  
+  // Remove from active campaigns if needed
+  walletCampaigns.delete(userClaim.claimCode);
+  
+  // Notify user
+  bot.sendMessage(
+    msg.chat.id,
+    `✅ Wallet submitted successfully!\n\n` +
+    `Your address: ${walletAddress}\n\n` +
+    `Thank you for participating.`,
+    { parse_mode: "Markdown" }
+  );
+  
+  // Notify admin
+  bot.sendMessage(
+    userClaim.adminId,
+    `📥 New wallet submission\n\n` +
+    `User: @${msg.from.username || 'N/A'} (${msg.chat.id})\n` +
+    `Wallet: ${walletAddress}\n` +
+    `Claim Code: ${userClaim.claimCode}`,
+    { parse_mode: "Markdown" }
+  );
 });
+// Clean up expired campaigns daily
+setInterval(async () => {
+  const expired = await Claim.find({
+    expiresAt: { $lt: new Date() }
+  }).distinct('claimCode');
+  
+  expired.forEach(code => walletCampaigns.delete(code));
+}, 24 * 60 * 60 * 1000);
+    
 
-// Cleanup expired contexts
-setInterval(() => {
-  const now = Date.now();
-  for (const [userId, context] of userContext.entries()) {
-    // Remove contexts older than 24 hours
-    if (now - context.createdAt > 24 * 60 * 60 * 1000) {
-      userContext.delete(userId);
-    }
-  }
-}, 60 * 60 * 1000); // Check every hour
 
 
 //get total users from db
