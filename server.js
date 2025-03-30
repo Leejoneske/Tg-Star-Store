@@ -146,7 +146,7 @@ function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
 
-// ===== ORIGINAL BUY ORDER CODE WITH FIXED BUTTONS =====
+// ===== ORIGINAL BUY ORDER CODE WITH FIXED BUTTONS ====
 app.post('/api/orders/create', async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
@@ -214,13 +214,17 @@ app.post('/api/orders/create', async (req, res) => {
         for (const adminId of adminIds) {
             try {
                 const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
-                order.adminMessages.push({ adminId, messageId: message.message_id });
-                await order.save();
+                order.adminMessages.push({ 
+                    adminId, 
+                    messageId: message.message_id,
+                    originalText: adminMessage 
+                });
             } catch (err) {
                 console.error(`Failed to notify admin ${adminId}:`, err);
             }
         }
 
+        await order.save();
         res.json({ success: true, order });
     } catch (err) {
         console.error('Order creation error:', err);
@@ -235,7 +239,7 @@ bot.on('callback_query', async (query) => {
         const order = await BuyOrder.findOne({ id: orderId });
 
         if (!order || order.status !== 'pending') {
-            await bot.answerCallbackQuery(query.id, { text: 'Order already processed', show_alert: true });
+            await bot.answerCallbackQuery(query.id);
             return;
         }
 
@@ -270,7 +274,7 @@ bot.on('callback_query', async (query) => {
             try {
                 const statusText = order.status === 'completed' ? '✓ Confirmed' : '✗ Declined';
                 await bot.editMessageText(
-                    `${adminMsg.text}\n\nStatus: ${statusText}`,
+                    `${adminMsg.originalText}\n\nStatus: ${statusText}`,
                     {
                         chat_id: adminMsg.adminId,
                         message_id: adminMsg.messageId,
@@ -292,18 +296,17 @@ bot.on('callback_query', async (query) => {
         
         await bot.sendMessage(order.telegramId, userMessage);
 
-        await bot.answerCallbackQuery(query.id, { text: `Order ${order.status}` });
+        await bot.answerCallbackQuery(query.id);
 
     } catch (err) {
         console.error('Button handler error:', err);
-        await bot.answerCallbackQuery(query.id, { text: 'Error processing action', show_alert: true });
+        await bot.answerCallbackQuery(query.id);
     }
 });
-
+                    
                     
 
     
-                    
 
   
 //end of buy order and referral check 
