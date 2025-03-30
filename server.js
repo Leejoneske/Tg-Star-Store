@@ -202,7 +202,7 @@ app.post('/api/orders/create', async (req, res) => {
 
         const adminMessage = isPremium ?
             `🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months` :
-            `🛒 New Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}`;
+            `🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}`;
 
         const adminKeyboard = {
             inline_keyboard: [[
@@ -343,7 +343,7 @@ app.post("/api/sell-orders", async (req, res) => {
         }
 
         // Notify user
-        const userMessage = `🛒 Sell order created!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\nPay here: ${paymentLink}`;
+        const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\nPay here: ${paymentLink}`;
         await bot.sendMessage(telegramId, userMessage);
 
         res.json({ success: true, order, paymentLink });
