@@ -146,32 +146,39 @@ function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
 
-
-// ===== FIXED BUY ORDER SYSTEM =====
+// ===== ORIGINAL BUY ORDER CODE WITH FIXED BUTTONS =====
 app.post('/api/orders/create', async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
 
-        // Validate inputs
+        // Your existing validation and order creation logic
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Check if user is banned
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
             return res.status(403).json({ error: 'You are banned from placing orders' });
         }
 
-        // Calculate amount
         const priceMap = {
             regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
             premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
         };
-        const amount = isPremium ? priceMap.premium[premiumDuration] : priceMap.regular[stars];
-        if (!amount) return res.status(400).json({ error: 'Invalid selection' });
 
-        // Create order
+        let amount, packageType;
+        if (isPremium) {
+            packageType = 'premium';
+            amount = priceMap.premium[premiumDuration];
+        } else {
+            packageType = 'regular';
+            amount = priceMap.regular[stars];
+        }
+
+        if (!amount) {
+            return res.status(400).json({ error: 'Invalid selection' });
+        }
+
         const order = new BuyOrder({
             id: generateOrderId(),
             telegramId,
@@ -188,59 +195,55 @@ app.post('/api/orders/create', async (req, res) => {
 
         await order.save();
 
-        // Notify user
+        // Your existing user notification
         const userMessage = isPremium ?
             `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending` :
             `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending`;
+
         await bot.sendMessage(telegramId, userMessage);
 
-        // Notify admins with action buttons
+        // ===== FIXED ADMIN BUTTONS SECTION =====
         const adminMessage = isPremium ?
             `🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months` :
             `🛒 New Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}`;
 
+        // Improved button markup
         const adminKeyboard = {
             inline_keyboard: [[
                 { 
                     text: '✅ Complete', 
-                    callback_data: `complete_buy_${order.id}`
+                    callback_data: `complete_${order.id}_${Date.now()}` // Added timestamp to prevent duplicate processing
                 },
                 { 
                     text: '❌ Decline', 
-                    callback_data: `decline_buy_${order.id}`
+                    callback_data: `decline_${order.id}_${Date.now()}`
                 }
             ]]
         };
 
-        // Send to all admins
+        // Send to admins (your existing admin loop)
         for (const adminId of adminIds) {
             try {
-                const message = await bot.sendMessage(
-                    adminId, 
-                    adminMessage, 
-                    { 
-                        reply_markup: adminKeyboard,
-                        parse_mode: 'Markdown'
-                    }
-                );
-                order.adminMessages.push({ 
-                    adminId, 
-                    messageId: message.message_id 
+                const message = await bot.sendMessage(adminId, adminMessage, { 
+                    reply_markup: adminKeyboard,
+                    parse_mode: 'Markdown' 
                 });
-                await order.save();
+                order.adminMessages.push({ adminId, messageId: message.message_id });
+                await order.save(); // Important: Save after adding each admin message
             } catch (err) {
-                console.error(`Failed to notify admin ${adminId}:`, err);
+                console.error(`Failed to send message to admin ${adminId}:`, err);
             }
         }
 
         res.json({ success: true, order });
+
     } catch (err) {
         console.error('Order creation error:', err);
         res.status(500).json({ error: 'Failed to create order' });
     }
 });
 
-// Handle admin actions for buy orders
+// ===== FIXED BUTTON HANDLER =====
 bot.on('callback_query', async (query) => {
     const action = query.data;
     const adminId = query.from.id;
@@ -254,94 +257,91 @@ bot.on('callback_query', async (query) => {
     }
 
     try {
-        // Process buy order actions
-        if (action.startsWith('complete_buy_') || action.startsWith('decline_buy_')) {
-            const orderId = action.split('_')[2];
-            const order = await BuyOrder.findOne({ id: orderId });
-            
-            if (!order) {
-                return bot.answerCallbackQuery(query.id, { 
-                    text: 'Order not found',
-                    show_alert: true 
-                });
-            }
+        const [actionType, orderId] = action.split('_'); // Ignore timestamp
+        
+        const order = await BuyOrder.findOne({ id: orderId });
+        if (!order) return;
 
-            // Update order status
-            if (action.startsWith('complete_buy_')) {
-                order.status = 'completed';
-                order.dateCompleted = new Date();
-                
-                // Activate referral if exists
-                const referral = await Referral.findOne({ 
-                    referredUserId: order.telegramId,
-                    status: 'pending'
-                });
-                
-                if (referral) {
-                    referral.status = 'active';
-                    referral.dateCompleted = new Date();
-                    await referral.save();
-                    
-                    await bot.sendMessage(
-                        referral.referrerUserId,
-                        `🎉 Your referral @${order.username} has made a purchase!`
-                    );
-                }
-                
-            } else if (action.startsWith('decline_buy_')) {
-                order.status = 'declined';
-                order.dateDeclined = new Date();
-            }
-
-            await order.save();
-
-            // Update all admin messages
-            for (const adminMsg of order.adminMessages) {
-                try {
-                    const statusText = order.status === 'completed' ? '✅ Completed' : '❌ Declined';
-                    const statusMessage = `Order ID: ${order.id}\nUser: @${order.username}\nStatus: ${statusText}`;
-                    
-                    await bot.editMessageText(statusMessage, {
-                        chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId,
-                        reply_markup: {
-                            inline_keyboard: [[
-                                {
-                                    text: order.status === 'completed' ? '✓ Completed' : '✗ Declined',
-                                    callback_data: 'processed_' + order.id
-                                }
-                            ]]
-                        },
-                        parse_mode: 'Markdown'
-                    });
-                } catch (err) {
-                    console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
-                }
-            }
-
-            // Notify user
-            const userMessage = order.status === 'completed' ?
-                `✅ Order #${order.id} completed!\n\nThank you for your purchase!` :
-                `❌ Order #${order.id} declined\n\nPlease contact support if you believe this is a mistake.`;
-            
-            await bot.sendMessage(order.telegramId, userMessage);
-
-            // Acknowledge admin action
-            await bot.answerCallbackQuery(query.id, { 
-                text: `Order ${order.status}`,
-                show_alert: false 
+        // Prevent duplicate processing
+        if (order.status !== 'pending') {
+            return bot.answerCallbackQuery(query.id, {
+                text: `Order already ${order.status}`,
+                show_alert: true
             });
         }
-    } catch (err) {
-        console.error('Order processing error:', err);
+
+        // Update order status
+        if (actionType === 'complete') {
+            order.status = 'completed';
+            order.dateCompleted = new Date();
+            
+            // Your existing referral activation logic
+            const referral = await Referral.findOne({ 
+                referredUserId: order.telegramId,
+                status: 'pending'
+            });
+            
+            if (referral) {
+                referral.status = 'active';
+                referral.dateCompleted = new Date();
+                await referral.save();
+                
+                await bot.sendMessage(
+                    referral.referrerUserId,
+                    `🎉 Your referral @${order.username} has made a purchase!`
+                );
+            }
+            
+        } else if (actionType === 'decline') {
+            order.status = 'declined';
+            order.dateDeclined = new Date();
+        }
+
+        await order.save();
+
+        // Update ALL admin messages (fixed)
+        for (const adminMsg of order.adminMessages) {
+            try {
+                // Disable buttons and update status
+                await bot.editMessageReplyMarkup({
+                    inline_keyboard: [[
+                        {
+                            text: order.status === 'completed' ? '✓ Completed' : '✗ Declined',
+                            callback_data: 'processed' // Disabled button
+                        }
+                    ]]
+                }, {
+                    chat_id: adminMsg.adminId,
+                    message_id: adminMsg.messageId
+                });
+            } catch (err) {
+                console.error(`Failed to update buttons for admin ${adminMsg.adminId}:`, err);
+            }
+        }
+
+        // Notify user
+        const userMessage = order.status === 'completed' ?
+            `✅ Order #${order.id} completed!\n\nThank you for your purchase!` :
+            `❌ Order #${order.id} declined\n\nPlease contact support if you believe this is a mistake.`;
+        
+        await bot.sendMessage(order.telegramId, userMessage);
+
+        // Confirm action to admin
         await bot.answerCallbackQuery(query.id, { 
-            text: '❌ Error processing order',
-            show_alert: true 
+            text: `Order marked as ${order.status}`,
+            show_alert: false 
+        });
+
+    } catch (err) {
+        console.error('Button handler error:', err);
+        await bot.answerCallbackQuery(query.id, {
+            text: '❌ Error processing action',
+            show_alert: true
         });
     }
 });
-                
-   
+
+  
 //end of buy order and referral check 
 
 // ===== IMPROVED SELL ORDER SYSTEM =====
