@@ -410,7 +410,8 @@ bot.on("successful_payment", async (msg) => {
     );
 
     // Notify admins with improved buttons
-        const adminMessage = `💰 New Payment Received!\n\n` +
+          // Notify admins with improved buttons
+    const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
         `User: @${order.username}\n` +
         `Stars: ${order.stars}\n` +
@@ -448,16 +449,19 @@ bot.on("successful_payment", async (msg) => {
 });
 
 bot.on('callback_query', async (query) => {
-    try {
-        const data = query.data;
-        if (!data.startsWith('complete_sell_') && !data.startsWith('decline_sell_')) return;
+    const data = query.data;
+    const adminId = query.from.id;
 
+    if (!adminIds.includes(adminId)) {
+        return bot.answerCallbackQuery(query.id);
+    }
+
+    if (data.startsWith('complete_sell_') || data.startsWith('decline_sell_')) {
         const orderId = data.split('_')[2];
         const order = await SellOrder.findOne({ id: orderId });
 
-        if (!order || order.status !== 'pending') {
-            await bot.answerCallbackQuery(query.id);
-            return;
+        if (!order) {
+            return bot.answerCallbackQuery(query.id);
         }
 
         if (data.startsWith('complete_sell_')) {
@@ -490,7 +494,7 @@ bot.on('callback_query', async (query) => {
             try {
                 const statusText = order.status === 'completed' ? '✓ Completed' : '✗ Declined';
                 await bot.editMessageText(
-                    `${adminMsg.originalText}\n\nStatus: ${statusText}`,
+                    adminMsg.originalText + `\n\nStatus: ${statusText}`,
                     {
                         chat_id: adminMsg.adminId,
                         message_id: adminMsg.messageId,
@@ -508,17 +512,10 @@ bot.on('callback_query', async (query) => {
         }
 
         await bot.answerCallbackQuery(query.id);
-
-    } catch (err) {
-        console.error('Sell order processing error:', err);
-        await bot.answerCallbackQuery(query.id);
     }
-});
+});  
 
-
-
-
-
+            
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
