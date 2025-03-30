@@ -303,12 +303,6 @@ bot.on('callback_query', async (query) => {
         await bot.answerCallbackQuery(query.id);
     }
 });
-                    
-                    
-
-    
-
-  
 //end of buy order and referral check 
 
 // ===== IMPROVED SELL ORDER SYSTEM =====
@@ -416,7 +410,7 @@ bot.on("successful_payment", async (msg) => {
     );
 
     // Notify admins with improved buttons
-    const adminMessage = `💰 New Payment Received!\n\n` +
+        const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
         `User: @${order.username}\n` +
         `Stars: ${order.stars}\n` +
@@ -441,7 +435,11 @@ bot.on("successful_payment", async (msg) => {
                     parse_mode: "Markdown"
                 }
             );
-            order.adminMessages.push({ adminId, messageId: message.message_id });
+            order.adminMessages.push({ 
+                adminId, 
+                messageId: message.message_id,
+                originalText: adminMessage 
+            });
             await order.save();
         } catch (err) {
             console.error(`Failed to notify admin ${adminId}:`, err);
@@ -449,32 +447,24 @@ bot.on("successful_payment", async (msg) => {
     }
 });
 
-// Improved callback handler for sell orders
 bot.on('callback_query', async (query) => {
-    const data = query.data;
-    const adminId = query.from.id;
+    try {
+        const data = query.data;
+        if (!data.startsWith('complete_sell_') && !data.startsWith('decline_sell_')) return;
 
-    // Verify admin
-    if (!adminIds.includes(adminId)) {
-        return bot.answerCallbackQuery(query.id, { text: "❌ Admin access required" });
-    }
-
-    // Process sell order actions
-    if (data.startsWith('complete_sell_') || data.startsWith('decline_sell_')) {
         const orderId = data.split('_')[2];
         const order = await SellOrder.findOne({ id: orderId });
 
-        if (!order) {
-            return bot.answerCallbackQuery(query.id, { text: "Order not found" });
+        if (!order || order.status !== 'pending') {
+            await bot.answerCallbackQuery(query.id);
+            return;
         }
 
-        // Update order status
         if (data.startsWith('complete_sell_')) {
             order.status = 'completed';
             order.completedAt = new Date();
             await order.save();
 
-            // Notify user
             await bot.sendMessage(
                 order.telegramId,
                 `✅ Order #${order.id} completed!\n\n` +
@@ -488,7 +478,6 @@ bot.on('callback_query', async (query) => {
             order.declinedAt = new Date();
             await order.save();
 
-            // Notify user
             await bot.sendMessage(
                 order.telegramId,
                 `❌ Order #${order.id} declined\n\n` +
@@ -497,33 +486,37 @@ bot.on('callback_query', async (query) => {
             );
         }
 
-        // Update all admin messages
         for (const adminMsg of order.adminMessages) {
             try {
-                await bot.editMessageReplyMarkup(
-                    {
-                        inline_keyboard: [
-                            [
-                                { 
-                                    text: order.status === 'completed' ? '✓ Completed' : '✗ Declined',
-                                    callback_data: 'processed_' + order.id
-                                }
-                            ]
-                        ]
-                    },
+                const statusText = order.status === 'completed' ? '✓ Completed' : '✗ Declined';
+                await bot.editMessageText(
+                    `${adminMsg.originalText}\n\nStatus: ${statusText}`,
                     {
                         chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId
+                        message_id: adminMsg.messageId,
+                        reply_markup: {
+                            inline_keyboard: [[
+                                { text: statusText, callback_data: 'processed' }
+                            ]]
+                        },
+                        parse_mode: "Markdown"
                     }
                 );
             } catch (err) {
-                console.error(`Failed to update admin message:`, err);
+                console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
             }
         }
 
-        await bot.answerCallbackQuery(query.id, { text: `Order ${order.status}` });
+        await bot.answerCallbackQuery(query.id);
+
+    } catch (err) {
+        console.error('Sell order processing error:', err);
+        await bot.answerCallbackQuery(query.id);
     }
 });
+
+
+
 
 
 
