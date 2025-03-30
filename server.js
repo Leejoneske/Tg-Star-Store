@@ -408,10 +408,9 @@ bot.on("successful_payment", async (msg) => {
         order.telegramId,
         `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for admin verification)`
     );
-
-    // Notify admins with improved buttons
-          // Notify admins with improved buttons
-    const adminMessage = `💰 New Payment Received!\n\n` +
+//Admin notifications for the order
+    
+        const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
         `User: @${order.username}\n` +
         `Stars: ${order.stars}\n` +
@@ -449,22 +448,19 @@ bot.on("successful_payment", async (msg) => {
 });
 
 bot.on('callback_query', async (query) => {
-    const data = query.data;
-    const adminId = query.from.id;
+    try {
+        const data = query.data;
+        const [actionType, orderId] = data.startsWith('complete_sell_') ? 
+            ['complete', data.split('_')[2]] :
+            ['decline', data.split('_')[2]];
 
-    if (!adminIds.includes(adminId)) {
-        return bot.answerCallbackQuery(query.id);
-    }
-
-    if (data.startsWith('complete_sell_') || data.startsWith('decline_sell_')) {
-        const orderId = data.split('_')[2];
         const order = await SellOrder.findOne({ id: orderId });
-
-        if (!order) {
-            return bot.answerCallbackQuery(query.id);
+        if (!order || order.status !== 'pending') {
+            await bot.answerCallbackQuery(query.id);
+            return;
         }
 
-        if (data.startsWith('complete_sell_')) {
+        if (actionType === 'complete') {
             order.status = 'completed';
             order.completedAt = new Date();
             await order.save();
@@ -476,8 +472,7 @@ bot.on('callback_query', async (query) => {
                 `Funds sent to: \`${order.walletAddress}\``,
                 { parse_mode: "Markdown" }
             );
-
-        } else if (data.startsWith('decline_sell_')) {
+        } else {
             order.status = 'declined';
             order.declinedAt = new Date();
             await order.save();
@@ -494,7 +489,7 @@ bot.on('callback_query', async (query) => {
             try {
                 const statusText = order.status === 'completed' ? '✓ Completed' : '✗ Declined';
                 await bot.editMessageText(
-                    adminMsg.originalText + `\n\nStatus: ${statusText}`,
+                    `${adminMsg.originalText}\n\nStatus: ${statusText}`,
                     {
                         chat_id: adminMsg.adminId,
                         message_id: adminMsg.messageId,
@@ -512,9 +507,12 @@ bot.on('callback_query', async (query) => {
         }
 
         await bot.answerCallbackQuery(query.id);
+    } catch (err) {
+        console.error('Error processing sell order:', err);
+        await bot.answerCallbackQuery(query.id);
     }
-});  
-
+});
+            
             
 
 // quarry database to get sell order for sell page
