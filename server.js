@@ -215,8 +215,9 @@ app.post('/api/orders/create', async (req, res) => {
             try {
                 const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
                 order.adminMessages.push({ adminId, messageId: message.message_id });
+                await order.save();
             } catch (err) {
-                console.error(`Failed to send message to admin ${adminId}:`, err);
+                console.error(`Failed to notify admin ${adminId}:`, err);
             }
         }
 
@@ -233,8 +234,8 @@ bot.on('callback_query', async (query) => {
         const [actionType, orderId] = action.split('_');
         const order = await BuyOrder.findOne({ id: orderId });
 
-        if (!order) {
-            await bot.answerCallbackQuery(query.id, { text: 'Order not found', show_alert: true });
+        if (!order || order.status !== 'pending') {
+            await bot.answerCallbackQuery(query.id, { text: 'Order already processed', show_alert: true });
             return;
         }
 
@@ -267,25 +268,27 @@ bot.on('callback_query', async (query) => {
 
         for (const adminMsg of order.adminMessages) {
             try {
-                await bot.editMessageReplyMarkup({
-                    inline_keyboard: [[
-                        {
-                            text: order.status === 'completed' ? '✓ Completed' : '✗ Declined',
-                            callback_data: 'processed'
+                const statusText = order.status === 'completed' ? '✓ Confirmed' : '✗ Declined';
+                await bot.editMessageText(
+                    `${adminMsg.text}\n\nStatus: ${statusText}`,
+                    {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: {
+                            inline_keyboard: [[
+                                { text: statusText, callback_data: 'processed' }
+                            ]]
                         }
-                    ]]
-                }, {
-                    chat_id: adminMsg.adminId,
-                    message_id: adminMsg.messageId
-                });
+                    }
+                );
             } catch (err) {
                 console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
             }
         }
 
         const userMessage = order.status === 'completed' ?
-            `✅ Order #${order.id} completed!\n\nThank you for your purchase!` :
-            `❌ Order #${order.id} declined\n\nContact support if this is a mistake.`;
+            `✅ Order #${order.id} confirmed!\n\nThank you for your purchase!` :
+            `❌ Order #${order.id} declined\n\nContact support if needed.`;
         
         await bot.sendMessage(order.telegramId, userMessage);
 
@@ -296,6 +299,7 @@ bot.on('callback_query', async (query) => {
         await bot.answerCallbackQuery(query.id, { text: 'Error processing action', show_alert: true });
     }
 });
+
                     
 
     
