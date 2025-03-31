@@ -366,7 +366,7 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-       const translations = {
+         const translations = {
     en: {
         appName: "StarStore",
         connectWallet: "Connect Wallet",
@@ -439,6 +439,8 @@
 
 let tonConnectUI;
 let currentLanguage = 'en';
+let walletConnected = false;
+let currentWalletAddress = '';
 
 document.addEventListener('DOMContentLoaded', function() {
     initTelegramApp();
@@ -498,18 +500,21 @@ function initWalletConnection() {
         
         tonConnectUI.onStatusChange(wallet => {
             if (wallet) {
-                const address = wallet.account.address;
-                const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
+                currentWalletAddress = wallet.account.address;
+                const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
                 connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
                 connectWalletButton.classList.add('wallet-connected');
+                walletConnected = true;
             } else {
                 connectWalletButton.textContent = translations[currentLanguage].connectWallet;
                 connectWalletButton.classList.remove('wallet-connected');
+                walletConnected = false;
+                currentWalletAddress = '';
             }
         });
         
         connectWalletButton.addEventListener('click', () => {
-            if (tonConnectUI.wallet) {
+            if (walletConnected) {
                 tonConnectUI.disconnect();
             } else {
                 tonConnectUI.connectWallet();
@@ -556,6 +561,16 @@ function initLanguageToggle() {
         
         if (tonConnectUI) {
             tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
+        }
+        
+        // Update wallet button text without disconnecting
+        const connectWalletButton = document.getElementById('connectWallet');
+        if (walletConnected && currentWalletAddress) {
+            const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
+            connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
+            connectWalletButton.classList.add('wallet-connected');
+        } else {
+            connectWalletButton.textContent = translations[currentLanguage].connectWallet;
         }
     });
 }
@@ -612,7 +627,7 @@ function initBuyButtons() {
 }
 
 async function handlePurchase(item) {
-    if (!tonConnectUI || !tonConnectUI.wallet) {
+    if (!tonConnectUI || !walletConnected) {
         showErrorMessage(translations[currentLanguage].walletNotConnected);
         return;
     }
@@ -633,51 +648,53 @@ async function handlePurchase(item) {
             }
         });
 
-        // First fetch the wallet address from backend
-        const walletResponse = await axios.get('/api/get-wallet-address');
-        if (!walletResponse.data?.walletAddress) {
-            throw new Error('Failed to get payment address from server');
-        }
+        try {
+            const tonToUsdtRate = await fetchCurrentRate() || 3.64;
+            const tonAmount = parsedAmount / tonToUsdtRate;
+            const nanoTonAmount = Math.round(tonAmount * 1e9);
+            
+            // Get wallet address from backend
+            const walletResponse = await axios.get('/api/get-wallet-address');
+            if (!walletResponse.data?.walletAddress) {
+                throw new Error('Failed to get payment address from server');
+            }
 
-        const tonToUsdtRate = await fetchCurrentRate() || 3.64;
-        const tonAmount = parsedAmount / tonToUsdtRate;
-        const nanoTonAmount = Math.round(tonAmount * 1e9);
-        
-        const transaction = {
-            validUntil: Math.floor(Date.now() / 1000) + 300,
-            messages: [
-                {
-                    address: walletResponse.data.walletAddress,
-                    amount: nanoTonAmount.toString(),
-                }
-            ]
-        };
-        
-        loadingMessage.close();
-        
-        const result = await tonConnectUI.sendTransaction(transaction);
-        
-        if (result) {
-            const user = Telegram.WebApp?.initDataUnsafe?.user;
-            const orderData = {
-                telegramId: user?.id,
-                username: user?.username || user?.first_name,
-                stars: item.stars || null,
-                isPremium: item.isPremium || false,
-                premiumDuration: item.premiumDuration || null,
-                walletAddress: tonConnectUI.wallet.account.address,
-                transactionHash: result
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 300,
+                messages: [
+                    {
+                        address: walletResponse.data.walletAddress,
+                        amount: nanoTonAmount.toString(),
+                    }
+                ]
             };
             
-            const response = await axios.post('/api/orders/create', orderData);
+            const result = await tonConnectUI.sendTransaction(transaction);
             
-            if (response.data.success) {
-                showSuccessMessage(translations[currentLanguage].orderCreated);
+            if (result) {
+                const user = Telegram.WebApp?.initDataUnsafe?.user;
+                const orderData = {
+                    telegramId: user?.id,
+                    username: user?.username || user?.first_name,
+                    stars: item.stars || null,
+                    isPremium: item.isPremium || false,
+                    premiumDuration: item.premiumDuration || null,
+                    walletAddress: currentWalletAddress,
+                    transactionHash: result
+                };
+                
+                const response = await axios.post('/api/orders/create', orderData);
+                
+                if (response.data.success) {
+                    showSuccessMessage(translations[currentLanguage].orderCreated);
+                } else {
+                    showErrorMessage(response.data.error || translations[currentLanguage].orderFailed);
+                }
             } else {
-                showErrorMessage(response.data.error || translations[currentLanguage].orderFailed);
+                showErrorMessage(translations[currentLanguage].transactionFailed);
             }
-        } else {
-            showErrorMessage(translations[currentLanguage].transactionFailed);
+        } finally {
+            loadingMessage.close();
         }
     } catch (error) {
         console.error('Payment error:', error);
@@ -734,7 +751,10 @@ function showSuccessMessage(message) {
         text: message,
         confirmButtonText: translations[currentLanguage].ok
     });
-}
+}      
+
+        
+
 </script>
 </body>
 </html>
