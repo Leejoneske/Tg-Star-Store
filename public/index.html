@@ -293,145 +293,100 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-      <script>
-    // Debugging setup
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>        
+    <script>
+    // Debug mode with verbose logging
     const DEBUG = true;
-    function log(...args) {
-        if (DEBUG) console.log('[StarStore]', ...args);
-    }
-    function error(...args) {
-        console.error('[StarStore]', ...args);
+    function debugLog(...args) {
+        if (DEBUG) console.log('[DEBUG]', new Date().toISOString(), ...args);
     }
 
-    // Main initialization function
-    async function initializeApp() {
-        log('Initializing StarStore Mini App');
-        
-        try {
-            // 1. Initialize Telegram WebApp
+    // Main App Controller
+    class StarStoreApp {
+        constructor() {
+            this.user = null;
+            this.tonConnectUI = null;
+            this.init();
+        }
+
+        async init() {
+            debugLog('Initializing StarStore Mini App');
+            
+            try {
+                // 1. Verify Telegram WebApp integration
+                await this.initTelegramWebApp();
+                
+                // 2. Initialize TON Connect
+                await this.initTonConnect();
+                
+                // 3. Setup UI components
+                this.setupUI();
+                
+                // 4. Load initial data
+                await this.loadInitialData();
+                
+                debugLog('App initialization completed successfully');
+                
+            } catch (error) {
+                console.error('Initialization error:', error);
+                this.showError('App initialization failed. Please try again later.');
+            }
+        }
+
+        async initTelegramWebApp() {
             if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
                 throw new Error('Telegram WebApp SDK not loaded');
             }
             
-            log('Telegram WebApp detected, version:', Telegram.WebApp.version);
+            debugLog('Telegram WebApp version:', Telegram.WebApp.version);
             
-            // Expand to full screen
+            // Expand to full screen and configure
             Telegram.WebApp.expand();
             Telegram.WebApp.ready();
-            log('WebApp expanded and ready');
+            Telegram.WebApp.setHeaderColor('secondary_bg_color');
+            Telegram.WebApp.setBackgroundColor('secondary_bg_color');
             
-            // Set theme colors
-            applyTelegramTheme();
+            // Store user data
+            this.user = Telegram.WebApp.initDataUnsafe?.user;
+            debugLog('User data:', this.user);
             
-            // 2. Load user data
-            await loadUserData();
-            
-            // 3. Initialize TON Connect
-            await initializeWallet();
-            
-            // 4. Setup UI interactions
-            setupUI();
-            
-            // 5. Load initial data
-            await loadInitialData();
-            
-            log('App initialization complete');
-            
-        } catch (e) {
-            error('Initialization failed:', e);
-            showError('Failed to initialize app. Please try again later.');
+            // Update UI with user info
+            this.updateUserProfile();
         }
-    }
 
-    // Apply Telegram theme colors
-    function applyTelegramTheme() {
-        try {
-            const { bg_color, text_color, button_color } = Telegram.WebApp.themeParams;
+        updateUserProfile() {
+            if (!this.user) return;
             
-            log('Applying theme colors:', { bg_color, text_color, button_color });
-            
-            // Apply to header
-            document.querySelector('.logo-header').style.color = button_color || '#4f46e5';
-            
-            // Apply to buttons
-            document.querySelectorAll('.buy-button').forEach(btn => {
-                btn.style.backgroundColor = button_color || '#4f46e5';
-                btn.addEventListener('mouseenter', () => {
-                    btn.style.backgroundColor = adjustColor(button_color || '#4f46e5', 20);
-                });
-                btn.addEventListener('mouseleave', () => {
-                    btn.style.backgroundColor = button_color || '#4f46e5';
-                });
-            });
-            
-            // Apply to wallet button
-            const walletBtn = document.getElementById('connectWallet');
-            walletBtn.style.borderColor = button_color || '#4f46e5';
-            walletBtn.style.color = button_color || '#4f46e5';
-            
-        } catch (e) {
-            error('Failed to apply theme:', e);
-        }
-    }
-
-    // Load and display user data
-    async function loadUserData() {
-        try {
-            const user = Telegram.WebApp.initDataUnsafe?.user;
-            if (!user) {
-                log('No user data available');
-                return;
-            }
-            
-            log('User data loaded:', { 
-                id: user.id, 
-                username: user.username, 
-                name: `${user.first_name} ${user.last_name || ''}`.trim() 
-            });
-            
-            // Update profile picture
             const profilePic = document.getElementById('profilePicture');
-            if (user.photo_url) {
-                profilePic.src = user.photo_url;
-                log('Updated profile picture');
-            }
-            
-            // Update username
             const usernameElement = document.getElementById('username');
-            if (user.username) {
-                usernameElement.textContent = `@${user.username}`;
-            } else if (user.first_name) {
-                usernameElement.textContent = user.first_name;
+            
+            if (this.user.photo_url) {
+                profilePic.src = this.user.photo_url;
+                debugLog('Updated profile picture');
             }
             
-            // Store user ID
-            window.userId = user.id;
-            
-        } catch (e) {
-            error('Failed to load user data:', e);
+            if (this.user.username) {
+                usernameElement.textContent = `@${this.user.username}`;
+            } else if (this.user.first_name) {
+                usernameElement.textContent = this.user.first_name;
+            }
         }
-    }
 
-    // Initialize TON Connect wallet
-    async function initializeWallet() {
-        try {
-            log('Initializing TON Connect');
-            
+        async initTonConnect() {
             if (typeof TON_CONNECT_UI === 'undefined') {
                 throw new Error('TON Connect UI not loaded');
             }
             
-            window.tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+            this.tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
                 manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json',
                 buttonRootId: 'connectWallet',
-                language: Telegram.WebApp.initDataUnsafe?.user?.language_code || 'en'
+                language: this.user?.language_code || 'en'
             });
             
-            log('TON Connect initialized');
+            debugLog('TON Connect initialized');
             
             // Handle wallet connection changes
-            tonConnectUI.onStatusChange(wallet => {
+            this.tonConnectUI.onStatusChange(wallet => {
                 const walletBtn = document.getElementById('connectWallet');
                 
                 if (wallet) {
@@ -439,227 +394,211 @@
                     const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
                     walletBtn.innerHTML = `Connected: <span class="wallet-address">${shortAddress}</span>`;
                     walletBtn.classList.add('wallet-connected');
-                    log('Wallet connected:', shortAddress);
+                    debugLog('Wallet connected:', shortAddress);
                 } else {
                     walletBtn.textContent = 'Connect Wallet';
                     walletBtn.classList.remove('wallet-connected');
-                    log('Wallet disconnected');
+                    debugLog('Wallet disconnected');
                 }
             });
-            
-        } catch (e) {
-            error('Failed to initialize wallet:', e);
-            showError('Wallet service unavailable. Please try again later.');
         }
-    }
 
-    // Setup all UI interactions
-    function setupUI() {
-        log('Setting up UI interactions');
-        
-        // Menu toggle
-        const menuOverlay = document.getElementById('menuOverlay');
-        const sideMenu = document.getElementById('sideMenu');
-        const menuToggle = document.querySelector('[onclick="toggleMenu()"]');
-        
-        function toggleMenu() {
-            menuOverlay.classList.toggle('active');
-            sideMenu.classList.toggle('active');
-            Telegram.WebApp.HapticFeedback.impactOccurred('light');
-            log('Menu toggled');
-        }
-        
-        menuToggle.addEventListener('click', toggleMenu);
-        menuOverlay.addEventListener('click', toggleMenu);
-        
-        // Setup purchase buttons
-        document.querySelectorAll('[onclick^="handlePurchase"]').forEach(btn => {
-            const match = btn.getAttribute('onclick').match(/\{([^}]+)\}/);
-            if (match) {
-                try {
-                    const purchaseData = JSON.parse(match[0].replace(/(\w+):/g, '"$1":'));
-                    btn.removeAttribute('onclick');
-                    btn.addEventListener('click', () => handlePurchase(purchaseData));
-                    log('Setup purchase button:', purchaseData);
-                } catch (e) {
-                    error('Failed to parse purchase data:', e);
-                }
-            }
-        });
-        
-        // Add click effects
-        document.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', () => {
+        setupUI() {
+            debugLog('Setting up UI components');
+            
+            // Menu toggle functionality
+            const menuOverlay = document.getElementById('menuOverlay');
+            const sideMenu = document.getElementById('sideMenu');
+            
+            const toggleMenu = () => {
+                menuOverlay.classList.toggle('active');
+                sideMenu.classList.toggle('active');
                 Telegram.WebApp.HapticFeedback.impactOccurred('light');
-            });
-        });
-    }
-
-    // Load initial app data
-    async function loadInitialData() {
-        try {
-            log('Loading initial data');
-            await fetchNotifications();
-        } catch (e) {
-            error('Failed to load initial data:', e);
-        }
-    }
-
-    // Handle purchase transactions
-    async function handlePurchase(item) {
-        log('Initiating purchase:', item);
-        
-        try {
-            // Validate item
-            if (!item || (!item.stars && !item.isPremium)) {
-                throw new Error('Invalid purchase item');
-            }
+                debugLog('Menu toggled');
+            };
             
-            // Check wallet connection
-            if (!tonConnectUI?.wallet) {
-                log('No wallet connected, requesting connection');
-                await tonConnectUI.connectWallet();
-                if (!tonConnectUI.wallet) {
-                    throw new Error('Wallet connection required');
+            document.querySelector('[onclick="toggleMenu()"]').addEventListener('click', toggleMenu);
+            menuOverlay.addEventListener('click', toggleMenu);
+            
+            // Convert all purchase buttons
+            document.querySelectorAll('[onclick^="handlePurchase"]').forEach(btn => {
+                const match = btn.getAttribute('onclick').match(/\{([^}]+)\}/);
+                if (match) {
+                    try {
+                        const purchaseData = JSON.parse(match[0].replace(/(\w+):/g, '"$1":'));
+                        btn.removeAttribute('onclick');
+                        btn.addEventListener('click', () => this.handlePurchase(purchaseData));
+                        debugLog('Converted purchase button:', purchaseData);
+                    } catch (e) {
+                        console.error('Button conversion error:', e);
+                    }
                 }
-            }
-            
-            // Show processing modal
-            const processingModal = await Swal.fire({
-                title: 'Processing Payment',
-                html: 'Preparing transaction...',
-                allowOutsideClick: false,
-                showConfirmButton: false,
-                willOpen: () => Swal.showLoading()
             });
             
-            // Convert amount
-            const amount = parseFloat(item.amount);
-            if (isNaN(amount) {
-                throw new Error('Invalid amount specified');
-            }
-            
-            // Get current exchange rate
-            const rate = await getExchangeRate();
-            const nanoTonAmount = Math.round((amount / rate) * 1e9);
-            log(`Converting ${amount} USDT to ${nanoTonAmount} nanoTON`);
-            
-            // Prepare transaction
-            const transaction = {
-                validUntil: Math.floor(Date.now() / 1000) + 300, // 5 minutes
-                messages: [{
-                    address: 'EQCD39VS5jcptHL8vMjEXrzGaRcCVYto7HUn4bpAOg8xqB2N', // Your wallet
-                    amount: nanoTonAmount.toString()
-                }]
-            };
-            
-            log('Sending transaction:', transaction);
-            
-            // Send transaction
-            const result = await tonConnectUI.sendTransaction(transaction);
-            if (!result) {
-                throw new Error('Transaction failed');
-            }
-            
-            log('Transaction successful:', result);
-            
-            // Record order
-            const orderData = {
-                telegramId: window.userId,
-                username: Telegram.WebApp.initDataUnsafe?.user?.username || 'unknown',
-                stars: item.stars || null,
-                isPremium: item.isPremium || false,
-                premiumDuration: item.premiumDuration || null,
-                walletAddress: tonConnectUI.wallet.account.address,
-                transactionHash: result.boc,
-                amount: amount
-            };
-            
-            log('Saving order:', orderData);
-            const orderResponse = await axios.post('/api/orders/create', orderData);
-            
-            if (!orderResponse.data?.success) {
-                throw new Error(orderResponse.data?.error || 'Order creation failed');
-            }
-            
-            log('Order created successfully');
-            
-            // Show success
-            await Swal.fire({
-                icon: 'success',
-                title: 'Payment Successful!',
-                text: getSuccessMessage(item),
-                confirmButtonText: 'OK'
+            // Add haptic feedback to all buttons
+            document.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                });
             });
+        }
+
+        async loadInitialData() {
+            debugLog('Loading initial data');
+            await this.fetchNotifications();
+        }
+
+        async fetchNotifications() {
+            if (!this.user?.id) return;
             
-            // Refresh data
-            await fetchNotifications();
+            try {
+                const response = await axios.get(`/api/notifications?userId=${this.user.id}`);
+                const notifications = response.data?.notifications || [];
+                
+                const element = document.getElementById('notifications');
+                if (notifications.length > 0) {
+                    element.innerHTML = notifications.map(n => `<div>${n.message}</div>`).join('');
+                    element.style.color = Telegram.WebApp.themeParams.text_color || '#000000';
+                    debugLog('Loaded notifications:', notifications.length);
+                }
+            } catch (error) {
+                console.error('Notification fetch error:', error);
+            }
+        }
+
+        async handlePurchase(item) {
+            debugLog('Purchase initiated:', item);
             
-        } catch (e) {
-            error('Purchase failed:', e);
-            await Swal.fire({
+            try {
+                // Validate purchase item
+                if (!item || (!item.stars && !item.isPremium)) {
+                    throw new Error('Invalid purchase item');
+                }
+                
+                // Check wallet connection
+                if (!this.tonConnectUI?.wallet) {
+                    debugLog('Requesting wallet connection');
+                    await this.tonConnectUI.connectWallet();
+                    
+                    if (!this.tonConnectUI.wallet) {
+                        throw new Error('Wallet connection required');
+                    }
+                }
+                
+                // Show processing modal
+                const processingModal = await Swal.fire({
+                    title: 'Processing Payment',
+                    html: 'Preparing transaction...',
+                    allowOutsideClick: false,
+                    showConfirmButton: false,
+                    willOpen: () => Swal.showLoading()
+                });
+                
+                // Validate amount
+                const amount = parseFloat(item.amount);
+                if (isNaN(amount) {
+                    throw new Error('Invalid amount specified');
+                }
+                
+                // Get current exchange rate
+                const rate = await this.getExchangeRate();
+                const nanoTonAmount = Math.round((amount / rate) * 1e9);
+                debugLog(`Converting ${amount} USDT to ${nanoTonAmount} nanoTON`);
+                
+                // Prepare transaction
+                const transaction = {
+                    validUntil: Math.floor(Date.now() / 1000) + 300, // 5 minutes
+                    messages: [{
+                        // Replace with your actual wallet address
+                        address: 'EQCD39VS5jcptHL8vMjEXrzGaRcCVYto7HUn4bpAOg8xqB2N',
+                        amount: nanoTonAmount.toString()
+                    }]
+                };
+                
+                debugLog('Sending transaction:', transaction);
+                
+                // Send transaction
+                const result = await this.tonConnectUI.sendTransaction(transaction);
+                if (!result) {
+                    throw new Error('Transaction failed');
+                }
+                
+                debugLog('Transaction successful:', result);
+                
+                // Record order
+                const orderData = {
+                    telegramId: this.user.id,
+                    username: this.user?.username || 'unknown',
+                    stars: item.stars || null,
+                    isPremium: item.isPremium || false,
+                    premiumDuration: item.premiumDuration || null,
+                    walletAddress: this.tonConnectUI.wallet.account.address,
+                    transactionHash: result.boc,
+                    amount: amount
+                };
+                
+                debugLog('Saving order:', orderData);
+                const orderResponse = await axios.post('/api/orders/create', orderData);
+                
+                if (!orderResponse.data?.success) {
+                    throw new Error(orderResponse.data?.error || 'Order creation failed');
+                }
+                
+                debugLog('Order created successfully');
+                
+                // Show success
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Payment Successful!',
+                    text: this.getSuccessMessage(item),
+                    confirmButtonText: 'OK'
+                });
+                
+                // Refresh data
+                await this.fetchNotifications();
+                
+            } catch (error) {
+                console.error('Purchase failed:', error);
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Payment Failed',
+                    text: error.message || 'Please try again later.',
+                    confirmButtonText: 'OK'
+                });
+            }
+        }
+
+        async getExchangeRate() {
+            try {
+                const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
+                return response.data['the-open-network']?.usd || 3.64;
+            } catch (error) {
+                console.error('Failed to fetch exchange rate:', error);
+                return 3.64;
+            }
+        }
+
+        getSuccessMessage(item) {
+            if (item.isPremium) {
+                return `You've purchased ${item.premiumDuration} months of Telegram Premium!`;
+            }
+            return `You've purchased ${item.stars} Stars!`;
+        }
+
+        showError(message) {
+            Swal.fire({
                 icon: 'error',
-                title: 'Payment Failed',
-                text: e.message || 'Please try again later.',
+                title: 'Error',
+                text: message,
                 confirmButtonText: 'OK'
             });
         }
     }
 
-    // Helper functions
-    function getSuccessMessage(item) {
-        if (item.isPremium) {
-            return `You've purchased ${item.premiumDuration} months of Telegram Premium!`;
-        }
-        return `You've purchased ${item.stars} Stars!`;
-    }
-
-    async function getExchangeRate() {
-        try {
-            const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
-            return response.data['the-open-network']?.usd || 3.64;
-        } catch (e) {
-            error('Failed to fetch exchange rate:', e);
-            return 3.64;
-        }
-    }
-
-    async function fetchNotifications() {
-        if (!window.userId) return;
-        
-        try {
-            const response = await axios.get(`/api/notifications?userId=${window.userId}`);
-            const notifications = response.data?.notifications || [];
-            
-            const element = document.getElementById('notifications');
-            if (notifications.length > 0) {
-                element.innerHTML = notifications.map(n => 
-                    `<div>${n.message}</div>`
-                ).join('');
-                element.style.color = Telegram.WebApp.themeParams.text_color || '#000000';
-                log('Loaded notifications:', notifications.length);
-            }
-        } catch (e) {
-            error('Failed to fetch notifications:', e);
-        }
-    }
-
-    function showError(message) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: message,
-            confirmButtonText: 'OK'
-        });
-    }
-
-    function adjustColor(color, amount) {
-        return '#' + color.replace(/^#/, '').replace(/../g, 
-            color => ('0' + Math.min(255, Math.max(0, parseInt(color, 16) + amount).toString(16)).slice(-2));
-    }
-
-    // Initialize the app
-    document.addEventListener('DOMContentLoaded', initializeApp);
-</script>                         
+    // Initialize the app when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        window.app = new StarStoreApp();
+    });
+</script>
   </body>
 </html>
