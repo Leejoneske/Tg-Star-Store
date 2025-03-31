@@ -296,220 +296,503 @@
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
       <script>
+       // Initialize the application as soon as DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Telegram WebApp immediately
+    if (window.Telegram && window.Telegram.WebApp) {
+        initTelegramApp();
+    } else {
+        // If Telegram WebApp is not available, try again after a short delay
+        const telegramCheckInterval = setInterval(() => {
+            if (window.Telegram && window.Telegram.WebApp) {
+                clearInterval(telegramCheckInterval);
+                initTelegramApp();
+            }
+        }, 100);
+        
+        // Fallback if Telegram WebApp doesn't load after 3 seconds
+        setTimeout(() => {
+            clearInterval(telegramCheckInterval);
+            if (!window.Telegram || !window.Telegram.WebApp) {
+                console.error('Telegram WebApp failed to initialize');
+                showErrorMessage('Failed to initialize Telegram WebApp');
+            }
+        }, 3000);
+    }
+    
+    // Initialize menu functionality
+    initMenu();
+    
+    // Preload wallet connection UI to improve performance
+    preloadWalletConnection();
+});
+
+// Initialize Telegram WebApp
+function initTelegramApp() {
+    try {
         Telegram.WebApp.ready();
         const user = Telegram.WebApp.initDataUnsafe.user;
-
-        if (user) {
-            const profilePic = document.getElementById('profilePicture');
-            const usernameElement = document.getElementById('username');
-
-            if (user.photo_url) {
-                profilePic.src = user.photo_url;
-            }
-
-            if (user.username) {
-                usernameElement.innerText = `@${user.username}`;
-            } else if (user.first_name) {
-                usernameElement.innerText = user.first_name;
-            }
+        
+        // Set user interface language
+        const userLang = user?.language_code || 'en';
+        document.documentElement.lang = userLang;
+        
+        if (userLang === 'ru') {
+            loadRussianTranslation();
         }
+        
+        // Update UI with user data (if available)
+        updateUserInterface(user);
+    } catch (error) {
+        console.error('Error initializing Telegram WebApp:', error);
+        // Continue with default values
+    }
+}
 
+// Update user interface with user data
+function updateUserInterface(user) {
+    const profilePic = document.getElementById('profilePicture');
+    const usernameElement = document.getElementById('username');
+    
+    if (user) {
+        if (user.photo_url) {
+            // Preload profile image
+            const img = new Image();
+            img.onload = function() {
+                profilePic.src = user.photo_url;
+            };
+            img.src = user.photo_url;
+        } else {
+            profilePic.src = 'https://via.placeholder.com/64';
+        }
+        
+        if (user.username) {
+            usernameElement.innerText = `@${user.username}`;
+        } else if (user.first_name) {
+            usernameElement.innerText = user.first_name;
+        }
+    }
+}
+
+// Preload TON wallet connection to improve performance
+function preloadWalletConnection() {
+    try {
+        // Initialize wallet connection button
         const connectWalletButton = document.getElementById('connectWallet');
-        let isWalletConnected = false;
-
+        if (!connectWalletButton) return;
+        
+        // Initialize TON Connect UI with proper error handling
         const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
             manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json'
         });
+        
+        // Add wallet connection event listeners
+        setupWalletConnection(tonConnectUI, connectWalletButton);
+        
+        // Setup purchase handlers
+        setupPurchaseHandlers(tonConnectUI);
+    } catch (error) {
+        console.error('Error initializing wallet connection:', error);
+        const connectWalletButton = document.getElementById('connectWallet');
+        if (connectWalletButton) {
+            connectWalletButton.innerText = 'Wallet Error';
+            connectWalletButton.disabled = true;
+        }
+    }
+}
 
-        tonConnectUI.onStatusChange(wallet => {
-            if (wallet) {
-                const address = wallet.account.address;
-                const shortAddress = `${address.slice(0, 1)}...${address.slice(-2)}`; // Show first and last 2 characters
-                connectWalletButton.innerHTML = `Connected: <span class="wallet-address">${shortAddress}</span>`;
-                connectWalletButton.classList.add('wallet-connected');
-                isWalletConnected = true;
-            } else {
-                connectWalletButton.innerText = 'Connect Wallet';
-                connectWalletButton.classList.remove('wallet-connected');
-                isWalletConnected = false;
+// Setup wallet connection
+function setupWalletConnection(tonConnectUI, connectWalletButton) {
+    let isWalletConnected = false;
+    
+    // Listen for wallet status changes
+    tonConnectUI.onStatusChange(wallet => {
+        if (wallet) {
+            const address = wallet.account.address;
+            const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
+            connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
+            connectWalletButton.classList.add('wallet-connected');
+            isWalletConnected = true;
+        } else {
+            connectWalletButton.innerText = translations.connectWallet[document.documentElement.lang] || 'Connect Wallet';
+            connectWalletButton.classList.remove('wallet-connected');
+            isWalletConnected = false;
+        }
+    });
+    
+    // Add click event listener
+    connectWalletButton.addEventListener('click', () => {
+        if (isWalletConnected) {
+            tonConnectUI.disconnect();
+        } else {
+            tonConnectUI.connectWallet();
+        }
+    });
+}
+
+// Setup purchase handlers for all buy buttons
+function setupPurchaseHandlers(tonConnectUI) {
+    // Attach the tonConnectUI to window for global access
+    window.tonConnectUI = tonConnectUI;
+    
+    // Add event listeners to all buy buttons
+    document.querySelectorAll('.buy-button').forEach(button => {
+        button.addEventListener('click', function() {
+            // Extract purchase data from button attributes
+            const purchaseData = this.getAttribute('onclick');
+            if (purchaseData) {
+                // Parse purchase data from onclick attribute
+                const match = purchaseData.match(/handlePurchase\((\{.*?\})\)/);
+                if (match && match[1]) {
+                    try {
+                        // Convert string to object
+                        const item = JSON.parse(match[1].replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":'));
+                        handlePurchase(item);
+                    } catch (error) {
+                        console.error('Error parsing purchase data:', error);
+                    }
+                }
             }
         });
+        
+        // Remove onclick attribute to prevent double execution
+        button.removeAttribute('onclick');
+    });
+}
 
-        connectWalletButton.addEventListener('click', () => {
-            if (isWalletConnected) {
-                tonConnectUI.disconnect();
-            } else {
-                tonConnectUI.connectWallet();
-            }
-        });
-
-    async function handlePurchase(item) {
-        if (!tonConnectUI.wallet) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Wallet Not Connected',
-                text: 'Please connect your wallet to proceed.',
-            });
+// Handle purchase
+async function handlePurchase(item) {
+    const tonConnectUI = window.tonConnectUI;
+    
+    if (!tonConnectUI || !tonConnectUI.wallet) {
+        showErrorMessage(translations.walletNotConnected[document.documentElement.lang] || 'Please connect your wallet to proceed.');
+        return;
+    }
+    
+    try {
+        const parsedAmount = parseFloat(item.amount);
+        if (isNaN(parsedAmount) || parsedAmount <= 0) {
+            showErrorMessage(translations.invalidAmount[document.documentElement.lang] || 'The payment amount must be a valid number greater than 0.');
             return;
         }
-
-        try {
-            const parsedAmount = parseFloat(item.amount);
-            if (isNaN(parsedAmount)) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid Amount',
-                    text: 'The payment amount must be a valid number.',
-                });
-                return;
+        
+        // Show loading indicator
+        const loadingMessage = Swal.fire({
+            title: translations.processing[document.documentElement.lang] || 'Processing...',
+            text: translations.preparingTransaction[document.documentElement.lang] || 'Preparing your transaction',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
             }
-
-            if (parsedAmount <= 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid Amount',
-                    text: 'The payment amount must be greater than 0.',
-                });
-                return;
-            }
-
-            // Convert USDT to TON 
-            const tonToUsdtRate = 3.64;
-            const tonAmount = parsedAmount / tonToUsdtRate;
-
-            // Convert TON to nanoTONs (1 TON = 1,000,000,000 nanoTONs)
-            const nanoTonAmount = Math.round(tonAmount * 1e9); // Ensure the amount is an integer
-
-            const transaction = {
-                validUntil: Math.floor(Date.now() / 1000) + 300, // 5 minutes validity
-                messages: [
-                    {
-                        address: tonConnectUI.wallet.account.address, // Use the connected wallet address
-                        amount: nanoTonAmount.toString(), // Send amount in nanoTONs
-                    },
-                ],
-            };
-
-            console.log('Sending transaction:', transaction); // Debugging
-
-            const result = await tonConnectUI.sendTransaction(transaction);
-
-            if (result) {
-                console.log('Transaction successful:', result); // Debugging
-
-                // Prepare data for the backend
-                const orderData = {
-                    telegramId: user.id,
-                    username: user.username || user.first_name,
-                    stars: item.stars || null,
-                    isPremium: item.isPremium || false,
-                    premiumDuration: item.premiumDuration || null,
-                    walletAddress: tonConnectUI.wallet.account.address,
-                };
-
-                console.log('Sending order data to backend:', orderData); // Debugging
-
-                // Send order data to the backend
-                const response = await axios.post('/api/orders/create', orderData);
-
-                console.log('Backend response:', response.data); // Debugging
-
-                if (response.data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Order Created',
-                        text: 'Your order has been successfully created.',
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Order Creation Failed',
-                        text: response.data.error || 'Failed to create order. Please contact support.',
-                    });
+        });
+        
+        // Convert USDT to TON (use a real-time rate if possible)
+        const tonToUsdtRate = await fetchCurrentRate() || 3.64;
+        const tonAmount = parsedAmount / tonToUsdtRate;
+        
+        // Convert TON to nanoTONs (1 TON = 1,000,000,000 nanoTONs)
+        const nanoTonAmount = Math.round(tonAmount * 1e9);
+        
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 300, // 5 minutes validity
+            messages: [
+                {
+                    address: 'EQCw6Z2aY0E8sy1s1i1BKkb0OPn2Fv1JWAXJrv2OQL73bnEp', // Replace with actual receiving wallet address
+                    amount: nanoTonAmount.toString(), // Send amount in nanoTONs
                 }
+            ]
+        };
+        
+        // Close loading indicator
+        loadingMessage.close();
+        
+        // Send transaction
+        const result = await tonConnectUI.sendTransaction(transaction);
+        
+        if (result) {
+            // Prepare data for the backend
+            const user = Telegram.WebApp.initDataUnsafe.user;
+            const orderData = {
+                telegramId: user?.id,
+                username: user?.username || user?.first_name,
+                stars: item.stars || null,
+                isPremium: item.isPremium || false,
+                premiumDuration: item.premiumDuration || null,
+                walletAddress: tonConnectUI.wallet.account.address,
+                transactionHash: result // Store transaction hash
+            };
+            
+            // Send order data to the backend
+            const response = await axios.post('/api/orders/create', orderData);
+            
+            if (response.data.success) {
+                showSuccessMessage(translations.orderCreated[document.documentElement.lang] || 'Your order has been successfully created.');
             } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Transaction Failed',
-                    text: 'The transaction could not be completed. Please try again.',
-                });
+                showErrorMessage(response.data.error || translations.orderFailed[document.documentElement.lang] || 'Failed to create order. Please contact support.');
             }
-        } catch (error) {
-            console.error('Payment error:', error); // Debugging
-            Swal.fire({
-                icon: 'error',
-                title: 'Payment Failed',
-                text: error.response?.data?.error || 'Please try again later.',
-            });
+        } else {
+            showErrorMessage(translations.transactionFailed[document.documentElement.lang] || 'The transaction could not be completed. Please try again.');
         }
+    } catch (error) {
+        console.error('Payment error:', error);
+        showErrorMessage(error.response?.data?.error || translations.paymentFailed[document.documentElement.lang] || 'Payment failed. Please try again later.');
     }
+}
 
-    // Menu functionality
+// Fetch current TON/USDT exchange rate
+async function fetchCurrentRate() {
+    try {
+        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
+        return response.data['the-open-network'].usd;
+    } catch (error) {
+        console.error('Error fetching exchange rate:', error);
+        return 3.64; // Fallback rate
+    }
+}
+
+// Initialize menu functionality
+function initMenu() {
     const menuOverlay = document.getElementById('menuOverlay');
     const sideMenu = document.getElementById('sideMenu');
-
-    function toggleMenu() {
+    
+    if (!menuOverlay || !sideMenu) return;
+    
+    // Function to toggle menu
+    window.toggleMenu = function() {
         menuOverlay.classList.toggle('active');
         sideMenu.classList.toggle('active');
-    }
-
+    };
+    
+    // Add event listeners to all menu items
     document.querySelectorAll('.menu-item').forEach(item => {
         item.addEventListener('click', () => {
             toggleMenu();
         });
     });
+}
 
-    // Fetch notifications
-    async function fetchNotifications() {
-        try {
-            const response = await axios.get('/api/notifications');
-            const notificationsElement = document.getElementById('notifications');
+// Fetch notifications
+async function fetchNotifications() {
+    const notificationsElement = document.getElementById('notifications');
+    if (!notificationsElement) return;
+    
+    try {
+        const response = await axios.get('/api/notifications');
+        
+        if (response.data && response.data.notifications && response.data.notifications.length > 0) {
             notificationsElement.innerHTML = response.data.notifications.map(notification => `
                 <div class="notification-item">
                     <p>${notification.message}</p>
                     <small>${notification.timestamp}</small>
                 </div>
             `).join('');
-        } catch (error) {
-            console.error('Failed to fetch notifications:', error);
-         
+        } else {
+            notificationsElement.innerText = translations.noNotifications[document.documentElement.lang] || 'No new notifications';
         }
+    } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+        notificationsElement.innerText = translations.noNotifications[document.documentElement.lang] || 'No new notifications';
+    }
+}
+
+// Show error message
+function showErrorMessage(message) {
+    Swal.fire({
+        icon: 'error',
+        title: translations.error[document.documentElement.lang] || 'Error',
+        text: message,
+        confirmButtonText: translations.ok[document.documentElement.lang] || 'OK'
+    });
+}
+
+// Show success message
+function showSuccessMessage(message) {
+    Swal.fire({
+        icon: 'success',
+        title: translations.success[document.documentElement.lang] || 'Success',
+        text: message,
+        confirmButtonText: translations.ok[document.documentElement.lang] || 'OK'
+    });
+}
+
+// Language handling
+const translations = {
+    connectWallet: { en: 'Connect Wallet', ru: 'Подключить кошелек' },
+    walletNotConnected: { en: 'Wallet Not Connected', ru: 'Кошелек не подключен' },
+    invalidAmount: { en: 'Invalid Amount', ru: 'Недопустимая сумма' },
+    processing: { en: 'Processing...', ru: 'Обработка...' },
+    preparingTransaction: { en: 'Preparing your transaction', ru: 'Подготовка вашей транзакции' },
+    orderCreated: { en: 'Order Created', ru: 'Заказ создан' },
+    orderFailed: { en: 'Order Creation Failed', ru: 'Не удалось создать заказ' },
+    transactionFailed: { en: 'Transaction Failed', ru: 'Транзакция не удалась' },
+    paymentFailed: { en: 'Payment Failed', ru: 'Оплата не удалась' },
+    noNotifications: { en: 'No new notifications', ru: 'Нет новых уведомлений' },
+    error: { en: 'Error', ru: 'Ошибка' },
+    success: { en: 'Success', ru: 'Успешно' },
+    ok: { en: 'OK', ru: 'ОК' }
+};
+
+// Add language toggle button
+function addLanguageToggle() {
+    const header = document.querySelector('.p-4.flex.justify-between.items-center');
+    if (!header) return;
+    
+    const langToggle = document.createElement('button');
+    langToggle.className = 'p-2 text-indigo-600';
+    langToggle.innerHTML = 'EN / RU';
+    langToggle.onclick = toggleLanguage;
+    
+    // Add to header
+    header.appendChild(langToggle);
+}
+
+// Toggle between languages
+function toggleLanguage() {
+    const currentLang = document.documentElement.lang;
+    const newLang = currentLang === 'ru' ? 'en' : 'ru';
+    document.documentElement.lang = newLang;
+    
+    if (newLang === 'ru') {
+        loadRussianTranslation();
+    } else {
+        loadEnglishTranslation();
+    }
+}
+
+// Load Russian translation
+function loadRussianTranslation() {
+    // Translate static content
+    translateElement('#connectWallet', 'Подключить кошелек');
+    translateElement('.logo-header', 'СтарСтор');
+    translateElement('h2:contains("Telegram Premium")', 'Telegram Премиум');
+    translateElement('h2:contains("Buy Stars")', 'Купить Звезды');
+    
+    // Translate premium packages
+    document.querySelectorAll('.premium-card .package-option').forEach((element, index) => {
+        const titleElement = element.querySelector('.text-lg.font-bold');
+        const descElement = element.querySelector('.text-sm.text-gray-600');
+        const buttonElement = element.querySelector('.buy-button');
+        
+        if (index === 0) {
+            translateElement(titleElement, '3 Месяца Премиум');
+            translateElement(descElement, 'Разблокируйте премиум-функции на 3 месяца');
+            translateElement(buttonElement, 'Купить сейчас');
+        } else if (index === 1) {
+            translateElement(titleElement, '6 Месяцев Премиум');
+            translateElement(descElement, 'Разблокируйте премиум-функции на 6 месяцев');
+            translateElement(buttonElement, 'Купить сейчас');
+        } else if (index === 2) {
+            translateElement(titleElement, '12 Месяцев Премиум');
+            translateElement(descElement, 'Разблокируйте премиум-функции на 12 месяцев');
+            translateElement(buttonElement, 'Купить сейчас');
+        }
+    });
+    
+    // Translate stars packages
+    document.querySelectorAll('.stars-card .package-option .buy-button').forEach(element => {
+        translateElement(element, 'Купить');
+    });
+    
+    // Translate menu items
+    document.querySelectorAll('.menu-item').forEach((element, index) => {
+        const menuLabels = ['Главная', 'Продажа', 'История', 'Реферал', 'О нас'];
+        if (index < menuLabels.length) {
+            const textNode = Array.from(element.childNodes).filter(node => 
+                node.nodeType === Node.TEXT_NODE && node.textContent.trim()
+            )[0];
+            if (textNode) {
+                textNode.textContent = menuLabels[index];
+            }
+        }
+    });
+    
+    // Translate footer
+    const footerElement = document.querySelector('.footer');
+    if (footerElement) {
+        footerElement.innerHTML = footerElement.innerHTML.replace('Powered by', 'Работает на').replace('Terms & Conditions', 'Условия использования');
+    }
+    
+    // Update notifications
+    fetchNotifications();
+}
+
+// Load English translation
+function loadEnglishTranslation() {
+    // Revert to original English content
+    translateElement('#connectWallet', 'Connect Wallet');
+    translateElement('.logo-header', 'StarStore');
+    translateElement('h2:contains("СтарСтор")', 'Telegram Premium');
+    translateElement('h2:contains("Купить Звезды")', 'Buy Stars');
+    
+    // Translate premium packages back to English
+    document.querySelectorAll('.premium-card .package-option').forEach((element, index) => {
+        const titleElement = element.querySelector('.text-lg.font-bold');
+        const descElement = element.querySelector('.text-sm.text-gray-600');
+        const buttonElement = element.querySelector('.buy-button');
+        
+        if (index === 0) {
+            translateElement(titleElement, '3 Months Premium');
+            translateElement(descElement, 'Unlock premium features for 3 months');
+            translateElement(buttonElement, 'Buy Now');
+        } else if (index === 1) {
+            translateElement(titleElement, '6 Months Premium');
+            translateElement(descElement, 'Unlock premium features for 6 months');
+            translateElement(buttonElement, 'Buy Now');
+        } else if (index === 2) {
+            translateElement(titleElement, '12 Months Premium');
+            translateElement(descElement, 'Unlock premium features for 12 months');
+            translateElement(buttonElement, 'Buy Now');
+        }
+    });
+    
+    // Translate stars packages back to English
+    document.querySelectorAll('.stars-card .package-option .buy-button').forEach(element => {
+        translateElement(element, 'Buy');
+    });
+    
+    // Translate menu items back to English
+    document.querySelectorAll('.menu-item').forEach((element, index) => {
+        const menuLabels = ['Home', 'Sell', 'History', 'Referral', 'About'];
+        if (index < menuLabels.length) {
+            const textNode = Array.from(element.childNodes).filter(node => 
+                node.nodeType === Node.TEXT_NODE && node.textContent.trim()
+            )[0];
+            if (textNode) {
+                textNode.textContent = menuLabels[index];
+            }
+        }
+    });
+    
+    // Translate footer back to English
+    const footerElement = document.querySelector('.footer');
+    if (footerElement) {
+        footerElement.innerHTML = footerElement.innerHTML.replace('Работает на', 'Powered by').replace('Условия использования', 'Terms & Conditions');
+    }
+    
+    // Update notifications
+    fetchNotifications();
+}
+
+// Helper function to translate an element
+function translateElement(selector, text) {
+    const element = typeof selector === 'string' ? 
+        selector.startsWith('#') ? 
+            document.getElementById(selector.substring(1)) : 
+            document.querySelector(selector) : 
+        selector;
+    
+    if (element) {
+        element.textContent = text;
+    }
+}
+
+// Run the app
+document.addEventListener('DOMContentLoaded', function() {
+    initTelegramApp();
+    addLanguageToggle();
+    setTimeout(fetchNotifications, 500); // Fetch notifications after a short delay
+});   
       
-    }
-      fetchNotifications();
-
-
-          
-
-    // 1. Wait for Telegram data
-    setTimeout(() => {
-      const isRussian = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code === 'ru';
-      if (!isRussian) return;
-
-      // 2. Load Google Translate securely
-      const script = document.createElement('script');
-      script.src = 'https://translate.google.com/translate_a/element.js?cb=onGoogleTranslateLoaded';
-      document.head.appendChild(script);
-    }, 1500);
-
-    // 3. Silent translation
-    function onGoogleTranslateLoaded() {
-      new google.translate.TranslateElement({
-        pageLanguage: 'en',
-        includedLanguages: 'en,ru',
-        layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-        autoDisplay: false
-      }, 'google_translate_element');
-
-      // 4. Force Russian
-      setTimeout(() => {
-        const select = document.querySelector('.goog-te-combo');
-        if (select) {
-          select.value = 'ru';
-          select.dispatchEvent(new Event('change'));
-        }
-      }, 500);
-    }
   </script>
 
 
