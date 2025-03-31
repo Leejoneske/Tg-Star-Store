@@ -366,370 +366,375 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        const translations = {
-            en: {
-                appName: "StarStore",
-                connectWallet: "Connect Wallet",
-                walletNotConnected: "Please connect your wallet to proceed.",
-                invalidAmount: "The payment amount must be a valid number greater than 0.",
-                processing: "Processing...",
-                preparingTransaction: "Preparing your transaction",
-                orderCreated: "Your order has been successfully created.",
-                orderFailed: "Failed to create order. Please contact support.",
-                transactionFailed: "The transaction could not be completed. Please try again.",
-                paymentFailed: "Payment failed. Please try again later.",
-                noNotifications: "No new notifications",
-                error: "Error",
-                success: "Success",
-                ok: "OK",
-                menu: "Menu",
-                home: "Home",
-                sell: "Sell",
-                history: "History",
-                referral: "Referral",
-                about: "About",
-                telegramPremium: "Telegram Premium",
-                buyStars: "Buy Stars",
-                "3monthsPremium": "3 Months Premium",
-                "3monthsDesc": "Unlock premium features for 3 months",
-                "6monthsPremium": "6 Months Premium",
-                "6monthsDesc": "Unlock premium features for 6 months",
-                "12monthsPremium": "12 Months Premium",
-                "12monthsDesc": "Unlock premium features for 12 months",
-                buyNow: "Buy Now",
-                buy: "Buy",
-                poweredBy: "Powered by",
-                terms: "Terms & Conditions"
-            },
-            ru: {
-                appName: "СтарСтор",
-                connectWallet: "Подключить кошелек",
-                walletNotConnected: "Пожалуйста, подключите кошелек, чтобы продолжить.",
-                invalidAmount: "Сумма платежа должна быть действительным числом больше 0.",
-                processing: "Обработка...",
-                preparingTransaction: "Подготовка вашей транзакции",
-                orderCreated: "Ваш заказ успешно создан.",
-                orderFailed: "Не удалось создать заказ. Пожалуйста, обратитесь в поддержку.",
-                transactionFailed: "Транзакция не удалась. Пожалуйста, попробуйте еще раз.",
-                paymentFailed: "Оплата не удалась. Пожалуйста, попробуйте позже.",
-                noNotifications: "Нет новых уведомлений",
-                error: "Ошибка",
-                success: "Успешно",
-                ok: "ОК",
-                menu: "Меню",
-                home: "Главная",
-                sell: "Продажа",
-                history: "История",
-                referral: "Реферал",
-                about: "О нас",
-                telegramPremium: "Telegram Премиум",
-                buyStars: "Купить Звезды",
-                "3monthsPremium": "3 Месяца Премиум",
-                "3monthsDesc": "Разблокируйте премиум-функции на 3 месяца",
-                "6monthsPremium": "6 Месяцев Премиум",
-                "6monthsDesc": "Разблокируйте премиум-функции на 6 месяцев",
-                "12monthsPremium": "12 Месяцев Премиум",
-                "12monthsDesc": "Разблокируйте премиум-функции на 12 месяцев",
-                buyNow: "Купить сейчас",
-                buy: "Купить",
-                poweredBy: "Работает на",
-                terms: "Условия использования"
+       const translations = {
+    en: {
+        appName: "StarStore",
+        connectWallet: "Connect Wallet",
+        walletNotConnected: "Please connect your wallet to proceed.",
+        invalidAmount: "The payment amount must be a valid number greater than 0.",
+        processing: "Processing...",
+        preparingTransaction: "Preparing your transaction",
+        orderCreated: "Your order has been successfully created.",
+        orderFailed: "Failed to create order. Please contact support.",
+        transactionFailed: "The transaction could not be completed. Please try again.",
+        paymentFailed: "Payment failed. Please try again later.",
+        noNotifications: "No new notifications",
+        error: "Error",
+        success: "Success",
+        ok: "OK",
+        menu: "Menu",
+        home: "Home",
+        sell: "Sell",
+        history: "History",
+        referral: "Referral",
+        about: "About",
+        telegramPremium: "Telegram Premium",
+        buyStars: "Buy Stars",
+        "3monthsPremium": "3 Months Premium",
+        "3monthsDesc": "Unlock premium features for 3 months",
+        "6monthsPremium": "6 Months Premium",
+        "6monthsDesc": "Unlock premium features for 6 months",
+        "12monthsPremium": "12 Months Premium",
+        "12monthsDesc": "Unlock premium features for 12 months",
+        buyNow: "Buy Now",
+        buy: "Buy",
+        poweredBy: "Powered by",
+        terms: "Terms & Conditions"
+    },
+    ru: {
+        appName: "СтарСтор",
+        connectWallet: "Подключить кошелек",
+        walletNotConnected: "Пожалуйста, подключите кошелек, чтобы продолжить.",
+        invalidAmount: "Сумма платежа должна быть действительным числом больше 0.",
+        processing: "Обработка...",
+        preparingTransaction: "Подготовка вашей транзакции",
+        orderCreated: "Ваш заказ успешно создан.",
+        orderFailed: "Не удалось создать заказ. Пожалуйста, обратитесь в поддержку.",
+        transactionFailed: "Транзакция не удалась. Пожалуйста, попробуйте еще раз.",
+        paymentFailed: "Оплата не удалась. Пожалуйста, попробуйте позже.",
+        noNotifications: "Нет новых уведомлений",
+        error: "Ошибка",
+        success: "Успешно",
+        ok: "ОК",
+        menu: "Меню",
+        home: "Главная",
+        sell: "Продажа",
+        history: "История",
+        referral: "Реферал",
+        about: "О нас",
+        telegramPremium: "Telegram Премиум",
+        buyStars: "Купить Звезды",
+        "3monthsPremium": "3 Месяца Премиум",
+        "3monthsDesc": "Разблокируйте премиум-функции на 3 месяца",
+        "6monthsPremium": "6 Месяцев Премиум",
+        "6monthsDesc": "Разблокируйте премиум-функции на 6 месяцев",
+        "12monthsPremium": "12 Месяцев Премиум",
+        "12monthsDesc": "Разблокируйте премиум-функции на 12 месяцев",
+        buyNow: "Купить сейчас",
+        buy: "Купить",
+        poweredBy: "Работает на",
+        terms: "Условия использования"
+    }
+};
+
+let tonConnectUI;
+let currentLanguage = 'en';
+
+document.addEventListener('DOMContentLoaded', function() {
+    initTelegramApp();
+    initMenu();
+    initWalletConnection();
+    initLanguageToggle();
+    loadLanguagePreference();
+    initBuyButtons();
+    setTimeout(fetchNotifications, 500);
+});
+
+function initTelegramApp() {
+    if (window.Telegram && window.Telegram.WebApp) {
+        try {
+            Telegram.WebApp.ready();
+            const user = Telegram.WebApp.initDataUnsafe.user;
+            
+            if (user?.language_code === 'ru') {
+                currentLanguage = 'ru';
+                updateLanguage();
             }
-        };
+            
+            updateUserInterface(user);
+        } catch (error) {
+            console.error('Error initializing Telegram WebApp:', error);
+        }
+    } else {
+        console.log('Telegram WebApp not detected, running in standalone mode');
+    }
+}
 
-        let tonConnectUI;
-        let currentLanguage = 'en';
-        const WALLET_ADDRESS = 'EQCw6Z2aY0E8sy1s1i1BKkb0OPn2Fv1JWAXJrv2OQL73bnEp';
+function updateUserInterface(user) {
+    const profilePic = document.getElementById('profilePicture');
+    const usernameElement = document.getElementById('username');
+    
+    if (user) {
+        if (user.photo_url) {
+            profilePic.src = user.photo_url;
+        }
+        
+        if (user.username) {
+            usernameElement.textContent = `@${user.username}`;
+        } else if (user.first_name) {
+            usernameElement.textContent = user.first_name;
+        }
+    }
+}
 
-        document.addEventListener('DOMContentLoaded', function() {
-            initTelegramApp();
-            initMenu();
-            initWalletConnection();
-            initLanguageToggle();
-            loadLanguagePreference();
-            initBuyButtons();
-            setTimeout(fetchNotifications, 500);
+function initWalletConnection() {
+    try {
+        tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+            manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json',
+            language: currentLanguage === 'ru' ? 'ru' : 'en'
+        });
+        
+        const connectWalletButton = document.getElementById('connectWallet');
+        
+        tonConnectUI.onStatusChange(wallet => {
+            if (wallet) {
+                const address = wallet.account.address;
+                const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
+                connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
+                connectWalletButton.classList.add('wallet-connected');
+            } else {
+                connectWalletButton.textContent = translations[currentLanguage].connectWallet;
+                connectWalletButton.classList.remove('wallet-connected');
+            }
+        });
+        
+        connectWalletButton.addEventListener('click', () => {
+            if (tonConnectUI.wallet) {
+                tonConnectUI.disconnect();
+            } else {
+                tonConnectUI.connectWallet();
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing wallet connection:', error);
+        const connectWalletButton = document.getElementById('connectWallet');
+        if (connectWalletButton) {
+            connectWalletButton.textContent = 'Wallet Error';
+            connectWalletButton.disabled = true;
+        }
+    }
+}
+
+function initMenu() {
+    const menuButton = document.getElementById('menuButton');
+    const menuOverlay = document.getElementById('menuOverlay');
+    const sideMenu = document.getElementById('sideMenu');
+    
+    if (!menuButton || !menuOverlay || !sideMenu) return;
+    
+    const toggleMenu = () => {
+        menuOverlay.classList.toggle('active');
+        sideMenu.classList.toggle('active');
+    };
+    
+    menuButton.addEventListener('click', toggleMenu);
+    menuOverlay.addEventListener('click', toggleMenu);
+    
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', toggleMenu);
+    });
+}
+
+function initLanguageToggle() {
+    const languageToggle = document.getElementById('languageToggle');
+    if (!languageToggle) return;
+    
+    languageToggle.addEventListener('click', () => {
+        currentLanguage = currentLanguage === 'en' ? 'ru' : 'en';
+        updateLanguage();
+        saveLanguagePreference();
+        
+        if (tonConnectUI) {
+            tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
+        }
+    });
+}
+
+function updateLanguage() {
+    const languageToggle = document.getElementById('languageToggle');
+    if (languageToggle) {
+        languageToggle.textContent = currentLanguage === 'en' ? 'RU' : 'EN';
+    }
+    
+    document.querySelectorAll('[data-translate]').forEach(element => {
+        const key = element.getAttribute('data-translate');
+        if (translations[currentLanguage][key] && !element.classList.contains('wallet-address')) {
+            element.textContent = translations[currentLanguage][key];
+        }
+    });
+}
+
+function saveLanguagePreference() {
+    try {
+        localStorage.setItem('starStoreLanguage', currentLanguage);
+    } catch (e) {
+        console.error('Failed to save language preference:', e);
+    }
+}
+
+function loadLanguagePreference() {
+    try {
+        const savedLanguage = localStorage.getItem('starStoreLanguage');
+        if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'ru')) {
+            currentLanguage = savedLanguage;
+            updateLanguage();
+        }
+    } catch (e) {
+        console.error('Failed to load language preference:', e);
+    }
+}
+
+function initBuyButtons() {
+    document.querySelectorAll('.buy-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemData = this.getAttribute('data-item');
+            if (itemData) {
+                try {
+                    const item = JSON.parse(itemData);
+                    handlePurchase(item);
+                } catch (error) {
+                    console.error('Error parsing purchase data:', error);
+                    showErrorMessage(translations[currentLanguage].error);
+                }
+            }
+        });
+    });
+}
+
+async function handlePurchase(item) {
+    if (!tonConnectUI || !tonConnectUI.wallet) {
+        showErrorMessage(translations[currentLanguage].walletNotConnected);
+        return;
+    }
+    
+    try {
+        const parsedAmount = parseFloat(item.amount);
+        if (isNaN(parsedAmount) || parsedAmount <= 0) {
+            showErrorMessage(translations[currentLanguage].invalidAmount);
+            return;
+        }
+        
+        const loadingMessage = Swal.fire({
+            title: translations[currentLanguage].processing,
+            text: translations[currentLanguage].preparingTransaction,
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
         });
 
-        function initTelegramApp() {
-            if (window.Telegram && window.Telegram.WebApp) {
-                try {
-                    Telegram.WebApp.ready();
-                    const user = Telegram.WebApp.initDataUnsafe.user;
-                    
-                    if (user?.language_code === 'ru') {
-                        currentLanguage = 'ru';
-                        updateLanguage();
-                    }
-                    
-                    updateUserInterface(user);
-                } catch (error) {
-                    console.error('Error initializing Telegram WebApp:', error);
-                }
-            } else {
-                console.log('Telegram WebApp not detected, running in standalone mode');
-            }
+        // First fetch the wallet address from backend
+        const walletResponse = await axios.get('/api/get-wallet-address');
+        if (!walletResponse.data?.walletAddress) {
+            throw new Error('Failed to get payment address from server');
         }
 
-        function updateUserInterface(user) {
-            const profilePic = document.getElementById('profilePicture');
-            const usernameElement = document.getElementById('username');
-            
-            if (user) {
-                if (user.photo_url) {
-                    profilePic.src = user.photo_url;
+        const tonToUsdtRate = await fetchCurrentRate() || 3.64;
+        const tonAmount = parsedAmount / tonToUsdtRate;
+        const nanoTonAmount = Math.round(tonAmount * 1e9);
+        
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 300,
+            messages: [
+                {
+                    address: walletResponse.data.walletAddress,
+                    amount: nanoTonAmount.toString(),
                 }
-                
-                if (user.username) {
-                    usernameElement.textContent = `@${user.username}`;
-                } else if (user.first_name) {
-                    usernameElement.textContent = user.first_name;
-                }
-            }
-        }
-
-        function initWalletConnection() {
-            try {
-                tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-                    manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json',
-                    language: currentLanguage === 'ru' ? 'ru' : 'en'
-                });
-                
-                const connectWalletButton = document.getElementById('connectWallet');
-                
-                tonConnectUI.onStatusChange(wallet => {
-                    if (wallet) {
-                        const address = wallet.account.address;
-                        const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
-                        connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
-                        connectWalletButton.classList.add('wallet-connected');
-                    } else {
-                        connectWalletButton.textContent = translations[currentLanguage].connectWallet;
-                        connectWalletButton.classList.remove('wallet-connected');
-                    }
-                });
-                
-                connectWalletButton.addEventListener('click', () => {
-                    if (tonConnectUI.wallet) {
-                        tonConnectUI.disconnect();
-                    } else {
-                        tonConnectUI.connectWallet();
-                    }
-                });
-            } catch (error) {
-                console.error('Error initializing wallet connection:', error);
-                const connectWalletButton = document.getElementById('connectWallet');
-                if (connectWalletButton) {
-                    connectWalletButton.textContent = 'Wallet Error';
-                    connectWalletButton.disabled = true;
-                }
-            }
-        }
-
-        function initMenu() {
-            const menuButton = document.getElementById('menuButton');
-            const menuOverlay = document.getElementById('menuOverlay');
-            const sideMenu = document.getElementById('sideMenu');
-            
-            if (!menuButton || !menuOverlay || !sideMenu) return;
-            
-            const toggleMenu = () => {
-                menuOverlay.classList.toggle('active');
-                sideMenu.classList.toggle('active');
+            ]
+        };
+        
+        loadingMessage.close();
+        
+        const result = await tonConnectUI.sendTransaction(transaction);
+        
+        if (result) {
+            const user = Telegram.WebApp?.initDataUnsafe?.user;
+            const orderData = {
+                telegramId: user?.id,
+                username: user?.username || user?.first_name,
+                stars: item.stars || null,
+                isPremium: item.isPremium || false,
+                premiumDuration: item.premiumDuration || null,
+                walletAddress: tonConnectUI.wallet.account.address,
+                transactionHash: result
             };
             
-            menuButton.addEventListener('click', toggleMenu);
-            menuOverlay.addEventListener('click', toggleMenu);
+            const response = await axios.post('/api/orders/create', orderData);
             
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.addEventListener('click', toggleMenu);
-            });
-        }
-
-        function initLanguageToggle() {
-            const languageToggle = document.getElementById('languageToggle');
-            if (!languageToggle) return;
-            
-            languageToggle.addEventListener('click', () => {
-                currentLanguage = currentLanguage === 'en' ? 'ru' : 'en';
-                updateLanguage();
-                saveLanguagePreference();
-                
-                if (tonConnectUI) {
-                    tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
-                }
-            });
-        }
-
-        function updateLanguage() {
-            const languageToggle = document.getElementById('languageToggle');
-            if (languageToggle) {
-                languageToggle.textContent = currentLanguage === 'en' ? 'RU' : 'EN';
+            if (response.data.success) {
+                showSuccessMessage(translations[currentLanguage].orderCreated);
+            } else {
+                showErrorMessage(response.data.error || translations[currentLanguage].orderFailed);
             }
-            
-            document.querySelectorAll('[data-translate]').forEach(element => {
-                const key = element.getAttribute('data-translate');
-                if (translations[currentLanguage][key] && !element.classList.contains('wallet-address')) {
-                    element.textContent = translations[currentLanguage][key];
-                }
-            });
+        } else {
+            showErrorMessage(translations[currentLanguage].transactionFailed);
         }
+    } catch (error) {
+        console.error('Payment error:', error);
+        showErrorMessage(error.response?.data?.error || translations[currentLanguage].paymentFailed);
+    }
+}
 
-        function saveLanguagePreference() {
-            try {
-                localStorage.setItem('starStoreLanguage', currentLanguage);
-            } catch (e) {
-                console.error('Failed to save language preference:', e);
-            }
-        }
+async function fetchCurrentRate() {
+    try {
+        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
+        return response.data['the-open-network'].usd;
+    } catch (error) {
+        console.error('Error fetching exchange rate:', error);
+        return null;
+    }
+}
 
-        function loadLanguagePreference() {
-            try {
-                const savedLanguage = localStorage.getItem('starStoreLanguage');
-                if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'ru')) {
-                    currentLanguage = savedLanguage;
-                    updateLanguage();
-                }
-            } catch (e) {
-                console.error('Failed to load language preference:', e);
-            }
+async function fetchNotifications() {
+    const notificationsElement = document.getElementById('notifications');
+    if (!notificationsElement) return;
+    
+    try {
+        const response = await axios.get('/api/notifications');
+        
+        if (response.data && response.data.notifications && response.data.notifications.length > 0) {
+            notificationsElement.innerHTML = response.data.notifications.map(notification => `
+                <div class="notification-item">
+                    <p>${notification.message}</p>
+                    <small>${notification.timestamp}</small>
+                </div>
+            `).join('');
+        } else {
+            notificationsElement.textContent = translations[currentLanguage].noNotifications;
         }
+    } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+        notificationsElement.textContent = translations[currentLanguage].noNotifications;
+    }
+}
 
-        function initBuyButtons() {
-            document.querySelectorAll('.buy-button').forEach(button => {
-                button.addEventListener('click', function() {
-                    const itemData = this.getAttribute('data-item');
-                    if (itemData) {
-                        try {
-                            const item = JSON.parse(itemData);
-                            handlePurchase(item);
-                        } catch (error) {
-                            console.error('Error parsing purchase data:', error);
-                            showErrorMessage(translations[currentLanguage].error);
-                        }
-                    }
-                });
-            });
-        }
+function showErrorMessage(message) {
+    Swal.fire({
+        icon: 'error',
+        title: translations[currentLanguage].error,
+        text: message,
+        confirmButtonText: translations[currentLanguage].ok
+    });
+}
 
-        async function handlePurchase(item) {
-            if (!tonConnectUI || !tonConnectUI.wallet) {
-                showErrorMessage(translations[currentLanguage].walletNotConnected);
-                return;
-            }
-            
-            try {
-                const parsedAmount = parseFloat(item.amount);
-                if (isNaN(parsedAmount) || parsedAmount <= 0) {
-                    showErrorMessage(translations[currentLanguage].invalidAmount);
-                    return;
-                }
-                
-                const loadingMessage = Swal.fire({
-                    title: translations[currentLanguage].processing,
-                    text: translations[currentLanguage].preparingTransaction,
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-                
-                const tonToUsdtRate = await fetchCurrentRate() || 3.64;
-                const tonAmount = parsedAmount / tonToUsdtRate;
-                const nanoTonAmount = Math.round(tonAmount * 1e9);
-                
-                const transaction = {
-                    validUntil: Math.floor(Date.now() / 1000) + 300,
-                    messages: [
-                        {
-                            address: WALLET_ADDRESS,
-                            amount: nanoTonAmount.toString(),
-                        }
-                    ]
-                };
-                
-                loadingMessage.close();
-                
-                const result = await tonConnectUI.sendTransaction(transaction);
-                
-                if (result) {
-                    const user = Telegram.WebApp?.initDataUnsafe?.user;
-                    const orderData = {
-                        telegramId: user?.id,
-                        username: user?.username || user?.first_name,
-                        stars: item.stars || null,
-                        isPremium: item.isPremium || false,
-                        premiumDuration: item.premiumDuration || null,
-                        walletAddress: tonConnectUI.wallet.account.address,
-                        transactionHash: result
-                    };
-                    
-                    const response = await axios.post('/api/orders/create', orderData);
-                    
-                    if (response.data.success) {
-                        showSuccessMessage(translations[currentLanguage].orderCreated);
-                    } else {
-                        showErrorMessage(response.data.error || translations[currentLanguage].orderFailed);
-                    }
-                } else {
-                    showErrorMessage(translations[currentLanguage].transactionFailed);
-                }
-            } catch (error) {
-                console.error('Payment error:', error);
-                showErrorMessage(error.response?.data?.error || translations[currentLanguage].paymentFailed);
-            }
-        }
-
-        async function fetchCurrentRate() {
-            try {
-                const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
-                return response.data['the-open-network'].usd;
-            } catch (error) {
-                console.error('Error fetching exchange rate:', error);
-                return null;
-            }
-        }
-
-        async function fetchNotifications() {
-            const notificationsElement = document.getElementById('notifications');
-            if (!notificationsElement) return;
-            
-            try {
-                const response = await axios.get('/api/notifications');
-                
-                if (response.data && response.data.notifications && response.data.notifications.length > 0) {
-                    notificationsElement.innerHTML = response.data.notifications.map(notification => `
-                        <div class="notification-item">
-                            <p>${notification.message}</p>
-                            <small>${notification.timestamp}</small>
-                        </div>
-                    `).join('');
-                } else {
-                    notificationsElement.textContent = translations[currentLanguage].noNotifications;
-                }
-            } catch (error) {
-                console.error('Failed to fetch notifications:', error);
-                notificationsElement.textContent = translations[currentLanguage].noNotifications;
-            }
-        }
-
-        function showErrorMessage(message) {
-            Swal.fire({
-                icon: 'error',
-                title: translations[currentLanguage].error,
-                text: message,
-                confirmButtonText: translations[currentLanguage].ok
-            });
-        }
-
-        function showSuccessMessage(message) {
-            Swal.fire({
-                icon: 'success',
-                title: translations[currentLanguage].success,
-                text: message,
-                confirmButtonText: translations[currentLanguage].ok
-            });
-        }
-    </script>
+function showSuccessMessage(message) {
+    Swal.fire({
+        icon: 'success',
+        title: translations[currentLanguage].success,
+        text: message,
+        confirmButtonText: translations[currentLanguage].ok
+    });
+}
+</script>
 </body>
 </html>
