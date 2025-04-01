@@ -516,7 +516,302 @@
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
-    Telegram.WebApp.ready();
+Telegram.WebApp.ready();
+
+// Language handling
+let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+
+// Listen for language changes from index page
+window.addEventListener('storage', function(e) {
+  if (e.key === 'appLanguage') {
+    currentLanguage = e.newValue || 'en';
+    updateLanguageTexts();
+  }
+});
+
+// Translations
+const translations = {
+  en: {
+    menuTitle: "Menu",
+    home: "Home",
+    sell: "Sell",
+    history: "History",
+    referral: "Referral",
+    about: "About",
+    connectWallet: "Connect Wallet",
+    enterManually: "Enter wallet address manually",
+    paymentInfo: "Payments will be made to the selected wallet.",
+    editAddress: "Edit Address",
+    saveAddress: "Save Address",
+    sellStars: "Sell Stars",
+    currentRate: "Current Rate",
+    updatedAgo: "Updated 8m ago",
+    amountToSell: "Amount of Stars to Sell",
+    youWillReceive: "You'll Receive (USDT)",
+    sellNow: "Sell Now",
+    howItWorks: "How it works:",
+    step1: "Enter the amount of stars you want to sell",
+    step2: "Click \"Sell Now\" to initiate the transaction",
+    step3: "Send the stars via Telegram payment",
+    step4: "Once verified, USDT will be sent to your wallet within 21 days",
+    recentTransactions: "Recent Transactions",
+    noTransactions: "No transactions yet",
+    walletNotConnected: "Wallet Not Connected",
+    walletConnectMessage: "Please connect your wallet or enter a wallet address manually to proceed.",
+    missingWalletAddress: "Missing Wallet Address",
+    enterValidWallet: "Please enter a valid wallet address to proceed.",
+    paymentInitiated: "Payment Initiated!",
+    completePayment: "Please complete the payment in Telegram.",
+    paymentSuccessful: "Payment Successful!",
+    paymentProcessed: "Your payment has been successfully processed.",
+    paymentFailed: "Payment Failed",
+    paymentNotSuccessful: "Your payment was not successful. Please try again.",
+    paymentLinkMissing: "Payment Link Missing",
+    paymentLinkNotGenerated: "The payment link was not generated. Please try again.",
+    orderFailed: "Order Failed",
+    orderError: "There was an error placing your order. Please try again.",
+    transactionDetails: "Transaction Details",
+    transactionID: "Transaction ID:",
+    amount: "Amount",
+    toBeReceived: "To be received",
+    currentStatus: "Current Status",
+    estimatedCompletion: "Estimated Completion",
+    orderCreated: "Order Created",
+    orderCreatedDesc: "Your order has been successfully created",
+    paymentVerification: "Payment Verification",
+    paymentVerificationDesc: "Your star payment is being verified",
+    processing: "Processing",
+    processingDesc: "Your payment is being processed",
+    paymentSent: "Payment Sent",
+    paymentSentDesc: "USDT has been sent to your wallet"
+  },
+  ru: {
+    menuTitle: "Меню",
+    home: "Главная",
+    sell: "Продать",
+    history: "История",
+    referral: "Реферальная",
+    about: "О нас",
+    connectWallet: "Подключить кошелек",
+    enterManually: "Ввести адрес кошелька вручную",
+    paymentInfo: "Платежи будут отправлены на выбранный кошелек.",
+    editAddress: "Изменить адрес",
+    saveAddress: "Сохранить адрес",
+    sellStars: "Продать звезды",
+    currentRate: "Текущий курс",
+    updatedAgo: "Обновлено 8м назад",
+    amountToSell: "Количество звезд для продажи",
+    youWillReceive: "Вы получите (USDT)",
+    sellNow: "Продать сейчас",
+    howItWorks: "Как это работает:",
+    step1: "Введите количество звезд, которые вы хотите продать",
+    step2: "Нажмите \"Продать сейчас\", чтобы инициировать транзакцию",
+    step3: "Отправьте звезды через платеж Telegram",
+    step4: "После проверки, USDT будет отправлен на ваш кошелек в течение 21 дня",
+    recentTransactions: "Недавние транзакции",
+    noTransactions: "Пока нет транзакций",
+    walletNotConnected: "Кошелек не подключен",
+    walletConnectMessage: "Пожалуйста, подключите кошелек или введите адрес кошелька вручную, чтобы продолжить.",
+    missingWalletAddress: "Отсутствует адрес кошелька",
+    enterValidWallet: "Пожалуйста, введите действительный адрес кошелька, чтобы продолжить.",
+    paymentInitiated: "Платеж инициирован!",
+    completePayment: "Пожалуйста, завершите платеж в Telegram.",
+    paymentSuccessful: "Платеж выполнен успешно!",
+    paymentProcessed: "Ваш платеж был успешно обработан.",
+    paymentFailed: "Ошибка платежа",
+    paymentNotSuccessful: "Ваш платеж не был успешным. Пожалуйста, попробуйте снова.",
+    paymentLinkMissing: "Ссылка на оплату отсутствует",
+    paymentLinkNotGenerated: "Ссылка на оплату не была сгенерирована. Пожалуйста, попробуйте снова.",
+    orderFailed: "Ошибка заказа",
+    orderError: "При размещении вашего заказа произошла ошибка. Пожалуйста, попробуйте снова.",
+    transactionDetails: "Детали транзакции",
+    transactionID: "ID транзакции:",
+    amount: "Количество",
+    toBeReceived: "К получению",
+    currentStatus: "Текущий статус",
+    estimatedCompletion: "Ожидаемая дата завершения",
+    orderCreated: "Заказ создан",
+    orderCreatedDesc: "Ваш заказ был успешно создан",
+    paymentVerification: "Проверка платежа",
+    paymentVerificationDesc: "Ваш платеж звездами проверяется",
+    processing: "Обработка",
+    processingDesc: "Ваш платеж обрабатывается",
+    paymentSent: "Платеж отправлен",
+    paymentSentDesc: "USDT был отправлен на ваш кошелек"
+  }
+};
+
+// Function to update all texts based on current language
+function updateLanguageTexts() {
+  const texts = translations[currentLanguage];
+  
+  // Update menu items
+  document.querySelector('.side-menu .text-xl').textContent = texts.menuTitle;
+  const menuItems = document.querySelectorAll('.menu-item');
+  menuItems[0].childNodes[2].textContent = texts.home;
+  menuItems[1].childNodes[2].textContent = texts.sell;
+  menuItems[2].childNodes[2].textContent = texts.history;
+  menuItems[3].childNodes[2].textContent = texts.referral;
+  menuItems[4].childNodes[2].textContent = texts.about;
+  
+  // Update wallet section
+  if (!isWalletConnected) {
+    connectWalletButton.textContent = texts.connectWallet;
+  }
+  
+  document.querySelector('label[for="manualWalletToggle"]').textContent = texts.enterManually;
+  document.querySelector('.wallet-status p').textContent = texts.paymentInfo;
+  
+  // Update edit button text if it exists
+  const editButton = document.getElementById('editWalletBtn');
+  if (editButton) {
+    editButton.textContent = texts.editAddress;
+  }
+  
+  // Update sell stars section
+  document.querySelector('h2.text-xl').textContent = texts.sellStars;
+  document.querySelector('.rate-info .text-sm').textContent = texts.currentRate;
+  document.querySelector('.info-badge').textContent = texts.updatedAgo;
+  document.querySelector('label.block.text-sm').textContent = texts.amountToSell;
+  document.querySelectorAll('label.block.text-sm')[1].textContent = texts.youWillReceive;
+  sellStarsBtn.textContent = texts.sellNow;
+  
+  // Update how it works section
+  document.querySelector('.font-medium.text-blue-800').textContent = texts.howItWorks;
+  const steps = document.querySelectorAll('.list-decimal li');
+  steps[0].textContent = texts.step1;
+  steps[1].textContent = texts.step2;
+  steps[2].textContent = texts.step3;
+  steps[3].textContent = texts.step4;
+  
+  // Update transactions section
+  document.querySelector('.transaction-history h3').textContent = texts.recentTransactions;
+  
+  // Check if no transactions message exists and update it
+  const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
+  if (noTransactionsEl) {
+    noTransactionsEl.textContent = texts.noTransactions;
+  }
+}
+
+// Wallet address persistence
+function setupWalletAddressMemory() {
+  // Create edit button for manual wallet address
+  const manualWalletContainer = document.getElementById('manualWalletInput');
+  const editContainer = document.createElement('div');
+  editContainer.className = 'flex items-center justify-between mt-2';
+  
+  const editButton = document.createElement('button');
+  editButton.id = 'editWalletBtn';
+  editButton.className = 'text-sm text-indigo-600 font-medium';
+  editButton.textContent = translations[currentLanguage].editAddress;
+  editButton.style.display = 'none';
+  
+  // Save button
+  const saveButton = document.createElement('button');
+  saveButton.id = 'saveWalletBtn';
+  saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
+  saveButton.textContent = translations[currentLanguage].saveAddress;
+  
+  editContainer.appendChild(editButton);
+  editContainer.appendChild(saveButton);
+  manualWalletContainer.appendChild(editContainer);
+  
+  // Load saved address if it exists
+  const savedAddress = localStorage.getItem('userWalletAddress');
+  if (savedAddress) {
+    manualWalletAddress.value = savedAddress;
+    currentWalletAddress = savedAddress;
+    editButton.style.display = 'block';
+    manualWalletAddress.disabled = true;
+  }
+  
+  // Save button handler
+  saveButton.addEventListener('click', () => {
+    const address = manualWalletAddress.value.trim();
+    if (address) {
+      localStorage.setItem('userWalletAddress', address);
+      currentWalletAddress = address;
+      manualWalletAddress.disabled = true;
+      editButton.style.display = 'block';
+      Swal.fire({
+        icon: 'success',
+        title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
+        text: currentLanguage === 'en' ? 
+          'Your wallet address has been saved for future use.' : 
+          'Ваш адрес кошелька был сохранен для будущего использования.',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }
+  });
+  
+  // Edit button handler
+  editButton.addEventListener('click', () => {
+    manualWalletAddress.disabled = false;
+    manualWalletAddress.focus();
+  });
+  
+  // Update manual toggle behavior
+  manualWalletToggle.addEventListener('change', () => {
+    if (manualWalletToggle.checked) {
+      manualWalletInput.classList.remove('hidden');
+      connectWalletButton.disabled = true;
+      connectWalletButton.classList.add('opacity-50');
+      if (savedAddress) {
+        currentWalletAddress = savedAddress;
+      }
+    } else {
+      manualWalletInput.classList.add('hidden');
+      connectWalletButton.disabled = false;
+      connectWalletButton.classList.remove('opacity-50');
+    }
+  });
+  
+  // Auto-check the manual toggle if there's a saved address and no wallet connected
+  if (savedAddress && !isWalletConnected) {
+    manualWalletToggle.checked = true;
+    manualWalletInput.classList.remove('hidden');
+    connectWalletButton.disabled = true;
+    connectWalletButton.classList.add('opacity-50');
+  }
+}
+
+// Initialize both features
+document.addEventListener('DOMContentLoaded', () => {
+  // Check for language in localStorage first
+  currentLanguage = localStorage.getItem('appLanguage') || 'en';
+  setupWalletAddressMemory();
+  updateLanguageTexts();
+});
+
+// Modify error messages to use translations
+sellStarsBtn.addEventListener('click', () => {
+    if (!isWalletConnected && !manualWalletToggle.checked) {
+        Swal.fire({
+            icon: 'error',
+            title: translations[currentLanguage].walletNotConnected,
+            text: translations[currentLanguage].walletConnectMessage
+        });
+        return;
+    }
+    
+    if (manualWalletToggle.checked && !manualWalletAddress.value.trim()) {
+        Swal.fire({
+            icon: 'error',
+            title: translations[currentLanguage].missingWalletAddress,
+            text: translations[currentLanguage].enterValidWallet
+        });
+        return;
+    }
+    
+    document.getElementById('modalStarsAmount').textContent = starsInput.value;
+    document.getElementById('modalTonAmount').textContent = calculateTonAmount();
+    paymentModal.classList.remove('hidden');
+    paymentModal.classList.add('flex');
+});
+        
+    
 
 const connectWalletButton = document.getElementById('connectWallet');
 const manualWalletToggle = document.getElementById('manualWalletToggle');
