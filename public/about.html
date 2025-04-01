@@ -217,12 +217,12 @@
             </div>
 
             <div class="bg-gray-50 rounded-xl p-6 mb-8">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">Get in Touch</h2>
-                <p class="text-gray-600 mb-4">Have questions or need support? Our team is here to help! Use the /help command in the chat to get assistance.</p>
-                <button id="contactSupport" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
-                    Contact Support
-                </button>
-            </div>
+    <h2 class="text-xl font-bold text-gray-800 mb-4">Get in Touch</h2>
+    <p class="text-gray-600 mb-4">Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.</p>
+    <button id="contactSupport" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
+        Contact Support
+    </button>
+</div>
         </div>
 
         <div class="footer">
@@ -243,18 +243,11 @@
                 toggleMenu();
             });
         });
-// Add functionality to the "Contact Support" button
 const contactSupportButton = document.getElementById('contactSupport');
-contactSupportButton.addEventListener('click', () => {
-    // Replace 'your_support_bot' with your bot's username
-    const botUsername = 'TgStarStore_bot';
-    
-    // Create a deep link to open the bot and send the /help command
-    const deepLink = `https://t.me/${botUsername}?start=/help`;
-    
-    // Open the deep link in a new tab
-    window.open(deepLink, '_blank');
-});
+    contactSupportButton.addEventListener('click', () => {
+        // Navigate to the contact page instead of opening Telegram directly
+        window.location.href = 'contact.html';
+    });
     </script>
 </body>
 </html>
