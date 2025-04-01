@@ -516,7 +516,7 @@
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
-Telegram.WebApp.ready();
+
 
 // Language handling
 let currentLanguage = localStorage.getItem('appLanguage') || 'en';
@@ -812,7 +812,7 @@ sellStarsBtn.addEventListener('click', () => {
 });
         
     
-
+Telegram.WebApp.ready();
 const connectWalletButton = document.getElementById('connectWallet');
 const manualWalletToggle = document.getElementById('manualWalletToggle');
 const manualWalletInput = document.getElementById('manualWalletInput');
