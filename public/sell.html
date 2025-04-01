@@ -511,25 +511,35 @@
         </div>
     </div>
 </div>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script>
-
-
-// Language handling
+<script>
+// Global variables
+let isWalletConnected = false;
+let currentWalletAddress = '';
 let currentLanguage = localStorage.getItem('appLanguage') || 'en';
 
-// Listen for language changes from index page
-window.addEventListener('storage', function(e) {
-  if (e.key === 'appLanguage') {
-    currentLanguage = e.newValue || 'en';
-    updateLanguageTexts();
-  }
+// DOM elements
+const connectWalletButton = document.getElementById('connectWallet');
+const manualWalletToggle = document.getElementById('manualWalletToggle');
+const manualWalletInput = document.getElementById('manualWalletInput');
+const manualWalletAddress = document.getElementById('manualWalletAddress');
+const sellStarsBtn = document.getElementById('sellStarsBtn');
+const paymentModal = document.getElementById('paymentModal');
+const cancelPaymentBtn = document.getElementById('cancelPaymentBtn');
+const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
+const starsInput = document.getElementById('starsAmount');
+const tonAmountDisplay = document.getElementById('tonAmount');
+const rate = 0.009;
+
+// TonConnect UI setup
+const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+    manifestUrl: 'https://tg-star-store.glitch.me/tonconnect-manifest.json'
 });
 
-// Translations
+// Translations object
 const translations = {
   en: {
     menuTitle: "Menu",
@@ -640,6 +650,14 @@ const translations = {
     paymentSentDesc: "USDT был отправлен на ваш кошелек"
   }
 };
+
+// Listen for language changes from index page
+window.addEventListener('storage', function(e) {
+  if (e.key === 'appLanguage') {
+    currentLanguage = e.newValue || 'en';
+    updateLanguageTexts();
+  }
+});
 
 // Function to update all texts based on current language
 function updateLanguageTexts() {
@@ -777,54 +795,6 @@ function setupWalletAddressMemory() {
   }
 }
 
-// Initialize both features
-document.addEventListener('DOMContentLoaded', () => {
-  // Check for language in localStorage first
-  currentLanguage = localStorage.getItem('appLanguage') || 'en';
-  setupWalletAddressMemory();
-  updateLanguageTexts();
-});
-
-// Modify error messages to use translations
-sellStarsBtn.addEventListener('click', () => {
-    if (!isWalletConnected && !manualWalletToggle.checked) {
-        Swal.fire({
-            icon: 'error',
-            title: translations[currentLanguage].walletNotConnected,
-            text: translations[currentLanguage].walletConnectMessage
-        });
-        return;
-    }
-    
-    if (manualWalletToggle.checked && !manualWalletAddress.value.trim()) {
-        Swal.fire({
-            icon: 'error',
-            title: translations[currentLanguage].missingWalletAddress,
-            text: translations[currentLanguage].enterValidWallet
-        });
-        return;
-    }
-    
-    document.getElementById('modalStarsAmount').textContent = starsInput.value;
-    document.getElementById('modalTonAmount').textContent = calculateTonAmount();
-    paymentModal.classList.remove('hidden');
-    paymentModal.classList.add('flex');
-});
-        
-    
-Telegram.WebApp.ready();
-const connectWalletButton = document.getElementById('connectWallet');
-const manualWalletToggle = document.getElementById('manualWalletToggle');
-const manualWalletInput = document.getElementById('manualWalletInput');
-const manualWalletAddress = document.getElementById('manualWalletAddress');
-let isWalletConnected = false;
-let currentWalletAddress = '';
-
-// TonConnect UI setup
-const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-    manifestUrl: 'https://tg-star-store.glitch.me/tonconnect-manifest.json'
-});
-
 // Toggle between connected wallet and manual input
 manualWalletToggle.addEventListener('change', () => {
     if (manualWalletToggle.checked) {
@@ -889,10 +859,6 @@ document.querySelectorAll('.menu-item').forEach(item => {
 });
 
 // Stars amount handling
-const starsInput = document.getElementById('starsAmount');
-const tonAmountDisplay = document.getElementById('tonAmount');
-const rate = 0.009;
-
 function incrementStars() {
     const currentValue = parseInt(starsInput.value) || 0;
     starsInput.value = Math.min(currentValue + 5, 1000);
@@ -915,17 +881,12 @@ function calculateTonAmount() {
 calculateTonAmount();
 
 // Payment modal handling
-const sellStarsBtn = document.getElementById('sellStarsBtn');
-const paymentModal = document.getElementById('paymentModal');
-const cancelPaymentBtn = document.getElementById('cancelPaymentBtn');
-const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
-
 sellStarsBtn.addEventListener('click', () => {
     if (!isWalletConnected && !manualWalletToggle.checked) {
         Swal.fire({
             icon: 'error',
-            title: 'Wallet Not Connected',
-            text: 'Please connect your wallet or enter a wallet address manually to proceed.'
+            title: translations[currentLanguage].walletNotConnected,
+            text: translations[currentLanguage].walletConnectMessage
         });
         return;
     }
@@ -933,8 +894,8 @@ sellStarsBtn.addEventListener('click', () => {
     if (manualWalletToggle.checked && !manualWalletAddress.value.trim()) {
         Swal.fire({
             icon: 'error',
-            title: 'Missing Wallet Address',
-            text: 'Please enter a valid wallet address to proceed.'
+            title: translations[currentLanguage].missingWalletAddress,
+            text: translations[currentLanguage].enterValidWallet
         });
         return;
     }
@@ -968,8 +929,8 @@ confirmPaymentBtn.addEventListener('click', async () => {
         if (response.data.success) {
             Swal.fire({
                 icon: 'success',
-                title: 'Payment Initiated!',
-                text: 'Please complete the payment in Telegram.'
+                title: translations[currentLanguage].paymentInitiated,
+                text: translations[currentLanguage].completePayment
             });
 
             if (response.data.paymentLink) {
@@ -977,38 +938,38 @@ confirmPaymentBtn.addEventListener('click', async () => {
                     if (status === 'paid') {
                         Swal.fire({
                             icon: 'success',
-                            title: 'Payment Successful!',
-                            text: 'Your payment has been successfully processed.'
+                            title: translations[currentLanguage].paymentSuccessful,
+                            text: translations[currentLanguage].paymentProcessed
                         });
                         fetchTransactions();
                     } else {
                         Swal.fire({
                             icon: 'error',
-                            title: 'Payment Failed',
-                            text: 'Your payment was not successful. Please try again.'
+                            title: translations[currentLanguage].paymentFailed,
+                            text: translations[currentLanguage].paymentNotSuccessful
                         });
                     }
                 });
             } else {
                 Swal.fire({
                     icon: 'error',
-                    title: 'Payment Link Missing',
-                    text: 'The payment link was not generated. Please try again.'
+                    title: translations[currentLanguage].paymentLinkMissing,
+                    text: translations[currentLanguage].paymentLinkNotGenerated
                 });
             }
         } else {
             Swal.fire({
                 icon: 'error',
-                title: 'Order Failed',
-                text: 'There was an error placing your order. Please try again.'
+                title: translations[currentLanguage].orderFailed,
+                text: translations[currentLanguage].orderError
             });
         }
     } catch (error) {
         console.error('Error placing order:', error);
         Swal.fire({
             icon: 'error',
-            title: 'Order Failed',
-            text: 'There was an error placing your order. Please try again.'
+            title: translations[currentLanguage].orderFailed,
+            text: translations[currentLanguage].orderError
         });
     }
 });
@@ -1023,7 +984,7 @@ function createTransactionDetailsPanel() {
         <div id="transactionDetailsPanel" class="transaction-details-panel">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold">Transaction Details</h3>
+                    <h3 class="text-xl font-bold">${translations[currentLanguage].transactionDetails}</h3>
                     <button class="close-details" id="closeTransactionDetails">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1033,22 +994,22 @@ function createTransactionDetailsPanel() {
                 <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        <div class="text-sm text-gray-600">Amount</div>
+                        <div class="text-sm text-gray-600">${translations[currentLanguage].amount}</div>
                         <div id="transactionAmount" class="font-bold text-xl"></div>
                     </div>
                     <div class="text-right">
-                        <div class="text-sm text-gray-600">To be received</div>
+                        <div class="text-sm text-gray-600">${translations[currentLanguage].toBeReceived}</div>
                         <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
                     </div>
                 </div>
                 
                 <div class="mb-4">
-                    <div class="text-sm text-gray-600 mb-1">Current Status</div>
+                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].currentStatus}</div>
                     <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
                 </div>
                 
                 <div class="mb-4">
-                    <div class="text-sm text-gray-600 mb-1">Estimated Completion</div>
+                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].estimatedCompletion}</div>
                     <div id="transactionEstimatedCompletion" class="font-medium"></div>
                 </div>
                 
@@ -1073,9 +1034,6 @@ function createTransactionDetailsPanel() {
     });
 }
 
-// Setup transaction details panel on load
-document.addEventListener('DOMContentLoaded', createTransactionDetailsPanel);
-
 // Open transaction details
 function openTransactionDetails(transaction) {
     const overlay = document.getElementById('transactionDetailsOverlay');
@@ -1083,7 +1041,7 @@ function openTransactionDetails(transaction) {
     const timeline = document.getElementById('transactionTimeline');
     
     // Set transaction details
-    document.getElementById('transactionId').textContent = `Transaction ID: ${transaction.id || 'N/A'}`;
+    document.getElementById('transactionId').textContent = `${translations[currentLanguage].transactionID} ${transaction.id || 'N/A'}`;
     document.getElementById('transactionAmount').textContent = `${transaction.stars} Stars`;
     document.getElementById('transactionValue').textContent = `${(transaction.stars * rate).toFixed(3)} USDT`;
     
@@ -1127,23 +1085,23 @@ function openTransactionDetails(transaction) {
     timeline.innerHTML = '';
     
     // Step 1: Order Created
-    addTimelineStep(timeline, 1, 'Order Created', 'Your order has been successfully created', 
+    addTimelineStep(timeline, 1, translations[currentLanguage].orderCreated, translations[currentLanguage].orderCreatedDesc, 
         new Date(transaction.dateCreated).toLocaleString(), 'completed');
     
     // Step 2: Payment Verification
-    addTimelineStep(timeline, 2, 'Payment Verification', 'Your star payment is being verified', 
+    addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
         calculateStepDate(transaction.dateCreated, 1).toLocaleString(), 
         transaction.status !== 'declined' ? 'completed' : 'active');
     
     // Step 3: Processing
     const processingStatus = transaction.status === 'completed' ? 'completed' : 
                            transaction.status === 'declined' ? 'future' : 'active';
-    addTimelineStep(timeline, 3, 'Processing', 'Your payment is being processed', 
+    addTimelineStep(timeline, 3, translations[currentLanguage].processing, translations[currentLanguage].processingDesc, 
         calculateStepDate(transaction.dateCreated, 2).toLocaleString(), processingStatus);
     
     // Step 4: Payment Sent
     const completionStatus = transaction.status === 'completed' ? 'completed' : 'future';
-    addTimelineStep(timeline, 4, 'Payment Sent', 'USDT has been sent to your wallet', 
+    addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
         transaction.status === 'completed' ? new Date(transaction.dateCompleted).toLocaleString() : 
         completionDate.toLocaleString(), completionStatus);
     
@@ -1255,7 +1213,7 @@ const fetchTransactions = async () => {
         } else {
             const noTransactions = document.createElement('div');
             noTransactions.className = 'text-gray-500 text-center py-4 text-sm';
-            noTransactions.textContent = 'No transactions yet';
+            noTransactions.textContent = translations[currentLanguage].noTransactions;
             transactionsList.appendChild(noTransactions);
         }
     } catch (error) {
@@ -1263,17 +1221,25 @@ const fetchTransactions = async () => {
     }
 };
 
-// Initial fetch and setup refresh interval
-fetchTransactions();
-setInterval(fetchTransactions, 5000);
+// Initialize the app
+document.addEventListener('DOMContentLoaded', () => {
+    // Check for language in localStorage first
+    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    setupWalletAddressMemory();
+    updateLanguageTexts();
+    createTransactionDetailsPanel();
+    fetchTransactions();
+    
+    // Set up refresh interval for transactions
+    setInterval(fetchTransactions, 5000);
+    
+    // Set up Telegram WebApp
+    Telegram.WebApp.onEvent('viewportChanged', () => {
+        Telegram.WebApp.expand();
+    });
 
-// Set up Telegram WebApp
-Telegram.WebApp.onEvent('viewportChanged', () => {
     Telegram.WebApp.expand();
 });
-
-Telegram.WebApp.expand();
-  </script>
-    
+</script>
 </body>
 </html>
