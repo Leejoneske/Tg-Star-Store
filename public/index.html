@@ -369,7 +369,6 @@
 <script>
 const translations = {
     en: {
-        appName: "StarStore",
         connectWallet: "Connect Wallet",
         walletNotConnected: "Please connect your wallet to proceed.",
         invalidAmount: "The payment amount must be a valid number greater than 0.",
@@ -403,7 +402,6 @@ const translations = {
         terms: "Terms & Conditions"
     },
     ru: {
-        appName: "СтарСтор",
         connectWallet: "Подключить кошелек",
         walletNotConnected: "Пожалуйста, подключите кошелек, чтобы продолжить.",
         invalidAmount: "Сумма платежа должна быть действительным числом больше 0.",
@@ -438,123 +436,171 @@ const translations = {
     }
 };
 
-// Shared state between pages
-let tonConnectUI;
-let currentLanguage = localStorage.getItem('appLanguage') || 'en';
-let walletConnected = false;
-let currentWalletAddress = '';
 
-document.addEventListener('DOMContentLoaded', function() {
-    initTelegramApp();
-    initMenu();
-    initWalletConnection();
-    initLanguageToggle();
-    updateLanguage();
-    initBuyButtons();
-    setTimeout(fetchNotifications, 500);
+    // Global variables
+let tonConnectUI = null;
+let walletConnected = false;
+let currentWalletAddress = null;
+let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+let userData = null;
+let cachedNotifications = null;
+
+// Translations
+const translations = {
+    en: {
+        connectWallet: 'Connect Wallet',
+        walletNotConnected: 'Please connect your wallet first',
+        invalidAmount: 'Invalid amount',
+        processing: 'Processing',
+        preparingTransaction: 'Preparing your transaction...',
+        orderCreated: 'Order created successfully!',
+        orderFailed: 'Failed to create order',
+        transactionFailed: 'Transaction failed',
+        paymentFailed: 'Payment failed',
+        error: 'Error',
+        success: 'Success',
+        ok: 'OK',
+        noNotifications: 'No notifications'
+        // Add other translations as needed
+    },
+    ru: {
+        connectWallet: 'Подключить кошелек',
+        walletNotConnected: 'Пожалуйста, сначала подключите кошелек',
+        invalidAmount: 'Неверная сумма',
+        processing: 'Обработка',
+        preparingTransaction: 'Подготовка транзакции...',
+        orderCreated: 'Заказ успешно создан!',
+        orderFailed: 'Не удалось создать заказ',
+        transactionFailed: 'Транзакция не удалась',
+        paymentFailed: 'Оплата не удалась',
+        error: 'Ошибка',
+        success: 'Успех',
+        ok: 'ОК',
+        noNotifications: 'Нет уведомлений'
+        // Add other translations as needed
+    }
+};
+
+// Initialize app when DOM is loaded
+document.addEventListener('DOMContentLoaded', async function() {
+    // Initialize user data cache
+    initUserDataCache();
     
-    // Listen for language changes from other tabs/windows
-    window.addEventListener('storage', function(event) {
-        if (event.key === 'appLanguage') {
-            currentLanguage = event.newValue || 'en';
-            updateLanguage();
-            if (tonConnectUI) {
-                tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
-            }
-        }
-    });
+    // Initialize wallet connection
+    await initWalletConnection();
+    
+    // Initialize UI components
+    initMenu();
+    initLanguageToggle();
+    initBuyButtons();
+    
+    // Fetch notifications (will use cache if available)
+    await fetchNotifications();
+    
+    // Listen for storage events (for cross-tab synchronization)
+    window.addEventListener('storage', handleStorageEvent);
 });
 
-function initTelegramApp() {
-    if (window.Telegram && window.Telegram.WebApp) {
+// Initialize user data cache
+function initUserDataCache() {
+    // Try to get cached user data from localStorage
+    const cachedUserData = localStorage.getItem('userData');
+    
+    if (cachedUserData) {
         try {
-            Telegram.WebApp.ready();
-            const user = Telegram.WebApp.initDataUnsafe.user;
-            
-            // Set language based on Telegram user preference if not already set
-            if (user?.language_code === 'ru' && currentLanguage !== 'ru') {
-                currentLanguage = 'ru';
-                localStorage.setItem('appLanguage', 'ru');
-                updateLanguage();
-            }
-            
-            updateUserInterface(user);
+            userData = JSON.parse(cachedUserData);
+            applyUserData();
         } catch (error) {
-            console.error('Error initializing Telegram WebApp:', error);
+            console.error('Error parsing cached user data:', error);
+            fetchAndCacheUserData();
         }
     } else {
-        console.log('Telegram WebApp not detected, running in standalone mode');
+        fetchAndCacheUserData();
     }
 }
 
-function updateUserInterface(user) {
-    const profilePic = document.getElementById('profilePicture');
-    const usernameElement = document.getElementById('username');
-    
-    if (user) {
-        if (user.photo_url) {
-            profilePic.src = user.photo_url;
+// Fetch user data from Telegram WebApp and cache it
+function fetchAndCacheUserData() {
+    if (Telegram.WebApp?.initDataUnsafe?.user) {
+        userData = Telegram.WebApp.initDataUnsafe.user;
+        
+        // Cache the user data
+        try {
+            localStorage.setItem('userData', JSON.stringify(userData));
+        } catch (error) {
+            console.error('Error caching user data:', error);
         }
         
-        if (user.username) {
-            usernameElement.textContent = `@${user.username}`;
-        } else if (user.first_name) {
-            usernameElement.textContent = user.first_name;
-        }
+        applyUserData();
     }
 }
 
-function initWalletConnection() {
+// Apply user data to UI elements
+function applyUserData() {
+    if (!userData) return;
+    
+    // Example: Update profile elements with user data
+    const userNameElement = document.getElementById('userName');
+    if (userNameElement) {
+        userNameElement.textContent = userData.username || userData.first_name || 'User';
+    }
+    
+    const userPhotoElement = document.getElementById('userPhoto');
+    if (userPhotoElement && userData.photo_url) {
+        userPhotoElement.src = userData.photo_url;
+        userPhotoElement.style.display = 'block';
+    }
+}
+
+// Initialize wallet connection
+async function initWalletConnection() {
     try {
-        tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-            manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json',
+        // Prevent multiple initializations
+        if (tonConnectUI) return;
+        
+        const TonConnectUI = window.TonConnectUI;
+        if (!TonConnectUI) {
+            console.error('TonConnectUI not found');
+            return;
+        }
+        
+        tonConnectUI = new TonConnectUI({
+            manifestUrl: '/tonconnect-manifest.json',
             language: currentLanguage === 'ru' ? 'ru' : 'en'
         });
         
-        const connectWalletButton = document.getElementById('connectWallet');
-        
-        tonConnectUI.onStatusChange(wallet => {
-            if (wallet) {
-                currentWalletAddress = wallet.account.address;
-                const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
-                connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
-                connectWalletButton.classList.add('wallet-connected');
-                walletConnected = true;
-                
-                // Save wallet connection state
-                localStorage.setItem('walletConnected', 'true');
-                localStorage.setItem('walletAddress', currentWalletAddress);
-            } else {
-                connectWalletButton.textContent = translations[currentLanguage].connectWallet;
-                connectWalletButton.classList.remove('wallet-connected');
-                walletConnected = false;
-                currentWalletAddress = '';
-                
-                // Clear wallet connection state
-                localStorage.removeItem('walletConnected');
-                localStorage.removeItem('walletAddress');
-            }
-        });
-        
-        // Check for existing wallet connection
-        const savedWalletConnected = localStorage.getItem('walletConnected') === 'true';
-        const savedWalletAddress = localStorage.getItem('walletAddress');
-        
-        if (savedWalletConnected && savedWalletAddress) {
-            currentWalletAddress = savedWalletAddress;
-            const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
-            connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
-            connectWalletButton.classList.add('wallet-connected');
+        // If wallet was connected before page reload, we need to restore the state
+        const activeWallet = await tonConnectUI.getWalletInfo();
+        if (activeWallet) {
             walletConnected = true;
+            currentWalletAddress = activeWallet.account.address;
         }
         
-        connectWalletButton.addEventListener('click', () => {
-            if (walletConnected) {
-                tonConnectUI.disconnect();
+        // Listen for wallet connection changes
+        tonConnectUI.onStatusChange(wallet => {
+            if (wallet) {
+                walletConnected = true;
+                currentWalletAddress = wallet.account.address;
+                updateWalletButton();
             } else {
-                tonConnectUI.connectWallet();
+                walletConnected = false;
+                currentWalletAddress = null;
+                updateWalletButton();
             }
         });
+        
+        // Update wallet button UI initially
+        updateWalletButton();
+        
+        // Add click event listener to wallet button
+        const connectWalletButton = document.getElementById('connectWallet');
+        if (connectWalletButton) {
+            connectWalletButton.addEventListener('click', () => {
+                if (!walletConnected) {
+                    tonConnectUI.connectWallet();
+                }
+            });
+        }
     } catch (error) {
         console.error('Error initializing wallet connection:', error);
         const connectWalletButton = document.getElementById('connectWallet');
@@ -565,6 +611,22 @@ function initWalletConnection() {
     }
 }
 
+// Update wallet button appearance
+function updateWalletButton() {
+    const connectWalletButton = document.getElementById('connectWallet');
+    if (!connectWalletButton) return;
+    
+    if (walletConnected && currentWalletAddress) {
+        const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
+        connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
+        connectWalletButton.classList.add('wallet-connected');
+    } else {
+        connectWalletButton.textContent = translations[currentLanguage].connectWallet;
+        connectWalletButton.classList.remove('wallet-connected');
+    }
+}
+
+// Initialize menu functionality
 function initMenu() {
     const menuButton = document.getElementById('menuButton');
     const menuOverlay = document.getElementById('menuOverlay');
@@ -585,6 +647,7 @@ function initMenu() {
     });
 }
 
+// Initialize language toggle functionality
 function initLanguageToggle() {
     const languageToggle = document.getElementById('languageToggle');
     if (!languageToggle) return;
@@ -593,35 +656,24 @@ function initLanguageToggle() {
     languageToggle.textContent = currentLanguage === 'en' ? 'RU' : 'EN';
     
     languageToggle.addEventListener('click', () => {
+        // Toggle language
         currentLanguage = currentLanguage === 'en' ? 'ru' : 'en';
-        updateLanguage();
         
-        // Save language preference to localStorage and sync across tabs
+        // Save language preference to localStorage
         localStorage.setItem('appLanguage', currentLanguage);
         
-        // Dispatch storage event to sync language across tabs
-        const storageEvent = new StorageEvent('storage', {
-            key: 'appLanguage',
-            newValue: currentLanguage
-        });
-        window.dispatchEvent(storageEvent);
+        // Update UI immediately for better UX before reload
+        updateLanguage();
         
-        if (tonConnectUI) {
-            tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
-        }
-        
-        // Update wallet button text
-        const connectWalletButton = document.getElementById('connectWallet');
-        if (walletConnected && currentWalletAddress) {
-            const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
-            connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
-            connectWalletButton.classList.add('wallet-connected');
-        } else {
-            connectWalletButton.textContent = translations[currentLanguage].connectWallet;
-        }
+        // Instead of just updating UI, reload the page for complete refresh
+        // This ensures all components are properly reinitialized with new language
+        setTimeout(() => {
+            window.location.reload();
+        }, 200); // Short delay for better UX
     });
 }
 
+// Update UI language
 function updateLanguage() {
     const languageToggle = document.getElementById('languageToggle');
     if (languageToggle) {
@@ -634,8 +686,14 @@ function updateLanguage() {
             element.textContent = translations[currentLanguage][key];
         }
     });
+    
+    // Update TonConnect UI language if available
+    if (tonConnectUI) {
+        tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
+    }
 }
 
+// Initialize buy buttons
 function initBuyButtons() {
     document.querySelectorAll('.buy-button').forEach(button => {
         button.addEventListener('click', function() {
@@ -653,6 +711,7 @@ function initBuyButtons() {
     });
 }
 
+// Handle purchase transaction
 async function handlePurchase(item) {
     if (!tonConnectUI || !walletConnected) {
         showErrorMessage(translations[currentLanguage].walletNotConnected);
@@ -676,7 +735,8 @@ async function handlePurchase(item) {
         });
 
         try {
-            const tonToUsdtRate = await fetchCurrentRate() || 3.64;
+            // Get current TON to USDT exchange rate
+            const tonToUsdtRate = await fetchCurrentRate() || 3.64; // Fallback value
             const tonAmount = parsedAmount / tonToUsdtRate;
             const nanoTonAmount = Math.round(tonAmount * 1e9);
             
@@ -686,8 +746,9 @@ async function handlePurchase(item) {
                 throw new Error('Failed to get payment address from server');
             }
 
+            // Prepare transaction
             const transaction = {
-                validUntil: Math.floor(Date.now() / 1000) + 300,
+                validUntil: Math.floor(Date.now() / 1000) + 300, // Valid for 5 minutes
                 messages: [
                     {
                         address: walletResponse.data.walletAddress,
@@ -696,10 +757,14 @@ async function handlePurchase(item) {
                 ]
             };
             
+            // Send transaction
             const result = await tonConnectUI.sendTransaction(transaction);
             
             if (result) {
-                const user = Telegram.WebApp?.initDataUnsafe?.user;
+                // Get user data from cache if available
+                const user = userData || Telegram.WebApp?.initDataUnsafe?.user;
+                
+                // Prepare order data
                 const orderData = {
                     telegramId: user?.id,
                     username: user?.username || user?.first_name,
@@ -710,10 +775,18 @@ async function handlePurchase(item) {
                     transactionHash: result
                 };
                 
+                // Send order to backend
                 const response = await axios.post('/api/orders/create', orderData);
                 
                 if (response.data.success) {
                     showSuccessMessage(translations[currentLanguage].orderCreated);
+                    
+                    // Invalidate notifications cache to fetch fresh data
+                    localStorage.removeItem('notificationsCache');
+                    cachedNotifications = null;
+                    
+                    // Fetch new notifications
+                    await fetchNotifications();
                 } else {
                     showErrorMessage(response.data.error || translations[currentLanguage].orderFailed);
                 }
@@ -729,25 +802,68 @@ async function handlePurchase(item) {
     }
 }
 
+// Fetch current TON to USDT exchange rate
 async function fetchCurrentRate() {
     try {
+        // Try to get cached rate first
+        const cachedRate = localStorage.getItem('tonUsdtRate');
+        const cacheTime = localStorage.getItem('tonUsdtRateTime');
+        
+        // If cached rate exists and is less than 5 minutes old, use it
+        if (cachedRate && cacheTime && (Date.now() - parseInt(cacheTime)) < 300000) {
+            return parseFloat(cachedRate);
+        }
+        
+        // Otherwise fetch fresh rate
         const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
-        return response.data['the-open-network'].usd;
+        const rate = response.data['the-open-network'].usd;
+        
+        // Cache the rate
+        localStorage.setItem('tonUsdtRate', rate.toString());
+        localStorage.setItem('tonUsdtRateTime', Date.now().toString());
+        
+        return rate;
     } catch (error) {
         console.error('Error fetching exchange rate:', error);
         return null;
     }
 }
 
+// Fetch notifications with caching
 async function fetchNotifications() {
     const notificationsElement = document.getElementById('notifications');
     if (!notificationsElement) return;
     
+    // Try to use cached notifications first
     try {
-        const response = await axios.get('/api/notifications');
+        // Check if we have cached notifications in memory
+        if (!cachedNotifications) {
+            // Check if we have cached notifications in localStorage
+            const cachedData = localStorage.getItem('notificationsCache');
+            const cacheTime = localStorage.getItem('notificationsCacheTime');
+            
+            // If cache exists and is less than 5 minutes old, use it
+            if (cachedData && cacheTime && (Date.now() - parseInt(cacheTime)) < 300000) {
+                cachedNotifications = JSON.parse(cachedData);
+            } else {
+                // Fetch fresh notifications
+                const response = await axios.get('/api/notifications');
+                
+                if (response.data && response.data.notifications) {
+                    cachedNotifications = response.data.notifications;
+                    
+                    // Cache notifications
+                    localStorage.setItem('notificationsCache', JSON.stringify(cachedNotifications));
+                    localStorage.setItem('notificationsCacheTime', Date.now().toString());
+                } else {
+                    cachedNotifications = [];
+                }
+            }
+        }
         
-        if (response.data && response.data.notifications && response.data.notifications.length > 0) {
-            notificationsElement.innerHTML = response.data.notifications.map(notification => `
+        // Display notifications
+        if (cachedNotifications && cachedNotifications.length > 0) {
+            notificationsElement.innerHTML = cachedNotifications.map(notification => `
                 <div class="notification-item">
                     <p>${notification.message}</p>
                     <small>${notification.timestamp}</small>
@@ -762,6 +878,43 @@ async function fetchNotifications() {
     }
 }
 
+// Handle storage events for cross-tab synchronization
+function handleStorageEvent(event) {
+    if (event.key === 'appLanguage') {
+        currentLanguage = event.newValue || 'en';
+        
+        // Reload the page to apply language changes
+        window.location.reload();
+    } else if (event.key === 'userData' && event.newValue) {
+        try {
+            userData = JSON.parse(event.newValue);
+            applyUserData();
+        } catch (error) {
+            console.error('Error parsing user data from storage event:', error);
+        }
+    } else if (event.key === 'notificationsCache' && event.newValue) {
+        try {
+            cachedNotifications = JSON.parse(event.newValue);
+            const notificationsElement = document.getElementById('notifications');
+            if (notificationsElement) {
+                if (cachedNotifications && cachedNotifications.length > 0) {
+                    notificationsElement.innerHTML = cachedNotifications.map(notification => `
+                        <div class="notification-item">
+                            <p>${notification.message}</p>
+                            <small>${notification.timestamp}</small>
+                        </div>
+                    `).join('');
+                } else {
+                    notificationsElement.textContent = translations[currentLanguage].noNotifications;
+                }
+            }
+        } catch (error) {
+            console.error('Error parsing notifications from storage event:', error);
+        }
+    }
+}
+
+// Helper function to show error message
 function showErrorMessage(message) {
     Swal.fire({
         icon: 'error',
@@ -771,6 +924,7 @@ function showErrorMessage(message) {
     });
 }
 
+// Helper function to show success message
 function showSuccessMessage(message) {
     Swal.fire({
         icon: 'success',
@@ -778,7 +932,8 @@ function showSuccessMessage(message) {
         text: message,
         confirmButtonText: translations[currentLanguage].ok
     });
-}
+}    
+
 </script>
 </body>
 </html>
