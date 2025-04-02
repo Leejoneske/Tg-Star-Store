@@ -436,8 +436,7 @@ const translations = {
     }
 };
 
-
-    // Global variables
+// Global variables
 let tonConnectUI = null;
 let walletConnected = false;
 let currentWalletAddress = null;
@@ -482,12 +481,12 @@ const translations = {
 };
 
 // Initialize app when DOM is loaded
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', function() {
     // Initialize user data cache
     initUserDataCache();
     
-    // Initialize wallet connection
-    await initWalletConnection();
+    // Initialize wallet connection - maintaining your original initialization approach
+    initWalletConnection();
     
     // Initialize UI components
     initMenu();
@@ -495,7 +494,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     initBuyButtons();
     
     // Fetch notifications (will use cache if available)
-    await fetchNotifications();
+    fetchNotifications();
     
     // Listen for storage events (for cross-tab synchronization)
     window.addEventListener('storage', handleStorageEvent);
@@ -552,12 +551,9 @@ function applyUserData() {
     }
 }
 
-// Initialize wallet connection
-async function initWalletConnection() {
+// Initialize wallet connection - using your original initialization approach
+function initWalletConnection() {
     try {
-        // Prevent multiple initializations
-        if (tonConnectUI) return;
-        
         const TonConnectUI = window.TonConnectUI;
         if (!TonConnectUI) {
             console.error('TonConnectUI not found');
@@ -568,13 +564,6 @@ async function initWalletConnection() {
             manifestUrl: '/tonconnect-manifest.json',
             language: currentLanguage === 'ru' ? 'ru' : 'en'
         });
-        
-        // If wallet was connected before page reload, we need to restore the state
-        const activeWallet = await tonConnectUI.getWalletInfo();
-        if (activeWallet) {
-            walletConnected = true;
-            currentWalletAddress = activeWallet.account.address;
-        }
         
         // Listen for wallet connection changes
         tonConnectUI.onStatusChange(wallet => {
@@ -589,10 +578,7 @@ async function initWalletConnection() {
             }
         });
         
-        // Update wallet button UI initially
-        updateWalletButton();
-        
-        // Add click event listener to wallet button
+        // Connect wallet button event
         const connectWalletButton = document.getElementById('connectWallet');
         if (connectWalletButton) {
             connectWalletButton.addEventListener('click', () => {
@@ -662,14 +648,8 @@ function initLanguageToggle() {
         // Save language preference to localStorage
         localStorage.setItem('appLanguage', currentLanguage);
         
-        // Update UI immediately for better UX before reload
-        updateLanguage();
-        
-        // Instead of just updating UI, reload the page for complete refresh
-        // This ensures all components are properly reinitialized with new language
-        setTimeout(() => {
-            window.location.reload();
-        }, 200); // Short delay for better UX
+        // Reload the page to properly reinitialize everything with the new language
+        window.location.reload();
     });
 }
 
@@ -786,7 +766,7 @@ async function handlePurchase(item) {
                     cachedNotifications = null;
                     
                     // Fetch new notifications
-                    await fetchNotifications();
+                    fetchNotifications();
                 } else {
                     showErrorMessage(response.data.error || translations[currentLanguage].orderFailed);
                 }
@@ -802,7 +782,7 @@ async function handlePurchase(item) {
     }
 }
 
-// Fetch current TON to USDT exchange rate
+// Fetch current TON to USDT exchange rate with caching
 async function fetchCurrentRate() {
     try {
         // Try to get cached rate first
@@ -881,10 +861,9 @@ async function fetchNotifications() {
 // Handle storage events for cross-tab synchronization
 function handleStorageEvent(event) {
     if (event.key === 'appLanguage') {
+        // Don't reload here since it's handled at the source
         currentLanguage = event.newValue || 'en';
-        
-        // Reload the page to apply language changes
-        window.location.reload();
+        updateLanguage();
     } else if (event.key === 'userData' && event.newValue) {
         try {
             userData = JSON.parse(event.newValue);
@@ -932,7 +911,8 @@ function showSuccessMessage(message) {
         text: message,
         confirmButtonText: translations[currentLanguage].ok
     });
-}    
+}                                
+                    
 
 </script>
 </body>
