@@ -839,7 +839,7 @@ app.get('/api/referrals/:userId', async (req, res) => {
                     id: ref._id.toString(),
                     name: user ? user.username : ref.referredUserId,
                     status: ref.status,
-                    daysAgo: Math.floor((new Date() - new Date(ref.dateReferred)) / (1000 * 60 * 60 * 24)
+                    daysAgo: Math.floor((new Date() - new Date(ref.dateReferred)) / (1000 * 60 * 60 * 24)) // Fixed missing parenthesis
                 };
             })
         );
