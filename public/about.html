@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -93,6 +93,28 @@
         .footer a:hover {
             text-decoration: underline;
         }
+        .language-selector {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+        }
+        .language-btn {
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        .language-btn.active {
+            background: #4f46e5;
+            color: white;
+        }
+        .language-btn:not(.active) {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
     </style>
 </head>
 <body>
@@ -100,27 +122,27 @@
         <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
         <div class="side-menu" id="sideMenu">
             <div class="p-6">
-                <div class="text-xl font-bold mb-8">Menu</div>
+                <div class="text-xl font-bold mb-8" data-lang="menu">Menu</div>
                 <nav class="space-y-2">
                     <a href="index.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
-                        Home
+                        <span data-lang="home">Home</span>
                     </a>
                     <a href="sell.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
-                        Sell
+                        <span data-lang="sell">Sell</span>
                     </a>
                     <a href="history.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
-                        History
+                        <span data-lang="history">History</span>
                     </a>
                     <a href="referral.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
-                        Referral
+                        <span data-lang="referral">Referral</span>
                     </a>
                     <a href="about.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
-                        About
+                        <span data-lang="about">About</span>
                     </a>
                 </nav>
             </div>
@@ -133,22 +155,27 @@
                 </svg>
             </button>
             <div class="logo-header">StarStore</div>
-            <div class="w-6"></div>
+            <div class="language-selector">
+                <div class="language-btn" data-language="en" onclick="changeLanguage('en')">EN</div>
+                <div class="language-btn" data-language="ru" onclick="changeLanguage('ru')">RU</div>
+            </div>
         </div>
 
         <div class="p-6">
             <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-gray-800 mb-4">Welcome to StarStore</h1>
-                <p class="text-gray-600">Your trusted platform for Telegram Premium and Stars</p>
+                <h1 class="text-3xl font-bold text-gray-800 mb-4">
+                    <span data-lang="welcome">Welcome to</span> StarStore
+                </h1>
+                <p class="text-gray-600" data-lang="tagline">Your trusted platform for Telegram Premium and Stars</p>
             </div>
 
             <div class="bg-indigo-50 rounded-xl p-6 mb-8">
-                <h2 class="text-xl font-bold text-indigo-600 mb-3">Our Mission</h2>
-                <p class="text-gray-700">We aim to provide a seamless and secure platform for Telegram users to enhance their experience through premium features and star purchases. Our commitment is to deliver exceptional service while maintaining transparency and trust.</p>
+                <h2 class="text-xl font-bold text-indigo-600 mb-3" data-lang="mission">Our Mission</h2>
+                <p class="text-gray-700" data-lang="mission-text">We aim to provide a seamless and secure platform for Telegram users to enhance their experience through premium features and star purchases. Our commitment is to deliver exceptional service while maintaining transparency and trust.</p>
             </div>
 
             <div class="mb-8">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">Key Features</h2>
+                <h2 class="text-xl font-bold text-gray-800 mb-4" data-lang="features">Key Features</h2>
                 <div class="grid grid-cols-1 gap-4">
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                         <div class="flex items-start">
@@ -158,8 +185,8 @@
                                 </svg>
                             </div>
                             <div class="ml-4">
-                                <h3 class="text-lg font-semibold text-gray-800">Secure Transactions</h3>
-                                <p class="text-gray-600">Your payments are protected with TON blockchain technology</p>
+                                <h3 class="text-lg font-semibold text-gray-800" data-lang="secure">Secure Transactions</h3>
+                                <p class="text-gray-600" data-lang="secure-text">Your payments are protected with TON blockchain technology</p>
                             </div>
                         </div>
                     </div>
@@ -172,8 +199,8 @@
                                 </svg>
                             </div>
                             <div class="ml-4">
-                                <h3 class="text-lg font-semibold text-gray-800">Instant Delivery</h3>
-                                <p class="text-gray-600">Receive your purchases immediately after payment confirmation</p>
+                                <h3 class="text-lg font-semibold text-gray-800" data-lang="instant">Instant Delivery</h3>
+                                <p class="text-gray-600" data-lang="instant-text">Receive your purchases immediately after payment confirmation</p>
                             </div>
                         </div>
                     </div>
@@ -186,8 +213,8 @@
                                 </svg>
                             </div>
                             <div class="ml-4">
-                                <h3 class="text-lg font-semibold text-gray-800">24/7 Support</h3>
-                                <p class="text-gray-600">Our team is always ready to assist you with any questions</p>
+                                <h3 class="text-lg font-semibold text-gray-800" data-lang="support">24/7 Support</h3>
+                                <p class="text-gray-600" data-lang="support-text">Our team is always ready to assist you with any questions</p>
                             </div>
                         </div>
                     </div>
@@ -195,42 +222,105 @@
             </div>
 
             <div class="mb-8">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">Our Impact</h2>
+                <h2 class="text-xl font-bold text-gray-800 mb-4" data-lang="impact">Our Impact</h2>
                 <div class="grid grid-cols-2 gap-4">
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                         <div class="text-2xl font-bold text-indigo-600">50K+</div>
-                        <div class="text-sm text-gray-600">Active Users</div>
+                        <div class="text-sm text-gray-600" data-lang="users">Active Users</div>
                     </div>
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                         <div class="text-2xl font-bold text-indigo-600">100K+</div>
-                        <div class="text-sm text-gray-600">Transactions</div>
+                        <div class="text-sm text-gray-600" data-lang="transactions">Transactions</div>
                     </div>
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                         <div class="text-2xl font-bold text-indigo-600">99.9%</div>
-                        <div class="text-sm text-gray-600">Success Rate</div>
+                        <div class="text-sm text-gray-600" data-lang="success">Success Rate</div>
                     </div>
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                         <div class="text-2xl font-bold text-indigo-600">4.9/5</div>
-                        <div class="text-sm text-gray-600">User Rating</div>
+                        <div class="text-sm text-gray-600" data-lang="rating">User Rating</div>
                     </div>
                 </div>
             </div>
 
             <div class="bg-gray-50 rounded-xl p-6 mb-8">
-    <h2 class="text-xl font-bold text-gray-800 mb-4">Get in Touch</h2>
-    <p class="text-gray-600 mb-4">Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.</p>
-    <button id="contactSupport" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
-        Contact Support
-    </button>
-</div>
+                <h2 class="text-xl font-bold text-gray-800 mb-4" data-lang="contact">Get in Touch</h2>
+                <p class="text-gray-600 mb-4" data-lang="contact-text">Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.</p>
+                <button id="contactSupport" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors" data-lang="contact-btn">
+                    Contact Support
+                </button>
+            </div>
         </div>
 
         <div class="footer">
-            Powered by THLF | <a href="https://telegram.org/privacy-tpa" target="_blank" rel="noopener noreferrer">Terms & Conditions</a>
+            <span data-lang="footer-powered">Powered by</span> THLF | <a href="https://telegram.org/privacy-tpa" target="_blank" rel="noopener noreferrer" data-lang="terms">Terms & Conditions</a>
         </div>
     </div>
 
     <script>
+        // Language translations
+        const translations = {
+            'en': {
+                'menu': 'Menu',
+                'home': 'Home',
+                'sell': 'Sell',
+                'history': 'History',
+                'referral': 'Referral',
+                'about': 'About',
+                'welcome': 'Welcome to',
+                'tagline': 'Your trusted platform for Telegram Premium and Stars',
+                'mission': 'Our Mission',
+                'mission-text': 'We aim to provide a seamless and secure platform for Telegram users to enhance their experience through premium features and star purchases. Our commitment is to deliver exceptional service while maintaining transparency and trust.',
+                'features': 'Key Features',
+                'secure': 'Secure Transactions',
+                'secure-text': 'Your payments are protected with TON blockchain technology',
+                'instant': 'Instant Delivery',
+                'instant-text': 'Receive your purchases immediately after payment confirmation',
+                'support': '24/7 Support',
+                'support-text': 'Our team is always ready to assist you with any questions',
+                'impact': 'Our Impact',
+                'users': 'Active Users',
+                'transactions': 'Transactions',
+                'success': 'Success Rate',
+                'rating': 'User Rating',
+                'contact': 'Get in Touch',
+                'contact-text': 'Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.',
+                'contact-btn': 'Contact Support',
+                'footer-powered': 'Powered by',
+                'terms': 'Terms & Conditions'
+            },
+            'ru': {
+                'menu': 'Меню',
+                'home': 'Главная',
+                'sell': 'Продажа',
+                'history': 'История',
+                'referral': 'Реферал',
+                'about': 'О нас',
+                'welcome': 'Добро пожаловать в',
+                'tagline': 'Ваша надежная платформа для Telegram Premium и Звезд',
+                'mission': 'Наша миссия',
+                'mission-text': 'Мы стремимся предоставить безупречную и безопасную платформу для пользователей Telegram, чтобы улучшить их опыт использования с помощью премиум-функций и покупки звезд. Наше обязательство — обеспечить исключительный сервис, сохраняя прозрачность и доверие.',
+                'features': 'Ключевые особенности',
+                'secure': 'Безопасные транзакции',
+                'secure-text': 'Ваши платежи защищены технологией блокчейна TON',
+                'instant': 'Мгновенная доставка',
+                'instant-text': 'Получайте свои покупки сразу после подтверждения оплаты',
+                'support': 'Поддержка 24/7',
+                'support-text': 'Наша команда всегда готова помочь вам с любыми вопросами',
+                'impact': 'Наше влияние',
+                'users': 'Активных пользователей',
+                'transactions': 'Транзакций',
+                'success': 'Успешных операций',
+                'rating': 'Рейтинг пользователей',
+                'contact': 'Свяжитесь с нами',
+                'contact-text': 'Есть вопросы или нужна поддержка? Наша команда здесь, чтобы помочь! Мы предоставляем круглосуточную помощь для всех ваших потребностей в StarStore.',
+                'contact-btn': 'Связаться с поддержкой',
+                'footer-powered': 'Работает на',
+                'terms': 'Условия использования'
+            }
+        };
+
+        // Menu toggle function
         function toggleMenu() {
             const menuOverlay = document.getElementById('menuOverlay');
             const sideMenu = document.getElementById('sideMenu');
@@ -238,16 +328,73 @@
             sideMenu.classList.toggle('active');
         }
 
+        // Add event listeners to menu items
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', () => {
                 toggleMenu();
             });
         });
-const contactSupportButton = document.getElementById('contactSupport');
-    contactSupportButton.addEventListener('click', () => {
-        // Navigate to the contact page instead of opening Telegram directly
-        window.location.href = 'contact.html';
-    });
+
+        // Contact support button
+        const contactSupportButton = document.getElementById('contactSupport');
+        contactSupportButton.addEventListener('click', () => {
+            window.location.href = 'contact.html';
+        });
+
+        // Language switcher functionality
+        let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+        
+        // Initialize language on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLanguage();
+            updateLanguageButtons();
+        });
+
+        // Function to change language
+        function changeLanguage(lang) {
+            if (currentLanguage !== lang) {
+                currentLanguage = lang;
+                localStorage.setItem('appLanguage', lang);
+                updateLanguage();
+                updateLanguageButtons();
+            }
+        }
+
+        // Update UI based on selected language
+        function updateLanguage() {
+            const elements = document.querySelectorAll('[data-lang]');
+            elements.forEach(element => {
+                const key = element.getAttribute('data-lang');
+                if (translations[currentLanguage] && translations[currentLanguage][key]) {
+                    element.textContent = translations[currentLanguage][key];
+                }
+            });
+        }
+
+        // Update language button styles
+        function updateLanguageButtons() {
+            document.querySelectorAll('.language-btn').forEach(btn => {
+                if (btn.getAttribute('data-language') === currentLanguage) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // Listen for language changes from other pages
+        window.addEventListener('storage', function(event) {
+            if (event.key === 'appLanguage') {
+                currentLanguage = event.newValue || 'en';
+                updateLanguage();
+                updateLanguageButtons();
+                
+                // If using TON Connect UI, update its language too
+                if (window.tonConnectUI) {
+                    window.tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
+                }
+            }
+        });
     </script>
 </body>
 </html>
