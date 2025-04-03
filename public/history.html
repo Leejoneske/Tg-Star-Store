@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -141,27 +141,27 @@
         <!-- Side Menu -->
         <div class="side-menu" id="sideMenu">
             <div class="p-6">
-                <div class="text-xl font-bold mb-8">Menu</div>
+                <div class="text-xl font-bold mb-8" data-i18n="menu">Menu</div>
                 <nav class="space-y-2">
                     <a href="index.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
-                        Home
+                        <span data-i18n="home">Home</span>
                     </a>
                     <a href="sell.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
-                        Sell
+                        <span data-i18n="sell">Sell</span>
                     </a>
                     <a href="history.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
-                        History
+                        <span data-i18n="history">History</span>
                     </a>
                     <a href="referral.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
-                        Referral
+                        <span data-i18n="referral">Referral</span>
                     </a>
                     <a href="about.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
-                        About
+                        <span data-i18n="about">About</span>
                     </a>
                 </nav>
             </div>
@@ -180,55 +180,55 @@
 
         <!-- Main Content -->
         <div class="p-6">
-            <h1 class="text-2xl font-bold mb-6">Transaction History</h1>
+            <h1 class="text-2xl font-bold mb-6" data-i18n="transaction_history">Transaction History</h1>
 
             <!-- Filters and Search -->
             <div class="flex gap-4 mb-6">
                 <select id="transactionFilter" class="p-2 border rounded">
-                    <option value="all">All</option>
-                    <option value="completed">Completed</option>
-                    <option value="pending">Pending</option>
-                    <option value="declined">Declined</option>
+                    <option value="all" data-i18n="all">All</option>
+                    <option value="completed" data-i18n="completed">Completed</option>
+                    <option value="pending" data-i18n="pending">Pending</option>
+                    <option value="declined" data-i18n="declined">Declined</option>
                 </select>
-                <input type="text" id="transactionSearch" class="p-2 border rounded flex-grow" placeholder="Search transactions...">
+                <input type="text" id="transactionSearch" class="p-2 border rounded flex-grow" data-i18n-placeholder="search_transactions" placeholder="Search transactions...">
             </div>
 
             <!-- Transaction History -->
             <div id="transactionHistory" class="space-y-4">
-                <div class="text-center text-gray-500 py-4">No transactions yet.</div>
+                <div class="text-center text-gray-500 py-4" data-i18n="no_transactions">No transactions yet.</div>
             </div>
 
             <!-- Pagination -->
             <div class="pagination" id="transactionPagination"></div>
 
             <!-- Export Button -->
-            <button onclick="exportTransactions()" class="mt-4 w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600">Export Transactions as CSV</button>
+            <button onclick="exportTransactions()" class="mt-4 w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600" data-i18n="export_transactions">Export Transactions as CSV</button>
 
             <!-- Chart -->
             <canvas id="transactionChart" class="mt-8"></canvas>
 
-            <h2 class="text-2xl font-bold mt-8 mb-6">Referral History</h2>
+            <h2 class="text-2xl font-bold mt-8 mb-6" data-i18n="referral_history">Referral History</h2>
 
             <!-- Filters and Search -->
             <div class="flex gap-4 mb-6">
                 <select id="referralFilter" class="p-2 border rounded">
-                    <option value="all">All</option>
-                    <option value="active">Active</option>
-                    <option value="pending">Pending</option>
+                    <option value="all" data-i18n="all">All</option>
+                    <option value="active" data-i18n="active">Active</option>
+                    <option value="pending" data-i18n="pending">Pending</option>
                 </select>
-                <input type="text" id="referralSearch" class="p-2 border rounded flex-grow" placeholder="Search referrals...">
+                <input type="text" id="referralSearch" class="p-2 border rounded flex-grow" data-i18n-placeholder="search_referrals" placeholder="Search referrals...">
             </div>
 
             <!-- Referral History -->
             <div id="referralHistory" class="space-y-4">
-                <div class="text-center text-gray-500 py-4">No referrals yet.</div>
+                <div class="text-center text-gray-500 py-4" data-i18n="no_referrals">No referrals yet.</div>
             </div>
 
             <!-- Pagination -->
             <div class="pagination" id="referralPagination"></div>
 
             <!-- Export Button -->
-            <button onclick="exportReferrals()" class="mt-4 w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600">Export Referrals as CSV</button>
+            <button onclick="exportReferrals()" class="mt-4 w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600" data-i18n="export_referrals">Export Referrals as CSV</button>
         </div>
     </div>
 
@@ -244,12 +244,115 @@ let referralHistory = [];
 let currentTransactionPage = 1;
 let currentReferralPage = 1;
 const itemsPerPage = 5;
+let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+
+// Language translations
+const translations = {
+    en: {
+        menu: "Menu",
+        home: "Home",
+        sell: "Sell",
+        history: "History",
+        referral: "Referral",
+        about: "About",
+        transaction_history: "Transaction History",
+        referral_history: "Referral History",
+        all: "All",
+        completed: "Completed",
+        pending: "Pending",
+        declined: "Declined",
+        active: "Active",
+        search_transactions: "Search transactions...",
+        search_referrals: "Search referrals...",
+        no_transactions: "No transactions yet.",
+        no_referrals: "No referrals yet.",
+        export_transactions: "Export Transactions as CSV",
+        export_referrals: "Export Referrals as CSV",
+        transaction_details: "Transaction Details",
+        referral_details: "Referral Details",
+        id: "ID",
+        type: "Type",
+        amount: "Amount",
+        status: "Status",
+        date: "Date",
+        name: "Name",
+        today: "Today",
+        yesterday: "Yesterday",
+        days_ago: "days ago"
+    },
+    ru: {
+        menu: "Меню",
+        home: "Главная",
+        sell: "Продать",
+        history: "История",
+        referral: "Рефералы",
+        about: "О нас",
+        transaction_history: "История транзакций",
+        referral_history: "История рефералов",
+        all: "Все",
+        completed: "Завершено",
+        pending: "В ожидании",
+        declined: "Отклонено",
+        active: "Активно",
+        search_transactions: "Поиск транзакций...",
+        search_referrals: "Поиск рефералов...",
+        no_transactions: "Транзакций пока нет.",
+        no_referrals: "Рефералов пока нет.",
+        export_transactions: "Экспорт транзакций в CSV",
+        export_referrals: "Экспорт рефералов в CSV",
+        transaction_details: "Детали транзакции",
+        referral_details: "Детали реферала",
+        id: "ID",
+        type: "Тип",
+        amount: "Сумма",
+        status: "Статус",
+        date: "Дата",
+        name: "Имя",
+        today: "Сегодня",
+        yesterday: "Вчера",
+        days_ago: "дней назад"
+    }
+};
+
+function updateLanguage() {
+    const lang = translations[currentLanguage];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (lang[key]) {
+            el.textContent = lang[key];
+        }
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (lang[key]) {
+            el.setAttribute('placeholder', lang[key]);
+        }
+    });
+    
+    // Update transaction and referral UI with new language
+    const transactionFilter = document.getElementById('transactionFilter').value;
+    const transactionSearch = document.getElementById('transactionSearch').value;
+    updateTransactionHistoryUI(transactionFilter, transactionSearch, currentTransactionPage);
+    
+    const referralFilter = document.getElementById('referralFilter').value;
+    const referralSearch = document.getElementById('referralSearch').value;
+    updateReferralHistoryUI(referralFilter, referralSearch, currentReferralPage);
+}
 
 function initUser() {
     if (user) {
         fetchTransactionHistory();
         fetchReferralHistory();
     }
+    updateLanguage();
+    
+    // Listen for language changes from other pages
+    window.addEventListener('storage', function(event) {
+        if (event.key === 'appLanguage') {
+            currentLanguage = event.newValue || 'en';
+            updateLanguage();
+        }
+    });
 }
 
 async function fetchTransactionHistory() {
@@ -265,15 +368,20 @@ async function fetchTransactionHistory() {
 
 async function fetchReferralHistory() {
     try {
+        // Fixed: Changed from response.data.recentReferrals to response.data
         const response = await axios.get(`/api/referrals/${user.id}`);
-        referralHistory = response.data.recentReferrals || [];
+        referralHistory = response.data || [];
         updateReferralHistoryUI();
     } catch (error) {
         console.error('Failed to fetch referral history:', error);
+        // Fallback to empty array if API fails
+        referralHistory = [];
+        updateReferralHistoryUI();
     }
 }
 
 function updateTransactionHistoryUI(filter = 'all', search = '', page = 1) {
+    const lang = translations[currentLanguage];
     const transactionHistoryContainer = document.getElementById('transactionHistory');
     const paginationContainer = document.getElementById('transactionPagination');
     transactionHistoryContainer.innerHTML = '';
@@ -281,7 +389,8 @@ function updateTransactionHistoryUI(filter = 'all', search = '', page = 1) {
 
     const filteredTransactions = transactionHistory.filter(transaction => {
         const matchesFilter = filter === 'all' || transaction.status === filter;
-        const matchesSearch = transaction.id.includes(search) || transaction.type.includes(search);
+        const matchesSearch = transaction.id.includes(search) || 
+                            (transaction.type && transaction.type.includes(search));
         return matchesFilter && matchesSearch;
     });
 
@@ -291,15 +400,19 @@ function updateTransactionHistoryUI(filter = 'all', search = '', page = 1) {
 
     if (paginatedTransactions.length === 0) {
         transactionHistoryContainer.innerHTML = `
-            <div class="text-center text-gray-500 py-4">No transactions found.</div>
+            <div class="text-center text-gray-500 py-4">${lang.no_transactions || 'No transactions yet.'}</div>
         `;
     } else {
         paginatedTransactions.forEach(transaction => {
+            const statusText = transaction.status === 'completed' ? lang.completed :
+                             transaction.status === 'pending' ? lang.pending :
+                             lang.declined;
+                             
             const statusBadge = transaction.status === 'completed' ? 
-                `<span class="status-badge status-completed">Completed</span>` :
+                `<span class="status-badge status-completed">${statusText}</span>` :
                 transaction.status === 'pending' ? 
-                `<span class="status-badge status-pending">Pending</span>` :
-                `<span class="status-badge status-declined">Declined</span>`;
+                `<span class="status-badge status-pending">${statusText}</span>` :
+                `<span class="status-badge status-declined">${statusText}</span>`;
 
             transactionHistoryContainer.innerHTML += `
                 <div class="history-card p-4" onclick="showTransactionDetails('${transaction.id}')">
@@ -325,6 +438,7 @@ function updateTransactionHistoryUI(filter = 'all', search = '', page = 1) {
 }
 
 function updateReferralHistoryUI(filter = 'all', search = '', page = 1) {
+    const lang = translations[currentLanguage];
     const referralHistoryContainer = document.getElementById('referralHistory');
     const paginationContainer = document.getElementById('referralPagination');
     referralHistoryContainer.innerHTML = '';
@@ -332,7 +446,8 @@ function updateReferralHistoryUI(filter = 'all', search = '', page = 1) {
 
     const filteredReferrals = referralHistory.filter(referral => {
         const matchesFilter = filter === 'all' || referral.status === filter;
-        const matchesSearch = referral.name.includes(search) || referral.id.includes(search);
+        const matchesSearch = (referral.id && referral.id.includes(search)) || 
+                             (referral.name && referral.name.includes(search));
         return matchesFilter && matchesSearch;
     });
 
@@ -342,17 +457,18 @@ function updateReferralHistoryUI(filter = 'all', search = '', page = 1) {
 
     if (paginatedReferrals.length === 0) {
         referralHistoryContainer.innerHTML = `
-            <div class="text-center text-gray-500 py-4">No referrals found.</div>
+            <div class="text-center text-gray-500 py-4">${lang.no_referrals || 'No referrals yet.'}</div>
         `;
     } else {
         paginatedReferrals.forEach(referral => {
-            const timeLabel = referral.daysAgo === 0 ? 'Today' : 
-                            referral.daysAgo === 1 ? 'Yesterday' : 
-                            `${referral.daysAgo} days ago`;
+            const timeLabel = referral.daysAgo === 0 ? lang.today : 
+                            referral.daysAgo === 1 ? lang.yesterday : 
+                            `${referral.daysAgo} ${lang.days_ago}`;
 
+            const statusText = referral.status === 'active' ? lang.active : lang.pending;
             const statusBadge = referral.status === 'active' ? 
-                `<span class="status-badge status-completed">Active</span>` :
-                `<span class="status-badge status-pending">Pending</span>`;
+                `<span class="status-badge status-completed">${statusText}</span>` :
+                `<span class="status-badge status-pending">${statusText}</span>`;
 
             referralHistoryContainer.innerHTML += `
                 <div class="history-card p-4" onclick="showReferralDetails('${referral.id}')">
@@ -378,41 +494,50 @@ function updateReferralHistoryUI(filter = 'all', search = '', page = 1) {
 }
 
 function showTransactionDetails(transactionId) {
+    const lang = translations[currentLanguage];
     const transaction = transactionHistory.find(t => t.id === transactionId);
     if (transaction) {
         Swal.fire({
-            title: 'Transaction Details',
+            title: lang.transaction_details || 'Transaction Details',
             html: `
-                <p><strong>ID:</strong> ${transaction.id}</p>
-                <p><strong>Type:</strong> ${transaction.type || 'Stars Purchase'}</p>
-                <p><strong>Amount:</strong> ${transaction.amount} USDT</p>
-                <p><strong>Status:</strong> ${transaction.status}</p>
-                <p><strong>Date:</strong> ${new Date(transaction.dateCreated).toLocaleString()}</p>
+                <p><strong>${lang.id || 'ID'}:</strong> ${transaction.id}</p>
+                <p><strong>${lang.type || 'Type'}:</strong> ${transaction.type || 'Stars Purchase'}</p>
+                <p><strong>${lang.amount || 'Amount'}:</strong> ${transaction.amount} USDT</p>
+                <p><strong>${lang.status || 'Status'}:</strong> ${transaction.status === 'completed' ? lang.completed : 
+                                                              transaction.status === 'pending' ? lang.pending : 
+                                                              lang.declined}</p>
+                <p><strong>${lang.date || 'Date'}:</strong> ${new Date(transaction.dateCreated).toLocaleString()}</p>
             `,
             icon: 'info',
-            confirmButtonText: 'Close'
+            confirmButtonText: 'OK'
         });
     }
 }
 
 function showReferralDetails(referralId) {
+    const lang = translations[currentLanguage];
     const referral = referralHistory.find(r => r.id === referralId);
     if (referral) {
+        const timeLabel = referral.daysAgo === 0 ? lang.today : 
+                        referral.daysAgo === 1 ? lang.yesterday : 
+                        `${referral.daysAgo} ${lang.days_ago}`;
+                        
         Swal.fire({
-            title: 'Referral Details',
+            title: lang.referral_details || 'Referral Details',
             html: `
-                <p><strong>ID:</strong> ${referral.id}</p>
-                <p><strong>Name:</strong> @${referral.name}</p>
-                <p><strong>Status:</strong> ${referral.status}</p>
-                <p><strong>Date:</strong> ${referral.daysAgo === 0 ? 'Today' : referral.daysAgo === 1 ? 'Yesterday' : `${referral.daysAgo} days ago`}</p>
+                <p><strong>${lang.id || 'ID'}:</strong> ${referral.id}</p>
+                <p><strong>${lang.name || 'Name'}:</strong> @${referral.name}</p>
+                <p><strong>${lang.status || 'Status'}:</strong> ${referral.status === 'active' ? lang.active : lang.pending}</p>
+                <p><strong>${lang.date || 'Date'}:</strong> ${timeLabel}</p>
             `,
             icon: 'info',
-            confirmButtonText: 'Close'
+            confirmButtonText: 'OK'
         });
     }
 }
 
 function exportTransactions() {
+    const lang = translations[currentLanguage];
     const csvContent = "data:text/csv;charset=utf-8," +
         transactionHistory.map(t => `${t.id},${t.type || 'Stars Purchase'},${t.amount},${t.status},${new Date(t.dateCreated).toLocaleString()}`).join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -424,8 +549,9 @@ function exportTransactions() {
 }
 
 function exportReferrals() {
+    const lang = translations[currentLanguage];
     const csvContent = "data:text/csv;charset=utf-8," +
-        referralHistory.map(r => `${r.id},${r.name},${r.status},${r.daysAgo === 0 ? 'Today' : r.daysAgo === 1 ? 'Yesterday' : `${r.daysAgo} days ago`}`).join("\n");
+        referralHistory.map(r => `${r.id},${r.name},${r.status},${r.daysAgo === 0 ? lang.today : r.daysAgo === 1 ? lang.yesterday : `${r.daysAgo} ${lang.days_ago}`}`).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -435,6 +561,7 @@ function exportReferrals() {
 }
 
 function updateTransactionChart() {
+    const lang = translations[currentLanguage];
     const ctx = document.getElementById('transactionChart').getContext('2d');
     const statusCounts = {
         completed: transactionHistory.filter(t => t.status === 'completed').length,
@@ -444,7 +571,7 @@ function updateTransactionChart() {
     new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: ['Completed', 'Pending', 'Declined'],
+            labels: [lang.completed, lang.pending, lang.declined],
             datasets: [{
                 data: [statusCounts.completed, statusCounts.pending, statusCounts.declined],
                 backgroundColor: ['#16a34a', '#ea580c', '#dc2626']
@@ -474,6 +601,7 @@ function changeReferralPage(page) {
     updateReferralHistoryUI(filter, search, page);
 }
 
+// Initialize event listeners
 document.getElementById('transactionFilter').addEventListener('change', (e) => {
     const filter = e.target.value;
     const search = document.getElementById('transactionSearch').value;
