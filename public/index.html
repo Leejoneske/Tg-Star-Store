@@ -369,7 +369,6 @@
 <script>
 const translations = {
     en: {
-        appName: "StarStore",
         connectWallet: "Connect Wallet",
         walletNotConnected: "Please connect your wallet to proceed.",
         invalidAmount: "The payment amount must be a valid number greater than 0.",
@@ -403,7 +402,6 @@ const translations = {
         terms: "Terms & Conditions"
     },
     ru: {
-        appName: "СтарСтор",
         connectWallet: "Подключить кошелек",
         walletNotConnected: "Пожалуйста, подключите кошелек, чтобы продолжить.",
         invalidAmount: "Сумма платежа должна быть действительным числом больше 0.",
@@ -438,11 +436,13 @@ const translations = {
     }
 };
 
-// Shared state between pages
 let tonConnectUI;
 let currentLanguage = localStorage.getItem('appLanguage') || 'en';
 let walletConnected = false;
 let currentWalletAddress = '';
+let userDataCache = null;
+let lastUserDataFetch = 0;
+const CACHE_EXPIRY = 300000;
 
 document.addEventListener('DOMContentLoaded', function() {
     initTelegramApp();
@@ -453,7 +453,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initBuyButtons();
     setTimeout(fetchNotifications, 500);
     
-    // Listen for language changes from other tabs/windows
     window.addEventListener('storage', function(event) {
         if (event.key === 'appLanguage') {
             currentLanguage = event.newValue || 'en';
@@ -461,6 +460,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (tonConnectUI) {
                 tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
             }
+            window.location.reload();
         }
     });
 });
@@ -469,16 +469,18 @@ function initTelegramApp() {
     if (window.Telegram && window.Telegram.WebApp) {
         try {
             Telegram.WebApp.ready();
-            const user = Telegram.WebApp.initDataUnsafe.user;
-            
-            // Set language based on Telegram user preference if not already set
-            if (user?.language_code === 'ru' && currentLanguage !== 'ru') {
-                currentLanguage = 'ru';
-                localStorage.setItem('appLanguage', 'ru');
-                updateLanguage();
+            const now = Date.now();
+            if (!userDataCache || (now - lastUserDataFetch) > CACHE_EXPIRY) {
+                const user = Telegram.WebApp.initDataUnsafe.user;
+                userDataCache = user;
+                lastUserDataFetch = now;
+                if (user?.language_code === 'ru' && currentLanguage !== 'ru') {
+                    currentLanguage = 'ru';
+                    localStorage.setItem('appLanguage', 'ru');
+                    updateLanguage();
+                }
             }
-            
-            updateUserInterface(user);
+            updateUserInterface(userDataCache);
         } catch (error) {
             console.error('Error initializing Telegram WebApp:', error);
         }
@@ -490,12 +492,10 @@ function initTelegramApp() {
 function updateUserInterface(user) {
     const profilePic = document.getElementById('profilePicture');
     const usernameElement = document.getElementById('username');
-    
     if (user) {
         if (user.photo_url) {
             profilePic.src = user.photo_url;
         }
-        
         if (user.username) {
             usernameElement.textContent = `@${user.username}`;
         } else if (user.first_name) {
@@ -520,8 +520,6 @@ function initWalletConnection() {
                 connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
                 connectWalletButton.classList.add('wallet-connected');
                 walletConnected = true;
-                
-                // Save wallet connection state
                 localStorage.setItem('walletConnected', 'true');
                 localStorage.setItem('walletAddress', currentWalletAddress);
             } else {
@@ -529,14 +527,11 @@ function initWalletConnection() {
                 connectWalletButton.classList.remove('wallet-connected');
                 walletConnected = false;
                 currentWalletAddress = '';
-                
-                // Clear wallet connection state
                 localStorage.removeItem('walletConnected');
                 localStorage.removeItem('walletAddress');
             }
         });
         
-        // Check for existing wallet connection
         const savedWalletConnected = localStorage.getItem('walletConnected') === 'true';
         const savedWalletAddress = localStorage.getItem('walletAddress');
         
@@ -589,28 +584,20 @@ function initLanguageToggle() {
     const languageToggle = document.getElementById('languageToggle');
     if (!languageToggle) return;
     
-    // Set initial toggle state
     languageToggle.textContent = currentLanguage === 'en' ? 'RU' : 'EN';
     
     languageToggle.addEventListener('click', () => {
         currentLanguage = currentLanguage === 'en' ? 'ru' : 'en';
         updateLanguage();
-        
-        // Save language preference to localStorage and sync across tabs
         localStorage.setItem('appLanguage', currentLanguage);
-        
-        // Dispatch storage event to sync language across tabs
         const storageEvent = new StorageEvent('storage', {
             key: 'appLanguage',
             newValue: currentLanguage
         });
         window.dispatchEvent(storageEvent);
-        
         if (tonConnectUI) {
             tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
         }
-        
-        // Update wallet button text
         const connectWalletButton = document.getElementById('connectWallet');
         if (walletConnected && currentWalletAddress) {
             const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
@@ -630,7 +617,7 @@ function updateLanguage() {
     
     document.querySelectorAll('[data-translate]').forEach(element => {
         const key = element.getAttribute('data-translate');
-        if (translations[currentLanguage][key] && !element.classList.contains('wallet-address')) {
+        if (key !== 'appName' && translations[currentLanguage][key] && !element.classList.contains('wallet-address')) {
             element.textContent = translations[currentLanguage][key];
         }
     });
@@ -680,7 +667,6 @@ async function handlePurchase(item) {
             const tonAmount = parsedAmount / tonToUsdtRate;
             const nanoTonAmount = Math.round(tonAmount * 1e9);
             
-            // Get wallet address from backend
             const walletResponse = await axios.get('/api/get-wallet-address');
             if (!walletResponse.data?.walletAddress) {
                 throw new Error('Failed to get payment address from server');
