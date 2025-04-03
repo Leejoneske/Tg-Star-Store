@@ -699,19 +699,6 @@ bot.onText(/\/help/, (msg) => {
     });
 });
 
-bot.on('web_app_data', (msg) => {
-    const data = JSON.parse(msg.web_app_data.data);
-    const userId = data.userId;
-    const username = data.username;
-    const message = data.message;
-
-    const adminMessage = `🆘 Help Request from @${username} (ID: ${userId}):\n\n${message}`;
-    adminIds.forEach(adminId => {
-        bot.sendMessage(adminId, adminMessage);
-    });
-
-    bot.sendMessage(userId, "Your message has been sent to the admins. We will get back to you shortly.");
-});
 
 bot.onText(/\/reply (.+)/, (msg, match) => {
     const chatId = msg.chat.id;
@@ -729,7 +716,7 @@ bot.onText(/\/reply (.+)/, (msg, match) => {
         });
 });
 
-//broadcast noe supports rich media text including porn
+//broadcast now supports rich media text including porn
 bot.onText(/\/broadcast/, async (msg) => {
     const chatId = msg.chat.id;
 
@@ -810,6 +797,7 @@ bot.onText(/\/notify (.+)/, async (msg, match) => {
         });
 });
 
+//fetch transactions for history page
 app.get('/api/transactions/:userId', async (req, res) => {
     const userId = req.params.userId;
     const buyOrders = await BuyOrder.find({ telegramId: userId });
@@ -819,37 +807,57 @@ app.get('/api/transactions/:userId', async (req, res) => {
     res.json(userTransactions);
 });
 
+//get referrals for history and referral page
 app.get('/api/referrals/:userId', async (req, res) => {
-    const userId = req.params.userId;
-    const referrals = await Referral.find({ referrerUserId: userId });
+    try {
+        const userId = req.params.userId;
+        
+        // Get ALL referrals (for history section)
+        const allReferrals = await Referral.find({ referrerUserId: userId }).sort({ dateReferred: -1 });
+        
+        // Get only active referrals count (for progress bar)
+        const activeReferrals = allReferrals.filter(ref => ref.status === 'active').length;
+        
+        // Get latest 3 referrals (for recent referrals section)
+        const latestReferrals = allReferrals.slice(0, 3);
 
-    const sortedReferrals = referrals.sort((a, b) => new Date(b.dateReferred) - new Date(a.dateReferred));
-    const latestReferrals = sortedReferrals.slice(0, 3);
+        // Calculate earned USDT based only on ACTIVE referrals
+        let earnedUSDT = 0;
+        if (activeReferrals >= 15) {
+            earnedUSDT = 5 + 2 + 0.5; // All tiers
+        } else if (activeReferrals >= 9) {
+            earnedUSDT = 2 + 0.5; // First two tiers
+        } else if (activeReferrals >= 3) {
+            earnedUSDT = 0.5; // First tier
+        }
 
-    const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
-    const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
+        // Fetch usernames for recent referrals
+        const recentReferralsWithNames = await Promise.all(
+            latestReferrals.map(async (ref) => {
+                const user = await User.findOne({ id: ref.referredUserId });
+                return {
+                    id: ref._id.toString(),
+                    name: user ? user.username : ref.referredUserId,
+                    status: ref.status,
+                    daysAgo: Math.floor((new Date() - new Date(ref.dateReferred)) / (1000 * 60 * 60 * 24)
+                };
+            })
+        );
 
-    // Fetch usernames for referred users
-    const recentReferralsWithNames = await Promise.all(
-        latestReferrals.map(async (ref) => {
-            const user = await User.findOne({ id: ref.referredUserId });
-            return {
-                name: user ? user.username : ref.referredUserId, // Fallback to userId if username is not found
-                status: ref.status,
-                daysAgo: Math.floor((new Date() - new Date(ref.dateReferred)) / (1000 * 60 * 60 * 24))
-            };
-        })
-    );
+        const response = {
+            count: activeReferrals, // For progress bar (active only)
+            totalCount: allReferrals.length, // For displaying total count if needed
+            earnedUSDT: earnedUSDT,
+            recentReferrals: recentReferralsWithNames, // Shows both active/pending
+            claimedTiers: [] // Should be populated from your database
+        };
 
-    const response = {
-        count: activeReferrals,
-        earnedUSDT: activeReferrals * 0.5, 
-        recentReferrals: recentReferralsWithNames
-    };
-
-    res.json(response);
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching referrals:', error);
+        res.status(500).json({ error: 'Failed to fetch referral data' });
+    }
 });
-
 // Handle both /referrals command and plain text "referrals"
 bot.onText(/\/referrals|referrals/i, async (msg) => {
     const chatId = msg.chat.id;
