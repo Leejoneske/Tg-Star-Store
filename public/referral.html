@@ -503,55 +503,42 @@
         updateReferralUI();
     }
 
+    
+    let referralData = {
+        totalCount: 0,
+        activeCount: 0,
+        earnedUSDT: 0,
+        recentReferrals: []
+    };
+
     function updateReferralUI() {
-        const lang = translations[currentLanguage];
-        document.getElementById('referralCount').textContent = referralData.totalCount;
-        document.getElementById('earnedUSDT').textContent = `$${referralData.earnedUSDT.toFixed(2)}`;
-
-        let currentProgress, targetProgress, nextRewardText;
+        // Progress bar - uses only activeCount
         const activeCount = referralData.activeCount;
-
+        let currentProgress, targetProgress;
+        
         if (activeCount < 3) {
             currentProgress = activeCount;
             targetProgress = 3;
-            nextRewardText = '0.5 USDT';
         } else if (activeCount < 9) {
             currentProgress = activeCount - 3;
             targetProgress = 6;
-            nextRewardText = '2.0 USDT';
-        } else if (activeCount < 15) {
+        } else {
             currentProgress = activeCount - 9;
             targetProgress = 6;
-            nextRewardText = '5.0 USDT';
-        } else {
-            currentProgress = activeCount - 15;
-            targetProgress = 15;
-            nextRewardText = currentLanguage === 'ru' ? 'Макс. уровень!' : 'Max Tier Reached!';
         }
 
         document.getElementById('referralProgress').style.width = `${Math.min((currentProgress / targetProgress) * 100, 100)}%`;
         document.getElementById('currentProgress').textContent = currentProgress;
         document.getElementById('targetProgress').textContent = targetProgress;
-        document.getElementById('nextReward').textContent = nextRewardText;
 
+        // Recent referrals - shows all (both active and pending)
         const recentReferralsContainer = document.getElementById('recentReferrals');
         recentReferralsContainer.innerHTML = '';
         
         if (referralData.recentReferrals.length === 0) {
-            recentReferralsContainer.innerHTML = `
-                <div class="text-center p-4 text-gray-500">
-                    <p>${lang.no_referrals_text}</p>
-                </div>
-            `;
+            recentReferralsContainer.innerHTML = '<div class="text-center p-4 text-gray-500"><p>No referrals yet</p></div>';
         } else {
             referralData.recentReferrals.forEach(referral => {
-                const timeLabel = referral.daysAgo === 0 ? lang.today : 
-                                referral.daysAgo === 1 ? lang.yesterday : 
-                                `${referral.daysAgo} ${lang.days_ago}`;
-                const statusBadge = referral.status === 'active' ? 
-                    `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">${lang.active}</span>` :
-                    `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">${lang.pending}</span>`;
-                
                 recentReferralsContainer.innerHTML += `
                     <div class="referral-card p-3 flex justify-between items-center">
                         <div class="flex items-center gap-3">
@@ -560,11 +547,13 @@
                             </div>
                             <div>
                                 <p class="font-medium">${referral.name}</p>
-                                <p class="text-xs text-gray-500">${timeLabel}</p>
+                                <p class="text-xs text-gray-500">${referral.daysAgo} days ago</p>
                             </div>
                         </div>
                         <div>
-                            ${statusBadge}
+                            <span class="px-2 py-1 text-xs ${referral.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'} rounded-full">
+                                ${referral.status}
+                            </span>
                         </div>
                     </div>
                 `;
@@ -585,10 +574,17 @@
                 updateReferralUI();
             }
         } catch (error) {
-            console.error('Failed to fetch referral data:', error);
+            console.error('Error:', error);
         }
     }
 
+    function initUser() {
+        if (user) {
+            fetchReferralData();
+        }
+    }
+
+    
     function copyReferralLink() {
         const lang = translations[currentLanguage];
         const referralLink = document.getElementById('referralLink').textContent;
