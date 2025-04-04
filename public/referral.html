@@ -547,85 +547,76 @@
         }
 
         function updateReferralUI() {
-            const lang = translations[currentLanguage];
-            console.log('Recent Referrals:', referralData.recentReferrals); // Log recent referrals
+    const lang = translations[currentLanguage];
+    
+    document.getElementById('referralCount').textContent = referralData.totalCount;
+    document.getElementById('earnedUSDT').textContent = `$${referralData.earnedUSDT.toFixed(2)}`;
 
-            // Update referral count (total referrals)
-            document.getElementById('referralCount').textContent = referralData.count;
+    let currentProgress, targetProgress, nextRewardText;
+    const activeCount = referralData.activeCount;
 
-            // Update earned USDT
-            document.getElementById('earnedUSDT').textContent = `$${referralData.earnedUSDT.toFixed(2)}`;
+    if (activeCount < 3) {
+        currentProgress = activeCount;
+        targetProgress = 3;
+        nextRewardText = '0.5 USDT';
+    } else if (activeCount < 9) {
+        currentProgress = activeCount - 3;
+        targetProgress = 6;
+        nextRewardText = '1.0 USDT';
+    } else if (activeCount < 15) {
+        currentProgress = activeCount - 9;
+        targetProgress = 6;
+        nextRewardText = '5.0 USDT';
+    } else {
+        currentProgress = activeCount - 15;
+        targetProgress = 15;
+        nextRewardText = currentLanguage === 'ru' ? 'Макс. уровень!' : 'Max Tier Reached!';
+    }
 
-            // Update progress bar (based on total referrals)
-            let currentTier, nextTierTarget, currentProgress;
-            if (referralData.count < 3) {
-                currentTier = 0;
-                nextTierTarget = 3;
-                currentProgress = referralData.count;
-                document.getElementById('nextReward').textContent = '0.5 USDT';
-            } else if (referralData.count < 9) {
-                currentTier = 1;
-                nextTierTarget = 9;
-                currentProgress = referralData.count - 3;
-                document.getElementById('nextReward').textContent = '2 USDT';
-            } else if (referralData.count < 15) {
-                currentTier = 2;
-                nextTierTarget = 15;
-                currentProgress = referralData.count - 9;
-                document.getElementById('nextReward').textContent = '5 USDT';
-            } else {
-                currentTier = 3;
-                nextTierTarget = 15;
-                currentProgress = 6;
-                document.getElementById('nextReward').textContent = currentLanguage === 'ru' ? 'Макс. уровень!' : 'Max Tier Reached!';
-            }
+    const progressPercent = (currentProgress / targetProgress) * 100;
+    document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
+    document.getElementById('currentProgress').textContent = currentProgress;
+    document.getElementById('targetProgress').textContent = targetProgress;
+    document.getElementById('nextReward').textContent = nextRewardText;
 
-            // Calculate progress bar width
-            const progressTarget = currentTier < 3 ? nextTierTarget - (currentTier === 0 ? 0 : (currentTier === 1 ? 3 : 9)) : 6;
-            const progressPercent = (currentProgress / progressTarget) * 100;
-            document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
-            document.getElementById('currentProgress').textContent = currentProgress;
-            document.getElementById('targetProgress').textContent = progressTarget;
-
-            // Update recent referrals (latest 3, both active and pending)
-            const recentReferralsContainer = document.getElementById('recentReferrals');
-            recentReferralsContainer.innerHTML = '';
-            if (referralData.recentReferrals.length === 0) {
-                recentReferralsContainer.innerHTML = `
-                    <div class="text-center p-4 text-gray-500">
-                        <p>${lang.no_referrals_text || 'No referrals yet. Share your link to start earning!'}</p>
-                    </div>
-                `;
-            } else {
-                referralData.recentReferrals.slice(0, 3).forEach(referral => {
-                    const timeLabel = referral.daysAgo === 0 ? lang.today : 
-                                    referral.daysAgo === 1 ? lang.yesterday : 
-                                    `${referral.daysAgo} ${lang.days_ago}`;
-                    const statusBadge = referral.status === 'active' ? 
-                        `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">${lang.active}</span>` :
-                        `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">${lang.pending}</span>`;
-                    recentReferralsContainer.innerHTML += `
-                        <div class="referral-card p-3 flex justify-between items-center">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
-                                    ${referral.name.charAt(0)}
-                                </div>
-                                <div>
-                                    <p class="font-medium">@${referral.name}</p>
-                                    <p class="text-xs text-gray-500">${timeLabel}</p>
-                                </div>
-                            </div>
-                            <div>
-                                ${statusBadge}
-                            </div>
+    const recentReferralsContainer = document.getElementById('recentReferrals');
+    recentReferralsContainer.innerHTML = '';
+    if (referralData.recentReferrals.length === 0) {
+        recentReferralsContainer.innerHTML = `
+            <div class="text-center p-4 text-gray-500">
+                <p>${lang.no_referrals_text || 'No referrals yet. Share your link to start earning!'}</p>
+            </div>
+        `;
+    } else {
+        referralData.recentReferrals.slice(0, 3).forEach(referral => {
+            const timeLabel = referral.daysAgo === 0 ? lang.today : 
+                            referral.daysAgo === 1 ? lang.yesterday : 
+                            `${referral.daysAgo} ${lang.days_ago}`;
+            const statusBadge = referral.status === 'active' ? 
+                `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">${lang.active}</span>` :
+                `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">${lang.pending}</span>`;
+            recentReferralsContainer.innerHTML += `
+                <div class="referral-card p-3 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+                            ${referral.name.charAt(0)}
                         </div>
-                    `;
-                });
-            }
+                        <div>
+                            <p class="font-medium">@${referral.name}</p>
+                            <p class="text-xs text-gray-500">${timeLabel}</p>
+                        </div>
+                    </div>
+                    <div>
+                        ${statusBadge}
+                    </div>
+                </div>
+            `;
+        });
+    }
 
-            // Show notification dot if there are new referrals today
-            document.getElementById('menuNotificationDot').style.display = referralData.recentReferrals.some(r => r.daysAgo === 0) ? 'block' : 'none';
-        }
+    document.getElementById('menuNotificationDot').style.display = referralData.recentReferrals.some(r => r.daysAgo === 0) ? 'block' : 'none';
+}
+                                
 
         async function claimReward(tier) {
             const lang = translations[currentLanguage];
