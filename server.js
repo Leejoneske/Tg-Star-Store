@@ -815,31 +815,37 @@ app.get('/api/referrals/:userId', async (req, res) => {
         const activeReferrals = allReferrals.filter(r => r.status === 'active');
         const activeCount = activeReferrals.length;
         const totalCount = allReferrals.length;
-
+        
+        // You need to fetch claimed tiers from somewhere
+        const user = await User.findOne({ userId: userId }); // Assuming you have a User model
+        const claimedTiers = user?.claimedTiers || [];
+        
+        // Calculate earned USDT based on claimed tiers instead of just active count
         let earnedUSDT = 0;
-        if (activeCount >= 15) earnedUSDT = 5.0;
-        else if (activeCount >= 9) earnedUSDT = 2.0;
-        else if (activeCount >= 3) earnedUSDT = 0.5;
-
-        const recentReferrals = allReferrals.slice(0, 3).map(r => ({
+        if (claimedTiers.includes(1)) earnedUSDT += 0.5;
+        if (claimedTiers.includes(2)) earnedUSDT += 2.0;
+        if (claimedTiers.includes(3)) earnedUSDT += 5.0;
+        
+        const recentReferrals = allReferrals.slice(0, 10).map(r => ({
             name: r.referredUsername || `user_${r.referredUserId.slice(0, 6)}`,
             status: r.status,
             daysAgo: Math.floor((Date.now() - new Date(r.dateReferred)) / (1000 * 60 * 60 * 24))
         }));
-
+        
         res.json({
             activeCount,
             totalCount, 
             earnedUSDT,
-            recentReferrals
+            recentReferrals,
+            claimedTiers // Add this field
         });
-
     } catch (error) {
         res.status(500).json({ 
             activeCount: 0,
             totalCount: 0, 
             earnedUSDT: 0,
-            recentReferrals: []
+            recentReferrals: [],
+            claimedTiers: [] // Add this field here too
         });
     }
 });
