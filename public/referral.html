@@ -384,16 +384,15 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
-    <script>
+           <script>
     Telegram.WebApp.ready();
     const user = Telegram.WebApp.initDataUnsafe.user;
+    let currentLanguage = localStorage.getItem('appLanguage') || 'en';
     let referralData = {
         totalCount: 0,
         activeCount: 0,
         earnedUSDT: 0,
-        referralCode: '',
-        recentReferrals: [],
-        claimedTiers: []
+        recentReferrals: []
     };
 
     const translations = {
@@ -499,39 +498,9 @@
         const lang = translations[currentLanguage];
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
-            if (lang[key]) {
-                el.textContent = lang[key];
-            }
+            if (lang[key]) el.textContent = lang[key];
         });
         updateReferralUI();
-    }
-
-    function initUser() {
-        if (user) {
-            referralData.referralCode = `ref_${user.id}`;
-            const referralLink = `https://t.me/TgStarStore_bot?start=${referralData.referralCode}`;
-            document.getElementById('referralLink').textContent = referralLink;
-            fetchReferralData();
-            updateLanguage();
-            window.addEventListener('storage', function(event) {
-                if (event.key === 'appLanguage') {
-                    currentLanguage = event.newValue || 'en';
-                    updateLanguage();
-                }
-            });
-        }
-    }
-
-    async function fetchReferralData() {
-        try {
-            const response = await axios.get(`/api/referrals/${user.id}`);
-            if (response.data) {
-                referralData = response.data;
-                updateReferralUI();
-            }
-        } catch (error) {
-            console.error('Failed to fetch referral data:', error);
-        }
     }
 
     function updateReferralUI() {
@@ -567,54 +536,56 @@
 
         const recentReferralsContainer = document.getElementById('recentReferrals');
         recentReferralsContainer.innerHTML = '';
+        
         if (referralData.recentReferrals.length === 0) {
-            recentReferralsContainer.innerHTML = `<div class="text-center p-4 text-gray-500"><p>${lang.no_referrals_text}</p></div>`;
+            recentReferralsContainer.innerHTML = `
+                <div class="text-center p-4 text-gray-500">
+                    <p>${lang.no_referrals_text}</p>
+                </div>
+            `;
         } else {
-            referralData.recentReferrals.slice(0, 3).forEach(referral => {
-                const timeLabel = referral.daysAgo === 0 ? lang.today : referral.daysAgo === 1 ? lang.yesterday : `${referral.daysAgo} ${lang.days_ago}`;
-                const statusBadge = referral.status === 'active' ? `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">${lang.active}</span>` : `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">${lang.pending}</span>`;
-                recentReferralsContainer.innerHTML += `<div class="referral-card p-3 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">${referral.name.charAt(0)}</div><div><p class="font-medium">@${referral.name}</p><p class="text-xs text-gray-500">${timeLabel}</p></div></div><div>${statusBadge}</div></div>`;
+            referralData.recentReferrals.forEach(referral => {
+                const timeLabel = referral.daysAgo === 0 ? lang.today : 
+                                referral.daysAgo === 1 ? lang.yesterday : 
+                                `${referral.daysAgo} ${lang.days_ago}`;
+                const statusBadge = referral.status === 'active' ? 
+                    `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">${lang.active}</span>` :
+                    `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">${lang.pending}</span>`;
+                
+                recentReferralsContainer.innerHTML += `
+                    <div class="referral-card p-3 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+                                ${referral.name.charAt(0)}
+                            </div>
+                            <div>
+                                <p class="font-medium">${referral.name}</p>
+                                <p class="text-xs text-gray-500">${timeLabel}</p>
+                            </div>
+                        </div>
+                        <div>
+                            ${statusBadge}
+                        </div>
+                    </div>
+                `;
             });
         }
-        document.getElementById('menuNotificationDot').style.display = referralData.recentReferrals.some(r => r.daysAgo === 0) ? 'block' : 'none';
     }
 
-    async function claimReward(tier) {
-        const lang = translations[currentLanguage];
-        const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
-        const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
-
-        if (referralData.activeCount < requiredReferrals) {
-            Swal.fire({icon: 'error', title: lang.withdrawal_failed, text: currentLanguage === 'ru' ? `Вам нужно ${requiredReferrals} рефералов, чтобы получить эту награду.` : `You need ${requiredReferrals} referrals to claim this reward.`});
-            return;
-        }
-
-        if (referralData.claimedTiers.includes(tier)) {
-            Swal.fire({icon: 'error', title: lang.withdrawal_failed, text: lang.already_claimed});
-            return;
-        }
-
-        const confirmResult = await Swal.fire({
-            title: lang.confirm_withdrawal,
-            text: currentLanguage === 'ru' ? `Вы собираетесь вывести $${rewardAmount}. Продолжить?` : `You are about to withdraw $${rewardAmount}. Continue?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: currentLanguage === 'ru' ? 'Да, вывести' : 'Yes, withdraw',
-            cancelButtonText: currentLanguage === 'ru' ? 'Отмена' : 'Cancel'
-        });
-
-        if (confirmResult.isConfirmed) {
-            try {
-                const response = await axios.post('/api/claim-reward', {userId: user.id, tier: tier, amount: rewardAmount});
-                if (response.data.success) {
-                    referralData.claimedTiers.push(tier);
-                    referralData.earnedUSDT += rewardAmount;
-                    updateReferralUI();
-                    Swal.fire({icon: 'success', title: lang.withdrawal_successful, text: currentLanguage === 'ru' ? `$${rewardAmount} было добавлено на ваш счет.` : `$${rewardAmount} has been added to your account.`});
-                }
-            } catch (error) {
-                Swal.fire({icon: 'error', title: lang.withdrawal_failed, text: error.response?.data?.error || (currentLanguage === 'ru' ? 'Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.' : 'An unexpected error occurred. Please try again later.')});
+    async function fetchReferralData() {
+        try {
+            const response = await axios.get(`/api/referrals/${user.id}`);
+            if (response.data) {
+                referralData = {
+                    totalCount: response.data.totalCount,
+                    activeCount: response.data.activeCount,
+                    earnedUSDT: response.data.earnedUSDT,
+                    recentReferrals: response.data.recentReferrals
+                };
+                updateReferralUI();
             }
+        } catch (error) {
+            console.error('Failed to fetch referral data:', error);
         }
     }
 
@@ -622,20 +593,32 @@
         const lang = translations[currentLanguage];
         const referralLink = document.getElementById('referralLink').textContent;
         navigator.clipboard.writeText(referralLink).then(() => {
-            Swal.fire({icon: 'success', title: lang.copied, text: lang.referral_link_copied, timer: 1500, showConfirmButton: false});
+            Swal.fire({
+                icon: 'success',
+                title: lang.copied,
+                text: lang.referral_link_copied,
+                timer: 1500,
+                showConfirmButton: false
+            });
         });
     }
 
     function shareReferralLink() {
         const lang = translations[currentLanguage];
         const referralLink = document.getElementById('referralLink').textContent;
-        const shareText = currentLanguage === 'ru' ? `Присоединяйтесь к StarStore и получайте эксклюзивные Telegram Stars и премиум-контент! Используйте мою реферальную ссылку: ${referralLink}` : `Join StarStore and get exclusive Telegram stars and premium! Use my referral link: ${referralLink}`;
+        const shareText = currentLanguage === 'ru' ? 
+            `Присоединяйтесь к StarStore и получайте эксклюзивные Telegram Stars и премиум-контент! Используйте мою реферальную ссылку: ${referralLink}` :
+            `Join StarStore and get exclusive Telegram stars and premium! Use my referral link: ${referralLink}`;
+        
         if (navigator.share) {
-            navigator.share({title: currentLanguage === 'ru' ? 'Присоединяйтесь к StarStore!' : 'Join StarStore!', text: shareText, url: referralLink}).catch(fallbackShare);
+            navigator.share({
+                title: currentLanguage === 'ru' ? 'Присоединяйтесь к StarStore!' : 'Join StarStore!',
+                text: shareText,
+                url: referralLink
+            }).catch(error => {
+                Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
+            });
         } else {
-            fallbackShare();
-        }
-        function fallbackShare() {
             Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
         }
     }
@@ -645,7 +628,24 @@
         document.getElementById('sideMenu').classList.toggle('active');
     }
 
+    function initUser() {
+        if (user) {
+            const referralLink = `https://t.me/TgStarStore_bot?start=ref_${user.id}`;
+            document.getElementById('referralLink').textContent = referralLink;
+            fetchReferralData();
+            updateLanguage();
+            
+            window.addEventListener('storage', function(event) {
+                if (event.key === 'appLanguage') {
+                    currentLanguage = event.newValue || 'en';
+                    updateLanguage();
+                }
+            });
+        }
+    }
+
     initUser();
-</script>
+</script> 
+
 </body>
 </html>
