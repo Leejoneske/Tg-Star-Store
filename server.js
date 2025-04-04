@@ -810,44 +810,46 @@ app.get('/api/transactions/:userId', async (req, res) => {
 //get referrals for history and referral page
 app.get('/api/referrals/:userId', async (req, res) => {
     try {
-        const allReferrals = await Referral.find({ referrerUserId: req.params.userId })
+        const userId = req.params.userId;
+        
+        const allReferrals = await Referral.find({ referrerUserId: userId })
             .sort({ dateReferred: -1 });
         
-        const activeReferrals = allReferrals.filter(r => r.status === 'active').length;
-        let earnedUSDT = 0;
-        let nextThreshold = 3;
+        const activeReferrals = allReferrals.filter(r => r.status === 'active');
+        const activeCount = activeReferrals.length;
+        const totalCount = allReferrals.length;
 
-        // Calculate earnings based on active referrals
-        if (activeReferrals >= 15) {
-            earnedUSDT = 5;
-            nextThreshold = 15; // Max reached
-        } else if (activeReferrals >= 9) {
-            earnedUSDT = 1;
-            nextThreshold = 15;
-        } else if (activeReferrals >= 3) {
+        let earnedUSDT = 0;
+        if (activeCount >= 15) {
+            earnedUSDT = 5.0;
+        } else if (activeCount >= 9) {
+            earnedUSDT = 1.0;
+        } else if (activeCount >= 3) {
             earnedUSDT = 0.5;
-            nextThreshold = 9;
         }
 
-        // Prepare recent referrals (last 5)
-        const recent = await Promise.all(
-            allReferrals.slice(0, 5).map(async r => ({
-                id: r._id,
-                name: (await User.findOne({ id: r.referredUserId }))?.username || r.referredUserId,
-                status: r.status,
-                daysAgo: Math.floor((Date.now() - new Date(r.dateReferred)) / 86400000)
-            }))
+        const recentReferrals = await Promise.all(
+            allReferrals.slice(0, 3).map(async r => {
+                const user = await User.findOne({ id: r.referredUserId });
+                return {
+                    id: r._id.toString(),
+                    name: user ? user.username : r.referredUserId,
+                    status: r.status,
+                    daysAgo: Math.floor((Date.now() - new Date(r.dateReferred)) / (1000 * 60 * 60 * 24)
+                };
+            })
         );
 
         res.json({
-            activeCount: activeReferrals,
-            totalCount: allReferrals.length,
+            activeCount,
+            totalCount,
             earnedUSDT,
-            nextThreshold,
-            recentReferrals: recent
+            recentReferrals
         });
+
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch data' });
+        console.error('Error fetching referrals:', error);
+        res.status(500).json({ error: 'Failed to fetch referral data' });
     }
 });
 
