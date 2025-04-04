@@ -835,7 +835,7 @@ app.get('/api/referrals/:userId', async (req, res) => {
                     id: r._id.toString(),
                     name: user ? user.username : r.referredUserId,
                     status: r.status,
-                    daysAgo: Math.floor((Date.now() - new Date(r.dateReferred)) / (1000 * 60 * 60 * 24)
+                    daysAgo: Math.floor((Date.now() - new Date(r.dateReferred)) / (1000 * 60 * 60 * 24))
                 };
             })
         );
