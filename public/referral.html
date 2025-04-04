@@ -385,363 +385,267 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
     <script>
-        Telegram.WebApp.ready();
-        const user = Telegram.WebApp.initDataUnsafe.user;
-        let referralData = {
-            count: 0, // Total referrals (both active and pending)
-            earnedUSDT: 0, // Earned USDT
-            referralCode: '', // Referral code
-            recentReferrals: [], // Latest referrals (both active and pending)
-            claimedTiers: [] // Tiers that have been claimed
-        };
+    Telegram.WebApp.ready();
+    const user = Telegram.WebApp.initDataUnsafe.user;
+    let referralData = {
+        totalCount: 0,
+        activeCount: 0,
+        earnedUSDT: 0,
+        referralCode: '',
+        recentReferrals: [],
+        claimedTiers: []
+    };
 
-        // Language support
-        let currentLanguage = localStorage.getItem('appLanguage') || 'en';
-        const translations = {
-            en: {
-                menu: "Menu",
-                home: "Home",
-                sell: "Sell",
-                history: "History",
-                referral: "Referral",
-                about: "About",
-                your_referrals: "Your Referrals",
-                total_referrals: "Total Referrals",
-                earned_usdt: "Earned USDT",
-                next_reward: "Next Reward:",
-                referrals_to_next_tier: "referrals to next tier",
-                share_your_link: "Share Your Link",
-                invite_friends_text: "Invite friends and earn rewards for each person who joins using your link",
-                copy_link: "Copy Link",
-                share: "Share",
-                rewards_program: "Rewards Program",
-                tier_1: "Tier 1",
-                tier_2: "Tier 2",
-                tier_3: "Tier 3",
-                three_referrals: "3 Referrals",
-                nine_referrals: "9 Referrals",
-                fifteen_referrals: "15 Referrals",
-                get_half_usdt: "Get 0.5 USDT bonus",
-                get_two_usdt: "Get 2 USDT bonus",
-                get_five_usdt: "Get 5 USDT bonus",
-                claim: "Claim",
-                how_it_works: "How It Works",
-                share_referral_link: "Share your referral link",
-                copy_share_text: "Copy and share your unique referral link with friends",
-                friends_join: "Friends join StarStore",
-                signup_credit_text: "When they sign up using your link, you'll get credit",
-                earn_rewards: "Earn rewards",
-                get_usdt_text: "Get USDT for each referral and unlock tier bonuses",
-                recent_referrals: "Recent Referrals",
-                no_referrals_text: "No referrals yet. Share your link to start earning!",
-                today: "Today",
-                yesterday: "Yesterday",
-                days_ago: "days ago",
-                active: "Active",
-                pending: "Pending",
-                withdrawal_failed: "Withdrawal Failed",
-                already_claimed: "You have already claimed this reward.",
-                confirm_withdrawal: "Confirm Withdrawal",
-                withdrawal_successful: "Withdrawal Successful",
-                copied: "Copied!",
-                referral_link_copied: "Referral link copied to clipboard"
-            },
-            ru: {
-                menu: "Меню",
-                home: "Главная",
-                sell: "Продать",
-                history: "История",
-                referral: "Рефералы",
-                about: "О нас",
-                your_referrals: "Ваши рефералы",
-                total_referrals: "Всего рефералов",
-                earned_usdt: "Заработано USDT",
-                next_reward: "Следующая награда:",
-                referrals_to_next_tier: "рефералов до следующего уровня",
-                share_your_link: "Поделитесь ссылкой",
-                invite_friends_text: "Приглашайте друзей и получайте вознаграждение за каждого, кто присоединится по вашей ссылке",
-                copy_link: "Копировать ссылку",
-                share: "Поделиться",
-                rewards_program: "Программа вознаграждений",
-                tier_1: "Уровень 1",
-                tier_2: "Уровень 2",
-                tier_3: "Уровень 3",
-                three_referrals: "3 реферала",
-                nine_referrals: "9 рефералов",
-                fifteen_referrals: "15 рефералов",
-                get_half_usdt: "Получите 0.5 USDT",
-                get_two_usdt: "Получите 2 USDT",
-                get_five_usdt: "Получите 5 USDT",
-                claim: "Получить",
-                how_it_works: "Как это работает",
-                share_referral_link: "Поделитесь реферальной ссылкой",
-                copy_share_text: "Скопируйте и поделитесь своей уникальной реферальной ссылкой",
-                friends_join: "Друзья присоединяются к StarStore",
-                signup_credit_text: "Когда они зарегистрируются по вашей ссылке, вы получите вознаграждение",
-                earn_rewards: "Зарабатывайте вознаграждения",
-                get_usdt_text: "Получайте USDT за каждого реферала и открывайте бонусные уровни",
-                recent_referrals: "Недавние рефералы",
-                no_referrals_text: "Пока нет рефералов. Поделитесь ссылкой, чтобы начать зарабатывать!",
-                today: "Сегодня",
-                yesterday: "Вчера",
-                days_ago: "дней назад",
-                active: "Активен",
-                pending: "Ожидает",
-                withdrawal_failed: "Ошибка вывода",
-                already_claimed: "Вы уже получили эту награду.",
-                confirm_withdrawal: "Подтвердите вывод",
-                withdrawal_successful: "Вывод успешен",
-                copied: "Скопировано!",
-                referral_link_copied: "Реферальная ссылка скопирована"
-            }
-        };
-
-        function updateLanguage() {
-            const lang = translations[currentLanguage];
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (lang[key]) {
-                    el.textContent = lang[key];
-                }
-            });
-            
-            // Update dynamic UI elements that might have been created
-            updateReferralUI();
+    const translations = {
+        en: {
+            menu: "Menu",
+            home: "Home",
+            sell: "Sell",
+            history: "History",
+            referral: "Referral",
+            about: "About",
+            your_referrals: "Your Referrals",
+            total_referrals: "Total Referrals",
+            earned_usdt: "Earned USDT",
+            next_reward: "Next Reward:",
+            referrals_to_next_tier: "referrals to next tier",
+            share_your_link: "Share Your Link",
+            invite_friends_text: "Invite friends and earn rewards for each person who joins using your link",
+            copy_link: "Copy Link",
+            share: "Share",
+            rewards_program: "Rewards Program",
+            tier_1: "Tier 1",
+            tier_2: "Tier 2",
+            tier_3: "Tier 3",
+            three_referrals: "3 Referrals",
+            nine_referrals: "9 Referrals",
+            fifteen_referrals: "15 Referrals",
+            get_half_usdt: "Get 0.5 USDT bonus",
+            get_two_usdt: "Get 2 USDT bonus",
+            get_five_usdt: "Get 5 USDT bonus",
+            claim: "Claim",
+            how_it_works: "How It Works",
+            share_referral_link: "Share your referral link",
+            copy_share_text: "Copy and share your unique referral link with friends",
+            friends_join: "Friends join StarStore",
+            signup_credit_text: "When they sign up using your link, you'll get credit",
+            earn_rewards: "Earn rewards",
+            get_usdt_text: "Get USDT for each referral and unlock tier bonuses",
+            recent_referrals: "Recent Referrals",
+            no_referrals_text: "No referrals yet. Share your link to start earning!",
+            today: "Today",
+            yesterday: "Yesterday",
+            days_ago: "days ago",
+            active: "Active",
+            pending: "Pending",
+            withdrawal_failed: "Withdrawal Failed",
+            already_claimed: "You have already claimed this reward.",
+            confirm_withdrawal: "Confirm Withdrawal",
+            withdrawal_successful: "Withdrawal Successful",
+            copied: "Copied!",
+            referral_link_copied: "Referral link copied to clipboard"
+        },
+        ru: {
+            menu: "Меню",
+            home: "Главная",
+            sell: "Продать",
+            history: "История",
+            referral: "Рефералы",
+            about: "О нас",
+            your_referrals: "Ваши рефералы",
+            total_referrals: "Всего рефералов",
+            earned_usdt: "Заработано USDT",
+            next_reward: "Следующая награда:",
+            referrals_to_next_tier: "рефералов до следующего уровня",
+            share_your_link: "Поделитесь ссылкой",
+            invite_friends_text: "Приглашайте друзей и получайте вознаграждение за каждого, кто присоединится по вашей ссылке",
+            copy_link: "Копировать ссылку",
+            share: "Поделиться",
+            rewards_program: "Программа вознаграждений",
+            tier_1: "Уровень 1",
+            tier_2: "Уровень 2",
+            tier_3: "Уровень 3",
+            three_referrals: "3 реферала",
+            nine_referrals: "9 рефералов",
+            fifteen_referrals: "15 рефералов",
+            get_half_usdt: "Получите 0.5 USDT",
+            get_two_usdt: "Получите 2 USDT",
+            get_five_usdt: "Получите 5 USDT",
+            claim: "Получить",
+            how_it_works: "Как это работает",
+            share_referral_link: "Поделитесь реферальной ссылкой",
+            copy_share_text: "Скопируйте и поделитесь своей уникальной реферальной ссылкой",
+            friends_join: "Друзья присоединяются к StarStore",
+            signup_credit_text: "Когда они зарегистрируются по вашей ссылке, вы получите вознаграждение",
+            earn_rewards: "Зарабатывайте вознаграждения",
+            get_usdt_text: "Получайте USDT за каждого реферала и открывайте бонусные уровни",
+            recent_referrals: "Недавние рефералы",
+            no_referrals_text: "Пока нет рефералов. Поделитесь ссылкой, чтобы начать зарабатывать!",
+            today: "Сегодня",
+            yesterday: "Вчера",
+            days_ago: "дней назад",
+            active: "Активен",
+            pending: "Ожидает",
+            withdrawal_failed: "Ошибка вывода",
+            already_claimed: "Вы уже получили эту награду.",
+            confirm_withdrawal: "Подтвердите вывод",
+            withdrawal_successful: "Вывод успешен",
+            copied: "Скопировано!",
+            referral_link_copied: "Реферальная ссылка скопирована"
         }
+    };
 
-        function initUser() {
-            if (user) {
-                referralData.referralCode = `ref_${user.id}`;
-                const referralLink = `https://t.me/TgStarStore_bot?start=${referralData.referralCode}`;
-                document.getElementById('referralLink').textContent = referralLink;
-                fetchReferralData();
-                updateLanguage();
-                
-                // Listen for language changes from other pages
-                window.addEventListener('storage', function(event) {
-                    if (event.key === 'appLanguage') {
-                        currentLanguage = event.newValue || 'en';
-                        updateLanguage();
-                    }
-                });
-            } else {
-                console.error('User not logged in or user data not available.');
+    function updateLanguage() {
+        const lang = translations[currentLanguage];
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (lang[key]) {
+                el.textContent = lang[key];
             }
-        }
-
-        async function fetchReferralData() {
-            try {
-                const response = await axios.get(`/api/referrals/${user.id}`);
-                console.log('Backend Response:', response.data); // Log the backend response
-                if (response.data) {
-                    referralData = response.data;
-                    updateReferralUI();
-                } else {
-                    console.log('No referral data found for this user.');
-                    updateReferralUI();
-                }
-            } catch (error) {
-                console.error('Failed to fetch referral data:', error);
-                updateReferralUI();
-            }
-        }
-
-        function updateReferralUI() {
-    const lang = translations[currentLanguage];
-    
-    document.getElementById('referralCount').textContent = referralData.totalCount;
-    document.getElementById('earnedUSDT').textContent = `$${referralData.earnedUSDT.toFixed(2)}`;
-
-    let currentProgress, targetProgress, nextRewardText;
-    const activeCount = referralData.activeCount;
-
-    if (activeCount < 3) {
-        currentProgress = activeCount;
-        targetProgress = 3;
-        nextRewardText = '0.5 USDT';
-    } else if (activeCount < 9) {
-        currentProgress = activeCount - 3;
-        targetProgress = 6;
-        nextRewardText = '1.0 USDT';
-    } else if (activeCount < 15) {
-        currentProgress = activeCount - 9;
-        targetProgress = 6;
-        nextRewardText = '5.0 USDT';
-    } else {
-        currentProgress = activeCount - 15;
-        targetProgress = 15;
-        nextRewardText = currentLanguage === 'ru' ? 'Макс. уровень!' : 'Max Tier Reached!';
+        });
+        updateReferralUI();
     }
 
-    const progressPercent = (currentProgress / targetProgress) * 100;
-    document.getElementById('referralProgress').style.width = `${Math.min(progressPercent, 100)}%`;
-    document.getElementById('currentProgress').textContent = currentProgress;
-    document.getElementById('targetProgress').textContent = targetProgress;
-    document.getElementById('nextReward').textContent = nextRewardText;
+    function initUser() {
+        if (user) {
+            referralData.referralCode = `ref_${user.id}`;
+            const referralLink = `https://t.me/TgStarStore_bot?start=${referralData.referralCode}`;
+            document.getElementById('referralLink').textContent = referralLink;
+            fetchReferralData();
+            updateLanguage();
+            window.addEventListener('storage', function(event) {
+                if (event.key === 'appLanguage') {
+                    currentLanguage = event.newValue || 'en';
+                    updateLanguage();
+                }
+            });
+        }
+    }
 
-    const recentReferralsContainer = document.getElementById('recentReferrals');
-    recentReferralsContainer.innerHTML = '';
-    if (referralData.recentReferrals.length === 0) {
-        recentReferralsContainer.innerHTML = `
-            <div class="text-center p-4 text-gray-500">
-                <p>${lang.no_referrals_text || 'No referrals yet. Share your link to start earning!'}</p>
-            </div>
-        `;
-    } else {
-        referralData.recentReferrals.slice(0, 3).forEach(referral => {
-            const timeLabel = referral.daysAgo === 0 ? lang.today : 
-                            referral.daysAgo === 1 ? lang.yesterday : 
-                            `${referral.daysAgo} ${lang.days_ago}`;
-            const statusBadge = referral.status === 'active' ? 
-                `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">${lang.active}</span>` :
-                `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">${lang.pending}</span>`;
-            recentReferralsContainer.innerHTML += `
-                <div class="referral-card p-3 flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
-                            ${referral.name.charAt(0)}
-                        </div>
-                        <div>
-                            <p class="font-medium">@${referral.name}</p>
-                            <p class="text-xs text-gray-500">${timeLabel}</p>
-                        </div>
-                    </div>
-                    <div>
-                        ${statusBadge}
-                    </div>
-                </div>
-            `;
+    async function fetchReferralData() {
+        try {
+            const response = await axios.get(`/api/referrals/${user.id}`);
+            if (response.data) {
+                referralData = response.data;
+                updateReferralUI();
+            }
+        } catch (error) {
+            console.error('Failed to fetch referral data:', error);
+        }
+    }
+
+    function updateReferralUI() {
+        const lang = translations[currentLanguage];
+        document.getElementById('referralCount').textContent = referralData.totalCount;
+        document.getElementById('earnedUSDT').textContent = `$${referralData.earnedUSDT.toFixed(2)}`;
+
+        let currentProgress, targetProgress, nextRewardText;
+        const activeCount = referralData.activeCount;
+
+        if (activeCount < 3) {
+            currentProgress = activeCount;
+            targetProgress = 3;
+            nextRewardText = '0.5 USDT';
+        } else if (activeCount < 9) {
+            currentProgress = activeCount - 3;
+            targetProgress = 6;
+            nextRewardText = '2.0 USDT';
+        } else if (activeCount < 15) {
+            currentProgress = activeCount - 9;
+            targetProgress = 6;
+            nextRewardText = '5.0 USDT';
+        } else {
+            currentProgress = activeCount - 15;
+            targetProgress = 15;
+            nextRewardText = currentLanguage === 'ru' ? 'Макс. уровень!' : 'Max Tier Reached!';
+        }
+
+        document.getElementById('referralProgress').style.width = `${Math.min((currentProgress / targetProgress) * 100, 100)}%`;
+        document.getElementById('currentProgress').textContent = currentProgress;
+        document.getElementById('targetProgress').textContent = targetProgress;
+        document.getElementById('nextReward').textContent = nextRewardText;
+
+        const recentReferralsContainer = document.getElementById('recentReferrals');
+        recentReferralsContainer.innerHTML = '';
+        if (referralData.recentReferrals.length === 0) {
+            recentReferralsContainer.innerHTML = `<div class="text-center p-4 text-gray-500"><p>${lang.no_referrals_text}</p></div>`;
+        } else {
+            referralData.recentReferrals.slice(0, 3).forEach(referral => {
+                const timeLabel = referral.daysAgo === 0 ? lang.today : referral.daysAgo === 1 ? lang.yesterday : `${referral.daysAgo} ${lang.days_ago}`;
+                const statusBadge = referral.status === 'active' ? `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">${lang.active}</span>` : `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">${lang.pending}</span>`;
+                recentReferralsContainer.innerHTML += `<div class="referral-card p-3 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">${referral.name.charAt(0)}</div><div><p class="font-medium">@${referral.name}</p><p class="text-xs text-gray-500">${timeLabel}</p></div></div><div>${statusBadge}</div></div>`;
+            });
+        }
+        document.getElementById('menuNotificationDot').style.display = referralData.recentReferrals.some(r => r.daysAgo === 0) ? 'block' : 'none';
+    }
+
+    async function claimReward(tier) {
+        const lang = translations[currentLanguage];
+        const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
+        const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
+
+        if (referralData.activeCount < requiredReferrals) {
+            Swal.fire({icon: 'error', title: lang.withdrawal_failed, text: currentLanguage === 'ru' ? `Вам нужно ${requiredReferrals} рефералов, чтобы получить эту награду.` : `You need ${requiredReferrals} referrals to claim this reward.`});
+            return;
+        }
+
+        if (referralData.claimedTiers.includes(tier)) {
+            Swal.fire({icon: 'error', title: lang.withdrawal_failed, text: lang.already_claimed});
+            return;
+        }
+
+        const confirmResult = await Swal.fire({
+            title: lang.confirm_withdrawal,
+            text: currentLanguage === 'ru' ? `Вы собираетесь вывести $${rewardAmount}. Продолжить?` : `You are about to withdraw $${rewardAmount}. Continue?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: currentLanguage === 'ru' ? 'Да, вывести' : 'Yes, withdraw',
+            cancelButtonText: currentLanguage === 'ru' ? 'Отмена' : 'Cancel'
+        });
+
+        if (confirmResult.isConfirmed) {
+            try {
+                const response = await axios.post('/api/claim-reward', {userId: user.id, tier: tier, amount: rewardAmount});
+                if (response.data.success) {
+                    referralData.claimedTiers.push(tier);
+                    referralData.earnedUSDT += rewardAmount;
+                    updateReferralUI();
+                    Swal.fire({icon: 'success', title: lang.withdrawal_successful, text: currentLanguage === 'ru' ? `$${rewardAmount} было добавлено на ваш счет.` : `$${rewardAmount} has been added to your account.`});
+                }
+            } catch (error) {
+                Swal.fire({icon: 'error', title: lang.withdrawal_failed, text: error.response?.data?.error || (currentLanguage === 'ru' ? 'Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.' : 'An unexpected error occurred. Please try again later.')});
+            }
+        }
+    }
+
+    function copyReferralLink() {
+        const lang = translations[currentLanguage];
+        const referralLink = document.getElementById('referralLink').textContent;
+        navigator.clipboard.writeText(referralLink).then(() => {
+            Swal.fire({icon: 'success', title: lang.copied, text: lang.referral_link_copied, timer: 1500, showConfirmButton: false});
         });
     }
 
-    document.getElementById('menuNotificationDot').style.display = referralData.recentReferrals.some(r => r.daysAgo === 0) ? 'block' : 'none';
-}
-                                
-
-        async function claimReward(tier) {
-            const lang = translations[currentLanguage];
-            const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
-            const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
-
-            if (referralData.count < requiredReferrals) {
-                Swal.fire({
-                    icon: 'error',
-                    title: lang.withdrawal_failed || 'Withdrawal Failed',
-                    text: currentLanguage === 'ru' ? 
-                        `Вам нужно ${requiredReferrals} рефералов, чтобы получить эту награду.` :
-                        `You need ${requiredReferrals} referrals to claim this reward.`
-                });
-                return;
-            }
-
-            if (referralData.claimedTiers && referralData.claimedTiers.includes(tier)) {
-                Swal.fire({
-                    icon: 'error',
-                    title: lang.withdrawal_failed || 'Withdrawal Failed',
-                    text: lang.already_claimed || 'You have already claimed this reward.'
-                });
-                return;
-            }
-
-            const confirmResult = await Swal.fire({
-                title: lang.confirm_withdrawal || 'Confirm Withdrawal',
-                text: currentLanguage === 'ru' ? 
-                    `Вы собираетесь вывести $${rewardAmount}. Продолжить?` :
-                    `You are about to withdraw $${rewardAmount}. Continue?`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: currentLanguage === 'ru' ? 'Да, вывести' : 'Yes, withdraw',
-                cancelButtonText: currentLanguage === 'ru' ? 'Отмена' : 'Cancel'
-            });
-
-            if (confirmResult.isConfirmed) {
-                try {
-                    const response = await axios.post('/api/claim-reward', {
-                        userId: user.id,
-                        tier: tier,
-                        amount: rewardAmount
-                    });
-
-                    if (response.data.success) {
-                        referralData.claimedTiers.push(tier);
-                        referralData.earnedUSDT += rewardAmount;
-                        updateReferralUI();
-                        Swal.fire({
-                            icon: 'success',
-                            title: lang.withdrawal_successful || 'Withdrawal Successful',
-                            text: currentLanguage === 'ru' ? 
-                                `$${rewardAmount} было добавлено на ваш счет.` :
-                                `$${rewardAmount} has been added to your account.`
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: lang.withdrawal_failed || 'Withdrawal Failed',
-                            text: response.data.error || (currentLanguage === 'ru' ? 
-                                'Не удалось обработать запрос.' : 
-                                'Failed to process withdrawal.')
-                        });
-                    }
-                } catch (error) {
-                    console.error('Failed to claim reward:', error);
-                    Swal.fire({
-                        icon: 'error',
-                        title: lang.withdrawal_failed || 'Withdrawal Failed',
-                        text: error.response?.data?.error || (currentLanguage === 'ru' ? 
-                            'Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.' : 
-                            'An unexpected error occurred. Please try again later.')
-                    });
-                }
-            }
+    function shareReferralLink() {
+        const lang = translations[currentLanguage];
+        const referralLink = document.getElementById('referralLink').textContent;
+        const shareText = currentLanguage === 'ru' ? `Присоединяйтесь к StarStore и получайте эксклюзивные Telegram Stars и премиум-контент! Используйте мою реферальную ссылку: ${referralLink}` : `Join StarStore and get exclusive Telegram stars and premium! Use my referral link: ${referralLink}`;
+        if (navigator.share) {
+            navigator.share({title: currentLanguage === 'ru' ? 'Присоединяйтесь к StarStore!' : 'Join StarStore!', text: shareText, url: referralLink}).catch(fallbackShare);
+        } else {
+            fallbackShare();
         }
-
-        function copyReferralLink() {
-            const lang = translations[currentLanguage];
-            const referralLink = document.getElementById('referralLink').textContent;
-            navigator.clipboard.writeText(referralLink).then(() => {
-                Swal.fire({
-                    icon: 'success',
-                    title: lang.copied || 'Copied!',
-                    text: lang.referral_link_copied || 'Referral link copied to clipboard',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-            }).catch(err => {
-                console.error('Failed to copy: ', err);
-            });
+        function fallbackShare() {
+            Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
         }
+    }
 
-        function shareReferralLink() {
-            const lang = translations[currentLanguage];
-            const referralLink = document.getElementById('referralLink').textContent;
-            const shareText = currentLanguage === 'ru' ? 
-                `Присоединяйтесь к StarStore и получайте эксклюзивные Telegram Stars и премиум-контент! Используйте мою реферальную ссылку: ${referralLink}` :
-                `Join StarStore and get exclusive Telegram stars and premium! Use my referral link: ${referralLink}`;
-            if (navigator.share) {
-                navigator.share({
-                    title: currentLanguage === 'ru' ? 'Присоединяйтесь к StarStore!' : 'Join StarStore!',
-                    text: shareText,
-                    url: referralLink
-                }).catch(error => {
-                    console.log('Error sharing:', error);
-                    fallbackShare();
-                });
-            } else {
-                fallbackShare();
-            }
-            function fallbackShare() {
-                Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
-            }
-        }
+    function toggleMenu() {
+        document.getElementById('menuOverlay').classList.toggle('active');
+        document.getElementById('sideMenu').classList.toggle('active');
+    }
 
-        function toggleMenu() {
-            const menuOverlay = document.getElementById('menuOverlay');
-            const sideMenu = document.getElementById('sideMenu');
-            menuOverlay.classList.toggle('active');
-            sideMenu.classList.toggle('active');
-        }
-
-        initUser();
-    </script>
+    initUser();
+</script>
 </body>
 </html>
