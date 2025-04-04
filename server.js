@@ -812,13 +812,16 @@ app.get('/api/referrals/:userId', async (req, res) => {
     try {
         const userId = req.params.userId;
         
+        // Get all referrals sorted by date
         const allReferrals = await Referral.find({ referrerUserId: userId })
             .sort({ dateReferred: -1 });
         
+        // Calculate counts
         const activeReferrals = allReferrals.filter(r => r.status === 'active');
         const activeCount = activeReferrals.length;
         const totalCount = allReferrals.length;
 
+        // Calculate earnings based on active referrals only
         let earnedUSDT = 0;
         if (activeCount >= 15) {
             earnedUSDT = 5.0;
@@ -828,31 +831,32 @@ app.get('/api/referrals/:userId', async (req, res) => {
             earnedUSDT = 0.5;
         }
 
-        const recentReferrals = await Promise.all(
-            allReferrals.slice(0, 3).map(async r => {
-                const user = await User.findOne({ id: r.referredUserId });
-                return {
-                    id: r._id.toString(),
-                    name: user ? user.username : r.referredUserId,
-                    status: r.status,
-                    daysAgo: Math.floor((Date.now() - new Date(r.dateReferred)) / (1000 * 60 * 60 * 24))
-                };
-            })
-        );
+        // Prepare recent referrals (last 3)
+        const recentReferrals = allReferrals.slice(0, 3).map(r => ({
+            id: r._id.toString(),
+            name: r.referredUsername || `user_${r.referredUserId.slice(0, 6)}`,
+            status: r.status,
+            daysAgo: Math.floor((Date.now() - new Date(r.dateReferred)) / (1000 * 60 * 60 * 24))
+        }));
 
         res.json({
-            activeCount,
-            totalCount,
+            activeCount, // For progress bar
+            totalCount, // For display
             earnedUSDT,
-            recentReferrals
+            recentReferrals // For history section
         });
 
     } catch (error) {
         console.error('Error fetching referrals:', error);
-        res.status(500).json({ error: 'Failed to fetch referral data' });
+        res.status(500).json({ 
+            activeCount: 0,
+            totalCount: 0, 
+            earnedUSDT: 0,
+            recentReferrals: [],
+            error: 'Failed to fetch referral data' 
+        });
     }
 });
-
 
 // Handle both /referrals command and plain text "referrals"
 bot.onText(/\/referrals|referrals/i, async (msg) => {
