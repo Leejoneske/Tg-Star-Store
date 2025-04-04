@@ -810,54 +810,48 @@ app.get('/api/transactions/:userId', async (req, res) => {
 //get referrals for history and referral page
 app.get('/api/referrals/:userId', async (req, res) => {
     try {
-        const userId = req.params.userId;
+        const allReferrals = await Referral.find({ referrerUserId: req.params.userId })
+            .sort({ dateReferred: -1 });
         
-        // Get ALL referrals (for history section)
-        const allReferrals = await Referral.find({ referrerUserId: userId }).sort({ dateReferred: -1 });
-        
-        // Get only active referrals count (for progress bar)
-        const activeReferrals = allReferrals.filter(ref => ref.status === 'active').length;
-        
-        // Get latest 3 referrals (for recent referrals section)
-        const latestReferrals = allReferrals.slice(0, 3);
-
-        // Calculate earned USDT based only on ACTIVE referrals
+        const activeReferrals = allReferrals.filter(r => r.status === 'active').length;
         let earnedUSDT = 0;
+        let nextThreshold = 3;
+
+        // Calculate earnings based on active referrals
         if (activeReferrals >= 15) {
-            earnedUSDT = 5 + 2 + 0.5; // All tiers
+            earnedUSDT = 5;
+            nextThreshold = 15; // Max reached
         } else if (activeReferrals >= 9) {
-            earnedUSDT = 2 + 0.5; // First two tiers
+            earnedUSDT = 1;
+            nextThreshold = 15;
         } else if (activeReferrals >= 3) {
-            earnedUSDT = 0.5; // First tier
+            earnedUSDT = 0.5;
+            nextThreshold = 9;
         }
 
-        // Fetch usernames for recent referrals
-        const recentReferralsWithNames = await Promise.all(
-            latestReferrals.map(async (ref) => {
-                const user = await User.findOne({ id: ref.referredUserId });
-                return {
-                    id: ref._id.toString(),
-                    name: user ? user.username : ref.referredUserId,
-                    status: ref.status,
-                    daysAgo: Math.floor((new Date() - new Date(ref.dateReferred)) / (1000 * 60 * 60 * 24)) // Fixed missing parenthesis
-                };
-            })
+        // Prepare recent referrals (last 5)
+        const recent = await Promise.all(
+            allReferrals.slice(0, 5).map(async r => ({
+                id: r._id,
+                name: (await User.findOne({ id: r.referredUserId }))?.username || r.referredUserId,
+                status: r.status,
+                daysAgo: Math.floor((Date.now() - new Date(r.dateReferred)) / 86400000)
+            }))
         );
 
-        const response = {
-            count: activeReferrals, // For progress bar (active only)
-            totalCount: allReferrals.length, // For displaying total count if needed
-            earnedUSDT: earnedUSDT,
-            recentReferrals: recentReferralsWithNames, // Shows both active/pending
-            claimedTiers: [] // Should be populated from your database
-        };
-
-        res.json(response);
+        res.json({
+            activeCount: activeReferrals,
+            totalCount: allReferrals.length,
+            earnedUSDT,
+            nextThreshold,
+            recentReferrals: recent
+        });
     } catch (error) {
-        console.error('Error fetching referrals:', error);
-        res.status(500).json({ error: 'Failed to fetch referral data' });
+        res.status(500).json({ error: 'Failed to fetch data' });
     }
 });
+
+
 // Handle both /referrals command and plain text "referrals"
 bot.onText(/\/referrals|referrals/i, async (msg) => {
     const chatId = msg.chat.id;
