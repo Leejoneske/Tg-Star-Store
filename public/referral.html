@@ -489,7 +489,8 @@ const translations = {
 };
 
 let referralData = {
-    count: 0,
+    totalCount: 0,
+    activeCount: 0,
     earnedUSDT: 0,
     referralCode: '',
     recentReferrals: [],
@@ -526,7 +527,8 @@ async function fetchReferralData() {
         const response = await axios.get(`/api/referrals/${user.id}`);
         if (response.data) {
             referralData = {
-                count: response.data.totalCount || 0,
+                totalCount: response.data.totalCount || 0,
+                activeCount: response.data.activeCount || 0,
                 earnedUSDT: response.data.earnedUSDT || 0,
                 recentReferrals: response.data.recentReferrals || [],
                 claimedTiers: response.data.claimedTiers || []
@@ -535,31 +537,32 @@ async function fetchReferralData() {
         }
     } catch (error) {
         console.error('Failed to fetch referral data:', error);
-        showError(translations[currentLanguage].withdrawal_failed);
+        updateReferralUI();
     }
 }
 
 function updateReferralUI() {
     const lang = translations[currentLanguage];
-    document.getElementById('referralCount').textContent = referralData.count;
+    
+    document.getElementById('referralCount').textContent = referralData.totalCount;
     document.getElementById('earnedUSDT').textContent = `$${referralData.earnedUSDT.toFixed(2)}`;
 
     let currentProgress, targetProgress, nextRewardText;
-    if (referralData.count < 3) {
-        currentProgress = referralData.count;
+    if (referralData.activeCount < 3) {
+        currentProgress = referralData.activeCount;
         targetProgress = 3;
         nextRewardText = '0.5 USDT';
-    } else if (referralData.count < 9) {
-        currentProgress = referralData.count - 3;
+    } else if (referralData.activeCount < 9) {
+        currentProgress = referralData.activeCount - 3;
         targetProgress = 6;
         nextRewardText = '2.0 USDT';
-    } else if (referralData.count < 15) {
-        currentProgress = referralData.count - 9;
+    } else if (referralData.activeCount < 15) {
+        currentProgress = referralData.activeCount - 9;
         targetProgress = 6;
         nextRewardText = '5.0 USDT';
     } else {
-        currentProgress = referralData.count;
-        targetProgress = referralData.count;
+        currentProgress = referralData.activeCount;
+        targetProgress = referralData.activeCount;
         nextRewardText = currentLanguage === 'ru' ? 'Макс. уровень!' : 'Max Tier Reached!';
     }
 
@@ -621,10 +624,10 @@ function updateTierButtons(lang) {
             button.classList.remove('bg-green-500');
             button.classList.add('bg-gray-400');
         } else {
-            button.disabled = referralData.count < required;
+            button.disabled = referralData.activeCount < required;
             button.textContent = lang.claim;
             
-            if (referralData.count >= required) {
+            if (referralData.activeCount >= required) {
                 button.classList.add('bg-green-500');
                 button.classList.remove('bg-gray-400');
             } else {
@@ -640,10 +643,11 @@ async function claimReward(tier) {
     const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
     const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
 
-    if (referralData.count < requiredReferrals) {
-        showError(lang.withdrawal_failed, currentLanguage === 'ru' ? 
-            `Вам нужно ${requiredReferrals} рефералов, чтобы получить эту награду.` :
-            `You need ${requiredReferrals} referrals to claim this reward.`);
+    if (referralData.activeCount < requiredReferrals) {
+        showError(lang.withdrawal_failed, 
+            currentLanguage === 'ru' ? 
+            `Вам нужно ${requiredReferrals} активных рефералов для этого уровня.` :
+            `You need ${requiredReferrals} active referrals for this tier.`);
         return;
     }
 
@@ -651,19 +655,6 @@ async function claimReward(tier) {
         showError(lang.withdrawal_failed, lang.already_claimed);
         return;
     }
-
-    const confirmResult = await Swal.fire({
-        title: lang.confirm_withdrawal,
-        text: currentLanguage === 'ru' ? 
-            `Вы собираетесь вывести $${rewardAmount}. Продолжить?` :
-            `You are about to withdraw $${rewardAmount}. Continue?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: currentLanguage === 'ru' ? 'Да, вывести' : 'Yes, withdraw',
-        cancelButtonText: currentLanguage === 'ru' ? 'Отмена' : 'Cancel'
-    });
-
-    if (!confirmResult.isConfirmed) return;
 
     try {
         const response = await axios.post('/api/claim-reward', {
@@ -684,13 +675,15 @@ async function claimReward(tier) {
                     `$${rewardAmount} было добавлено на ваш счет.` :
                     `$${rewardAmount} has been added to your account.`
             });
+        } else {
+            showError(lang.withdrawal_failed, response.data.error || 'Unknown error');
         }
     } catch (error) {
         showError(
             lang.withdrawal_failed, 
             error.response?.data?.error || (currentLanguage === 'ru' ? 
-                'Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.' : 
-                'An unexpected error occurred. Please try again later.')
+                'Произошла ошибка. Пожалуйста, попробуйте позже.' : 
+                'An error occurred. Please try again later.')
         );
     }
 }
