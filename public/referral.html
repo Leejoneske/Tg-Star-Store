@@ -385,9 +385,14 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
         <script>           
  
- Telegram.WebApp.ready();
+ // Initialize Telegram Web App
+Telegram.WebApp.ready();
 const user = Telegram.WebApp.initDataUnsafe.user;
+
+// Manage app language
 let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+
+// Store referral data
 let referralData = {
     totalCount: 0,         // Total number of referrals (both active and pending)
     activeCount: 0,        // Only active referrals
@@ -396,6 +401,7 @@ let referralData = {
     claimedTiers: []
 };
 
+// Translations object
 const translations = {
     en: {
         menu: "Menu",
@@ -497,6 +503,9 @@ const translations = {
     }
 };
 
+/**
+ * Updates all UI elements with the current language
+ */
 function updateLanguage() {
     const lang = translations[currentLanguage];
     document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -506,22 +515,22 @@ function updateLanguage() {
     updateReferralUI();
 }
 
+/**
+ * Updates the referral UI with current data
+ */
 function updateReferralUI() {
     const lang = translations[currentLanguage];
     
-    // Update total referral count (both active and pending)
+    // Update counts and earnings
     document.getElementById('referralCount').textContent = referralData.totalCount;
-    
-    // Display active referrals count separately (optional)
     if (document.getElementById('activeReferralCount')) {
         document.getElementById('activeReferralCount').textContent = referralData.activeCount;
     }
-    
     document.getElementById('earnedUSDT').textContent = `$${referralData.earnedUSDT.toFixed(2)}`;
 
-    // Progress calculations based only on active referrals
-    let currentProgress, targetProgress, nextRewardText;
+    // Calculate progress and next reward
     const activeCount = referralData.activeCount;
+    let currentProgress, targetProgress, nextRewardText;
 
     if (activeCount < 3) {
         currentProgress = activeCount;
@@ -537,17 +546,17 @@ function updateReferralUI() {
         nextRewardText = '5.0 USDT';
     } else {
         currentProgress = activeCount;
-        targetProgress = activeCount; // Full progress bar when max tier is reached
+        targetProgress = activeCount;
         nextRewardText = currentLanguage === 'ru' ? 'Макс. уровень!' : 'Max Tier Reached!';
     }
 
-    // Update progress bar
+    // Update progress visualization
     document.getElementById('referralProgress').style.width = `${Math.min((currentProgress / targetProgress) * 100, 100)}%`;
     document.getElementById('currentProgress').textContent = currentProgress;
     document.getElementById('targetProgress').textContent = targetProgress;
     document.getElementById('nextReward').textContent = nextRewardText;
 
-    // Display all referrals in the recent referrals section (both active and pending)
+    // Display referral list
     const recentReferralsContainer = document.getElementById('recentReferrals');
     recentReferralsContainer.innerHTML = '';
     
@@ -555,14 +564,8 @@ function updateReferralUI() {
         recentReferralsContainer.innerHTML = `<div class="text-center p-4 text-gray-500"><p>${lang.no_referrals_text}</p></div>`;
     } else {
         referralData.recentReferrals.forEach(referral => {
-            const timeLabel = referral.daysAgo === 0 ? lang.today : 
-                            referral.daysAgo === 1 ? lang.yesterday : 
-                            `${referral.daysAgo} ${lang.days_ago}`;
-            
-            // Display status badge based on active/pending status
-            const statusBadge = referral.status === 'active' ? 
-                `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">${lang.active}</span>` :
-                `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">${lang.pending}</span>`;
+            const timeLabel = getTimeLabel(referral.daysAgo, lang);
+            const statusBadge = getStatusBadge(referral.status, lang);
             
             recentReferralsContainer.innerHTML += `
                 <div class="referral-card p-3 flex justify-between items-center">
@@ -583,43 +586,73 @@ function updateReferralUI() {
         });
     }
 
-    // Update tier claim buttons based on claimed tiers
-    ['claimTier1', 'claimTier2', 'claimTier3'].forEach((id, index) => {
-        const tier = index + 1;
+    // Update tier claim buttons
+    updateTierButtons(lang);
+}
+
+/**
+ * Gets time label for referral
+ */
+function getTimeLabel(daysAgo, lang) {
+    return daysAgo === 0 ? lang.today : 
+           daysAgo === 1 ? lang.yesterday : 
+           `${daysAgo} ${lang.days_ago}`;
+}
+
+/**
+ * Gets status badge HTML
+ */
+function getStatusBadge(status, lang) {
+    return status === 'active' ? 
+        `<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">${lang.active}</span>` :
+        `<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">${lang.pending}</span>`;
+}
+
+/**
+ * Updates tier claim buttons based on available tiers
+ */
+function updateTierButtons(lang) {
+    const tierButtons = [
+        { id: 'claimTier1', tier: 1, required: 3 },
+        { id: 'claimTier2', tier: 2, required: 9 },
+        { id: 'claimTier3', tier: 3, required: 15 }
+    ];
+    
+    tierButtons.forEach(({id, tier, required}) => {
         const button = document.getElementById(id);
-        if (button) {
-            if (referralData.claimedTiers.includes(tier)) {
-                button.disabled = true;
-                button.textContent = currentLanguage === 'ru' ? 'Получено' : 'Claimed';
+        if (!button) return;
+        
+        if (referralData.claimedTiers.includes(tier)) {
+            button.disabled = true;
+            button.textContent = currentLanguage === 'ru' ? 'Получено' : 'Claimed';
+            button.classList.remove('bg-green-500');
+            button.classList.add('bg-gray-400');
+        } else {
+            button.disabled = referralData.activeCount < required;
+            button.textContent = lang.claim;
+            
+            if (referralData.activeCount >= required) {
+                button.classList.add('bg-green-500');
+                button.classList.remove('bg-gray-400');
+            } else {
                 button.classList.remove('bg-green-500');
                 button.classList.add('bg-gray-400');
-            } else {
-                // Enable button only if the user has enough active referrals
-                const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
-                button.disabled = activeCount < requiredReferrals;
-                button.textContent = lang.claim;
-                if (activeCount >= requiredReferrals) {
-                    button.classList.add('bg-green-500');
-                    button.classList.remove('bg-gray-400');
-                } else {
-                    button.classList.remove('bg-green-500');
-                    button.classList.add('bg-gray-400');
-                }
             }
         }
     });
 }
 
+/**
+ * Fetches referral data from the server
+ */
 async function fetchReferralData() {
     try {
         const response = await axios.get(`/api/referrals/${user.id}`);
         if (response.data) {
             referralData = {
-                // Store both total count (active + pending) and active count separately
-                totalCount: response.data.totalCount || response.data.activeCount + (response.data.pendingCount || 0),
-                activeCount: response.data.activeCount,
-                earnedUSDT: response.data.earnedUSDT,
-                // Store all referrals (both active and pending)
+                totalCount: response.data.totalCount || 0,
+                activeCount: response.data.activeCount || 0,
+                earnedUSDT: response.data.earnedUSDT || 0,
                 recentReferrals: response.data.recentReferrals || [],
                 claimedTiers: response.data.claimedTiers || []
             };
@@ -627,43 +660,32 @@ async function fetchReferralData() {
         }
     } catch (error) {
         console.error('Failed to fetch referral data:', error);
-        // Handle error gracefully - maybe show an error message
-        Swal.fire({
-            icon: 'error',
-            title: translations[currentLanguage].withdrawal_failed,
-            text: currentLanguage === 'ru' ? 
-                'Не удалось загрузить данные о рефералах. Попробуйте позже.' : 
-                'Failed to load referral data. Please try again later.'
-        });
+        showError(translations[currentLanguage].withdrawal_failed);
     }
 }
 
+/**
+ * Claims reward for a specific tier
+ */
 async function claimReward(tier) {
     const lang = translations[currentLanguage];
     const rewardAmount = tier === 1 ? 0.5 : tier === 2 ? 2 : 5;
     const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
 
-    // Check if user has enough ACTIVE referrals (not total)
+    // Validations
     if (referralData.activeCount < requiredReferrals) {
-        Swal.fire({
-            icon: 'error',
-            title: lang.withdrawal_failed,
-            text: currentLanguage === 'ru' ? 
-                `Вам нужно ${requiredReferrals} активных рефералов, чтобы получить эту награду.` :
-                `You need ${requiredReferrals} active referrals to claim this reward.`
-        });
+        showError(lang.withdrawal_failed, currentLanguage === 'ru' ? 
+            `Вам нужно ${requiredReferrals} активных рефералов, чтобы получить эту награду.` :
+            `You need ${requiredReferrals} active referrals to claim this reward.`);
         return;
     }
 
     if (referralData.claimedTiers.includes(tier)) {
-        Swal.fire({
-            icon: 'error',
-            title: lang.withdrawal_failed,
-            text: lang.already_claimed
-        });
+        showError(lang.withdrawal_failed, lang.already_claimed);
         return;
     }
 
+    // Confirmation dialog
     const confirmResult = await Swal.fire({
         title: lang.confirm_withdrawal,
         text: currentLanguage === 'ru' ? 
@@ -675,41 +697,57 @@ async function claimReward(tier) {
         cancelButtonText: currentLanguage === 'ru' ? 'Отмена' : 'Cancel'
     });
 
-    if (confirmResult.isConfirmed) {
-        try {
-            const response = await axios.post('/api/claim-reward', {
-                userId: user.id,
-                tier: tier,
-                amount: rewardAmount
-            });
+    if (!confirmResult.isConfirmed) return;
 
-            if (response.data.success) {
-                referralData.claimedTiers.push(tier);
-                referralData.earnedUSDT += rewardAmount;
-                updateReferralUI();
-                Swal.fire({
-                    icon: 'success',
-                    title: lang.withdrawal_successful,
-                    text: currentLanguage === 'ru' ? 
-                        `$${rewardAmount} было добавлено на ваш счет.` :
-                        `$${rewardAmount} has been added to your account.`
-                });
-            }
-        } catch (error) {
+    // Process claim
+    try {
+        const response = await axios.post('/api/claim-reward', {
+            userId: user.id,
+            tier: tier,
+            amount: rewardAmount
+        });
+
+        if (response.data.success) {
+            referralData.claimedTiers.push(tier);
+            referralData.earnedUSDT += rewardAmount;
+            updateReferralUI();
+            
             Swal.fire({
-                icon: 'error',
-                title: lang.withdrawal_failed,
-                text: error.response?.data?.error || (currentLanguage === 'ru' ? 
-                    'Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.' : 
-                    'An unexpected error occurred. Please try again later.')
+                icon: 'success',
+                title: lang.withdrawal_successful,
+                text: currentLanguage === 'ru' ? 
+                    `$${rewardAmount} было добавлено на ваш счет.` :
+                    `$${rewardAmount} has been added to your account.`
             });
         }
+    } catch (error) {
+        showError(
+            lang.withdrawal_failed, 
+            error.response?.data?.error || (currentLanguage === 'ru' ? 
+                'Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.' : 
+                'An unexpected error occurred. Please try again later.')
+        );
     }
 }
 
+/**
+ * Shows error dialog
+ */
+function showError(title, message) {
+    Swal.fire({
+        icon: 'error',
+        title: title,
+        text: message
+    });
+}
+
+/**
+ * Copies referral link to clipboard
+ */
 function copyReferralLink() {
     const lang = translations[currentLanguage];
     const referralLink = document.getElementById('referralLink').textContent;
+    
     navigator.clipboard.writeText(referralLink).then(() => {
         Swal.fire({
             icon: 'success',
@@ -721,8 +759,10 @@ function copyReferralLink() {
     });
 }
 
+/**
+ * Shares referral link
+ */
 function shareReferralLink() {
-    const lang = translations[currentLanguage];
     const referralLink = document.getElementById('referralLink').textContent;
     const shareText = currentLanguage === 'ru' ? 
         `Присоединяйтесь к StarStore и получайте эксклюзивные Telegram Stars и премиум-контент! Используйте мою реферальную ссылку: ${referralLink}` :
@@ -733,26 +773,41 @@ function shareReferralLink() {
             title: currentLanguage === 'ru' ? 'Присоединяйтесь к StarStore!' : 'Join StarStore!',
             text: shareText,
             url: referralLink
-        }).catch(error => {
-            Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
+        }).catch(() => {
+            shareThroughTelegram(shareText);
         });
     } else {
-        Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
+        shareThroughTelegram(shareText);
     }
 }
 
+/**
+ * Shares text through Telegram
+ */
+function shareThroughTelegram(shareText) {
+    Telegram.WebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
+}
+
+/**
+ * Toggles mobile menu
+ */
 function toggleMenu() {
     document.getElementById('menuOverlay').classList.toggle('active');
     document.getElementById('sideMenu').classList.toggle('active');
 }
 
+/**
+ * Initializes the user and app
+ */
 function initUser() {
     if (user) {
         const referralLink = `https://t.me/TgStarStore_bot?start=ref_${user.id}`;
         document.getElementById('referralLink').textContent = referralLink;
+        
         fetchReferralData();
         updateLanguage();
         
+        // Listen for language changes
         window.addEventListener('storage', function(event) {
             if (event.key === 'appLanguage') {
                 currentLanguage = event.newValue || 'en';
@@ -763,9 +818,7 @@ function initUser() {
 }
 
 // Initialize on load
-initUser();
-    </script>
- 
-    
+document.addEventListener('DOMContentLoaded', initUser);
+</script>
 </body>
 </html>
