@@ -10,6 +10,7 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f8f9fa;
+            overflow: hidden; /* Prevent scroll during loading */
         }
         .loading-container {
             display: flex;
@@ -17,6 +18,12 @@
             align-items: center;
             height: 100vh;
             flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #f8f9fa;
+            z-index: 9999; /* Ensure loading is on top */
         }
         .spinner {
             width: 50px;
@@ -34,6 +41,12 @@
             color: #333;
             font-size: 1.1rem;
         }
+        
+        /* Hide Tawk.to elements during load */
+        .tawk-min-container, .tawk-button, .tawk-bubble {
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
     </style>
 </head>
 <body>
@@ -42,11 +55,23 @@
         <p class="loading-text">Connecting to support...</p>
     </div>
 
-    <!-- Telegram WebApp SDK (MUST LOAD FIRST) -->
+    <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <script>
-        // ===== 1. CAPTURE TELEGRAM USER ID =====
+        // ===== 1. PREVENT TAWK.TO FLICKERING =====
+        // Force hide widget until fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            const style = document.createElement('style');
+            style.innerHTML = `
+                .tawk-min-container, .tawk-button, .tawk-bubble {
+                    display: none !important;
+                }
+            `;
+            document.head.appendChild(style);
+        });
+
+        // ===== 2. CAPTURE TELEGRAM USER =====
         function getTelegramUser() {
             if (window.Telegram && Telegram.WebApp.initDataUnsafe?.user) {
                 return {
@@ -57,35 +82,50 @@
             return null;
         }
 
-        // ===== 2. CONFIGURE TAWK.TO =====
+        // ===== 3. TAWK.TO CONFIGURATION =====
         window.Tawk_API = window.Tawk_API || {};
         window.Tawk_LoadStart = new Date();
+        
+        // Disable auto-display until ready
+        Tawk_API.autoDisplay = false;
 
         Tawk_API.onLoad = function() {
-            const user = getTelegramUser();
+            // 1. Hide all Tawk.to elements temporarily
+            document.querySelectorAll('.tawk-min-container, .tawk-button').forEach(el => {
+                el.style.display = 'none';
+            });
             
-            // Attach Telegram data to visitor
+            // 2. Set visitor data
+            const user = getTelegramUser();
             if (user) {
                 Tawk_API.setVisitorData({
-                    name: `${user.username} (ID: ${user.id})`,
-                    email: `telegram-${user.id}@user.com`, // Fake email for tracking
-                    telegramId: user.id  // Custom field
+                    name: `${user.username || 'User'} (TG:${user.id})`,
+                    email: `telegram-${user.id}@user.com`,
+                    telegramId: user.id
                 });
             }
-
-            // Auto-open chat and hide loader
-            Tawk_API.maximize();
-            document.getElementById('loading').style.display = 'none';
             
-            // Mobile optimization
-            if (window.innerWidth <= 768) {
-                Tawk_API.setAttributes({
-                    'mobileFullScreen': true
-                });
-            }
+            // 3. Fully load chat before showing
+            setTimeout(() => {
+                // Hide loading screen
+                document.getElementById('loading').style.display = 'none';
+                
+                // Show and maximize chat
+                Tawk_API.showWidget();
+                Tawk_API.maximize();
+                
+                // Mobile optimization
+                if (window.innerWidth <= 768) {
+                    Tawk_API.setAttributes({
+                        'mobileFullScreen': true,
+                        'offsetX': 0,
+                        'offsetY': 0
+                    });
+                }
+            }, 500); // Small delay to ensure everything is ready
         };
 
-        // ===== 3. LOAD TAWK.TO WIDGET =====
+        // ===== 4. LOAD TAWK.TO =====
         (function() {
             var s1 = document.createElement('script'),
                 s0 = document.getElementsByTagName('script')[0];
