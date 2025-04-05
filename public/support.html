@@ -135,18 +135,12 @@
                 }
             });
 
-            // Complete the loading process
+            // Complete the loading process immediately when Tawk is ready
             completeLoading();
         };
 
         // Function to finalize the loading process
         function completeLoading() {
-            if (!tawkLoaded) {
-                console.log('Waiting for Tawk to load...');
-                setTimeout(completeLoading, 100);
-                return;
-            }
-
             console.log('Showing chat widget');
             
             // Fade out loading screen
@@ -159,40 +153,38 @@
                 loadingScreen.style.display = 'none';
                 
                 // Show and maximize chat
-                Tawk_API.showWidget();
-                setTimeout(() => {
-                    Tawk_API.maximize();
-                    
-                    // Mobile-specific fullscreen
-                    if (window.innerWidth <= 768) {
-                        Tawk_API.setAttributes({
-                            'mobileFullScreen': true
-                        });
-                    }
-                }, 100);
+                if (window.Tawk_API) {
+                    Tawk_API.showWidget();
+                    setTimeout(() => {
+                        Tawk_API.maximize();
+                        
+                        // Mobile-specific fullscreen
+                        if (window.innerWidth <= 768) {
+                            Tawk_API.setAttributes({
+                                'mobileFullScreen': true
+                            });
+                        }
+                    }, 100);
+                }
             }, 300);
         }
 
-        // Set a maximum wait time for widget to load (fallback)
+        // Force complete loading after a short timeout regardless of Tawk status
         setTimeout(() => {
-            if (!tawkLoaded) {
-                console.log('Tawk failed to load in time, forcing completion');
-                tawkLoaded = true;
-                completeLoading();
-            }
-        }, 5000);
+            console.log('Ensuring loading completes');
+            completeLoading();
+        }, 3000);
 
         // ===== 4. LOAD TAWK.TO WIDGET =====
-        window.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => {
-                var tawkScript = document.createElement('script');
-                tawkScript.async = true;
-                tawkScript.src = 'https://embed.tawk.to/67ecff100a2d5b1907b51428/1inqs8mce';
-                tawkScript.charset = 'UTF-8';
-                tawkScript.setAttribute('crossorigin', '*');
-                document.body.appendChild(tawkScript);
-            }, 100); // Slight delay to ensure body.loading class is applied first
-        });
+        // Load Tawk widget immediately
+        (function() {
+            var tawkScript = document.createElement('script');
+            tawkScript.async = true;
+            tawkScript.src = 'https://embed.tawk.to/67ecff100a2d5b1907b51428/1inqs8mce';
+            tawkScript.charset = 'UTF-8';
+            tawkScript.setAttribute('crossorigin', '*');
+            document.head.appendChild(tawkScript);
+        })();
     </script>
 </body>
 </html>
