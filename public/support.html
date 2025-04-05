@@ -3,137 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Support</title>
+    <title>StarStore Support</title>
     <style>
+        /* === LOADING SCREEN (FULLSCREEN OVERLAY) === */
         body {
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f8f9fa;
-            overflow: hidden; /* Prevent scroll during loading */
+            overflow: hidden;
         }
-        .loading-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            flex-direction: column;
+        .loading-overlay {
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            background: #f8f9fa;
-            z-index: 9999; /* Ensure loading is on top */
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
         }
         .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(0, 123, 255, 0.2);
-            border-top: 4px solid #007bff;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
             border-radius: 50%;
+            border-top: 4px solid #007bff;
             animation: spin 1s linear infinite;
-            margin-bottom: 20px;
         }
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
         .loading-text {
+            margin-top: 16px;
+            font-size: 16px;
             color: #333;
-            font-size: 1.1rem;
         }
-        
-        /* Hide Tawk.to elements during load */
-        .tawk-min-container, .tawk-button, .tawk-bubble {
-            opacity: 0 !important;
-            visibility: hidden !important;
+
+        /* === FORCE-HIDE TAWK.TO ELEMENTS DURING LOAD === */
+        body.loading .tawk-min-container,
+        body.loading .tawk-button {
+            display: none !important;
         }
     </style>
 </head>
-<body>
-    <div class="loading-container" id="loading">
+<body class="loading">
+    <div class="loading-overlay" id="loadingScreen">
         <div class="spinner"></div>
-        <p class="loading-text">Connecting to support...</p>
+        <div class="loading-text">Connecting to StarStore support...</div>
     </div>
 
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <script>
-        // ===== 1. PREVENT TAWK.TO FLICKERING =====
-        // Force hide widget until fully loaded
+        // ===== 1. PREVENT VISUAL GLITCHES =====
         document.addEventListener('DOMContentLoaded', function() {
-            const style = document.createElement('style');
-            style.innerHTML = `
-                .tawk-min-container, .tawk-button, .tawk-bubble {
-                    display: none !important;
+            // Add CSS to hide Tawk.to elements permanently until we're ready
+            const antiFlickerStyle = document.createElement('style');
+            antiFlickerStyle.innerHTML = `
+                .tawk-min-container, .tawk-button {
+                    visibility: hidden !important;
+                    opacity: 0 !important;
                 }
             `;
-            document.head.appendChild(style);
+            document.head.appendChild(antiFlickerStyle);
         });
 
-        // ===== 2. CAPTURE TELEGRAM USER =====
+        // ===== 2. TELEGRAM USER DATA =====
         function getTelegramUser() {
             if (window.Telegram && Telegram.WebApp.initDataUnsafe?.user) {
                 return {
                     id: Telegram.WebApp.initDataUnsafe.user.id,
-                    username: Telegram.WebApp.initDataUnsafe.user.username || 'Telegram User'
+                    username: Telegram.WebApp.initDataUnsafe.user.username || 'Telegram Customer'
                 };
             }
             return null;
         }
 
-        // ===== 3. TAWK.TO CONFIGURATION =====
+        // ===== 3. TAWK.TO CONFIG =====
         window.Tawk_API = window.Tawk_API || {};
         window.Tawk_LoadStart = new Date();
         
-        // Disable auto-display until ready
+        // Disable auto-display to prevent flickering
         Tawk_API.autoDisplay = false;
 
         Tawk_API.onLoad = function() {
-            // 1. Hide all Tawk.to elements temporarily
-            document.querySelectorAll('.tawk-min-container, .tawk-button').forEach(el => {
-                el.style.display = 'none';
-            });
-            
-            // 2. Set visitor data
+            // Set visitor data from Telegram
             const user = getTelegramUser();
             if (user) {
                 Tawk_API.setVisitorData({
-                    name: `${user.username || 'User'} (TG:${user.id})`,
-                    email: `telegram-${user.id}@user.com`,
+                    name: `[TG] ${user.username} (${user.id})`,
+                    email: `tg-${user.id}@starstore.support`,
                     telegramId: user.id
                 });
             }
-            
-            // 3. Fully load chat before showing
+
+            // Customize chat appearance
+            Tawk_API.setAttributes({
+                'theme': 'light',
+                'overlay': true,
+                'hideBubble': true
+            });
+
+            // Smooth transition sequence
             setTimeout(() => {
-                // Hide loading screen
-                document.getElementById('loading').style.display = 'none';
+                // 1. Hide loading screen
+                document.body.classList.remove('loading');
+                document.getElementById('loadingScreen').style.display = 'none';
                 
-                // Show and maximize chat
+                // 2. Show and maximize chat
                 Tawk_API.showWidget();
                 Tawk_API.maximize();
                 
-                // Mobile optimization
+                // 3. Mobile-specific fullscreen
                 if (window.innerWidth <= 768) {
                     Tawk_API.setAttributes({
-                        'mobileFullScreen': true,
-                        'offsetX': 0,
-                        'offsetY': 0
+                        'mobileFullScreen': true
                     });
                 }
-            }, 500); // Small delay to ensure everything is ready
+            }, 300); // Short delay to ensure everything is initialized
         };
 
-        // ===== 4. LOAD TAWK.TO =====
+        // ===== 4. LOAD TAWK.TO WIDGET =====
         (function() {
-            var s1 = document.createElement('script'),
-                s0 = document.getElementsByTagName('script')[0];
-            s1.async = true;
-            s1.src = 'https://embed.tawk.to/67ecff100a2d5b1907b51428/1inqs8mce';
-            s1.charset = 'UTF-8';
-            s1.setAttribute('crossorigin', '*');
-            s0.parentNode.insertBefore(s1, s0);
+            var tawkScript = document.createElement('script');
+            tawkScript.async = true;
+            tawkScript.src = 'https://embed.tawk.to/67ecff100a2d5b1907b51428/1inqs8mce';
+            tawkScript.charset = 'UTF-8';
+            tawkScript.setAttribute('crossorigin', '*');
+            document.body.appendChild(tawkScript);
         })();
     </script>
 </body>
