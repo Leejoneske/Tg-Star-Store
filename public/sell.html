@@ -1235,40 +1235,7 @@ const fetchTransactions = async () => {
     }
 };
 
-    const rateElement = document.querySelector('.font-bold');
-    const timeElement = document.querySelector('.info-badge');
     
-    // Store the initial rate and time
-    let lastRate = parseFloat(rateElement.textContent.split('= ')[1]);
-    let lastUpdateTime = new Date();
-    
-    // Function to update the timestamp
-    function updateTimestamp() {
-        const secondsPassed = Math.floor((new Date() - lastUpdateTime) / 1000);
-        const minutesPassed = Math.floor(secondsPassed / 60);
-        
-        if (minutesPassed < 1) {
-            timeElement.textContent = 'Updated just now';
-        } else {
-            timeElement.textContent = `Updated ${minutesPassed}m ago`;
-        }
-    }
-    
-    // Check for rate changes every 5 seconds
-    setInterval(function() {
-        const currentRate = parseFloat(rateElement.textContent.split('= ')[1]);
-        
-        if (currentRate !== lastRate) {
-            lastRate = currentRate;
-            lastUpdateTime = new Date();
-        }
-        
-        updateTimestamp();
-    }, 5000);
-    
-    // Initial update
-    updateTimestamp();
-});
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
