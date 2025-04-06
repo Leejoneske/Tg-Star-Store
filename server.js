@@ -330,30 +330,29 @@ bot.on('callback_query', async (query) => {
 });
 //end of buy order and referral check 
 
-// ===== IMPROVED SELL ORDER SYSTEM =====
+// ===== SELL ORDER CONTROLLER =====
 app.post("/api/sell-orders", async (req, res) => {
     try {
+        // ===== INPUT VALIDATION =====
         const { telegramId, username, stars, walletAddress } = req.body;
-
-        // Validation
         if (!telegramId || !stars || !walletAddress) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
-        // Check if user is banned
+        // ===== BAN CHECK =====
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
             return res.status(403).json({ error: "You are banned from placing orders" });
         }
 
-        // Create order
+        // ===== ORDER CREATION =====
         const order = new SellOrder({
             id: generateOrderId(),
             telegramId,
             username,
             stars,
             walletAddress,
-            status: "pending",
+            status: "pending", 
             reversible: true,
             dateCreated: new Date(),
             adminMessages: [],
@@ -361,13 +360,13 @@ app.post("/api/sell-orders", async (req, res) => {
 
         await order.save();
 
-        // Generate payment link (unchanged invoice system)
+        // ===== PAYMENT LINK GENERATION =====
         const paymentLink = await createTelegramInvoice(telegramId, order.id, stars, `Purchase of ${stars} Telegram Stars`);
         if (!paymentLink) {
             return res.status(500).json({ error: "Failed to generate payment link" });
         }
 
-        // Notify user
+        // ===== USER NOTIFICATION =====
         const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\nPay here: ${paymentLink}`;
         await bot.sendMessage(telegramId, userMessage);
 
@@ -378,43 +377,14 @@ app.post("/api/sell-orders", async (req, res) => {
     }
 });
 
-// Invoice creation (kept exactly the same)
-async function createTelegramInvoice(chatId, orderId, stars, description) {
-    try {
-        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/createInvoiceLink`, {
-            chat_id: chatId,
-            provider_token: process.env.PROVIDER_TOKEN,
-            title: `Purchase of ${stars} Telegram Stars`,
-            description: description,
-            payload: orderId,
-            currency: 'XTR',
-            prices: [
-                {
-                    label: `${stars} Telegram Stars`,
-                    amount: stars * 1
-                }
-            ]
-        });
-
-        if (response.data.ok) {
-            return response.data.result;
-        } else {
-            throw new Error(response.data.description || 'Failed to create invoice');
-        }
-    } catch (error) {
-        console.error('Error creating Telegram invoice:', error);
-        throw error;
-    }
-}
-
-// Payment verification (unchanged)
+// ===== PAYMENT VERIFICATION HANDLER =====
 bot.on('pre_checkout_query', async (query) => {
     const orderId = query.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId }) || await BuyOrder.findOne({ id: orderId });
     await bot.answerPreCheckoutQuery(query.id, !!order);
 });
 
-// Payment success handler with improved admin notifications
+// ===== PAYMENT SUCCESS HANDLER =====
 bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId });
@@ -423,21 +393,21 @@ bot.on("successful_payment", async (msg) => {
         return await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Please contact support.");
     }
 
-    // Update order status
-    order.status = "pending";
+    // ===== ORDER STATUS UPDATE =====
+    order.status = "processing"; 
     order.datePaid = new Date();
     await order.save();
 
-    // Notify user
+    // ===== USER NOTIFICATION =====
     await bot.sendMessage(
         order.telegramId,
-        `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for admin verification)`
+        `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Processing (Under admin review)`
     );
-//Admin notifications for the order
-    
-        const adminMessage = `💰 New Payment Received!\n\n` +
+
+    // ===== ADMIN NOTIFICATION =====
+    const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
-        `User: @${order.username}\n` +
+        `User: @${order.username} (ID: ${order.telegramId})\n` + 
         `Stars: ${order.stars}\n` +
         `Wallet: \`${order.walletAddress}\``;
 
@@ -472,6 +442,7 @@ bot.on("successful_payment", async (msg) => {
     }
 });
 
+// ===== ADMIN ACTION HANDLER =====
 bot.on('callback_query', async (query) => {
     try {
         const data = query.data;
@@ -480,11 +451,12 @@ bot.on('callback_query', async (query) => {
             ['decline', data.split('_')[2]];
 
         const order = await SellOrder.findOne({ id: orderId });
-        if (!order || order.status !== 'pending') {
+        if (!order || order.status !== 'processing') {  
             await bot.answerCallbackQuery(query.id);
             return;
         }
 
+        // ===== ORDER COMPLETION =====
         if (actionType === 'complete') {
             order.status = 'completed';
             order.completedAt = new Date();
@@ -497,7 +469,9 @@ bot.on('callback_query', async (query) => {
                 `Funds sent to: \`${order.walletAddress}\``,
                 { parse_mode: "Markdown" }
             );
-        } else {
+        } 
+        // ===== ORDER DECLINATION =====
+        else {
             order.status = 'declined';
             order.declinedAt = new Date();
             await order.save();
@@ -510,6 +484,7 @@ bot.on('callback_query', async (query) => {
             );
         }
 
+        // ===== ADMIN MESSAGE UPDATES =====
         for (const adminMsg of order.adminMessages) {
             try {
                 const statusText = order.status === 'completed' ? '✓ Completed' : '✗ Declined';
@@ -537,9 +512,37 @@ bot.on('callback_query', async (query) => {
         await bot.answerCallbackQuery(query.id);
     }
 });
-            
-            
 
+// ===== INVOICE GENERATION (UNCHANGED) =====
+async function createTelegramInvoice(chatId, orderId, stars, description) {
+    try {
+        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/createInvoiceLink`, {
+            chat_id: chatId,
+            provider_token: process.env.PROVIDER_TOKEN,
+            title: `Purchase of ${stars} Telegram Stars`,
+            description: description,
+            payload: orderId,
+            currency: 'XTR',
+            prices: [
+                {
+                    label: `${stars} Telegram Stars`,
+                    amount: stars * 1
+                }
+            ]
+        });
+
+        if (response.data.ok) {
+            return response.data.result;
+        } else {
+            throw new Error(response.data.description || 'Failed to create invoice');
+        }
+    } catch (error) {
+        console.error('Error creating Telegram invoice:', error);
+        throw error;
+    }
+}
+ //end of sell process       
+        
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
     try {
