@@ -974,7 +974,7 @@ confirmPaymentBtn.addEventListener('click', async () => {
     }
 });
 
-// Create Transaction Details Panel
+    // Create Transaction Details Panel
 function createTransactionDetailsPanel() {
     const panel = document.createElement('div');
     panel.id = 'transactionDetailsOverlay';
@@ -1054,6 +1054,8 @@ function openTransactionDetails(transaction) {
         statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
     } else if (transaction.status === 'completed') {
         statusBadge.classList.add('bg-green-100', 'text-green-800');
+    } else if (transaction.status === 'processing') {
+        statusBadge.classList.add('bg-blue-100', 'text-blue-800');
     } else {
         statusBadge.classList.add('bg-red-100', 'text-red-800');
     }
@@ -1072,11 +1074,12 @@ function openTransactionDetails(transaction) {
         progressPercentage = 100;
     } else if (transaction.status === 'declined') {
         progressPercentage = 0;
-    } else {
-        // Calculate days passed
+    } else if (transaction.status === 'processing') {
+        // Only start counting progress when status is processing
         const daysPassed = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
         progressPercentage = Math.min(Math.round((daysPassed / 21) * 100), 99);
     }
+    // For pending status, progress remains at 0
     
     // Update progress bar
     document.getElementById('progressBar').style.width = `${progressPercentage}%`;
@@ -1089,20 +1092,23 @@ function openTransactionDetails(transaction) {
         new Date(transaction.dateCreated).toLocaleString(), 'completed');
     
     // Step 2: Payment Verification
+    const paymentStatus = transaction.status === 'pending' ? 'future' : 'completed';
     addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
-        calculateStepDate(transaction.dateCreated, 1).toLocaleString(), 
-        transaction.status !== 'declined' ? 'completed' : 'active');
+        transaction.status === 'pending' ? calculateStepDate(transaction.dateCreated, 1).toLocaleString() : 
+        (transaction.datePaid ? new Date(transaction.datePaid).toLocaleString() : ''),
+        paymentStatus);
     
     // Step 3: Processing
     const processingStatus = transaction.status === 'completed' ? 'completed' : 
-                           transaction.status === 'declined' ? 'future' : 'active';
+                           transaction.status === 'declined' ? 'future' : 
+                           transaction.status === 'processing' ? 'active' : 'future';
     addTimelineStep(timeline, 3, translations[currentLanguage].processing, translations[currentLanguage].processingDesc, 
         calculateStepDate(transaction.dateCreated, 2).toLocaleString(), processingStatus);
     
     // Step 4: Payment Sent
     const completionStatus = transaction.status === 'completed' ? 'completed' : 'future';
     addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
-        transaction.status === 'completed' ? new Date(transaction.dateCompleted).toLocaleString() : 
+        transaction.status === 'completed' ? new Date(transaction.completedAt).toLocaleString() : 
         completionDate.toLocaleString(), completionStatus);
     
     // Show the panel
@@ -1152,7 +1158,7 @@ function addTimelineStep(container, number, title, description, date, status) {
         <div class="step-content">
             <div class="font-medium">${title}</div>
             <div class="text-sm text-gray-600">${description}</div>
-            <div class="step-date">${date}</div>
+            ${date ? `<div class="step-date">${date}</div>` : ''}
         </div>
     `;
     
@@ -1201,6 +1207,7 @@ const fetchTransactions = async () => {
                 const transactionStatus = document.createElement('div');
                 transactionStatus.className = `transaction-status ${
                     transaction.status === 'pending' ? 'status-pending' : 
+                    transaction.status === 'processing' ? 'status-processing' :
                     transaction.status === 'completed' ? 'status-completed' : 'status-declined'
                 }`;
                 transactionStatus.textContent = transaction.status;
@@ -1241,5 +1248,6 @@ document.addEventListener('DOMContentLoaded', () => {
     Telegram.WebApp.expand();
 });
 </script>
+
 </body>
 </html>
