@@ -1956,8 +1956,49 @@ bot.on('message', async (msg) => {
         bot.sendMessage(msg.chat.id, "⚠️ An error occurred. Please try again.");
     }
 });
-// Handle wallet submissions
 
+//survey form submission 
+app.post('/api/survey', async (req, res) => {
+    try {
+        const surveyData = req.body;
+        
+        let message = `📊 *New Survey Submission*\n\n`;
+        message += `*Usage Frequency*: ${surveyData.usageFrequency}\n`;
+        
+        if (surveyData.favoriteFeatures) {
+            const features = Array.isArray(surveyData.favoriteFeatures) 
+                ? surveyData.favoriteFeatures.join(', ') 
+                : surveyData.favoriteFeatures;
+            message += `*Favorite Features*: ${features}\n`;
+        }
+        
+        message += `*Desired Features*: ${surveyData.desiredFeatures}\n`;
+        message += `*Overall Rating*: ${surveyData.overallRating}/5\n`;
+        
+        if (surveyData.improvementFeedback) {
+            message += `*Improvement Feedback*: ${surveyData.improvementFeedback}\n`;
+        }
+        
+        message += `*Technical Issues*: ${surveyData.technicalIssues || 'No'}\n`;
+        
+        if (surveyData.technicalIssues === 'yes' && surveyData.technicalIssuesDetails) {
+            message += `*Issue Details*: ${surveyData.technicalIssuesDetails}\n`;
+        }
+        
+        message += `\n📅 Submitted: ${new Date().toLocaleString()}`;
+        
+        const sendPromises = adminIds.map(chatId => {
+            return bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        });
+        
+        await Promise.all(sendPromises);
+        
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('Error processing survey:', error);
+        res.status(500).json({ success: false, error: 'Failed to process survey' });
+    }
+});
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
