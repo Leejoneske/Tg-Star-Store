@@ -849,23 +849,26 @@ connectWalletButton.addEventListener('click', () => {
 });
 
     //stars rate update 
-    {
+{
   const rateEl = document.querySelector('.font-bold');
   const timeEl = document.querySelector('.info-badge');
-  let lastRate = parseFloat(rateEl.textContent.split('= ')[1]);
+  let lastRate = parseFloat(rateEl.textContent.match(/[\d.]+$/)[0]);
   let lastUpdate = new Date();
 
   setInterval(() => {
-    const currentRate = parseFloat(rateEl.textContent.split('= ')[1]);
+    const currentText = rateEl.textContent;
+    const currentRate = parseFloat(currentText.match(/[\d.]+$/)[0]);
+    
     if (currentRate !== lastRate) {
       lastRate = currentRate;
       lastUpdate = new Date();
     }
-    const mins = Math.floor((new Date() - lastUpdate) / 60000);
-    timeEl.textContent = `Updated ${mins || 'just now'}${mins ? 'm ago' : ''}`;
-  }, 60000);
+    
+    const seconds = Math.floor((new Date() - lastUpdate) / 1000);
+    timeEl.textContent = seconds < 60 ? 'Updated just now' : 
+                        `Updated ${Math.floor(seconds/60)}m ago`;
+  }, 10000); // Check every 10 seconds
 }
-
 // Side menu toggle
 const menuOverlay = document.getElementById('menuOverlay');
 const sideMenu = document.getElementById('sideMenu');
