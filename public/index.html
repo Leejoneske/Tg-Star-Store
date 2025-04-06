@@ -443,7 +443,8 @@ let tonConnectUI;
 let currentLanguage = localStorage.getItem('appLanguage') || 'en';
 let walletConnected = false;
 let currentWalletAddress = '';
-
+let lastUserData = null;
+ 
 document.addEventListener('DOMContentLoaded', function() {
     initTelegramApp();
     initMenu();
@@ -487,20 +488,23 @@ function initTelegramApp() {
     }
 }
 
+
+
 function updateUserInterface(user) {
+    if (JSON.stringify(user) === JSON.stringify(lastUserData)) return;
+    lastUserData = {...user}; 
+    
     const profilePic = document.getElementById('profilePicture');
     const usernameElement = document.getElementById('username');
     
-    if (user) {
-        if (user.photo_url) {
-            profilePic.src = user.photo_url;
-        }
-        
-        if (user.username) {
-            usernameElement.textContent = `@${user.username}`;
-        } else if (user.first_name) {
-            usernameElement.textContent = user.first_name;
-        }
+    if (user?.photo_url && profilePic.src !== user.photo_url) {
+        profilePic.src = user.photo_url;
+    }
+    
+    if (user?.username) {
+        usernameElement.textContent = `@${user.username}`;
+    } else if (user?.first_name && usernameElement.textContent !== user.first_name) {
+        usernameElement.textContent = user.first_name;
     }
 }
 
