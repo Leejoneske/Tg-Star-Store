@@ -441,27 +441,43 @@ bot.on("successful_payment", async (msg) => {
         }
     }
 });
-
-// ===== ADMIN ACTION HANDLER =====
+// ===== ADMIN ACTION HANDLER (RESTORED WORKING VERSION) =====
 bot.on('callback_query', async (query) => {
     try {
         const data = query.data;
-        const [actionType, orderId] = data.startsWith('complete_sell_') ? 
-            ['complete', data.split('_')[2]] :
-            ['decline', data.split('_')[2]];
+        let order, actionType;
 
-        const order = await SellOrder.findOne({ id: orderId });
-        if (!order || order.status !== 'processing') {  
-            await bot.answerCallbackQuery(query.id);
+        // Handle both sell and buy orders
+        if (data.startsWith('complete_sell_')) {
+            actionType = 'complete';
+            order = await SellOrder.findOne({ id: data.split('_')[2] });
+        } else if (data.startsWith('decline_sell_')) {
+            actionType = 'decline';
+            order = await SellOrder.findOne({ id: data.split('_')[2] });
+        } else if (data.startsWith('complete_buy_')) {
+            actionType = 'complete';
+            order = await BuyOrder.findOne({ id: data.split('_')[2] });
+        } else if (data.startsWith('decline_buy_')) {
+            actionType = 'decline';
+            order = await BuyOrder.findOne({ id: data.split('_')[2] });
+        } else {
+            return await bot.answerCallbackQuery(query.id);
+        }
+
+        // Check if order exists and is in correct status
+        if (!order || (order.status !== 'processing' && order.status !== 'pending')) {
+            await bot.answerCallbackQuery(query.id, { text: "Order not found or already processed" });
             return;
         }
 
-        // ===== ORDER COMPLETION =====
+        // Process completion or declination
         if (actionType === 'complete') {
+            // ===== ORDER COMPLETION LOGIC =====
             order.status = 'completed';
             order.completedAt = new Date();
             await order.save();
 
+            // Notify user
             await bot.sendMessage(
                 order.telegramId,
                 `✅ Order #${order.id} completed!\n\n` +
@@ -469,13 +485,13 @@ bot.on('callback_query', async (query) => {
                 `Funds sent to: \`${order.walletAddress}\``,
                 { parse_mode: "Markdown" }
             );
-        } 
-        // ===== ORDER DECLINATION =====
-        else {
+        } else {
+            // ===== ORDER DECLINATION LOGIC =====
             order.status = 'declined';
             order.declinedAt = new Date();
             await order.save();
 
+            // Notify user
             await bot.sendMessage(
                 order.telegramId,
                 `❌ Order #${order.id} declined\n\n` +
@@ -484,7 +500,7 @@ bot.on('callback_query', async (query) => {
             );
         }
 
-        // ===== ADMIN MESSAGE UPDATES =====
+        // ===== UPDATE ADMIN MESSAGES =====
         for (const adminMsg of order.adminMessages) {
             try {
                 const statusText = order.status === 'completed' ? '✓ Completed' : '✗ Declined';
@@ -506,12 +522,13 @@ bot.on('callback_query', async (query) => {
             }
         }
 
-        await bot.answerCallbackQuery(query.id);
+        await bot.answerCallbackQuery(query.id, { text: `Order ${order.status}` });
     } catch (err) {
-        console.error('Error processing sell order:', err);
-        await bot.answerCallbackQuery(query.id);
+        console.error('Error processing order action:', err);
+        await bot.answerCallbackQuery(query.id, { text: "Error processing request" });
     }
 });
+
 
 // ===== INVOICE GENERATION (UNCHANGED) =====
 async function createTelegramInvoice(chatId, orderId, stars, description) {
