@@ -849,34 +849,35 @@ connectWalletButton.addEventListener('click', () => {
 });
 
     //stars rate update 
-// Rate monitor with timestamp updates
-document.addEventListener('DOMContentLoaded', function() {
-    const rateEl = document.querySelector('.font-bold');
-    const timeEl = document.querySelector('.info-badge');
-    let lastRate = parseFloat(rateEl.textContent.split('= ')[1]);
-    let lastUpdate = new Date();
+
+{
+  const rateEl = document.querySelector('.font-bold');
+  const timeEl = document.querySelector('.info-badge');
+  let lastRate = parseFloat(rateEl.textContent.match(/[\d.]+$/)[0]);
+  let lastUpdate = new Date();
+  
+  function updateRateDisplay() {
+    const seconds = Math.floor((new Date() - lastUpdate) / 1000);
+    timeEl.textContent = seconds < 60 ? 'Updated just now' : 
+                         `Updated ${Math.floor(seconds/60)}m ago`;
+  }
+  
+  // Initial update
+  updateRateDisplay();
+  
+  // Monitor for changes every 5 seconds
+  setInterval(() => {
+    const currentRate = parseFloat(rateEl.textContent.match(/[\d.]+$/)[0]);
     
-    // Update immediately on load
-    updateTimestamp();
-    
-    // Check for changes every 10 seconds
-    const rateCheckInterval = setInterval(function() {
-        const currentRate = parseFloat(rateEl.textContent.split('= ')[1]);
-        
-        if (currentRate !== lastRate) {
-            lastRate = currentRate;
-            lastUpdate = new Date();
-        }
-        
-        updateTimestamp();
-    }, 10000);
-    
-    function updateTimestamp() {
-        const seconds = Math.floor((new Date() - lastUpdate) / 1000);
-        timeEl.textContent = seconds < 60 ? 'Updated just now' : 
-                            `Updated ${Math.floor(seconds/60)}m ago`;
+    if (currentRate !== lastRate) {
+      lastRate = currentRate;
+      lastUpdate = new Date();
     }
-});
+    
+    updateRateDisplay();
+  }, 5000);
+}
+    
 // Side menu toggle
 const menuOverlay = document.getElementById('menuOverlay');
 const sideMenu = document.getElementById('sideMenu');
