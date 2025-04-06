@@ -848,36 +848,8 @@ connectWalletButton.addEventListener('click', () => {
     }
 });
 
-    //stars rate update 
+    
 
-{
-  const rateEl = document.querySelector('.font-bold');
-  const timeEl = document.querySelector('.info-badge');
-  let lastRate = parseFloat(rateEl.textContent.match(/[\d.]+$/)[0]);
-  let lastUpdate = new Date();
-  
-  function updateRateDisplay() {
-    const seconds = Math.floor((new Date() - lastUpdate) / 1000);
-    timeEl.textContent = seconds < 60 ? 'Updated just now' : 
-                         `Updated ${Math.floor(seconds/60)}m ago`;
-  }
-  
-  // Initial update
-  updateRateDisplay();
-  
-  // Monitor for changes every 5 seconds
-  setInterval(() => {
-    const currentRate = parseFloat(rateEl.textContent.match(/[\d.]+$/)[0]);
-    
-    if (currentRate !== lastRate) {
-      lastRate = currentRate;
-      lastUpdate = new Date();
-    }
-    
-    updateRateDisplay();
-  }, 5000);
-}
-    
 // Side menu toggle
 const menuOverlay = document.getElementById('menuOverlay');
 const sideMenu = document.getElementById('sideMenu');
@@ -1263,6 +1235,41 @@ const fetchTransactions = async () => {
     }
 };
 
+    const rateElement = document.querySelector('.font-bold');
+    const timeElement = document.querySelector('.info-badge');
+    
+    // Store the initial rate and time
+    let lastRate = parseFloat(rateElement.textContent.split('= ')[1]);
+    let lastUpdateTime = new Date();
+    
+    // Function to update the timestamp
+    function updateTimestamp() {
+        const secondsPassed = Math.floor((new Date() - lastUpdateTime) / 1000);
+        const minutesPassed = Math.floor(secondsPassed / 60);
+        
+        if (minutesPassed < 1) {
+            timeElement.textContent = 'Updated just now';
+        } else {
+            timeElement.textContent = `Updated ${minutesPassed}m ago`;
+        }
+    }
+    
+    // Check for rate changes every 5 seconds
+    setInterval(function() {
+        const currentRate = parseFloat(rateElement.textContent.split('= ')[1]);
+        
+        if (currentRate !== lastRate) {
+            lastRate = currentRate;
+            lastUpdateTime = new Date();
+        }
+        
+        updateTimestamp();
+    }, 5000);
+    
+    // Initial update
+    updateTimestamp();
+});
+
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
     // Check for language in localStorage first
@@ -1282,6 +1289,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Telegram.WebApp.expand();
 });
+
+
+    
 </script>
 
 </body>
