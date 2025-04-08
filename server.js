@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const axios = require('axios');
 
 const app = express();
-const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
+const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 
 app.use(express.static('public'));
 app.use(express.json());
@@ -145,6 +145,19 @@ const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
+
+const webhookPath = '/telegram-webhook';
+
+// Tell Telegram where to send updates
+bot.setWebHook(`${process.env.SERVER_URL}${webhookPath}`);
+
+// Handle incoming webhook requests
+app.post(webhookPath, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+
 // Wallet Address Endpoint
 app.get('/api/get-wallet-address', (req, res) => {
     try {
