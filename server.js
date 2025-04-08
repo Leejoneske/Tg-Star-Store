@@ -4,18 +4,16 @@ const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const axios = require('axios');
 
-// Get the Railway-provided URL
+const app = express();
+const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
+
 const SERVER_URL = process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
-                   'https://your-app-name.railway.app';
+                   'https://tg-star-store-production.up.railway.app';
 
-// Webhook path
 const WEBHOOK_PATH = '/telegram-webhook';
-
-// Complete webhook URL
 const WEBHOOK_URL = `${SERVER_URL}${WEBHOOK_PATH}`;
 
-// Set webhook
 bot.setWebHook(WEBHOOK_URL).then(success => {
   console.log('Webhook set success:', success);
   console.log('Webhook URL:', WEBHOOK_URL);
@@ -23,13 +21,8 @@ bot.setWebHook(WEBHOOK_URL).then(success => {
   console.error('Webhook setup failed:', err);
 });
 
-
-const app = express();
-const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
-
 app.use(express.static('public'));
 app.use(express.json());
-// This must come AFTER app.use(express.json())
 app.post(WEBHOOK_PATH, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
@@ -137,7 +130,6 @@ const cacheSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now }
 });
 
-
 const claimSchema = new mongoose.Schema({
   claimCode: { type: String, unique: true },
   adminId: Number,
@@ -170,8 +162,6 @@ const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
-
-
 // Wallet Address Endpoint
 app.get('/api/get-wallet-address', (req, res) => {
     try {
