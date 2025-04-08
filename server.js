@@ -9,6 +9,11 @@ const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 
 app.use(express.static('public'));
 app.use(express.json());
+// This must come AFTER app.use(express.json())
+app.post(WEBHOOK_PATH, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
 
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('✅ MongoDB connected successfully'))
@@ -145,16 +150,23 @@ const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
+// Get the Railway-provided URL
+const SERVER_URL = process.env.RAILWAY_STATIC_URL || 
+                   process.env.RAILWAY_PUBLIC_DOMAIN || 
+                   'https://your-app-name.railway.app';
 
-const webhookPath = '/telegram-webhook';
+// Webhook path
+const WEBHOOK_PATH = '/telegram-webhook';
 
-// Tell Telegram where to send updates
-bot.setWebHook(`${process.env.SERVER_URL}${webhookPath}`);
+// Complete webhook URL
+const WEBHOOK_URL = `${SERVER_URL}${WEBHOOK_PATH}`;
 
-// Handle incoming webhook requests
-app.post(webhookPath, (req, res) => {
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
+// Set webhook
+bot.setWebHook(WEBHOOK_URL).then(success => {
+  console.log('Webhook set success:', success);
+  console.log('Webhook URL:', WEBHOOK_URL);
+}).catch(err => {
+  console.error('Webhook setup failed:', err);
 });
 
 
