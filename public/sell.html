@@ -8,425 +8,411 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #f3f4f6;
-            margin: 0;
-            padding: 0;
-        }
-        .app-container {
-            max-width: 480px;
-            margin: 0 auto;
-            background: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            min-height: 100vh;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        /* Skeleton Loading Styles */
-        .skeleton {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 4px;
-            color: transparent !important;
-        }
-        
-        .skeleton-header {
-            height: 60px;
-        }
-        
-        .skeleton-wallet {
-            height: 100px;
-            border-radius: 12px;
-            margin: 16px;
-        }
-        
-        .skeleton-title {
-            height: 24px;
-            width: 120px;
-            margin: 16px 16px 8px;
-        }
-        
-        .skeleton-rate {
-            height: 60px;
-            border-radius: 12px;
-            margin: 0 16px 16px;
-        }
-        
-        .skeleton-card {
-            height: 200px;
-            border-radius: 12px;
-            margin: 0 16px 16px;
-        }
-        
-        .skeleton-info {
-            height: 100px;
-            border-radius: 12px;
-            margin: 0 16px 16px;
-        }
-        
-        .skeleton-transactions {
-            height: 40px;
-            margin: 16px 16px 8px;
-            width: 160px;
-        }
-        
-        .skeleton-transaction-item {
-            height: 60px;
-            border-radius: 8px;
-            margin: 8px 16px;
-        }
-        
-        .skeleton-nav {
-            height: 60px;
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            max-width: 480px;
-        }
-        
-        @keyframes shimmer {
-            0% {
-                background-position: 200% 0;
-            }
-            100% {
-                background-position: -200% 0;
-            }
-        }
-        
-        /* Hide content while loading */
-        #content-container {
-            display: none;
-        }
+/* ============================================= */
+/* BASE STYLES */
+/* ============================================= */
+body {
+    font-family: 'Inter', sans-serif;
+    background: #f3f4f6;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
 
-        /* Original styles (keep all existing styles) */
-        .sell-option {
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            transition: all 0.2s ease;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-        .sell-option:hover {
-            border-color: #4f46e5;
-            transform: translateY(-4px);
-            box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
-        }
-        .sell-button {
-            background: #4f46e5;
-            color: white;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            padding: 12px;
-            width: 100%;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        .sell-button:hover {
-            background: #6366f1;
-            transform: scale(1.02);
-        }
-        .menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(5px);
-            z-index: 40;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        .menu-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-        .side-menu {
-            position: fixed;
-            top: 0;
-            left: -100%;
-            width: 64%;
-            height: 100%;
-            background: white;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-            z-index: 50;
-            transition: all 0.3s ease;
-        }
-        .side-menu.active {
-            left: 0;
-        }
-        .menu-item {
-            padding: 12px 16px;
-            font-size: 16px;
-            color: #4f46e5;
-            transition: all 0.2s ease;
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .menu-item:last-child {
-            border-bottom: none;
-        }
-        .menu-item:hover {
-            background: #f3f4f6;
-            transform: translateX(5px);
-        }
-        #connectWallet {
-            padding: 8px 16px;
-            font-size: 14px;
-            border: 1px solid #4f46e5;
-            border-radius: 8px;
-            color: #4f46e5;
-            background-color: white;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        #connectWallet.wallet-connected {
-            background-color: #4f46e5;
-            color: white;
-        }
-        #connectWallet.wallet-connected:hover {
-            background-color: #6366f1;
-        }
-        .logo-header {
-            font-size: 24px;
-            font-weight: bold;
-            color: #4f46e5;
-            text-align: center;
-            padding: 16px;
-            background: linear-gradient(90deg, #4f46e5, #6366f1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .wallet-address {
-            font-size: 12px;
-            color: #6b7280;
-            font-family: monospace;
-        }
-        .stars-counter {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-        .stars-input {
-            width: 80px;
-            text-align: center;
-            padding: 8px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            font-weight: bold;
-        }
-        .counter-button {
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            background: #f3f4f6;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .counter-button:hover {
-            background: #e5e7eb;
-        }
-        .rate-info {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px;
-            background: #f9fafb;
-            border-radius: 8px;
-            margin-bottom: 16px;
-        }
-        .info-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            background: rgba(79, 70, 229, 0.1);
-            color: #4f46e5;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-        .transaction-history {
-            margin-top: 24px;
-        }
-        .transaction-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .transaction-info {
-            display: flex;
-            flex-direction: column;
-        }
-        .transaction-status {
-            font-size: 12px;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-        .status-pending {
-            background: #fff7ed;
-            color: #ea580c;
-        }
-         .status-processing {
-            background: #fff7ed;
-            color: #ea580c;
-         }
-        .status-completed {
-            background: #f0fdf4;
-            color: #16a34a;
-        }
-        .status-declined {
-            background: #fef2f2;
-            color: #dc2626;
-        }
-        .wallet-status {
-            padding: 16px;
-            background: #f9fafb;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            text-align: center;
-        }
-        .wallet-status p {
-            font-size: 14px;
-            color: #6b7280;
-            margin-top: 8px;
-        }
-         .progress-container {
-        width: 100%;
-        background-color: #f3f4f6;
-        border-radius: 8px;
-        margin: 16px 0;
-        overflow: hidden;
-    }
+.app-container {
+    max-width: 480px;
+    margin: 0 auto;
+    background: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
 
-    .progress-bar {
-        height: 12px;
-        background: linear-gradient(90deg, #4f46e5, #6366f1);
-        border-radius: 8px;
-        transition: width 0.5s ease;
-    }
+/* ============================================= */
+/* SKELETON LOADING */
+/* ============================================= */
+#skeleton-loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    z-index: 1000;
+}
 
-    .transaction-details-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(5px);
-        z-index: 100;
-        display: none;
-    }
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+    color: transparent !important;
+}
 
-    .transaction-details-panel {
-        position: fixed;
-        bottom: -100%;
-        left: 0;
-        width: 100%;
-        max-height: 80vh;
-        background: white;
-        z-index: 110;
-        border-top-left-radius: 16px;
-        border-top-right-radius: 16px;
-        transition: bottom 0.3s ease;
-        overflow-y: auto;
-    }
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
 
-    .transaction-details-panel.active {
-        bottom: 0;
-    }
+/* ============================================= */
+/* HEADER & NAVIGATION */
+/* ============================================= */
+.app-header {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid #e5e7eb;
+}
 
-    .transaction-step {
-        display: flex;
-        align-items: flex-start;
-        padding: 12px 0;
-        position: relative;
-    }
+.logo-header {
+    font-size: 24px;
+    font-weight: bold;
+    background: linear-gradient(90deg, #4f46e5, #6366f1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+    flex-grow: 1;
+    padding: 0 16px;
+}
 
-    .step-number {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: #e5e7eb;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        font-weight: bold;
-        margin-right: 12px;
-        z-index: 10;
-        position: relative;
-    }
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    z-index: 40;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
 
-    .step-number.active {
-        background: #4f46e5;
-        color: white;
-    }
+.menu-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
 
-    .step-number.completed {
-        background: #10b981;
-        color: white;
-    }
+.side-menu {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 64%;
+    height: 100%;
+    background: white;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    transition: all 0.3s ease;
+}
 
-    .step-line {
-        position: absolute;
-        top: 24px;
-        left: 12px;
-        width: 2px;
-        height: calc(100% - 24px);
-        background: #e5e7eb;
-        z-index: 5;
-    }
+.side-menu.active {
+    left: 0;
+}
 
-    .step-line.active {
-        background: #4f46e5;
-    }
+.menu-item {
+    padding: 12px 16px;
+    font-size: 16px;
+    color: #4f46e5;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #e5e7eb;
+}
 
-    .step-line.completed {
-        background: #10b981;
-    }
+.menu-item:last-child {
+    border-bottom: none;
+}
 
-    .step-content {
-        flex: 1;
-    }
+.menu-item:hover {
+    background: #f3f4f6;
+    transform: translateX(5px);
+}
 
-    .step-date {
-        font-size: 12px;
-        color: #6b7280;
-        margin-top: 4px;
-    }
+/* ============================================= */
+/* WALLET CONNECTION */
+/* ============================================= */
+.wallet-status {
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 12px;
+    margin: 16px;
+    text-align: center;
+}
 
-    .close-details {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        background: #f3f4f6;
-        cursor: pointer;
-    }
-    </style>
+#connectWallet {
+    padding: 8px 16px;
+    font-size: 14px;
+    border: 1px solid #4f46e5;
+    border-radius: 8px;
+    color: #4f46e5;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+#connectWallet.wallet-connected {
+    background-color: #4f46e5;
+    color: white;
+}
+
+#connectWallet.wallet-connected:hover {
+    background-color: #6366f1;
+}
+
+.wallet-address {
+    font-size: 12px;
+    color: #6b7280;
+    font-family: monospace;
+}
+
+#manualWalletInput {
+    margin-top: 12px;
+    transition: all 0.3s ease;
+}
+
+#manualWalletAddress {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+/* ============================================= */
+/* SELL STARS FORM */
+/* ============================================= */
+.sell-option {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    padding: 16px;
+    margin: 0 16px 16px;
+}
+
+.sell-option:hover {
+    border-color: #4f46e5;
+    transform: translateY(-4px);
+    box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+}
+
+.stars-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.stars-input {
+    width: 80px;
+    text-align: center;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+.counter-button {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #f3f4f6;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.counter-button:hover {
+    background: #e5e7eb;
+}
+
+.sell-button {
+    background: #4f46e5;
+    color: white;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    padding: 12px;
+    width: 100%;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+}
+
+.sell-button:hover {
+    background: #6366f1;
+    transform: scale(1.02);
+}
+
+.rate-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin: 0 16px 16px;
+}
+
+.info-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: rgba(79, 70, 229, 0.1);
+    color: #4f46e5;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* ============================================= */
+/* TRANSACTIONS */
+/* ============================================= */
+.transaction-history {
+    margin-top: 24px;
+    padding: 0 16px;
+}
+
+.transaction-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    cursor: pointer;
+}
+
+.transaction-item:hover {
+    background: #f9fafb;
+}
+
+.transaction-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.transaction-status {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.status-pending {
+    background: #fff7ed;
+    color: #ea580c;
+}
+
+.status-processing {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.status-completed {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+.status-declined {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+/* ============================================= */
+/* MODALS & DIALOGS */
+/* ============================================= */
+#paymentModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.transaction-details-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    display: none;
+}
+
+.transaction-details-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 80vh;
+    background: white;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 24px;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+}
+
+.transaction-details-panel.active {
+    transform: translateY(0);
+}
+
+/* ============================================= */
+/* UTILITY CLASSES */
+/* ============================================= */
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.hidden { display: none; }
+.block { display: block; }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 8px; }
+.mt-2 { margin-top: 8px; }
+.mb-4 { margin-bottom: 16px; }
+.p-4 { padding: 16px; }
+.rounded-lg { border-radius: 8px; }
+.font-bold { font-weight: 600; }
+</style>
+                    
 </head>
 <body>
     <!-- Skeleton Loading Structure -->
@@ -549,24 +535,30 @@
         </div>
         
         <!-- Modal Template for Star Payment -->
-        <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-            <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-                <div class="text-center mb-4">
-                    <svg class="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <h3 class="text-xl font-bold mt-2">Payment Confirmation</h3>
-                </div>
-                <div class="mb-6">
-                    <p class="text-gray-700 mb-4">You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> stars for <span id="modalTonAmount" class="font-bold">0.438 TON</span>.</p>
-                    <p class="text-gray-700">Please confirm this transaction via Telegram payment.</p>
-                </div>
-                <div class="flex justify-between space-x-4">
-                    <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
-                    <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Confirm</button>
-                </div>
-            </div>
+        <div id="paymentModal" class="hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="text-center mb-4">
+            <svg class="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="text-xl font-bold mt-2" data-translate="confirmPayment">Confirm Payment</h3>
         </div>
+        <div class="mb-6 text-center">
+            <p class="text-gray-700 mb-4">
+                <span data-translate="youreAboutToSell">You're about to sell</span>
+                <span id="modalStarsAmount" class="font-bold">50</span>
+                <span data-translate="starsFor">stars for</span>
+                <span id="modalTonAmount" class="font-bold">0.438 TON</span>.
+            </p>
+            <p class="text-gray-700" data-translate="confirmViaTelegram">Please confirm via Telegram payment.</p>
+        </div>
+        <div class="flex justify-between space-x-4">
+            <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors" data-translate="cancel">Cancel</button>
+            <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors" data-translate="confirm">Confirm</button>
+        </div>
+    </div>
+</div>
         <div id="transactionDetailsOverlay" class="transaction-details-overlay">
             <div id="transactionDetailsPanel" class="transaction-details-panel">
                 <div class="p-6">
@@ -623,7 +615,7 @@
 // INITIALIZATION AND SKELETON LOADING SYSTEM
 // =============================================
 
-// Show skeleton loading screen immediately
+// Show skeleton immediately
 document.getElementById('skeleton-loading').style.display = 'block';
 document.getElementById('content-container').style.display = 'none';
 
@@ -632,7 +624,7 @@ function showContent() {
     document.getElementById('skeleton-loading').style.display = 'none';
     document.getElementById('content-container').style.display = 'block';
     
-    // Show 21-day hold notice if not already acknowledged
+    // Show 21-day notice if not acknowledged
     if (!localStorage.getItem('holdNoticeAcknowledged')) {
         showHoldNotice();
     }
@@ -643,17 +635,14 @@ function showHoldNotice() {
         title: 'Important Notice',
         html: `
             <div class="text-left">
-                <p class="mb-4">When selling stars, your funds will be held for a mandatory 21-day period before being released to your wallet.</p>
-                <p>This is a security measure to prevent fraud and ensure transaction validity.</p>
-                <p>By clicking "Continue", you acknowledge and agree to these terms.</p>
+                <p class="mb-4">When selling stars, your funds will be held for a mandatory 21-day period.</p>
+                <p>By clicking "Continue", you agree to these terms.</p>
             </div>
         `,
         icon: 'info',
         confirmButtonText: 'Continue',
         allowOutsideClick: false,
-        allowEscapeKey: false,
-        showCancelButton: false,
-        showCloseButton: false
+        showCancelButton: false
     }).then(() => {
         localStorage.setItem('holdNoticeAcknowledged', 'true');
     });
@@ -662,7 +651,6 @@ function showHoldNotice() {
 // =============================================
 // GLOBAL VARIABLES AND CONSTANTS
 // =============================================
-
 let isWalletConnected = false;
 let currentWalletAddress = '';
 let currentLanguage = localStorage.getItem('appLanguage') || 'en';
@@ -679,13 +667,96 @@ const tonAmountDisplay = document.getElementById('tonAmount');
 
 // Initialize TonConnect
 const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-    manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json'
+    manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json',
+    language: currentLanguage === 'ru' ? 'ru' : 'en'
 });
 
 // =============================================
-// TRANSLATIONS
+// WALLET CONNECTION SYSTEM (FIXED)
 // =============================================
 
+function setupWalletAddressMemory() {
+    // Create edit/save buttons container
+    const editContainer = document.createElement('div');
+    editContainer.className = 'flex items-center justify-between mt-2';
+    
+    // Edit button
+    const editButton = document.createElement('button');
+    editButton.id = 'editWalletBtn';
+    editButton.className = 'text-sm text-indigo-600 font-medium';
+    editButton.textContent = translations[currentLanguage].editAddress;
+    editButton.style.display = 'none';
+    
+    // Save button
+    const saveButton = document.createElement('button');
+    saveButton.id = 'saveWalletBtn';
+    saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 transition-colors';
+    saveButton.textContent = translations[currentLanguage].saveAddress;
+    
+    editContainer.appendChild(editButton);
+    editContainer.appendChild(saveButton);
+    manualWalletInput.appendChild(editContainer);
+
+    // Load saved address if exists
+    const savedAddress = localStorage.getItem('userWalletAddress');
+    if (savedAddress) {
+        manualWalletAddress.value = savedAddress;
+        currentWalletAddress = savedAddress;
+        editButton.style.display = 'block';
+        manualWalletAddress.disabled = true;
+    }
+
+    // Save button handler
+    saveButton.addEventListener('click', () => {
+        const address = manualWalletAddress.value.trim();
+        if (address) {
+            localStorage.setItem('userWalletAddress', address);
+            currentWalletAddress = address;
+            manualWalletAddress.disabled = true;
+            editButton.style.display = 'block';
+            Swal.fire({
+                icon: 'success',
+                title: translations[currentLanguage].addressSaved,
+                text: translations[currentLanguage].addressSavedMessage,
+                timer: 2000
+            });
+        }
+    });
+
+    // Edit button handler
+    editButton.addEventListener('click', () => {
+        manualWalletAddress.disabled = false;
+        manualWalletAddress.focus();
+    });
+
+    // Manual toggle handler
+    manualWalletToggle.addEventListener('change', () => {
+        if (manualWalletToggle.checked) {
+            manualWalletInput.classList.remove('hidden');
+            connectWalletButton.disabled = true;
+            connectWalletButton.classList.add('opacity-50');
+            if (savedAddress) {
+                currentWalletAddress = savedAddress;
+            }
+        } else {
+            manualWalletInput.classList.add('hidden');
+            connectWalletButton.disabled = false;
+            connectWalletButton.classList.remove('opacity-50');
+        }
+    });
+
+    // Auto-enable manual if saved address exists
+    if (savedAddress && !isWalletConnected) {
+        manualWalletToggle.checked = true;
+        manualWalletInput.classList.remove('hidden');
+        connectWalletButton.disabled = true;
+        connectWalletButton.classList.add('opacity-50');
+    }
+}
+
+// =============================================
+// TRANSLATIONS SYSTEM
+// =============================================
 const translations = {
     en: {
         menuTitle: "Menu",
@@ -742,145 +813,84 @@ const translations = {
         paymentSentDesc: "USDT has been sent to your wallet"
     },
     ru: {
-        // Russian translations would go here
-        // (Maintain your existing Russian translations)
+        menuTitle: "Меню",
+        home: "Главная",
+        sell: "Продать",
+        history: "История",
+        referral: "Реферальная программа",
+        about: "О нас",
+        connectWallet: "Подключить кошелёк",
+        enterManually: "Ввести адрес кошелька вручную",
+        paymentInfo: "Платежи будут отправлены на выбранный кошелёк.",
+        editAddress: "Изменить адрес",
+        saveAddress: "Сохранить адрес",
+        sellStars: "Продать Stars",
+        currentRate: "Текущий курс",
+        updatedAgo: "Обновлено только что",
+        amountToSell: "Количество Stars для продажи",
+        youWillReceive: "Вы получите (USDT)",
+        sellNow: "Продать сейчас",
+        howItWorks: "Как это работает:",
+        step1: "Введите количество Stars для продажи",
+        step2: "Нажмите \"Продать сейчас\" для начала транзакции",
+        step3: "Отправьте Stars через платеж в Telegram",
+        step4: "После проверки USDT будет отправлен на ваш кошелёк в течение 21 дня",
+        recentTransactions: "Последние транзакции",
+        noTransactions: "Пока нет транзакций",
+        walletNotConnected: "Кошелёк не подключен",
+        walletConnectMessage: "Пожалуйста, подключите кошелёк или введите адрес вручную для продолжения.",
+        missingWalletAddress: "Отсутствует адрес кошелька",
+        enterValidWallet: "Пожалуйста, введите действительный адрес кошелька для продолжения.",
+        paymentInitiated: "Платёж инициирован!",
+        completePayment: "Пожалуйста, завершите платёж в Telegram.",
+        paymentSuccessful: "Платёж успешен!",
+        paymentProcessed: "Ваш платёж успешно обработан.",
+        paymentFailed: "Платёж не удался",
+        paymentNotSuccessful: "Ваш платёж не был выполнен. Пожалуйста, попробуйте ещё раз.",
+        paymentLinkMissing: "Отсутствует платёжная ссылка",
+        paymentLinkNotGenerated: "Платёжная ссылка не была сгенерирована. Пожалуйста, попробуйте ещё раз.",
+        orderFailed: "Ошибка заказа",
+        orderError: "Произошла ошибка при создании вашего заказа. Пожалуйста, попробуйте ещё раз.",
+        transactionDetails: "Детали транзакции",
+        transactionID: "ID транзакции:",
+        amount: "Сумма",
+        toBeReceived: "Будет получено",
+        currentStatus: "Текущий статус",
+        estimatedCompletion: "Примерное завершение",
+        orderCreated: "Заказ создан",
+        orderCreatedDesc: "Ваш заказ успешно создан",
+        paymentVerification: "Проверка платежа",
+        paymentVerificationDesc: "Ваш платёж Stars проверяется",
+        processing: "Обработка",
+        processingDesc: "Ваш платёж обрабатывается",
+        paymentSent: "Платёж отправлен",
+        paymentSentDesc: "USDT был отправлен на ваш кошелёк"
     }
 };
-
-// =============================================
-// CORE FUNCTIONALITY
-// =============================================
-
-function setupWalletAddressMemory() {
-    const editButton = document.createElement('button');
-    editButton.id = 'editWalletBtn';
-    editButton.className = 'text-sm text-indigo-600 font-medium';
-    editButton.textContent = translations[currentLanguage].editAddress;
-    editButton.style.display = 'none';
-
-    const saveButton = document.createElement('button');
-    saveButton.id = 'saveWalletBtn';
-    saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
-    saveButton.textContent = translations[currentLanguage].saveAddress;
-
-    const editContainer = document.createElement('div');
-    editContainer.className = 'flex items-center justify-between mt-2';
-    editContainer.appendChild(editButton);
-    editContainer.appendChild(saveButton);
-    manualWalletInput.appendChild(editContainer);
-
-    // Load saved address if exists
-    const savedAddress = localStorage.getItem('userWalletAddress');
-    if (savedAddress) {
-        manualWalletAddress.value = savedAddress;
-        currentWalletAddress = savedAddress;
-        editButton.style.display = 'block';
-        manualWalletAddress.disabled = true;
-    }
-
-    saveButton.addEventListener('click', () => {
-        const address = manualWalletAddress.value.trim();
-        if (address) {
-            localStorage.setItem('userWalletAddress', address);
-            currentWalletAddress = address;
-            manualWalletAddress.disabled = true;
-            editButton.style.display = 'block';
-            Swal.fire({
-                icon: 'success',
-                title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
-                text: currentLanguage === 'en' ? 
-                    'Your wallet address has been saved for future use.' : 
-                    'Ваш адрес кошелька был сохранен для будущего использования.',
-                timer: 2000,
-                showConfirmButton: false
-            });
-        }
-    });
-
-    editButton.addEventListener('click', () => {
-        manualWalletAddress.disabled = false;
-        manualWalletAddress.focus();
-    });
-
-    manualWalletToggle.addEventListener('change', () => {
-        if (manualWalletToggle.checked) {
-            manualWalletInput.classList.remove('hidden');
-            connectWalletButton.disabled = true;
-            connectWalletButton.classList.add('opacity-50');
-            if (savedAddress) {
-                currentWalletAddress = savedAddress;
-            }
-        } else {
-            manualWalletInput.classList.add('hidden');
-            connectWalletButton.disabled = false;
-            connectWalletButton.classList.remove('opacity-50');
-        }
-    });
-
-    if (savedAddress && !isWalletConnected) {
-        manualWalletToggle.checked = true;
-        manualWalletInput.classList.remove('hidden');
-        connectWalletButton.disabled = true;
-        connectWalletButton.classList.add('opacity-50');
-    }
-}
+    
 
 function updateLanguageTexts() {
     const texts = translations[currentLanguage];
     
-    // Update menu items
-    document.querySelector('.side-menu .text-xl').textContent = texts.menuTitle;
-    const menuItems = document.querySelectorAll('.menu-item');
-    menuItems[0].childNodes[2].textContent = texts.home;
-    menuItems[1].childNodes[2].textContent = texts.sell;
-    menuItems[2].childNodes[2].textContent = texts.history;
-    menuItems[3].childNodes[2].textContent = texts.referral;
-    menuItems[4].childNodes[2].textContent = texts.about;
+    // Update all translatable elements
+    document.querySelectorAll('[data-translate]').forEach(el => {
+        const key = el.getAttribute('data-translate');
+        if (translations[currentLanguage][key]) {
+            el.textContent = translations[currentLanguage][key];
+        }
+    });
     
-    // Update wallet section
-    if (!isWalletConnected) {
-        connectWalletButton.textContent = texts.connectWallet;
-    }
+    // Special cases
+    const editBtn = document.getElementById('editWalletBtn');
+    if (editBtn) editBtn.textContent = texts.editAddress;
     
-    document.querySelector('label[for="manualWalletToggle"]').textContent = texts.enterManually;
-    document.querySelector('.wallet-status p').textContent = texts.paymentInfo;
-    
-    // Update edit button text if it exists
-    const editButton = document.getElementById('editWalletBtn');
-    if (editButton) {
-        editButton.textContent = texts.editAddress;
-    }
-    
-    // Update sell stars section
-    document.querySelector('h2.text-xl').textContent = texts.sellStars;
-    document.querySelector('.rate-info .text-sm').textContent = texts.currentRate;
-    document.querySelector('.info-badge').textContent = texts.updatedAgo;
-    document.querySelector('label.block.text-sm').textContent = texts.amountToSell;
-    document.querySelectorAll('label.block.text-sm')[1].textContent = texts.youWillReceive;
-    sellStarsBtn.textContent = texts.sellNow;
-    
-    // Update how it works section
-    document.querySelector('.font-medium.text-blue-800').textContent = texts.howItWorks;
-    const steps = document.querySelectorAll('.list-decimal li');
-    steps[0].textContent = texts.step1;
-    steps[1].textContent = texts.step2;
-    steps[2].textContent = texts.step3;
-    steps[3].textContent = texts.step4;
-    
-    // Update transactions section
-    document.querySelector('.transaction-history h3').textContent = texts.recentTransactions;
-    
-    // Check if no transactions message exists and update it
-    const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
-    if (noTransactionsEl) {
-        noTransactionsEl.textContent = texts.noTransactions;
-    }
+    const saveBtn = document.getElementById('saveWalletBtn');
+    if (saveBtn) saveBtn.textContent = texts.saveAddress;
 }
 
 // =============================================
-// TRANSACTION FUNCTIONS
+// TRANSACTION PROCESSING
 // =============================================
-
 function incrementStars() {
     const currentValue = parseInt(starsInput.value) || 0;
     starsInput.value = Math.min(currentValue + 5, 1000);
@@ -900,273 +910,60 @@ function calculateTonAmount() {
     return tonAmount;
 }
 
-function toggleMenu() {
-    const menuOverlay = document.getElementById('menuOverlay');
-    const sideMenu = document.getElementById('sideMenu');
-    menuOverlay.classList.toggle('active');
-    sideMenu.classList.toggle('active');
-}
-
 // =============================================
-// TRANSACTION DETAILS PANEL
+// TRANSACTION HISTORY
 // =============================================
-
-function createTransactionDetailsPanel() {
-    const panel = document.createElement('div');
-    panel.id = 'transactionDetailsOverlay';
-    panel.className = 'transaction-details-overlay';
-    
-    panel.innerHTML = `
-        <div id="transactionDetailsPanel" class="transaction-details-panel">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold">${translations[currentLanguage].transactionDetails}</h3>
-                    <button class="close-details" id="closeTransactionDetails">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-                <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
-                <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <div class="text-sm text-gray-600">${translations[currentLanguage].amount}</div>
-                        <div id="transactionAmount" class="font-bold text-xl"></div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">${translations[currentLanguage].toBeReceived}</div>
-                        <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].currentStatus}</div>
-                    <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
-                </div>
-                
-                <div class="mb-4">
-                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].estimatedCompletion}</div>
-                    <div id="transactionEstimatedCompletion" class="font-medium"></div>
-                </div>
-                
-                <div class="progress-container">
-                    <div id="progressBar" class="progress-bar" style="width: 0%"></div>
-                </div>
-                
-                <div id="transactionTimeline" class="mt-6">
-                    <!-- Timeline steps will be inserted here -->
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(panel);
-    
-    document.getElementById('closeTransactionDetails').addEventListener('click', closeTransactionDetails);
-    document.getElementById('transactionDetailsOverlay').addEventListener('click', (e) => {
-        if (e.target === document.getElementById('transactionDetailsOverlay')) {
-            closeTransactionDetails();
-        }
-    });
-}
-
-function openTransactionDetails(transaction) {
-    const overlay = document.getElementById('transactionDetailsOverlay');
-    const panel = document.getElementById('transactionDetailsPanel');
-    const timeline = document.getElementById('transactionTimeline');
-    
-    // Set transaction details
-    document.getElementById('transactionId').textContent = `${translations[currentLanguage].transactionID} ${transaction.id || 'N/A'}`;
-    document.getElementById('transactionAmount').textContent = `${transaction.stars} Stars`;
-    document.getElementById('transactionValue').textContent = `${(transaction.stars * rate).toFixed(3)} USDT`;
-    
-    // Set status badge
-    const statusBadge = document.getElementById('transactionStatusBadge');
-    statusBadge.textContent = transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1);
-    statusBadge.className = 'inline-block px-3 py-1 rounded-full text-sm font-medium';
-    
-    if (transaction.status === 'pending') {
-        statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
-    } else if (transaction.status === 'completed') {
-        statusBadge.classList.add('bg-green-100', 'text-green-800');
-    } else if (transaction.status === 'processing') {
-        statusBadge.classList.add('bg-blue-100', 'text-blue-800');
-    } else {
-        statusBadge.classList.add('bg-red-100', 'text-red-800');
-    }
-    
-    // Calculate estimated completion date (21 days from creation)
-    const creationDate = new Date(transaction.dateCreated);
-    const completionDate = new Date(creationDate);
-    completionDate.setDate(creationDate.getDate() + 21);
-    document.getElementById('transactionEstimatedCompletion').textContent = completionDate.toLocaleDateString();
-    
-    // Calculate progress percentage
-    const now = new Date();
-    let progressPercentage = 0;
-    
-    if (transaction.status === 'completed') {
-        progressPercentage = 100;
-    } else if (transaction.status === 'declined') {
-        progressPercentage = 0;
-    } else if (transaction.status === 'processing') {
-        // Only start counting progress when status is processing
-        const daysPassed = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
-        progressPercentage = Math.min(Math.round((daysPassed / 21) * 100), 99);
-    }
-    
-    // Update progress bar
-    document.getElementById('progressBar').style.width = `${progressPercentage}%`;
-    
-    // Build timeline
-    timeline.innerHTML = '';
-    
-    // Step 1: Order Created
-    addTimelineStep(timeline, 1, translations[currentLanguage].orderCreated, translations[currentLanguage].orderCreatedDesc, 
-        new Date(transaction.dateCreated).toLocaleString(), 'completed');
-    
-    // Step 2: Payment Verification
-    const paymentStatus = transaction.status === 'pending' ? 'future' : 'completed';
-    addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
-        transaction.status === 'pending' ? calculateStepDate(transaction.dateCreated, 1).toLocaleString() : 
-        (transaction.datePaid ? new Date(transaction.datePaid).toLocaleString() : ''),
-        paymentStatus);
-    
-    // Step 3: Processing
-    const processingStatus = transaction.status === 'completed' ? 'completed' : 
-                           transaction.status === 'declined' ? 'future' : 
-                           transaction.status === 'processing' ? 'active' : 'future';
-    addTimelineStep(timeline, 3, translations[currentLanguage].processing, translations[currentLanguage].processingDesc, 
-        calculateStepDate(transaction.dateCreated, 2).toLocaleString(), processingStatus);
-    
-    // Step 4: Payment Sent
-    const completionStatus = transaction.status === 'completed' ? 'completed' : 'future';
-    addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
-        transaction.status === 'completed' ? new Date(transaction.completedAt).toLocaleString() : 
-        completionDate.toLocaleString(), completionStatus);
-    
-    // Show the panel
-    overlay.style.display = 'block';
-    setTimeout(() => {
-        panel.classList.add('active');
-    }, 50);
-}
-
-function closeTransactionDetails() {
-    const panel = document.getElementById('transactionDetailsPanel');
-    const overlay = document.getElementById('transactionDetailsOverlay');
-    
-    panel.classList.remove('active');
-    setTimeout(() => {
-        overlay.style.display = 'none';
-    }, 300);
-}
-
-function addTimelineStep(container, number, title, description, date, status) {
-    const step = document.createElement('div');
-    step.className = 'transaction-step';
-    
-    // Determine step status class
-    let statusClass = '';
-    if (status === 'completed') {
-        statusClass = 'completed';
-    } else if (status === 'active') {
-        statusClass = 'active';
-    }
-    
-    // Add step line if not the last step
-    if (number < 4) {
-        const line = document.createElement('div');
-        line.className = `step-line ${statusClass}`;
-        step.appendChild(line);
-    }
-    
-    step.innerHTML += `
-        <div class="step-number ${statusClass}">
-            ${status === 'completed' ? 
-                '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : 
-                number}
-        </div>
-        <div class="step-content">
-            <div class="font-medium">${title}</div>
-            <div class="text-sm text-gray-600">${description}</div>
-            ${date ? `<div class="step-date">${date}</div>` : ''}
-        </div>
-    `;
-    
-    container.appendChild(step);
-}
-
-function calculateStepDate(startDateStr, daysToAdd) {
-    const date = new Date(startDateStr);
-    date.setDate(date.getDate() + daysToAdd);
-    return date;
-}
-
-// =============================================
-// TRANSACTION FETCHING AND DISPLAY
-// =============================================
-
 async function fetchTransactions() {
     try {
         const response = await axios.get('/api/sell-orders', {
             params: {
-                telegramId: Telegram.WebApp.initDataUnsafe.user.id
+                telegramId: Telegram.WebApp.initDataUnsafe.user?.id
             }
         });
 
         const transactionsList = document.getElementById('transactionsList');
         transactionsList.innerHTML = '';
 
-        if (response.data.length > 0) {
-            response.data.forEach(transaction => {
-                const transactionItem = document.createElement('div');
-                transactionItem.className = 'transaction-item cursor-pointer hover:bg-gray-50';
-                transactionItem.onclick = () => openTransactionDetails(transaction);
+        // Filter out pending transactions
+        const filteredTransactions = response.data.filter(
+            tx => tx.status !== 'pending'
+        );
 
-                const transactionInfo = document.createElement('div');
-                transactionInfo.className = 'transaction-info';
-
-                const starsAmount = document.createElement('div');
-                starsAmount.className = 'font-bold';
-                starsAmount.textContent = `${transaction.stars} Stars`;
-
-                const dateCreated = document.createElement('div');
-                dateCreated.className = 'text-sm text-gray-500';
-                dateCreated.textContent = new Date(transaction.dateCreated).toLocaleString();
-
-                transactionInfo.appendChild(starsAmount);
-                transactionInfo.appendChild(dateCreated);
-
-                const transactionStatus = document.createElement('div');
-                transactionStatus.className = `transaction-status ${
-                    transaction.status === 'pending' ? 'status-pending' : 
-                    transaction.status === 'processing' ? 'status-processing' :
-                    transaction.status === 'completed' ? 'status-completed' : 'status-declined'
-                }`;
-                transactionStatus.textContent = transaction.status;
-
-                transactionItem.appendChild(transactionInfo);
-                transactionItem.appendChild(transactionStatus);
-
-                transactionsList.appendChild(transactionItem);
+        if (filteredTransactions.length > 0) {
+            filteredTransactions.forEach(tx => {
+                const txItem = document.createElement('div');
+                txItem.className = 'transaction-item';
+                txItem.innerHTML = `
+                    <div class="transaction-info">
+                        <div class="font-bold">${tx.stars} Stars</div>
+                        <div class="text-sm text-gray-500">
+                            ${new Date(tx.dateCreated).toLocaleString()}
+                        </div>
+                    </div>
+                    <div class="transaction-status status-${tx.status}">
+                        ${tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+                    </div>
+                `;
+                txItem.addEventListener('click', () => openTransactionDetails(tx));
+                transactionsList.appendChild(txItem);
             });
         } else {
-            const noTransactions = document.createElement('div');
-            noTransactions.className = 'text-gray-500 text-center py-4 text-sm';
-            noTransactions.textContent = translations[currentLanguage].noTransactions;
-            transactionsList.appendChild(noTransactions);
+            transactionsList.innerHTML = `
+                <div class="text-gray-500 text-center py-4 text-sm">
+                    ${translations[currentLanguage].noTransactions}
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error fetching transactions:', error);
+        // Show error state
     }
 }
 
 // =============================================
-// PAYMENT HANDLING
+// PAYMENT PROCESSING (FIXED ALIGNMENT)
 // =============================================
-
-sellStarsBtn.addEventListener('click', () => {
+function handlePaymentConfirmation() {
     if (!isWalletConnected && !manualWalletToggle.checked) {
         Swal.fire({
             icon: 'error',
@@ -1185,88 +982,22 @@ sellStarsBtn.addEventListener('click', () => {
         return;
     }
 
+    // Update modal content
     document.getElementById('modalStarsAmount').textContent = starsInput.value;
     document.getElementById('modalTonAmount').textContent = calculateTonAmount();
+    
+    // Show modal
     document.getElementById('paymentModal').classList.remove('hidden');
-});
-
-document.getElementById('cancelPaymentBtn').addEventListener('click', () => {
-    document.getElementById('paymentModal').classList.add('hidden');
-});
-
-document.getElementById('confirmPaymentBtn').addEventListener('click', async () => {
-    document.getElementById('paymentModal').classList.add('hidden');
-
-    const stars = parseInt(starsInput.value);
-    const walletToUse = manualWalletToggle.checked ? manualWalletAddress.value.trim() : currentWalletAddress;
-
-    try {
-        const response = await axios.post('/api/sell-orders', {
-            telegramId: Telegram.WebApp.initDataUnsafe.user.id,
-            username: Telegram.WebApp.initDataUnsafe.user.username,
-            stars: stars,
-            walletAddress: walletToUse
-        });
-
-        if (response.data.success) {
-            Swal.fire({
-                icon: 'success',
-                title: translations[currentLanguage].paymentInitiated,
-                text: translations[currentLanguage].completePayment
-            });
-
-            if (response.data.paymentLink) {
-                Telegram.WebApp.openInvoice(response.data.paymentLink, function(status) {
-                    if (status === 'paid') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: translations[currentLanguage].paymentSuccessful,
-                            text: translations[currentLanguage].paymentProcessed
-                        });
-                        fetchTransactions();
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: translations[currentLanguage].paymentFailed,
-                            text: translations[currentLanguage].paymentNotSuccessful
-                        });
-                    }
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: translations[currentLanguage].paymentLinkMissing,
-                    text: translations[currentLanguage].paymentLinkNotGenerated
-                });
-            }
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: translations[currentLanguage].orderFailed,
-                text: translations[currentLanguage].orderError
-            });
-        }
-    } catch (error) {
-        console.error('Error placing order:', error);
-        Swal.fire({
-            icon: 'error',
-            title: translations[currentLanguage].orderFailed,
-            text: translations[currentLanguage].orderError
-        });
-    }
-});
+}
 
 // =============================================
-// INITIALIZATION WHEN DOM IS READY
+// MAIN INITIALIZATION
 // =============================================
-
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Telegram WebApp
-    if (window.Telegram && window.Telegram.WebApp) {
-        Telegram.WebApp.ready();
-        Telegram.WebApp.expand();
-    }
-
+    // Initialize systems
+    setupWalletAddressMemory();
+    updateLanguageTexts();
+    
     // Set up wallet connection
     tonConnectUI.onStatusChange(wallet => {
         if (wallet) {
@@ -1276,6 +1007,7 @@ document.addEventListener('DOMContentLoaded', function() {
             isWalletConnected = true;
             currentWalletAddress = wallet.account.address;
             
+            // Disable manual if wallet connected
             if (manualWalletToggle.checked) {
                 manualWalletToggle.checked = false;
                 manualWalletInput.classList.add('hidden');
@@ -1304,13 +1036,71 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize stars calculation
     calculateTonAmount();
 
-    // Set up refresh interval for transactions
-    setInterval(fetchTransactions, 30000); // Refresh every 30 seconds
+    // Set up payment modal buttons
+    document.getElementById('cancelPaymentBtn').addEventListener('click', () => {
+        document.getElementById('paymentModal').classList.add('hidden');
+    });
 
+    document.getElementById('confirmPaymentBtn').addEventListener('click', async () => {
+        document.getElementById('paymentModal').classList.add('hidden');
+        await processPayment();
+    });
+
+    // Set up refresh interval for transactions
+    setInterval(fetchTransactions, 30000); // Every 30 seconds
+    
     // Show content when ready
     window.addEventListener('load', showContent);
     setTimeout(showContent, 2000); // Fallback
 });
+
+// =============================================
+// PAYMENT PROCESSING FUNCTION
+// =============================================
+async function processPayment() {
+    const stars = parseInt(starsInput.value);
+    const walletAddress = manualWalletToggle.checked 
+        ? manualWalletAddress.value.trim() 
+        : currentWalletAddress;
+
+    try {
+        const response = await axios.post('/api/sell-orders', {
+            telegramId: Telegram.WebApp.initDataUnsafe.user?.id,
+            username: Telegram.WebApp.initDataUnsafe.user?.username,
+            stars: stars,
+            walletAddress: walletAddress
+        });
+
+        if (response.data?.paymentLink) {
+            Telegram.WebApp.openInvoice(response.data.paymentLink, status => {
+                if (status === 'paid') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: translations[currentLanguage].paymentSuccessful,
+                        text: translations[currentLanguage].paymentProcessed
+                    });
+                    fetchTransactions();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: translations[currentLanguage].paymentFailed,
+                        text: translations[currentLanguage].paymentNotSuccessful
+                    });
+                }
+            });
+        } else {
+            throw new Error('No payment link received');
+        }
+    } catch (error) {
+        console.error('Payment error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: translations[currentLanguage].orderFailed,
+            text: translations[currentLanguage].orderError
+        });
+    }
+}
 </script>
 </body>
 </html>
+        
