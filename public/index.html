@@ -223,238 +223,251 @@
             white-space: nowrap;
         }
 
-       /* Skeleton Loading Styles */
-.skeleton {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 4px;
-    color: transparent !important;
-}
+        /* Skeleton Loading Styles */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            color: transparent !important;
+        }
 
-.skeleton-img {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-}
+        .skeleton-img {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+        }
 
-.skeleton-text {
-    height: 16px;
-    margin-bottom: 8px;
-}
+        .skeleton-text {
+            height: 16px;
+            margin-bottom: 8px;
+        }
 
-.skeleton-text.short {
-    width: 60%;
-}
+        .skeleton-text.short {
+            width: 60%;
+        }
 
-.skeleton-button {
-    width: 120px;
-    height: 36px;
-    border-radius: 8px;
-}
+        .skeleton-button {
+            width: 120px;
+            height: 36px;
+            border-radius: 8px;
+        }
 
-.skeleton-card {
-    padding: 16px;
-    border-radius: 12px;
-    margin-bottom: 16px;
-}
+        .skeleton-card {
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
 
-.skeleton-item {
-    padding: 16px;
-    border-radius: 12px;
-    margin-bottom: 12px;
-}
+        .skeleton-item {
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
 
-@keyframes shimmer {
-    0% {
-        background-position: 200% 0;
-    }
-    100% {
-        background-position: -200% 0;
-    }
-}
+        @keyframes shimmer {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
 
-/* Hide content while loading */
-#content-container {
-    display: none;
-}
-     
+        /* Hide content while loading */
+        #content-container {
+            display: none;
+        }
     </style>
 </head>
 <body>
- 
-
     <div class="app-container">
- <div id="skeleton-loading">
-    <div class="p-6">
-        <div class="flex items-center space-x-4 mb-6">
-            <div class="skeleton skeleton-img"></div>
-            <div class="flex-1">
-                <div class="skeleton skeleton-text short"></div>
-                <div class="skeleton skeleton-text" style="width: 80%"></div>
+        <!-- Skeleton Loading Structure -->
+        <div id="skeleton-loading">
+            <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+                <div class="p-2">
+                    <div class="skeleton" style="width: 24px; height: 24px;"></div>
+                </div>
+                <div class="skeleton" style="width: 100px; height: 24px; margin: 0 auto;"></div>
+                <div class="skeleton skeleton-button" style="width: 40px;"></div>
             </div>
-            <div class="skeleton skeleton-button"></div>
-        </div>
-        
-        <div class="skeleton-card">
-            <div class="skeleton skeleton-text" style="width: 40%; margin-bottom: 16px;"></div>
-            <div class="space-y-4">
-                <div class="skeleton skeleton-item"></div>
-                <div class="skeleton skeleton-item"></div>
-                <div class="skeleton skeleton-item"></div>
-            </div>
-        </div>
-        
-        <div class="skeleton-card">
-            <div class="skeleton skeleton-text" style="width: 30%; margin-bottom: 16px;"></div>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="skeleton skeleton-item"></div>
-                <div class="skeleton skeleton-item"></div>
-                <div class="skeleton skeleton-item"></div>
-                <div class="skeleton skeleton-item"></div>
-                <div class="skeleton skeleton-item"></div>
-                <div class="skeleton skeleton-item"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-        <div class="menu-overlay" id="menuOverlay"></div>
-        <div class="side-menu" id="sideMenu">
+            
             <div class="p-6">
-                <div class="text-xl font-bold mb-8" data-translate="menu">Menu</div>
-                <nav class="space-y-2">
-                    <a href="#" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
-                        <span data-translate="home">Home</span>
-                    </a>
-                    <a href="sell.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
-                        <span data-translate="sell">Sell</span>
-                    </a>
-                    <a href="history.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
-                        <span data-translate="history">Histor</span>
-                    </a>
-                    <a href="referral.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
-                        <span data-translate="referral">Referral</span>
-                    </a>
-                    <a href="about.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
-                        <span data-translate="about">About</span>
-                    </a>
-                </nav>
-            </div>
-        </div>
-        <div class="p-4 flex justify-between items-center bg-white shadow-sm">
-            <button id="menuButton" class="p-2">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                </svg>
-            </button>
-            <div class="logo-header" data-translate="appName">StarStore</div>
-            <button id="languageToggle" class="language-toggle">EN</button>
-        </div>
-        <div class="p-6">
-            <div class="user-info-container">
-                <div class="flex items-center space-x-4">
-                    <div class="profile-image">
-                        <img id="profilePicture" src="https://via.placeholder.com/64" alt="User Profile" class="w-full h-full object-cover">
+                <div class="flex items-center space-x-4 mb-6">
+                    <div class="skeleton skeleton-img"></div>
+                    <div class="flex-1">
+                        <div class="skeleton skeleton-text short"></div>
+                        <div class="skeleton skeleton-text" style="width: 80%"></div>
                     </div>
-                    <div class="user-details">
-                        <div class="text-lg font-semibold" id="username">@username</div>
-                        <div class="notifications-container text-sm text-gray-600" id="notifications" data-translate="noNotifications">No new notifications</div>
+                    <div class="skeleton skeleton-button"></div>
+                </div>
+                
+                <div class="skeleton-card">
+                    <div class="skeleton skeleton-text" style="width: 40%; margin-bottom: 16px;"></div>
+                    <div class="space-y-4">
+                        <div class="skeleton skeleton-item"></div>
+                        <div class="skeleton skeleton-item"></div>
+                        <div class="skeleton skeleton-item"></div>
                     </div>
                 </div>
-                <button id="connectWallet" data-translate="connectWallet">Connect Wallet</button>
-            </div>
-        </div>
-        <div class="p-6">
-            <div class="premium-card rounded-xl p-6 mb-6">
-                <h2 class="text-xl font-bold mb-4" data-translate="telegramPremium">Telegram Premium</h2>
-                <div class="space-y-4">
-                    <div class="package-option p-4">
-                        <div class="flex flex-col space-y-3">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <div class="text-lg font-bold" data-translate="3monthsPremium">3 Months Premium</div>
-                                    <div class="text-sm text-gray-600" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
-                                </div>
-                                <div class="text-lg font-bold">19.31 USDT</div>
-                            </div>
-                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Buy Now</button>
-                        </div>
-                    </div>
-                    <div class="package-option p-4">
-                        <div class="flex flex-col space-y-3">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <div class="text-lg font-bold" data-translate="6monthsPremium">6 Months Premium</div>
-                                    <div class="text-sm text-gray-600" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
-                                </div>
-                                <div class="text-lg font-bold">26.25 USDT</div>
-                            </div>
-                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Buy Now</button>
-                        </div>
-                    </div>
-                    <div class="package-option p-4">
-                        <div class="flex flex-col space-y-3">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <div class="text-lg font-bold" data-translate="12monthsPremium">12 Months Premium</div>
-                                    <div class="text-sm text-gray-600" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
-                                </div>
-                                <div class="text-lg font-bold">44.79 USDT</div>
-                            </div>
-                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Buy Now</button>
-                        </div>
+                
+                <div class="skeleton-card">
+                    <div class="skeleton skeleton-text" style="width: 30%; margin-bottom: 16px;"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="skeleton skeleton-item"></div>
+                        <div class="skeleton skeleton-item"></div>
+                        <div class="skeleton skeleton-item"></div>
+                        <div class="skeleton skeleton-item"></div>
+                        <div class="skeleton skeleton-item"></div>
+                        <div class="skeleton skeleton-item"></div>
                     </div>
                 </div>
             </div>
-            <div class="stars-card rounded-xl p-6 mb-8">
-                <h2 class="text-xl font-bold mb-4" data-translate="buyStars">Buy Stars</h2>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="package-option p-4 text-center">
-                        <div class="text-lg font-bold">15 Stars</div>
-                        <div class="text-sm text-gray-600 mb-2">0.35 USDT</div>
-                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy</button>
+            
+            <div class="footer">
+                <div class="skeleton" style="width: 100%; height: 16px;"></div>
+            </div>
+        </div>
+
+        <!-- Original Content (hidden initially) -->
+        <div id="content-container">
+            <div class="menu-overlay" id="menuOverlay"></div>
+            <div class="side-menu" id="sideMenu">
+                <div class="p-6">
+                    <div class="text-xl font-bold mb-8" data-translate="menu">Menu</div>
+                    <nav class="space-y-2">
+                        <a href="#" class="menu-item">
+                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                            <span data-translate="home">Home</span>
+                        </a>
+                        <a href="sell.html" class="menu-item">
+                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                            <span data-translate="sell">Sell</span>
+                        </a>
+                        <a href="history.html" class="menu-item">
+                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                            <span data-translate="history">History</span>
+                        </a>
+                        <a href="referral.html" class="menu-item">
+                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                            <span data-translate="referral">Referral</span>
+                        </a>
+                        <a href="about.html" class="menu-item">
+                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                            <span data-translate="about">About</span>
+                        </a>
+                    </nav>
+                </div>
+            </div>
+            <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+                <button id="menuButton" class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+                <div class="logo-header" data-translate="appName">StarStore</div>
+                <button id="languageToggle" class="language-toggle">EN</button>
+            </div>
+            <div class="p-6">
+                <div class="user-info-container">
+                    <div class="flex items-center space-x-4">
+                        <div class="profile-image">
+                            <img id="profilePicture" src="https://via.placeholder.com/64" alt="User Profile" class="w-full h-full object-cover">
+                        </div>
+                        <div class="user-details">
+                            <div class="text-lg font-semibold" id="username">@username</div>
+                            <div class="notifications-container text-sm text-gray-600" id="notifications" data-translate="noNotifications">No new notifications</div>
+                        </div>
                     </div>
-                    <div class="package-option p-4 text-center">
-                        <div class="text-lg font-bold">25 Stars</div>
-                        <div class="text-sm text-gray-600 mb-2">0.60 USDT</div>
-                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy</button>
+                    <button id="connectWallet" data-translate="connectWallet">Connect Wallet</button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="premium-card rounded-xl p-6 mb-6">
+                    <h2 class="text-xl font-bold mb-4" data-translate="telegramPremium">Telegram Premium</h2>
+                    <div class="space-y-4">
+                        <div class="package-option p-4">
+                            <div class="flex flex-col space-y-3">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <div class="text-lg font-bold" data-translate="3monthsPremium">3 Months Premium</div>
+                                        <div class="text-sm text-gray-600" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
+                                    </div>
+                                    <div class="text-lg font-bold">19.31 USDT</div>
+                                </div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Buy Now</button>
+                            </div>
+                        </div>
+                        <div class="package-option p-4">
+                            <div class="flex flex-col space-y-3">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <div class="text-lg font-bold" data-translate="6monthsPremium">6 Months Premium</div>
+                                        <div class="text-sm text-gray-600" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
+                                    </div>
+                                    <div class="text-lg font-bold">26.25 USDT</div>
+                                </div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Buy Now</button>
+                            </div>
+                        </div>
+                        <div class="package-option p-4">
+                            <div class="flex flex-col space-y-3">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <div class="text-lg font-bold" data-translate="12monthsPremium">12 Months Premium</div>
+                                        <div class="text-sm text-gray-600" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
+                                    </div>
+                                    <div class="text-lg font-bold">44.79 USDT</div>
+                                </div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Buy Now</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="package-option p-4 text-center">
-                        <div class="text-lg font-bold">50 Stars</div>
-                        <div class="text-sm text-gray-600 mb-2">1.00 USDT</div>
-                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy</button>
-                    </div>
-                    <div class="package-option p-4 text-center">
-                        <div class="text-lg font-bold">100 Stars</div>
-                        <div class="text-sm text-gray-600 mb-2">2.00 USDT</div>
-                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy</button>
-                    </div>
-                    <div class="package-option p-4 text-center">
-                        <div class="text-lg font-bold">500 Stars</div>
-                        <div class="text-sm text-gray-600 mb-2">10.00 USDT</div>
-                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy</button>
-                    </div>
-                    <div class="package-option p-4 text-center">
-                        <div class="text-lg font-bold">1000 Stars</div>
-                        <div class="text-sm text-gray-600 mb-2">20.00 USDT</div>
-                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy</button>
+                </div>
+                <div class="stars-card rounded-xl p-6 mb-8">
+                    <h2 class="text-xl font-bold mb-4" data-translate="buyStars">Buy Stars</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="package-option p-4 text-center">
+                            <div class="text-lg font-bold">15 Stars</div>
+                            <div class="text-sm text-gray-600 mb-2">0.35 USDT</div>
+                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy</button>
+                        </div>
+                        <div class="package-option p-4 text-center">
+                            <div class="text-lg font-bold">25 Stars</div>
+                            <div class="text-sm text-gray-600 mb-2">0.60 USDT</div>
+                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy</button>
+                        </div>
+                        <div class="package-option p-4 text-center">
+                            <div class="text-lg font-bold">50 Stars</div>
+                            <div class="text-sm text-gray-600 mb-2">1.00 USDT</div>
+                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy</button>
+                        </div>
+                        <div class="package-option p-4 text-center">
+                            <div class="text-lg font-bold">100 Stars</div>
+                            <div class="text-sm text-gray-600 mb-2">2.00 USDT</div>
+                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy</button>
+                        </div>
+                        <div class="package-option p-4 text-center">
+                            <div class="text-lg font-bold">500 Stars</div>
+                            <div class="text-sm text-gray-600 mb-2">10.00 USDT</div>
+                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy</button>
+                        </div>
+                        <div class="package-option p-4 text-center">
+                            <div class="text-lg font-bold">1000 Stars</div>
+                            <div class="text-sm text-gray-600 mb-2">20.00 USDT</div>
+                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="footer">
-            <span data-translate="poweredBy">Powered by</span> THLF | 
-            <a href="https://telegram.org/privacy-tpa" target="_blank" rel="noopener noreferrer" data-translate="terms">Terms & Conditions</a>
+            <div class="footer">
+                <span data-translate="poweredBy">Powered by</span> THLF | 
+                <a href="https://telegram.org/privacy-tpa" target="_blank" rel="noopener noreferrer" data-translate="terms">Terms & Conditions</a>
+            </div>
         </div>
     </div>
 
-                
+    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
