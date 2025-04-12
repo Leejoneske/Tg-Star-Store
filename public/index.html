@@ -222,9 +222,101 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
+       /* Skeleton Loading Styles */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+    color: transparent !important;
+}
+
+.skeleton-img {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+}
+
+.skeleton-text {
+    height: 16px;
+    margin-bottom: 8px;
+}
+
+.skeleton-text.short {
+    width: 60%;
+}
+
+.skeleton-button {
+    width: 120px;
+    height: 36px;
+    border-radius: 8px;
+}
+
+.skeleton-card {
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.skeleton-item {
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Hide content while loading */
+#content-container {
+    display: none;
+}
+     
     </style>
 </head>
 <body>
+ <div id="skeleton-loading">
+    <div class="p-6">
+        <div class="flex items-center space-x-4 mb-6">
+            <div class="skeleton skeleton-img"></div>
+            <div class="flex-1">
+                <div class="skeleton skeleton-text short"></div>
+                <div class="skeleton skeleton-text" style="width: 80%"></div>
+            </div>
+            <div class="skeleton skeleton-button"></div>
+        </div>
+        
+        <div class="skeleton-card">
+            <div class="skeleton skeleton-text" style="width: 40%; margin-bottom: 16px;"></div>
+            <div class="space-y-4">
+                <div class="skeleton skeleton-item"></div>
+                <div class="skeleton skeleton-item"></div>
+                <div class="skeleton skeleton-item"></div>
+            </div>
+        </div>
+        
+        <div class="skeleton-card">
+            <div class="skeleton skeleton-text" style="width: 30%; margin-bottom: 16px;"></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="skeleton skeleton-item"></div>
+                <div class="skeleton skeleton-item"></div>
+                <div class="skeleton skeleton-item"></div>
+                <div class="skeleton skeleton-item"></div>
+                <div class="skeleton skeleton-item"></div>
+                <div class="skeleton skeleton-item"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
     <div class="app-container">
         <div class="menu-overlay" id="menuOverlay"></div>
         <div class="side-menu" id="sideMenu">
@@ -241,7 +333,7 @@
                     </a>
                     <a href="history.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
-                        <span data-translate="history">History</span>
+                        <span data-translate="history">Histor</span>
                     </a>
                     <a href="referral.html" class="menu-item">
                         <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
@@ -466,6 +558,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// Show skeleton loading initially
+document.getElementById('skeleton-loading').style.display = 'block';
+document.getElementById('content-container').style.display = 'none';
+
+// Function to hide skeleton and show content
+function showContent() {
+    document.getElementById('skeleton-loading').style.display = 'none';
+    document.getElementById('content-container').style.display = 'block';
+}
+
+// Call showContent when everything is loaded
+window.addEventListener('load', showContent);
+
+// Also call showContent after your existing initialization
+// Add this at the end of your DOMContentLoaded function:
+setTimeout(showContent, 1000); // Fallback in case load event doesn't fire
+ 
 function initTelegramApp() {
     if (window.Telegram && window.Telegram.WebApp) {
         try {
