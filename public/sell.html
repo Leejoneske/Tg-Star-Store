@@ -5,52 +5,325 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StarStore - Sell Stars</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f3f4f6;
+            margin: 0;
+            padding: 0;
+        }
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Skeleton Loading Styles */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            color: transparent !important;
+        }
+        
+        .skeleton-header {
+            height: 60px;
+        }
+        
+        .skeleton-wallet {
+            height: 100px;
+            border-radius: 12px;
+            margin: 16px;
+        }
+        
+        .skeleton-title {
+            height: 24px;
+            width: 120px;
+            margin: 16px 16px 8px;
+        }
+        
+        .skeleton-rate {
+            height: 60px;
+            border-radius: 12px;
+            margin: 0 16px 16px;
+        }
+        
+        .skeleton-card {
+            height: 200px;
+            border-radius: 12px;
+            margin: 0 16px 16px;
+        }
+        
+        .skeleton-info {
+            height: 100px;
+            border-radius: 12px;
+            margin: 0 16px 16px;
+        }
+        
+        .skeleton-transactions {
+            height: 40px;
+            margin: 16px 16px 8px;
+            width: 160px;
+        }
+        
+        .skeleton-transaction-item {
+            height: 60px;
+            border-radius: 8px;
+            margin: 8px 16px;
+        }
+        
+        .skeleton-nav {
+            height: 60px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 480px;
+        }
+        
+        @keyframes shimmer {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+        
+        /* Hide content while loading */
+        #content-container {
+            display: none;
+        }
 
- <style>
-    body {
-        font-family: 'Inter', sans-serif;
-        background: #f3f4f6;
-        margin: 0;
-        padding: 0;
-    }
-    .app-container {
-        max-width: 480px;
-        margin: 0 auto;
-        background: white;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        min-height: 100vh;
-        position: relative;
+        /* Original styles (keep all existing styles) */
+        .sell-option {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .sell-option:hover {
+            border-color: #4f46e5;
+            transform: translateY(-4px);
+            box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+        }
+        .sell-button {
+            background: #4f46e5;
+            color: white;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            padding: 12px;
+            width: 100%;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .sell-button:hover {
+            background: #6366f1;
+            transform: scale(1.02);
+        }
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 40;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .side-menu {
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: 64%;
+            height: 100%;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+        .side-menu.active {
+            left: 0;
+        }
+        .menu-item {
+            padding: 12px 16px;
+            font-size: 16px;
+            color: #4f46e5;
+            transition: all 0.2s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+        .menu-item:hover {
+            background: #f3f4f6;
+            transform: translateX(5px);
+        }
+        #connectWallet {
+            padding: 8px 16px;
+            font-size: 14px;
+            border: 1px solid #4f46e5;
+            border-radius: 8px;
+            color: #4f46e5;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        #connectWallet.wallet-connected {
+            background-color: #4f46e5;
+            color: white;
+        }
+        #connectWallet.wallet-connected:hover {
+            background-color: #6366f1;
+        }
+        .logo-header {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4f46e5;
+            text-align: center;
+            padding: 16px;
+            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .wallet-address {
+            font-size: 12px;
+            color: #6b7280;
+            font-family: monospace;
+        }
+        .stars-counter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .stars-input {
+            width: 80px;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .counter-button {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #f3f4f6;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .counter-button:hover {
+            background: #e5e7eb;
+        }
+        .rate-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .info-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: rgba(79, 70, 229, 0.1);
+            color: #4f46e5;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .transaction-history {
+            margin-top: 24px;
+        }
+        .transaction-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .transaction-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .transaction-status {
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .status-pending {
+            background: #fff7ed;
+            color: #ea580c;
+        }
+         .status-processing {
+            background: #fff7ed;
+            color: #ea580c;
+         }
+        .status-completed {
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+        .status-declined {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        .wallet-status {
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .wallet-status p {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 8px;
+        }
+         .progress-container {
+        width: 100%;
+        background-color: #f3f4f6;
+        border-radius: 8px;
+        margin: 16px 0;
         overflow: hidden;
     }
-    .sell-option {
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        transition: all 0.2s ease;
-        padding: 16px;
-        margin-bottom: 16px;
-    }
-    .sell-option:hover {
-        border-color: #4f46e5;
-        transform: translateY(-4px);
-        box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
-    }
-    .sell-button {
-        background: #4f46e5;
-        color: white;
+
+    .progress-bar {
+        height: 12px;
+        background: linear-gradient(90deg, #4f46e5, #6366f1);
         border-radius: 8px;
-        transition: all 0.2s ease;
-        padding: 12px;
-        width: 100%;
-        font-size: 16px;
-        font-weight: 600;
+        transition: width 0.5s ease;
     }
-    .sell-button:hover {
-        background: #6366f1;
-        transform: scale(1.02);
-    }
-    .menu-overlay {
+
+    .transaction-details-overlay {
         position: fixed;
         top: 0;
         left: 0;
@@ -58,469 +331,327 @@
         height: 100%;
         background: rgba(0, 0, 0, 0.5);
         backdrop-filter: blur(5px);
-        z-index: 40;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
+        z-index: 100;
+        display: none;
     }
-    .menu-overlay.active {
-        opacity: 1;
-        visibility: visible;
-    }
-    .side-menu {
+
+    .transaction-details-panel {
         position: fixed;
-        top: 0;
-        left: -100%;
-        width: 64%;
-        height: 100%;
-        background: white;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-        z-index: 50;
-        transition: all 0.3s ease;
-    }
-    .side-menu.active {
+        bottom: -100%;
         left: 0;
+        width: 100%;
+        max-height: 80vh;
+        background: white;
+        z-index: 110;
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        transition: bottom 0.3s ease;
+        overflow-y: auto;
     }
-    .menu-item {
-        padding: 12px 16px;
-        font-size: 16px;
-        color: #4f46e5;
-        transition: all 0.2s ease;
-        position: relative;
+
+    .transaction-details-panel.active {
+        bottom: 0;
+    }
+
+    .transaction-step {
         display: flex;
-        align-items: center;
-        gap: 8px;
-        border-bottom: 1px solid #e5e7eb;
+        align-items: flex-start;
+        padding: 12px 0;
+        position: relative;
     }
-    .menu-item:last-child {
-        border-bottom: none;
-    }
-    .menu-item:hover {
-        background: #f3f4f6;
-        transform: translateX(5px);
-    }
-    #connectWallet {
-        padding: 8px 16px;
-        font-size: 14px;
-        border: 1px solid #4f46e5;
-        border-radius: 8px;
-        color: #4f46e5;
-        background-color: white;
-        cursor: pointer;
-        transition: all 0.2s ease;
+
+    .step-number {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #e5e7eb;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-right: 12px;
+        z-index: 10;
+        position: relative;
     }
-    #connectWallet.wallet-connected {
-        background-color: #4f46e5;
+
+    .step-number.active {
+        background: #4f46e5;
         color: white;
     }
-    #connectWallet.wallet-connected:hover {
-        background-color: #6366f1;
+
+    .step-number.completed {
+        background: #10b981;
+        color: white;
     }
-    .logo-header {
-        font-size: 24px;
-        font-weight: bold;
-        color: #4f46e5;
-        text-align: center;
-        padding: 16px;
-        background: linear-gradient(90deg, #4f46e5, #6366f1);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    .wallet-address {
-        font-size: 12px;
-        color: #6b7280;
-        font-family: monospace;
-    }
-    .stars-counter {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        margin-bottom: 16px;
-    }
-    .stars-input {
-        width: 80px;
-        text-align: center;
-        padding: 8px;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        font-weight: bold;
-    }
-    .counter-button {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        background: #f3f4f6;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    .counter-button:hover {
+
+    .step-line {
+        position: absolute;
+        top: 24px;
+        left: 12px;
+        width: 2px;
+        height: calc(100% - 24px);
         background: #e5e7eb;
+        z-index: 5;
     }
-    .rate-info {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px;
-        background: #f9fafb;
-        border-radius: 8px;
-        margin-bottom: 16px;
+
+    .step-line.active {
+        background: #4f46e5;
     }
-    .info-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        background: rgba(79, 70, 229, 0.1);
-        color: #4f46e5;
-        border-radius: 4px;
+
+    .step-line.completed {
+        background: #10b981;
+    }
+
+    .step-content {
+        flex: 1;
+    }
+
+    .step-date {
         font-size: 12px;
-        font-weight: 500;
-    }
-    .transaction-history {
-        margin-top: 24px;
-    }
-    .transaction-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px;
-        border-bottom: 1px solid #e5e7eb;
-    }
-    .transaction-info {
-        display: flex;
-        flex-direction: column;
-    }
-    .transaction-status {
-        font-size: 12px;
-        padding: 2px 6px;
-        border-radius: 4px;
-    }
-    .status-pending {
-        background: #fff7ed;
-        color: #ea580c;
-    }
-     .status-processing {
-        background: #fff7ed;
-        color: #ea580c;
-     }
-    .status-completed {
-        background: #f0fdf4;
-        color: #16a34a;
-    }
-    .status-declined {
-        background: #fef2f2;
-        color: #dc2626;
-    }
-    .wallet-status {
-        padding: 16px;
-        background: #f9fafb;
-        border-radius: 8px;
-        margin-bottom: 16px;
-        text-align: center;
-    }
-    .wallet-status p {
-        font-size: 14px;
         color: #6b7280;
-        margin-top: 8px;
+        margin-top: 4px;
     }
-     .progress-container {
-    width: 100%;
-    background-color: #f3f4f6;
-    border-radius: 8px;
-    margin: 16px 0;
-    overflow: hidden;
-}
 
-.progress-bar {
-    height: 12px;
-    background: linear-gradient(90deg, #4f46e5, #6366f1);
-    border-radius: 8px;
-    transition: width 0.5s ease;
-}
-
-.transaction-details-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(5px);
-    z-index: 100;
-    display: none;
-}
-
-.transaction-details-panel {
-    position: fixed;
-    bottom: -100%;
-    left: 0;
-    width: 100%;
-    max-height: 80vh;
-    background: white;
-    z-index: 110;
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    transition: bottom 0.3s ease;
-    overflow-y: auto;
-}
-
-.transaction-details-panel.active {
-    bottom: 0;
-}
-
-.transaction-step {
-    display: flex;
-    align-items: flex-start;
-    padding: 12px 0;
-    position: relative;
-}
-
-.step-number {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #e5e7eb;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: bold;
-    margin-right: 12px;
-    z-index: 10;
-    position: relative;
-}
-
-.step-number.active {
-    background: #4f46e5;
-    color: white;
-}
-
-.step-number.completed {
-    background: #10b981;
-    color: white;
-}
-
-.step-line {
-    position: absolute;
-    top: 24px;
-    left: 12px;
-    width: 2px;
-    height: calc(100% - 24px);
-    background: #e5e7eb;
-    z-index: 5;
-}
-
-.step-line.active {
-    background: #4f46e5;
-}
-
-.step-line.completed {
-    background: #10b981;
-}
-
-.step-content {
-    flex: 1;
-}
-
-.step-date {
-    font-size: 12px;
-    color: #6b7280;
-    margin-top: 4px;
-}
-
-.close-details {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: #f3f4f6;
-    cursor: pointer;
-}
-</style>
+    .close-details {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: #f3f4f6;
+        cursor: pointer;
+    }
+    </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
-        <div class="side-menu" id="sideMenu">
-            <div class="p-6">
-                <div class="text-xl font-bold mb-8">Menu</div>
-                <nav class="space-y-2">
-                    <a href="index.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
-                        Home
-                    </a>
-                    <a href="sell.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
-                        Sell
-                    </a>
-                    <a href="history.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
-                        History
-                    </a>
-                    <a href="referral.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
-                        Referral
-                    </a>
-                    <a href="about.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
-                        About
-                    </a>
-                </nav>
-            </div>
-        </div>
-        <div class="p-4 flex justify-between items-center bg-white shadow-sm">
-            <button onclick="toggleMenu()" class="p-2">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                </svg>
-            </button>
-            <div class="logo-header">StarStore</div>
-            <div class="w-6"></div>
-        </div>
-        <div class="wallet-status">
-    <button id="connectWallet">Connect Wallet</button>
-    <div class="flex items-center mt-3">
-        <input type="checkbox" id="manualWalletToggle" class="mr-2">
-        <label for="manualWalletToggle" class="text-sm text-gray-700">Enter wallet address manually</label>
+    <!-- Skeleton Loading Structure -->
+    <div id="skeleton-loading">
+        <div class="skeleton skeleton-header"></div>
+        <div class="skeleton skeleton-wallet"></div>
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-rate"></div>
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-info"></div>
+        <div class="skeleton skeleton-transactions"></div>
+        <div class="skeleton skeleton-transaction-item"></div>
+        <div class="skeleton skeleton-transaction-item"></div>
+        <div class="skeleton skeleton-nav"></div>
     </div>
-    <div id="manualWalletInput" class="mt-3 hidden">
-        <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
-               class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-    </div>
-    <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
-        </div>
-        <div class="p-6">
-            <div class="bg-white rounded-xl p-6 mb-6">
-                <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
-                <div class="rate-info mb-4">
-    <div>
-        <span class="text-sm text-gray-600">Current Rate</span>
-        <div class="font-bold">1 Star = 0.009 USDT</div>
-    </div>
-    <span class="info-badge">Updated just now</span>
-</div>
-    
-                <div class="sell-option p-4 mb-6">
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
-                        <div class="stars-counter">
-                            <button class="counter-button" onclick="decrementStars()">-</button>
-                            <input type="number" id="starsAmount" class="stars-input" value="50" min="15" max="1000" onchange="calculateTonAmount()">
-                            <button class="counter-button" onclick="incrementStars()">+</button>
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
-                        <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
-                    </div>
-                    <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">Sell Now</button>
-                </div>
-                <div class="bg-blue-50 rounded-lg p-4 text-sm">
-                    <div class="flex items-start space-x-2">
-                        <svg class="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <div>
-                            <p class="font-medium text-blue-800">How it works:</p>
-                            <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
-                                <li>Enter the amount of stars you want to sell</li>
-                                <li>Click "Sell Now" to initiate the transaction</li>
-                                <li>Send the stars via Telegram payment</li>
-                                <li>Once verified, USDT will be sent to your wallet within 21 days</li>
-                            </ol>
-                        </div>
-                    </div>
-                </div>
-                <div class="transaction-history">
-                    <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
-                    <div id="transactionsList">
-                        <!-- Transactions will be loaded dynamically -->
-                        <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
-                    </div>
+
+    <!-- Original Content (hidden initially) -->
+    <div id="content-container">
+        <div class="app-container">
+            <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+            <div class="side-menu" id="sideMenu">
+                <div class="p-6">
+                    <div class="text-xl font-bold mb-8">Menu</div>
+                    <nav class="space-y-2">
+                        <a href="index.html" class="menu-item">
+                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                            Home
+                        </a>
+                        <a href="sell.html" class="menu-item">
+                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                            Sell
+                        </a>
+                        <a href="history.html" class="menu-item">
+                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                            History
+                        </a>
+                        <a href="referral.html" class="menu-item">
+                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                            Referral
+                        </a>
+                        <a href="about.html" class="menu-item">
+                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                            About
+                        </a>
+                    </nav>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- Modal Template for Star Payment -->
-    <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-            <div class="text-center mb-4">
-                <svg class="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <h3 class="text-xl font-bold mt-2">Payment Confirmation</h3>
-            </div>
-            <div class="mb-6">
-                <p class="text-gray-700 mb-4">You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> stars for <span id="modalTonAmount" class="font-bold">0.438 TON</span>.</p>
-                <p class="text-gray-700">Please confirm this transaction via Telegram payment.</p>
-            </div>
-            <div class="flex justify-between space-x-4">
-                <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
-                <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Confirm</button>
-            </div>
-        </div>
-    </div>
-<div id="transactionDetailsOverlay" class="transaction-details-overlay">
-    <div id="transactionDetailsPanel" class="transaction-details-panel">
-        <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-bold">Transaction Details</h3>
-                <button class="close-details" id="closeTransactionDetails">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+                <button onclick="toggleMenu()" class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </button>
+                <div class="logo-header">StarStore</div>
+                <div class="w-6"></div>
             </div>
-            <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
-            <div class="flex justify-between items-center mb-4">
-                <div>
-                    <div class="text-sm text-gray-600">Amount</div>
-                    <div id="transactionAmount" class="font-bold text-xl"></div>
+            <div class="wallet-status">
+                <button id="connectWallet">Connect Wallet</button>
+                <div class="flex items-center mt-3">
+                    <input type="checkbox" id="manualWalletToggle" class="mr-2">
+                    <label for="manualWalletToggle" class="text-sm text-gray-700">Enter wallet address manually</label>
                 </div>
-                <div class="text-right">
-                    <div class="text-sm text-gray-600">To be received</div>
-                    <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
+                <div id="manualWalletInput" class="mt-3 hidden">
+                    <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
+                           class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
+            </div>
+            <div class="p-6">
+                <div class="bg-white rounded-xl p-6 mb-6">
+                    <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
+                    <div class="rate-info mb-4">
+                        <div>
+                            <span class="text-sm text-gray-600">Current Rate</span>
+                            <div class="font-bold">1 Star = 0.009 USDT</div>
+                        </div>
+                        <span class="info-badge">Updated just now</span>
+                    </div>
+                    
+                    <div class="sell-option p-4 mb-6">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
+                            <div class="stars-counter">
+                                <button class="counter-button" onclick="decrementStars()">-</button>
+                                <input type="number" id="starsAmount" class="stars-input" value="50" min="15" max="1000" onchange="calculateTonAmount()">
+                                <button class="counter-button" onclick="incrementStars()">+</button>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
+                            <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
+                        </div>
+                        <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">Sell Now</button>
+                    </div>
+                    <div class="bg-blue-50 rounded-lg p-4 text-sm">
+                        <div class="flex items-start space-x-2">
+                            <svg class="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div>
+                                <p class="font-medium text-blue-800">How it works:</p>
+                                <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
+                                    <li>Enter the amount of stars you want to sell</li>
+                                    <li>Click "Sell Now" to initiate the transaction</li>
+                                    <li>Send the stars via Telegram payment</li>
+                                    <li>Once verified, USDT will be sent to your wallet within 21 days</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="transaction-history">
+                        <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
+                        <div id="transactionsList">
+                            <!-- Transactions will be loaded dynamically -->
+                            <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <div class="mb-4">
-                <div class="text-sm text-gray-600 mb-1">Current Status</div>
-                <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
+        </div>
+        
+        <!-- Modal Template for Star Payment -->
+        <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                <div class="text-center mb-4">
+                    <svg class="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h3 class="text-xl font-bold mt-2">Payment Confirmation</h3>
+                </div>
+                <div class="mb-6">
+                    <p class="text-gray-700 mb-4">You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> stars for <span id="modalTonAmount" class="font-bold">0.438 TON</span>.</p>
+                    <p class="text-gray-700">Please confirm this transaction via Telegram payment.</p>
+                </div>
+                <div class="flex justify-between space-x-4">
+                    <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
+                    <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Confirm</button>
+                </div>
             </div>
-            
-            <div class="mb-4">
-                <div class="text-sm text-gray-600 mb-1">Estimated Completion</div>
-                <div id="transactionEstimatedCompletion" class="font-medium"></div>
-            </div>
-            
-            <div class="progress-container">
-                <div id="progressBar" class="progress-bar" style="width: 0%"></div>
-            </div>
-            
-            <div id="transactionTimeline" class="mt-6">
-                <!-- Timeline steps will be inserted here -->
+        </div>
+        <div id="transactionDetailsOverlay" class="transaction-details-overlay">
+            <div id="transactionDetailsPanel" class="transaction-details-panel">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold">Transaction Details</h3>
+                        <button class="close-details" id="closeTransactionDetails">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <div class="text-sm text-gray-600">Amount</div>
+                            <div id="transactionAmount" class="font-bold text-xl"></div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm text-gray-600">To be received</div>
+                            <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm text-gray-600 mb-1">Current Status</div>
+                        <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm text-gray-600 mb-1">Estimated Completion</div>
+                        <div id="transactionEstimatedCompletion" class="font-medium"></div>
+                    </div>
+                    
+                    <div class="progress-container">
+                        <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div id="transactionTimeline" class="mt-6">
+                        <!-- Timeline steps will be inserted here -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+
+    <script>
+        
+
+
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script>
+
+    document.getElementById('skeleton-loading').style.display = 'block';
+document.getElementById('content-container').style.display = 'none';
+    function showContent() {
+    document.getElementById('skeleton-loading').style.display = 'none';
+    document.getElementById('content-container').style.display = 'block';
+
+
+        if (!localStorage.getItem('holdNoticeAcknowledged')) {
+        showHoldNotice();
+    }
+}
+    function showHoldNotice() {
+    Swal.fire({
+        title: 'Important Notice',
+        html: `
+            <div class="text-left">
+                <p class="mb-4">When selling stars, your funds will be held for a mandatory 21-day period.</p>
+                <p>By clicking "Continue", you agree to these terms.</p>
+                </div>
+        `,
+        icon: 'info',
+        confirmButtonText: 'Continue',
+        allowOutsideClick: false,
+        showCancelButton: false
+    }).then(() => {
+        localStorage.setItem('holdNoticeAcknowledged', 'true');
+    });
+}
+    
 // Global variables
 let isWalletConnected = false;
 let currentWalletAddress = '';
