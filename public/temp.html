@@ -1,0 +1,421 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Referral - StarStore</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f3f4f6;
+        }
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+        .logo-header {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4f46e5;
+            text-align: center;
+            padding: 16px;
+            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 40;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .side-menu {
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: 64%;
+            height: 100%;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+        .side-menu.active {
+            left: 0;
+        }
+        .menu-item {
+            padding: 12px 16px;
+            font-size: 16px;
+            color: #4f46e5;
+            transition: all 0.2s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .menu-item:hover {
+            background: #f3f4f6;
+            transform: translateX(5px);
+        }
+        .footer {
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            color: #6b7280;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            width: 100%;
+            max-width: 480px;
+        }
+        .footer a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .referral-card {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            border-radius: 16px;
+            color: white;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+        .referral-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffffff' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
+            z-index: -1;
+        }
+        .copy-btn {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .copy-toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #4f46e5;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            z-index: 999;
+        }
+        .copy-toast.active {
+            bottom: 24px;
+        }
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .language-btn {
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .language-btn.active {
+            background: #4f46e5;
+            color: white;
+        }
+        .reward-level {
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .reward-level:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.15);
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+        .share-options {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        .share-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .share-option:hover {
+            background-color: #f3f4f6;
+            transform: translateY(-3px);
+        }
+        .share-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin-bottom: 8px;
+        }
+        .share-label {
+            font-size: 12px;
+            color: #4b5563;
+            text-align: center;
+        }
+        .invite-progress {
+            height: 6px;
+            border-radius: 3px;
+            background-color: #e5e7eb;
+            overflow: hidden;
+        }
+        .invite-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+        <div class="side-menu" id="sideMenu">
+            <div class="p-6">
+                <div class="text-xl font-bold mb-8" data-lang="menu">Menu</div>
+                <nav class="space-y-2">
+                    <a href="index.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                        <span data-lang="home">Home</span>
+                    </a>
+                    <a href="sell.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                        <span data-lang="sell">Sell</span>
+                    </a>
+                    <a href="history.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                        <span data-lang="history">History</span>
+                    </a>
+                    <a href="referral.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                        <span data-lang="referral">Referral</span>
+                    </a>
+                    <a href="about.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                        <span data-lang="about">About</span>
+                    </a>
+                </nav>
+            </div>
+        </div>
+
+        <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+            <button onclick="toggleMenu()" class="p-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <div class="logo-header">StarStore</div>
+            <div class="language-selector">
+                <div class="language-btn" data-language="en" onclick="changeLanguage('en')">EN</div>
+                <div class="language-btn" data-language="ru" onclick="changeLanguage('ru')">RU</div>
+            </div>
+        </div>
+
+        <div id="content-container" class="p-6">
+            <!-- Skeleton loading state -->
+            <div id="skeleton-loader" class="space-y-6">
+                <div class="flex flex-col items-center mb-6">
+                    <div class="skeleton w-3/4 h-8 mb-3"></div>
+                    <div class="skeleton w-2/3 h-4"></div>
+                </div>
+                
+                <div class="skeleton h-40 rounded-xl w-full mb-6"></div>
+                
+                <div class="space-y-3 mb-6">
+                    <div class="skeleton h-6 w-1/3"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="skeleton h-16 rounded-lg"></div>
+                        <div class="skeleton h-16 rounded-lg"></div>
+                    </div>
+                </div>
+                
+                <div class="space-y-3 mb-6">
+                    <div class="skeleton h-6 w-1/3"></div>
+                    <div class="skeleton h-24 rounded-lg"></div>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="skeleton h-6 w-1/3"></div>
+                    <div class="grid grid-cols-4 gap-4">
+                        <div class="skeleton h-16 rounded-lg"></div>
+                        <div class="skeleton h-16 rounded-lg"></div>
+                        <div class="skeleton h-16 rounded-lg"></div>
+                        <div class="skeleton h-16 rounded-lg"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actual content (initially hidden) -->
+            <div id="actual-content" class="hidden space-y-6">
+                <div class="text-center mb-6">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2" data-lang="referral-title">Invite Friends</h1>
+                    <p class="text-gray-600" data-lang="referral-subtitle">Share the benefits and earn rewards together</p>
+                </div>
+
+                <div class="referral-card p-6 mb-6">
+                    <div class="flex items-center justify-center mb-3">
+                        <div class="bg-white bg-opacity-20 rounded-full p-3">
+                            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-1a5.006 5.006 0 00-5-5H9a5.006 5.006 0 00-5 5v1h12z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="text-center mb-4">
+                        <h3 class="text-xl font-bold mb-1" data-lang="your-code">Your Referral Link</h3>
+                        <p class="text-sm text-white text-opacity-80" data-lang="referral-desc">Share this link with friends to earn rewards</p>
+                    </div>
+                    <div class="relative bg-white bg-opacity-20 rounded-lg p-3 text-center mb-4">
+                        <input type="text" id="referral-link" class="w-full bg-transparent border-none outline-none text-white font-medium pr-10" readonly>
+                        <button id="copy-btn" class="copy-btn focus:outline-none">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="copy-toast" class="copy-toast">
+                        <span data-lang="copied">Link copied to clipboard!</span>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4" data-lang="stats">Your Referral Stats</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                            <div class="text-2xl font-bold text-indigo-600" id="pending-invites">0</div>
+                            <div class="text-sm text-gray-600" data-lang="pending">Pending Invites</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                            <div class="text-2xl font-bold text-indigo-600" id="successful-invites">0</div>
+                            <div class="text-sm text-gray-600" data-lang="successful">Successful Invites</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 rounded-xl p-6 mb-6">
+                    <h2 class="text-xl font-bold text-indigo-600 mb-3" data-lang="rewards">Rewards Program</h2>
+                    <p class="text-gray-700 mb-4" data-lang="rewards-desc">Earn TON for every friend that joins and makes a purchase</p>
+                    
+                    <div class="space-y-3 mb-4">
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-600" data-lang="progress">Your progress</span>
+                            <span class="font-semibold" id="invites-progress">0/5</span>
+                        </div>
+                        <div class="invite-progress">
+                            <div class="invite-progress-bar" id="progress-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="reward-level bg-white p-4 rounded-lg border border-indigo-100 flex items-center">
+                            <div class="bg-indigo-100 p-2 rounded-full mr-3">
+                                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-800 mb-1">5 TON</div>
+                                <div class="text-sm text-gray-600" data-lang="level1">For your first 5 referrals</div>
+                            </div>
+                        </div>
+                        
+                        <div class="reward-level bg-white p-4 rounded-lg border border-indigo-100 flex items-center">
+                            <div class="bg-indigo-100 p-2 rounded-full mr-3">
+                                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-800 mb-1">15 TON</div>
+                                <div class="text-sm text-gray-600" data-lang="level2">For 10+ successful referrals</div>
+                            </div>
+                        </div>
+                        
+                        <div class="reward-level bg-white p-4 rounded-lg border border-indigo-100 flex items-center">
+                            <div class="bg-indigo-100 p-2 rounded-full mr-3">
+                                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-800 mb-1">50 TON</div>
+                                <div class="text-sm text-gray-600" data-lang="level3">For 25+ successful referrals</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4" data-lang="share">Share Your Link</h2>
+                    <div class="share-options">
+                        <div class="share-option" id="share-telegram">
+                            <div class="share-icon bg-blue-100">
+                                <svg class="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6.5C9.03,6.5 6.5,9.03 6.5,12C6.5,14.97 9.03,17.5 12,17.5C14.97,17.5 17.5,14.97 17.5,12C17.5,9.03 14.97,6.5 12,6.5M12,16.5C9.62,16.5 7.5,14.38 7.5,12C7.5,9.62 9.62,7.5 12,7.5C14.38,7.5 16.5,9.62 16.5,12C16.5,14.38 14.38,16.5 12,16.5M12,12L12,9H11V12.5H14V11.5H12V12Z"/>
+                                </svg>
+                            </div>
+                            <div class="share-label" data-lang="telegram">Telegram</div>
+                        </div>
+                        <div class="share-option" id="share-whatsapp">
+                            <div class="share-icon bg-green-100">
+                                <svg class="w-5 h-5 text-green-600" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,8C9.79,8 8,9.79 8,12C8,14.21 9.79,16 12,16C14.21,16 16,14.21 16,12C16,9.79 14.21,8 12,8M12,14.5C10.62,14.5 9.5,13.38 9.5,12C9.5,10.62 10.62,9.5 12,9.5C13.38,9.5 14.5,10.62 14.5,12C14.5,13.38 13.38,14.5 12,14.5M12,10.5C11.17,10.5 10.5,11.17 10.5,12C10.5,12.83 11.17,13.5 12,13.5C12.83,13.5 13.5,12.83 13.5,12C13.5,11.17 12.83,10.5 12,10.5Z"/>
+                                </svg>
+                            </div>
+                            <div class="share-label" data-lang="whatsapp">WhatsApp</div>
+                        </div>
+                        <div class="share-option" id="share-twitter">
+                            <div class="share-icon bg-blue-100">
+                                <svg class="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M22.46,6C21.69,6.35 20.86,6.58 20,6.69C20.88,6.16 21.56,5.32 21.88,4.31C21.05,4.81 20.13,5.16 19.16,5.
