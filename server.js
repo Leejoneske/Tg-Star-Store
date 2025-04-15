@@ -599,114 +599,80 @@ app.get("/api/sell-orders", async (req, res) => {
 
 
 // Check if adminIds is already declared to avoid redeclaration
+
+// Check if adminIds is already declared
 if (typeof adminIds === 'undefined') {
     const adminIds = process.env.ADMIN_TELEGRAM_IDS ? 
         process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim()) : 
         [];
 }
 
-// Authorization check helper
-function isAuthorized(userId) {
-    return adminIds.includes(userId);
-}
-
-bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+--ref=(\S+))?$/, async (msg, match) => {
+bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
 
     // Authorization check
-    if (!isAuthorized(requesterId)) {
-        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nYou lack the required permissions to execute this command.', {
+    if (!adminIds.includes(requesterId)) {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nAdministrator privileges required.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
         });
     }
 
-    if (!match[1]) {
-        return sendUsageExample(chatId, msg.message_id);
-    }
+    if (!match[1]) return sendUsageExample(chatId, msg.message_id);
 
     const userId = match[1];
-    const reason = match[2] || 'Violation of terms of service';
+    const reason = match[2] || 'Terms of service violation';
     const durationValue = match[3] ? parseInt(match[3]) : null;
     const durationUnit = match[4] || null;
-    const reference = match[5] || null;
 
-    // Calculate ban duration in days
-    let durationDays = null;
-    if (durationValue) {
-        switch(durationUnit) {
-            case 'y': durationDays = durationValue * 365; break;
-            case 'm': durationDays = durationValue * 30; break;
-            case 'd': durationDays = durationValue; break;
-            default: durationDays = durationValue;
-        }
-    }
-
-    // Prevent self-ban and admin ban
-    if (userId === requesterId) {
-        return bot.sendMessage(chatId, '❌ You cannot ban yourself.', {
+    // Check if already banned
+    const existing = await BannedUser.findOne({ users: userId });
+    if (existing) {
+        return bot.sendMessage(chatId, `⚠️ User ${userId} is already banned.`, {
             reply_to_message_id: msg.message_id
         });
     }
 
-    if (adminIds.includes(userId)) {
-        return bot.sendMessage(chatId, '❌ Cannot ban another administrator.', {
-            reply_to_message_id: msg.message_id
-        });
+    // Add to banned users array (simple schema)
+    await BannedUser.updateOne(
+        {}, 
+        { $push: { users: userId } },
+        { upsert: true }
+    );
+
+    // Calculate ban period text
+    let banPeriod = '';
+    if (durationValue && durationUnit) {
+        banPeriod = durationUnit === 'y' ? `${durationValue} year(s)` :
+                   durationUnit === 'm' ? `${durationValue} month(s)` :
+                   `${durationValue} day(s)`;
     }
 
-    // Check existing ban
-    const existingBan = await BannedUser.findOne({ userId });
-    if (existingBan) {
-        return bot.sendMessage(chatId, `⚠ User ${userId} is already banned.\n\nReason: ${existingBan.reason}\nBanned on: ${existingBan.timestamp.toLocaleString()}\nBy: ${existingBan.bannedBy}`, {
-            reply_to_message_id: msg.message_id,
-            parse_mode: 'Markdown'
-        });
-    }
-
-    // Create ban record
-    const banExpiry = durationDays ? new Date(Date.now() + durationDays * 86400000) : null;
-    const caseNumber = generateCaseNumber('BAN');
-    
-    const banRecord = {
-        userId,
-        reason,
-        bannedBy: msg.from.username ? `@${msg.from.username}` : msg.from.first_name,
-        timestamp: new Date(),
-        durationDays,
-        expiryDate: banExpiry,
-        reference,
-        caseNumber,
-        active: true
-    };
-
-    await BannedUser.create(banRecord);
-
-    // Notify banned user
+    // Authoritative ban notification
     try {
-        const banMessage = `⚠️ **Account Restriction Notice** [Case ${caseNumber}]\n\n` +
-            `After careful review, your account privileges have been temporarily suspended for:\n\n` +
-            `▸ **Violation**: ${reason}\n` +
-            (durationDays ? `▸ **Restriction Period**: ${formatDuration(durationDays)} (until ${banExpiry.toLocaleDateString()})\n` : '▸ **Restriction Type**: Permanent suspension\n') +
-            `\n**Important Notes**:\n` +
-            `• You will continue receiving StarStore product updates\n` +
-            `• Order placement functionality is disabled\n` +
-            `• All pending transactions are frozen\n\n` +
-            `If you believe this was made in error, you may submit an appeal through our official channels.`;
+        const banMessage = `🔴 YOUR ACCOUNT HAS BEEN BANNED\n\n` +
+            `**Reason**: ${reason}\n` +
+            (banPeriod ? `**Duration**: ${banPeriod}\n\n` : '\n') +
+            `**Restrictions Applied**:\n` +
+            `• Order placement disabled\n` +
+            `• Transaction abilities revoked\n` +
+            `• Full account access suspended\n\n` +
+            `You will continue receiving StarStore updates.\n\n` +
+            `This decision was made after careful review of your account activity. ` +
+            `If you believe this was made in error, please contact our support team.`;
 
         await bot.sendMessage(userId, banMessage, { parse_mode: 'Markdown' });
     } catch (e) {
-        console.error('Failed to notify banned user:', e);
+        console.error('Failed to notify user:', e);
     }
 
-    // Confirm to moderator
-    const adminMessage = `✅ **Restriction Order Processed** [${caseNumber}]\n` +
-        `┌─ User: ${userId}\n` +
-        `├─ Type: ${durationDays ? 'Temporary' : 'Permanent'} Suspension\n` +
-        (durationDays ? `├─ Duration: ${formatDuration(durationDays)}\n` : '') +
-        (reference ? `├─ Reference: ${reference}\n` : '') +
-        (banExpiry ? `└─ Auto-Release: ${banExpiry.toLocaleString()}\n` : '└─ No expiration\n');
+    // Detailed admin confirmation
+    const adminMessage = `✅ **Ban Executed**\n\n` +
+        `▸ User: ${userId}\n` +
+        `▸ Reason: ${reason}\n` +
+        (banPeriod ? `▸ Duration: ${banPeriod}\n` : '▸ Type: Permanent\n') +
+        `▸ Actioned by: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}`;
 
     await bot.sendMessage(chatId, adminMessage, {
         parse_mode: 'Markdown',
@@ -714,32 +680,20 @@ bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+-
     });
 });
 
-// Helper functions
-function formatDuration(days) {
-    if (days >= 365) return `${Math.floor(days/365)} year(s)`;
-    if (days >= 30) return `${Math.floor(days/30)} month(s)`;
-    return `${days} day(s)`;
-}
-
-function generateCaseNumber(prefix) {
-    const now = new Date();
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    return `${prefix}-${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}-${randomNum}`;
-}
-
 function sendUsageExample(chatId, replyTo) {
-    return bot.sendMessage(chatId, 
-        `⚠ **Usage**: \`/ban <user_id> [reason] [--duration=<value><y|m|d>] [--ref=<reference_code>]\`\n\n` +
+    return bot.sendMessage(chatId,
+        `📝 **Ban Command Usage**\n\n` +
+        `\`/ban <user_id> [reason] [--duration=<value><y|m|d>]\`\n\n` +
         `**Examples**:\n` +
-        `• Permanent ban: \`/ban 12345678 Fraudulent activity\`\n` +
-        `• 2-year ban: \`/ban 12345678 Scam --duration=2y\`\n` +
-        `• With reference: \`/ban 12345678 "Account sharing" --ref=SEC-2025-001\``, 
+        `• \`/ban 12345678 "Fraudulent activity"\`\n` +
+        `• \`/ban 78901234 "Policy violation" --duration=30d\``,
         {
             parse_mode: 'Markdown',
             reply_to_message_id: replyTo
         }
     );
 }
+
 
 
 
