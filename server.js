@@ -596,8 +596,7 @@ app.get("/api/sell-orders", async (req, res) => {
         res.status(500).json({ error: "Failed to fetch transactions" });
     }
 });
-
-bot.onText(/\/ban(?: (\d+)(?: (.+?))?(?: --duration=(\d+)(y|m|d))?(?: --ref=(\S+))?$/, async (msg, match) => {
+bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+--ref=(\S+))?$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
 
