@@ -598,14 +598,6 @@ app.get("/api/sell-orders", async (req, res) => {
 });
 
 
-    
-const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
-
-// Authorization check helper
-function isAuthorized(userId) {
-    return adminIds.includes(userId);
-}
-
 bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+--ref=(\S+))?$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
