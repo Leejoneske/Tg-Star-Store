@@ -597,24 +597,139 @@ app.get("/api/sell-orders", async (req, res) => {
     }
 });
 
-bot.onText(/\/ban (.+)/, async (msg, match) => {
+bot.onText(/\/ban(?: (\d+)(?: (.+?))?(?: --duration=(\d+)(y|m|d))?(?: --ref=(\S+))?$/, async (msg, match) => {
     const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, '❌ Unauthorized');
+    const requesterId = msg.from.id.toString();
+
+    // Authorization check
+    if (!await isAuthorized(requesterId, 'ban')) {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nYou lack the required permissions to execute this command.\n\nRequired: BAN_USERS', {
+            parse_mode: 'Markdown',
+            reply_to_message_id: msg.message_id
+        });
+    }
+
+    if (!match[1]) {
+        return sendUsageExample(chatId, msg.message_id);
+    }
 
     const userId = match[1];
-    const bannedUser = await BannedUser.findOne({ users: userId });
+    const reason = match[2] || 'Violation of terms of service';
+    const durationValue = match[3] ? parseInt(match[3]) : null;
+    const durationUnit = match[4] || null;
+    const reference = match[5] || null;
 
-    if (bannedUser) {
-        bot.sendMessage(chatId, `❌ User ${userId} is already banned.`);
-    } else {
-        await BannedUser.updateOne({}, { $push: { users: userId } }, { upsert: true });
-
-        const banMessage = `🚫 **Account Suspension Notice**\n\nWe regret to inform you that your account has been suspended due to a violation of our terms of service.\n\nIf you believe this is a mistake, please contact our support team for further assistance.\n\nThank you for your understanding.`;
-        bot.sendMessage(userId, banMessage, { parse_mode: 'Markdown' });
-
-        bot.sendMessage(chatId, `✅ User ${userId} has been banned.`);
+    // Calculate ban duration in days
+    let durationDays = null;
+    if (durationValue) {
+        switch(durationUnit) {
+            case 'y': durationDays = durationValue * 365; break;
+            case 'm': durationDays = durationValue * 30; break;
+            case 'd': durationDays = durationValue; break;
+            default: durationDays = durationValue; // Default to days
+        }
     }
+
+    // Prevent self-ban and admin ban
+    if (userId === requesterId) {
+        return bot.sendMessage(chatId, '❌ You cannot ban yourself.', {
+            reply_to_message_id: msg.message_id
+        });
+    }
+
+    if (await isAdmin(userId)) {
+        return bot.sendMessage(chatId, '❌ Cannot ban another administrator.', {
+            reply_to_message_id: msg.message_id
+        });
+    }
+
+    // Check existing ban
+    const existingBan = await BannedUser.findOne({ userId });
+    if (existingBan) {
+        return notifyExistingBan(chatId, msg.message_id, existingBan);
+    }
+
+    // Create ban record
+    const banExpiry = durationDays ? new Date(Date.now() + durationDays * 86400000) : null;
+    const caseNumber = generateCaseNumber('BAN');
+    
+    const banRecord = {
+        userId,
+        reason,
+        bannedBy: msg.from.username ? `@${msg.from.username}` : msg.from.first_name,
+        timestamp: new Date(),
+        durationDays,
+        expiryDate: banExpiry,
+        reference,
+        caseNumber,
+        active: true
+    };
+
+    await BannedUser.create(banRecord);
+
+    // Notify banned user
+    try {
+        const banMessage = `⚠️ **Account Restriction Notice** [Case ${caseNumber}]\n\n` +
+            `After careful review, your account privileges have been temporarily suspended for:\n\n` +
+            `▸ **Violation**: ${reason}\n` +
+            (durationDays ? `▸ **Restriction Period**: ${formatDuration(durationDays)} (until ${banExpiry.toLocaleDateString()})\n` : '▸ **Restriction Type**: Permanent suspension\n') +
+            `\n**Important Notes**:\n` +
+            `• You will continue receiving StarStore product updates\n` +
+            `• Order placement functionality is disabled\n` +
+            `• All pending transactions are frozen\n\n` +
+            `**Appeal Options**:\n` +
+            `1. Email appeals@starstore.com with case #\n` +
+            `2. Complete verification at: https://starstore.com/verify\n\n` +
+            `_This is an automated notice - please do not reply_`;
+
+        await bot.sendMessage(userId, banMessage, { parse_mode: 'Markdown' });
+    } catch (e) {
+        console.error('Failed to notify banned user:', e);
+    }
+
+    // Confirm to moderator
+    const adminMessage = `✅ **Restriction Order Processed** [${caseNumber}]\n` +
+        `┌─ User: ${userId}\n` +
+        `├─ Type: ${durationDays ? 'Temporary' : 'Permanent'} Suspension\n` +
+        (durationDays ? `├─ Duration: ${formatDuration(durationDays)}\n` : '') +
+        (reference ? `├─ Reference: ${reference}\n` : '') +
+        (banExpiry ? `└─ Auto-Release: ${banExpiry.toLocaleString()}\n` : '└─ No expiration\n') +
+        `\nUser notified with service-specific instructions.`;
+
+    await bot.sendMessage(chatId, adminMessage, {
+        parse_mode: 'Markdown',
+        reply_to_message_id: msg.message_id
+    });
+
+    logBanAction(banRecord);
 });
+
+// Helper functions
+function formatDuration(days) {
+    if (days >= 365) return `${Math.floor(days/365)} year(s)`;
+    if (days >= 30) return `${Math.floor(days/30)} month(s)`;
+    return `${days} day(s)`;
+}
+
+function generateCaseNumber(prefix) {
+    const now = new Date();
+    const randomNum = Math.floor(100 + Math.random() * 900);
+    return `${prefix}-${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}-${randomNum}`;
+}
+
+function sendUsageExample(chatId, replyTo) {
+    return bot.sendMessage(chatId, 
+        `⚠ **Usage**: \`/ban <user_id> [reason] [--duration=<value><y|m|d>] [--ref=<reference_code>]\`\n\n` +
+        `**Examples**:\n` +
+        `• Permanent ban: \`/ban 12345678 Fraudulent activity\`\n` +
+        `• 2-year ban: \`/ban 12345678 Scam --duration=2y\`\n` +
+        `• With reference: \`/ban 12345678 "Account sharing" --ref=SEC-2025-001\``, 
+        {
+            parse_mode: 'Markdown',
+            reply_to_message_id: replyTo
+        }
+    );
+}
 
 bot.onText(/\/unban (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
