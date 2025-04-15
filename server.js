@@ -598,6 +598,18 @@ app.get("/api/sell-orders", async (req, res) => {
 });
 
 
+// Check if adminIds is already declared to avoid redeclaration
+if (typeof adminIds === 'undefined') {
+    const adminIds = process.env.ADMIN_TELEGRAM_IDS ? 
+        process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim()) : 
+        [];
+}
+
+// Authorization check helper
+function isAuthorized(userId) {
+    return adminIds.includes(userId);
+}
+
 bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+--ref=(\S+))?$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
@@ -728,6 +740,8 @@ function sendUsageExample(chatId, replyTo) {
         }
     );
 }
+
+
 
 bot.onText(/\/unban (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
