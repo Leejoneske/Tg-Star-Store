@@ -596,13 +596,23 @@ app.get("/api/sell-orders", async (req, res) => {
         res.status(500).json({ error: "Failed to fetch transactions" });
     }
 });
+
+
+    
+const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
+
+// Authorization check helper
+function isAuthorized(userId) {
+    return adminIds.includes(userId);
+}
+
 bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+--ref=(\S+))?$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
 
     // Authorization check
-    if (!await isAuthorized(requesterId, 'ban')) {
-        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nYou lack the required permissions to execute this command.\n\nRequired: BAN_USERS', {
+    if (!isAuthorized(requesterId)) {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nYou lack the required permissions to execute this command.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
         });
@@ -625,7 +635,7 @@ bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+-
             case 'y': durationDays = durationValue * 365; break;
             case 'm': durationDays = durationValue * 30; break;
             case 'd': durationDays = durationValue; break;
-            default: durationDays = durationValue; // Default to days
+            default: durationDays = durationValue;
         }
     }
 
@@ -636,7 +646,7 @@ bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+-
         });
     }
 
-    if (await isAdmin(userId)) {
+    if (adminIds.includes(userId)) {
         return bot.sendMessage(chatId, '❌ Cannot ban another administrator.', {
             reply_to_message_id: msg.message_id
         });
@@ -645,7 +655,10 @@ bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+-
     // Check existing ban
     const existingBan = await BannedUser.findOne({ userId });
     if (existingBan) {
-        return notifyExistingBan(chatId, msg.message_id, existingBan);
+        return bot.sendMessage(chatId, `⚠ User ${userId} is already banned.\n\nReason: ${existingBan.reason}\nBanned on: ${existingBan.timestamp.toLocaleString()}\nBy: ${existingBan.bannedBy}`, {
+            reply_to_message_id: msg.message_id,
+            parse_mode: 'Markdown'
+        });
     }
 
     // Create ban record
@@ -676,10 +689,7 @@ bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+-
             `• You will continue receiving StarStore product updates\n` +
             `• Order placement functionality is disabled\n` +
             `• All pending transactions are frozen\n\n` +
-            `**Appeal Options**:\n` +
-            `1. Email appeals@starstore.com with case #\n` +
-            `2. Complete verification at: https://starstore.com/verify\n\n` +
-            `_This is an automated notice - please do not reply_`;
+            `If you believe this was made in error, you may submit an appeal through our official channels.`;
 
         await bot.sendMessage(userId, banMessage, { parse_mode: 'Markdown' });
     } catch (e) {
@@ -692,15 +702,12 @@ bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?(?:\s+-
         `├─ Type: ${durationDays ? 'Temporary' : 'Permanent'} Suspension\n` +
         (durationDays ? `├─ Duration: ${formatDuration(durationDays)}\n` : '') +
         (reference ? `├─ Reference: ${reference}\n` : '') +
-        (banExpiry ? `└─ Auto-Release: ${banExpiry.toLocaleString()}\n` : '└─ No expiration\n') +
-        `\nUser notified with service-specific instructions.`;
+        (banExpiry ? `└─ Auto-Release: ${banExpiry.toLocaleString()}\n` : '└─ No expiration\n');
 
     await bot.sendMessage(chatId, adminMessage, {
         parse_mode: 'Markdown',
         reply_to_message_id: msg.message_id
     });
-
-    logBanAction(banRecord);
 });
 
 // Helper functions
