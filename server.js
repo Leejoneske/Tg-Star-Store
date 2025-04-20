@@ -733,7 +733,7 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         const keyboard = {
             inline_keyboard: [
                 [{ text: 'Launch App', url: `https://t.me/TgStarStore_bot?startapp` }],
-                [{ text: 'Join Community', url: `https://t.me/StarsStore_shop` }]
+                [{ text: 'Join Community', url: `https://t.me/StarStore_app` }]
             ]
         };
         
