@@ -2097,6 +2097,236 @@ app.post('/api/survey', async (req, res) => {
         res.status(500).json({ success: false, error: 'Failed to process survey' });
     }
 });
+// Add to existing bot commands
+bot.onText(/\/remind (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+
+    const orderId = match[1].trim();
+    const order = await SellOrder.findOne({ id: orderId });
+    
+    if (!order) {
+        return bot.sendMessage(chatId, `❌ Order ${orderId} not found.`);
+    }
+
+    // Store the order ID in user session for follow-up
+    userSessions[order.telegramId] = { 
+        currentOrder: orderId,
+        language: 'en' // default English
+    };
+
+    sendWalletConfirmation(order.telegramId, order);
+    bot.sendMessage(chatId, `✅ Sent wallet confirmation to user ${order.telegramId}`);
+});
+
+// Helper function to send confirmation message
+function sendWalletConfirmation(userId, order) {
+    const session = userSessions[userId] || { language: 'en' };
+    const isRussian = session.language === 'ru';
+    
+    const message = isRussian ? 
+        `👋 Привет, ${order.username}!\n\nМы готовим к завершению ваш заказ #${order.id}.\n\nКошелек для выплаты: \`${order.walletAddress}\`\n\nЭто верный адрес?` :
+        `👋 Hello ${order.username}!\n\nWe're about to complete your sell order #${order.id}.\n\nPayout wallet: \`${order.walletAddress}\`\n\nIs this address correct?`;
+
+    const keyboard = {
+        inline_keyboard: [
+            [
+                { text: isRussian ? '✅ Подтвердить' : '✅ Confirm', callback_data: `confirm_wallet_${order.id}` },
+                { text: isRussian ? '✏️ Изменить' : '✏️ Change', callback_data: `change_wallet_${order.id}` }
+            ],
+            [
+                { text: isRussian ? '🌐 Русский' : '🌐 English', callback_data: `toggle_lang_${order.id}` }
+            ]
+        ]
+    };
+
+    bot.sendMessage(userId, message, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard
+    });
+}
+
+// Handle wallet confirmation callbacks
+bot.on('callback_query', async (query) => {
+    const data = query.data;
+    
+    // Wallet confirmation flow
+    if (data.startsWith('confirm_wallet_')) {
+        const orderId = data.split('_')[2];
+        const order = await SellOrder.findOne({ id: orderId });
+        
+        if (!order) return;
+        
+        const session = userSessions[order.telegramId] || { language: 'en' };
+        const isRussian = session.language === 'ru';
+        
+        await bot.sendMessage(
+            order.telegramId,
+            isRussian ? 
+                '✅ Адрес кошелька подтвержден! Администраторы уведомлены.' :
+                '✅ Wallet address confirmed! Admins have been notified.'
+        );
+
+        // Notify admins
+        const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: \`${order.walletAddress}\``;
+        adminIds.forEach(adminId => {
+            bot.sendMessage(adminId, adminMessage, { parse_mode: 'Markdown' });
+        });
+
+        await bot.answerCallbackQuery(query.id);
+        
+    } else if (data.startsWith('change_wallet_')) {
+        const orderId = data.split('_')[2];
+        const order = await SellOrder.findOne({ id: orderId });
+        
+        if (!order) return;
+        
+        const session = userSessions[order.telegramId] || { language: 'en' };
+        const isRussian = session.language === 'ru';
+        
+        await bot.sendMessage(
+            order.telegramId,
+            isRussian ? 
+                'Пожалуйста, введите ваш новый USDT (TON) адрес кошелька:' :
+                'Please enter your new USDT (TON) wallet address:'
+        );
+        
+        // Set state to expect wallet address
+        userSessions[order.telegramId] = { 
+            ...session,
+            awaiting: 'wallet',
+            currentOrder: orderId
+        };
+        
+        await bot.answerCallbackQuery(query.id);
+        
+    } else if (data.startsWith('toggle_lang_')) {
+        const orderId = data.split('_')[2];
+        const order = await SellOrder.findOne({ id: orderId });
+        
+        if (!order) return;
+        
+        const session = userSessions[order.telegramId] || { language: 'en' };
+        session.language = session.language === 'en' ? 'ru' : 'en';
+        userSessions[order.telegramId] = session;
+        
+        // Resend confirmation with new language
+        sendWalletConfirmation(order.telegramId, order);
+        await bot.answerCallbackQuery(query.id);
+    }
+});
+
+// Handle wallet address input and memo
+bot.on('message', async (msg) => {
+    if (!msg.text || msg.text.startsWith('/')) return;
+    
+    const userId = msg.chat.id.toString();
+    const session = userSessions[userId];
+    
+    if (!session || !session.awaiting) return;
+    
+    if (session.awaiting === 'wallet') {
+        // Validate wallet address format (basic check)
+        if (msg.text.length < 10 || msg.text.length > 64) {
+            const isRussian = session.language === 'ru';
+            return bot.sendMessage(
+                userId,
+                isRussian ? 
+                    '❌ Неверный формат адреса. Пожалуйста, введите действительный адрес кошелька:' :
+                    '❌ Invalid address format. Please enter a valid wallet address:'
+            );
+        }
+        
+        // Update session to expect memo
+        userSessions[userId] = {
+            ...session,
+            newWallet: msg.text,
+            awaiting: 'memo'
+        };
+        
+        const isRussian = session.language === 'ru';
+        const keyboard = {
+            inline_keyboard: [[
+                { 
+                    text: isRussian ? '⏭ Пропустить' : '⏭ Skip', 
+                    callback_data: `skip_memo_${session.currentOrder}`
+                }
+            ]]
+        };
+        
+        bot.sendMessage(
+            userId,
+            isRussian ? 
+                'Если ваш кошелек требует MEMO/тег, пожалуйста, введите его сейчас. Или нажмите "Пропустить":' :
+                'If your wallet requires a MEMO/tag, please enter it now. Or click "Skip":',
+            { reply_markup: keyboard }
+        );
+        
+    } else if (session.awaiting === 'memo') {
+        // User entered memo (not using skip button)
+        await completeWalletUpdate(userId, session, msg.text);
+    }
+});
+
+// Handle memo skip
+bot.on('callback_query', async (query) => {
+    if (query.data.startsWith('skip_memo_')) {
+        const userId = query.message.chat.id.toString();
+        const session = userSessions[userId];
+        
+        if (!session) return;
+        
+        await completeWalletUpdate(userId, session, null);
+        await bot.answerCallbackQuery(query.id);
+    }
+});
+
+// Helper to complete wallet update
+async function completeWalletUpdate(userId, session, memo) {
+    const order = await SellOrder.findOne({ id: session.currentOrder });
+    if (!order) return;
+    
+    const isRussian = session.language === 'ru';
+    
+    // Update order with new wallet and memo
+    order.walletAddress = session.newWallet;
+    if (memo) order.memo = memo;
+    await order.save();
+    
+    // Notify user
+    let userMessage = isRussian ?
+        `✅ Данные кошелька обновлены!\n\nАдрес: \`${session.newWallet}\`` :
+        `✅ Wallet details updated!\n\nAddress: \`${session.newWallet}\``;
+    
+    if (memo) {
+        userMessage += isRussian ?
+            `\nMEMO: \`${memo}\`` :
+            `\nMEMO: \`${memo}\``;
+    }
+    
+    await bot.sendMessage(userId, userMessage, { parse_mode: 'Markdown' });
+    
+    // Notify admins
+    let adminMessage = `🔄 Wallet Updated\n\nOrder: ${order.id}\nUser: @${order.username}\n`;
+    adminMessage += `New Wallet: \`${session.newWallet}\`\n`;
+    if (memo) adminMessage += `MEMO: \`${memo}\`\n`;
+    adminMessage += `\nChanged by user confirmation flow`;
+    
+    adminIds.forEach(adminId => {
+        bot.sendMessage(adminId, adminMessage, { parse_mode: 'Markdown' });
+    });
+    
+    // Clear session
+    delete userSessions[userId];
+}
+
+// Initialize userSessions if not exists
+if (typeof userSessions === 'undefined') {
+    global.userSessions = {};
+}
+
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
