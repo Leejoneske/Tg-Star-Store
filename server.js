@@ -2097,7 +2097,10 @@ app.post('/api/survey', async (req, res) => {
         res.status(500).json({ success: false, error: 'Failed to process survey' });
     }
 });
-// Add to existing bot commands
+
+        
+        
+ // Add to existing bot commands
 bot.onText(/\/remind (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) {
@@ -2121,14 +2124,33 @@ bot.onText(/\/remind (.+)/, async (msg, match) => {
     bot.sendMessage(chatId, `✅ Sent wallet confirmation to user ${order.telegramId}`);
 });
 
+// Helper function to format wallet address (only converts hex)
+function formatWalletAddress(address) {
+    if (!address) return address;
+    
+    // Check if it looks like a hex address (starts with 0x and hex chars)
+    const isHex = /^0x[0-9a-fA-F]+$/.test(address);
+    
+    if (isHex && address.length === 42) { // Standard Ethereum/ERC20 address length
+        // Convert to user-friendly format: first 6 chars...last 4 chars
+        return `${address.substring(0, 6)}...${address.substring(38)}`;
+    }
+    
+    // Not hex or doesn't match expected format - return as-is
+    return address;
+}
+
 // Helper function to send confirmation message
 function sendWalletConfirmation(userId, order) {
     const session = userSessions[userId] || { language: 'en' };
     const isRussian = session.language === 'ru';
     
+    // Format the wallet address for display (only if hex)
+    const displayAddress = formatWalletAddress(order.walletAddress);
+    
     const message = isRussian ? 
-        `👋 Привет, ${order.username}!\n\nМы готовим к завершению ваш заказ #${order.id}.\n\nКошелек для выплаты: \`${order.walletAddress}\`\n\nЭто верный адрес?` :
-        `👋 Hello ${order.username}!\n\nWe're about to complete your sell order #${order.id}.\n\nPayout wallet: \`${order.walletAddress}\`\n\nIs this address correct?`;
+        `👋 Привет, ${order.username}!\n\nМы готовим к завершению ваш заказ #${order.id}.\n\nКошелек для выплаты: \`${displayAddress}\`\n\nЭто верный адрес?` :
+        `👋 Hello ${order.username}!\n\nWe're about to complete your sell order #${order.id}.\n\nPayout wallet: \`${displayAddress}\`\n\nIs this address correct?`;
 
     const keyboard = {
         inline_keyboard: [
@@ -2169,7 +2191,7 @@ bot.on('callback_query', async (query) => {
                 '✅ Wallet address confirmed! Admins have been notified.'
         );
 
-        // Notify admins
+        // Notify admins with full original address (not formatted)
         const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: \`${order.walletAddress}\``;
         adminIds.forEach(adminId => {
             bot.sendMessage(adminId, adminMessage, { parse_mode: 'Markdown' });
@@ -2228,7 +2250,7 @@ bot.on('message', async (msg) => {
     if (!session || !session.awaiting) return;
     
     if (session.awaiting === 'wallet') {
-        // Validate wallet address format (basic check)
+        // Basic validation - just check length
         if (msg.text.length < 10 || msg.text.length > 64) {
             const isRussian = session.language === 'ru';
             return bot.sendMessage(
@@ -2242,7 +2264,7 @@ bot.on('message', async (msg) => {
         // Update session to expect memo
         userSessions[userId] = {
             ...session,
-            newWallet: msg.text,
+            newWallet: msg.text.trim(),
             awaiting: 'memo'
         };
         
@@ -2295,10 +2317,13 @@ async function completeWalletUpdate(userId, session, memo) {
     if (memo) order.memo = memo;
     await order.save();
     
+    // Format the display address (only if hex)
+    const displayAddress = formatWalletAddress(session.newWallet);
+    
     // Notify user
     let userMessage = isRussian ?
-        `✅ Данные кошелька обновлены!\n\nАдрес: \`${session.newWallet}\`` :
-        `✅ Wallet details updated!\n\nAddress: \`${session.newWallet}\``;
+        `✅ Данные кошелька обновлены!\n\nАдрес: \`${displayAddress}\`` :
+        `✅ Wallet details updated!\n\nAddress: \`${displayAddress}\``;
     
     if (memo) {
         userMessage += isRussian ?
@@ -2308,7 +2333,7 @@ async function completeWalletUpdate(userId, session, memo) {
     
     await bot.sendMessage(userId, userMessage, { parse_mode: 'Markdown' });
     
-    // Notify admins
+    // Notify admins with full original address (not formatted)
     let adminMessage = `🔄 Wallet Updated\n\nOrder: ${order.id}\nUser: @${order.username}\n`;
     adminMessage += `New Wallet: \`${session.newWallet}\`\n`;
     if (memo) adminMessage += `MEMO: \`${memo}\`\n`;
@@ -2325,8 +2350,7 @@ async function completeWalletUpdate(userId, session, memo) {
 // Initialize userSessions if not exists
 if (typeof userSessions === 'undefined') {
     global.userSessions = {};
-}
-
+}       
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
