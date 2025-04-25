@@ -2099,8 +2099,11 @@ app.post('/api/survey', async (req, res) => {
 });
 
         
-        
- // Add to existing bot commands
+//reminder for sell ordera
+const userSessions = {};
+const reminderCounts = {};
+const completedOrders = new Set();
+
 bot.onText(/\/remind (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) {
@@ -2114,38 +2117,47 @@ bot.onText(/\/remind (.+)/, async (msg, match) => {
         return bot.sendMessage(chatId, `❌ Order ${orderId} not found.`);
     }
 
-    // Store the order ID in user session for follow-up
+    if (completedOrders.has(orderId)) {
+        return bot.sendMessage(chatId, `❌ Order ${orderId} is already completed.`);
+    }
+
     userSessions[order.telegramId] = { 
         currentOrder: orderId,
-        language: 'en' // default English
+        language: 'en',
+        messageIds: [],
+        reminderCount: 0,
+        confirmed: false
     };
 
-    sendWalletConfirmation(order.telegramId, order);
+    await cleanupMessages(order.telegramId);
+    await sendWalletConfirmation(order.telegramId, order);
     bot.sendMessage(chatId, `✅ Sent wallet confirmation to user ${order.telegramId}`);
 });
 
-// Helper function to format wallet address (only converts hex)
+async function cleanupMessages(userId) {
+    const session = userSessions[userId];
+    if (!session || !session.messageIds) return;
+
+    for (const msgId of session.messageIds) {
+        try {
+            await bot.deleteMessage(userId, msgId);
+        } catch (e) {}
+    }
+    session.messageIds = [];
+}
+
 function formatWalletAddress(address) {
     if (!address) return address;
-    
-    // Check if it looks like a hex address (starts with 0x and hex chars)
     const isHex = /^0x[0-9a-fA-F]+$/.test(address);
-    
-    if (isHex && address.length === 42) { // Standard Ethereum/ERC20 address length
-        // Convert to user-friendly format: first 6 chars...last 4 chars
+    if (isHex && address.length === 42) {
         return `${address.substring(0, 6)}...${address.substring(38)}`;
     }
-    
-    // Not hex or doesn't match expected format - return as-is
     return address;
 }
 
-// Helper function to send confirmation message
-function sendWalletConfirmation(userId, order) {
-    const session = userSessions[userId] || { language: 'en' };
+async function sendWalletConfirmation(userId, order) {
+    const session = userSessions[userId] || { language: 'en', messageIds: [] };
     const isRussian = session.language === 'ru';
-    
-    // Format the wallet address for display (only if hex)
     const displayAddress = formatWalletAddress(order.walletAddress);
     
     const message = isRussian ? 
@@ -2164,39 +2176,86 @@ function sendWalletConfirmation(userId, order) {
         ]
     };
 
-    bot.sendMessage(userId, message, {
+    const sentMessage = await bot.sendMessage(userId, message, {
         parse_mode: 'Markdown',
         reply_markup: keyboard
     });
+
+    session.messageIds.push(sentMessage.message_id);
+    userSessions[userId] = session;
+
+    if (!session.reminderCount) {
+        session.reminderCount = 1;
+        scheduleReminder(userId, order);
+    }
 }
 
-// Handle wallet confirmation callbacks
+function scheduleReminder(userId, order) {
+    const session = userSessions[userId];
+    if (!session || session.confirmed || session.reminderCount >= 3) return;
+
+    setTimeout(async () => {
+        if (!userSessions[userId] || userSessions[userId].confirmed) return;
+        
+        session.reminderCount++;
+        userSessions[userId] = session;
+
+        if (session.reminderCount <= 3) {
+            await cleanupMessages(userId);
+            await sendWalletConfirmation(userId, order);
+        } else {
+            await endSession(userId, order.id);
+        }
+    }, 4 * 60 * 60 * 1000);
+}
+
+async function endSession(userId, orderId) {
+    const session = userSessions[userId];
+    if (!session) return;
+
+    const isRussian = session.language === 'ru';
+    await bot.sendMessage(
+        userId,
+        isRussian ? 
+            '❌ Сессия завершена. Пожалуйста, свяжитесь с поддержкой для завершения вашего заказа.' :
+            '❌ Session ended. Please contact support to complete your order.'
+    );
+
+    completedOrders.add(orderId);
+    delete userSessions[userId];
+}
+
 bot.on('callback_query', async (query) => {
     const data = query.data;
+    const userId = query.message.chat.id.toString();
+    const session = userSessions[userId];
     
-    // Wallet confirmation flow
+    if (!session) return;
+
     if (data.startsWith('confirm_wallet_')) {
         const orderId = data.split('_')[2];
         const order = await SellOrder.findOne({ id: orderId });
         
         if (!order) return;
         
-        const session = userSessions[order.telegramId] || { language: 'en' };
         const isRussian = session.language === 'ru';
+        session.confirmed = true;
+        userSessions[userId] = session;
         
+        await cleanupMessages(userId);
         await bot.sendMessage(
-            order.telegramId,
+            userId,
             isRussian ? 
                 '✅ Адрес кошелька подтвержден! Администраторы уведомлены.' :
                 '✅ Wallet address confirmed! Admins have been notified.'
         );
 
-        // Notify admins with full original address (not formatted)
         const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: \`${order.walletAddress}\``;
         adminIds.forEach(adminId => {
             bot.sendMessage(adminId, adminMessage, { parse_mode: 'Markdown' });
         });
 
+        completedOrders.add(orderId);
         await bot.answerCallbackQuery(query.id);
         
     } else if (data.startsWith('change_wallet_')) {
@@ -2205,22 +2264,19 @@ bot.on('callback_query', async (query) => {
         
         if (!order) return;
         
-        const session = userSessions[order.telegramId] || { language: 'en' };
         const isRussian = session.language === 'ru';
         
+        await cleanupMessages(userId);
         await bot.sendMessage(
-            order.telegramId,
+            userId,
             isRussian ? 
                 'Пожалуйста, введите ваш новый USDT (TON) адрес кошелька:' :
                 'Please enter your new USDT (TON) wallet address:'
         );
         
-        // Set state to expect wallet address
-        userSessions[order.telegramId] = { 
-            ...session,
-            awaiting: 'wallet',
-            currentOrder: orderId
-        };
+        session.awaiting = 'wallet';
+        session.currentOrder = orderId;
+        userSessions[userId] = session;
         
         await bot.answerCallbackQuery(query.id);
         
@@ -2230,17 +2286,19 @@ bot.on('callback_query', async (query) => {
         
         if (!order) return;
         
-        const session = userSessions[order.telegramId] || { language: 'en' };
         session.language = session.language === 'en' ? 'ru' : 'en';
-        userSessions[order.telegramId] = session;
+        userSessions[userId] = session;
         
-        // Resend confirmation with new language
-        sendWalletConfirmation(order.telegramId, order);
+        await cleanupMessages(userId);
+        await sendWalletConfirmation(userId, order);
+        await bot.answerCallbackQuery(query.id);
+        
+    } else if (data.startsWith('skip_memo_')) {
+        await completeWalletUpdate(userId, session, null);
         await bot.answerCallbackQuery(query.id);
     }
 });
 
-// Handle wallet address input and memo
 bot.on('message', async (msg) => {
     if (!msg.text || msg.text.startsWith('/')) return;
     
@@ -2250,7 +2308,6 @@ bot.on('message', async (msg) => {
     if (!session || !session.awaiting) return;
     
     if (session.awaiting === 'wallet') {
-        // Basic validation - just check length
         if (msg.text.length < 10 || msg.text.length > 64) {
             const isRussian = session.language === 'ru';
             return bot.sendMessage(
@@ -2261,12 +2318,9 @@ bot.on('message', async (msg) => {
             );
         }
         
-        // Update session to expect memo
-        userSessions[userId] = {
-            ...session,
-            newWallet: msg.text.trim(),
-            awaiting: 'memo'
-        };
+        session.newWallet = msg.text.trim();
+        session.awaiting = 'memo';
+        userSessions[userId] = session;
         
         const isRussian = session.language === 'ru';
         const keyboard = {
@@ -2278,7 +2332,8 @@ bot.on('message', async (msg) => {
             ]]
         };
         
-        bot.sendMessage(
+        await cleanupMessages(userId);
+        await bot.sendMessage(
             userId,
             isRussian ? 
                 'Если ваш кошелек требует MEMO/тег, пожалуйста, введите его сейчас. Или нажмите "Пропустить":' :
@@ -2287,40 +2342,21 @@ bot.on('message', async (msg) => {
         );
         
     } else if (session.awaiting === 'memo') {
-        // User entered memo (not using skip button)
         await completeWalletUpdate(userId, session, msg.text);
     }
 });
 
-// Handle memo skip
-bot.on('callback_query', async (query) => {
-    if (query.data.startsWith('skip_memo_')) {
-        const userId = query.message.chat.id.toString();
-        const session = userSessions[userId];
-        
-        if (!session) return;
-        
-        await completeWalletUpdate(userId, session, null);
-        await bot.answerCallbackQuery(query.id);
-    }
-});
-
-// Helper to complete wallet update
 async function completeWalletUpdate(userId, session, memo) {
     const order = await SellOrder.findOne({ id: session.currentOrder });
     if (!order) return;
     
     const isRussian = session.language === 'ru';
-    
-    // Update order with new wallet and memo
     order.walletAddress = session.newWallet;
     if (memo) order.memo = memo;
+    order.addressConfirmed = true;
     await order.save();
     
-    // Format the display address (only if hex)
     const displayAddress = formatWalletAddress(session.newWallet);
-    
-    // Notify user
     let userMessage = isRussian ?
         `✅ Данные кошелька обновлены!\n\nАдрес: \`${displayAddress}\`` :
         `✅ Wallet details updated!\n\nAddress: \`${displayAddress}\``;
@@ -2331,9 +2367,9 @@ async function completeWalletUpdate(userId, session, memo) {
             `\nMEMO: \`${memo}\``;
     }
     
+    await cleanupMessages(userId);
     await bot.sendMessage(userId, userMessage, { parse_mode: 'Markdown' });
     
-    // Notify admins with full original address (not formatted)
     let adminMessage = `🔄 Wallet Updated\n\nOrder: ${order.id}\nUser: @${order.username}\n`;
     adminMessage += `New Wallet: \`${session.newWallet}\`\n`;
     if (memo) adminMessage += `MEMO: \`${memo}\`\n`;
@@ -2343,14 +2379,9 @@ async function completeWalletUpdate(userId, session, memo) {
         bot.sendMessage(adminId, adminMessage, { parse_mode: 'Markdown' });
     });
     
-    // Clear session
+    completedOrders.add(order.id);
     delete userSessions[userId];
 }
-
-// Initialize userSessions if not exists
-if (typeof userSessions === 'undefined') {
-    global.userSessions = {};
-}       
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
