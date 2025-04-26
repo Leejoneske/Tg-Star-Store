@@ -2400,18 +2400,18 @@ bot.onText(/\/sell_decline (.+)/, async (msg, match) => {
     }
 
     try {
-        const message = await bot.sendMessage(
+        await bot.sendMessage(
             order.telegramId,
             `⚠️ Order #${orderId} Notification\n\n` +
             `Your order was canceled because the stars were reversed during our 21-day holding period.\n\n` +
-            `Since the transaction cannot be completed after any reversal, you'll need to submit a new order if you still wish to sell your stars.\n\nperiod.\n\n` +
+            `Since the transaction cannot be completed after any reversal, you'll need to submit a new order if you still wish to sell your stars.\n\n` +
             `We'd appreciate your feedback to help us improve:`,
             {
                 reply_markup: {
                     inline_keyboard: [
                         [
                             { text: "Provide Feedback", callback_data: `reversal_feedback_${orderId}` },
-                            { text: "Skip Feedback", callback_data: `skip_feedback_${orderId}` }
+                            { text: "Skip", callback_data: `skip_feedback_${orderId}` }
                         ]
                     ]
                 }
@@ -2430,79 +2430,102 @@ bot.onText(/\/sell_decline (.+)/, async (msg, match) => {
     }
 });
 
-// Handle feedback callbacks
 bot.on('callback_query', async (query) => {
     const data = query.data;
+    const chatId = query.message.chat.id;
+    const messageId = query.message.message_id;
     
     if (data.startsWith('reversal_feedback_')) {
         const orderId = data.split('_')[2];
-        await bot.sendMessage(
-            query.message.chat.id,
-            `Please share why the stars were reversed and how we can improve:\n\n` +
-            `(You have 24 hours to respond)`
+        
+        // Update buttons to show feedback submitted
+        await bot.editMessageReplyMarkup(
+            {
+                inline_keyboard: [
+                    [{ text: "✓ Feedback Submitted", callback_data: `feedback_submitted_${orderId}` }]
+                ]
+            },
+            {
+                chat_id: chatId,
+                message_id: messageId
+            }
         );
         
-        // Store state to expect feedback
-        userSessions[query.message.chat.id] = {
-            awaiting: 'reversal_feedback',
+        // Prompt for feedback
+        await bot.sendMessage(
+            chatId,
+            `Please tell us why the stars were reversed and how we can improve:`
+        );
+        
+        // Set temporary state to collect feedback
+        userFeedbackState[chatId] = {
             orderId: orderId,
-            feedbackMessageId: query.message.message_id
+            timestamp: Date.now()
         };
         
         await bot.answerCallbackQuery(query.id);
         
     } else if (data.startsWith('skip_feedback_')) {
-        await bot.sendMessage(
-            query.message.chat.id,
-            `Thank you for your time. You can submit a new order anytime.`
+        const orderId = data.split('_')[2];
+        
+        // Update buttons to show feedback skipped
+        await bot.editMessageReplyMarkup(
+            {
+                inline_keyboard: [
+                    [{ text: "✗ Feedback Skipped", callback_data: `feedback_skipped_${orderId}` }]
+                ]
+            },
+            {
+                chat_id: chatId,
+                message_id: messageId
+            }
         );
+        
         await bot.answerCallbackQuery(query.id);
     }
 });
 
-// Handle feedback text responses
+// Handle feedback messages
 bot.on('message', async (msg) => {
     if (!msg.text || msg.text.startsWith('/')) return;
     
-    const userId = msg.chat.id.toString();
-    const session = userSessions[userId];
+    const chatId = msg.chat.id.toString();
+    const feedbackState = userFeedbackState[chatId];
     
-    if (session?.awaiting === 'reversal_feedback') {
-        // Process feedback
-        const adminMessage = `📝 Reversal Feedback\n\n` +
-                            `Order: ${session.orderId}\n` +
-                            `User: @${msg.from.username}\n` +
-                            `Feedback: ${msg.text}\n`;
+    if (feedbackState && Date.now() - feedbackState.timestamp < 600000) { // 10 minute window
+        const orderId = feedbackState.orderId;
+        const username = msg.from.username ? `@${msg.from.username}` : msg.from.first_name;
         
-        // Notify all admins
-        adminIds.forEach(async adminId => {
-            await bot.sendMessage(adminId, adminMessage);
+        // Notify admins
+        const adminMessage = `📝 Reversal Feedback\n\n` +
+                            `Order: ${orderId}\n` +
+                            `User: ${username}\n` +
+                            `Feedback: ${msg.text}`;
+        
+        adminIds.forEach(adminId => {
+            bot.sendMessage(adminId, adminMessage);
         });
         
-        // Cleanup and confirm to user
-        try {
-            await bot.deleteMessage(userId, session.feedbackMessageId);
-        } catch (e) {}
+        // Confirm receipt
+        await bot.sendMessage(chatId, `Thank you for your feedback!`);
         
-        await bot.sendMessage(
-            userId,
-            `Thank you for your feedback! We appreciate your input.`
-        );
-        
-        delete userSessions[userId];
+        // Clear state
+        delete userFeedbackState[chatId];
     }
 });
 
-// Feedback timeout cleanup (run periodically)
+// Temporary state storage
+const userFeedbackState = {};
+
+// Cleanup expired feedback states (runs hourly)
 setInterval(() => {
     const now = Date.now();
-    for (const [userId, session] of Object.entries(userSessions)) {
-        if (session.awaiting === 'reversal_feedback' && 
-            now - session.timestamp > 24 * 60 * 60 * 1000) {
-            delete userSessions[userId];
+    for (const [chatId, state] of Object.entries(userFeedbackState)) {
+        if (now - state.timestamp > 600000) { // 10 minutes
+            delete userFeedbackState[chatId];
         }
     }
-}, 60 * 60 * 1000); // Check hourly
+}, 60 * 60 * 1000);
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
