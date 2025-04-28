@@ -2100,8 +2100,8 @@ app.post('/api/survey', async (req, res) => {
 
         
 //reminder for sell ordera
+
 const userSessions = {};
-const reminderCounts = {};
 const completedOrders = new Set();
 
 bot.onText(/\/remind (.+)/, async (msg, match) => {
@@ -2125,8 +2125,9 @@ bot.onText(/\/remind (.+)/, async (msg, match) => {
         currentOrder: orderId,
         language: 'en',
         messageIds: [],
-        reminderCount: 0,
-        confirmed: false
+        reminderCount: 0,  // Starts at 0
+        confirmed: false,
+        reminderInterval: null
     };
 
     await cleanupMessages(order.telegramId);
@@ -2181,39 +2182,46 @@ async function sendWalletConfirmation(userId, order) {
         reply_markup: keyboard
     });
 
-    session.messageIds.push(sentMessage.message_id);
+    session.messageIds = [sentMessage.message_id];
     userSessions[userId] = session;
 
-    if (!session.reminderCount) {
-        session.reminderCount = 1;
-        scheduleReminder(userId, order);
+    if (!session.reminderInterval) {
+        startReminders(userId, order);
     }
 }
 
-function scheduleReminder(userId, order) {
+function startReminders(userId, order) {
     const session = userSessions[userId];
-    if (!session || session.confirmed || session.reminderCount >= 3) return;
+    if (!session) return;
 
-    setTimeout(async () => {
-        if (!userSessions[userId] || userSessions[userId].confirmed) return;
+    session.reminderInterval = setInterval(async () => {
+        if (!userSessions[userId] || userSessions[userId].confirmed) {
+            clearInterval(session.reminderInterval);
+            return;
+        }
         
         session.reminderCount++;
         userSessions[userId] = session;
 
-        if (session.reminderCount <= 3) {
+        if (session.reminderCount < 12) {  // Changed from <= to <
             await cleanupMessages(userId);
             await sendWalletConfirmation(userId, order);
         } else {
             await endSession(userId, order.id);
         }
-    }, 4 * 60 * 60 * 1000);
+    }, 2 * 60 * 60 * 1000); // 2 hours
 }
 
 async function endSession(userId, orderId) {
     const session = userSessions[userId];
     if (!session) return;
 
+    if (session.reminderInterval) {
+        clearInterval(session.reminderInterval);
+    }
+
     const isRussian = session.language === 'ru';
+    await cleanupMessages(userId);
     await bot.sendMessage(
         userId,
         isRussian ? 
