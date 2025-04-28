@@ -2125,7 +2125,7 @@ bot.onText(/\/remind (.+)/, async (msg, match) => {
         currentOrder: orderId,
         language: 'en',
         messageIds: [],
-        reminderCount: 0,  // Starts at 0
+        reminderCount: 0,
         confirmed: false,
         reminderInterval: null
     };
@@ -2149,11 +2149,15 @@ async function cleanupMessages(userId) {
 
 function formatWalletAddress(address) {
     if (!address) return address;
-    const isHex = /^0x[0-9a-fA-F]+$/.test(address);
-    if (isHex && address.length === 42) {
-        return `${address.substring(0, 6)}...${address.substring(38)}`;
+    
+    // Remove '0x' prefix if it exists
+    const cleanAddress = address.startsWith('0x') ? address.substring(2) : address;
+    
+    // Format as first 6 and last 4 characters for display
+    if (cleanAddress.length > 10) {
+        return `${cleanAddress.substring(0, 6)}...${cleanAddress.substring(cleanAddress.length - 4)}`;
     }
-    return address;
+    return cleanAddress;
 }
 
 async function sendWalletConfirmation(userId, order) {
@@ -2203,13 +2207,13 @@ function startReminders(userId, order) {
         session.reminderCount++;
         userSessions[userId] = session;
 
-        if (session.reminderCount < 12) {  // Changed from <= to <
+        if (session.reminderCount < 12) {  // Changed to < 12 for exactly 12 reminders (0-11)
             await cleanupMessages(userId);
             await sendWalletConfirmation(userId, order);
         } else {
             await endSession(userId, order.id);
         }
-    }, 2 * 60 * 60 * 1000); // 2 hours
+    }, 2 * 60 * 60 * 1000); // Exactly 2 hours between reminders
 }
 
 async function endSession(userId, orderId) {
@@ -2250,6 +2254,10 @@ bot.on('callback_query', async (query) => {
         session.confirmed = true;
         userSessions[userId] = session;
         
+        if (session.reminderInterval) {
+            clearInterval(session.reminderInterval);
+        }
+        
         await cleanupMessages(userId);
         await bot.sendMessage(
             userId,
@@ -2258,12 +2266,14 @@ bot.on('callback_query', async (query) => {
                 '✅ Wallet address confirmed! Admins have been notified.'
         );
 
-        const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: \`${order.walletAddress}\``;
+        const displayAddress = formatWalletAddress(order.walletAddress);
+        const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: \`${displayAddress}\``;
         adminIds.forEach(adminId => {
             bot.sendMessage(adminId, adminMessage, { parse_mode: 'Markdown' });
         });
 
         completedOrders.add(orderId);
+        delete userSessions[userId];
         await bot.answerCallbackQuery(query.id);
         
     } else if (data.startsWith('change_wallet_')) {
@@ -2316,7 +2326,9 @@ bot.on('message', async (msg) => {
     if (!session || !session.awaiting) return;
     
     if (session.awaiting === 'wallet') {
-        if (msg.text.length < 10 || msg.text.length > 64) {
+        const newAddress = msg.text.trim();
+        
+        if (newAddress.length < 10 || newAddress.length > 64) {
             const isRussian = session.language === 'ru';
             return bot.sendMessage(
                 userId,
@@ -2326,7 +2338,15 @@ bot.on('message', async (msg) => {
             );
         }
         
-        session.newWallet = msg.text.trim();
+        // Update database immediately with clean address (no hex prefix)
+        const cleanAddress = newAddress.startsWith('0x') ? newAddress.substring(2) : newAddress;
+        const order = await SellOrder.findOne({ id: session.currentOrder });
+        if (order) {
+            order.walletAddress = cleanAddress;
+            await order.save();
+        }
+        
+        session.newWallet = cleanAddress;
         session.awaiting = 'memo';
         userSessions[userId] = session;
         
@@ -2359,7 +2379,6 @@ async function completeWalletUpdate(userId, session, memo) {
     if (!order) return;
     
     const isRussian = session.language === 'ru';
-    order.walletAddress = session.newWallet;
     if (memo) order.memo = memo;
     order.addressConfirmed = true;
     await order.save();
@@ -2378,8 +2397,9 @@ async function completeWalletUpdate(userId, session, memo) {
     await cleanupMessages(userId);
     await bot.sendMessage(userId, userMessage, { parse_mode: 'Markdown' });
     
+    const adminDisplayAddress = formatWalletAddress(session.newWallet);
     let adminMessage = `🔄 Wallet Updated\n\nOrder: ${order.id}\nUser: @${order.username}\n`;
-    adminMessage += `New Wallet: \`${session.newWallet}\`\n`;
+    adminMessage += `New Wallet: \`${adminDisplayAddress}\`\n`;
     if (memo) adminMessage += `MEMO: \`${memo}\`\n`;
     adminMessage += `\nChanged by user confirmation flow`;
     
@@ -2388,6 +2408,9 @@ async function completeWalletUpdate(userId, session, memo) {
     });
     
     completedOrders.add(order.id);
+    if (session.reminderInterval) {
+        clearInterval(session.reminderInterval);
+    }
     delete userSessions[userId];
 }
 
