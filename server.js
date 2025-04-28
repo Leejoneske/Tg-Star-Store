@@ -2099,7 +2099,7 @@ app.post('/api/survey', async (req, res) => {
 });
 
         
-//reminder for sell ordera
+//reminder for sell order
 
 const userSessions = {};
 const completedOrders = new Set();
@@ -2147,27 +2147,29 @@ async function cleanupMessages(userId) {
     session.messageIds = [];
 }
 
-function formatWalletAddress(address) {
-    if (!address) return address;
-    
-    // Remove '0x' prefix if it exists
-    const cleanAddress = address.startsWith('0x') ? address.substring(2) : address;
-    
-    // Format as first 6 and last 4 characters for display
-    if (cleanAddress.length > 10) {
-        return `${cleanAddress.substring(0, 6)}...${cleanAddress.substring(cleanAddress.length - 4)}`;
+function hexToString(hex) {
+    if (!hex) return hex;
+    if (hex.startsWith('0x')) {
+        hex = hex.substring(2);
     }
-    return cleanAddress;
+    let str = '';
+    for (let i = 0; i < hex.length; i += 2) {
+        const charCode = parseInt(hex.substr(i, 2), 16);
+        if (charCode >= 32 && charCode <= 126) {
+            str += String.fromCharCode(charCode);
+        }
+    }
+    return str || hex;
 }
 
 async function sendWalletConfirmation(userId, order) {
     const session = userSessions[userId] || { language: 'en', messageIds: [] };
     const isRussian = session.language === 'ru';
-    const displayAddress = formatWalletAddress(order.walletAddress);
+    const displayAddress = hexToString(order.walletAddress);
     
     const message = isRussian ? 
-        `👋 Привет, ${order.username}!\n\nМы готовим к завершению ваш заказ #${order.id}.\n\nКошелек для выплаты: \`${displayAddress}\`\n\nЭто верный адрес?` :
-        `👋 Hello ${order.username}!\n\nWe're about to complete your sell order #${order.id}.\n\nPayout wallet: \`${displayAddress}\`\n\nIs this address correct?`;
+        `👋 Привет, ${order.username}!\n\nМы готовим к завершению ваш заказ #${order.id}.\n\nКошелек для выплаты: ${displayAddress}\n\nЭто верный адрес?` :
+        `👋 Hello ${order.username}!\n\nWe're about to complete your sell order #${order.id}.\n\nPayout wallet: ${displayAddress}\n\nIs this address correct?`;
 
     const keyboard = {
         inline_keyboard: [
@@ -2207,13 +2209,13 @@ function startReminders(userId, order) {
         session.reminderCount++;
         userSessions[userId] = session;
 
-        if (session.reminderCount < 12) {  // Changed to < 12 for exactly 12 reminders (0-11)
+        if (session.reminderCount <= 12) {
             await cleanupMessages(userId);
             await sendWalletConfirmation(userId, order);
         } else {
             await endSession(userId, order.id);
         }
-    }, 2 * 60 * 60 * 1000); // Exactly 2 hours between reminders
+    }, 2 * 60 * 60 * 1000);
 }
 
 async function endSession(userId, orderId) {
@@ -2266,10 +2268,10 @@ bot.on('callback_query', async (query) => {
                 '✅ Wallet address confirmed! Admins have been notified.'
         );
 
-        const displayAddress = formatWalletAddress(order.walletAddress);
-        const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: \`${displayAddress}\``;
+        const displayAddress = hexToString(order.walletAddress);
+        const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: ${displayAddress}`;
         adminIds.forEach(adminId => {
-            bot.sendMessage(adminId, adminMessage, { parse_mode: 'Markdown' });
+            bot.sendMessage(adminId, adminMessage);
         });
 
         completedOrders.add(orderId);
@@ -2326,9 +2328,7 @@ bot.on('message', async (msg) => {
     if (!session || !session.awaiting) return;
     
     if (session.awaiting === 'wallet') {
-        const newAddress = msg.text.trim();
-        
-        if (newAddress.length < 10 || newAddress.length > 64) {
+        if (msg.text.length < 10 || msg.text.length > 64) {
             const isRussian = session.language === 'ru';
             return bot.sendMessage(
                 userId,
@@ -2338,15 +2338,7 @@ bot.on('message', async (msg) => {
             );
         }
         
-        // Update database immediately with clean address (no hex prefix)
-        const cleanAddress = newAddress.startsWith('0x') ? newAddress.substring(2) : newAddress;
-        const order = await SellOrder.findOne({ id: session.currentOrder });
-        if (order) {
-            order.walletAddress = cleanAddress;
-            await order.save();
-        }
-        
-        session.newWallet = cleanAddress;
+        session.newWallet = msg.text.trim();
         session.awaiting = 'memo';
         userSessions[userId] = session;
         
@@ -2379,32 +2371,31 @@ async function completeWalletUpdate(userId, session, memo) {
     if (!order) return;
     
     const isRussian = session.language === 'ru';
+    order.walletAddress = session.newWallet;
     if (memo) order.memo = memo;
     order.addressConfirmed = true;
     await order.save();
     
-    const displayAddress = formatWalletAddress(session.newWallet);
     let userMessage = isRussian ?
-        `✅ Данные кошелька обновлены!\n\nАдрес: \`${displayAddress}\`` :
-        `✅ Wallet details updated!\n\nAddress: \`${displayAddress}\``;
+        `✅ Данные кошелька обновлены!\n\nАдрес: ${session.newWallet}` :
+        `✅ Wallet details updated!\n\nAddress: ${session.newWallet}`;
     
     if (memo) {
         userMessage += isRussian ?
-            `\nMEMO: \`${memo}\`` :
-            `\nMEMO: \`${memo}\``;
+            `\nMEMO: ${memo}` :
+            `\nMEMO: ${memo}`;
     }
     
     await cleanupMessages(userId);
-    await bot.sendMessage(userId, userMessage, { parse_mode: 'Markdown' });
-    
-    const adminDisplayAddress = formatWalletAddress(session.newWallet);
+    await bot.sendMessage(userId, userMessage);
+
     let adminMessage = `🔄 Wallet Updated\n\nOrder: ${order.id}\nUser: @${order.username}\n`;
-    adminMessage += `New Wallet: \`${adminDisplayAddress}\`\n`;
-    if (memo) adminMessage += `MEMO: \`${memo}\`\n`;
+    adminMessage += `New Wallet: ${session.newWallet}\n`;
+    if (memo) adminMessage += `MEMO: ${memo}\n`;
     adminMessage += `\nChanged by user confirmation flow`;
     
     adminIds.forEach(adminId => {
-        bot.sendMessage(adminId, adminMessage, { parse_mode: 'Markdown' });
+        bot.sendMessage(adminId, adminMessage);
     });
     
     completedOrders.add(order.id);
