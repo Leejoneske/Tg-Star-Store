@@ -2106,61 +2106,71 @@ const completedOrders = new Set();
 const userEngagement = {};
 
 bot.onText(/\/remind (.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) {
-        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    try {
+        const chatId = msg.chat.id;
+        if (!adminIds.includes(chatId.toString())) {
+            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        }
+
+        const orderId = match[1].trim();
+        const order = await SellOrder.findOne({ id: orderId });
+        
+        if (!order) {
+            return bot.sendMessage(chatId, `❌ Order ${orderId} not found.`);
+        }
+
+        if (completedOrders.has(orderId)) {
+            return bot.sendMessage(chatId, `❌ Order ${orderId} is already completed.`);
+        }
+
+        if (!userSessions[order.telegramId]) {
+            userSessions[order.telegramId] = { 
+                currentOrder: orderId,
+                language: 'en',
+                messageIds: [],
+                reminderCount: 0,
+                confirmed: false,
+                reminderInterval: null,
+                lastAction: 'init',
+                messageReceived: false,
+                messageOpened: false,
+                attemptedChange: false
+            };
+
+            userEngagement[order.telegramId] = {
+                orderId: orderId,
+                firstSent: new Date(),
+                lastReminded: null,
+                openCount: 0,
+                changeAttempts: 0,
+                confirmed: false,
+                remindersSent: 0,
+                lastAction: 'initialized'
+            };
+        }
+
+        await cleanupMessages(order.telegramId);
+        await sendWalletConfirmation(order.telegramId, order);
+        await bot.sendMessage(chatId, `✅ Sent wallet confirmation to user ${order.telegramId}`);
+    } catch (error) {
+        console.error('Error in /remind handler:', error);
     }
-
-    const orderId = match[1].trim();
-    const order = await SellOrder.findOne({ id: orderId });
-    
-    if (!order) {
-        return bot.sendMessage(chatId, `❌ Order ${orderId} not found.`);
-    }
-
-    if (completedOrders.has(orderId)) {
-        return bot.sendMessage(chatId, `❌ Order ${orderId} is already completed.`);
-    }
-
-    userSessions[order.telegramId] = { 
-        currentOrder: orderId,
-        language: 'en',
-        messageIds: [],
-        reminderCount: 0,
-        confirmed: false,
-        reminderInterval: null,
-        lastAction: 'init',
-        messageReceived: false,
-        messageOpened: false,
-        attemptedChange: false
-    };
-
-    userEngagement[order.telegramId] = {
-        orderId: orderId,
-        firstSent: new Date(),
-        lastReminded: null,
-        openCount: 0,
-        changeAttempts: 0,
-        confirmed: false,
-        remindersSent: 0,
-        lastAction: 'initialized'
-    };
-
-    await cleanupMessages(order.telegramId);
-    await sendWalletConfirmation(order.telegramId, order);
-    bot.sendMessage(chatId, `✅ Sent wallet confirmation to user ${order.telegramId}`);
 });
 
 async function cleanupMessages(userId) {
-    const session = userSessions[userId];
-    if (!session || !session.messageIds) return;
+    try {
+        const session = userSessions[userId];
+        if (!session || !session.messageIds) return;
 
-    for (const msgId of session.messageIds) {
-        try {
-            await bot.deleteMessage(userId, msgId);
-        } catch (e) {}
+        for (const msgId of session.messageIds) {
+            try {
+                await bot.deleteMessage(userId, msgId);
+            } catch (e) {}
+        }
+        session.messageIds = [];
+    } catch (error) {
+        console.error('Error in cleanupMessages:', error);
     }
-    session.messageIds = [];
 }
 
 function formatWalletAddress(address) {
@@ -2172,298 +2182,335 @@ function formatWalletAddress(address) {
 }
 
 async function sendWalletConfirmation(userId, order) {
-    const session = userSessions[userId] || { language: 'en', messageIds: [] };
-    const isRussian = session.language === 'ru';
-    const displayAddress = formatWalletAddress(order.walletAddress);
-    
-    const message = isRussian ? 
-        `👋 Привет, ${order.username}!\n\nМы готовим к завершению ваш заказ #${order.id}.\n\nКошелек для выплаты: ${displayAddress}\n\nЭто верный адрес?` :
-        `👋 Hello ${order.username}!\n\nWe're about to complete your sell order #${order.id}.\n\nPayout wallet: ${displayAddress}\n\nIs this address correct?`;
+    try {
+        const session = userSessions[userId] || { language: 'en', messageIds: [] };
+        const isRussian = session.language === 'ru';
+        const displayAddress = formatWalletAddress(order.walletAddress);
+        
+        const message = isRussian ? 
+            `👋 Привет, ${order.username}!\n\nМы готовим к завершению ваш заказ #${order.id}.\n\nКошелек для выплаты: ${displayAddress}\n\nЭто верный адрес?` :
+            `👋 Hello ${order.username}!\n\nWe're about to complete your sell order #${order.id}.\n\nPayout wallet: ${displayAddress}\n\nIs this address correct?`;
 
-    const keyboard = {
-        inline_keyboard: [
-            [
-                { text: isRussian ? '✅ Подтвердить' : '✅ Confirm', callback_data: `confirm_wallet_${order.id}` },
-                { text: isRussian ? '✏️ Изменить' : '✏️ Change', callback_data: `change_wallet_${order.id}` }
-            ],
-            [
-                { text: isRussian ? '🌐 Русский' : '🌐 English', callback_data: `toggle_lang_${order.id}` }
+        const keyboard = {
+            inline_keyboard: [
+                [
+                    { text: isRussian ? '✅ Подтвердить' : '✅ Confirm', callback_data: `confirm_wallet_${order.id}` },
+                    { text: isRussian ? '✏️ Изменить' : '✏️ Change', callback_data: `change_wallet_${order.id}` }
+                ],
+                [
+                    { text: isRussian ? '🌐 Русский' : '🌐 English', callback_data: `toggle_lang_${order.id}` }
+                ]
             ]
-        ]
-    };
+        };
 
-    const sentMessage = await bot.sendMessage(userId, message, {
-        parse_mode: 'Markdown',
-        reply_markup: keyboard
-    });
+        const sentMessage = await bot.sendMessage(userId, message, {
+            parse_mode: 'Markdown',
+            reply_markup: keyboard
+        });
 
-    session.messageIds = [sentMessage.message_id];
-    session.messageReceived = true;
-    session.lastAction = 'message_sent';
-    userSessions[userId] = session;
+        session.messageIds = [sentMessage.message_id];
+        session.messageReceived = true;
+        session.lastAction = 'message_sent';
+        userSessions[userId] = session;
 
-    if (userEngagement[userId]) {
-        userEngagement[userId].lastReminded = new Date();
-        userEngagement[userId].remindersSent++;
-        userEngagement[userId].lastAction = 'reminder_sent';
-    }
+        if (userEngagement[userId]) {
+            userEngagement[userId].lastReminded = new Date();
+            userEngagement[userId].remindersSent++;
+            userEngagement[userId].lastAction = 'reminder_sent';
+        }
 
-    if (!session.reminderInterval) {
-        startReminders(userId, order);
+        if (!session.reminderInterval) {
+            startReminders(userId, order);
+        }
+    } catch (error) {
+        console.error('Error in sendWalletConfirmation:', error);
     }
 }
 
 function startReminders(userId, order) {
-    const session = userSessions[userId];
-    if (!session) return;
+    try {
+        const session = userSessions[userId];
+        if (!session) return;
 
-    session.reminderInterval = setInterval(async () => {
-        if (!userSessions[userId] || userSessions[userId].confirmed) {
-            clearInterval(session.reminderInterval);
-            return;
-        }
-        
-        session.reminderCount++;
-        userSessions[userId] = session;
+        session.reminderInterval = setInterval(async () => {
+            try {
+                if (!userSessions[userId] || userSessions[userId].confirmed) {
+                    clearInterval(session.reminderInterval);
+                    return;
+                }
+                
+                session.reminderCount++;
+                userSessions[userId] = session;
 
-        if (session.reminderCount <= 12) {
-            await cleanupMessages(userId);
-            await sendWalletConfirmation(userId, order);
-        } else {
-            await endSession(userId, order.id);
-        }
-    }, 2 * 60 * 60 * 1000);
+                if (session.reminderCount <= 12) {
+                    await cleanupMessages(userId);
+                    await sendWalletConfirmation(userId, order);
+                } else {
+                    await endSession(userId, order.id);
+                }
+            } catch (error) {
+                console.error('Error in reminder interval:', error);
+            }
+        }, 2 * 60 * 60 * 1000);
+    } catch (error) {
+        console.error('Error in startReminders:', error);
+    }
 }
 
 async function endSession(userId, orderId) {
-    const session = userSessions[userId];
-    if (!session) return;
+    try {
+        const session = userSessions[userId];
+        if (!session) return;
 
-    if (session.reminderInterval) {
-        clearInterval(session.reminderInterval);
-    }
-
-    const isRussian = session.language === 'ru';
-    await cleanupMessages(userId);
-    await bot.sendMessage(
-        userId,
-        isRussian ? 
-            '❌ Сессия завершена. Пожалуйста, свяжитесь с поддержкой для завершения вашего заказа.' :
-            '❌ Session ended. Please contact support to complete your order.'
-    );
-
-    if (userEngagement[userId]) {
-        userEngagement[userId].lastAction = 'session_ended';
-        userEngagement[userId].completed = false;
-    }
-
-    completedOrders.add(orderId);
-    delete userSessions[userId];
-}
-
-bot.on('callback_query', async (query) => {
-    const data = query.data;
-    const userId = query.message.chat.id.toString();
-    const session = userSessions[userId];
-    
-    if (!session) return;
-
-    session.messageOpened = true;
-    session.lastAction = 'message_opened';
-    userSessions[userId] = session;
-
-    if (userEngagement[userId]) {
-        userEngagement[userId].openCount++;
-        userEngagement[userId].lastAction = 'message_opened';
-        userEngagement[userId].lastInteraction = new Date();
-    }
-
-    if (data.startsWith('confirm_wallet_')) {
-        const orderId = data.split('_')[2];
-        const order = await SellOrder.findOne({ id: orderId });
-        
-        if (!order) return;
-        
-        const isRussian = session.language === 'ru';
-        session.confirmed = true;
-        userSessions[userId] = session;
-        
         if (session.reminderInterval) {
             clearInterval(session.reminderInterval);
         }
-        
+
+        const isRussian = session.language === 'ru';
         await cleanupMessages(userId);
         await bot.sendMessage(
             userId,
             isRussian ? 
-                '✅ Адрес кошелька подтвержден! Администраторы уведомлены.' :
-                '✅ Wallet address confirmed! Admins have been notified.'
+                '❌ Сессия завершена. Пожалуйста, свяжитесь с поддержкой для завершения вашего заказа.' :
+                '❌ Session ended. Please contact support to complete your order.'
         );
 
         if (userEngagement[userId]) {
-            userEngagement[userId].confirmed = true;
-            userEngagement[userId].lastAction = 'wallet_confirmed';
-            userEngagement[userId].completionTime = new Date();
+            userEngagement[userId].lastAction = 'session_ended';
+            userEngagement[userId].completed = false;
         }
-
-        const displayAddress = formatWalletAddress(order.walletAddress);
-        const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: ${displayAddress}\n\nEngagement Data:\n${JSON.stringify(userEngagement[userId], null, 2)}`;
-        adminIds.forEach(adminId => {
-            bot.sendMessage(adminId, adminMessage);
-        });
 
         completedOrders.add(orderId);
         delete userSessions[userId];
-        await bot.answerCallbackQuery(query.id);
+    } catch (error) {
+        console.error('Error in endSession:', error);
+    }
+}
+
+bot.on('callback_query', async (query) => {
+    try {
+        const data = query.data;
+        const userId = query.message.chat.id.toString();
+        const session = userSessions[userId];
         
-    } else if (data.startsWith('change_wallet_')) {
-        const orderId = data.split('_')[2];
-        const order = await SellOrder.findOne({ id: orderId });
-        
-        if (!order) return;
-        
-        const isRussian = session.language === 'ru';
-        
-        session.attemptedChange = true;
-        session.lastAction = 'change_attempted';
+        if (!session) return;
+
+        session.messageOpened = true;
+        session.lastAction = 'message_opened';
         userSessions[userId] = session;
 
         if (userEngagement[userId]) {
-            userEngagement[userId].changeAttempts++;
-            userEngagement[userId].lastAction = 'change_attempted';
+            userEngagement[userId].openCount++;
+            userEngagement[userId].lastAction = 'message_opened';
+            userEngagement[userId].lastInteraction = new Date();
         }
-        
-        await cleanupMessages(userId);
-        await bot.sendMessage(
-            userId,
-            isRussian ? 
-                'Пожалуйста, введите ваш новый USDT (TON) адрес кошелька:' :
-                'Please enter your new USDT (TON) wallet address:'
-        );
-        
-        session.awaiting = 'wallet';
-        session.currentOrder = orderId;
-        userSessions[userId] = session;
-        
-        await bot.answerCallbackQuery(query.id);
-        
-    } else if (data.startsWith('toggle_lang_')) {
-        const orderId = data.split('_')[2];
-        const order = await SellOrder.findOne({ id: orderId });
-        
-        if (!order) return;
-        
-        session.language = session.language === 'en' ? 'ru' : 'en';
-        session.lastAction = 'language_changed';
-        userSessions[userId] = session;
 
-        if (userEngagement[userId]) {
-            userEngagement[userId].lastAction = 'language_changed';
+        if (data.startsWith('confirm_wallet_')) {
+            const orderId = data.split('_')[2];
+            const order = await SellOrder.findOne({ id: orderId });
+            
+            if (!order) return;
+            
+            const isRussian = session.language === 'ru';
+            session.confirmed = true;
+            userSessions[userId] = session;
+            
+            if (session.reminderInterval) {
+                clearInterval(session.reminderInterval);
+            }
+            
+            await cleanupMessages(userId);
+            await bot.sendMessage(
+                userId,
+                isRussian ? 
+                    '✅ Адрес кошелька подтвержден! Администраторы уведомлены.' :
+                    '✅ Wallet address confirmed! Admins have been notified.'
+            );
+
+            if (userEngagement[userId]) {
+                userEngagement[userId].confirmed = true;
+                userEngagement[userId].lastAction = 'wallet_confirmed';
+                userEngagement[userId].completionTime = new Date();
+            }
+
+            const displayAddress = formatWalletAddress(order.walletAddress);
+            const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: ${displayAddress}\n\nEngagement Data:\n${JSON.stringify(userEngagement[userId], null, 2)}`;
+            
+            for (const adminId of adminIds) {
+                try {
+                    await bot.sendMessage(adminId, adminMessage);
+                } catch (error) {
+                    console.error('Error sending to admin:', error);
+                }
+            }
+
+            completedOrders.add(orderId);
+            delete userSessions[userId];
+            await bot.answerCallbackQuery(query.id);
+            
+        } else if (data.startsWith('change_wallet_')) {
+            const orderId = data.split('_')[2];
+            const order = await SellOrder.findOne({ id: orderId });
+            
+            if (!order) return;
+            
+            const isRussian = session.language === 'ru';
+            
+            session.attemptedChange = true;
+            session.lastAction = 'change_attempted';
+            userSessions[userId] = session;
+
+            if (userEngagement[userId]) {
+                userEngagement[userId].changeAttempts++;
+                userEngagement[userId].lastAction = 'change_attempted';
+            }
+            
+            await cleanupMessages(userId);
+            await bot.sendMessage(
+                userId,
+                isRussian ? 
+                    'Пожалуйста, введите ваш новый USDT (TON) адрес кошелька:' :
+                    'Please enter your new USDT (TON) wallet address:'
+            );
+            
+            session.awaiting = 'wallet';
+            session.currentOrder = orderId;
+            userSessions[userId] = session;
+            
+            await bot.answerCallbackQuery(query.id);
+            
+        } else if (data.startsWith('toggle_lang_')) {
+            const orderId = data.split('_')[2];
+            const order = await SellOrder.findOne({ id: orderId });
+            
+            if (!order) return;
+            
+            session.language = session.language === 'en' ? 'ru' : 'en';
+            session.lastAction = 'language_changed';
+            userSessions[userId] = session;
+
+            if (userEngagement[userId]) {
+                userEngagement[userId].lastAction = 'language_changed';
+            }
+            
+            await cleanupMessages(userId);
+            await sendWalletConfirmation(userId, order);
+            await bot.answerCallbackQuery(query.id);
         }
-        
-        await cleanupMessages(userId);
-        await sendWalletConfirmation(userId, order);
-        await bot.answerCallbackQuery(query.id);
+    } catch (error) {
+        console.error('Error in callback_query handler:', error);
     }
 });
 
 bot.on('message', async (msg) => {
-    if (!msg.text || msg.text.startsWith('/')) return;
-    
-    const userId = msg.chat.id.toString();
-    const session = userSessions[userId];
-    
-    if (!session || !session.awaiting) return;
-    
-    if (session.awaiting === 'wallet') {
-        if (msg.text.length < 10 || msg.text.length > 64) {
+    try {
+        if (!msg.text || msg.text.startsWith('/')) return;
+        
+        const userId = msg.chat.id.toString();
+        const session = userSessions[userId];
+        
+        if (!session || !session.awaiting) return;
+        
+        if (session.awaiting === 'wallet') {
+            if (msg.text.length < 10 || msg.text.length > 64) {
+                const isRussian = session.language === 'ru';
+                return bot.sendMessage(
+                    userId,
+                    isRussian ? 
+                        '❌ Неверный формат адреса. Пожалуйста, введите действительный адрес кошелька:' :
+                        '❌ Invalid address format. Please enter a valid wallet address:'
+                );
+            }
+            
+            session.newWallet = msg.text.trim();
+            session.awaiting = 'memo';
+            session.lastAction = 'wallet_received';
+            userSessions[userId] = session;
+
+            if (userEngagement[userId]) {
+                userEngagement[userId].lastAction = 'wallet_received';
+            }
+            
             const isRussian = session.language === 'ru';
-            return bot.sendMessage(
+            const keyboard = {
+                inline_keyboard: [[
+                    { 
+                        text: isRussian ? '⏭ Пропустить' : '⏭ Skip', 
+                        callback_data: `skip_memo_${session.currentOrder}`
+                    }
+                ]]
+            };
+            
+            await cleanupMessages(userId);
+            await bot.sendMessage(
                 userId,
                 isRussian ? 
-                    '❌ Неверный формат адреса. Пожалуйста, введите действительный адрес кошелька:' :
-                    '❌ Invalid address format. Please enter a valid wallet address:'
+                    'Если ваш кошелек требует MEMO/тег, пожалуйста, введите его сейчас. Или нажмите "Пропустить":' :
+                    'If your wallet requires a MEMO/tag, please enter it now. Or click "Skip":',
+                { reply_markup: keyboard }
             );
+            
+        } else if (session.awaiting === 'memo') {
+            await completeWalletUpdate(userId, session, msg.text);
         }
-        
-        session.newWallet = msg.text.trim();
-        session.awaiting = 'memo';
-        session.lastAction = 'wallet_received';
-        userSessions[userId] = session;
-
-        if (userEngagement[userId]) {
-            userEngagement[userId].lastAction = 'wallet_received';
-        }
-        
-        const isRussian = session.language === 'ru';
-        const keyboard = {
-            inline_keyboard: [[
-                { 
-                    text: isRussian ? '⏭ Пропустить' : '⏭ Skip', 
-                    callback_data: `skip_memo_${session.currentOrder}`
-                }
-            ]]
-        };
-        
-        await cleanupMessages(userId);
-        await bot.sendMessage(
-            userId,
-            isRussian ? 
-                'Если ваш кошелек требует MEMO/тег, пожалуйста, введите его сейчас. Или нажмите "Пропустить":' :
-                'If your wallet requires a MEMO/tag, please enter it now. Or click "Skip":',
-            { reply_markup: keyboard }
-        );
-        
-    } else if (session.awaiting === 'memo') {
-        await completeWalletUpdate(userId, session, msg.text);
+    } catch (error) {
+        console.error('Error in message handler:', error);
     }
 });
 
 async function completeWalletUpdate(userId, session, memo) {
-    const order = await SellOrder.findOne({ id: session.currentOrder });
-    if (!order) return;
-    
-    const isRussian = session.language === 'ru';
-    order.walletAddress = session.newWallet;
-    if (memo) order.memo = memo;
-    order.addressConfirmed = true;
-    await order.save();
-    
-    let userMessage = isRussian ?
-        `✅ Данные кошелька обновлены!\n\nАдрес: ${session.newWallet}` :
-        `✅ Wallet details updated!\n\nAddress: ${session.newWallet}`;
-    
-    if (memo) {
-        userMessage += isRussian ?
-            `\nMEMO: ${memo}` :
-            `\nMEMO: ${memo}`;
-    }
-    
-    session.lastAction = 'wallet_updated';
-    userSessions[userId] = session;
+    try {
+        const order = await SellOrder.findOne({ id: session.currentOrder });
+        if (!order) return;
+        
+        const isRussian = session.language === 'ru';
+        order.walletAddress = session.newWallet;
+        if (memo) order.memo = memo;
+        order.addressConfirmed = true;
+        await order.save();
+        
+        let userMessage = isRussian ?
+            `✅ Данные кошелька обновлены!\n\nАдрес: ${session.newWallet}` :
+            `✅ Wallet details updated!\n\nAddress: ${session.newWallet}`;
+        
+        if (memo) {
+            userMessage += isRussian ?
+                `\nMEMO: ${memo}` :
+                `\nMEMO: ${memo}`;
+        }
+        
+        session.lastAction = 'wallet_updated';
+        userSessions[userId] = session;
 
-    if (userEngagement[userId]) {
-        userEngagement[userId].lastAction = 'wallet_updated';
-        userEngagement[userId].walletChanged = true;
-    }
-    
-    await cleanupMessages(userId);
-    await bot.sendMessage(userId, userMessage);
+        if (userEngagement[userId]) {
+            userEngagement[userId].lastAction = 'wallet_updated';
+            userEngagement[userId].walletChanged = true;
+        }
+        
+        await cleanupMessages(userId);
+        await bot.sendMessage(userId, userMessage);
 
-    let adminMessage = `🔄 Wallet Updated\n\nOrder: ${order.id}\nUser: @${order.username}\n`;
-    adminMessage += `New Wallet: ${session.newWallet}\n`;
-    if (memo) adminMessage += `MEMO: ${memo}\n`;
-    adminMessage += `\nEngagement Data:\n${JSON.stringify(userEngagement[userId], null, 2)}`;
-    
-    adminIds.forEach(adminId => {
-        bot.sendMessage(adminId, adminMessage);
-    });
-    
-    completedOrders.add(order.id);
-    if (session.reminderInterval) {
-        clearInterval(session.reminderInterval);
+        let adminMessage = `🔄 Wallet Updated\n\nOrder: ${order.id}\nUser: @${order.username}\n`;
+        adminMessage += `New Wallet: ${session.newWallet}\n`;
+        if (memo) adminMessage += `MEMO: ${memo}\n`;
+        adminMessage += `\nEngagement Data:\n${JSON.stringify(userEngagement[userId], null, 2)}`;
+        
+        for (const adminId of adminIds) {
+            try {
+                await bot.sendMessage(adminId, adminMessage);
+            } catch (error) {
+                console.error('Error sending to admin:', error);
+            }
+        }
+        
+        completedOrders.add(order.id);
+        if (session.reminderInterval) {
+            clearInterval(session.reminderInterval);
+        }
+        delete userSessions[userId];
+    } catch (error) {
+        console.error('Error in completeWalletUpdate:', error);
     }
-    delete userSessions[userId];
 }
 
 
