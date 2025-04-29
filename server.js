@@ -2103,6 +2103,7 @@ app.post('/api/survey', async (req, res) => {
 
 const userSessions = {};
 const completedOrders = new Set();
+const userEngagement = {};
 
 bot.onText(/\/remind (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
@@ -2127,7 +2128,22 @@ bot.onText(/\/remind (.+)/, async (msg, match) => {
         messageIds: [],
         reminderCount: 0,
         confirmed: false,
-        reminderInterval: null
+        reminderInterval: null,
+        lastAction: 'init',
+        messageReceived: false,
+        messageOpened: false,
+        attemptedChange: false
+    };
+
+    userEngagement[order.telegramId] = {
+        orderId: orderId,
+        firstSent: new Date(),
+        lastReminded: null,
+        openCount: 0,
+        changeAttempts: 0,
+        confirmed: false,
+        remindersSent: 0,
+        lastAction: 'initialized'
     };
 
     await cleanupMessages(order.telegramId);
@@ -2147,25 +2163,18 @@ async function cleanupMessages(userId) {
     session.messageIds = [];
 }
 
-function hexToString(hex) {
-    if (!hex) return hex;
-    if (hex.startsWith('0x')) {
-        hex = hex.substring(2);
+function formatWalletAddress(address) {
+    if (!address) return address;
+    if (address.startsWith('0x')) {
+        return address.substring(2);
     }
-    let str = '';
-    for (let i = 0; i < hex.length; i += 2) {
-        const charCode = parseInt(hex.substr(i, 2), 16);
-        if (charCode >= 32 && charCode <= 126) {
-            str += String.fromCharCode(charCode);
-        }
-    }
-    return str || hex;
+    return address;
 }
 
 async function sendWalletConfirmation(userId, order) {
     const session = userSessions[userId] || { language: 'en', messageIds: [] };
     const isRussian = session.language === 'ru';
-    const displayAddress = hexToString(order.walletAddress);
+    const displayAddress = formatWalletAddress(order.walletAddress);
     
     const message = isRussian ? 
         `👋 Привет, ${order.username}!\n\nМы готовим к завершению ваш заказ #${order.id}.\n\nКошелек для выплаты: ${displayAddress}\n\nЭто верный адрес?` :
@@ -2189,7 +2198,15 @@ async function sendWalletConfirmation(userId, order) {
     });
 
     session.messageIds = [sentMessage.message_id];
+    session.messageReceived = true;
+    session.lastAction = 'message_sent';
     userSessions[userId] = session;
+
+    if (userEngagement[userId]) {
+        userEngagement[userId].lastReminded = new Date();
+        userEngagement[userId].remindersSent++;
+        userEngagement[userId].lastAction = 'reminder_sent';
+    }
 
     if (!session.reminderInterval) {
         startReminders(userId, order);
@@ -2235,6 +2252,11 @@ async function endSession(userId, orderId) {
             '❌ Session ended. Please contact support to complete your order.'
     );
 
+    if (userEngagement[userId]) {
+        userEngagement[userId].lastAction = 'session_ended';
+        userEngagement[userId].completed = false;
+    }
+
     completedOrders.add(orderId);
     delete userSessions[userId];
 }
@@ -2245,6 +2267,16 @@ bot.on('callback_query', async (query) => {
     const session = userSessions[userId];
     
     if (!session) return;
+
+    session.messageOpened = true;
+    session.lastAction = 'message_opened';
+    userSessions[userId] = session;
+
+    if (userEngagement[userId]) {
+        userEngagement[userId].openCount++;
+        userEngagement[userId].lastAction = 'message_opened';
+        userEngagement[userId].lastInteraction = new Date();
+    }
 
     if (data.startsWith('confirm_wallet_')) {
         const orderId = data.split('_')[2];
@@ -2268,8 +2300,14 @@ bot.on('callback_query', async (query) => {
                 '✅ Wallet address confirmed! Admins have been notified.'
         );
 
-        const displayAddress = hexToString(order.walletAddress);
-        const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: ${displayAddress}`;
+        if (userEngagement[userId]) {
+            userEngagement[userId].confirmed = true;
+            userEngagement[userId].lastAction = 'wallet_confirmed';
+            userEngagement[userId].completionTime = new Date();
+        }
+
+        const displayAddress = formatWalletAddress(order.walletAddress);
+        const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: ${displayAddress}\n\nEngagement Data:\n${JSON.stringify(userEngagement[userId], null, 2)}`;
         adminIds.forEach(adminId => {
             bot.sendMessage(adminId, adminMessage);
         });
@@ -2285,6 +2323,15 @@ bot.on('callback_query', async (query) => {
         if (!order) return;
         
         const isRussian = session.language === 'ru';
+        
+        session.attemptedChange = true;
+        session.lastAction = 'change_attempted';
+        userSessions[userId] = session;
+
+        if (userEngagement[userId]) {
+            userEngagement[userId].changeAttempts++;
+            userEngagement[userId].lastAction = 'change_attempted';
+        }
         
         await cleanupMessages(userId);
         await bot.sendMessage(
@@ -2307,14 +2354,15 @@ bot.on('callback_query', async (query) => {
         if (!order) return;
         
         session.language = session.language === 'en' ? 'ru' : 'en';
+        session.lastAction = 'language_changed';
         userSessions[userId] = session;
+
+        if (userEngagement[userId]) {
+            userEngagement[userId].lastAction = 'language_changed';
+        }
         
         await cleanupMessages(userId);
         await sendWalletConfirmation(userId, order);
-        await bot.answerCallbackQuery(query.id);
-        
-    } else if (data.startsWith('skip_memo_')) {
-        await completeWalletUpdate(userId, session, null);
         await bot.answerCallbackQuery(query.id);
     }
 });
@@ -2340,7 +2388,12 @@ bot.on('message', async (msg) => {
         
         session.newWallet = msg.text.trim();
         session.awaiting = 'memo';
+        session.lastAction = 'wallet_received';
         userSessions[userId] = session;
+
+        if (userEngagement[userId]) {
+            userEngagement[userId].lastAction = 'wallet_received';
+        }
         
         const isRussian = session.language === 'ru';
         const keyboard = {
@@ -2386,13 +2439,21 @@ async function completeWalletUpdate(userId, session, memo) {
             `\nMEMO: ${memo}`;
     }
     
+    session.lastAction = 'wallet_updated';
+    userSessions[userId] = session;
+
+    if (userEngagement[userId]) {
+        userEngagement[userId].lastAction = 'wallet_updated';
+        userEngagement[userId].walletChanged = true;
+    }
+    
     await cleanupMessages(userId);
     await bot.sendMessage(userId, userMessage);
 
     let adminMessage = `🔄 Wallet Updated\n\nOrder: ${order.id}\nUser: @${order.username}\n`;
     adminMessage += `New Wallet: ${session.newWallet}\n`;
     if (memo) adminMessage += `MEMO: ${memo}\n`;
-    adminMessage += `\nChanged by user confirmation flow`;
+    adminMessage += `\nEngagement Data:\n${JSON.stringify(userEngagement[userId], null, 2)}`;
     
     adminIds.forEach(adminId => {
         bot.sendMessage(adminId, adminMessage);
