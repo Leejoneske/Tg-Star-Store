@@ -767,351 +767,270 @@
           }
         };
 
-        // Check if user has already seen and accepted the notice
-        function checkNoticeStatus() {
-            const noticeAccepted = localStorage.getItem('noticeAccepted');
-            if (!noticeAccepted) {
-                noticeModal.style.display = 'flex';
-            } else {
-                showAppContent();
-            }
-        }
+// Check if user has already seen and accepted the notice
+function checkNoticeStatus() {
+    const noticeAccepted = localStorage.getItem('noticeAccepted');
+    if (!noticeAccepted) {
+        noticeModal.style.display = 'flex';
+    } else {
+        showAppContent();
+    }
+}
 
-        // Show the main app content
-        function showAppContent() {
-            skeletonLoading.style.display = 'none';
-            appContent.style.display = 'block';
-        }
+// Show the main app content
+function showAppContent() {
+    skeletonLoading.style.display = 'none';
+    appContent.style.display = 'block';
+}
 
-        // Continue button handler for notice modal
-        continueButton.addEventListener('click', () => {
-            localStorage.setItem('noticeAccepted', 'true');
-            noticeModal.style.display = 'none';
-            showAppContent();
+// Continue button handler for notice modal
+continueButton.addEventListener('click', () => {
+    localStorage.setItem('noticeAccepted', 'true');
+    noticeModal.style.display = 'none';
+    showAppContent();
+});
+
+// Listen for language changes from index page
+window.addEventListener('storage', function(e) {
+  if (e.key === 'appLanguage') {
+    currentLanguage = e.newValue || 'en';
+    updateLanguageTexts();
+  }
+});
+
+// Function to update all texts based on current language
+function updateLanguageTexts() {
+  const texts = translations[currentLanguage];
+  
+  // Update menu items
+  document.querySelector('.side-menu .text-xl').textContent = texts.menuTitle;
+  const menuItems = document.querySelectorAll('.menu-item');
+  menuItems[0].childNodes[2].textContent = texts.home;
+  menuItems[1].childNodes[2].textContent = texts.sell;
+  menuItems[2].childNodes[2].textContent = texts.history;
+  menuItems[3].childNodes[2].textContent = texts.referral;
+  menuItems[4].childNodes[2].textContent = texts.about;
+  
+  // Update wallet section
+  document.querySelector('.wallet-status p').textContent = texts.paymentInfo;
+  
+  // Update edit button text if it exists
+  const editButton = document.getElementById('editWalletBtn');
+  if (editButton) {
+    editButton.textContent = texts.editAddress;
+  }
+  
+  // Update sell stars section
+  document.querySelector('h2.text-xl').textContent = texts.sellStars;
+  document.querySelector('.rate-info .text-sm').textContent = texts.currentRate;
+  document.querySelector('.info-badge').textContent = texts.updatedAgo;
+  document.querySelector('label.block.text-sm').textContent = texts.amountToSell;
+  document.querySelectorAll('label.block.text-sm')[1].textContent = texts.youWillReceive;
+  sellStarsBtn.textContent = texts.sellNow;
+  
+  // Update how it works section
+  document.querySelector('.font-medium.text-blue-800').textContent = texts.howItWorks;
+  const steps = document.querySelectorAll('.list-decimal li');
+  steps[0].textContent = texts.step1;
+  steps[1].textContent = texts.step2;
+  steps[2].textContent = texts.step3;
+  steps[3].textContent = texts.step4;
+  
+  // Update transactions section
+  document.querySelector('.transaction-history h3').textContent = texts.recentTransactions;
+  
+  // Check if no transactions message exists and update it
+  const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
+  if (noTransactionsEl) {
+    noTransactionsEl.textContent = texts.noTransactions;
+  }
+}
+
+// Wallet address persistence
+function setupWalletAddressMemory() {
+  // Create edit button for manual wallet address
+  const manualWalletContainer = document.getElementById('manualWalletInput');
+  const editContainer = document.createElement('div');
+  editContainer.className = 'flex items-center justify-between mt-2';
+  
+  const editButton = document.createElement('button');
+  editButton.id = 'editWalletBtn';
+  editButton.className = 'text-sm text-indigo-600 font-medium';
+  editButton.textContent = translations[currentLanguage].editAddress;
+  editButton.style.display = 'none';
+  
+  // Save button
+  const saveButton = document.createElement('button');
+  saveButton.id = 'saveWalletBtn';
+  saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
+  saveButton.textContent = translations[currentLanguage].saveAddress;
+  
+  editContainer.appendChild(editButton);
+  editContainer.appendChild(saveButton);
+  manualWalletContainer.appendChild(editContainer);
+  
+  // Load saved address if it exists
+  const savedAddress = localStorage.getItem('userWalletAddress');
+  if (savedAddress) {
+    manualWalletAddress.value = savedAddress;
+    currentWalletAddress = savedAddress;
+    editButton.style.display = 'block';
+    manualWalletAddress.disabled = true;
+  }
+  
+  // Save button handler
+  saveButton.addEventListener('click', () => {
+    const address = manualWalletAddress.value.trim();
+    if (address) {
+      localStorage.setItem('userWalletAddress', address);
+      currentWalletAddress = address;
+      manualWalletAddress.disabled = true;
+      editButton.style.display = 'block';
+      Swal.fire({
+        icon: 'success',
+        title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
+        text: currentLanguage === 'en' ? 
+          'Your wallet address has been saved for future use.' : 
+          'Ваш адрес кошелька был сохранен для будущего использования.',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }
+  });
+  
+  // Edit button handler
+  editButton.addEventListener('click', () => {
+    manualWalletAddress.disabled = false;
+    manualWalletAddress.focus();
+  });
+}
+
+// Update wallet address when manual input changes
+manualWalletAddress.addEventListener('input', () => {
+    currentWalletAddress = manualWalletAddress.value.trim();
+});
+
+// Side menu toggle
+const menuOverlay = document.getElementById('menuOverlay');
+const sideMenu = document.getElementById('sideMenu');
+
+function toggleMenu() {
+    menuOverlay.classList.toggle('active');
+    sideMenu.classList.toggle('active');
+}
+
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+        toggleMenu();
+    });
+});
+
+// Stars amount handling
+function incrementStars() {
+    const currentValue = parseInt(starsInput.value) || 0;
+    starsInput.value = Math.min(currentValue + 5, 1000);
+    calculateTonAmount();
+}
+
+function decrementStars() {
+    const currentValue = parseInt(starsInput.value) || 0;
+    starsInput.value = Math.max(currentValue - 5, 15);
+    calculateTonAmount();
+}
+
+function calculateTonAmount() {
+    const stars = parseInt(starsInput.value) || 0;
+    const tonAmount = (stars * rate).toFixed(3);
+    tonAmountDisplay.textContent = `${tonAmount} USDT`;
+    return tonAmount;
+}
+
+calculateTonAmount();
+
+// Payment modal handling
+sellStarsBtn.addEventListener('click', () => {
+    if (!manualWalletAddress.value.trim()) {
+        Swal.fire({
+            icon: 'error',
+            title: translations[currentLanguage].missingWalletAddress,
+            text: translations[currentLanguage].enterValidWallet
+        });
+        return;
+    }
+
+    document.getElementById('modalStarsAmount').textContent = starsInput.value;
+    document.getElementById('modalTonAmount').textContent = calculateTonAmount();
+    paymentModal.classList.remove('hidden');
+    paymentModal.classList.add('flex');
+});
+
+cancelPaymentBtn.addEventListener('click', () => {
+    paymentModal.classList.add('hidden');
+    paymentModal.classList.remove('flex');
+});
+
+confirmPaymentBtn.addEventListener('click', async () => {
+    paymentModal.classList.add('hidden');
+    paymentModal.classList.remove('flex');
+
+    const stars = parseInt(starsInput.value);
+    const walletToUse = manualWalletAddress.value.trim();
+
+    try {
+        const response = await axios.post('/api/sell-orders', {
+            telegramId: Telegram.WebApp.initDataUnsafe.user.id,
+            username: Telegram.WebApp.initDataUnsafe.user.username,
+            stars: stars,
+            walletAddress: walletToUse
         });
 
-        // Listen for language changes from index page
-        window.addEventListener('storage', function(e) {
-          if (e.key === 'appLanguage') {
-            currentLanguage = e.newValue || 'en';
-            updateLanguageTexts();
-          }
-        });
-
-        // Function to update all texts based on current language
-        function updateLanguageTexts() {
-          const texts = translations[currentLanguage];
-          
-          // Update menu items
-          document.querySelector('.side-menu .text-xl').textContent = texts.menuTitle;
-          const menuItems = document.querySelectorAll('.menu-item');
-          menuItems[0].childNodes[2].textContent = texts.home;
-          menuItems[1].childNodes[2].textContent = texts.sell;
-          menuItems[2].childNodes[2].textContent = texts.history;
-          menuItems[3].childNodes[2].textContent = texts.referral;
-          menuItems[4].childNodes[2].textContent = texts.about;
-          
-          // Update wallet section
-          if (!isWalletConnected) {
-            connectWalletButton.textContent = texts.connectWallet;
-          }
-          
-          document.querySelector('label[for="manualWalletToggle"]').textContent = texts.enterManually;
-          document.querySelector('.wallet-status p').textContent = texts.paymentInfo;
-          
-          // Update edit button text if it exists
-          const editButton = document.getElementById('editWalletBtn');
-          if (editButton) {
-            editButton.textContent = texts.editAddress;
-          }
-          
-          // Update sell stars section
-          document.querySelector('h2.text-xl').textContent = texts.sellStars;
-          document.querySelector('.rate-info .text-sm').textContent = texts.currentRate;
-          document.querySelector('.info-badge').textContent = texts.updatedAgo;
-          document.querySelector('label.block.text-sm').textContent = texts.amountToSell;
-          document.querySelectorAll('label.block.text-sm')[1].textContent = texts.youWillReceive;
-          sellStarsBtn.textContent = texts.sellNow;
-          
-          // Update how it works section
-          document.querySelector('.font-medium.text-blue-800').textContent = texts.howItWorks;
-          const steps = document.querySelectorAll('.list-decimal li');
-          steps[0].textContent = texts.step1;
-          steps[1].textContent = texts.step2;
-          steps[2].textContent = texts.step3;
-          steps[3].textContent = texts.step4;
-          
-          // Update transactions section
-          document.querySelector('.transaction-history h3').textContent = texts.recentTransactions;
-          
-          // Check if no transactions message exists and update it
-          const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
-          if (noTransactionsEl) {
-            noTransactionsEl.textContent = texts.noTransactions;
-          }
-        }
-
-        // Wallet address persistence
-        function setupWalletAddressMemory() {
-          // Create edit button for manual wallet address
-          const manualWalletContainer = document.getElementById('manualWalletInput');
-          const editContainer = document.createElement('div');
-          editContainer.className = 'flex items-center justify-between mt-2';
-          
-          const editButton = document.createElement('button');
-          editButton.id = 'editWalletBtn';
-          editButton.className = 'text-sm text-indigo-600 font-medium';
-          editButton.textContent = translations[currentLanguage].editAddress;
-          editButton.style.display = 'none';
-          
-          // Save button
-          const saveButton = document.createElement('button');
-          saveButton.id = 'saveWalletBtn';
-          saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
-          saveButton.textContent = translations[currentLanguage].saveAddress;
-          
-          editContainer.appendChild(editButton);
-          editContainer.appendChild(saveButton);
-          manualWalletContainer.appendChild(editContainer);
-          
-          // Load saved address if it exists
-          const savedAddress = localStorage.getItem('userWalletAddress');
-          if (savedAddress) {
-            manualWalletAddress.value = savedAddress;
-            currentWalletAddress = savedAddress;
-            editButton.style.display = 'block';
-            manualWalletAddress.disabled = true;
-          }
-          
-          // Save button handler
-          saveButton.addEventListener('click', () => {
-            const address = manualWalletAddress.value.trim();
-            if (address) {
-              localStorage.setItem('userWalletAddress', address);
-              currentWalletAddress = address;
-              manualWalletAddress.disabled = true;
-              editButton.style.display = 'block';
-              Swal.fire({
+        if (response.data.success) {
+            Swal.fire({
                 icon: 'success',
-                title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
-                text: currentLanguage === 'en' ? 
-                  'Your wallet address has been saved for future use.' : 
-                  'Ваш адрес кошелька был сохранен для будущего использования.',
-                timer: 2000,
-                showConfirmButton: false
-              });
-            }
-          });
-          
-          // Edit button handler
-          editButton.addEventListener('click', () => {
-            manualWalletAddress.disabled = false;
-            manualWalletAddress.focus();
-          });
-          
-          // Update manual toggle behavior
-          manualWalletToggle.addEventListener('change', () => {
-            if (manualWalletToggle.checked) {
-              manualWalletInput.classList.remove('hidden');
-              connectWalletButton.disabled = true;
-              connectWalletButton.classList.add('opacity-50');
-              if (savedAddress) {
-                currentWalletAddress = savedAddress;
-              }
-            } else {
-              manualWalletInput.classList.add('hidden');
-              connectWalletButton.disabled = false;
-              connectWalletButton.classList.remove('opacity-50');
-            }
-          });
-          
-          // Auto-check the manual toggle if there's a saved address and no wallet connected
-          if (savedAddress && !isWalletConnected) {
-            manualWalletToggle.checked = true;
-            manualWalletInput.classList.remove('hidden');
-            connectWalletButton.disabled = true;
-            connectWalletButton.classList.add('opacity-50');
-          }
-        }
-
-        // Toggle between connected wallet and manual input
-        manualWalletToggle.addEventListener('change', () => {
-            if (manualWalletToggle.checked) {
-                manualWalletInput.classList.remove('hidden');
-                connectWalletButton.disabled = true;
-                connectWalletButton.classList.add('opacity-50');
-            } else {
-                manualWalletInput.classList.add('hidden');
-                connectWalletButton.disabled = false;
-                connectWalletButton.classList.remove('opacity-50');
-            }
-        });
-
-        // Update wallet address when manual input changes
-        manualWalletAddress.addEventListener('input', () => {
-            currentWalletAddress = manualWalletAddress.value.trim();
-        });
-
-        // Monitor connected wallet status
-        tonConnectUI.onStatusChange(wallet => {
-            if (wallet) {
-                const shortAddress = `${wallet.account.address.slice(0, 4)}...${wallet.account.address.slice(-4)}`;
-                connectWalletButton.innerHTML = `Connected: <span class="wallet-address">${shortAddress}</span>`;
-                connectWalletButton.classList.add('wallet-connected');
-                isWalletConnected = true;
-                currentWalletAddress = wallet.account.address;
-                
-                if (manualWalletToggle.checked) {
-                    manualWalletToggle.checked = false;
-                    manualWalletInput.classList.add('hidden');
-                }
-            } else {
-                connectWalletButton.innerText = 'Connect Wallet';
-                connectWalletButton.classList.remove('wallet-connected');
-                isWalletConnected = false;
-                currentWalletAddress = '';
-            }
-        });
-
-        // Handle wallet connection button click
-        connectWalletButton.addEventListener('click', () => {
-            if (isWalletConnected) {
-                tonConnectUI.disconnect();
-            } else {
-                tonConnectUI.connectWallet();
-            }
-        });
-
-        // Side menu toggle
-        const menuOverlay = document.getElementById('menuOverlay');
-        const sideMenu = document.getElementById('sideMenu');
-
-        function toggleMenu() {
-            menuOverlay.classList.toggle('active');
-            sideMenu.classList.toggle('active');
-        }
-
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', () => {
-                toggleMenu();
+                title: translations[currentLanguage].paymentInitiated,
+                text: translations[currentLanguage].completePayment
             });
-        });
 
-        // Stars amount handling
-        function incrementStars() {
-            const currentValue = parseInt(starsInput.value) || 0;
-            starsInput.value = Math.min(currentValue + 5, 1000);
-            calculateTonAmount();
-        }
-
-        function decrementStars() {
-            const currentValue = parseInt(starsInput.value) || 0;
-            starsInput.value = Math.max(currentValue - 5, 15);
-            calculateTonAmount();
-        }
-
-        function calculateTonAmount() {
-            const stars = parseInt(starsInput.value) || 0;
-            const tonAmount = (stars * rate).toFixed(3);
-            tonAmountDisplay.textContent = `${tonAmount} USDT`;
-            return tonAmount;
-        }
-
-        calculateTonAmount();
-
-        // Payment modal handling
-        sellStarsBtn.addEventListener('click', () => {
-            if (!isWalletConnected && !manualWalletToggle.checked) {
-                Swal.fire({
-                    icon: 'error',
-                    title: translations[currentLanguage].walletNotConnected,
-                    text: translations[currentLanguage].walletConnectMessage
-                });
-                return;
-            }
-            
-            if (manualWalletToggle.checked && !manualWalletAddress.value.trim()) {
-                Swal.fire({
-                    icon: 'error',
-                    title: translations[currentLanguage].missingWalletAddress,
-                    text: translations[currentLanguage].enterValidWallet
-                });
-                return;
-            }
-
-            document.getElementById('modalStarsAmount').textContent = starsInput.value;
-            document.getElementById('modalTonAmount').textContent = calculateTonAmount();
-            paymentModal.classList.remove('hidden');
-            paymentModal.classList.add('flex');
-        });
-
-        cancelPaymentBtn.addEventListener('click', () => {
-            paymentModal.classList.add('hidden');
-            paymentModal.classList.remove('flex');
-        });
-
-        confirmPaymentBtn.addEventListener('click', async () => {
-            paymentModal.classList.add('hidden');
-            paymentModal.classList.remove('flex');
-
-            const stars = parseInt(starsInput.value);
-            const walletToUse = manualWalletToggle.checked ? manualWalletAddress.value.trim() : currentWalletAddress;
-
-            try {
-                const response = await axios.post('/api/sell-orders', {
-                    telegramId: Telegram.WebApp.initDataUnsafe.user.id,
-                    username: Telegram.WebApp.initDataUnsafe.user.username,
-                    stars: stars,
-                    walletAddress: walletToUse
-                });
-
-                if (response.data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: translations[currentLanguage].paymentInitiated,
-                        text: translations[currentLanguage].completePayment
-                    });
-
-                    if (response.data.paymentLink) {
-                        Telegram.WebApp.openInvoice(response.data.paymentLink, function(status) {
-                            if (status === 'paid') {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: translations[currentLanguage].paymentSuccessful,
-                                    text: translations[currentLanguage].paymentProcessed
-                                });
-                                fetchTransactions();
-                            } else {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: translations[currentLanguage].paymentFailed,
-                                    text: translations[currentLanguage].paymentNotSuccessful
-                                });
-                            }
+            if (response.data.paymentLink) {
+                Telegram.WebApp.openInvoice(response.data.paymentLink, function(status) {
+                    if (status === 'paid') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: translations[currentLanguage].paymentSuccessful,
+                            text: translations[currentLanguage].paymentProcessed
                         });
+                        fetchTransactions();
                     } else {
                         Swal.fire({
                             icon: 'error',
-                            title: translations[currentLanguage].paymentLinkMissing,
-                            text: translations[currentLanguage].paymentLinkNotGenerated
+                            title: translations[currentLanguage].paymentFailed,
+                            text: translations[currentLanguage].paymentNotSuccessful
                         });
                     }
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: translations[currentLanguage].orderFailed,
-                        text: translations[currentLanguage].orderError
-                    });
-                }
-            } catch (error) {
-                console.error('Error placing order:', error);
+                });
+            } else {
                 Swal.fire({
                     icon: 'error',
-                    title: translations[currentLanguage].orderFailed,
-                    text: translations[currentLanguage].orderError
+                    title: translations[currentLanguage].paymentLinkMissing,
+                    text: translations[currentLanguage].paymentLinkNotGenerated
                 });
             }
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: translations[currentLanguage].orderFailed,
+                text: translations[currentLanguage].orderError
+            });
+        }
+    } catch (error) {
+        console.error('Error placing order:', error);
+        Swal.fire({
+            icon: 'error',
+            title: translations[currentLanguage].orderFailed,
+            text: translations[currentLanguage].orderError
         });
+    }
+});
 
         // Create Transaction Details Panel
         function createTransactionDetailsPanel() {
