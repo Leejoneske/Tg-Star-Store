@@ -143,6 +143,23 @@ const claimSchema = new mongoose.Schema({
   }
 });
 
+// ===== MESSAGE SERVICE SCHEMA =====
+const messageSessionSchema = new mongoose.Schema({
+    adminId: String,
+    userId: String,
+    username: String,
+    adminUsername: String,
+    status: { type: String, default: 'active' }, 
+    createdAt: { type: Date, default: Date.now },
+    lastActivity: { type: Date, default: Date.now },
+    messages: [{
+        sender: String, 
+        text: String,
+        timestamp: { type: Date, default: Date.now }
+    }]
+});
+
+const MessageSession = mongoose.model('MessageSession', messageSessionSchema);
 const Claim = mongoose.model('Claim', claimSchema);
 const Cache = mongoose.model('Cache', cacheSchema);
 const BotBalance = mongoose.model('BotBalance', botBalanceSchema);
@@ -2490,6 +2507,241 @@ async function completeWalletUpdate(userId, session, memo) {
         console.error('Error in completeWalletUpdate:', error);
     }
 }
+
+// ===== MESSAGE SERVICE COMMANDS =====
+
+// Admin initiates conversation
+bot.onText(/^\/message (\d+) (.+)$/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+
+    const userId = match[1];
+    const messageText = match[2];
+    const adminUsername = msg.from.username || 'admin';
+
+    try {
+        let session = await MessageSession.findOne({
+            adminId: chatId.toString(),
+            userId,
+            status: 'active'
+        });
+
+        if (!session) {
+            session = new MessageSession({
+                adminId: chatId.toString(),
+                userId,
+                adminUsername,
+                username: 'unknown',
+                status: 'active',
+                messages: [{
+                    sender: 'admin',
+                    text: messageText
+                }]
+            });
+        } else {
+            session.messages.push({
+                sender: 'admin',
+                text: messageText
+            });
+        }
+
+        session.lastActivity = new Date();
+        await session.save();
+
+        const keyboard = {
+            inline_keyboard: [[
+                { text: 'Reply', callback_data: `reply_${chatId}` },
+                { text: 'Close', callback_data: `close_session_${session._id}` }
+            ]]
+        };
+
+        await bot.sendMessage(
+            userId,
+            `📨 Message from admin ${adminUsername}:\n\n${messageText}\n\nYou can reply directly to this message.`,
+            { reply_markup: keyboard }
+        );
+
+        await bot.sendMessage(
+            chatId,
+            `✅ Message sent to user ${userId}. Session ID: ${session._id}`
+        );
+
+    } catch (error) {
+        console.error('Error sending message:', error);
+        bot.sendMessage(chatId, '❌ Failed to send message.');
+    }
+});
+
+// Admin replies to active conversation (no command needed)
+bot.on('message', async (msg) => {
+    if (!msg.text || msg.text.startsWith('/')) return;
+    
+    const chatId = msg.chat.id.toString();
+    const replyToMsg = msg.reply_to_message;
+    
+    // Check if this is an admin reply to a user message
+    if (replyToMsg && replyToMsg.text && replyToMsg.text.includes('Reply from') && 
+        adminIds.includes(chatId)) {
+        
+        const userIdMatch = replyToMsg.text.match(/\((\d+)\)/);
+        if (!userIdMatch) return;
+        
+        const userId = userIdMatch[1];
+        const messageText = msg.text;
+        const adminUsername = msg.from.username || 'admin';
+
+        try {
+            const session = await MessageSession.findOne({
+                adminId: chatId,
+                userId,
+                status: 'active'
+            });
+
+            if (session) {
+                session.messages.push({
+                    sender: 'admin',
+                    text: messageText
+                });
+                session.lastActivity = new Date();
+                await session.save();
+
+                const keyboard = {
+                    inline_keyboard: [[
+                        { text: 'Reply', callback_data: `reply_${chatId}` },
+                        { text: 'Close', callback_data: `close_session_${session._id}` }
+                    ]]
+                };
+
+                await bot.sendMessage(
+                    userId,
+                    `📨 Reply from admin ${adminUsername}:\n\n${messageText}`,
+                    { reply_markup: keyboard }
+                );
+
+                await bot.sendMessage(
+                    chatId,
+                    `✅ Reply sent to user ${userId}`
+                );
+            }
+        } catch (error) {
+            console.error('Error replying to user:', error);
+        }
+    }
+});
+// ===== USER MESSAGE HANDLING =====
+
+// Handle user replies to admin messages
+bot.on('message', async (msg) => {
+    if (msg.text && !msg.text.startsWith('/')) {
+        const userId = msg.chat.id.toString();
+        const username = msg.from.username || 'user';
+        const messageText = msg.text;
+
+        try {
+            const session = await MessageSession.findOne({
+                userId,
+                status: 'active'
+            });
+
+            if (session) {
+                session.messages.push({
+                    sender: 'user',
+                    text: messageText
+                });
+                session.username = username;
+                session.lastActivity = new Date();
+                await session.save();
+
+                const keyboard = {
+                    inline_keyboard: [[
+                        { text: 'Reply', callback_data: `reply_${userId}` },
+                        { text: 'Close', callback_data: `close_session_${session._id}` }
+                    ]]
+                };
+
+                await bot.sendMessage(
+                    session.adminId,
+                    `📨 Reply from ${username} (${userId}):\n\n${messageText}`,
+                    { reply_markup: keyboard }
+                );
+            }
+        } catch (error) {
+            console.error('Error handling user reply:', error);
+        }
+    }
+});
+// ===== BUTTON CALLBACKS =====
+
+bot.on('callback_query', async (query) => {
+    const data = query.data;
+    
+    // Reply button handler
+    if (data.startsWith('reply_')) {
+        const targetUserId = data.split('_')[1];
+        await bot.sendMessage(
+            query.message.chat.id,
+            `Type your reply to user ${targetUserId}:`,
+            { reply_to_message_id: query.message.message_id }
+        );
+        await bot.answerCallbackQuery(query.id);
+        
+    } 
+    // Close session button handler
+    else if (data.startsWith('close_session_')) {
+        const sessionId = data.split('_')[2];
+        
+        try {
+            const session = await MessageSession.findById(sessionId);
+            if (session) {
+                session.status = 'closed';
+                await session.save();
+                
+                await bot.sendMessage(
+                    session.adminId,
+                    `🔒 Session with ${session.username || 'user'} (${session.userId}) has been closed.`
+                );
+                
+                await bot.sendMessage(
+                    session.userId,
+                    `🔒 Your conversation with admin ${session.adminUsername} has been closed.`
+                );
+            }
+            await bot.answerCallbackQuery(query.id, { text: 'Session closed' });
+        } catch (error) {
+            console.error('Error closing session:', error);
+            await bot.answerCallbackQuery(query.id, { text: 'Failed to close session' });
+        }
+    }
+});
+// ===== SESSION CLEANUP JOB =====
+
+setInterval(async () => {
+    try {
+        const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+        const inactiveSessions = await MessageSession.find({
+            status: 'active',
+            lastActivity: { $lt: twoDaysAgo }
+        });
+        
+        for (const session of inactiveSessions) {
+            session.status = 'closed';
+            await session.save();
+            
+            await bot.sendMessage(
+                session.adminId,
+                `🔒 Session with ${session.username || 'user'} (${session.userId}) was automatically closed due to inactivity.`
+            );
+        }
+        
+        console.log(`Closed ${inactiveSessions.length} inactive sessions`);
+    } catch (error) {
+        console.error('Error in session cleanup:', error);
+    }
+}, 24 * 60 * 60 * 1000); // Run daily
+
 
 
       //notification for reversing orders
