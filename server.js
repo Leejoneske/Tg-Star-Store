@@ -835,48 +835,55 @@ bot.onText(/\/help/, (msg) => {
 });
 
 bot.onText(/\/reply (\d+)(?:\s+(.+))?/, async (msg, match) => {
-    if (!adminIds.includes(msg.from.id)) return;
+    console.log('Reply command received:', msg.text); // Debug log
+    
+    if (!adminIds.includes(msg.from.id)) {
+        console.log('Non-admin attempt from:', msg.from.id); // Debug log
+        return bot.sendMessage(msg.chat.id, '❌ Unauthorized');
+    }
 
     const userId = match[1];
     const textMessage = match[2] || '';
-    
+    console.log('Parsed userId:', userId, 'text:', textMessage); // Debug log
+
     try {
-        // Handle media attachments (when replying to a message)
-        if (msg.reply_to_message) {
-            const originalMsg = msg.reply_to_message;
+        // Case 1: Text-only reply
+        if (textMessage && !msg.reply_to_message) {
+            console.log('Attempting text reply...'); // Debug log
+            await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
+        }
+        // Case 2: Media reply
+        else if (msg.reply_to_message) {
+            console.log('Attempting media reply...'); // Debug log
+            const mediaMsg = msg.reply_to_message;
             
-            if (originalMsg.photo) {
+            if (mediaMsg.photo) {
                 await bot.sendPhoto(
                     userId, 
-                    originalMsg.photo.slice(-1)[0].file_id,
+                    mediaMsg.photo.slice(-1)[0].file_id,
                     { caption: textMessage || '📨 Admin Reply' }
                 );
             } 
-            else if (originalMsg.document) {
+            else if (mediaMsg.document) {
                 await bot.sendDocument(
                     userId,
-                    originalMsg.document.file_id,
+                    mediaMsg.document.file_id,
                     { caption: textMessage || '📨 Admin Reply' }
                 );
             }
             else if (textMessage) {
                 await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
             }
-        } 
-        // Handle text-only reply
-        else if (textMessage) {
-            if (textMessage.length > 4000) {
-                throw new Error('Message exceeds 4000 character limit');
-            }
-            await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
-        } 
+        }
         else {
             throw new Error('No message content provided');
         }
 
-        await bot.sendMessage(msg.chat.id, '✅ Message delivered to user');
+        console.log('Message sent successfully to user:', userId); // Debug log
+        await bot.sendMessage(msg.chat.id, '✅ Message delivered');
     } 
     catch (error) {
+        console.error('Sending failed:', error); // Debug log
         let errorMsg = `❌ Failed to send: ${error.message}`;
         
         if (error.response?.error_code === 403) {
