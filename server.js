@@ -834,32 +834,59 @@ bot.onText(/\/help/, (msg) => {
     });
 });
 
-
-bot.onText(/\/reply (\d+)/, (msg, match) => {
+bot.onText(/\/reply (\d+)(?:\s+(.+))?/, async (msg, match) => {
     if (!adminIds.includes(msg.from.id)) return;
-    
+
     const userId = match[1];
-    const replyText = msg.text.replace(`/reply ${userId}`, '').trim();
+    const textMessage = match[2] || '';
     
-    if (replyText) {
-        bot.sendMessage(userId, `📨 Admin Reply:\n\n${replyText}`, { parse_mode: 'HTML' })
-           .then(() => bot.sendMessage(msg.chat.id, '✅ Text reply sent'))
-           .catch(e => bot.sendMessage(msg.chat.id, `❌ Error: ${e.message}`));
-    }
-    else if (msg.reply_to_message?.photo) {
-        const photoId = msg.reply_to_message.photo.slice(-1)[0].file_id;
-        bot.sendPhoto(userId, photoId, { 
-            caption: msg.reply_to_message.caption || '📨 Admin Reply',
-            parse_mode: 'HTML'
-        });
-    }
-    else if (msg.reply_to_message?.document) {
-        bot.sendDocument(userId, msg.reply_to_message.document.file_id, {
-            caption: msg.reply_to_message.caption || '📨 Admin Reply',
-            parse_mode: 'HTML'
-        });
+    try {
+        // Handle media attachments (when replying to a message)
+        if (msg.reply_to_message) {
+            const originalMsg = msg.reply_to_message;
+            
+            if (originalMsg.photo) {
+                await bot.sendPhoto(
+                    userId, 
+                    originalMsg.photo.slice(-1)[0].file_id,
+                    { caption: textMessage || '📨 Admin Reply' }
+                );
+            } 
+            else if (originalMsg.document) {
+                await bot.sendDocument(
+                    userId,
+                    originalMsg.document.file_id,
+                    { caption: textMessage || '📨 Admin Reply' }
+                );
+            }
+            else if (textMessage) {
+                await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
+            }
+        } 
+        // Handle text-only reply
+        else if (textMessage) {
+            if (textMessage.length > 4000) {
+                throw new Error('Message exceeds 4000 character limit');
+            }
+            await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
+        } 
+        else {
+            throw new Error('No message content provided');
+        }
+
+        await bot.sendMessage(msg.chat.id, '✅ Message delivered to user');
+    } 
+    catch (error) {
+        let errorMsg = `❌ Failed to send: ${error.message}`;
+        
+        if (error.response?.error_code === 403) {
+            errorMsg = '❌ User has blocked the bot';
+        }
+        
+        await bot.sendMessage(msg.chat.id, errorMsg);
     }
 });
+
 //broadcast now supports rich media text including porn
 bot.onText(/\/broadcast/, async (msg) => {
     const chatId = msg.chat.id;
