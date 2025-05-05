@@ -835,20 +835,66 @@ bot.onText(/\/help/, (msg) => {
 });
 
 
-bot.onText(/\/reply (.+)/, (msg, match) => {
+bot.onText(/\/reply/, async (msg) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, '❌ Unauthorized');
 
-    const replyText = match[1];
-    const [userId, ...messageParts] = replyText.split(' ');
-    const message = messageParts.join(' ');
+    if (msg.reply_to_message) {
+        const originalMessage = msg.reply_to_message;
+        const userId = originalMessage.forward_from?.id || originalMessage.from.id;
+        const message = msg.text.replace(/^\/reply\s*/, '').trim();
 
-    bot.sendMessage(userId, `📨 Admin Response:\n\n${message}`)
-        .then(() => bot.sendMessage(chatId, `✅ Message sent to ${userId}`))
-        .catch(err => {
-            console.error(`Failed to message ${userId}:`, err);
-            bot.sendMessage(chatId, `❌ Failed to message ${userId}`);
+        if (!message) return bot.sendMessage(chatId, 'Please provide a message to send.');
+
+        try {
+            await bot.sendMessage(userId, `📢 *Message from Admin*\n\n${message}`, {
+                parse_mode: 'MarkdownV2',
+                disable_web_page_preview: true
+            });
+            await bot.sendMessage(chatId, `✅ Sent to user ${userId}`);
+        } catch (err) {
+            bot.sendMessage(chatId, `❌ Failed to send: ${err.message}`);
+        }
+    } else {
+        bot.sendMessage(chatId, 'Reply to a message or use /send <user_id> <message>');
+    }
+});
+
+bot.onText(/\/send (\d+) (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return;
+
+    const userId = match[1];
+    const message = match[2];
+
+    try {
+        await bot.sendMessage(userId, `📢 *Message from Admin*\n\n${message}`, {
+            parse_mode: 'MarkdownV2',
+            disable_web_page_preview: true
         });
+        await bot.sendMessage(chatId, `✅ Sent to user ${userId}`);
+    } catch (err) {
+        bot.sendMessage(chatId, `❌ Failed to send: ${err.message}`);
+    }
+});
+
+bot.onText(/\/forward (\d+)/, async (msg) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return;
+
+    const userId = msg.text.split(' ')[1];
+    if (!userId) return;
+
+    if (msg.reply_to_message) {
+        try {
+            await bot.forwardMessage(userId, chatId, msg.reply_to_message.message_id);
+            await bot.sendMessage(chatId, `✅ Forwarded to ${userId}`);
+        } catch (err) {
+            bot.sendMessage(chatId, `❌ Failed to forward: ${err.message}`);
+        }
+    } else {
+        bot.sendMessage(chatId, 'Reply to a message to forward it');
+    }
 });
 
 //broadcast now supports rich media text including porn
