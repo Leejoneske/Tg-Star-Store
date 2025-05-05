@@ -2510,54 +2510,48 @@ async function completeWalletUpdate(userId, session, memo) {
 
 // ===== MESSAGE SERVICE =====
 
-const activeReplies = new Map();
+const activeSessions = new Map();
 
-bot.onText(/^\/msg (\d+) (.+)$/, async (msg, match) => {
+bot.onText(/^\/msg (\d+)$/, async (msg, match) => {
     if (!adminIds.includes(msg.chat.id.toString())) return;
 
     const userId = match[1];
-    const message = match[2];
     const adminId = msg.chat.id;
 
-    try {
-        const session = await MessageSession.findOneAndUpdate(
-            { adminId, userId, status: 'active' },
-            {
-                $set: { lastActivity: new Date() },
-                $push: { 
-                    messages: {
-                        sender: 'admin',
-                        text: message,
-                        timestamp: new Date()
-                    }
-                },
-                $setOnInsert: {
-                    adminUsername: msg.from.username || 'admin',
-                    createdAt: new Date()
-                }
-            },
-            { upsert: true, new: true }
-        );
+    const existingSession = await MessageSession.findOne({
+        userId,
+        status: 'active'
+    });
 
-        await bot.sendMessage(userId, `💬 Admin message:\n\n${message}`);
-        
-        const sentMsg = await bot.sendMessage(
+    if (existingSession) {
+        return bot.sendMessage(
             adminId,
-            `📩 Sent to ${userId}:\n\n${message}`,
-            {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: "Reply", callback_data: `reply:${userId}:${session._id}` }],
-                        [{ text: "Close", callback_data: `close:${session._id}` }]
-                    ]
-                }
-            }
+            `❌ User ${userId} already has an active session with admin ${existingSession.adminId}. Close it first.`
         );
+    }
 
-        activeReplies.set(sentMsg.message_id, false);
+    try {
+        const session = new MessageSession({
+            adminId,
+            userId,
+            adminUsername: msg.from.username || 'admin',
+            status: 'active',
+            createdAt: new Date(),
+            lastActivity: new Date(),
+            messages: []
+        });
+
+        await session.save();
+        activeSessions.set(userId, session._id);
+
+        bot.sendMessage(
+            adminId,
+            `✅ New session started with user ${userId}\n\nSend your first message now.`
+        );
 
     } catch (error) {
-        console.error("Message send error:", error);
+        console.error("Session creation error:", error);
+        bot.sendMessage(adminId, "❌ Failed to start session");
     }
 });
 
@@ -2572,96 +2566,84 @@ bot.on(['message', 'photo', 'video', 'document', 'audio'], async (msg) => {
                 status: 'active'
             });
 
-            if (session) {
-                let content;
-                if (msg.photo) content = { type: 'photo', file_id: msg.photo[0].file_id };
-                else if (msg.video) content = { type: 'video', file_id: msg.video.file_id };
-                else if (msg.document) content = { type: 'document', file_id: msg.document.file_id };
-                else if (msg.audio) content = { type: 'audio', file_id: msg.audio.file_id };
-                else if (msg.text) content = { type: 'text', text: msg.text };
+            if (!session) return;
 
-                if (content) {
-                    session.messages.push({
-                        sender: 'user',
-                        ...content,
-                        timestamp: new Date()
-                    });
-                    session.lastActivity = new Date();
-                    await session.save();
+            let content;
+            if (msg.photo) content = { type: 'photo', file_id: msg.photo[0].file_id };
+            else if (msg.video) content = { type: 'video', file_id: msg.video.file_id };
+            else if (msg.document) content = { type: 'document', file_id: msg.document.file_id };
+            else if (msg.audio) content = { type: 'audio', file_id: msg.audio.file_id };
+            else if (msg.text) content = { type: 'text', text: msg.text };
 
-                    const messageText = content.type === 'text' 
-                        ? `📨 From ${msg.from.username || 'user'} (${senderId}):\n\n${content.text}`
-                        : `📨 From ${msg.from.username || 'user'} (${senderId}):\n\n[${content.type.toUpperCase()}]`;
+            if (!content) return;
 
-                    const sentMsg = await bot.sendMessage(
-                        session.adminId,
-                        messageText,
-                        {
-                            reply_markup: {
-                                inline_keyboard: [
-                                    [{ text: "Reply", callback_data: `reply:${senderId}:${session._id}` }],
-                                    [{ text: "Close", callback_data: `close:${session._id}` }]
-                                ]
-                            }
-                        }
-                    );
+            session.messages.push({
+                sender: 'user',
+                ...content,
+                timestamp: new Date()
+            });
+            session.lastActivity = new Date();
+            await session.save();
 
-                    if (content.type !== 'text') {
-                        await bot.sendMedia(session.adminId, content.type, content.file_id);
+            const adminMessage = `📨 From user (${senderId}):\n\n${
+                content.type === 'text' ? content.text : `[${content.type.toUpperCase()}]`
+            }`;
+
+            const sentMsg = await bot.sendMessage(
+                session.adminId,
+                adminMessage,
+                {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: "Reply", callback_data: `admin_reply:${session._id}` }],
+                            [{ text: "Close", callback_data: `admin_close:${session._id}` }]
+                        ]
                     }
-
-                    activeReplies.set(sentMsg.message_id, false);
                 }
+            );
+
+            if (content.type !== 'text') {
+                await bot.sendMedia(session.adminId, content.type, content.file_id);
             }
+
             return;
         }
 
-        if (isAdmin && msg.reply_to_message) {
-            const originalMsg = msg.reply_to_message;
-            const match = originalMsg.text?.match(/\((\d+)\)/);
-            
-            if (match) {
-                const userId = match[1];
-                const session = await MessageSession.findOne({
-                    adminId: senderId,
-                    userId,
-                    status: 'active'
+        if (isAdmin) {
+            const session = await MessageSession.findOne({
+                adminId: senderId,
+                status: 'active'
+            });
+
+            if (!session) return;
+
+            let content;
+            if (msg.photo) content = { type: 'photo', file_id: msg.photo[0].file_id };
+            else if (msg.video) content = { type: 'video', file_id: msg.video.file_id };
+            else if (msg.document) content = { type: 'document', file_id: msg.document.file_id };
+            else if (msg.audio) content = { type: 'audio', file_id: msg.audio.file_id };
+            else if (msg.text) content = { type: 'text', text: msg.text };
+
+            if (!content) return;
+
+            session.messages.push({
+                sender: 'admin',
+                ...content,
+                timestamp: new Date()
+            });
+            session.lastActivity = new Date();
+            await session.save();
+
+            const userMessage = content.type === 'text'
+                ? `💬 Admin message:\n\n${content.text}`
+                : `💬 Admin sent a ${content.type}`;
+
+            if (content.type === 'text') {
+                await bot.sendMessage(session.userId, userMessage);
+            } else {
+                await bot.sendMedia(session.userId, content.type, content.file_id, {
+                    caption: userMessage
                 });
-
-                if (session) {
-                    let content;
-                    if (msg.photo) content = { type: 'photo', file_id: msg.photo[0].file_id };
-                    else if (msg.video) content = { type: 'video', file_id: msg.video.file_id };
-                    else if (msg.document) content = { type: 'document', file_id: msg.document.file_id };
-                    else if (msg.audio) content = { type: 'audio', file_id: msg.audio.file_id };
-                    else if (msg.text) content = { type: 'text', text: msg.text };
-
-                    if (content) {
-                        session.messages.push({
-                            sender: 'admin',
-                            ...content,
-                            timestamp: new Date()
-                        });
-                        session.lastActivity = new Date();
-                        await session.save();
-
-                        if (content.type === 'text') {
-                            await bot.sendMessage(userId, `💬 Admin reply:\n\n${content.text}`);
-                        } else {
-                            await bot.sendMedia(userId, content.type, content.file_id, {
-                                caption: "💬 Admin sent a file"
-                            });
-                        }
-
-                        await bot.editMessageReplyMarkup(
-                            { inline_keyboard: [
-                                [{ text: "✓ Replied", callback_data: 'no_action' }],
-                                [{ text: "Close", callback_data: `close:${session._id}` }]
-                            ]},
-                            { chat_id: originalMsg.chat.id, message_id: originalMsg.message_id }
-                        );
-                    }
-                }
             }
         }
     } catch (error) {
@@ -2670,52 +2652,48 @@ bot.on(['message', 'photo', 'video', 'document', 'audio'], async (msg) => {
 });
 
 bot.on('callback_query', async (query) => {
-    const [action, data, sessionId] = query.data.split(':');
+    const [action, sessionId] = query.data.split(':');
     const adminId = query.message.chat.id.toString();
 
     try {
-        if (action === 'reply' && !activeReplies.get(query.message.message_id)) {
-            activeReplies.set(query.message.message_id, true);
-            
+        const session = await MessageSession.findById(sessionId);
+        if (!session) return;
+
+        if (action === 'admin_reply') {
             await bot.editMessageReplyMarkup(
                 { inline_keyboard: [
                     [{ text: "✓ Replied", callback_data: 'no_action' }],
-                    [{ text: "Close", callback_data: `close:${sessionId}` }]
+                    [{ text: "Close", callback_data: `admin_close:${sessionId}` }]
                 ]},
                 { chat_id: query.message.chat.id, message_id: query.message.message_id }
             );
 
             await bot.sendMessage(
                 adminId,
-                `Replying to user ${data}:\n\nType your reply to this message`,
+                `Replying to user ${session.userId}:\n\nType your message`,
                 { reply_to_message_id: query.message.message_id }
             );
-            
+
             await bot.answerCallbackQuery(query.id);
         }
-        else if (action === 'close') {
-            const session = await MessageSession.findByIdAndUpdate(
-                data,
-                { status: 'closed' }
+        else if (action === 'admin_close') {
+            session.status = 'closed';
+            await session.save();
+            activeSessions.delete(session.userId);
+
+            await bot.editMessageReplyMarkup(
+                { inline_keyboard: [
+                    [{ text: "✓ Closed", callback_data: 'no_action' }]
+                ]},
+                { chat_id: query.message.chat.id, message_id: query.message.message_id }
             );
 
-            if (session) {
-                await bot.editMessageReplyMarkup(
-                    { inline_keyboard: [
-                        [{ text: "✓ Closed", callback_data: 'no_action' }]
-                    ]},
-                    { chat_id: query.message.chat.id, message_id: query.message.message_id }
-                );
+            await bot.sendMessage(
+                session.userId,
+                "🔒 Admin has closed this conversation"
+            );
 
-                await bot.sendMessage(
-                    session.userId,
-                    "💬 Admin has ended this conversation"
-                );
-            }
-            await bot.answerCallbackQuery(query.id, { text: 'Conversation closed' });
-        }
-        else if (action === 'no_action') {
-            await bot.answerCallbackQuery(query.id);
+            await bot.answerCallbackQuery(query.id, { text: 'Session closed' });
         }
     } catch (error) {
         console.error("Button handler error:", error);
@@ -2726,14 +2704,26 @@ bot.on('callback_query', async (query) => {
 setInterval(async () => {
     try {
         const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
-        const sessions = await MessageSession.updateMany(
-            { status: 'active', lastActivity: { $lt: twoDaysAgo } },
-            { status: 'closed' }
-        );
+        const sessions = await MessageSession.find({
+            status: 'active',
+            lastActivity: { $lt: twoDaysAgo }
+        });
+
+        for (const session of sessions) {
+            session.status = 'closed';
+            await session.save();
+            activeSessions.delete(session.userId);
+
+            await bot.sendMessage(
+                session.adminId,
+                `🕒 Auto-closed inactive session with ${session.userId}`
+            );
+        }
     } catch (error) {
         console.error("Auto-close error:", error);
     }
 }, 24 * 60 * 60 * 1000);
+
 
 
       //notification for reversing orders
