@@ -835,26 +835,24 @@ bot.onText(/\/help/, (msg) => {
 });
 
 bot.onText(/\/reply (\d+)(?:\s+(.+))?/, async (msg, match) => {
-    console.log('Reply command received:', msg.text); // Debug log
-    
-    if (!adminIds.includes(msg.from.id)) {
-        console.log('Non-admin attempt from:', msg.from.id); // Debug log
-        return bot.sendMessage(msg.chat.id, '❌ Unauthorized');
-    }
-
-    const userId = match[1];
-    const textMessage = match[2] || '';
-    console.log('Parsed userId:', userId, 'text:', textMessage); // Debug log
-
     try {
+        // Verify admin (using your existing adminIds)
+        if (!adminIds.includes(String(msg.from.id))) {
+            return await bot.sendMessage(msg.chat.id, "❌ Unauthorized");
+        }
+
+        const userId = match[1];
+        const textMessage = match[2] || '';
+
         // Case 1: Text-only reply
         if (textMessage && !msg.reply_to_message) {
-            console.log('Attempting text reply...'); // Debug log
+            if (textMessage.length > 4000) {
+                throw new Error("Message exceeds 4000 character limit");
+            }
             await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
         }
-        // Case 2: Media reply
+        // Case 2: Media reply (when replying to a message)
         else if (msg.reply_to_message) {
-            console.log('Attempting media reply...'); // Debug log
             const mediaMsg = msg.reply_to_message;
             
             if (mediaMsg.photo) {
@@ -874,23 +872,28 @@ bot.onText(/\/reply (\d+)(?:\s+(.+))?/, async (msg, match) => {
             else if (textMessage) {
                 await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
             }
+            else {
+                throw new Error("No message content found");
+            }
         }
         else {
-            throw new Error('No message content provided');
+            throw new Error("No message content provided");
         }
 
-        console.log('Message sent successfully to user:', userId); // Debug log
-        await bot.sendMessage(msg.chat.id, '✅ Message delivered');
+        await bot.sendMessage(msg.chat.id, "✅ Message delivered to user");
     } 
     catch (error) {
-        console.error('Sending failed:', error); // Debug log
         let errorMsg = `❌ Failed to send: ${error.message}`;
         
         if (error.response?.error_code === 403) {
-            errorMsg = '❌ User has blocked the bot';
+            errorMsg = "❌ User has blocked the bot or doesn't exist";
+        }
+        else if (error.message.includes("chat not found")) {
+            errorMsg = "❌ User hasn't started a chat with the bot";
         }
         
         await bot.sendMessage(msg.chat.id, errorMsg);
+        console.error("Reply command error:", error);
     }
 });
 
