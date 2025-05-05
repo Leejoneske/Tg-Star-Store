@@ -733,7 +733,6 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
     }
 });
 
-//added deep link detection
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = msg.from.username || 'user';
@@ -745,50 +744,31 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         if (!user) {
             user = await User.create({ id: chatId, username });
         }
-        
-        const welcomeMessage = `👋 Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`;
-        const keyboard = {
-            inline_keyboard: [
-                [{ text: 'Launch App', url: `https://t.me/TgStarStore_bot?startapp` }],
-                [{ text: 'Join Community', url: `https://t.me/StarStore_app` }]
-            ]
-        };
-        
-        await bot.sendMessage(chatId, welcomeMessage, { reply_markup: keyboard });
 
-        // ===== CLAIM CODE HANDLING =====
-        if (deepLinkParam && deepLinkParam.startsWith('CLAIM_')) {
-            const claim = await Claim.findOne({
-                claimCode: deepLinkParam,
-                expiresAt: { $gt: new Date() }
-            });
-            
-            if (claim && !claim.userId) {
-                await bot.sendMessage(
-                    chatId,
-                    "💰 Please submit your wallet address to claim your reward:\n\n" +
-                    "Type or paste your wallet address now:"
-                );
-                return; // Stop here to wait for wallet input
+        await bot.sendMessage(chatId, `👋`, { 
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: 'Launch App', url: `https://t.me/TgStarStore_bot?startapp` }],
+                    [{ text: 'Join Community', url: `https://t.me/StarStore_app` }]
+                ]
             }
-        }
-        
+        });
+
+        await bot.sendMessage(chatId, `Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`);
+
         if (deepLinkParam && deepLinkParam.startsWith('ref_')) {
             const referrerUserId = deepLinkParam.split('_')[1];
             
             if (!referrerUserId || !/^\d+$/.test(referrerUserId)) {
-                console.error('Invalid referrer ID format:', referrerUserId);
                 return;
             }
             
             if (referrerUserId === chatId.toString()) {
-                console.log('Self-referral attempt blocked:', chatId);
                 return;
             }
             
             const referrer = await User.findOne({ id: referrerUserId });
             if (!referrer) {
-                console.error('Referrer not found in database:', referrerUserId);
                 return;
             }
             
@@ -806,7 +786,6 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                 });
                 
                 await newReferral.save();
-                
                 bot.sendMessage(referrerUserId, `🎉 A new user has signed up using your referral link! Their user ID: ${chatId}.`);
             }
         }
@@ -815,7 +794,6 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         console.error('Error in start handler:', error);
     }
 });
-
 
 
 bot.onText(/\/help/, (msg) => {
