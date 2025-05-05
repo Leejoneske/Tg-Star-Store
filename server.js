@@ -834,57 +834,32 @@ bot.onText(/\/help/, (msg) => {
     });
 });
 
-bot.onText(/\/reply (.+)/, (msg, match) => {
-    const chatId = msg.chat.id;
-    const fromId = msg.from.id;
+
+bot.onText(/\/reply (\d+)/, (msg, match) => {
+    if (!adminIds.includes(msg.from.id)) return;
     
-    // Check if user is admin
-    if (!adminIds.includes(fromId)) {
-        return bot.sendMessage(chatId, "❌ You are not authorized to use this command.");
+    const userId = match[1];
+    const replyText = msg.text.replace(`/reply ${userId}`, '').trim();
+    
+    if (replyText) {
+        bot.sendMessage(userId, `📨 Admin Reply:\n\n${replyText}`, { parse_mode: 'HTML' })
+           .then(() => bot.sendMessage(msg.chat.id, '✅ Text reply sent'))
+           .catch(e => bot.sendMessage(msg.chat.id, `❌ Error: ${e.message}`));
     }
-
-    const args = match[1].split(' ');
-    const userId = args[0];
-    const message = args.slice(1).join(' ');
-
-    if (!userId || !message) {
-        return bot.sendMessage(chatId, "Usage: /reply <user_id> <message>");
+    else if (msg.reply_to_message?.photo) {
+        const photoId = msg.reply_to_message.photo.slice(-1)[0].file_id;
+        bot.sendPhoto(userId, photoId, { 
+            caption: msg.reply_to_message.caption || '📨 Admin Reply',
+            parse_mode: 'HTML'
+        });
     }
-
-    try {
-        bot.sendMessage(userId, `📨 Admin Reply:\n\n${message}`);
-        bot.sendMessage(chatId, `✅ Reply sent to user ${userId}`);
-    } catch (e) {
-        bot.sendMessage(chatId, `❌ Failed to send message: ${e.message}`);
-    }
-});
-
-// For media replies (images, documents, etc.)
-bot.on('message', (msg) => {
-    if (msg.reply_to_message && msg.reply_to_message.text && 
-        msg.reply_to_message.text.startsWith('🆘 Help Request from') && 
-        adminIds.includes(msg.from.id)) {
-        
-        const originalText = msg.reply_to_message.text;
-        const userIdMatch = originalText.match(/\(ID: (\d+)\)/);
-        
-        if (!userIdMatch) return;
-        
-        const userId = userIdMatch[1];
-        
-        if (msg.photo) {
-            const photoId = msg.photo[msg.photo.length - 1].file_id;
-            bot.sendPhoto(userId, photoId, { 
-                caption: msg.caption || '📨 Admin Reply' 
-            });
-        } else if (msg.document) {
-            bot.sendDocument(userId, msg.document.file_id, {
-                caption: msg.caption || '📨 Admin Reply'
-            });
-        }
+    else if (msg.reply_to_message?.document) {
+        bot.sendDocument(userId, msg.reply_to_message.document.file_id, {
+            caption: msg.reply_to_message.caption || '📨 Admin Reply',
+            parse_mode: 'HTML'
+        });
     }
 });
-
 //broadcast now supports rich media text including porn
 bot.onText(/\/broadcast/, async (msg) => {
     const chatId = msg.chat.id;
