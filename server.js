@@ -2150,8 +2150,14 @@ bot.onText(/\/remind (.+)/, async (msg, match) => {
         }
 
         await cleanupMessages(order.telegramId);
-        await sendWalletConfirmation(order.telegramId, order);
-        await bot.sendMessage(chatId, `✅ Sent wallet confirmation to user ${order.telegramId}`);
+        const sentSuccessfully = await sendWalletConfirmation(order.telegramId, order);
+        
+        if (sentSuccessfully) {
+            await bot.sendMessage(chatId, `✅ Sent wallet confirmation to user ${order.telegramId}`);
+            sendAdminReport(order.telegramId, 'message_sent');
+        } else {
+            await bot.sendMessage(chatId, `❌ Failed to send confirmation to user ${order.telegramId}`);
+        }
     } catch (error) {
         console.error('Error in /remind handler:', error);
     }
@@ -2175,8 +2181,25 @@ async function cleanupMessages(userId) {
 
 function formatWalletAddress(address) {
     if (!address) return address;
-    if (address.startsWith('0x')) {
-        return address.substring(2);
+    
+    if (/^0x[0-9a-fA-F]+$/.test(address)) {
+        try {
+            const hex = address.startsWith('0x') ? address.substring(2) : address;
+            if (hex.length % 2 !== 0) return address;
+            
+            let str = '';
+            for (let i = 0; i < hex.length; i += 2) {
+                const byte = parseInt(hex.substr(i, 2), 16);
+                if (byte >= 32 && byte <= 126) {
+                    str += String.fromCharCode(byte);
+                } else {
+                    return address;
+                }
+            }
+            return str || address;
+        } catch {
+            return address;
+        }
     }
     return address;
 }
@@ -2204,7 +2227,6 @@ async function sendWalletConfirmation(userId, order) {
         };
 
         const sentMessage = await bot.sendMessage(userId, message, {
-            parse_mode: 'Markdown',
             reply_markup: keyboard
         });
 
@@ -2222,8 +2244,11 @@ async function sendWalletConfirmation(userId, order) {
         if (!session.reminderInterval) {
             startReminders(userId, order);
         }
+
+        return true;
     } catch (error) {
-        console.error('Error in sendWalletConfirmation:', error);
+        console.error('Error sending wallet confirmation:', error);
+        return false;
     }
 }
 
@@ -2244,9 +2269,13 @@ function startReminders(userId, order) {
 
                 if (session.reminderCount <= 12) {
                     await cleanupMessages(userId);
-                    await sendWalletConfirmation(userId, order);
+                    const sentSuccessfully = await sendWalletConfirmation(userId, order);
+                    if (sentSuccessfully) {
+                        sendAdminReport(userId, 'reminder_sent');
+                    }
                 } else {
                     await endSession(userId, order.id);
+                    sendAdminReport(userId, 'session_ended');
                 }
             } catch (error) {
                 console.error('Error in reminder interval:', error);
@@ -2287,6 +2316,55 @@ async function endSession(userId, orderId) {
     }
 }
 
+async function sendAdminReport(userId, action) {
+    try {
+        const engagement = userEngagement[userId];
+        if (!engagement) return;
+
+        const order = await SellOrder.findOne({ id: engagement.orderId });
+        if (!order) return;
+
+        let status = '';
+        switch(action) {
+            case 'message_sent':
+                status = '📤 Message sent to user';
+                break;
+            case 'reminder_sent':
+                status = '🔔 Reminder sent to user';
+                break;
+            case 'message_opened':
+                status = '👀 User opened message';
+                break;
+            case 'session_ended':
+                status = '⏱ Session ended (no response)';
+                break;
+            default:
+                status = 'ℹ️ User activity';
+        }
+
+        const report = `📊 ${status}\n\n` +
+                      `Order: ${order.id}\n` +
+                      `User: @${order.username}\n` +
+                      `Wallet: ${order.walletAddress}\n` +
+                      `Last action: ${engagement.lastAction}\n` +
+                      `Reminders sent: ${engagement.remindersSent}\n` +
+                      `Opened count: ${engagement.openCount}\n` +
+                      `Change attempts: ${engagement.changeAttempts}\n` +
+                      `First sent: ${engagement.firstSent.toLocaleString()}\n` +
+                      `Last interaction: ${engagement.lastInteraction ? engagement.lastInteraction.toLocaleString() : 'None'}`;
+
+        for (const adminId of adminIds) {
+            try {
+                await bot.sendMessage(adminId, report);
+            } catch (error) {
+                console.error('Error sending report to admin:', error);
+            }
+        }
+    } catch (error) {
+        console.error('Error generating admin report:', error);
+    }
+}
+
 bot.on('callback_query', async (query) => {
     try {
         const data = query.data;
@@ -2304,6 +2382,8 @@ bot.on('callback_query', async (query) => {
             userEngagement[userId].lastAction = 'message_opened';
             userEngagement[userId].lastInteraction = new Date();
         }
+
+        sendAdminReport(userId, 'message_opened');
 
         if (data.startsWith('confirm_wallet_')) {
             const orderId = data.split('_')[2];
@@ -2333,17 +2413,7 @@ bot.on('callback_query', async (query) => {
                 userEngagement[userId].completionTime = new Date();
             }
 
-            const displayAddress = formatWalletAddress(order.walletAddress);
-            const adminMessage = `💰 Wallet Confirmed\n\nOrder: ${order.id}\nUser: @${order.username}\nWallet: ${displayAddress}\n\nEngagement Data:\n${JSON.stringify(userEngagement[userId], null, 2)}`;
-            
-            for (const adminId of adminIds) {
-                try {
-                    await bot.sendMessage(adminId, adminMessage);
-                } catch (error) {
-                    console.error('Error sending to admin:', error);
-                }
-            }
-
+            sendAdminReport(userId, 'wallet_confirmed');
             completedOrders.add(orderId);
             delete userSessions[userId];
             await bot.answerCallbackQuery(query.id);
@@ -2490,18 +2560,7 @@ async function completeWalletUpdate(userId, session, memo) {
         await cleanupMessages(userId);
         await bot.sendMessage(userId, userMessage);
 
-        let adminMessage = `🔄 Wallet Updated\n\nOrder: ${order.id}\nUser: @${order.username}\n`;
-        adminMessage += `New Wallet: ${session.newWallet}\n`;
-        if (memo) adminMessage += `MEMO: ${memo}\n`;
-        adminMessage += `\nEngagement Data:\n${JSON.stringify(userEngagement[userId], null, 2)}`;
-        
-        for (const adminId of adminIds) {
-            try {
-                await bot.sendMessage(adminId, adminMessage);
-            } catch (error) {
-                console.error('Error sending to admin:', error);
-            }
-        }
+        sendAdminReport(userId, 'wallet_updated');
         
         completedOrders.add(order.id);
         if (session.reminderInterval) {
@@ -2512,7 +2571,6 @@ async function completeWalletUpdate(userId, session, memo) {
         console.error('Error in completeWalletUpdate:', error);
     }
 }
-
 
       //notification for reversing orders
 bot.onText(/\/sell_decline (.+)/, async (msg, match) => {
