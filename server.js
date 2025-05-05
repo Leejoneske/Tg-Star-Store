@@ -834,63 +834,56 @@ bot.onText(/\/help/, (msg) => {
     });
 });
 
-bot.onText(/\/reply (\d+)/, async (msg, match) => {
+bot.onText(/\/reply (.+)/, (msg, match) => {
     const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) {
-        return bot.sendMessage(chatId, '❌ Unauthorized');
+    const fromId = msg.from.id;
+    
+    // Check if user is admin
+    if (!adminIds.includes(fromId)) {
+        return bot.sendMessage(chatId, "❌ You are not authorized to use this command.");
     }
 
-    const userId = match[1];
-    
-    // Ask admin for the message they want to send
-    const prompt = await bot.sendMessage(chatId, '📝 Please type your reply message (supports long text up to 10,000 characters):', {
-        reply_markup: {
-            force_reply: true,
-            selective: true
-        }
-    });
+    const args = match[1].split(' ');
+    const userId = args[0];
+    const message = args.slice(1).join(' ');
 
-    // Listen for the admin's reply
-    bot.once('reply_to_message', async (adminMsg) => {
-        if (adminMsg.reply_to_message.message_id !== prompt.message_id) return;
-        
-        try {
-            // Prepare the message with title
-            const fullMessage = `📬 *Message from Support*\n\n${adminMsg.text || adminMsg.caption || ''}`;
-            
-            // Check if it's media
-            if (adminMsg.photo || adminMsg.video || adminMsg.document) {
-                const media = adminMsg.photo ? adminMsg.photo[0] : 
-                            adminMsg.video ? adminMsg.video :
-                            adminMsg.document;
-                
-                await bot.sendPhoto(userId, media.file_id, {
-                    caption: fullMessage,
-                    parse_mode: 'Markdown'
-                });
-            } else {
-                // Send as text (supports up to 4096 chars per message)
-                const chunks = chunkMessage(fullMessage, 4096);
-                for (const chunk of chunks) {
-                    await bot.sendMessage(userId, chunk, {
-                        parse_mode: 'Markdown',
-                        disable_web_page_preview: true
-                    });
-                }
-            }
-            
-            await bot.sendMessage(chatId, `✅ Message successfully sent to user ${userId}`);
-        } catch (err) {
-            console.error('Send error:', err);
-            await bot.sendMessage(chatId, `❌ Failed to send: ${err.message}`);
-        }
-    });
+    if (!userId || !message) {
+        return bot.sendMessage(chatId, "Usage: /reply <user_id> <message>");
+    }
+
+    try {
+        bot.sendMessage(userId, `📨 Admin Reply:\n\n${message}`);
+        bot.sendMessage(chatId, `✅ Reply sent to user ${userId}`);
+    } catch (e) {
+        bot.sendMessage(chatId, `❌ Failed to send message: ${e.message}`);
+    }
 });
 
-
-    
-
-
+// For media replies (images, documents, etc.)
+bot.on('message', (msg) => {
+    if (msg.reply_to_message && msg.reply_to_message.text && 
+        msg.reply_to_message.text.startsWith('🆘 Help Request from') && 
+        adminIds.includes(msg.from.id)) {
+        
+        const originalText = msg.reply_to_message.text;
+        const userIdMatch = originalText.match(/\(ID: (\d+)\)/);
+        
+        if (!userIdMatch) return;
+        
+        const userId = userIdMatch[1];
+        
+        if (msg.photo) {
+            const photoId = msg.photo[msg.photo.length - 1].file_id;
+            bot.sendPhoto(userId, photoId, { 
+                caption: msg.caption || '📨 Admin Reply' 
+            });
+        } else if (msg.document) {
+            bot.sendDocument(userId, msg.document.file_id, {
+                caption: msg.caption || '📨 Admin Reply'
+            });
+        }
+    }
+});
 
 //broadcast now supports rich media text including porn
 bot.onText(/\/broadcast/, async (msg) => {
