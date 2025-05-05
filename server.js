@@ -737,61 +737,47 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = msg.from.username || 'user';
     const deepLinkParam = match[1]?.trim();
-    
+
     try {
         let user = await User.findOne({ id: chatId });
-        
-        if (!user) {
-            user = await User.create({ id: chatId, username });
-        }
+        if (!user) user = await User.create({ id: chatId, username });
 
-        await bot.sendMessage(chatId, `👋`, { 
+        await bot.sendMessage(chatId, '👋');
+        
+        await bot.sendMessage(chatId, `Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`, {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: 'Launch App', url: `https://t.me/TgStarStore_bot?startapp` }],
-                    [{ text: 'Join Community', url: `https://t.me/StarStore_app` }]
+                    [{ text: '🚀 Launch App', url: `https://t.me/TgStarStore_bot?startapp` }],
+                    [{ text: '👥 Join Community', url: `https://t.me/StarStore_Chat` }]
                 ]
             }
         });
 
-        await bot.sendMessage(chatId, `Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`);
-
-        if (deepLinkParam && deepLinkParam.startsWith('ref_')) {
+        if (deepLinkParam?.startsWith('ref_')) {
             const referrerUserId = deepLinkParam.split('_')[1];
-            
-            if (!referrerUserId || !/^\d+$/.test(referrerUserId)) {
-                return;
-            }
-            
-            if (referrerUserId === chatId.toString()) {
-                return;
-            }
+            if (!referrerUserId || !/^\d+$/.test(referrerUserId) || referrerUserId === chatId.toString()) return;
             
             const referrer = await User.findOne({ id: referrerUserId });
-            if (!referrer) {
-                return;
-            }
-            
+            if (!referrer) return;
+
             const existingReferral = await Referral.findOne({
                 referrerUserId: referrerUserId,
                 referredUserId: chatId.toString()
             });
-            
+
             if (!existingReferral) {
-                const newReferral = new Referral({
+                await new Referral({
                     referrerUserId: referrerUserId,
                     referredUserId: chatId.toString(),
                     status: 'pending',
                     dateCreated: new Date()
-                });
+                }).save();
                 
-                await newReferral.save();
-                bot.sendMessage(referrerUserId, `🎉 A new user has signed up using your referral link! Their user ID: ${chatId}.`);
+                await bot.sendMessage(referrerUserId, `🎉 New referral! User ID: ${chatId}`);
             }
         }
-        
     } catch (error) {
-        console.error('Error in start handler:', error);
+        console.error('Start command error:', error);
     }
 });
 
