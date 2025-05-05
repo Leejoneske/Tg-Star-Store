@@ -2100,7 +2100,6 @@ app.post('/api/survey', async (req, res) => {
 
         
 //reminder for sell order
-
 const userSessions = {};
 const completedOrders = new Set();
 const userEngagement = {};
@@ -2179,26 +2178,27 @@ async function cleanupMessages(userId) {
     }
 }
 
-function formatWalletAddress(address) {
+function ensureNonHexAddress(address) {
     if (!address) return address;
     
-    if (/^0x[0-9a-fA-F]+$/.test(address)) {
-        try {
-            const hex = address.startsWith('0x') ? address.substring(2) : address;
-            if (hex.length % 2 !== 0) return address;
-            
-            let str = '';
-            for (let i = 0; i < hex.length; i += 2) {
-                const byte = parseInt(hex.substr(i, 2), 16);
-                if (byte >= 32 && byte <= 126) {
-                    str += String.fromCharCode(byte);
-                } else {
-                    return address;
+    if (address.startsWith('0x')) {
+        const hexPart = address.substring(2);
+        if (/^[0-9a-fA-F]+$/.test(hexPart)) {
+            try {
+                let result = '';
+                for (let i = 0; i < hexPart.length; i += 2) {
+                    const byte = hexPart.substr(i, 2);
+                    const charCode = parseInt(byte, 16);
+                    if (charCode >= 32 && charCode <= 126) {
+                        result += String.fromCharCode(charCode);
+                    } else {
+                        return hexPart;
+                    }
                 }
+                return result || hexPart;
+            } catch {
+                return hexPart;
             }
-            return str || address;
-        } catch {
-            return address;
         }
     }
     return address;
@@ -2208,7 +2208,7 @@ async function sendWalletConfirmation(userId, order) {
     try {
         const session = userSessions[userId] || { language: 'en', messageIds: [] };
         const isRussian = session.language === 'ru';
-        const displayAddress = formatWalletAddress(order.walletAddress);
+        const displayAddress = ensureNonHexAddress(order.walletAddress);
         
         const message = isRussian ? 
             `👋 Привет, ${order.username}!\n\nМы готовим к завершению ваш заказ #${order.id}.\n\nКошелек для выплаты: ${displayAddress}\n\nЭто верный адрес?` :
@@ -2571,6 +2571,7 @@ async function completeWalletUpdate(userId, session, memo) {
         console.error('Error in completeWalletUpdate:', error);
     }
 }
+
 
       //notification for reversing orders
 bot.onText(/\/sell_decline (.+)/, async (msg, match) => {
