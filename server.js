@@ -833,7 +833,7 @@ bot.onText(/\/help/, (msg) => {
         bot.sendMessage(chatId, "Your message has been sent to the admins. We will get back to you shortly.");
     });
 });
-// Enhanced /reply command with long text support and proper title
+
 bot.onText(/\/reply (\d+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) {
@@ -887,30 +887,8 @@ bot.onText(/\/reply (\d+)/, async (msg, match) => {
     });
 });
 
-// Helper function to split long messages
-function chunkMessage(text, chunkSize) {
-    const chunks = [];
-    for (let i = 0; i < text.length; i += chunkSize) {
-        chunks.push(text.substring(i, i + chunkSize));
-    }
-    return chunks;
-}
 
-// Media forwarding (unchanged)
-bot.onText(/\/forward (\d+)/, async (msg) => {
-    const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) return;
-
-    const userId = msg.text.split(' ')[1];
-    if (!msg.reply_to_message) return;
-
-    try {
-        await bot.forwardMessage(userId, chatId, msg.reply_to_message.message_id);
-        await bot.sendMessage(chatId, `✅ Media forwarded to ${userId}`);
-    } catch (err) {
-        await bot.sendMessage(chatId, `❌ Failed to forward: ${err.message}`);
-    }
-});
+    
 
 
 
