@@ -833,26 +833,70 @@ bot.onText(/\/help/, (msg) => {
         bot.sendMessage(chatId, "Your message has been sent to the admins. We will get back to you shortly.");
     });
 });
-
-bot.onText(/\/reply (\d+) (.+)/, async (msg, match) => {
+// Enhanced /reply command with long text support and proper title
+bot.onText(/\/reply (\d+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) {
         return bot.sendMessage(chatId, '❌ Unauthorized');
     }
 
     const userId = match[1];
-    const message = match[2];
+    
+    // Ask admin for the message they want to send
+    const prompt = await bot.sendMessage(chatId, '📝 Please type your reply message (supports long text up to 10,000 characters):', {
+        reply_markup: {
+            force_reply: true,
+            selective: true
+        }
+    });
 
-    try {
-        // Send the raw message exactly as admin typed it
-        await bot.sendMessage(userId, message);
-        await bot.sendMessage(chatId, `✅ Message sent to ${userId}`);
-    } catch (err) {
-        await bot.sendMessage(chatId, `❌ Failed to send: ${err.message}`);
-    }
+    // Listen for the admin's reply
+    bot.once('reply_to_message', async (adminMsg) => {
+        if (adminMsg.reply_to_message.message_id !== prompt.message_id) return;
+        
+        try {
+            // Prepare the message with title
+            const fullMessage = `📬 *Message from Support*\n\n${adminMsg.text || adminMsg.caption || ''}`;
+            
+            // Check if it's media
+            if (adminMsg.photo || adminMsg.video || adminMsg.document) {
+                const media = adminMsg.photo ? adminMsg.photo[0] : 
+                            adminMsg.video ? adminMsg.video :
+                            adminMsg.document;
+                
+                await bot.sendPhoto(userId, media.file_id, {
+                    caption: fullMessage,
+                    parse_mode: 'Markdown'
+                });
+            } else {
+                // Send as text (supports up to 4096 chars per message)
+                const chunks = chunkMessage(fullMessage, 4096);
+                for (const chunk of chunks) {
+                    await bot.sendMessage(userId, chunk, {
+                        parse_mode: 'Markdown',
+                        disable_web_page_preview: true
+                    });
+                }
+            }
+            
+            await bot.sendMessage(chatId, `✅ Message successfully sent to user ${userId}`);
+        } catch (err) {
+            console.error('Send error:', err);
+            await bot.sendMessage(chatId, `❌ Failed to send: ${err.message}`);
+        }
+    });
 });
 
-// For media forwarding - admin replies to message with /forward
+// Helper function to split long messages
+function chunkMessage(text, chunkSize) {
+    const chunks = [];
+    for (let i = 0; i < text.length; i += chunkSize) {
+        chunks.push(text.substring(i, i + chunkSize));
+    }
+    return chunks;
+}
+
+// Media forwarding (unchanged)
 bot.onText(/\/forward (\d+)/, async (msg) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) return;
@@ -867,6 +911,7 @@ bot.onText(/\/forward (\d+)/, async (msg) => {
         await bot.sendMessage(chatId, `❌ Failed to forward: ${err.message}`);
     }
 });
+
 
 
 //broadcast now supports rich media text including porn
