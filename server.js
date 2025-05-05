@@ -2508,240 +2508,275 @@ async function completeWalletUpdate(userId, session, memo) {
     }
 }
 
-// ===== MESSAGE SERVICE COMMANDS =====
+// ===== MESSAGE SERVICE =====
 
-// Admin initiates conversation
-bot.onText(/^\/message (\d+) (.+)$/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    
-    if (!adminIds.includes(chatId.toString())) {
-        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+// 1. Admin Commands
+bot.onText(/^\/msg (\d+) (.+)$/, async (msg, match) => {
+    if (!adminIds.includes(msg.chat.id.toString())) {
+        return bot.sendMessage(msg.chat.id, "❌ Admin only command");
     }
 
     const userId = match[1];
-    const messageText = match[2];
-    const adminUsername = msg.from.username || 'admin';
+    const message = match[2];
+    const adminId = msg.chat.id;
 
     try {
-        let session = await MessageSession.findOne({
-            adminId: chatId.toString(),
-            userId,
-            status: 'active'
-        });
-
-        if (!session) {
-            session = new MessageSession({
-                adminId: chatId.toString(),
-                userId,
-                adminUsername,
-                username: 'unknown',
-                status: 'active',
-                messages: [{
-                    sender: 'admin',
-                    text: messageText
-                }]
-            });
-        } else {
-            session.messages.push({
-                sender: 'admin',
-                text: messageText
-            });
-        }
-
-        session.lastActivity = new Date();
-        await session.save();
-
-        const keyboard = {
-            inline_keyboard: [[
-                { text: 'Reply', callback_data: `reply_${chatId}` },
-                { text: 'Close', callback_data: `close_session_${session._id}` }
-            ]]
-        };
-
-        await bot.sendMessage(
-            userId,
-            `📨 Message from admin ${adminUsername}:\n\n${messageText}\n\nYou can reply directly to this message.`,
-            { reply_markup: keyboard }
+        // Create or find existing session
+        let session = await MessageSession.findOneAndUpdate(
+            { adminId, userId, status: 'active' },
+            {
+                $set: { lastActivity: new Date() },
+                $push: { 
+                    messages: {
+                        sender: 'admin',
+                        text: message,
+                        timestamp: new Date()
+                    }
+                },
+                $setOnInsert: {
+                    adminUsername: msg.from.username || 'admin',
+                    createdAt: new Date()
+                }
+            },
+            { upsert: true, new: true }
         );
 
+        // Send to user (simple message, no buttons)
+        await bot.sendMessage(userId, `💬 Admin message:\n\n${message}`);
+
+        // Confirm to admin with control buttons
         await bot.sendMessage(
-            chatId,
-            `✅ Message sent to user ${userId}. Session ID: ${session._id}`
+            adminId,
+            `📩 Sent to ${userId}:\n\n${message}`,
+            {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "Reply", callback_data: `reply:${userId}` }],
+                        [{ text: "Close", callback_data: `close:${session._id}` }]
+                    ]
+                }
+            }
         );
 
     } catch (error) {
-        console.error('Error sending message:', error);
-        bot.sendMessage(chatId, '❌ Failed to send message.');
+        console.error("Message send error:", error);
+        bot.sendMessage(adminId, "❌ Failed to send message");
     }
 });
 
-// Admin replies to active conversation (no command needed)
-bot.on('message', async (msg) => {
-    if (!msg.text || msg.text.startsWith('/')) return;
-    
-    const chatId = msg.chat.id.toString();
-    const replyToMsg = msg.reply_to_message;
-    
-    // Check if this is an admin reply to a user message
-    if (replyToMsg && replyToMsg.text && replyToMsg.text.includes('Reply from') && 
-        adminIds.includes(chatId)) {
-        
-        const userIdMatch = replyToMsg.text.match(/\((\d+)\)/);
-        if (!userIdMatch) return;
-        
-        const userId = userIdMatch[1];
-        const messageText = msg.text;
-        const adminUsername = msg.from.username || 'admin';
+// 2. Media and Message Handling
+bot.on(['message', 'photo', 'video', 'document', 'audio'], async (msg) => {
+    const senderId = msg.chat.id.toString();
+    const isAdmin = adminIds.includes(senderId);
 
-        try {
+    try {
+        // User messages to admin
+        if (!isAdmin) {
             const session = await MessageSession.findOne({
-                adminId: chatId,
-                userId,
+                userId: senderId,
                 status: 'active'
             });
 
             if (session) {
-                session.messages.push({
-                    sender: 'admin',
-                    text: messageText
-                });
-                session.lastActivity = new Date();
-                await session.save();
+                // Handle all media types
+                let content;
+                if (msg.photo) {
+                    content = { type: 'photo', file_id: msg.photo[0].file_id };
+                } else if (msg.video) {
+                    content = { type: 'video', file_id: msg.video.file_id };
+                } else if (msg.document) {
+                    content = { type: 'document', file_id: msg.document.file_id };
+                } else if (msg.audio) {
+                    content = { type: 'audio', file_id: msg.audio.file_id };
+                } else if (msg.text) {
+                    content = { type: 'text', text: msg.text };
+                }
 
-                const keyboard = {
-                    inline_keyboard: [[
-                        { text: 'Reply', callback_data: `reply_${chatId}` },
-                        { text: 'Close', callback_data: `close_session_${session._id}` }
-                    ]]
-                };
+                if (content) {
+                    session.messages.push({
+                        sender: 'user',
+                        ...content,
+                        timestamp: new Date()
+                    });
+                    session.lastActivity = new Date();
+                    await session.save();
 
-                await bot.sendMessage(
+                    // Forward to admin with controls
+                    await forwardToAdmin(session.adminId, senderId, msg.from.username || 'user', content);
+                }
+            }
+            return;
+        }
+
+        // Admin replies (via reply or button)
+        if (isAdmin && (msg.reply_to_message || msg.text?.startsWith('/reply'))) {
+            let userId;
+            
+            // Handle reply-to-message
+            if (msg.reply_to_message) {
+                const match = msg.reply_to_message.text?.match(/User: @?\w+ \((\d+)\)/);
+                if (match) userId = match[1];
+            }
+            // Handle /reply command
+            else if (msg.text.startsWith('/reply')) {
+                userId = msg.text.split(' ')[1];
+            }
+
+            if (userId) {
+                const session = await MessageSession.findOne({
+                    adminId: senderId,
                     userId,
-                    `📨 Reply from admin ${adminUsername}:\n\n${messageText}`,
-                    { reply_markup: keyboard }
-                );
-
-                await bot.sendMessage(
-                    chatId,
-                    `✅ Reply sent to user ${userId}`
-                );
-            }
-        } catch (error) {
-            console.error('Error replying to user:', error);
-        }
-    }
-});
-// ===== USER MESSAGE HANDLING =====
-
-// Handle user replies to admin messages
-bot.on('message', async (msg) => {
-    if (msg.text && !msg.text.startsWith('/')) {
-        const userId = msg.chat.id.toString();
-        const username = msg.from.username || 'user';
-        const messageText = msg.text;
-
-        try {
-            const session = await MessageSession.findOne({
-                userId,
-                status: 'active'
-            });
-
-            if (session) {
-                session.messages.push({
-                    sender: 'user',
-                    text: messageText
+                    status: 'active'
                 });
-                session.username = username;
-                session.lastActivity = new Date();
-                await session.save();
 
-                const keyboard = {
-                    inline_keyboard: [[
-                        { text: 'Reply', callback_data: `reply_${userId}` },
-                        { text: 'Close', callback_data: `close_session_${session._id}` }
-                    ]]
-                };
+                if (session) {
+                    // Handle admin's media reply
+                    let content;
+                    if (msg.photo) {
+                        content = { type: 'photo', file_id: msg.photo[0].file_id };
+                    } else if (msg.video) {
+                        content = { type: 'video', file_id: msg.video.file_id };
+                    } else if (msg.document) {
+                        content = { type: 'document', file_id: msg.document.file_id };
+                    } else if (msg.audio) {
+                        content = { type: 'audio', file_id: msg.audio.file_id };
+                    } else if (msg.text && !msg.text.startsWith('/reply')) {
+                        content = { type: 'text', text: msg.text };
+                    }
 
-                await bot.sendMessage(
-                    session.adminId,
-                    `📨 Reply from ${username} (${userId}):\n\n${messageText}`,
-                    { reply_markup: keyboard }
-                );
+                    if (content) {
+                        session.messages.push({
+                            sender: 'admin',
+                            ...content,
+                            timestamp: new Date()
+                        });
+                        session.lastActivity = new Date();
+                        await session.save();
+
+                        // Forward to user (simple format)
+                        await forwardToUser(userId, content);
+                    }
+                }
             }
-        } catch (error) {
-            console.error('Error handling user reply:', error);
         }
+    } catch (error) {
+        console.error("Message handling error:", error);
     }
 });
-// ===== BUTTON CALLBACKS =====
 
+// 3. Button Handlers
 bot.on('callback_query', async (query) => {
-    const data = query.data;
-    
-    // Reply button handler
-    if (data.startsWith('reply_')) {
-        const targetUserId = data.split('_')[1];
-        await bot.sendMessage(
-            query.message.chat.id,
-            `Type your reply to user ${targetUserId}:`,
-            { reply_to_message_id: query.message.message_id }
-        );
-        await bot.answerCallbackQuery(query.id);
-        
-    } 
-    // Close session button handler
-    else if (data.startsWith('close_session_')) {
-        const sessionId = data.split('_')[2];
-        
-        try {
-            const session = await MessageSession.findById(sessionId);
+    const [action, data] = query.data.split(':');
+    const adminId = query.message.chat.id.toString();
+
+    try {
+        if (action === 'reply') {
+            await bot.sendMessage(
+                adminId,
+                `Replying to user ${data}:\n\nType your message or reply to this message`,
+                { reply_to_message_id: query.message.message_id }
+            );
+            await bot.answerCallbackQuery(query.id);
+        }
+        else if (action === 'close') {
+            const session = await MessageSession.findByIdAndUpdate(
+                data,
+                { status: 'closed' }
+            );
+
             if (session) {
-                session.status = 'closed';
-                await session.save();
-                
                 await bot.sendMessage(
-                    session.adminId,
-                    `🔒 Session with ${session.username || 'user'} (${session.userId}) has been closed.`
+                    adminId,
+                    `🔒 Closed conversation with ${session.username || 'user'} (${session.userId})`
                 );
-                
                 await bot.sendMessage(
                     session.userId,
-                    `🔒 Your conversation with admin ${session.adminUsername} has been closed.`
+                    "💬 Admin has ended this conversation"
                 );
             }
-            await bot.answerCallbackQuery(query.id, { text: 'Session closed' });
-        } catch (error) {
-            console.error('Error closing session:', error);
-            await bot.answerCallbackQuery(query.id, { text: 'Failed to close session' });
+            await bot.answerCallbackQuery(query.id, { text: 'Conversation closed' });
         }
+    } catch (error) {
+        console.error("Button handler error:", error);
+        await bot.answerCallbackQuery(query.id, { text: 'Action failed' });
     }
 });
-// ===== SESSION CLEANUP JOB =====
 
+// ===== HELPER FUNCTIONS =====
+async function forwardToAdmin(adminId, userId, username, content) {
+    let message = `📨 From ${username} (${userId}):\n\n`;
+    
+    if (content.type === 'text') {
+        message += content.text;
+    } else {
+        message += `[${content.type.toUpperCase()}]`;
+    }
+
+    await bot.sendMessage(
+        adminId,
+        message,
+        {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: "Reply", callback_data: `reply:${userId}` }],
+                    [{ text: "Close", callback_data: `close:${userId}` }]
+                ]
+            }
+        }
+    );
+
+    // Forward the actual media if not text
+    if (content.type !== 'text') {
+        await bot.sendMedia(adminId, content.type, content.file_id);
+    }
+}
+
+async function forwardToUser(userId, content) {
+    if (content.type === 'text') {
+        await bot.sendMessage(userId, `💬 Admin reply:\n\n${content.text}`);
+    } else {
+        await bot.sendMedia(userId, content.type, content.file_id, {
+            caption: "💬 Admin sent a file"
+        });
+    }
+}
+
+// Add this to your bot initialization
+bot.sendMedia = async (chatId, mediaType, fileId, options = {}) => {
+    const methodMap = {
+        photo: 'sendPhoto',
+        video: 'sendVideo',
+        document: 'sendDocument',
+        audio: 'sendAudio'
+    };
+    
+    if (methodMap[mediaType]) {
+        return bot[methodMap[mediaType]](chatId, fileId, options);
+    }
+};
+
+// ===== AUTO-CLOSE INACTIVE =====
 setInterval(async () => {
     try {
         const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
-        const inactiveSessions = await MessageSession.find({
+        const sessions = await MessageSession.find({
             status: 'active',
             lastActivity: { $lt: twoDaysAgo }
         });
-        
-        for (const session of inactiveSessions) {
+
+        for (const session of sessions) {
             session.status = 'closed';
             await session.save();
             
             await bot.sendMessage(
                 session.adminId,
-                `🔒 Session with ${session.username || 'user'} (${session.userId}) was automatically closed due to inactivity.`
+                `🕒 Auto-closed conversation with ${session.username || 'user'} (inactive)`
             );
         }
-        
-        console.log(`Closed ${inactiveSessions.length} inactive sessions`);
     } catch (error) {
-        console.error('Error in session cleanup:', error);
+        console.error("Auto-close error:", error);
     }
-}, 24 * 60 * 60 * 1000); // Run daily
-
+}, 24 * 60 * 60 * 1000); // Daily
 
 
       //notification for reversing orders
