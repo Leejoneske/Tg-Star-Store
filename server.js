@@ -2528,7 +2528,7 @@ bot.onText(/^\/msg (\d+) (.+)$/, async (msg, match) => {
     if (existingSession) {
         return bot.sendMessage(
             adminId,
-            `❌ User ${userId} already has an active session (ID: ${existingSession._id}). Close it first.`
+            `❌ User ${userId} already has an active session. Close it first.`
         );
     }
 
@@ -2551,10 +2551,10 @@ bot.onText(/^\/msg (\d+) (.+)$/, async (msg, match) => {
         await session.save();
         activeSessions.set(userId, session._id);
 
-        // Send initial message to user
+        // Send to user
         await bot.sendMessage(userId, `💬 Admin message:\n\n${message}`);
 
-        // Confirm to admin with controls
+        // Confirm to admin
         await bot.sendMessage(
             adminId,
             `✅ Message sent to ${userId}:\n\n${message}`,
@@ -2573,13 +2573,13 @@ bot.onText(/^\/msg (\d+) (.+)$/, async (msg, match) => {
     }
 });
 
-// Handle all subsequent messages
+// Handle all messages (text + media)
 bot.on(['message', 'photo', 'video', 'document', 'audio'], async (msg) => {
     const senderId = msg.chat.id.toString();
     const isAdmin = adminIds.includes(senderId);
 
     try {
-        // User messages to admin
+        // Handle user messages to admin
         if (!isAdmin) {
             const session = await MessageSession.findOne({
                 userId: senderId,
@@ -2597,7 +2597,7 @@ bot.on(['message', 'photo', 'video', 'document', 'audio'], async (msg) => {
 
             if (!content) return;
 
-            // Add to session history
+            // Save to session
             session.messages.push({
                 sender: 'user',
                 ...content,
@@ -2606,14 +2606,14 @@ bot.on(['message', 'photo', 'video', 'document', 'audio'], async (msg) => {
             session.lastActivity = new Date();
             await session.save();
 
-            // Forward to admin with reply options
-            const adminMessage = content.type === 'text'
+            // Forward to admin with controls
+            const messageText = content.type === 'text'
                 ? `📨 From user (${senderId}):\n\n${content.text}`
                 : `📨 From user (${senderId}):\n\n[${content.type.toUpperCase()}]`;
 
             const sentMsg = await bot.sendMessage(
                 session.adminId,
-                adminMessage,
+                messageText,
                 {
                     reply_markup: {
                         inline_keyboard: [
@@ -2624,15 +2624,13 @@ bot.on(['message', 'photo', 'video', 'document', 'audio'], async (msg) => {
                 }
             );
 
-            // Forward media if applicable
+            // Forward media if needed
             if (content.type !== 'text') {
                 await bot.sendMedia(session.adminId, content.type, content.file_id);
             }
-
-            return;
         }
 
-        // Admin replies (must be in reply to user message)
+        // Handle admin replies
         if (isAdmin && msg.reply_to_message) {
             const originalMsg = msg.reply_to_message;
             const match = originalMsg.text?.match(/\((\d+)\)/);
@@ -2657,7 +2655,7 @@ bot.on(['message', 'photo', 'video', 'document', 'audio'], async (msg) => {
 
             if (!content) return;
 
-            // Add to session history
+            // Save to session
             session.messages.push({
                 sender: 'admin',
                 ...content,
