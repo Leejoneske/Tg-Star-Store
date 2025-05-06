@@ -671,42 +671,41 @@ function loadTransactionHistory() {
     // Make API call to fetch transactions
     axios.get(`/api/transactions/${userId}`)
         .then(response => {
-            // Transform the API response to match our expected format
-            transactionHistory = response.data.map(item => {
-                // Determine if it's a buy or sell order
-                const isBuyOrder = item.hasOwnProperty('amountToBuy');
-                
-                return {
-                    id: item._id,
-                    type: isBuyOrder ? 'Stars Purchase' : 'Stars Sale',
-                    amount: isBuyOrder ? item.amountToBuy : item.amountToSell,
-                    status: mapOrderStatus(item.status),
-                    date: new Date(item.dateCreated),
-                    details: isBuyOrder 
-                        ? `Purchased ${item.amountToBuy} stars` 
-                        : `Sold ${item.amountToSell} stars`
-                };
-            });
-
-            // Update UI
-            updateTransactionList();
-            updateTransactionChart();
-        })
-        .catch(error => {
-            console.error('Error fetching transactions:', error);
-            document.getElementById('transactionsLoading').style.display = 'none';
-            document.getElementById('transactionsEmpty').style.display = 'flex';
             
-            // Show error message to user
-            Swal.fire({
-                title: 'Error',
-                text: 'Failed to load transactions',
-                icon: 'error',
-                confirmButtonText: translations[currentLanguage].close,
-                confirmButtonColor: '#4f46e5'
-            });
-        });
-}
+transactionHistory = response.data.map(item => {
+    const isBuyOrder = item.hasOwnProperty('amountToBuy');
+    const starRate = 0.009; // 1 star = 0.009 USDT
+    
+    return {
+        id: item._id,
+        type: isBuyOrder ? 'Stars Purchase' : 'Stars Sale',
+        amount: isBuyOrder ? item.amountToBuy : item.amountToSell,
+        usdtValue: (isBuyOrder ? item.amountToBuy : item.amountToSell) * starRate,
+        status: mapOrderStatus(item.status),
+        date: new Date(item.dateCreated),
+        details: isBuyOrder 
+            ? `Purchased ${item.amountToBuy} stars` 
+            : `Sold ${item.amountToSell} stars for ${((item.amountToSell * starRate).toFixed(3))} USDT`
+    };
+});
+
+// Update the transaction card display:
+txnCard.innerHTML = `
+    <div class="flex justify-between items-start mb-2">
+        <div class="font-medium">${txn.type}</div>
+        <div class="text-sm text-gray-500">${dateStr}</div>
+    </div>
+    <div class="flex justify-between items-center">
+        <div>
+            <div class="text-xs text-gray-500 mb-1">${txn.id}</div>
+            <span class="status-badge ${statusClass}">${statusText}</span>
+        </div>
+        <div class="text-right">
+            <div class="text-lg font-semibold">${txn.amount} ★</div>
+            ${!txn.type.includes('Purchase') ? `<div class="text-sm text-gray-600">${txn.usdtValue.toFixed(3)} USDT</div>` : ''}
+        </div>
+    </div>
+`;
 
 // Helper function to map backend status to frontend status
 function mapOrderStatus(backendStatus) {
@@ -741,40 +740,36 @@ function loadReferralHistory() {
     axios.get(`/api/referrals/${userId}`)
         .then(response => {
             // Transform the API response to match our expected format
-            referralHistory = response.data.map(ref => {
-                const isReferrer = ref.referrerUserId === userId;
-                
-                return {
-                    id: ref._id,
-                    name: isReferrer ? `Referred User: ${ref.referredUserId}` : `Referrer: ${ref.referrerUserId}`,
-                    status: ref.status, // 'pending', 'completed', etc.
-                    date: new Date(ref.dateReferred),
-                    amount: ref.status === 'completed' ? 50 : 0, // Assuming 50 stars reward
-                    details: isReferrer 
-                        ? `You referred ${ref.referredUserId}`
-                        : `You were referred by ${ref.referrerUserId}`,
-                    isReferrer: isReferrer
-                };
-            });
+            // Update the referral mapping:
+referralHistory = response.data.map(ref => {
+    const isReferrer = ref.referrerUserId === userId;
+    
+    return {
+        id: ref._id,
+        name: isReferrer ? 'Referred User' : 'Referrer',
+        status: mapReferralStatus(ref.status),
+        date: new Date(ref.dateReferred),
+        amount: 0, // Default value since we're not showing rewards yet
+        details: isReferrer ? 'You referred a user' : 'You were referred',
+        isReferrer: isReferrer
+    };
+});
 
-            // Update UI
-            updateReferralList();
-        })
-        .catch(error => {
-            console.error('Error fetching referrals:', error);
-            document.getElementById('referralsLoading').style.display = 'none';
-            document.getElementById('referralsEmpty').style.display = 'flex';
-            
-            // Show error message to user
-            Swal.fire({
-                title: 'Error',
-                text: 'Failed to load referrals',
-                icon: 'error',
-                confirmButtonText: translations[currentLanguage].close,
-                confirmButtonColor: '#4f46e5'
-            });
-        });
-}
+// Update the referral card display (remove amount display):
+refCard.innerHTML = `
+    <div class="flex justify-between items-start mb-2">
+        <div class="font-medium">${ref.name}</div>
+        <div class="text-sm text-gray-500">${dateStr}</div>
+    </div>
+    <div class="flex justify-between items-center">
+        <div>
+            <div class="text-xs text-gray-500 mb-1">${ref.id}</div>
+            <span class="status-badge ${statusClass}">${statusText}</span>
+        </div>
+        <div class="text-sm text-gray-600">${ref.details}</div>
+    </div>
+`;
+
 
 // Update the referral status mapping in your existing code
 function mapReferralStatus(backendStatus) {
