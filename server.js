@@ -952,28 +952,31 @@ app.get('/api/transactions/:userId', async (req, res) => {
     res.json(userTransactions);
 });
 
-//get referrals for history and referral page
-// Get all referrals for a user (both as referrer and referred)
 app.get('/api/referrals/:userId', async (req, res) => {
     try {
         const userId = req.params.userId;
         
-        // Find referrals where user is the referrer (they referred someone)
-        const referralsMade = await Referral.find({ referrerUserId: userId })
-            .sort({ dateReferred: -1 });
-        
-        // Find referrals where user is the referred (they were referred by someone)
-        const referralsReceived = await Referral.find({ referredUserId: userId })
-            .sort({ dateReferred: -1 });
-        
-        // Combine and sort all referrals by date
-        const allReferrals = [...referralsMade, ...referralsReceived]
-            .sort((a, b) => new Date(b.dateReferred) - new Date(a.dateReferred));
-        
-        res.json(allReferrals);
+        const [referralsMade, referralsReceived] = await Promise.all([
+            Referral.find({ referrerUserId: userId }).sort({ dateReferred: -1 }),
+            Referral.find({ referredUserId: userId }).sort({ dateReferred: -1 })
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                referralsMade,
+                referralsReceived,
+                // Add summary stats if needed
+                totalRewards: referralsMade.filter(r => r.status === 'completed').length * 50
+            }
+        });
     } catch (error) {
         console.error('Error fetching referrals:', error);
-        res.status(500).json({ error: 'Failed to fetch referrals' });
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to fetch referrals',
+            details: error.message
+        });
     }
 });
 
