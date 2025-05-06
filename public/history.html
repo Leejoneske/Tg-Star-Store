@@ -227,49 +227,32 @@
 <body>
     <div class="app-container">
         <!-- Sidebar -->
-        <div class="overlay" id="overlay"></div>
-        <div class="sidebar" id="sidebar">
+        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+        <div class="side-menu" id="sideMenu">
             <div class="p-6">
-                <div class="flex justify-between items-center mb-8">
-                    <div class="text-xl font-bold text-indigo-600" data-i18n="menu">Menu</div>
-                    <button id="closeMenu" class="p-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-                <nav>
+                <div class="text-xl font-bold mb-8" data-lang="menu">Menu</div>
+                <nav class="space-y-2">
                     <a href="index.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home">
-                        <span data-i18n="home">Home</span>
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                        <span data-lang="home">Home</span>
                     </a>
                     <a href="sell.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell">
-                        <span data-i18n="sell">Sell</span>
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                        <span data-lang="sell">Sell</span>
                     </a>
-                    <a href="history.html" class="menu-item active">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History">
-                        <span data-i18n="history">History</span>
+                    <a href="history.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                        <span data-lang="history">History</span>
                     </a>
                     <a href="referral.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral">
-                        <span data-i18n="referral">Referral</span>
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                        <span data-lang="referral">Referral</span>
                     </a>
                     <a href="about.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About">
-                        <span data-i18n="about">About</span>
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                        <span data-lang="about">About</span>
                     </a>
                 </nav>
-                <div class="mt-8 pt-6 border-t">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-500" data-i18n="language">Language</span>
-                        <select id="languageSelector" class="p-2 text-sm rounded border">
-                            <option value="en">English</option>
-                            <option value="ru">Русский</option>
-                        </select>
-                    </div>
-                </div>
             </div>
         </div>
         
