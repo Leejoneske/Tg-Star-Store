@@ -953,45 +953,27 @@ app.get('/api/transactions/:userId', async (req, res) => {
 });
 
 //get referrals for history and referral page
+// Get all referrals for a user (both as referrer and referred)
 app.get('/api/referrals/:userId', async (req, res) => {
     try {
         const userId = req.params.userId;
-        const allReferrals = await Referral.find({ referrerUserId: userId }).sort({ dateReferred: -1 });
-        const activeReferrals = allReferrals.filter(r => r.status === 'active');
-        const activeCount = activeReferrals.length;
-        const totalCount = allReferrals.length;
         
-        // You need to fetch claimed tiers from somewhere
-        const user = await User.findOne({ userId: userId }); // Assuming you have a User model
-        const claimedTiers = user?.claimedTiers || [];
+        // Find referrals where user is the referrer (they referred someone)
+        const referralsMade = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 });
         
-        // Calculate earned USDT based on claimed tiers instead of just active count
-        let earnedUSDT = 0;
-        if (claimedTiers.includes(1)) earnedUSDT += 0.5;
-        if (claimedTiers.includes(2)) earnedUSDT += 2.0;
-        if (claimedTiers.includes(3)) earnedUSDT += 5.0;
+        // Find referrals where user is the referred (they were referred by someone)
+        const referralsReceived = await Referral.find({ referredUserId: userId })
+            .sort({ dateReferred: -1 });
         
-        const recentReferrals = allReferrals.slice(0, 10).map(r => ({
-            name: r.referredUsername || `user_${r.referredUserId.slice(0, 6)}`,
-            status: r.status,
-            daysAgo: Math.floor((Date.now() - new Date(r.dateReferred)) / (1000 * 60 * 60 * 24))
-        }));
+        // Combine and sort all referrals by date
+        const allReferrals = [...referralsMade, ...referralsReceived]
+            .sort((a, b) => new Date(b.dateReferred) - new Date(a.dateReferred));
         
-        res.json({
-            activeCount,
-            totalCount, 
-            earnedUSDT,
-            recentReferrals,
-            claimedTiers // Add this field
-        });
+        res.json(allReferrals);
     } catch (error) {
-        res.status(500).json({ 
-            activeCount: 0,
-            totalCount: 0, 
-            earnedUSDT: 0,
-            recentReferrals: [],
-            claimedTiers: [] // Add this field here too
-        });
+        console.error('Error fetching referrals:', error);
+        res.status(500).json({ error: 'Failed to fetch referrals' });
     }
 });
 
