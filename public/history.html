@@ -647,106 +647,140 @@ function updateLanguage() {
         updateReferralList();
     }
 }
-
 function loadTransactionHistory() {
     // Show loading state
     document.getElementById('transactionsLoading').style.display = 'block';
     document.getElementById('transactionsList').style.display = 'none';
     document.getElementById('transactionsEmpty').style.display = 'none';
-    
-    // Simulate API call with timeout
-    setTimeout(() => {
-        // Mock data - in a real app, this would be an API call
-        transactionHistory = [
-            {
-                id: 'TXN-12345',
-                type: 'Stars Purchase',
-                amount: 100,
-                status: 'completed',
-                date: new Date(),
-                details: 'Purchased 100 stars'
-            },
-            {
-                id: 'TXN-12346',
-                type: 'Stars Purchase',
-                amount: 50,
-                status: 'pending',
-                date: new Date(Date.now() - 86400000), // Yesterday
-                details: 'Purchased 50 stars - pending approval'
-            },
-            {
-                id: 'TXN-12347',
-                type: 'Stars Purchase',
-                amount: 200,
-                status: 'declined',
-                date: new Date(Date.now() - 172800000), // 2 days ago
-                details: 'Purchase declined - insufficient funds'
-            },
-            {
-                id: 'TXN-12348',
-                type: 'Stars Purchase',
-                amount: 75,
-                status: 'completed',
-                date: new Date(Date.now() - 259200000), // 3 days ago
-                details: 'Purchased 75 stars'
-            },
-            {
-                id: 'TXN-12349',
-                type: 'Stars Purchase',
-                amount: 150,
-                status: 'completed',
-                date: new Date(Date.now() - 345600000), // 4 days ago
-                details: 'Purchased 150 stars'
-            }
-        ];
-        
-        // Update UI
-        updateTransactionList();
-        updateTransactionChart();
-    }, 1000);
+
+    // Get user ID from Telegram WebApp
+    const userId = Telegram.WebApp.initDataUnsafe.user?.id;
+    if (!userId) {
+        console.error('User ID not available');
+        document.getElementById('transactionsLoading').style.display = 'none';
+        document.getElementById('transactionsEmpty').style.display = 'flex';
+        return;
+    }
+
+    // Make API call to fetch transactions
+    axios.get(`/api/transactions/${userId}`)
+        .then(response => {
+            // Transform the API response to match our expected format
+            transactionHistory = response.data.map(item => {
+                // Determine if it's a buy or sell order
+                const isBuyOrder = item.hasOwnProperty('amountToBuy');
+                
+                return {
+                    id: item._id,
+                    type: isBuyOrder ? 'Stars Purchase' : 'Stars Sale',
+                    amount: isBuyOrder ? item.amountToBuy : item.amountToSell,
+                    status: mapOrderStatus(item.status),
+                    date: new Date(item.dateCreated),
+                    details: isBuyOrder 
+                        ? `Purchased ${item.amountToBuy} stars` 
+                        : `Sold ${item.amountToSell} stars`
+                };
+            });
+
+            // Update UI
+            updateTransactionList();
+            updateTransactionChart();
+        })
+        .catch(error => {
+            console.error('Error fetching transactions:', error);
+            document.getElementById('transactionsLoading').style.display = 'none';
+            document.getElementById('transactionsEmpty').style.display = 'flex';
+            
+            // Show error message to user
+            Swal.fire({
+                title: 'Error',
+                text: 'Failed to load transactions',
+                icon: 'error',
+                confirmButtonText: translations[currentLanguage].close,
+                confirmButtonColor: '#4f46e5'
+            });
+        });
 }
+
+// Helper function to map backend status to frontend status
+function mapOrderStatus(backendStatus) {
+    const statusMap = {
+        'completed': 'completed',
+        'pending': 'pending',
+        'failed': 'declined',
+        'cancelled': 'declined'
+        // Add any other status mappings as needed
+    };
+    
+    return statusMap[backendStatus] || 'pending';
+}
+    
 
 function loadReferralHistory() {
     // Show loading state
     document.getElementById('referralsLoading').style.display = 'block';
     document.getElementById('referralsList').style.display = 'none';
     document.getElementById('referralsEmpty').style.display = 'none';
-    
-    // Simulate API call with timeout
-    setTimeout(() => {
-        // Mock data - in a real app, this would be an API call
-        referralHistory = [
-            {
-                id: 'REF-12345',
-                name: 'John Doe',
-                status: 'active',
-                date: new Date(),
-                amount: 50,
-                details: 'Active referral - earned 50 stars'
-            },
-            {
-                id: 'REF-12346',
-                name: 'Jane Smith',
-                status: 'pending',
-                date: new Date(Date.now() - 86400000), // Yesterday
-                amount: 25,
-                details: 'Pending referral - potential 25 stars'
-            },
-            {
-                id: 'REF-12347',
-                name: 'Bob Johnson',
-                status: 'active',
-                date: new Date(Date.now() - 172800000), // 2 days ago
-                amount: 75,
-                details: 'Active referral - earned 75 stars'
-            }
-        ];
-        
-        // Update UI
-        updateReferralList();
-    }, 1000);
+
+    // Get user ID from Telegram WebApp
+    const userId = Telegram.WebApp.initDataUnsafe.user?.id;
+    if (!userId) {
+        console.error('User ID not available');
+        document.getElementById('referralsLoading').style.display = 'none';
+        document.getElementById('referralsEmpty').style.display = 'flex';
+        return;
+    }
+
+    // Make API call to fetch referrals
+    axios.get(`/api/referrals/${userId}`)
+        .then(response => {
+            // Transform the API response to match our expected format
+            referralHistory = response.data.map(ref => {
+                const isReferrer = ref.referrerUserId === userId;
+                
+                return {
+                    id: ref._id,
+                    name: isReferrer ? `Referred User: ${ref.referredUserId}` : `Referrer: ${ref.referrerUserId}`,
+                    status: ref.status, // 'pending', 'completed', etc.
+                    date: new Date(ref.dateReferred),
+                    amount: ref.status === 'completed' ? 50 : 0, // Assuming 50 stars reward
+                    details: isReferrer 
+                        ? `You referred ${ref.referredUserId}`
+                        : `You were referred by ${ref.referrerUserId}`,
+                    isReferrer: isReferrer
+                };
+            });
+
+            // Update UI
+            updateReferralList();
+        })
+        .catch(error => {
+            console.error('Error fetching referrals:', error);
+            document.getElementById('referralsLoading').style.display = 'none';
+            document.getElementById('referralsEmpty').style.display = 'flex';
+            
+            // Show error message to user
+            Swal.fire({
+                title: 'Error',
+                text: 'Failed to load referrals',
+                icon: 'error',
+                confirmButtonText: translations[currentLanguage].close,
+                confirmButtonColor: '#4f46e5'
+            });
+        });
 }
 
+// Update the referral status mapping in your existing code
+function mapReferralStatus(backendStatus) {
+    const statusMap = {
+        'completed': 'active',
+        'pending': 'pending',
+        'expired': 'declined'
+        // Add any other status mappings as needed
+    };
+    
+    return statusMap[backendStatus] || 'pending';
+}
 function updateTransactionList() {
     // Filter transactions based on current filter and search
     let filteredTransactions = transactionHistory.filter(txn => {
