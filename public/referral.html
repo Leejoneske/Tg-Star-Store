@@ -478,22 +478,20 @@
         </form>
     </div>
 
+<script>
+  document.addEventListener('DOMContentLoaded', function init() {
+    const menuOverlay = document.getElementById('menuOverlay');
+    const sideMenu = document.getElementById('sideMenu');
+    const copyButton = document.getElementById('copyButton');
+    const withdrawButton = document.getElementById('withdrawButton');
+    const withdrawPopup = document.getElementById('withdrawPopup');
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const languageBtns = document.querySelectorAll('.language-btn');
 
+    // App State
 
-                <script>
-                    // DOM Elements
-
-document.addEventListener('DOMContentLoaded', init);
-const menuOverlay = document.getElementById('menuOverlay');
-const sideMenu = document.getElementById('sideMenu');
-const copyButton = document.getElementById('copyButton');
-const withdrawButton = document.getElementById('withdrawButton');
-const withdrawPopup = document.getElementById('withdrawPopup');
-const tabButtons = document.querySelectorAll('.tab-button');
-const tabContents = document.querySelectorAll('.tab-content');
-const languageBtns = document.querySelectorAll('.language-btn');
-
-// App State
+                
 const state = {
     userId: localStorage.getItem('userId') || null,
     referralCode: null,
