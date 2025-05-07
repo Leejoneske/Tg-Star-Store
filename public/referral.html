@@ -611,101 +611,104 @@
         function changeLanguage(language) {
             applyLanguage(language);
         }
-
      async function loadReferralData() {
     try {
         const response = await fetch(`/api/referrals/${state.userId}`, {
             headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
                 'Telegram-Data': window.Telegram?.WebApp?.initData || ''
             }
         });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch referral data');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
 
         if (data.success) {
-            processReferralData(data.data);
+            processReferralData(data.referrals);
         } else {
-            console.error('API error:', data.error);
+            console.error('API error:', data.message);
+            showNotification(data.message || 'Failed to load referral data');
         }
     } catch (error) {
         console.error('Error loading referral data:', error);
-        showNotification('Failed to load referral data');
+        showNotification('Failed to load referral data. Please try again.');
     }
 }
 
+function processReferralData(referrals) {
+    state.referrals = referrals.map(ref => ({
+        referredUserId: ref.referredUserId,
+        referrerUserId: ref.referrerUserId,
+        status: ref.status || 'pending',
+        dateReferred: new Date(ref.dateReferred),
+        dateCompleted: ref.dateCompleted ? new Date(ref.dateCompleted) : null
+    }));
 
+    const completedReferrals = state.referrals.filter(r => r.status === 'completed');
+    const pendingReferrals = state.referrals.filter(r => r.status === 'pending');
 
-        function processReferralData(data) {
-            state.referrals = data.referrals || [];
-            state.withdrawals = data.withdrawals || [];
-            
-            const completedReferrals = state.referrals.filter(r => r.status === 'completed');
-            const pendingReferrals = state.referrals.filter(r => r.status === 'pending');
-            
-            state.referralStats.referralsCount = completedReferrals.length;
-            state.referralStats.totalEarned = completedReferrals.length * 0.5;
-            state.referralStats.pendingAmount = pendingReferrals.length * 0.5;
-            state.referralStats.availableBalance = state.referralStats.totalEarned;
-            
-            state.referralCode = state.userId;
-            state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.referralCode}`;
-            
-            updateReferralUI();
-        }
+    state.referralStats.referralsCount = completedReferrals.length;
+    state.referralStats.totalEarned = completedReferrals.length * 0.5;
+    state.referralStats.pendingAmount = pendingReferrals.length * 0.5;
+    state.referralStats.availableBalance = state.referralStats.totalEarned;
 
-        function updateReferralUI() {
-            document.getElementById('availableBalance').textContent = `${state.referralStats.availableBalance.toFixed(2)} USDT`;
-            document.getElementById('totalEarned').textContent = `${state.referralStats.totalEarned.toFixed(2)} USDT`;
-            document.getElementById('referralsCount').textContent = state.referralStats.referralsCount;
-            document.getElementById('pendingAmount').textContent = `${state.referralStats.pendingAmount.toFixed(2)} USDT`;
-            
-            referralLinkDisplay.textContent = state.referralLink;
-            updateReferralsList();
-            updateWithdrawalsList();
-        }
+    updateReferralUI();
+}
 
-        function updateReferralsList() {
-            const noReferrals = document.getElementById('noReferrals');
-            const referralsList = document.getElementById('referralsList');
-            const referralsContainer = document.getElementById('referralsContainer');
-            
-            if (state.referrals.length === 0) {
-                noReferrals.classList.remove('hide');
-                referralsList.classList.add('hide');
-                return;
-            }
-            
-            noReferrals.classList.add('hide');
-            referralsList.classList.remove('hide');
-            referralsContainer.innerHTML = '';
-            
-            state.referrals.forEach(referral => {
-                const date = new Date(referral.dateReferred);
-                const formattedDate = date.toLocaleDateString();
-                
-                const referralItem = document.createElement('div');
-                referralItem.className = 'py-3 flex justify-between items-center';
-                referralItem.innerHTML = `
-                    <div>
-                        <div class="flex items-center">
-                            <span class="dot dot-${referral.status === 'completed' ? 'success' : 'pending'}"></span>
-                            <span class="font-medium">${referral.referredUserId.substring(0, 8)}</span>
-                        </div>
-                        <div class="text-xs text-gray-500 mt-1">${formattedDate}</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="font-medium text-gray-800">+0.5 USDT</div>
-                        <div class="text-xs ${referral.status === 'completed' ? 'text-green-500' : 'text-yellow-500'}" data-lang="${referral.status}">${translations[state.language][referral.status]}</div>
-                    </div>
-                `;
-                
-                referralsContainer.appendChild(referralItem);
-            });
-        }
+function updateReferralUI() {
+    document.getElementById('availableBalance').textContent = `${state.referralStats.availableBalance.toFixed(2)} USDT`;
+    document.getElementById('totalEarned').textContent = `${state.referralStats.totalEarned.toFixed(2)} USDT`;
+    document.getElementById('referralsCount').textContent = state.referralStats.referralsCount;
+    document.getElementById('pendingAmount').textContent = `${state.referralStats.pendingAmount.toFixed(2)} USDT`;
+
+    updateReferralsList();
+}
+
+function updateReferralsList() {
+    const noReferrals = document.getElementById('noReferrals');
+    const referralsList = document.getElementById('referralsList');
+    const referralsContainer = document.getElementById('referralsContainer');
+
+    if (state.referrals.length === 0) {
+        noReferrals.classList.remove('hide');
+        referralsList.classList.add('hide');
+        return;
+    }
+
+    noReferrals.classList.add('hide');
+    referralsList.classList.remove('hide');
+    referralsContainer.innerHTML = '';
+
+    state.referrals.forEach(referral => {
+        const date = referral.dateReferred;
+        const formattedDate = date.toLocaleDateString();
+        const status = referral.status;
+        const referredUser = referral.referredUserId.substring(0, 8);
+
+        const referralItem = document.createElement('div');
+        referralItem.className = 'py-3 flex justify-between items-center';
+        referralItem.innerHTML = `
+            <div>
+                <div class="flex items-center">
+                    <span class="dot dot-${status === 'completed' ? 'success' : 'pending'}"></span>
+                    <span class="font-medium">${referredUser}</span>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">${formattedDate}</div>
+            </div>
+            <div class="text-right">
+                <div class="font-medium text-gray-800">+0.5 USDT</div>
+                <div class="text-xs ${status === 'completed' ? 'text-green-500' : 'text-yellow-500'}" 
+                     data-lang="${status}">${translations[state.language][status]}</div>
+            </div>
+        `;
+
+        referralsContainer.appendChild(referralItem);
+    });
+}
+
 
         function updateWithdrawalsList() {
             const noWithdrawals = document.getElementById('noWithdrawals');
