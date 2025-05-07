@@ -418,6 +418,11 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const tgWebApp = window.Telegram?.WebApp;
+    if (tgWebApp) {
+        tgWebApp.expand();
+        tgWebApp.enableClosingConfirmation();
+    }
         const menuOverlay = document.getElementById('menuOverlay');
         const sideMenu = document.getElementById('sideMenu');
         const menuButton = document.getElementById('menuButton');
@@ -537,23 +542,24 @@
             loadReferralData();
         }
 
-        const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+     
+        const state = {
+        userId: tgWebApp?.initDataUnsafe?.user?.id || null,
+        username: tgWebApp?.initDataUnsafe?.user?.username || 'User',
+        isTelegramUser: !!tgWebApp?.initDataUnsafe?.user,
+        referralCode: null,
+        referralLink: null,
+        referralStats: {
+            availableBalance: 0,
+            totalEarned: 0,
+            referralsCount: 0,
+            pendingAmount: 0
+        },
+        referrals: [],
+        withdrawals: []
+    };
 
-const state = {
-    userId: tgUser?.id ?? null,
-    username: tgUser?.username ?? 'User',
-    referralCode: null,
-    referralLink: null,
-    referralStats: {
-        availableBalance: 0,
-        totalEarned: 0,
-        referralsCount: 0,
-        pendingAmount: 0
-    },
-    referrals: [],
-    withdrawals: [],
-    language: localStorage.getItem('language') || 'en'
-};
+
 
         function applyLanguage(lang) {
             state.language = lang;
