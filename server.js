@@ -76,53 +76,13 @@ const referralSchema = new mongoose.Schema({
     dateCompleted: Date
 });
 
-const cancelledOrderSchema = new mongoose.Schema({
-    orders: Array
-});
 
 const bannedUserSchema = new mongoose.Schema({
     users: Array
 });
 
-const giveawaySchema = new mongoose.Schema({
-    code: String,
-    limit: Number,
-    claimed: Number,
-    users: [{
-        userId: String,
-        status: { type: String, default: 'pending' }
-    }],
-    status: { type: String, default: 'active' },
-    createdAt: Date,
-    expiresAt: Date
-});
 
-const giftSchema = new mongoose.Schema({
-    id: String,
-    telegramId: String,
-    username: String,
-    stars: Number,
-    walletAddress: String,
-    status: String,
-    dateCreated: Date,
-    adminMessages: Array,
-    giveawayCode: String
-});
 
-const reverseOrderSchema = new mongoose.Schema({
-    id: String,
-    originalOrderId: String,
-    telegramId: String,
-    username: String,
-    stars: Number,
-    status: String,
-    dateRequested: Date
-});
-
-const botBalanceSchema = new mongoose.Schema({
-    id: { type: String, default: "bot", unique: true }, 
-    balance: { type: Number, default: 0 } 
-});
 
 const cacheSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
@@ -130,49 +90,16 @@ const cacheSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now }
 });
 
-const claimSchema = new mongoose.Schema({
-  claimCode: { type: String, unique: true },
-  adminId: Number,
-  userId: Number,
-  username: String,
-  wallet: String,
-  expiresAt: { 
-    type: Date, 
-    default: () => new Date(Date.now() + 24 * 60 * 60 * 1000), 
-    expires: 0 
-  }
-});
 
-// ===== MESSAGE SERVICE SCHEMA =====
-const messageSessionSchema = new mongoose.Schema({
-    adminId: String,
-    userId: String,
-    username: String,
-    adminUsername: String,
-    status: { type: String, default: 'active' }, 
-    createdAt: { type: Date, default: Date.now },
-    lastActivity: { type: Date, default: Date.now },
-    messages: [{
-        sender: String, 
-        text: String,
-        timestamp: { type: Date, default: Date.now }
-    }]
-});
 
-const MessageSession = mongoose.model('MessageSession', messageSessionSchema);
-const Claim = mongoose.model('Claim', claimSchema);
 const Cache = mongoose.model('Cache', cacheSchema);
-const BotBalance = mongoose.model('BotBalance', botBalanceSchema);
 const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
 const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
 const User = mongoose.model('User', userSchema);
 const Notification = mongoose.model('Notification', notificationSchema);
 const Referral = mongoose.model('Referral', referralSchema);
-const CancelledOrder = mongoose.model('CancelledOrder', cancelledOrderSchema);
 const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
-const Giveaway = mongoose.model('Giveaway', giveawaySchema);
-const Gift = mongoose.model('Gift', giftSchema);
-const ReverseOrder = mongoose.model('ReverseOrder', reverseOrderSchema);
+
 
 const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
 
@@ -1037,235 +964,6 @@ bot.on('message', async (msg) => {
 });
 
 
-
-//referral claim request
-app.post('/api/claim-reward', async (req, res) => {
-    try {
-        const { userId, tier, amount } = req.body;
-
-        if (!userId || !tier || !amount) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
-
-        const user = await User.findOne({ id: userId });
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const referral = await Referral.findOne({ referrerUserId: userId });
-        if (!referral) {
-            return res.status(404).json({ error: 'Referral data not found' });
-        }
-
-        // Check if the user has already claimed this tier
-        if (referral.claimedTiers && referral.claimedTiers.includes(tier)) {
-            return res.status(400).json({ error: 'Reward already claimed for this tier' });
-        }
-
-        // Check if the user meets the referral count for the tier
-        const referralCount = referral.referredUsers?.length || 0;
-        const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
-
-        if (referralCount < requiredReferrals) {
-            return res.status(400).json({ error: 'Insufficient referrals to claim this reward' });
-        }
-
-        // Create a reward order
-        const rewardOrder = new Gift({
-            id: generateOrderId(),
-            telegramId: userId,
-            username: user.username,
-            stars: 0, // No stars for referral rewards
-            walletAddress: '', // User's wallet address (if available)
-            status: 'pending',
-            dateCreated: new Date(),
-            adminMessages: [],
-            giveawayCode: `referral_tier_${tier}`,
-            rewardAmount: amount
-        });
-
-        await rewardOrder.save();
-
-        // Mark the tier as claimed
-        if (!referral.claimedTiers) {
-            referral.claimedTiers = [];
-        }
-        referral.claimedTiers.push(tier);
-        await referral.save();
-
-        // Notify admins about the new reward order
-        const adminMessage = `🎉 New Referral Reward Order!\n\nOrder ID: ${rewardOrder.id}\nUser: @${user.username} (ID: ${userId})\nTier: ${tier}\nAmount: $${amount}`;
-
-        const adminKeyboard = {
-            inline_keyboard: [
-                [
-                    { text: 'Confirm', callback_data: `confirm_reward_${rewardOrder.id}` },
-                    { text: 'Decline', callback_data: `decline_reward_${rewardOrder.id}` }
-                ]
-            ]
-        };
-
-        for (const adminId of adminIds) {
-            try {
-                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
-                rewardOrder.adminMessages.push({ adminId, messageId: message.message_id });
-            } catch (err) {
-                console.error(`Failed to send message to admin ${adminId}:`, err);
-            }
-        }
-
-        res.json({ success: true, order: rewardOrder });
-    } catch (err) {
-        console.error('Claim reward error:', err);
-        res.status(500).json({ error: 'Failed to claim reward' });
-    }
-});
-
-// Handle admin confirmation/decline of reward orders
-app.post('/api/claim-reward', async (req, res) => {
-    try {
-        const { userId, tier, amount } = req.body;
-
-        if (!userId || !tier || !amount) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
-
-        const user = await User.findOne({ id: userId });
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const referral = await Referral.findOne({ referrerUserId: userId });
-        if (!referral) {
-            return res.status(404).json({ error: 'Referral data not found' });
-        }
-
-        if (referral.claimedTiers && referral.claimedTiers.includes(tier)) {
-            return res.status(400).json({ error: 'Reward already claimed for this tier' });
-        }
-
-        const referralCount = referral.referredUsers?.length || 0;
-        const requiredReferrals = tier === 1 ? 3 : tier === 2 ? 9 : 15;
-
-        if (referralCount < requiredReferrals) {
-            return res.status(400).json({ error: `You need ${requiredReferrals} referrals to claim this reward` });
-        }
-
-        const rewardOrder = new Gift({
-            id: generateOrderId(),
-            telegramId: userId,
-            username: user.username,
-            stars: 0,
-            walletAddress: '',
-            status: 'pending',
-            dateCreated: new Date(),
-            adminMessages: [],
-            giveawayCode: `referral_tier_${tier}`,
-            rewardAmount: amount
-        });
-
-        await rewardOrder.save();
-
-        if (!referral.claimedTiers) {
-            referral.claimedTiers = [];
-        }
-        referral.claimedTiers.push(tier);
-        await referral.save();
-
-        const adminMessage = `🎉 New Referral Reward Order!\n\nOrder ID: ${rewardOrder.id}\nUser: @${user.username} (ID: ${userId})\nTier: ${tier}\nAmount: $${amount}`;
-
-        const adminKeyboard = {
-            inline_keyboard: [
-                [
-                    { text: 'Confirm', callback_data: `confirm_reward_${rewardOrder.id}` },
-                    { text: 'Decline', callback_data: `decline_reward_${rewardOrder.id}` }
-                ]
-            ]
-        };
-
-        for (const adminId of adminIds) {
-            try {
-                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
-                rewardOrder.adminMessages.push({ adminId, messageId: message.message_id });
-            } catch (err) {
-                console.error(`Failed to send message to admin ${adminId}:`, err);
-            }
-        }
-
-        res.json({ success: true, order: rewardOrder });
-    } catch (err) {
-        console.error('Claim reward error:', err);
-        res.status(500).json({ error: 'An unexpected error occurred. Please try again later.' });
-    }
-});
-
-bot.on('callback_query', async (query) => {
-    const chatId = query.message.chat.id;
-    const data = query.data;
-
-    if (data.startsWith('confirm_reward_')) {
-        const orderId = data.split('_')[2];
-        const rewardOrder = await Gift.findOne({ id: orderId });
-
-        if (rewardOrder) {
-            rewardOrder.status = 'completed';
-            await rewardOrder.save();
-
-            const userMessage = `✅ Your referral reward order (ID: ${rewardOrder.id}) has been confirmed!\n\nYou have received $${rewardOrder.rewardAmount}. Thank you for using StarStore!`;
-            await bot.sendMessage(rewardOrder.telegramId, userMessage);
-
-            const adminMessage = `✅ Referral Reward Order Confirmed!\n\nOrder ID: ${rewardOrder.id}\nUser: @${rewardOrder.username} (ID: ${rewardOrder.telegramId})\nAmount: $${rewardOrder.rewardAmount}`;
-
-            for (const adminMessageInfo of rewardOrder.adminMessages) {
-                try {
-                    await bot.editMessageText(adminMessage, {
-                        chat_id: adminMessageInfo.adminId,
-                        message_id: adminMessageInfo.messageId
-                    });
-                    await bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
-                        chat_id: adminMessageInfo.adminId,
-                        message_id: adminMessageInfo.messageId
-                    });
-                } catch (err) {
-                    console.error(`Failed to update message for admin ${adminMessageInfo.adminId}:`, err);
-                }
-            }
-
-            bot.answerCallbackQuery(query.id, { text: 'Reward order confirmed' });
-        }
-    } else if (data.startsWith('decline_reward_')) {
-        const orderId = data.split('_')[2];
-        const rewardOrder = await Gift.findOne({ id: orderId });
-
-        if (rewardOrder) {
-            rewardOrder.status = 'declined';
-            await rewardOrder.save();
-
-            const userMessage = `❌ Your referral reward order (ID: ${rewardOrder.id}) has been declined.\n\nPlease contact support if you believe this is a mistake.`;
-            await bot.sendMessage(rewardOrder.telegramId, userMessage);
-
-            const adminMessage = `❌ Referral Reward Order Declined!\n\nOrder ID: ${rewardOrder.id}\nUser: @${rewardOrder.username} (ID: ${rewardOrder.telegramId})\nAmount: $${rewardOrder.rewardAmount}`;
-
-            for (const adminMessageInfo of rewardOrder.adminMessages) {
-                try {
-                    await bot.editMessageText(adminMessage, {
-                        chat_id: adminMessageInfo.adminId,
-                        message_id: adminMessageInfo.messageId
-                    });
-                    await bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
-                        chat_id: adminMessageInfo.adminId,
-                        message_id: adminMessageInfo.messageId
-                    });
-                } catch (err) {
-                    console.error(`Failed to update message for admin ${adminMessageInfo.adminId}:`, err);
-                }
-            }
-
-            bot.answerCallbackQuery(query.id, { text: 'Reward order declined' });
-        }
-    }
-});
-//end of claim request
 
 // Handle orders recreation                     
 
