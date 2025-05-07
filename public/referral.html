@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -75,23 +75,6 @@
         .menu-item:hover {
             background: #f3f4f6;
             transform: translateX(5px);
-        }
-        .footer {
-            text-align: center;
-            padding: 8px;
-            font-size: 12px;
-            color: #6b7280;
-            background: white;
-            border-top: 1px solid #e5e7eb;
-            width: 100%;
-            max-width: 480px;
-        }
-        .footer a {
-            color: #4f46e5;
-            text-decoration: none;
-        }
-        .footer a:hover {
-            text-decoration: underline;
         }
         .language-selector {
             display: flex;
@@ -211,7 +194,7 @@
 </head>
 <body>
     <div class="app-container">
-        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+        <div class="menu-overlay" id="menuOverlay"></div>
         <div class="side-menu" id="sideMenu">
             <div class="p-6">
                 <div class="text-xl font-bold mb-8" data-lang="menu">Menu</div>
@@ -241,15 +224,15 @@
         </div>
 
         <div class="p-4 flex justify-between items-center bg-white shadow-sm">
-            <button onclick="toggleMenu()" class="p-2">
+            <button id="menuButton" class="p-2">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
             </button>
             <div class="logo-header">StarStore</div>
             <div class="language-selector">
-                <div class="language-btn" data-language="en" onclick="changeLanguage('en')">EN</div>
-                <div class="language-btn" data-language="ru" onclick="changeLanguage('ru')">RU</div>
+                <div class="language-btn" data-language="en">EN</div>
+                <div class="language-btn" data-language="ru">RU</div>
             </div>
         </div>
 
@@ -263,22 +246,22 @@
                 <div class="flex justify-between mb-4">
                     <div>
                         <div class="text-sm opacity-80 mb-1" data-lang="available-balance">Available Balance</div>
-                        <div class="text-2xl font-bold">0.00 USDT</div>
+                        <div class="text-2xl font-bold" id="availableBalance">0.00 USDT</div>
                     </div>
                     <button id="withdrawButton" class="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition-colors" data-lang="withdraw">Withdraw</button>
                 </div>
                 <div class="grid grid-cols-3 gap-2 text-center pt-2">
                     <div>
                         <div class="text-sm opacity-80 mb-1" data-lang="total-earned">Total Earned</div>
-                        <div class="font-semibold">0.00 USDT</div>
+                        <div class="font-semibold" id="totalEarned">0.00 USDT</div>
                     </div>
                     <div>
                         <div class="text-sm opacity-80 mb-1" data-lang="referrals">Referrals</div>
-                        <div class="font-semibold">0</div>
+                        <div class="font-semibold" id="referralsCount">0</div>
                     </div>
                     <div>
                         <div class="text-sm opacity-80 mb-1" data-lang="pending">Pending</div>
-                        <div class="font-semibold">0.00 USDT</div>
+                        <div class="font-semibold" id="pendingAmount">0.00 USDT</div>
                     </div>
                 </div>
             </div>
@@ -288,8 +271,8 @@
                 <p class="text-gray-600 text-sm mb-4" data-lang="share-text">Share this link with friends and earn 0.5 USDT for every successful referral</p>
                 
                 <div class="flex items-center mb-4">
-                    <div class="referral-code flex-1 py-3 px-4 mr-2 overflow-hidden overflow-ellipsis">
-                        https://starstore.app/ref/ABC123
+                    <div class="referral-code flex-1 py-3 px-4 mr-2 overflow-hidden overflow-ellipsis" id="referralLinkDisplay">
+                        Loading...
                     </div>
                     <button id="copyButton" class="copy-button bg-indigo-100 text-indigo-600 p-3 rounded-lg">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -299,19 +282,19 @@
                 </div>
 
                 <div class="flex space-x-2 mb-4">
-                    <button class="flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center">
+                    <button class="flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center" id="shareFb">
                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/>
                         </svg>
                         <span data-lang="share-fb">Share</span>
                     </button>
-                    <button class="flex-1 bg-blue-400 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors flex items-center justify-center">
+                    <button class="flex-1 bg-blue-400 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors flex items-center justify-center" id="shareTw">
                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
                         </svg>
                         <span data-lang="share-tw">Share</span>
                     </button>
-                    <button class="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors flex items-center justify-center">
+                    <button class="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors flex items-center justify-center" id="shareWa">
                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
                         </svg>
@@ -324,7 +307,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <span data-lang="referral-info">
-                
                         You will earn 0.5 USDT for each successful referral. 
                         Earnings can be withdrawn to your TON wallet.
                     </span>
@@ -338,7 +320,7 @@
                 </div>
                 
                 <div id="referrals-tab" class="tab-content">
-                    <div class="text-center py-8 text-gray-500">
+                    <div class="text-center py-8 text-gray-500" id="noReferrals">
                         <div class="inline-block p-3 bg-gray-100 rounded-full mb-3">
                             <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
@@ -348,41 +330,13 @@
                         <p class="text-xs text-gray-400" data-lang="share-invite">Share your referral link to invite friends</p>
                     </div>
                     
-                    <!-- Sample referral data (hidden by default) -->
-                    <div class="referral-data hide">
-                        <div class="divide-y divide-gray-100">
-                            <div class="py-3 flex justify-between items-center">
-                                <div>
-                                    <div class="flex items-center">
-                                        <span class="dot dot-success"></span>
-                                        <span class="font-medium">user123</span>
-                                    </div>
-                                    <div class="text-xs text-gray-500 mt-1">May 1, 2025</div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="font-medium text-gray-800">+0.5 USDT</div>
-                                    <div class="text-xs text-green-500" data-lang="completed">Completed</div>
-                                </div>
-                            </div>
-                            <div class="py-3 flex justify-between items-center">
-                                <div>
-                                    <div class="flex items-center">
-                                        <span class="dot dot-pending"></span>
-                                        <span class="font-medium">friend456</span>
-                                    </div>
-                                    <div class="text-xs text-gray-500 mt-1">May 5, 2025</div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="font-medium text-gray-800">+0.5 USDT</div>
-                                    <div class="text-xs text-yellow-500" data-lang="pending">Pending</div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="referral-data hide" id="referralsList">
+                        <div class="divide-y divide-gray-100" id="referralsContainer"></div>
                     </div>
                 </div>
                 
                 <div id="withdrawals-tab" class="tab-content hide">
-                    <div class="text-center py-8 text-gray-500">
+                    <div class="text-center py-8 text-gray-500" id="noWithdrawals">
                         <div class="inline-block p-3 bg-gray-100 rounded-full mb-3">
                             <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -392,20 +346,8 @@
                         <p class="text-xs text-gray-400" data-lang="start-earning">Start earning by inviting friends</p>
                     </div>
                     
-                    <!-- Sample withdrawal data (hidden by default) -->
-                    <div class="withdrawal-data hide">
-                        <div class="divide-y divide-gray-100">
-                            <div class="py-3 flex justify-between items-center">
-                                <div>
-                                    <div class="font-medium">Withdrawal to TON wallet</div>
-                                    <div class="text-xs text-gray-500 mt-1">Apr 25, 2025</div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="font-medium text-gray-800">2.5 USDT</div>
-                                    <div class="text-xs text-green-500" data-lang="completed">Completed</div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="withdrawal-data hide" id="withdrawalsList">
+                        <div class="divide-y divide-gray-100" id="withdrawalsContainer"></div>
                     </div>
                 </div>
             </div>
@@ -452,10 +394,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="footer">
-            <span data-lang="footer-powered">Powered by</span> THLF | <a href="https://telegram.org/privacy-tpa" target="_blank" rel="noopener noreferrer" data-lang="terms">Terms & Conditions</a>
-        </div>
     </div>
 
     <!-- Withdraw Popup -->
@@ -465,7 +403,7 @@
             <p class="text-sm text-gray-600" data-lang="withdraw-desc">Transfer your earnings to your TON wallet</p>
         </div>
 
-        <form class="withdraw-form">
+        <form class="withdraw-form" id="withdrawalForm">
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1" data-lang="amount">Amount (USDT)</label>
                 <input type="number" name="amount" min="1" step="0.01" class="w-full" placeholder="0.00" required>
@@ -477,276 +415,267 @@
             <button type="submit" class="w-full" data-lang="submit-withdrawal">Submit Withdrawal</button>
         </form>
     </div>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const menuOverlay = document.getElementById('menuOverlay');
-    const sideMenu = document.getElementById('sideMenu');
-    const copyButton = document.getElementById('copyButton');
-    const withdrawButton = document.getElementById('withdrawButton');
-    const withdrawPopup = document.getElementById('withdrawPopup');
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabContents = document.querySelectorAll('.tab-content');
-    const languageBtns = document.querySelectorAll('.language-btn');
 
-    const state = {
-        userId: localStorage.getItem('telegramUserId') || generateUserId(),
-        username: localStorage.getItem('telegramUsername') || 'User',
-        referralCode: null,
-        referralLink: null,
-        referralStats: {
-            availableBalance: 0,
-            totalEarned: 0,
-            referralsCount: 0,
-            pendingAmount: 0
-        },
-        referrals: [],
-        withdrawals: [],
-        language: localStorage.getItem('language') || 'en'
-    };
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const menuOverlay = document.getElementById('menuOverlay');
+        const sideMenu = document.getElementById('sideMenu');
+        const menuButton = document.getElementById('menuButton');
+        const copyButton = document.getElementById('copyButton');
+        const withdrawButton = document.getElementById('withdrawButton');
+        const withdrawPopup = document.getElementById('withdrawPopup');
+        const withdrawalForm = document.getElementById('withdrawalForm');
+        const referralLinkDisplay = document.getElementById('referralLinkDisplay');
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const languageBtns = document.querySelectorAll('.language-btn');
+        const shareFb = document.getElementById('shareFb');
+        const shareTw = document.getElementById('shareTw');
+        const shareWa = document.getElementById('shareWa');
 
-    const translations = {
-        en: {
-            'menu': 'Menu',
-            'home': 'Home',
-            'sell': 'Sell',
-            'history': 'History',
-            'referral': 'Referral',
-            'about': 'About',
-            'referral-title': 'Referral Program',
-            'referral-subtitle': 'Invite friends and earn rewards',
-            'available-balance': 'Available Balance',
-            'withdraw': 'Withdraw',
-            'total-earned': 'Total Earned',
-            'referrals': 'Referrals',
-            'pending': 'Pending',
-            'your-link': 'Your Referral Link',
-            'share-text': 'Share this link with friends and earn 0.5 USDT for every successful referral',
-            'share-fb': 'Share',
-            'share-tw': 'Share',
-            'share-wa': 'Share',
-            'referral-info': 'You will earn 0.5 USDT for each successful referral. Earnings can be withdrawn to your TON wallet.',
-            'my-referrals': 'My Referrals',
-            'withdrawals': 'Withdrawals',
-            'no-referrals': 'You don\'t have any referrals yet',
-            'share-invite': 'Share your referral link to invite friends',
-            'completed': 'Completed',
-            'no-withdrawals': 'No withdrawal history yet',
-            'start-earning': 'Start earning by inviting friends',
-            'how-it-works': 'How It Works',
-            'step1-title': 'Share Your Link',
-            'step1-desc': 'Copy your unique referral link and share it with friends',
-            'step2-title': 'Friends Make a Purchase',
-            'step2-desc': 'They get instant access to Premium or Stars',
-            'step3-title': 'You Earn Rewards',
-            'step3-desc': 'Get 0.5 USDT for each successful referral',
-            'step4-title': 'Withdraw Earnings',
-            'step4-desc': 'Transfer funds to your TON wallet when ready',
-            'withdraw-title': 'Withdraw Funds',
-            'withdraw-desc': 'Transfer your earnings to your TON wallet',
-            'amount': 'Amount (USDT)',
-            'wallet-address': 'TON Wallet Address',
-            'submit-withdrawal': 'Submit Withdrawal',
-            'link-copied': 'Link copied to clipboard!',
-            'min-withdraw': 'Minimum withdrawal amount is 1 USDT',
-            'withdraw-success': 'Withdrawal request submitted successfully',
-            'withdraw-error': 'Error processing withdrawal request',
-            'no-balance': 'You don\'t have enough balance to withdraw'
-        },
-        ru: {
-            'menu': 'Меню',
-            'home': 'Главная',
-            'sell': 'Продать',
-            'history': 'История',
-            'referral': 'Реферальная программа',
-            'about': 'О нас',
-            'referral-title': 'Реферальная программа',
-            'referral-subtitle': 'Приглашайте друзей и получайте вознаграждения',
-            'available-balance': 'Доступный баланс',
-            'withdraw': 'Вывести',
-            'total-earned': 'Всего заработано',
-            'referrals': 'Рефералы',
-            'pending': 'В ожидании',
-            'your-link': 'Ваша реферальная ссылка',
-            'share-text': 'Поделитесь этой ссылкой с друзьями и получите 0.5 USDT за каждого успешного реферала',
-            'share-fb': 'Поделиться',
-            'share-tw': 'Поделиться',
-            'share-wa': 'Поделиться',
-            'referral-info': 'Вы заработаете 0.5 USDT за каждого успешного реферала. Заработок можно вывести на ваш TON кошелек.',
-            'my-referrals': 'Мои рефералы',
-            'withdrawals': 'Выводы',
-            'no-referrals': 'У вас пока нет рефералов',
-            'share-invite': 'Поделитесь своей реферальной ссылкой, чтобы пригласить друзей',
-            'completed': 'Завершено',
-            'no-withdrawals': 'История выводов пуста',
-            'start-earning': 'Начните зарабатывать, приглашая друзей',
-            'how-it-works': 'Как это работает',
-            'step1-title': 'Поделитесь своей ссылкой',
-            'step1-desc': 'Скопируйте уникальную реферальную ссылку и поделитесь ею с друзьями',
-            'step2-title': 'Друзья совершают покупку',
-            'step2-desc': 'Они получают мгновенный доступ к Premium или Stars',
-            'step3-title': 'Вы получаете вознаграждение',
-            'step3-desc': 'Получите 0.5 USDT за каждого успешного реферала',
-            'step4-title': 'Выведите заработок',
-            'step4-desc': 'Переведите средства на свой TON кошелек, когда будете готовы',
-            'withdraw-title': 'Вывод средств',
-            'withdraw-desc': 'Перевод заработка на ваш TON кошелек',
-            'amount': 'Сумма (USDT)',
-            'wallet-address': 'Адрес TON кошелька',
-            'submit-withdrawal': 'Отправить запрос на вывод',
-            'link-copied': 'Ссылка скопирована в буфер обмена!',
-            'min-withdraw': 'Минимальная сумма вывода 1 USDT',
-            'withdraw-success': 'Запрос на вывод успешно отправлен',
-            'withdraw-error': 'Ошибка при обработке запроса на вывод',
-            'no-balance': 'У вас недостаточно средств для вывода'
+        const state = {
+            userId: window.Telegram?.WebApp?.initDataUnsafe?.user?.id || generateRandomId(),
+            username: window.Telegram?.WebApp?.initDataUnsafe?.user?.username || 'User',
+            referralCode: null,
+            referralLink: null,
+            referralStats: {
+                availableBalance: 0,
+                totalEarned: 0,
+                referralsCount: 0,
+                pendingAmount: 0
+            },
+            referrals: [],
+            withdrawals: [],
+            language: localStorage.getItem('language') || 'en'
+        };
+
+        const translations = {
+            en: {
+                'menu': 'Menu',
+                'home': 'Home',
+                'sell': 'Sell',
+                'history': 'History',
+                'referral': 'Referral',
+                'about': 'About',
+                'referral-title': 'Referral Program',
+                'referral-subtitle': 'Invite friends and earn rewards',
+                'available-balance': 'Available Balance',
+                'withdraw': 'Withdraw',
+                'total-earned': 'Total Earned',
+                'referrals': 'Referrals',
+                'pending': 'Pending',
+                'your-link': 'Your Referral Link',
+                'share-text': 'Share this link with friends and earn 0.5 USDT for every successful referral',
+                'share-fb': 'Share',
+                'share-tw': 'Share',
+                'share-wa': 'Share',
+                'referral-info': 'You will earn 0.5 USDT for each successful referral. Earnings can be withdrawn to your TON wallet.',
+                'my-referrals': 'My Referrals',
+                'withdrawals': 'Withdrawals',
+                'no-referrals': 'You don\'t have any referrals yet',
+                'share-invite': 'Share your referral link to invite friends',
+                'completed': 'Completed',
+                'no-withdrawals': 'No withdrawal history yet',
+                'start-earning': 'Start earning by inviting friends',
+                'how-it-works': 'How It Works',
+                'step1-title': 'Share Your Link',
+                'step1-desc': 'Copy your unique referral link and share it with friends',
+                'step2-title': 'Friends Make a Purchase',
+                'step2-desc': 'They get instant access to Premium or Stars',
+                'step3-title': 'You Earn Rewards',
+                'step3-desc': 'Get 0.5 USDT for each successful referral',
+                'step4-title': 'Withdraw Earnings',
+                'step4-desc': 'Transfer funds to your TON wallet when ready',
+                'withdraw-title': 'Withdraw Funds',
+                'withdraw-desc': 'Transfer your earnings to your TON wallet',
+                'amount': 'Amount (USDT)',
+                'wallet-address': 'TON Wallet Address',
+                'submit-withdrawal': 'Submit Withdrawal',
+                'link-copied': 'Link copied to clipboard!',
+                'min-withdraw': 'Minimum withdrawal amount is 1 USDT',
+                'withdraw-success': 'Withdrawal request submitted successfully',
+                'withdraw-error': 'Error processing withdrawal request',
+                'no-balance': 'You don\'t have enough balance to withdraw'
+            },
+            ru: {
+                'menu': 'Меню',
+                'home': 'Главная',
+                'sell': 'Продать',
+                'history': 'История',
+                'referral': 'Реферальная программа',
+                'about': 'О нас',
+                'referral-title': 'Реферальная программа',
+                'referral-subtitle': 'Приглашайте друзей и получайте вознаграждения',
+                'available-balance': 'Доступный баланс',
+                'withdraw': 'Вывести',
+                'total-earned': 'Всего заработано',
+                'referrals': 'Рефералы',
+                'pending': 'В ожидании',
+                'your-link': 'Ваша реферальная ссылка',
+                'share-text': 'Поделитесь этой ссылкой с друзьями и получите 0.5 USDT за каждого успешного реферала',
+                'share-fb': 'Поделиться',
+                'share-tw': 'Поделиться',
+                'share-wa': 'Поделиться',
+                'referral-info': 'Вы заработаете 0.5 USDT за каждого успешного реферала. Заработок можно вывести на ваш TON кошелек.',
+                'my-referrals': 'Мои рефералы',
+                'withdrawals': 'Выводы',
+                'no-referrals': 'У вас пока нет рефералов',
+                'share-invite': 'Поделитесь своей реферальной ссылкой, чтобы пригласить друзей',
+                'completed': 'Завершено',
+                'no-withdrawals': 'История выводов пуста',
+                'start-earning': 'Начните зарабатывать, приглашая друзей',
+                'how-it-works': 'Как это работает',
+                'step1-title': 'Поделитесь своей ссылкой',
+                'step1-desc': 'Скопируйте уникальную реферальную ссылку и поделитесь ею с друзьями',
+                'step2-title': 'Друзья совершают покупку',
+                'step2-desc': 'Они получают мгновенный доступ к Premium или Stars',
+                'step3-title': 'Вы получаете вознаграждение',
+                'step3-desc': 'Получите 0.5 USDT за каждого успешного реферала',
+                'step4-title': 'Выведите заработок',
+                'step4-desc': 'Переведите средства на свой TON кошелек, когда будете готовы',
+                'withdraw-title': 'Вывод средств',
+                'withdraw-desc': 'Перевод заработка на ваш TON кошелек',
+                'amount': 'Сумма (USDT)',
+                'wallet-address': 'Адрес TON кошелька',
+                'submit-withdrawal': 'Отправить запрос на вывод',
+                'link-copied': 'Ссылка скопирована в буфер обмена!',
+                'min-withdraw': 'Минимальная сумма вывода 1 USDT',
+                'withdraw-success': 'Запрос на вывод успешно отправлен',
+                'withdraw-error': 'Ошибка при обработке запроса на вывод',
+                'no-balance': 'У вас недостаточно средств для вывода'
+            }
+        };
+
+        function init() {
+            applyLanguage(state.language);
+            setupEventListeners();
+            loadReferralData();
         }
-    };
 
-    function init() {
-        applyLanguage(state.language);
-        setupEventListeners();
-        loadReferralData();
-    }
-
-    function applyLanguage(lang) {
-        state.language = lang;
-        localStorage.setItem('language', lang);
-        
-        languageBtns.forEach(btn => {
-            if (btn.getAttribute('data-language') === lang) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-        
-        document.querySelectorAll('[data-lang]').forEach(el => {
-            const key = el.getAttribute('data-lang');
-            if (translations[lang] && translations[lang][key]) {
-                el.textContent = translations[lang][key];
-            }
-        });
-    }
-
-    function setupEventListeners() {
-        document.querySelector('button[onclick="toggleMenu()"]').addEventListener('click', toggleMenu);
-        copyButton.addEventListener('click', copyReferralLink);
-        withdrawButton.addEventListener('click', showWithdrawPopup);
-        
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const tabName = button.getAttribute('data-tab');
-                switchTab(tabName);
-            });
-        });
-        
-        languageBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const language = btn.getAttribute('data-language');
-                changeLanguage(language);
-            });
-        });
-        
-        window.addEventListener('click', (e) => {
-            if (e.target === withdrawPopup) {
-                withdrawPopup.style.display = 'none';
-            }
-        });
-        
-        document.querySelectorAll('.bg-blue-500, .bg-blue-400, .bg-green-500').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const platform = btn.classList.contains('bg-blue-500') ? 'facebook' : 
-                               btn.classList.contains('bg-blue-400') ? 'twitter' : 'whatsapp';
-                shareReferralLink(platform);
-            });
-        });
-        
-        if (document.querySelector('.withdraw-form')) {
-            document.querySelector('.withdraw-form').addEventListener('submit', submitWithdrawal);
+        function generateRandomId() {
+            return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         }
-    }
 
-    function toggleMenu() {
-        menuOverlay.classList.toggle('active');
-        sideMenu.classList.toggle('active');
-    }
-
-    function changeLanguage(language) {
-        applyLanguage(language);
-    }
-
-    function generateUserId() {
-        const tgUserId = window.Telegram.WebApp.initDataUnsafe.user?.id || Math.random().toString(36).substring(2, 15);
-        localStorage.setItem('telegramUserId', tgUserId);
-        return tgUserId;
-    }
-
-    async function loadReferralData() {
-        try {
-            const response = await fetch(`https://your-backend-api.com/referrals/${state.userId}`);
+        function applyLanguage(lang) {
+            state.language = lang;
+            localStorage.setItem('language', lang);
             
-            if (!response.ok) {
-                throw new Error('Failed to fetch referral data');
+            languageBtns.forEach(btn => {
+                if (btn.getAttribute('data-language') === lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if (translations[lang] && translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                }
+            });
+        }
+
+        function setupEventListeners() {
+            menuButton.addEventListener('click', toggleMenu);
+            menuOverlay.addEventListener('click', toggleMenu);
+            copyButton.addEventListener('click', copyReferralLink);
+            withdrawButton.addEventListener('click', showWithdrawPopup);
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabName = button.getAttribute('data-tab');
+                    switchTab(tabName);
+                });
+            });
+            
+            languageBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const language = btn.getAttribute('data-language');
+                    changeLanguage(language);
+                });
+            });
+            
+            shareFb.addEventListener('click', () => shareReferralLink('facebook'));
+            shareTw.addEventListener('click', () => shareReferralLink('twitter'));
+            shareWa.addEventListener('click', () => shareReferralLink('whatsapp'));
+            
+            withdrawalForm.addEventListener('submit', submitWithdrawal);
+        }
+
+        function toggleMenu() {
+            menuOverlay.classList.toggle('active');
+            sideMenu.classList.toggle('active');
+        }
+
+        function changeLanguage(language) {
+            applyLanguage(language);
+        }
+
+        async function loadReferralData() {
+            try {
+                const response = await fetch(`https://your-backend-api.com/referrals/${state.userId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch referral data');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    processReferralData(data.data);
+                } else {
+                    console.error('API error:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading referral data:', error);
+                showNotification('Failed to load referral data');
+            }
+        }
+
+        function processReferralData(data) {
+            state.referrals = data.referrals || [];
+            state.withdrawals = data.withdrawals || [];
+            
+            const completedReferrals = state.referrals.filter(r => r.status === 'completed');
+            const pendingReferrals = state.referrals.filter(r => r.status === 'pending');
+            
+            state.referralStats.referralsCount = completedReferrals.length;
+            state.referralStats.totalEarned = completedReferrals.length * 0.5;
+            state.referralStats.pendingAmount = pendingReferrals.length * 0.5;
+            state.referralStats.availableBalance = state.referralStats.totalEarned;
+            
+            state.referralCode = state.userId;
+            state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.referralCode}`;
+            
+            updateReferralUI();
+        }
+
+        function updateReferralUI() {
+            document.getElementById('availableBalance').textContent = `${state.referralStats.availableBalance.toFixed(2)} USDT`;
+            document.getElementById('totalEarned').textContent = `${state.referralStats.totalEarned.toFixed(2)} USDT`;
+            document.getElementById('referralsCount').textContent = state.referralStats.referralsCount;
+            document.getElementById('pendingAmount').textContent = `${state.referralStats.pendingAmount.toFixed(2)} USDT`;
+            
+            referralLinkDisplay.textContent = state.referralLink;
+            updateReferralsList();
+            updateWithdrawalsList();
+        }
+
+        function updateReferralsList() {
+            const noReferrals = document.getElementById('noReferrals');
+            const referralsList = document.getElementById('referralsList');
+            const referralsContainer = document.getElementById('referralsContainer');
+            
+            if (state.referrals.length === 0) {
+                noReferrals.classList.remove('hide');
+                referralsList.classList.add('hide');
+                return;
             }
             
-            const data = await response.json();
-            
-            if (data.success) {
-                processReferralData(data.data);
-            } else {
-                console.error('API error:', data.error);
-            }
-        } catch (error) {
-            console.error('Error loading referral data:', error);
-            showNotification('Failed to load referral data');
-        }
-    }
-
-    function processReferralData(data) {
-        state.referrals = data.referrals || [];
-        state.withdrawals = data.withdrawals || [];
-        
-        const completedReferrals = state.referrals.filter(r => r.status === 'completed');
-        const pendingReferrals = state.referrals.filter(r => r.status === 'pending');
-        
-        state.referralStats.referralsCount = completedReferrals.length;
-        state.referralStats.totalEarned = completedReferrals.length * 0.5;
-        state.referralStats.pendingAmount = pendingReferrals.length * 0.5;
-        state.referralStats.availableBalance = state.referralStats.totalEarned;
-        
-        state.referralCode = state.userId;
-        state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.referralCode}`;
-        
-        updateReferralUI();
-    }
-
-    function updateReferralUI() {
-        document.querySelector('.referral-stats .font-bold').textContent = `${state.referralStats.availableBalance.toFixed(2)} USDT`;
-        document.querySelectorAll('.grid-cols-3 .font-semibold')[0].textContent = `${state.referralStats.totalEarned.toFixed(2)} USDT`;
-        document.querySelectorAll('.grid-cols-3 .font-semibold')[1].textContent = state.referralStats.referralsCount;
-        document.querySelectorAll('.grid-cols-3 .font-semibold')[2].textContent = `${state.referralStats.pendingAmount.toFixed(2)} USDT`;
-        
-        document.querySelector('.referral-code').textContent = state.referralLink;
-        updateReferralsList();
-        updateWithdrawalsList();
-    }
-
-    function updateReferralsList() {
-        const referralsTab = document.getElementById('referrals-tab');
-        const emptyState = referralsTab.querySelector(':not(.referral-data)');
-        const dataContainer = referralsTab.querySelector('.referral-data');
-        
-        if (state.referrals.length === 0) {
-            emptyState.classList.remove('hide');
-            if (dataContainer) dataContainer.classList.add('hide');
-            return;
-        }
-        
-        emptyState.classList.add('hide');
-        
-        if (dataContainer) {
-            dataContainer.classList.remove('hide');
-            const listContainer = dataContainer.querySelector('.divide-y');
-            listContainer.innerHTML = '';
+            noReferrals.classList.add('hide');
+            referralsList.classList.remove('hide');
+            referralsContainer.innerHTML = '';
             
             state.referrals.forEach(referral => {
                 const date = new Date(referral.dateReferred);
@@ -768,28 +697,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
                 
-                listContainer.appendChild(referralItem);
+                referralsContainer.appendChild(referralItem);
             });
         }
-    }
 
-    function updateWithdrawalsList() {
-        const withdrawalsTab = document.getElementById('withdrawals-tab');
-        const emptyState = withdrawalsTab.querySelector(':not(.withdrawal-data)');
-        const dataContainer = withdrawalsTab.querySelector('.withdrawal-data');
-        
-        if (state.withdrawals.length === 0) {
-            emptyState.classList.remove('hide');
-            if (dataContainer) dataContainer.classList.add('hide');
-            return;
-        }
-        
-        emptyState.classList.add('hide');
-        
-        if (dataContainer) {
-            dataContainer.classList.remove('hide');
-            const listContainer = dataContainer.querySelector('.divide-y');
-            listContainer.innerHTML = '';
+        function updateWithdrawalsList() {
+            const noWithdrawals = document.getElementById('noWithdrawals');
+            const withdrawalsList = document.getElementById('withdrawalsList');
+            const withdrawalsContainer = document.getElementById('withdrawalsContainer');
+            
+            if (state.withdrawals.length === 0) {
+                noWithdrawals.classList.remove('hide');
+                withdrawalsList.classList.add('hide');
+                return;
+            }
+            
+            noWithdrawals.classList.add('hide');
+            withdrawalsList.classList.remove('hide');
+            withdrawalsContainer.innerHTML = '';
             
             state.withdrawals.forEach(withdrawal => {
                 const date = new Date(withdrawal.date);
@@ -808,156 +733,155 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
                 
-                listContainer.appendChild(withdrawalItem);
+                withdrawalsContainer.appendChild(withdrawalItem);
             });
         }
-    }
 
-    function copyReferralLink() {
-        navigator.clipboard.writeText(state.referralLink).then(() => {
-            showNotification(translations[state.language]['link-copied']);
-            copyButton.classList.add('bg-green-100', 'text-green-600');
-            setTimeout(() => {
-                copyButton.classList.remove('bg-green-100', 'text-green-600');
-            }, 1000);
-        }).catch(err => {
-            console.error('Failed to copy: ', err);
-        });
-    }
-
-    function showNotification(message) {
-        const notification = document.createElement('div');
-        notification.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm';
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
-        }, 2000);
-    }
-
-    function switchTab(tabName) {
-        tabButtons.forEach(button => {
-            if (button.getAttribute('data-tab') === tabName) {
-                button.classList.add('active', 'text-gray-800');
-                button.classList.remove('text-gray-500');
-            } else {
-                button.classList.remove('active', 'text-gray-800');
-                button.classList.add('text-gray-500');
-            }
-        });
-        
-        tabContents.forEach(content => {
-            if (content.id === `${tabName}-tab`) {
-                content.classList.remove('hide');
-            } else {
-                content.classList.add('hide');
-            }
-        });
-    }
-
-    function showWithdrawPopup() {
-        if (state.referralStats.availableBalance < 1) {
-            showNotification(translations[state.language]['min-withdraw']);
-            return;
+        function copyReferralLink() {
+            navigator.clipboard.writeText(state.referralLink).then(() => {
+                showNotification(translations[state.language]['link-copied']);
+                copyButton.classList.add('bg-green-100', 'text-green-600');
+                setTimeout(() => {
+                    copyButton.classList.remove('bg-green-100', 'text-green-600');
+                }, 1000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
         }
-        
-        withdrawPopup.style.display = 'block';
-        const amountInput = withdrawPopup.querySelector('input[type="number"]');
-        if (amountInput) {
-            amountInput.max = state.referralStats.availableBalance;
-            amountInput.placeholder = `Max: ${state.referralStats.availableBalance.toFixed(2)}`;
-        }
-    }
 
-    async function submitWithdrawal(e) {
-        e.preventDefault();
-        
-        const form = e.target;
-        const amount = parseFloat(form.querySelector('input[name="amount"]').value);
-        const walletAddress = form.querySelector('input[name="wallet"]').value;
-        
-        if (amount < 1) {
-            showNotification(translations[state.language]['min-withdraw']);
-            return;
-        }
-        
-        if (amount > state.referralStats.availableBalance) {
-            showNotification(translations[state.language]['no-balance']);
-            return;
-        }
-        
-        try {
-            const withdrawalData = {
-                userId: state.userId,
-                username: state.username,
-                amount,
-                walletAddress,
-                date: new Date().toISOString()
-            };
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm';
+            notification.textContent = message;
+            document.body.appendChild(notification);
             
-            const response = await fetch('https://your-backend-api.com/withdrawals', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(withdrawalData)
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 2000);
+        }
+
+        function switchTab(tabName) {
+            tabButtons.forEach(button => {
+                if (button.getAttribute('data-tab') === tabName) {
+                    button.classList.add('active', 'text-gray-800');
+                    button.classList.remove('text-gray-500');
+                } else {
+                    button.classList.remove('active', 'text-gray-800');
+                    button.classList.add('text-gray-500');
+                }
             });
             
-            if (!response.ok) {
-                throw new Error('Withdrawal failed');
+            tabContents.forEach(content => {
+                if (content.id === `${tabName}-tab`) {
+                    content.classList.remove('hide');
+                } else {
+                    content.classList.add('hide');
+                }
+            });
+        }
+
+        function showWithdrawPopup() {
+            if (state.referralStats.availableBalance < 1) {
+                showNotification(translations[state.language]['min-withdraw']);
+                return;
             }
             
-            const data = await response.json();
+            withdrawPopup.style.display = 'block';
+            const amountInput = withdrawPopup.querySelector('input[type="number"]');
+            if (amountInput) {
+                amountInput.max = state.referralStats.availableBalance;
+                amountInput.placeholder = `Max: ${state.referralStats.availableBalance.toFixed(2)}`;
+            }
+        }
+
+        async function submitWithdrawal(e) {
+            e.preventDefault();
             
-            if (data.success) {
-                state.withdrawals.unshift({
-                    ...withdrawalData,
-                    status: 'pending'
+            const form = e.target;
+            const amount = parseFloat(form.querySelector('input[name="amount"]').value);
+            const walletAddress = form.querySelector('input[name="wallet"]').value;
+            
+            if (amount < 1) {
+                showNotification(translations[state.language]['min-withdraw']);
+                return;
+            }
+            
+            if (amount > state.referralStats.availableBalance) {
+                showNotification(translations[state.language]['no-balance']);
+                return;
+            }
+            
+            try {
+                const withdrawalData = {
+                    userId: state.userId,
+                    username: state.username,
+                    amount,
+                    walletAddress,
+                    date: new Date().toISOString()
+                };
+                
+                const response = await fetch('https://your-backend-api.com/withdrawals', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(withdrawalData)
                 });
                 
-                state.referralStats.availableBalance -= amount;
-                updateReferralUI();
-                withdrawPopup.style.display = 'none';
-                form.reset();
-                showNotification(translations[state.language]['withdraw-success']);
-            } else {
-                throw new Error(data.error || 'Withdrawal failed');
+                if (!response.ok) {
+                    throw new Error('Withdrawal failed');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    state.withdrawals.unshift({
+                        ...withdrawalData,
+                        status: 'pending'
+                    });
+                    
+                    state.referralStats.availableBalance -= amount;
+                    updateReferralUI();
+                    withdrawPopup.style.display = 'none';
+                    form.reset();
+                    showNotification(translations[state.language]['withdraw-success']);
+                } else {
+                    throw new Error(data.error || 'Withdrawal failed');
+                }
+            } catch (error) {
+                console.error('Withdrawal error:', error);
+                showNotification(translations[state.language]['withdraw-error']);
             }
-        } catch (error) {
-            console.error('Withdrawal error:', error);
-            showNotification(translations[state.language]['withdraw-error']);
         }
-    }
 
-    function shareReferralLink(platform) {
-        const text = encodeURIComponent(`Join StarStore and get premium features! Use my referral link:`);
-        const url = encodeURIComponent(state.referralLink);
-        
-        let shareUrl = '';
-        
-        switch (platform) {
-            case 'facebook':
-                shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${text}`;
-                break;
-            case 'twitter':
-                shareUrl = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
-                break;
-            case 'whatsapp':
-                shareUrl = `https://wa.me/?text=${text} ${url}`;
-                break;
+        function shareReferralLink(platform) {
+            const text = encodeURIComponent(`Join StarStore and get premium features! Use my referral link:`);
+            const url = encodeURIComponent(state.referralLink);
+            
+            let shareUrl = '';
+            
+            switch (platform) {
+                case 'facebook':
+                    shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${text}`;
+                    break;
+                case 'twitter':
+                    shareUrl = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
+                    break;
+                case 'whatsapp':
+                    shareUrl = `https://wa.me/?text=${text} ${url}`;
+                    break;
+            }
+            
+            if (shareUrl) {
+                window.open(shareUrl, '_blank', 'noopener,noreferrer');
+            }
         }
-        
-        if (shareUrl) {
-            window.open(shareUrl, '_blank', 'noopener,noreferrer');
-        }
-    }
 
-    init();
-});
-</script>
-            </body>
-            </html>
+        init();
+    });
+    </script>
+</body>
+</html>
