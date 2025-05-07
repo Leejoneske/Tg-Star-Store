@@ -480,7 +480,19 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
 <script>
-  document.addEventListener('DOMContentLoaded', function init() {
+
+    let tg = window.Telegram.WebApp;
+
+// DOM ready handler
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Telegram WebApp
+    tg.expand();
+    tg.enableClosingConfirmation();
+    
+    // Your app initialization
+    init();
+});
+  
     const menuOverlay = document.getElementById('menuOverlay');
     const sideMenu = document.getElementById('sideMenu');
     const copyButton = document.getElementById('copyButton');
