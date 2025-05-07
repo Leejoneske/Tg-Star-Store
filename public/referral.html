@@ -627,31 +627,34 @@
     function changeLanguage(language) {
         applyLanguage(language);
     }
+  
+  async function loadReferralData() {
+    try {
+        const response = await fetch(`/api/referrals/${state.userId}`, {
+            headers: {
+                'Telegram-Data': window.Telegram?.WebApp?.initData || ''
+            }
+        });
 
-    async function loadReferralData() {
-        try {
-            const response = await fetch(`https://your-backend-api.com/referrals/${state.userId}`, {
-                headers: {
-                    'Telegram-Data': window.Telegram?.WebApp?.initData || ''
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to fetch referral data');
-            }
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                processReferralData(data.data);
-            } else {
-                console.error('API error:', data.error);
-            }
-        } catch (error) {
-            console.error('Error loading referral data:', error);
-            showNotification('Failed to load referral data');
+        if (!response.ok) {
+            throw new Error('Failed to fetch referral data');
         }
+
+        const data = await response.json();
+
+        if (data.success) {
+            processReferralData(data.data);
+        } else {
+            console.error('API error:', data.error);
+        }
+    } catch (error) {
+        console.error('Error loading referral data:', error);
+        showNotification('Failed to load referral data');
     }
+}
+
+
+    
 
     function processReferralData(data) {
         state.referrals = data.referrals || [];
