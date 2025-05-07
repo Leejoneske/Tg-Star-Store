@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Referral - StarStore</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f3f4f6;
+        }
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+        .logo-header {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4f46e5;
+            text-align: center;
+            padding: 16px;
+            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 40;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .side-menu {
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: 64%;
+            height: 100%;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+        .side-menu.active {
+            left: 0;
+        }
+        .menu-item {
+            padding: 12px 16px;
+            font-size: 16px;
+            color: #4f46e5;
+            transition: all 0.2s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .menu-item:hover {
+            background: #f3f4f6;
+            transform: translateX(5px);
+        }
+        .footer {
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            color: #6b7280;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            width: 100%;
+            max-width: 480px;
+        }
+        .footer a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .language-selector {
+            display: flex;
+            gap: 8px;
+        }
+        .language-btn {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .language-btn.active {
+            background: #4f46e5;
+            color: white;
+        }
+        .language-btn:not(.active) {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
+        .copy-button {
+            transition: all 0.2s ease;
+        }
+        .copy-button:active {
+            transform: scale(0.95);
+        }
+        .referral-stats {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            border-radius: 12px;
+            color: white;
+        }
+        .tab-button {
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #4f46e5;
+        }
+        .referral-code {
+            background: #f9fafb;
+            border: 1px dashed #d1d5db;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 18px;
+            letter-spacing: 1px;
+        }
+        .withdraw-form input {
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 14px;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        .withdraw-form input:focus {
+            border-color: #4f46e5;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+        }
+        .withdraw-form button {
+            background: #4f46e5;
+            color: white;
+            border-radius: 6px;
+            padding: 10px 16px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .withdraw-form button:hover {
+            background: #4338ca;
+        }
+        .withdraw-form button:active {
+            transform: scale(0.98);
+        }
+        .hide {
+            display: none;
+        }
+        .show {
+            display: block;
+        }
+        .dot {
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .dot-success {
+            background-color: #10b981;
+        }
+        .dot-pending {
+            background-color: #f59e0b;
+        }
+        .dot-failed {
+            background-color: #ef4444;
+        }
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            max-width: 90%;
+            width: 320px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+        <div class="side-menu" id="sideMenu">
+            <div class="p-6">
+                <div class="text-xl font-bold mb-8" data-lang="menu">Menu</div>
+                <nav class="space-y-2">
+                    <a href="index.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                        <span data-lang="home">Home</span>
+                    </a>
+                    <a href="sell.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                        <span data-lang="sell">Sell</span>
+                    </a>
+                    <a href="history.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                        <span data-lang="history">History</span>
+                    </a>
+                    <a href="referral.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                        <span data-lang="referral">Referral</span>
+                    </a>
+                    <a href="about.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                        <span data-lang="about">About</span>
+                    </a>
+                </nav>
+            </div>
+        </div>
+
+        <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+            <button onclick="toggleMenu()" class="p-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <div class="logo-header">StarStore</div>
+            <div class="language-selector">
+                <div class="language-btn" data-language="en" onclick="changeLanguage('en')">EN</div>
+                <div class="language-btn" data-language="ru" onclick="changeLanguage('ru')">RU</div>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <div class="text-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2" data-lang="referral-title">Referral Program</h1>
+                <p class="text-gray-600" data-lang="referral-subtitle">Invite friends and earn rewards</p>
+            </div>
+
+            <div class="referral-stats p-5 mb-6 text-white">
+                <div class="flex justify-between mb-4">
+                    <div>
+                        <div class="text-sm opacity-80 mb-1" data-lang="available-balance">Available Balance</div>
+                        <div class="text-2xl font-bold">0.00 USDT</div>
+                    </div>
+                    <button id="withdrawButton" class="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition-colors" data-lang="withdraw">Withdraw</button>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center pt-2">
+                    <div>
+                        <div class="text-sm opacity-80 mb-1" data-lang="total-earned">Total Earned</div>
+                        <div class="font-semibold">0.00 USDT</div>
+                    </div>
+                    <div>
+                        <div class="text-sm opacity-80 mb-1" data-lang="referrals">Referrals</div>
+                        <div class="font-semibold">0</div>
+                    </div>
+                    <div>
+                        <div class="text-sm opacity-80 mb-1" data-lang="pending">Pending</div>
+                        <div class="font-semibold">0.00 USDT</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-5 mb-6 border border-gray-100 shadow-sm">
+                <h2 class="text-lg font-bold text-gray-800 mb-3" data-lang="your-link">Your Referral Link</h2>
+                <p class="text-gray-600 text-sm mb-4" data-lang="share-text">Share this link with friends and earn 0.5 USDT for every successful referral</p>
+                
+                <div class="flex items-center mb-4">
+                    <div class="referral-code flex-1 py-3 px-4 mr-2 overflow-hidden overflow-ellipsis">
+                        https://starstore.app/ref/ABC123
+                    </div>
+                    <button id="copyButton" class="copy-button bg-indigo-100 text-indigo-600 p-3 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="flex space-x-2 mb-4">
+                    <button class="flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/>
+                        </svg>
+                        <span data-lang="share-fb">Share</span>
+                    </button>
+                    <button class="flex-1 bg-blue-400 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                        </svg>
+                        <span data-lang="share-tw">Share</span>
+                    </button>
+                    <button class="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+                        </svg>
+                        <span data-lang="share-wa">Share</span>
+                    </button>
+                </div>
+
+                <div class="bg-indigo-50 rounded-lg p-4 text-indigo-800 text-sm flex items-start">
+                    <svg class="w-5 h-5 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span data-lang="referral-info">
+                        Your referral will receive their Premium or Stars instantly. 
+                        You will earn 0.5 USDT for each successful referral. 
+                        Earnings can be withdrawn to your TON wallet.
+                    </span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-5 mb-6 border border-gray-100 shadow-sm">
+                <div class="flex border-b border-gray-200 mb-4">
+                    <button class="tab-button active py-2 px-4 text-sm font-medium text-gray-800" data-tab="referrals" data-lang="my-referrals">My Referrals</button>
+                    <button class="tab-button py-2 px-4 text-sm font-medium text-gray-500" data-tab="withdrawals" data-lang="withdrawals">Withdrawals</button>
+                </div>
+                
+                <div id="referrals-tab" class="tab-content">
+                    <div class="text-center py-8 text-gray-500">
+                        <div class="inline-block p-3 bg-gray-100 rounded-full mb-3">
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                        </div>
+                        <p class="text-sm mb-2" data-lang="no-referrals">You don't have any referrals yet</p>
+                        <p class="text-xs text-gray-400" data-lang="share-invite">Share your referral link to invite friends</p>
+                    </div>
+                    
+                    <!-- Sample referral data (hidden by default) -->
+                    <div class="referral-data hide">
+                        <div class="divide-y divide-gray-100">
+                            <div class="py-3 flex justify-between items-center">
+                                <div>
+                                    <div class="flex items-center">
+                                        <span class="dot dot-success"></span>
+                                        <span class="font-medium">user123</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">May 1, 2025</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-medium text-gray-800">+0.5 USDT</div>
+                                    <div class="text-xs text-green-500" data-lang="completed">Completed</div>
+                                </div>
+                            </div>
+                            <div class="py-3 flex justify-between items-center">
+                                <div>
+                                    <div class="flex items-center">
+                                        <span class="dot dot-pending"></span>
+                                        <span class="font-medium">friend456</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">May 5, 2025</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-medium text-gray-800">+0.5 USDT</div>
+                                    <div class="text-xs text-yellow-500" data-lang="pending">Pending</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="withdrawals-tab" class="tab-content hide">
+                    <div class="text-center py-8 text-gray-500">
+                        <div class="inline-block p-3 bg-gray-100 rounded-full mb-3">
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <p class="text-sm mb-2" data-lang="no-withdrawals">No withdrawal history yet</p>
+                        <p class="text-xs text-gray-400" data-lang="start-earning">Start earning by inviting friends</p>
+                    </div>
+                    
+                    <!-- Sample withdrawal data (hidden by default) -->
+                    <div class="withdrawal-data hide">
+                        <div class="divide-y divide-gray-100">
+                            <div class="py-3 flex justify-between items-center">
+                                <div>
+                                    <div class="font-medium">Withdrawal to TON wallet</div>
+                                    <div class="text-xs text-gray-500 mt-1">Apr 25, 2025</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-medium text-gray-800">2.5 USDT</div>
+                                    <div class="text-xs text-green-500" data-lang="completed">Completed</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-5 mb-8 border border-gray-100 shadow-sm">
+                <h2 class="text-lg font-bold text-gray-800 mb-3" data-lang="how-it-works">How It Works</h2>
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <div class="bg-indigo-100 text-indigo-600 rounded-full h-7 w-7 flex items-center justify-center flex-shrink-0 mr-3">
+                            <span class="text-sm font-medium">1</span>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-gray-800" data-lang="step1-title">Share Your Link</h3>
+                            <p class="text-sm text-gray-600 mt-1" data-lang="step1-desc">Copy your unique referral link and share it with friends</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-indigo-100 text-indigo-600 rounded-full h-7 w-7 flex items-center justify-center flex-shrink-0 mr-3">
+                            <span class="text-sm font-medium">2</span>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-gray-800" data-lang="step2-title">Friends Make a Purchase</h3>
+                            <p class="text-sm text-gray-600 mt-1" data-lang="step2-desc">They get instant access to Premium or Stars</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-indigo-100 text-indigo-600 rounded-full h-7 w-7 flex items-center justify-center flex-shrink-0 mr-3">
+                            <span class="text-sm font-medium">3</span>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-gray-800" data-lang="step3-title">You Earn Rewards</h3>
+                            <p class="text-sm text-gray-600 mt-1" data-lang="step3-desc">Get 0.5 USDT for each successful referral</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-indigo-100 text-indigo-600 rounded-full h-7 w-7 flex items-center justify-center flex-shrink-0 mr-3">
+                            <span class="text-sm font-medium">4</span>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-gray-800" data-lang="step4-title">Withdraw Earnings</h3>
+                            <p class="text-sm text-gray-600 mt-1" data-lang="step4-desc">Transfer funds to your TON wallet when ready</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <span data-lang="footer-powered">Powered by</span> THLF | <a href="https://telegram.org/privacy-tpa" target="_blank" rel="noopener noreferrer" data-lang="terms">Terms & Conditions</a>
+        </div>
+    </div>
+
+    <!-- Withdraw Popup -->
+    <div class="popup" id="withdrawPopup">
+        <div class="text-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-2" data-lang="withdraw-title">Withdraw Funds</h3>
+            <p class="text-sm text-gray-600" data-lang="withdraw-desc">Transfer your earnings to your TON wallet</p>
+        </div>
+
+        <form class="withdraw-form">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1" data-lang="amount">Amount (USDT)</label>
