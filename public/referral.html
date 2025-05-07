@@ -468,6 +468,15 @@
         <form class="withdraw-form">
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1" data-lang="amount">Amount (USDT)</label>
+                <input type="number" name="amount" min="1" step="0.01" class="w-full" placeholder="0.00" required>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1" data-lang="wallet-address">TON Wallet Address</label>
+                <input type="text" name="wallet" class="w-full" placeholder="UQ..." required>
+            </div>
+            <button type="submit" class="w-full" data-lang="submit-withdrawal">Submit Withdrawal</button>
+        </form>
+    </div>
 
 
 
