@@ -433,22 +433,7 @@
         const shareTw = document.getElementById('shareTw');
         const shareWa = document.getElementById('shareWa');
 
-        const state = {
-            userId: window.Telegram?.WebApp?.initDataUnsafe?.user?.id || generateRandomId(),
-            username: window.Telegram?.WebApp?.initDataUnsafe?.user?.username || 'User',
-            referralCode: null,
-            referralLink: null,
-            referralStats: {
-                availableBalance: 0,
-                totalEarned: 0,
-                referralsCount: 0,
-                pendingAmount: 0
-            },
-            referrals: [],
-            withdrawals: [],
-            language: localStorage.getItem('language') || 'en'
-        };
-
+       
         const translations = {
             en: {
                 'menu': 'Menu',
@@ -552,9 +537,23 @@
             loadReferralData();
         }
 
-        function generateRandomId() {
-            return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        }
+        const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+
+const state = {
+    userId: tgUser?.id ?? null,
+    username: tgUser?.username ?? 'User',
+    referralCode: null,
+    referralLink: null,
+    referralStats: {
+        availableBalance: 0,
+        totalEarned: 0,
+        referralsCount: 0,
+        pendingAmount: 0
+    },
+    referrals: [],
+    withdrawals: [],
+    language: localStorage.getItem('language') || 'en'
+};
 
         function applyLanguage(lang) {
             state.language = lang;
@@ -615,9 +614,9 @@
 async function loadReferralData() {
     try {
         const response = await fetch(`/api/referrals/${state.userId}`, {
-            headers: {
-                'Telegram-Data': window.Telegram?.WebApp?.initData || ''
-            }
+            params: {
+                        telegramId: Telegram.WebApp.initDataUnsafe.user.id
+                    }
         });
 
         if (!response.ok) {
