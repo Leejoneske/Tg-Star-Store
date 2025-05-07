@@ -611,12 +611,12 @@ const state = {
             applyLanguage(language);
         }
 
-async function loadReferralData() {
+     async function loadReferralData() {
     try {
         const response = await fetch(`/api/referrals/${state.userId}`, {
-            params: {
-                        telegramId: Telegram.WebApp.initDataUnsafe.user.id
-                    }
+            headers: {
+                'Telegram-Data': Telegram.WebApp.initData || ''
+            }
         });
 
         if (!response.ok) {
@@ -635,8 +635,8 @@ async function loadReferralData() {
         showNotification('Failed to load referral data');
     }
 }
-     
-        
+
+
 
         function processReferralData(data) {
             state.referrals = data.referrals || [];
