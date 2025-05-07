@@ -554,9 +554,7 @@
             loadReferralData();
         }
 
-        function generateRandomId() {
-            return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        }
+        
 
         function applyLanguage(lang) {
             state.language = lang;
@@ -738,6 +736,20 @@
                 withdrawalsContainer.appendChild(withdrawalItem);
             });
         }
+     function generateReferralLink() {
+        if (state.isTelegramUser) {
+            state.referralCode = `tg_${state.userId}`;
+            state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.referralCode}`;
+        } else {
+            state.referralCode = generateRandomId();
+            state.referralLink = `https://starstore.app/ref/${state.referralCode}`;
+        }
+        document.getElementById('referralLinkDisplay').textContent = state.referralLink;
+    }
+
+    function generateRandomId() {
+        return Math.random().toString(36).substring(2, 15);
+    }
 
         function copyReferralLink() {
             navigator.clipboard.writeText(state.referralLink).then(() => {
