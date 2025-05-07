@@ -488,9 +488,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabContents = document.querySelectorAll('.tab-content');
     const languageBtns = document.querySelectorAll('.language-btn');
 
-    // App State
     const state = {
-        userId: localStorage.getItem('userId') || null,
+        userId: localStorage.getItem('telegramUserId') || generateUserId(),
+        username: localStorage.getItem('telegramUsername') || 'User',
         referralCode: null,
         referralLink: null,
         referralStats: {
@@ -504,7 +504,6 @@ document.addEventListener('DOMContentLoaded', function() {
         language: localStorage.getItem('language') || 'en'
     };
 
-    // Language translations
     const translations = {
         en: {
             'menu': 'Menu',
@@ -542,11 +541,11 @@ document.addEventListener('DOMContentLoaded', function() {
             'step3-desc': 'Get 0.5 USDT for each successful referral',
             'step4-title': 'Withdraw Earnings',
             'step4-desc': 'Transfer funds to your TON wallet when ready',
-            'footer-powered': 'Powered by',
-            'terms': 'Terms & Conditions',
             'withdraw-title': 'Withdraw Funds',
             'withdraw-desc': 'Transfer your earnings to your TON wallet',
             'amount': 'Amount (USDT)',
+            'wallet-address': 'TON Wallet Address',
+            'submit-withdrawal': 'Submit Withdrawal',
             'link-copied': 'Link copied to clipboard!',
             'min-withdraw': 'Minimum withdrawal amount is 1 USDT',
             'withdraw-success': 'Withdrawal request submitted successfully',
@@ -589,11 +588,11 @@ document.addEventListener('DOMContentLoaded', function() {
             'step3-desc': 'Получите 0.5 USDT за каждого успешного реферала',
             'step4-title': 'Выведите заработок',
             'step4-desc': 'Переведите средства на свой TON кошелек, когда будете готовы',
-            'footer-powered': 'При поддержке',
-            'terms': 'Условия и положения',
             'withdraw-title': 'Вывод средств',
             'withdraw-desc': 'Перевод заработка на ваш TON кошелек',
             'amount': 'Сумма (USDT)',
+            'wallet-address': 'Адрес TON кошелька',
+            'submit-withdrawal': 'Отправить запрос на вывод',
             'link-copied': 'Ссылка скопирована в буфер обмена!',
             'min-withdraw': 'Минимальная сумма вывода 1 USDT',
             'withdraw-success': 'Запрос на вывод успешно отправлен',
@@ -602,20 +601,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Initialize app
     function init() {
         applyLanguage(state.language);
-        checkAuthentication();
         setupEventListeners();
         loadReferralData();
     }
 
-    // Apply language translations
     function applyLanguage(lang) {
         state.language = lang;
         localStorage.setItem('language', lang);
         
-        // Update language buttons
         languageBtns.forEach(btn => {
             if (btn.getAttribute('data-language') === lang) {
                 btn.classList.add('active');
@@ -624,7 +619,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Update all translatable elements
         document.querySelectorAll('[data-lang]').forEach(el => {
             const key = el.getAttribute('data-lang');
             if (translations[lang] && translations[lang][key]) {
@@ -633,30 +627,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Authentication check
-    function checkAuthentication() {
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-            // Redirect to login if needed
-            // window.location.href = 'login.html';
-        } else {
-            // Decode token to get userId if needed
-            // state.userId = decoded.userId;
-        }
-    }
-
-    // Setup event listeners
     function setupEventListeners() {
-        // Menu toggle
         document.querySelector('button[onclick="toggleMenu()"]').addEventListener('click', toggleMenu);
-        
-        // Copy button
         copyButton.addEventListener('click', copyReferralLink);
-        
-        // Withdraw button
         withdrawButton.addEventListener('click', showWithdrawPopup);
         
-        // Tab switching
         tabButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const tabName = button.getAttribute('data-tab');
@@ -664,7 +639,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Language buttons
         languageBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const language = btn.getAttribute('data-language');
@@ -672,14 +646,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Close popup outside click
         window.addEventListener('click', (e) => {
             if (e.target === withdrawPopup) {
                 withdrawPopup.style.display = 'none';
             }
         });
         
-        // Social share buttons
         document.querySelectorAll('.bg-blue-500, .bg-blue-400, .bg-green-500').forEach(btn => {
             btn.addEventListener('click', () => {
                 const platform = btn.classList.contains('bg-blue-500') ? 'facebook' : 
@@ -688,37 +660,29 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Withdraw form submission
         if (document.querySelector('.withdraw-form')) {
             document.querySelector('.withdraw-form').addEventListener('submit', submitWithdrawal);
         }
     }
 
-    // Toggle menu
     function toggleMenu() {
         menuOverlay.classList.toggle('active');
         sideMenu.classList.toggle('active');
     }
 
-    // Change language
     function changeLanguage(language) {
         applyLanguage(language);
     }
 
-    // Load referral data
+    function generateUserId() {
+        const tgUserId = window.Telegram.WebApp.initDataUnsafe.user?.id || Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('telegramUserId', tgUserId);
+        return tgUserId;
+    }
+
     async function loadReferralData() {
         try {
-            if (!state.userId) {
-                // Mock data for demo
-                mockReferralData();
-                return;
-            }
-            
-            const response = await fetch(`/api/referrals/${state.userId}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                }
-            });
+            const response = await fetch(`https://your-backend-api.com/referrals/${state.userId}`);
             
             if (!response.ok) {
                 throw new Error('Failed to fetch referral data');
@@ -727,80 +691,45 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                // Process referral data
                 processReferralData(data.data);
             } else {
                 console.error('API error:', data.error);
             }
         } catch (error) {
             console.error('Error loading referral data:', error);
-            // Show error message or use mock data for demo
-            mockReferralData();
+            showNotification('Failed to load referral data');
         }
     }
 
-    // Process referral data from API
     function processReferralData(data) {
-        // Update state with real data
-        state.referrals = data.referralsMade || [];
-        state.referralStats.referralsCount = state.referrals.length;
-        state.referralStats.totalEarned = data.totalRewards / 100; // Converting from cents to USDT
-        state.referralStats.pendingAmount = state.referrals
-            .filter(r => r.status === 'pending')
-            .reduce((sum, r) => sum + 0.5, 0);
-        state.referralStats.availableBalance = state.referralStats.totalEarned - state.referralStats.pendingAmount;
+        state.referrals = data.referrals || [];
+        state.withdrawals = data.withdrawals || [];
         
-        // Generate referral code and link
-        state.referralCode = generateReferralCode();
-        state.referralLink = `https://starstore.app/ref/${state.referralCode}`;
+        const completedReferrals = state.referrals.filter(r => r.status === 'completed');
+        const pendingReferrals = state.referrals.filter(r => r.status === 'pending');
         
-        // Update UI with the data
-        updateReferralUI();
-    }
-
-    // Mock referral data for development/demo
-    function mockReferralData() {
-        state.referralCode = 'ABC123';
-        state.referralLink = `https://starstore.app/ref/${state.referralCode}`;
-        state.referralStats.availableBalance = 0.00;
-        state.referralStats.totalEarned = 0.00;
-        state.referralStats.referralsCount = 0;
-        state.referralStats.pendingAmount = 0.00;
-        state.referrals = [];
-        state.withdrawals = [];
+        state.referralStats.referralsCount = completedReferrals.length;
+        state.referralStats.totalEarned = completedReferrals.length * 0.5;
+        state.referralStats.pendingAmount = pendingReferrals.length * 0.5;
+        state.referralStats.availableBalance = state.referralStats.totalEarned;
+        
+        state.referralCode = state.userId;
+        state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.referralCode}`;
         
         updateReferralUI();
     }
 
-    // Generate a random referral code
-    function generateReferralCode() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = '';
-        for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-    }
-
-    // Update UI with referral data
     function updateReferralUI() {
-        // Update referral stats
         document.querySelector('.referral-stats .font-bold').textContent = `${state.referralStats.availableBalance.toFixed(2)} USDT`;
         document.querySelectorAll('.grid-cols-3 .font-semibold')[0].textContent = `${state.referralStats.totalEarned.toFixed(2)} USDT`;
         document.querySelectorAll('.grid-cols-3 .font-semibold')[1].textContent = state.referralStats.referralsCount;
         document.querySelectorAll('.grid-cols-3 .font-semibold')[2].textContent = `${state.referralStats.pendingAmount.toFixed(2)} USDT`;
         
-        // Update referral code and link
         document.querySelector('.referral-code').textContent = state.referralLink;
-        
-        // Update referrals list
         updateReferralsList();
-        
-        // Update withdrawals list
         updateWithdrawalsList();
     }
 
-    // Update referrals list
     function updateReferralsList() {
         const referralsTab = document.getElementById('referrals-tab');
         const emptyState = referralsTab.querySelector(':not(.referral-data)');
@@ -812,7 +741,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Hide empty state and show data container
         emptyState.classList.add('hide');
         
         if (dataContainer) {
@@ -820,25 +748,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const listContainer = dataContainer.querySelector('.divide-y');
             listContainer.innerHTML = '';
             
-            // Add referrals to the list
             state.referrals.forEach(referral => {
-                const date = new Date(referral.dateReferred || Date.now());
+                const date = new Date(referral.dateReferred);
                 const formattedDate = date.toLocaleDateString();
-                const status = referral.status || 'pending';
                 
                 const referralItem = document.createElement('div');
                 referralItem.className = 'py-3 flex justify-between items-center';
                 referralItem.innerHTML = `
                     <div>
                         <div class="flex items-center">
-                            <span class="dot dot-${status === 'completed' ? 'success' : 'pending'}"></span>
-                            <span class="font-medium">${referral.referredUsername || 'User'}</span>
+                            <span class="dot dot-${referral.status === 'completed' ? 'success' : 'pending'}"></span>
+                            <span class="font-medium">${referral.referredUserId.substring(0, 8)}</span>
                         </div>
                         <div class="text-xs text-gray-500 mt-1">${formattedDate}</div>
                     </div>
                     <div class="text-right">
                         <div class="font-medium text-gray-800">+0.5 USDT</div>
-                        <div class="text-xs ${status === 'completed' ? 'text-green-500' : 'text-yellow-500'}" data-lang="${status}">${translations[state.language][status]}</div>
+                        <div class="text-xs ${referral.status === 'completed' ? 'text-green-500' : 'text-yellow-500'}" data-lang="${referral.status}">${translations[state.language][referral.status]}</div>
                     </div>
                 `;
                 
@@ -847,7 +773,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Update withdrawals list
     function updateWithdrawalsList() {
         const withdrawalsTab = document.getElementById('withdrawals-tab');
         const emptyState = withdrawalsTab.querySelector(':not(.withdrawal-data)');
@@ -859,7 +784,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Hide empty state and show data container
         emptyState.classList.add('hide');
         
         if (dataContainer) {
@@ -867,9 +791,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const listContainer = dataContainer.querySelector('.divide-y');
             listContainer.innerHTML = '';
             
-            // Add withdrawals to the list
             state.withdrawals.forEach(withdrawal => {
-                const date = new Date(withdrawal.date || Date.now());
+                const date = new Date(withdrawal.date);
                 const formattedDate = date.toLocaleDateString();
                 
                 const withdrawalItem = document.createElement('div');
@@ -881,7 +804,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <div class="text-right">
                         <div class="font-medium text-gray-800">${withdrawal.amount.toFixed(2)} USDT</div>
-                        <div class="text-xs text-green-500" data-lang="completed">${translations[state.language].completed}</div>
+                        <div class="text-xs ${withdrawal.status === 'completed' ? 'text-green-500' : 'text-yellow-500'}" data-lang="${withdrawal.status}">${translations[state.language][withdrawal.status]}</div>
                     </div>
                 `;
                 
@@ -890,13 +813,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Copy referral link to clipboard
     function copyReferralLink() {
-        const referralLink = document.querySelector('.referral-code').textContent;
-        navigator.clipboard.writeText(referralLink).then(() => {
+        navigator.clipboard.writeText(state.referralLink).then(() => {
             showNotification(translations[state.language]['link-copied']);
-            
-            // Visual feedback on button
             copyButton.classList.add('bg-green-100', 'text-green-600');
             setTimeout(() => {
                 copyButton.classList.remove('bg-green-100', 'text-green-600');
@@ -906,7 +825,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Show notification
     function showNotification(message) {
         const notification = document.createElement('div');
         notification.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm';
@@ -915,24 +833,20 @@ document.addEventListener('DOMContentLoaded', function() {
         
         setTimeout(() => {
             notification.style.opacity = '0';
-            notification.style.transition = 'opacity 0.3s ease';
             setTimeout(() => {
                 document.body.removeChild(notification);
             }, 300);
         }, 2000);
     }
 
-    // Switch tabs
     function switchTab(tabName) {
         tabButtons.forEach(button => {
             if (button.getAttribute('data-tab') === tabName) {
-                button.classList.add('active');
+                button.classList.add('active', 'text-gray-800');
                 button.classList.remove('text-gray-500');
-                button.classList.add('text-gray-800');
             } else {
-                button.classList.remove('active');
+                button.classList.remove('active', 'text-gray-800');
                 button.classList.add('text-gray-500');
-                button.classList.remove('text-gray-800');
             }
         });
         
@@ -945,7 +859,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Show withdraw popup
     function showWithdrawPopup() {
         if (state.referralStats.availableBalance < 1) {
             showNotification(translations[state.language]['min-withdraw']);
@@ -953,8 +866,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         withdrawPopup.style.display = 'block';
-        
-        // Set max amount to available balance
         const amountInput = withdrawPopup.querySelector('input[type="number"]');
         if (amountInput) {
             amountInput.max = state.referralStats.availableBalance;
@@ -962,7 +873,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Submit withdrawal request
     async function submitWithdrawal(e) {
         e.preventDefault();
         
@@ -981,34 +891,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            // Mock successful withdrawal
-            const newWithdrawal = {
-                id: Date.now().toString(),
+            const withdrawalData = {
+                userId: state.userId,
+                username: state.username,
                 amount,
                 walletAddress,
-                date: new Date(),
-                status: 'completed'
+                date: new Date().toISOString()
             };
             
-            state.withdrawals.unshift(newWithdrawal);
-            state.referralStats.availableBalance -= amount;
+            const response = await fetch('https://your-backend-api.com/withdrawals', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(withdrawalData)
+            });
             
-            // Update UI
-            updateReferralUI();
+            if (!response.ok) {
+                throw new Error('Withdrawal failed');
+            }
             
-            // Close popup
-            withdrawPopup.style.display = 'none';
+            const data = await response.json();
             
-            // Show success message
-            showNotification(translations[state.language]['withdraw-success']);
-            
+            if (data.success) {
+                state.withdrawals.unshift({
+                    ...withdrawalData,
+                    status: 'pending'
+                });
+                
+                state.referralStats.availableBalance -= amount;
+                updateReferralUI();
+                withdrawPopup.style.display = 'none';
+                form.reset();
+                showNotification(translations[state.language]['withdraw-success']);
+            } else {
+                throw new Error(data.error || 'Withdrawal failed');
+            }
         } catch (error) {
             console.error('Withdrawal error:', error);
             showNotification(translations[state.language]['withdraw-error']);
         }
     }
 
-    // Share referral link on social media
     function shareReferralLink(platform) {
         const text = encodeURIComponent(`Join StarStore and get premium features! Use my referral link:`);
         const url = encodeURIComponent(state.referralLink);
@@ -1032,7 +956,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Initialize the app
     init();
 });
 </script>
