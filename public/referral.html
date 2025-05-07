@@ -434,20 +434,22 @@
         const shareWa = document.getElementById('shareWa');
 
         const state = {
-            userId: window.Telegram?.WebApp?.initDataUnsafe?.user?.id || generateRandomId(),
-            username: window.Telegram?.WebApp?.initDataUnsafe?.user?.username || 'User',
-            referralCode: null,
-            referralLink: null,
-            referralStats: {
-                availableBalance: 0,
-                totalEarned: 0,
-                referralsCount: 0,
-                pendingAmount: 0
-            },
-            referrals: [],
-            withdrawals: [],
-            language: localStorage.getItem('language') || 'en'
-        };
+        userId: tgWebApp?.initDataUnsafe?.user?.id || null,
+        username: tgWebApp?.initDataUnsafe?.user?.username || 'User',
+        firstName: tgWebApp?.initDataUnsafe?.user?.first_name || 'User',
+        isTelegramUser: isTelegramWebApp(),
+        referralCode: null,
+        referralLink: null,
+        referralStats: {
+            availableBalance: 0,
+            totalEarned: 0,
+            referralsCount: 0,
+            pendingAmount: 0
+        },
+        referrals: [],
+        withdrawals: [],
+        language: localStorage.getItem('language') || 'en'
+    };
 
         const translations = {
             en: {
