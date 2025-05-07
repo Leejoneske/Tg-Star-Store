@@ -477,7 +477,8 @@
             <button type="submit" class="w-full" data-lang="submit-withdrawal">Submit Withdrawal</button>
         </form>
     </div>
-
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
 <script>
   document.addEventListener('DOMContentLoaded', function init() {
     const menuOverlay = document.getElementById('menuOverlay');
@@ -613,17 +614,6 @@ function init() {
     loadReferralData();
 }
 
-// Authentication check
-function checkAuthentication() {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-        // Redirect to login if needed
-        // window.location.href = 'login.html';
-    } else {
-        // Decode token to get userId if needed
-        // state.userId = decoded.userId;
-    }
-}
 
 // Setup event listeners
 function setupEventListeners() {
