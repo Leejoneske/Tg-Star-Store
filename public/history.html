@@ -7,26 +7,78 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: #f5f7fa;
+            background: #f3f4f6;
         }
         .app-container {
             max-width: 480px;
             margin: 0 auto;
             background: white;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             min-height: 100vh;
             position: relative;
+            overflow: hidden;
         }
-        .header {
-            background: linear-gradient(135deg, #4f46e5, #6366f1);
-            color: white;
-            padding: 20px;
-            border-radius: 0 0 20px 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+        .logo-header {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4f46e5;
+            text-align: center;
+            padding: 16px;
+            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 40;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .side-menu {
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: 64%;
+            height: 100%;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+        .side-menu.active {
+            left: 0;
+        }
+        .menu-item {
+            padding: 12px 16px;
+            font-size: 16px;
+            color: #4f46e5;
+            transition: all 0.2s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .menu-item:hover {
+            background: #f3f4f6;
+            transform: translateX(5px);
         }
         .tab-active {
             border-bottom: 3px solid #4f46e5;
@@ -53,70 +105,17 @@
             background: #ecfdf5;
             color: #059669;
         }
-        .status-pending {
-            background: #fffbeb;
-            color: #d97706;
+        .status-processing {
+            background: #eff6ff;
+            color: #2563eb;
         }
         .status-declined {
             background: #fef2f2;
             color: #dc2626;
         }
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 70%;
-            max-width: 300px;
-            height: 100%;
-            background: white;
-            z-index: 50;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-        }
-        .sidebar.open {
-            transform: translateX(0);
-        }
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 40;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(3px);
-        }
-        .overlay.open {
-            opacity: 1;
-            visibility: visible;
-        }
-        .menu-item {
-            display: flex;
-            align-items: center;
-            padding: 14px 20px;
-            color: #4b5563;
-            transition: all 0.2s ease;
-            border-left: 3px solid transparent;
-        }
-        .menu-item:hover {
-            background: #f3f4f6;
-            color: #4f46e5;
-            border-left: 3px solid #4f46e5;
-        }
-        .menu-item.active {
-            background: #eef2ff;
-            color: #4f46e5;
-            border-left: 3px solid #4f46e5;
-            font-weight: 500;
-        }
-        .menu-item img {
-            width: 20px;
-            height: 20px;
-            margin-right: 12px;
+        .status-active {
+            background: #ecfdf5;
+            color: #059669;
         }
         .chart-container {
             position: relative;
@@ -199,104 +198,107 @@
                 transform: translateX(100%);
             }
         }
+        .footer {
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            color: #6b7280;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            width: 100%;
+            max-width: 480px;
+        }
+        .footer a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
     <div class="app-container">
-        <div class="overlay" id="overlay"></div>
-        <div class="sidebar" id="sidebar">
+        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+        <div class="side-menu" id="sideMenu">
             <div class="p-6">
-                <div class="flex justify-between items-center mb-8">
-                    <div class="text-xl font-bold text-indigo-600">Menu</div>
-                    <button id="closeMenu" class="p-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-                <nav>
+                <div class="text-xl font-bold mb-8" data-lang="menu">Menu</div>
+                <nav class="space-y-2">
                     <a href="index.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home">
-                        <span>Home</span>
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                        <span data-lang="home">Home</span>
                     </a>
                     <a href="sell.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell">
-                        <span>Sell</span>
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                        <span data-lang="sell">Sell</span>
                     </a>
-                    <a href="history.html" class="menu-item active">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History">
-                        <span>History</span>
+                    <a href="history.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                        <span data-lang="history">History</span>
                     </a>
                     <a href="referral.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral">
-                        <span>Referral</span>
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                        <span data-lang="referral">Referral</span>
                     </a>
                     <a href="about.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About">
-                        <span>About</span>
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                        <span data-lang="about">About</span>
                     </a>
                 </nav>
             </div>
         </div>
-        
-        <div class="header">
-            <div class="flex justify-between items-center mb-6">
-                <button id="menuBtn" class="p-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
-                <div class="text-xl font-bold">StarStore</div>
-                <div class="w-8"></div>
-            </div>
-            <h1 class="text-2xl font-bold mb-2">Activity History</h1>
-            <p class="text-indigo-100">Track all your transactions and referrals in one place</p>
+
+        <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+            <button onclick="toggleMenu()" class="p-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <div class="logo-header">StarStore</div>
+            <div class="w-8"></div>
         </div>
         
         <div class="px-4">
             <div class="flex border-b mb-6">
-                <button id="transactionsTab" class="flex-1 py-3 text-center tab-active">
+                <button id="transactionsTab" class="flex-1 py-3 text-center tab-active" data-lang="transactions">
                     Transactions
                 </button>
-                <button id="referralsTab" class="flex-1 py-3 text-center">
+                <button id="referralsTab" class="flex-1 py-3 text-center" data-lang="referrals">
                     Referrals
                 </button>
             </div>
             
             <div id="transactionsContent" class="tab-content active">
                 <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
-                    <h3 class="text-lg font-semibold mb-4">Overview</h3>
+                    <h3 class="text-lg font-semibold mb-4" data-lang="overview">Overview</h3>
                     <div class="chart-container">
                         <canvas id="transactionChart"></canvas>
                     </div>
                     <div class="grid grid-cols-3 gap-3 mt-4">
                         <div class="text-center p-2 rounded-lg bg-green-50">
                             <div class="text-green-600 text-xl font-semibold" id="completedCount">0</div>
-                            <div class="text-xs text-green-800">Completed</div>
+                            <div class="text-xs text-green-800" data-lang="completed">Completed</div>
                         </div>
-                        <div class="text-center p-2 rounded-lg bg-yellow-50">
-                            <div class="text-yellow-600 text-xl font-semibold" id="pendingCount">0</div>
-                            <div class="text-xs text-yellow-800">Pending</div>
+                        <div class="text-center p-2 rounded-lg bg-blue-50">
+                            <div class="text-blue-600 text-xl font-semibold" id="processingCount">0</div>
+                            <div class="text-xs text-blue-800" data-lang="processing">Processing</div>
                         </div>
                         <div class="text-center p-2 rounded-lg bg-red-50">
                             <div class="text-red-600 text-xl font-semibold" id="declinedCount">0</div>
-                            <div class="text-xs text-red-800">Declined</div>
+                            <div class="text-xs text-red-800" data-lang="declined">Declined</div>
                         </div>
                     </div>
                 </div>
                 
                 <div class="flex mb-4 space-x-2 overflow-x-auto pb-2 scrollbar-hide">
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap filter-active" data-filter="all">All</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="completed">Completed</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="pending">Pending</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="declined">Declined</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap filter-active" data-filter="all" data-lang="all">All</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="completed" data-lang="completed">Completed</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-lang="processing">Processing</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="declined" data-lang="declined">Declined</button>
                 </div>
                 
                 <div class="relative mb-6">
-                    <input type="text" id="searchTransactions" class="w-full p-3 pl-10 pr-4 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Search transactions...">
+                    <input type="text" id="searchTransactions" class="w-full p-3 pl-10 pr-4 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-lang-placeholder="search_transactions" placeholder="Search transactions...">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
                             <circle cx="11" cy="11" r="8"></circle>
@@ -321,7 +323,7 @@
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    <p class="text-center">No transactions found</p>
+                    <p class="text-center" data-lang="no_transactions">No transactions found</p>
                 </div>
                 
                 <div id="transactionsPagination" class="flex justify-center items-center gap-2 mb-6"></div>
@@ -332,19 +334,19 @@
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    <span>Export Transactions</span>
+                    <span data-lang="export_transactions">Export Transactions</span>
                 </button>
             </div>
             
             <div id="referralsContent" class="tab-content">
                 <div class="flex mb-4 space-x-2 overflow-x-auto pb-2 scrollbar-hide">
-                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap filter-active" data-filter="all">All</button>
-                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="active">Active</button>
-                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="pending">Pending</button>
+                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap filter-active" data-filter="all" data-lang="all">All</button>
+                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="active" data-lang="active">Active</button>
+                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-lang="processing">Processing</button>
                 </div>
                 
                 <div class="relative mb-6">
-                    <input type="text" id="searchReferrals" class="w-full p-3 pl-10 pr-4 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Search referrals...">
+                    <input type="text" id="searchReferrals" class="w-full p-3 pl-10 pr-4 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-lang-placeholder="search_referrals" placeholder="Search referrals...">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
                             <circle cx="11" cy="11" r="8"></circle>
@@ -368,7 +370,7 @@
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
-                    <p class="text-center">No referrals found</p>
+                    <p class="text-center" data-lang="no_referrals">No referrals found</p>
                 </div>
                 
                 <div id="referralsPagination" class="flex justify-center items-center gap-2 mb-6"></div>
@@ -379,15 +381,15 @@
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    <span>Export Referrals</span>
+                    <span data-lang="export_referrals">Export Referrals</span>
                 </button>
             </div>
         </div>
+        <div class="footer">
+            <span data-lang="copyright">© 2023 StarStore. All rights reserved.</span>
+        </div>
     </div>
 
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
         Telegram.WebApp.ready();
         const user = Telegram.WebApp.initDataUnsafe.user;
@@ -401,23 +403,111 @@
         let currentTransactionSearch = '';
         let currentReferralSearch = '';
         const itemsPerPage = 5;
-        let currentLanguage = 'en';
+        let currentLanguage = localStorage.getItem('appLanguage') || 'en';
         let transactionChart = null;
+
+        const translations = {
+            en: {
+                menu: "Menu",
+                home: "Home",
+                sell: "Sell",
+                history: "History",
+                referral: "Referral",
+                about: "About",
+                activity_history: "Activity History",
+                history_description: "Track all your transactions and referrals in one place",
+                transactions: "Transactions",
+                referrals: "Referrals",
+                overview: "Overview",
+                all: "All",
+                completed: "Completed",
+                processing: "Processing",
+                declined: "Declined",
+                active: "Active",
+                search_transactions: "Search transactions...",
+                search_referrals: "Search referrals...",
+                no_transactions: "No transactions found",
+                no_referrals: "No referrals found",
+                export_transactions: "Export Transactions",
+                export_referrals: "Export Referrals",
+                transaction_details: "Transaction Details",
+                referral_details: "Referral Details",
+                id: "ID",
+                type: "Type",
+                amount: "Amount",
+                status: "Status",
+                date: "Date",
+                name: "Name",
+                today: "Today",
+                yesterday: "Yesterday",
+                days_ago: "days ago",
+                total: "Total",
+                view_details: "View Details",
+                stars_purchase: "Stars Purchase",
+                close: "Close",
+                copyright: "© 2023 StarStore. All rights reserved."
+            },
+            ru: {
+                menu: "Меню",
+                home: "Главная",
+                sell: "Продать",
+                history: "История",
+                referral: "Рефералы",
+                about: "О нас",
+                activity_history: "История активности",
+                history_description: "Отслеживайте все ваши транзакции и рефералы в одном месте",
+                transactions: "Транзакции",
+                referrals: "Рефералы",
+                overview: "Обзор",
+                all: "Все",
+                completed: "Завершено",
+                processing: "В обработке",
+                declined: "Отклонено",
+                active: "Активно",
+                search_transactions: "Поиск транзакций...",
+                search_referrals: "Поиск рефералов...",
+                no_transactions: "Транзакций не найдено",
+                no_referrals: "Рефералов не найдено",
+                export_transactions: "Экспорт транзакций",
+                export_referrals: "Экспорт рефералов",
+                transaction_details: "Детали транзакции",
+                referral_details: "Детали реферала",
+                id: "ID",
+                type: "Тип",
+                amount: "Сумма",
+                status: "Статус",
+                date: "Дата",
+                name: "Имя",
+                today: "Сегодня",
+                yesterday: "Вчера",
+                days_ago: "дней назад",
+                total: "Всего",
+                view_details: "Просмотр деталей",
+                stars_purchase: "Покупка звезд",
+                close: "Закрыть",
+                copyright: "© 2023 StarStore. Все права защищены."
+            }
+        };
 
         document.addEventListener('DOMContentLoaded', () => {
             initApp();
         });
 
         function initApp() {
+            updateLanguage();
             setupEventListeners();
             loadTransactionHistory();
             loadReferralHistory();
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'appLanguage') {
+                    currentLanguage = event.newValue || 'en';
+                    updateLanguage();
+                }
+            });
         }
 
         function setupEventListeners() {
             document.getElementById('menuBtn').addEventListener('click', toggleMenu);
-            document.getElementById('closeMenu').addEventListener('click', toggleMenu);
-            document.getElementById('overlay').addEventListener('click', toggleMenu);
             document.getElementById('transactionsTab').addEventListener('click', () => switchTab('transactions'));
             document.getElementById('referralsTab').addEventListener('click', () => switchTab('referrals'));
             document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -455,8 +545,8 @@
         }
 
         function toggleMenu() {
-            document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('overlay').classList.toggle('open');
+            document.getElementById('sideMenu').classList.toggle('active');
+            document.getElementById('menuOverlay').classList.toggle('active');
         }
 
         function switchTab(tab) {
@@ -471,6 +561,23 @@
                 document.getElementById('referralsContent').classList.add('active');
                 document.getElementById('transactionsContent').classList.remove('active');
             }
+        }
+
+        function updateLanguage() {
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if (translations[currentLanguage] && translations[currentLanguage][key]) {
+                    el.textContent = translations[currentLanguage][key];
+                }
+            });
+            document.querySelectorAll('[data-lang-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-lang-placeholder');
+                if (translations[currentLanguage] && translations[currentLanguage][key]) {
+                    el.setAttribute('placeholder', translations[currentLanguage][key]);
+                }
+            });
+            if (transactionHistory.length > 0) updateTransactionList();
+            if (referralHistory.length > 0) updateReferralList();
         }
 
         function loadTransactionHistory() {
@@ -519,7 +626,8 @@
             }
             axios.get(`/api/referrals/${userId}`)
                 .then(response => {
-                    referralHistory = response.data.map(ref => {
+                    const data = response.data.data;
+                    referralHistory = [...data.referralsMade, ...data.referralsReceived].map(ref => {
                         const isReferrer = ref.referrerUserId === userId;
                         return {
                             id: ref._id,
@@ -542,20 +650,22 @@
         function mapOrderStatus(backendStatus) {
             const statusMap = {
                 'completed': 'completed',
-                'pending': 'pending',
+                'processing': 'processing',
+                'pending': 'processing',
                 'failed': 'declined',
                 'cancelled': 'declined'
             };
-            return statusMap[backendStatus] || 'pending';
+            return statusMap[backendStatus] || 'processing';
         }
 
         function mapReferralStatus(backendStatus) {
             const statusMap = {
                 'completed': 'active',
-                'pending': 'pending',
+                'processing': 'processing',
+                'pending': 'processing',
                 'expired': 'declined'
             };
-            return statusMap[backendStatus] || 'pending';
+            return statusMap[backendStatus] || 'processing';
         }
 
         function updateTransactionList() {
@@ -595,15 +705,15 @@
                     switch(txn.status) {
                         case 'completed':
                             statusClass = 'status-completed';
-                            statusText = 'Completed';
+                            statusText = translations[currentLanguage].completed;
                             break;
-                        case 'pending':
-                            statusClass = 'status-pending';
-                            statusText = 'Pending';
+                        case 'processing':
+                            statusClass = 'status-processing';
+                            statusText = translations[currentLanguage].processing;
                             break;
                         case 'declined':
                             statusClass = 'status-declined';
-                            statusText = 'Declined';
+                            statusText = translations[currentLanguage].declined;
                             break;
                     }
                     txnCard.innerHTML = `
@@ -667,12 +777,12 @@
                     let statusText = '';
                     switch(ref.status) {
                         case 'active':
-                            statusClass = 'status-completed';
-                            statusText = 'Active';
+                            statusClass = 'status-active';
+                            statusText = translations[currentLanguage].active;
                             break;
-                        case 'pending':
-                            statusClass = 'status-pending';
-                            statusText = 'Pending';
+                        case 'processing':
+                            statusClass = 'status-processing';
+                            statusText = translations[currentLanguage].processing;
                             break;
                     }
                     refCard.innerHTML = `
@@ -700,7 +810,7 @@
 
         function updateTransactionCounts(transactions) {
             document.getElementById('completedCount').textContent = transactions.filter(t => t.status === 'completed').length;
-            document.getElementById('pendingCount').textContent = transactions.filter(t => t.status === 'pending').length;
+            document.getElementById('processingCount').textContent = transactions.filter(t => t.status === 'processing').length;
             document.getElementById('declinedCount').textContent = transactions.filter(t => t.status === 'declined').length;
         }
 
@@ -729,7 +839,7 @@
                 data: {
                     labels: days,
                     datasets: [{
-                        label: 'Total',
+                        label: translations[currentLanguage].total,
                         data: data,
                         backgroundColor: 'rgba(79, 70, 229, 0.1)',
                         borderColor: 'rgba(79, 70, 229, 1)',
@@ -751,7 +861,7 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `Total: ${context.raw} ★`;
+                                    return `${translations[currentLanguage].total}: ${context.raw} ★`;
                                 }
                             }
                         }
@@ -844,14 +954,14 @@
             const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
             if (short) {
                 const options = { weekday: 'short' };
-                return new Intl.DateTimeFormat('en-US', options).format(date);
+                return new Intl.DateTimeFormat(currentLanguage === 'ru' ? 'ru-RU' : 'en-US', options).format(date);
             }
-            if (diffInDays === 0) return 'Today';
-            else if (diffInDays === 1) return 'Yesterday';
-            else if (diffInDays < 7) return `${diffInDays} days ago`;
+            if (diffInDays === 0) return translations[currentLanguage].today;
+            else if (diffInDays === 1) return translations[currentLanguage].yesterday;
+            else if (diffInDays < 7) return `${diffInDays} ${translations[currentLanguage].days_ago}`;
             else {
                 const options = { year: 'numeric', month: 'short', day: 'numeric' };
-                return new Intl.DateTimeFormat('en-US', options).format(date);
+                return new Intl.DateTimeFormat(currentLanguage === 'ru' ? 'ru-RU' : 'en-US', options).format(date);
             }
         }
 
@@ -861,39 +971,39 @@
             switch(transaction.status) {
                 case 'completed':
                     statusClass = 'status-completed';
-                    statusText = 'Completed';
+                    statusText = translations[currentLanguage].completed;
                     break;
-                case 'pending':
-                    statusClass = 'status-pending';
-                    statusText = 'Pending';
+                case 'processing':
+                    statusClass = 'status-processing';
+                    statusText = translations[currentLanguage].processing;
                     break;
                 case 'declined':
                     statusClass = 'status-declined';
-                    statusText = 'Declined';
+                    statusText = translations[currentLanguage].declined;
                     break;
             }
             Swal.fire({
-                title: 'Transaction Details',
+                title: translations[currentLanguage].transaction_details,
                 html: `
                     <div class="text-left space-y-3">
                         <div>
-                            <span class="text-gray-500">ID:</span>
+                            <span class="text-gray-500">${translations[currentLanguage].id}:</span>
                             <span class="ml-2 font-medium">${transaction.id}</span>
                         </div>
                         <div>
-                            <span class="text-gray-500">Type:</span>
+                            <span class="text-gray-500">${translations[currentLanguage].type}:</span>
                             <span class="ml-2 font-medium">${transaction.type}</span>
                         </div>
                         <div>
-                            <span class="text-gray-500">Amount:</span>
+                            <span class="text-gray-500">${translations[currentLanguage].amount}:</span>
                             <span class="ml-2 font-medium">${transaction.amount} ★</span>
                         </div>
                         <div>
-                            <span class="text-gray-500">Status:</span>
+                            <span class="text-gray-500">${translations[currentLanguage].status}:</span>
                             <span class="ml-2 status-badge ${statusClass}">${statusText}</span>
                         </div>
                         <div>
-                            <span class="text-gray-500">Date:</span>
+                            <span class="text-gray-500">${translations[currentLanguage].date}:</span>
                             <span class="ml-2 font-medium">${formatDate(transaction.date)}</span>
                         </div>
                         <div class="pt-3 border-t">
@@ -901,7 +1011,7 @@
                         </div>
                     </div>
                 `,
-                confirmButtonText: 'Close',
+                confirmButtonText: translations[currentLanguage].close,
                 confirmButtonColor: '#4f46e5'
             });
         }
@@ -911,32 +1021,32 @@
             let statusText = '';
             switch(referral.status) {
                 case 'active':
-                    statusClass = 'status-completed';
-                    statusText = 'Active';
+                    statusClass = 'status-active';
+                    statusText = translations[currentLanguage].active;
                     break;
-                case 'pending':
-                    statusClass = 'status-pending';
-                    statusText = 'Pending';
+                case 'processing':
+                    statusClass = 'status-processing';
+                    statusText = translations[currentLanguage].processing;
                     break;
             }
             Swal.fire({
-                title: 'Referral Details',
+                title: translations[currentLanguage].referral_details,
                 html: `
                     <div class="text-left space-y-3">
                         <div>
-                            <span class="text-gray-500">ID:</span>
+                            <span class="text-gray-500">${translations[currentLanguage].id}:</span>
                             <span class="ml-2 font-medium">${referral.id}</span>
                         </div>
                         <div>
-                            <span class="text-gray-500">Name:</span>
+                            <span class="text-gray-500">${translations[currentLanguage].name}:</span>
                             <span class="ml-2 font-medium">${referral.name}</span>
                         </div>
                         <div>
-                            <span class="text-gray-500">Status:</span>
+                            <span class="text-gray-500">${translations[currentLanguage].status}:</span>
                             <span class="ml-2 status-badge ${statusClass}">${statusText}</span>
                         </div>
                         <div>
-                            <span class="text-gray-500">Date:</span>
+                            <span class="text-gray-500">${translations[currentLanguage].date}:</span>
                             <span class="ml-2 font-medium">${formatDate(referral.date)}</span>
                         </div>
                         <div class="pt-3 border-t">
@@ -944,7 +1054,7 @@
                         </div>
                     </div>
                 `,
-                confirmButtonText: 'Close',
+                confirmButtonText: translations[currentLanguage].close,
                 confirmButtonColor: '#4f46e5'
             });
         }
@@ -981,7 +1091,7 @@
                 title: 'Success',
                 text: 'Transactions exported successfully',
                 icon: 'success',
-                confirmButtonText: 'Close',
+                confirmButtonText: translations[currentLanguage].close,
                 confirmButtonColor: '#4f46e5'
             });
         }
@@ -1018,7 +1128,7 @@
                 title: 'Success',
                 text: 'Referrals exported successfully',
                 icon: 'success',
-                confirmButtonText: 'Close',
+                confirmButtonText: translations[currentLanguage].close,
                 confirmButtonColor: '#4f46e5'
             });
         }
