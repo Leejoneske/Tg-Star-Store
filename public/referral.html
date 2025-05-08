@@ -612,20 +612,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function loadReferralData() {
         try {
-            const response = await fetch(`/api/referral-data/${state.userId}`, {
-                headers: {
-                    'tg-web-app-data': Telegram.WebApp.initData,
-                    'Content-Type': 'application/json'
-                }
-            });
-
+            const response = await fetch(`/api/referral-data/${state.userId}`);
             if (!response.ok) throw new Error('Failed to load referral data');
             
             const data = await response.json();
+            if (!data.success) throw new Error(data.error || 'Failed to load data');
             
-            state.stats = data.stats;
-            state.referrals = data.referrals;
-            state.withdrawals = data.withdrawals;
+            state.stats = {
+                availableBalance: data.stats.availableBalance,
+                totalEarned: data.stats.totalEarned,
+                referralsCount: data.stats.referralsCount,
+                pendingAmount: data.stats.pendingAmount
+            };
+            
+            state.referrals = data.referrals.map(ref => ({
+                userId: ref.userId,
+                name: ref.name,
+                status: ref.status,
+                date: ref.date
+            }));
+            
+            state.withdrawals = data.withdrawals.map(wd => ({
+                amount: wd.amount,
+                walletAddress: wd.walletAddress,
+                status: wd.status,
+                date: wd.date
+            }));
+            
             state.referralCode = data.referralCode;
             state.referralLink = data.referralLink;
             
@@ -839,12 +852,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/api/withdrawals', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'tg-web-app-data': Telegram.WebApp.initData
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     userId: state.userId,
-                    amount,
+                    amount: parseFloat(amount),
                     walletAddress
                 })
             });
@@ -853,26 +865,24 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             
-            if (data.success) {
-                state.withdrawals.unshift({
-                    amount,
-                    walletAddress,
-                    date: new Date().toISOString(),
-                    status: 'pending'
-                });
-                
-                state.stats.availableBalance -= amount;
-                updateUI();
-                
-                Swal.fire({
-                    title: translations[state.language]['withdraw-success'],
-                    icon: 'success',
-                    confirmButtonText: translations[state.language].close,
-                    confirmButtonColor: '#4f46e5'
-                });
-            } else {
-                throw new Error(data.error || 'Withdrawal failed');
-            }
+            if (!data.success) throw new Error(data.error || 'Withdrawal failed');
+            
+            state.withdrawals.unshift({
+                amount: parseFloat(amount),
+                walletAddress,
+                date: new Date().toISOString(),
+                status: 'pending'
+            });
+            
+            state.stats.availableBalance -= parseFloat(amount);
+            updateUI();
+            
+            Swal.fire({
+                title: translations[state.language]['withdraw-success'],
+                icon: 'success',
+                confirmButtonText: translations[state.language].close,
+                confirmButtonColor: '#4f46e5'
+            });
         } catch (error) {
             Swal.fire({
                 title: translations[state.language]['withdraw-error'],
@@ -909,6 +919,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     init();
 });
+ 
 </script>
  
 </body>
