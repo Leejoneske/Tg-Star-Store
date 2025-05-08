@@ -870,43 +870,75 @@ bot.onText(/\/notify (.+)/, async (msg, match) => {
 });
 
 //fetch transactions for history page
-app.get('/api/transactions/:userId', async (req, res) => {
-    const userId = req.params.userId;
-    const buyOrders = await BuyOrder.find({ telegramId: userId });
-    const sellOrders = await SellOrder.find({ telegramId: userId });
 
-    const userTransactions = [...buyOrders, ...sellOrders].sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated));
-    res.json(userTransactions);
-});
-
-app.get('/api/referrals/:userId', async (req, res) => {
+// API Endpoints
+app.get('/api/transactions/:telegramId', verifyTelegramData, async (req, res) => {
     try {
-        const userId = req.params.userId;
+        const { telegramId } = req.params;
         
-        const [referralsMade, referralsReceived] = await Promise.all([
-            Referral.find({ referrerUserId: userId }).sort({ dateReferred: -1 }),
-            Referral.find({ referredUserId: userId }).sort({ dateReferred: -1 })
-        ]);
-
-        res.json({
-            success: true,
-            data: {
-                referralsMade,
-                referralsReceived,
-                // Add summary stats if needed
-                totalRewards: referralsMade.filter(r => r.status === 'completed').length * 50
-            }
-        });
+        const buyOrders = await BuyOrder.find({ telegramId });
+        const sellOrders = await SellOrder.find({ telegramId });
+        
+        const transactions = [
+            ...buyOrders.map(order => ({
+                id: order.id,
+                type: 'Stars Purchase',
+                amount: order.stars,
+                usdtValue: order.amount,
+                status: order.status,
+                date: order.dateCreated,
+                details: `Purchased ${order.stars} stars for ${order.amount} USDT`
+            })),
+            ...sellOrders.map(order => ({
+                id: order.id,
+                type: 'Stars Sale',
+                amount: order.stars,
+                usdtValue: order.stars * 0.009, // Example conversion rate
+                status: order.status,
+                date: order.dateCreated,
+                details: `Sold ${order.stars} stars`
+            }))
+        ];
+        
+        res.json(transactions);
     } catch (error) {
-        console.error('Error fetching referrals:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Failed to fetch referrals',
-            details: error.message
-        });
+        res.status(500).json({ error: error.message });
     }
 });
 
+app.get('/api/referrals/:telegramId', verifyTelegramData, async (req, res) => {
+    try {
+        const { telegramId } = req.params;
+        
+        const referralsMade = await Referral.find({ referrerUserId: telegramId });
+        const referralsReceived = await Referral.find({ referredUserId: telegramId });
+        
+        const referrals = [
+            ...referralsMade.map(ref => ({
+                id: ref._id,
+                name: 'Referred User',
+                status: ref.status,
+                date: ref.dateReferred,
+                amount: 0,
+                details: 'You referred a user',
+                isReferrer: true
+            })),
+            ...referralsReceived.map(ref => ({
+                id: ref._id,
+                name: 'Referrer',
+                status: ref.status,
+                date: ref.dateReferred,
+                amount: 0,
+                details: 'You were referred',
+                isReferrer: false
+            }))
+        ];
+        
+        res.json(referrals);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 // Handle both /referrals command and plain text "referrals"
 bot.onText(/\/referrals|referrals/i, async (msg) => {
     const chatId = msg.chat.id;
