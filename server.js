@@ -869,8 +869,31 @@ bot.onText(/\/notify (.+)/, async (msg, match) => {
         });
 });
 
-//fetch transactions for history page
-
+//verification for telegram data
+const verifyTelegramData = (req, res, next) => {
+    const initData = new URLSearchParams(req.headers['tg-web-app-data']);
+    const hash = initData.get('hash');
+    initData.delete('hash');
+    
+    const secret = crypto.createHash('sha256')
+        .update(process.env.BOT_TOKEN)
+        .digest();
+    
+    const dataCheckString = Array.from(initData.entries())
+        .map(([key, value]) => `${key}=${value}`)
+        .sort()
+        .join('\n');
+    
+    const calculatedHash = crypto.createHmac('sha256', secret)
+        .update(dataCheckString)
+        .digest('hex');
+    
+    if (calculatedHash !== hash) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    next();
+};
 // API Endpoints
 app.get('/api/transactions/:telegramId', verifyTelegramData, async (req, res) => {
     try {
