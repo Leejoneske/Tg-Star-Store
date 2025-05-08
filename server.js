@@ -916,71 +916,78 @@ const verifyTelegramData = (req, res, next) => {
     next();
 };
 // API Endpoints
-app.get('/api/transactions/:telegramId', verifyTelegramData, async (req, res) => {
+// Add these endpoints before the webhook handler
+
+// Get transaction history
+app.get('/api/transactions/:userId', async (req, res) => {
     try {
-        const { telegramId } = req.params;
+        const { userId } = req.params;
         
-        const buyOrders = await BuyOrder.find({ telegramId });
-        const sellOrders = await SellOrder.find({ telegramId });
+        // Get both buy and sell orders for the user
+        const buyOrders = await BuyOrder.find({ telegramId: userId })
+            .sort({ dateCreated: -1 })
+            .lean();
         
+        const sellOrders = await SellOrder.find({ telegramId: userId })
+            .sort({ dateCreated: -1 })
+            .lean();
+
+        // Combine and format the data
         const transactions = [
             ...buyOrders.map(order => ({
                 id: order.id,
-                type: 'Stars Purchase',
+                type: 'Buy Stars',
                 amount: order.stars,
-                usdtValue: order.amount,
-                status: order.status,
+                status: order.status.toLowerCase(),
                 date: order.dateCreated,
-                details: `Purchased ${order.stars} stars for ${order.amount} USDT`
+                details: `Buy order for ${order.stars} stars`,
+                usdtValue: order.amount
             })),
             ...sellOrders.map(order => ({
                 id: order.id,
-                type: 'Stars Sale',
+                type: 'Sell Stars',
                 amount: order.stars,
-                usdtValue: order.stars * 0.009, // Example conversion rate
-                status: order.status,
+                status: order.status.toLowerCase(),
                 date: order.dateCreated,
-                details: `Sold ${order.stars} stars`
+                details: `Sell order for ${order.stars} stars`,
+                usdtValue: null // Will be calculated on client if needed
             }))
         ];
-        
+
         res.json(transactions);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching transactions:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.get('/api/referrals/:telegramId', verifyTelegramData, async (req, res) => {
+// Get referral history
+app.get('/api/referrals/:userId', async (req, res) => {
     try {
-        const { telegramId } = req.params;
+        const { userId } = req.params;
         
-        const referralsMade = await Referral.find({ referrerUserId: telegramId });
-        const referralsReceived = await Referral.find({ referredUserId: telegramId });
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
         
-        const referrals = [
-            ...referralsMade.map(ref => ({
-                id: ref._id,
-                name: 'Referred User',
-                status: ref.status,
-                date: ref.dateReferred,
-                amount: 0,
-                details: 'You referred a user',
-                isReferrer: true
-            })),
-            ...referralsReceived.map(ref => ({
-                id: ref._id,
-                name: 'Referrer',
-                status: ref.status,
-                date: ref.dateReferred,
-                amount: 0,
-                details: 'You were referred',
-                isReferrer: false
-            }))
-        ];
-        
-        res.json(referrals);
+        // Format referral data
+        const formattedReferrals = await Promise.all(referrals.map(async referral => {
+            const referredUser = await User.findOne({ id: referral.referredUserId }).lean();
+            
+            return {
+                id: referral._id.toString(),
+                name: referredUser?.username || 'Unknown User',
+                status: referral.status.toLowerCase(),
+                date: referral.dateReferred,
+                details: `Referred user ${referredUser?.username || referral.referredUserId}`,
+                amount: 100 // Fixed bonus amount or calculate based on your logic
+            };
+        }));
+
+        res.json(formattedReferrals);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching referrals:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 // Handle both /referrals command and plain text "referrals"
