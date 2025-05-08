@@ -562,10 +562,11 @@ app.get("/api/sell-orders", async (req, res) => {
     }
 });
 
-// kitu ya database to get data for referral page 
-app.get('/api/referral-data/:userId', async (req, res) => {
+
+// Updated backend endpoint
+app.get('/api/referral-data/:userId', verifyTelegramData, async (req, res) => {
     try {
-        const userId = req.params.userId;
+        const { userId } = req.params;
         
         const referrals = await Referral.find({ referrerUserId: userId })
             .sort({ dateReferred: -1 })
@@ -574,38 +575,22 @@ app.get('/api/referral-data/:userId', async (req, res) => {
         const withdrawals = await Withdrawal.find({ userId })
             .sort({ date: -1 })
             .lean();
+
+        // Format data exactly like your working endpoint
+        const formattedReferrals = referrals.map(r => ({
+            id: r._id,
+            userId: r.referredUserId,
+            name: r.referredUsername || `User ${r.referredUserId.substring(0, 6)}`,
+            status: r.status.toLowerCase(), // Ensure lowercase
+            date: r.dateReferred,
+            amount: 0.5 // Fixed reward amount
+        }));
+
+        res.json(formattedReferrals); // Return raw array like working endpoint
         
-        const completedReferrals = referrals.filter(r => r.status === 'completed');
-        const pendingReferrals = referrals.filter(r => r.status === 'pending');
-        
-        const stats = {
-            availableBalance: completedReferrals.length * 0.5,
-            totalEarned: completedReferrals.length * 0.5,
-            referralsCount: completedReferrals.length,
-            pendingAmount: pendingReferrals.length * 0.5
-        };
-        
-        res.json({
-            success: true,
-            stats,
-            referrals: referrals.map(r => ({
-                userId: r.referredUserId,
-                name: r.referredUsername,
-                status: r.status,
-                date: r.dateReferred
-            })),
-            withdrawals: withdrawals.map(w => ({
-                amount: w.amount,
-                walletAddress: w.walletAddress,
-                status: w.status,
-                date: w.date
-            })),
-            referralCode: userId,
-            referralLink: `https://t.me/TgStarStore_bot?start=ref_${userId}`
-        });
     } catch (error) {
-        console.error('Error fetching referral data:', error);
-        res.status(500).json({ success: false, error: 'Internal server error' });
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
