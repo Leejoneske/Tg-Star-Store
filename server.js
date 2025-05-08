@@ -2,35 +2,60 @@ require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
-const axios = require('axios');
+const bodyParser = require('body-parser');
+const crypto = require('crypto');
+const cors = require('cors');
 
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 
-const SERVER_URL = process.env.RAILWAY_STATIC_URL || 
+const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
-                   'https://tg-star-store-production.up.railway.app';
-
+                   'tg-star-store-production.up.railway.app');
 const WEBHOOK_PATH = '/telegram-webhook';
-const WEBHOOK_URL = `${SERVER_URL}${WEBHOOK_PATH}`;
+const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 
-bot.setWebHook(WEBHOOK_URL).then(success => {
-  console.log('Webhook set success:', success);
-  console.log('Webhook URL:', WEBHOOK_URL);
-}).catch(err => {
-  console.error('Webhook setup failed:', err);
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(bodyParser.json());
+app.use(express.static('public'));
+
+// Webhook setup
+bot.setWebHook(WEBHOOK_URL)
+  .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
+  .catch(err => {
+    console.error('❌ Webhook setup failed:', err.message);
+    process.exit(1);
+  });
+
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000
+})
+.then(() => console.log('✅ MongoDB connected successfully'))
+.catch(err => {
+  console.error('❌ MongoDB connection error:', err.message);
+  process.exit(1);
 });
 
-app.use(express.static('public'));
-app.use(express.json());
+// Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
+  if (process.env.WEBHOOK_SECRET && 
+      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+    return res.sendStatus(403);
+  }
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
 
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('✅ MongoDB connected successfully'))
-    .catch(err => console.error('❌ MongoDB connection error:', err));
+// Health check
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
