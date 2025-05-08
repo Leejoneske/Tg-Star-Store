@@ -12,6 +12,7 @@
     "node": "16.x"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "@tonconnect/ui": "^2.0.11",
     "mongoose": "^8.0.3",
     "axios": "^1.8.1",
