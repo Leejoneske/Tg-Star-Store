@@ -369,188 +369,187 @@
             </div>
         </div>
     </div>
+<script>
+Telegram.WebApp.ready();
+const user = Telegram.WebApp.initDataUnsafe.user;
+const BASE_API_URL = window.location.origin + '/api';
 
-    <script>
-    Telegram.WebApp.ready();
-    const user = Telegram.WebApp.initDataUnsafe.user;
-    const BASE_API_URL = 'https://your-backend-url.com/api';
+let transactionHistory = [];
+let referralHistory = [];
+let currentTransactionPage = 1;
+let currentReferralPage = 1;
+let currentTransactionFilter = 'all';
+let currentReferralFilter = 'all';
+let currentTransactionSearch = '';
+let currentReferralSearch = '';
+const itemsPerPage = 5;
+let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+let transactionChart = null;
 
-    let transactionHistory = [];
-    let referralHistory = [];
-    let currentTransactionPage = 1;
-    let currentReferralPage = 1;
-    let currentTransactionFilter = 'all';
-    let currentReferralFilter = 'all';
-    let currentTransactionSearch = '';
-    let currentReferralSearch = '';
-    const itemsPerPage = 5;
-    let currentLanguage = localStorage.getItem('appLanguage') || 'en';
-    let transactionChart = null;
-
-    const translations = {
-        en: {
-            menu: "Menu",
-            home: "Home",
-            sell: "Sell",
-            history: "History",
-            referral: "Referral",
-            about: "About",
-            transactions: "Transactions",
-            referrals: "Referrals",
-            overview: "Overview",
-            all: "All",
-            completed: "Completed",
-            processing: "Processing",
-            declined: "Declined",
-            active: "Active",
-            search_transactions: "Search transactions...",
-            search_referrals: "Search referrals...",
-            no_transactions: "No transactions found",
-            no_referrals: "No referrals found",
-            export_transactions: "Export Transactions",
-            export_referrals: "Export Referrals",
-            transaction_details: "Transaction Details",
-            referral_details: "Referral Details",
-            id: "ID",
-            type: "Type",
-            amount: "Amount",
-            status: "Status",
-            date: "Date",
-            name: "Name",
-            today: "Today",
-            yesterday: "Yesterday",
-            days_ago: "days ago",
-            total: "Total",
-            close: "Close"
-        },
-        ru: {
-            menu: "Меню",
-            home: "Главная",
-            sell: "Продать",
-            history: "История",
-            referral: "Рефералы",
-            about: "О нас",
-            transactions: "Транзакции",
-            referrals: "Рефералы",
-            overview: "Обзор",
-            all: "Все",
-            completed: "Завершено",
-            processing: "В обработке",
-            declined: "Отклонено",
-            active: "Активно",
-            search_transactions: "Поиск транзакций...",
-            search_referrals: "Поиск рефералов...",
-            no_transactions: "Транзакций не найдено",
-            no_referrals: "Рефералов не найдено",
-            export_transactions: "Экспорт транзакций",
-            export_referrals: "Экспорт рефералов",
-            transaction_details: "Детали транзакции",
-            referral_details: "Детали реферала",
-            id: "ID",
-            type: "Тип",
-            amount: "Сумма",
-            status: "Статус",
-            date: "Дата",
-            name: "Имя",
-            today: "Сегодня",
-            yesterday: "Вчера",
-            days_ago: "дней назад",
-            total: "Всего",
-            close: "Закрыть"
-        }
-    };
-
-    document.addEventListener('DOMContentLoaded', () => {
-        initApp();
-    });
-
-    function initApp() {
-        updateLanguage();
-        setupEventListeners();
-        loadTransactionHistory();
-        loadReferralHistory();
-        window.addEventListener('storage', (event) => {
-            if (event.key === 'appLanguage') {
-                currentLanguage = event.newValue || 'en';
-                updateLanguage();
-            }
-        });
+const translations = {
+    en: {
+        menu: "Menu",
+        home: "Home",
+        sell: "Sell",
+        history: "History",
+        referral: "Referral",
+        about: "About",
+        transactions: "Transactions",
+        referrals: "Referrals",
+        overview: "Overview",
+        all: "All",
+        completed: "Completed",
+        processing: "Processing",
+        declined: "Declined",
+        active: "Active",
+        search_transactions: "Search transactions...",
+        search_referrals: "Search referrals...",
+        no_transactions: "No transactions found",
+        no_referrals: "No referrals found",
+        export_transactions: "Export Transactions",
+        export_referrals: "Export Referrals",
+        transaction_details: "Transaction Details",
+        referral_details: "Referral Details",
+        id: "ID",
+        type: "Type",
+        amount: "Amount",
+        status: "Status",
+        date: "Date",
+        name: "Name",
+        today: "Today",
+        yesterday: "Yesterday",
+        days_ago: "days ago",
+        total: "Total",
+        close: "Close"
+    },
+    ru: {
+        menu: "Меню",
+        home: "Главная",
+        sell: "Продать",
+        history: "История",
+        referral: "Рефералы",
+        about: "О нас",
+        transactions: "Транзакции",
+        referrals: "Рефералы",
+        overview: "Обзор",
+        all: "Все",
+        completed: "Завершено",
+        processing: "В обработке",
+        declined: "Отклонено",
+        active: "Активно",
+        search_transactions: "Поиск транзакций...",
+        search_referrals: "Поиск рефералов...",
+        no_transactions: "Транзакций не найдено",
+        no_referrals: "Рефералов не найдено",
+        export_transactions: "Экспорт транзакций",
+        export_referrals: "Экспорт рефералов",
+        transaction_details: "Детали транзакции",
+        referral_details: "Детали реферала",
+        id: "ID",
+        type: "Тип",
+        amount: "Сумма",
+        status: "Статус",
+        date: "Дата",
+        name: "Имя",
+        today: "Сегодня",
+        yesterday: "Вчера",
+        days_ago: "дней назад",
+        total: "Всего",
+        close: "Закрыть"
     }
+};
 
-    function setupEventListeners() {
-        document.getElementById('transactionsTab').addEventListener('click', () => switchTab('transactions'));
-        document.getElementById('referralsTab').addEventListener('click', () => switchTab('referrals'));
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const filter = btn.getAttribute('data-filter');
-                currentTransactionFilter = filter;
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('filter-active'));
-                btn.classList.add('filter-active');
-                currentTransactionPage = 1;
-                updateTransactionList();
-            });
-        });
-        document.querySelectorAll('.ref-filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const filter = btn.getAttribute('data-filter');
-                currentReferralFilter = filter;
-                document.querySelectorAll('.ref-filter-btn').forEach(b => b.classList.remove('filter-active'));
-                btn.classList.add('filter-active');
-                currentReferralPage = 1;
-                updateReferralList();
-            });
-        });
-        document.getElementById('searchTransactions').addEventListener('input', (e) => {
-            currentTransactionSearch = e.target.value.trim();
+document.addEventListener('DOMContentLoaded', () => {
+    initApp();
+});
+
+function initApp() {
+    updateLanguage();
+    setupEventListeners();
+    loadTransactionHistory();
+    loadReferralHistory();
+    window.addEventListener('storage', (event) => {
+        if (event.key === 'appLanguage') {
+            currentLanguage = event.newValue || 'en';
+            updateLanguage();
+        }
+    });
+}
+
+function setupEventListeners() {
+    document.getElementById('transactionsTab').addEventListener('click', () => switchTab('transactions'));
+    document.getElementById('referralsTab').addEventListener('click', () => switchTab('referrals'));
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const filter = btn.getAttribute('data-filter');
+            currentTransactionFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('filter-active'));
+            btn.classList.add('filter-active');
             currentTransactionPage = 1;
             updateTransactionList();
         });
-        document.getElementById('searchReferrals').addEventListener('input', (e) => {
-            currentReferralSearch = e.target.value.trim();
+    });
+    document.querySelectorAll('.ref-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const filter = btn.getAttribute('data-filter');
+            currentReferralFilter = filter;
+            document.querySelectorAll('.ref-filter-btn').forEach(b => b.classList.remove('filter-active'));
+            btn.classList.add('filter-active');
             currentReferralPage = 1;
             updateReferralList();
         });
-        document.getElementById('exportTransactions').addEventListener('click', exportTransactions);
-        document.getElementById('exportReferrals').addEventListener('click', exportReferrals);
-    }
+    });
+    document.getElementById('searchTransactions').addEventListener('input', (e) => {
+        currentTransactionSearch = e.target.value.trim();
+        currentTransactionPage = 1;
+        updateTransactionList();
+    });
+    document.getElementById('searchReferrals').addEventListener('input', (e) => {
+        currentReferralSearch = e.target.value.trim();
+        currentReferralPage = 1;
+        updateReferralList();
+    });
+    document.getElementById('exportTransactions').addEventListener('click', exportTransactions);
+    document.getElementById('exportReferrals').addEventListener('click', exportReferrals);
+}
 
-    function toggleMenu() {
-        document.getElementById('sideMenu').classList.toggle('active');
-        document.getElementById('menuOverlay').classList.toggle('active');
-    }
+function toggleMenu() {
+    document.getElementById('sideMenu').classList.toggle('active');
+    document.getElementById('menuOverlay').classList.toggle('active');
+}
 
-    function switchTab(tab) {
-        if (tab === 'transactions') {
-            document.getElementById('transactionsTab').classList.add('tab-active');
-            document.getElementById('referralsTab').classList.remove('tab-active');
-            document.getElementById('transactionsContent').classList.add('active');
-            document.getElementById('referralsContent').classList.remove('active');
-        } else {
-            document.getElementById('referralsTab').classList.add('tab-active');
-            document.getElementById('transactionsTab').classList.remove('tab-active');
-            document.getElementById('referralsContent').classList.add('active');
-            document.getElementById('transactionsContent').classList.remove('active');
+function switchTab(tab) {
+    if (tab === 'transactions') {
+        document.getElementById('transactionsTab').classList.add('tab-active');
+        document.getElementById('referralsTab').classList.remove('tab-active');
+        document.getElementById('transactionsContent').classList.add('active');
+        document.getElementById('referralsContent').classList.remove('active');
+    } else {
+        document.getElementById('referralsTab').classList.add('tab-active');
+        document.getElementById('transactionsTab').classList.remove('tab-active');
+        document.getElementById('referralsContent').classList.add('active');
+        document.getElementById('transactionsContent').classList.remove('active');
+    }
+}
+
+function updateLanguage() {
+    document.querySelectorAll('[data-lang]').forEach(el => {
+        const key = el.getAttribute('data-lang');
+        if (translations[currentLanguage] && translations[currentLanguage][key]) {
+            el.textContent = translations[currentLanguage][key];
         }
-    }
+    });
+    document.querySelectorAll('[data-lang-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-lang-placeholder');
+        if (translations[currentLanguage] && translations[currentLanguage][key]) {
+            el.setAttribute('placeholder', translations[currentLanguage][key]);
+        }
+    });
+    if (transactionHistory.length > 0) updateTransactionList();
+    if (referralHistory.length > 0) updateReferralList();
+}
 
-    function updateLanguage() {
-        document.querySelectorAll('[data-lang]').forEach(el => {
-            const key = el.getAttribute('data-lang');
-            if (translations[currentLanguage] && translations[currentLanguage][key]) {
-                el.textContent = translations[currentLanguage][key];
-            }
-        });
-        document.querySelectorAll('[data-lang-placeholder]').forEach(el => {
-            const key = el.getAttribute('data-lang-placeholder');
-            if (translations[currentLanguage] && translations[currentLanguage][key]) {
-                el.setAttribute('placeholder', translations[currentLanguage][key]);
-            }
-        });
-        if (transactionHistory.length > 0) updateTransactionList();
-        if (referralHistory.length > 0) updateReferralList();
-    }
-   
-    function loadTransactionHistory() {
+function loadTransactionHistory() {
     document.getElementById('transactionsLoading').style.display = 'block';
     document.getElementById('transactionsList').style.display = 'none';
     document.getElementById('transactionsEmpty').style.display = 'none';
@@ -563,7 +562,8 @@
 
     fetch(`${BASE_API_URL}/transactions/${user.id}`, {
         headers: {
-            'tg-web-app-data': Telegram.WebApp.initData
+            'tg-web-app-data': Telegram.WebApp.initData,
+            'Content-Type': 'application/json'
         }
     })
     .then(response => {
@@ -600,7 +600,8 @@ function loadReferralHistory() {
 
     fetch(`${BASE_API_URL}/referrals/${user.id}`, {
         headers: {
-            'tg-web-app-data': Telegram.WebApp.initData
+            'tg-web-app-data': Telegram.WebApp.initData,
+            'Content-Type': 'application/json'
         }
     })
     .then(response => {
@@ -623,501 +624,533 @@ function loadReferralHistory() {
     });
 }
 
-    function updateTransactionList() {
-        let filteredTransactions = transactionHistory.filter(txn => {
-            if (currentTransactionFilter !== 'all' && txn.status !== currentTransactionFilter) return false;
-            if (currentTransactionSearch) {
-                const searchLower = currentTransactionSearch.toLowerCase();
-                return (
-                    txn.id.toLowerCase().includes(searchLower) ||
-                    txn.type.toLowerCase().includes(searchLower) ||
-                    txn.amount.toString().includes(searchLower) ||
-                    txn.status.toLowerCase().includes(searchLower) ||
-                    txn.details.toLowerCase().includes(searchLower)
-                );
+function mapOrderStatus(status) {
+    const statusMap = {
+        'completed': 'completed',
+        'processing': 'processing',
+        'pending': 'processing',
+        'declined': 'declined',
+        'failed': 'declined',
+        'cancelled': 'declined'
+    };
+    return statusMap[status.toLowerCase()] || 'processing';
+}
+
+function mapReferralStatus(status) {
+    const statusMap = {
+        'completed': 'active',
+        'active': 'active',
+        'pending': 'processing',
+        'processing': 'processing'
+    };
+    return statusMap[status.toLowerCase()] || 'processing';
+}
+
+function updateTransactionList() {
+    let filteredTransactions = transactionHistory.filter(txn => {
+        if (currentTransactionFilter !== 'all' && txn.status !== currentTransactionFilter) return false;
+        if (currentTransactionSearch) {
+            const searchLower = currentTransactionSearch.toLowerCase();
+            return (
+                txn.id.toLowerCase().includes(searchLower) ||
+                txn.type.toLowerCase().includes(searchLower) ||
+                txn.amount.toString().includes(searchLower) ||
+                txn.status.toLowerCase().includes(searchLower) ||
+                txn.details.toLowerCase().includes(searchLower)
+            );
+        }
+        return true;
+    });
+    
+    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+    const startIndex = (currentTransactionPage - 1) * itemsPerPage;
+    const paginatedTransactions = filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
+    
+    updateTransactionCounts(filteredTransactions);
+    document.getElementById('transactionsLoading').style.display = 'none';
+    
+    if (paginatedTransactions.length === 0) {
+        document.getElementById('transactionsList').style.display = 'none';
+        document.getElementById('transactionsEmpty').style.display = 'flex';
+    } else {
+        document.getElementById('transactionsList').style.display = 'block';
+        document.getElementById('transactionsEmpty').style.display = 'none';
+        
+        const transactionsList = document.getElementById('transactionsList');
+        transactionsList.innerHTML = '';
+        
+        paginatedTransactions.forEach(txn => {
+            const txnCard = document.createElement('div');
+            txnCard.className = 'transaction-card bg-white p-4';
+            const dateStr = formatDate(txn.date);
+            let statusClass = '';
+            let statusText = '';
+            
+            switch(txn.status) {
+                case 'completed':
+                    statusClass = 'status-completed';
+                    statusText = translations[currentLanguage].completed;
+                    break;
+                case 'processing':
+                    statusClass = 'status-processing';
+                    statusText = translations[currentLanguage].processing;
+                    break;
+                case 'declined':
+                    statusClass = 'status-declined';
+                    statusText = translations[currentLanguage].declined;
+                    break;
             }
-            return true;
-        });
-        
-        const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-        const startIndex = (currentTransactionPage - 1) * itemsPerPage;
-        const paginatedTransactions = filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
-        
-        updateTransactionCounts(filteredTransactions);
-        document.getElementById('transactionsLoading').style.display = 'none';
-        
-        if (paginatedTransactions.length === 0) {
-            document.getElementById('transactionsList').style.display = 'none';
-            document.getElementById('transactionsEmpty').style.display = 'flex';
-        } else {
-            document.getElementById('transactionsList').style.display = 'block';
-            document.getElementById('transactionsEmpty').style.display = 'none';
             
-            const transactionsList = document.getElementById('transactionsList');
-            transactionsList.innerHTML = '';
-            
-            paginatedTransactions.forEach(txn => {
-                const txnCard = document.createElement('div');
-                txnCard.className = 'transaction-card bg-white p-4';
-                const dateStr = formatDate(txn.date);
-                let statusClass = '';
-                let statusText = '';
-                
-                switch(txn.status) {
-                    case 'completed':
-                        statusClass = 'status-completed';
-                        statusText = translations[currentLanguage].completed;
-                        break;
-                    case 'processing':
-                        statusClass = 'status-processing';
-                        statusText = translations[currentLanguage].processing;
-                        break;
-                    case 'declined':
-                        statusClass = 'status-declined';
-                        statusText = translations[currentLanguage].declined;
-                        break;
-                }
-                
-                txnCard.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="font-medium">${txn.type}</div>
-                        <div class="text-sm text-gray-500">${dateStr}</div>
+            txnCard.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div class="font-medium">${txn.type}</div>
+                    <div class="text-sm text-gray-500">${dateStr}</div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">${txn.id}</div>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
                     </div>
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <div class="text-xs text-gray-500 mb-1">${txn.id}</div>
-                            <span class="status-badge ${statusClass}">${statusText}</span>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-lg font-semibold">${txn.amount} ★</div>
-                            ${txn.usdtValue ? `<div class="text-sm text-gray-600">${txn.usdtValue.toFixed(3)} USDT</div>` : ''}
-                        </div>
+                    <div class="text-right">
+                        <div class="text-lg font-semibold">${txn.amount} ★</div>
+                        ${txn.usdtValue ? `<div class="text-sm text-gray-600">${txn.usdtValue.toFixed(3)} USDT</div>` : ''}
                     </div>
-                `;
-                txnCard.addEventListener('click', () => showTransactionDetails(txn));
-                transactionsList.appendChild(txnCard);
-            });
-        }
-        
-        updatePagination('transactionsPagination', currentTransactionPage, totalPages, (page) => {
-            currentTransactionPage = page;
-            updateTransactionList();
+                </div>
+            `;
+            txnCard.addEventListener('click', () => showTransactionDetails(txn));
+            transactionsList.appendChild(txnCard);
         });
     }
+    
+    updatePagination('transactionsPagination', currentTransactionPage, totalPages, (page) => {
+        currentTransactionPage = page;
+        updateTransactionList();
+    });
+}
 
-    function updateReferralList() {
-        let filteredReferrals = referralHistory.filter(ref => {
-            if (currentReferralFilter !== 'all' && ref.status !== currentReferralFilter) return false;
-            if (currentReferralSearch) {
-                const searchLower = currentReferralSearch.toLowerCase();
-                return (
-                    ref.id.toLowerCase().includes(searchLower) ||
-                    ref.name.toLowerCase().includes(searchLower) ||
-                    ref.amount.toString().includes(searchLower) ||
-                    ref.status.toLowerCase().includes(searchLower) ||
-                    ref.details.toLowerCase().includes(searchLower)
-                );
+function updateReferralList() {
+    let filteredReferrals = referralHistory.filter(ref => {
+        if (currentReferralFilter !== 'all' && ref.status !== currentReferralFilter) return false;
+        if (currentReferralSearch) {
+            const searchLower = currentReferralSearch.toLowerCase();
+            return (
+                ref.id.toLowerCase().includes(searchLower) ||
+                ref.name.toLowerCase().includes(searchLower) ||
+                ref.amount.toString().includes(searchLower) ||
+                ref.status.toLowerCase().includes(searchLower) ||
+                ref.details.toLowerCase().includes(searchLower)
+            );
+        }
+        return true;
+    });
+    
+    const totalPages = Math.ceil(filteredReferrals.length / itemsPerPage);
+    const startIndex = (currentReferralPage - 1) * itemsPerPage;
+    const paginatedReferrals = filteredReferrals.slice(startIndex, startIndex + itemsPerPage);
+    
+    document.getElementById('referralsLoading').style.display = 'none';
+    
+    if (paginatedReferrals.length === 0) {
+        document.getElementById('referralsList').style.display = 'none';
+        document.getElementById('referralsEmpty').style.display = 'flex';
+    } else {
+        document.getElementById('referralsList').style.display = 'block';
+        document.getElementById('referralsEmpty').style.display = 'none';
+        
+        const referralsList = document.getElementById('referralsList');
+        referralsList.innerHTML = '';
+        
+        paginatedReferrals.forEach(ref => {
+            const refCard = document.createElement('div');
+            refCard.className = 'transaction-card bg-white p-4';
+            const dateStr = formatDate(ref.date);
+            let statusClass = '';
+            let statusText = '';
+            
+            switch(ref.status) {
+                case 'active':
+                    statusClass = 'status-active';
+                    statusText = translations[currentLanguage].active;
+                    break;
+                case 'processing':
+                    statusClass = 'status-processing';
+                    statusText = translations[currentLanguage].processing;
+                    break;
             }
-            return true;
+            
+            refCard.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div class="font-medium">${ref.name}</div>
+                    <div class="text-sm text-gray-500">${dateStr}</div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">${ref.id}</div>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="text-sm text-gray-600">${ref.details}</div>
+                </div>
+            `;
+            refCard.addEventListener('click', () => showReferralDetails(ref));
+            referralsList.appendChild(refCard);
         });
+    }
+    
+    updatePagination('referralsPagination', currentReferralPage, totalPages, (page) => {
+        currentReferralPage = page;
+        updateReferralList();
+    });
+}
+
+function updateTransactionCounts(transactions) {
+    document.getElementById('completedCount').textContent = transactions.filter(t => t.status === 'completed').length;
+    document.getElementById('processingCount').textContent = transactions.filter(t => t.status === 'processing').length;
+    document.getElementById('declinedCount').textContent = transactions.filter(t => t.status === 'declined').length;
+}
+
+function updateTransactionChart() {
+    const ctx = document.getElementById('transactionChart').getContext('2d');
+    const now = new Date();
+    const days = [];
+    const data = [];
+    
+    const filteredTransactions = transactionHistory.filter(t => t.status === 'completed');
+    
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(now.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
         
-        const totalPages = Math.ceil(filteredReferrals.length / itemsPerPage);
-        const startIndex = (currentReferralPage - 1) * itemsPerPage;
-        const paginatedReferrals = filteredReferrals.slice(startIndex, startIndex + itemsPerPage);
+        days.push(formatDate(date, true));
         
-        document.getElementById('referralsLoading').style.display = 'none';
-        
-        if (paginatedReferrals.length === 0) {
-            document.getElementById('referralsList').style.display = 'none';
-            document.getElementById('referralsEmpty').style.display = 'flex';
-        } else {
-            document.getElementById('referralsList').style.display = 'block';
-            document.getElementById('referralsEmpty').style.display = 'none';
+        const dailyTotal = filteredTransactions
+            .filter(t => t.date.toISOString().split('T')[0] === dateStr)
+            .reduce((sum, t) => sum + t.amount, 0);
             
-            const referralsList = document.getElementById('referralsList');
-            referralsList.innerHTML = '';
-            
-            paginatedReferrals.forEach(ref => {
-                const refCard = document.createElement('div');
-                refCard.className = 'transaction-card bg-white p-4';
-                const dateStr = formatDate(ref.date);
-                let statusClass = '';
-                let statusText = '';
-                
-                switch(ref.status) {
-                    case 'active':
-                        statusClass = 'status-active';
-                        statusText = translations[currentLanguage].active;
-                        break;
-                    case 'processing':
-                        statusClass = 'status-processing';
-                        statusText = translations[currentLanguage].processing;
-                        break;
+        data.push(dailyTotal);
+    }
+    
+    if (transactionChart) transactionChart.destroy();
+    transactionChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: days,
+            datasets: [{
+                label: translations[currentLanguage].total,
+                data: data,
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                borderColor: 'rgba(79, 70, 229, 1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true,
+                pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${translations[currentLanguage].total}: ${context.raw} ★`;
+                        }
+                    }
                 }
-                
-                refCard.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="font-medium">${ref.name}</div>
-                        <div class="text-sm text-gray-500">${dateStr}</div>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <div class="text-xs text-gray-500 mb-1">${ref.id}</div>
-                            <span class="status-badge ${statusClass}">${statusText}</span>
-                        </div>
-                        <div class="text-sm text-gray-600">${ref.details}</div>
-                    </div>
-                `;
-                refCard.addEventListener('click', () => showReferralDetails(ref));
-                referralsList.appendChild(refCard);
-            });
-        }
-        
-        updatePagination('referralsPagination', currentReferralPage, totalPages, (page) => {
-            currentReferralPage = page;
-            updateReferralList();
-        });
-    }
-
-    function updateTransactionCounts(transactions) {
-        document.getElementById('completedCount').textContent = transactions.filter(t => t.status === 'completed').length;
-        document.getElementById('processingCount').textContent = transactions.filter(t => t.status === 'processing').length;
-        document.getElementById('declinedCount').textContent = transactions.filter(t => t.status === 'declined').length;
-    }
-
-    function updateTransactionChart() {
-        const ctx = document.getElementById('transactionChart').getContext('2d');
-        const now = new Date();
-        const days = [];
-        const data = [];
-        
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date(now);
-            date.setDate(now.getDate() - i);
-            days.push(formatDate(date, true));
-            data.push(Math.floor(Math.random() * 2000) + 500);
-        }
-        
-        if (transactionChart) transactionChart.destroy();
-        transactionChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: days,
-                datasets: [{
-                    label: translations[currentLanguage].total,
-                    data: data,
-                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                    borderColor: 'rgba(79, 70, 229, 1)',
-                    borderWidth: 2,
-                    tension: 0.3,
-                    fill: true,
-                    pointBackgroundColor: 'rgba(79, 70, 229, 1)',
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
                     },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `${translations[currentLanguage].total}: ${context.raw} ★`;
-                            }
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' ★';
                         }
                     }
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return value + ' ★';
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        }
+                x: {
+                    grid: {
+                        display: false
                     }
                 }
             }
-        });
-    }
+        }
+    });
+}
 
-    function updatePagination(elementId, currentPage, totalPages, callback) {
-        const paginationContainer = document.getElementById(elementId);
-        paginationContainer.innerHTML = '';
-        if (totalPages <= 1) return;
-        
-        const prevButton = document.createElement('button');
-        prevButton.className = 'pagination-btn border';
-        prevButton.innerHTML = '&lt;';
-        prevButton.disabled = currentPage === 1;
-        prevButton.addEventListener('click', () => {
-            if (currentPage > 1) callback(currentPage - 1);
-        });
-        paginationContainer.appendChild(prevButton);
-        
-        const maxVisiblePages = 5;
-        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-        
-        if (endPage - startPage + 1 < maxVisiblePages) {
-            startPage = Math.max(1, endPage - maxVisiblePages + 1);
-        }
-        
-        if (startPage > 1) {
-            const firstButton = document.createElement('button');
-            firstButton.className = 'pagination-btn border';
-            firstButton.textContent = '1';
-            firstButton.addEventListener('click', () => callback(1));
-            paginationContainer.appendChild(firstButton);
-            
-            if (startPage > 2) {
-                const ellipsis = document.createElement('span');
-                ellipsis.className = 'px-2';
-                ellipsis.textContent = '...';
-                paginationContainer.appendChild(ellipsis);
-            }
-        }
-        
-        for (let i = startPage; i <= endPage; i++) {
-            const pageButton = document.createElement('button');
-            pageButton.className = `pagination-btn border ${i === currentPage ? 'active' : ''}`;
-            pageButton.textContent = i;
-            pageButton.addEventListener('click', () => callback(i));
-            paginationContainer.appendChild(pageButton);
-        }
-        
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) {
-                const ellipsis = document.createElement('span');
-                ellipsis.className = 'px-2';
-                ellipsis.textContent = '...';
-                paginationContainer.appendChild(ellipsis);
-            }
-            
-            const lastButton = document.createElement('button');
-            lastButton.className = 'pagination-btn border';
-            lastButton.textContent = totalPages;
-            lastButton.addEventListener('click', () => callback(totalPages));
-            paginationContainer.appendChild(lastButton);
-        }
-        
-        const nextButton = document.createElement('button');
-        nextButton.className = 'pagination-btn border';
-        nextButton.innerHTML = '&gt;';
-        nextButton.disabled = currentPage === totalPages;
-        nextButton.addEventListener('click', () => {
-            if (currentPage < totalPages) callback(currentPage + 1);
-        });
-        paginationContainer.appendChild(nextButton);
+function updatePagination(elementId, currentPage, totalPages, callback) {
+    const paginationContainer = document.getElementById(elementId);
+    paginationContainer.innerHTML = '';
+    if (totalPages <= 1) return;
+    
+    const prevButton = document.createElement('button');
+    prevButton.className = 'pagination-btn border';
+    prevButton.innerHTML = '&lt;';
+    prevButton.disabled = currentPage === 1;
+    prevButton.addEventListener('click', () => {
+        if (currentPage > 1) callback(currentPage - 1);
+    });
+    paginationContainer.appendChild(prevButton);
+    
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-
-    function formatDate(date, short = false) {
-        const now = new Date();
-        const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+    
+    if (startPage > 1) {
+        const firstButton = document.createElement('button');
+        firstButton.className = 'pagination-btn border';
+        firstButton.textContent = '1';
+        firstButton.addEventListener('click', () => callback(1));
+        paginationContainer.appendChild(firstButton);
         
-        if (short) {
-            const options = { weekday: 'short' };
-            return new Intl.DateTimeFormat(currentLanguage === 'ru' ? 'ru-RU' : 'en-US', options).format(date);
-        }
-        
-        if (diffInDays === 0) return translations[currentLanguage].today;
-        else if (diffInDays === 1) return translations[currentLanguage].yesterday;
-        else if (diffInDays < 7) return `${diffInDays} ${translations[currentLanguage].days_ago}`;
-        else {
-            const options = { year: 'numeric', month: 'short', day: 'numeric' };
-            return new Intl.DateTimeFormat(currentLanguage === 'ru' ? 'ru-RU' : 'en-US', options).format(date);
+        if (startPage > 2) {
+            const ellipsis = document.createElement('span');
+            ellipsis.className = 'px-2';
+            ellipsis.textContent = '...';
+            paginationContainer.appendChild(ellipsis);
         }
     }
-
-    function showTransactionDetails(transaction) {
-        let statusClass = '';
-        let statusText = '';
-        
-        switch(transaction.status) {
-            case 'completed':
-                statusClass = 'status-completed';
-                statusText = translations[currentLanguage].completed;
-                break;
-            case 'processing':
-                statusClass = 'status-processing';
-                statusText = translations[currentLanguage].processing;
-                break;
-            case 'declined':
-                statusClass = 'status-declined';
-                statusText = translations[currentLanguage].declined;
-                break;
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const pageButton = document.createElement('button');
+        pageButton.className = `pagination-btn border ${i === currentPage ? 'active' : ''}`;
+        pageButton.textContent = i;
+        pageButton.addEventListener('click', () => callback(i));
+        paginationContainer.appendChild(pageButton);
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const ellipsis = document.createElement('span');
+            ellipsis.className = 'px-2';
+            ellipsis.textContent = '...';
+            paginationContainer.appendChild(ellipsis);
         }
         
-        Swal.fire({
-            title: translations[currentLanguage].transaction_details,
-            html: `
-                <div class="text-left space-y-3">
-                    <div>
-                        <span class="text-gray-500">${translations[currentLanguage].id}:</span>
-                        <span class="ml-2 font-medium">${transaction.id}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">${translations[currentLanguage].type}:</span>
-                        <span class="ml-2 font-medium">${transaction.type}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">${translations[currentLanguage].amount}:</span>
-                        <span class="ml-2 font-medium">${transaction.amount} ★</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">${translations[currentLanguage].status}:</span>
-                        <span class="ml-2 status-badge ${statusClass}">${statusText}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">${translations[currentLanguage].date}:</span>
-                        <span class="ml-2 font-medium">${formatDate(transaction.date)}</span>
-                    </div>
-                    <div class="pt-3 border-t">
-                        <p class="text-gray-700">${transaction.details}</p>
-                    </div>
+        const lastButton = document.createElement('button');
+        lastButton.className = 'pagination-btn border';
+        lastButton.textContent = totalPages;
+        lastButton.addEventListener('click', () => callback(totalPages));
+        paginationContainer.appendChild(lastButton);
+    }
+    
+    const nextButton = document.createElement('button');
+    nextButton.className = 'pagination-btn border';
+    nextButton.innerHTML = '&gt;';
+    nextButton.disabled = currentPage === totalPages;
+    nextButton.addEventListener('click', () => {
+        if (currentPage < totalPages) callback(currentPage + 1);
+    });
+    paginationContainer.appendChild(nextButton);
+}
+
+function formatDate(date, short = false) {
+    const now = new Date();
+    const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+    
+    if (short) {
+        const options = { weekday: 'short' };
+        return new Intl.DateTimeFormat(currentLanguage === 'ru' ? 'ru-RU' : 'en-US', options).format(date);
+    }
+    
+    if (diffInDays === 0) return translations[currentLanguage].today;
+    else if (diffInDays === 1) return translations[currentLanguage].yesterday;
+    else if (diffInDays < 7) return `${diffInDays} ${translations[currentLanguage].days_ago}`;
+    else {
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        return new Intl.DateTimeFormat(currentLanguage === 'ru' ? 'ru-RU' : 'en-US', options).format(date);
+    }
+}
+
+function showTransactionDetails(transaction) {
+    let statusClass = '';
+    let statusText = '';
+    
+    switch(transaction.status) {
+        case 'completed':
+            statusClass = 'status-completed';
+            statusText = translations[currentLanguage].completed;
+            break;
+        case 'processing':
+            statusClass = 'status-processing';
+            statusText = translations[currentLanguage].processing;
+            break;
+        case 'declined':
+            statusClass = 'status-declined';
+            statusText = translations[currentLanguage].declined;
+            break;
+    }
+    
+    Swal.fire({
+        title: translations[currentLanguage].transaction_details,
+        html: `
+            <div class="text-left space-y-3">
+                <div>
+                    <span class="text-gray-500">${translations[currentLanguage].id}:</span>
+                    <span class="ml-2 font-medium">${transaction.id}</span>
                 </div>
-            `,
-            confirmButtonText: translations[currentLanguage].close,
-            confirmButtonColor: '#4f46e5'
-        });
-    }
-
-    function showReferralDetails(referral) {
-        let statusClass = '';
-        let statusText = '';
-        
-        switch(referral.status) {
-            case 'active':
-                statusClass = 'status-active';
-                statusText = translations[currentLanguage].active;
-                break;
-            case 'processing':
-                statusClass = 'status-processing';
-                statusText = translations[currentLanguage].processing;
-                break;
-        }
-        
-        Swal.fire({
-            title: translations[currentLanguage].referral_details,
-            html: `
-                <div class="text-left space-y-3">
-                    <div>
-                        <span class="text-gray-500">${translations[currentLanguage].id}:</span>
-                        <span class="ml-2 font-medium">${referral.id}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">${translations[currentLanguage].name}:</span>
-                        <span class="ml-2 font-medium">${referral.name}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">${translations[currentLanguage].status}:</span>
-                        <span class="ml-2 status-badge ${statusClass}">${statusText}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">${translations[currentLanguage].date}:</span>
-                        <span class="ml-2 font-medium">${formatDate(referral.date)}</span>
-                    </div>
-                    <div class="pt-3 border-t">
-                        <p class="text-gray-700">${referral.details}</p>
-                    </div>
+                <div>
+                    <span class="text-gray-500">${translations[currentLanguage].type}:</span>
+                    <span class="ml-2 font-medium">${transaction.type}</span>
                 </div>
-            `,
-            confirmButtonText: translations[currentLanguage].close,
-            confirmButtonColor: '#4f46e5'
-        });
-    }
+                <div>
+                    <span class="text-gray-500">${translations[currentLanguage].amount}:</span>
+                    <span class="ml-2 font-medium">${transaction.amount} ★</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">${translations[currentLanguage].status}:</span>
+                    <span class="ml-2 status-badge ${statusClass}">${statusText}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">${translations[currentLanguage].date}:</span>
+                    <span class="ml-2 font-medium">${formatDate(transaction.date)}</span>
+                </div>
+                <div class="pt-3 border-t">
+                    <p class="text-gray-700">${transaction.details}</p>
+                </div>
+            </div>
+        `,
+        confirmButtonText: translations[currentLanguage].close,
+        confirmButtonColor: '#4f46e5'
+    });
+}
 
-    function exportTransactions() {
-        let filteredTransactions = transactionHistory.filter(txn => {
-            if (currentTransactionFilter !== 'all' && txn.status !== currentTransactionFilter) return false;
-            if (currentTransactionSearch) {
-                const searchLower = currentTransactionSearch.toLowerCase();
-                return (
-                    txn.id.toLowerCase().includes(searchLower) ||
-                    txn.type.toLowerCase().includes(searchLower) ||
-                    txn.amount.toString().includes(searchLower) ||
-                    txn.status.toLowerCase().includes(searchLower) ||
-                    txn.details.toLowerCase().includes(searchLower)
-                );
-            }
-            return true;
-        });
-        
-        let csv = 'ID,Type,Amount,Status,Date,Details\n';
-        filteredTransactions.forEach(txn => {
-            csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.status}","${formatDate(txn.date, true)}","${txn.details}"\n`;
-        });
-        
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `transactions_${new Date().toISOString().slice(0, 10)}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        Swal.fire({
-            title: 'Success',
-            text: 'Transactions exported successfully',
-            icon: 'success',
-            confirmButtonText: translations[currentLanguage].close,
-            confirmButtonColor: '#4f46e5'
-        });
+function showReferralDetails(referral) {
+    let statusClass = '';
+    let statusText = '';
+    
+    switch(referral.status) {
+        case 'active':
+            statusClass = 'status-active';
+            statusText = translations[currentLanguage].active;
+            break;
+        case 'processing':
+            statusClass = 'status-processing';
+            statusText = translations[currentLanguage].processing;
+            break;
     }
+    
+    Swal.fire({
+        title: translations[currentLanguage].referral_details,
+        html: `
+            <div class="text-left space-y-3">
+                <div>
+                    <span class="text-gray-500">${translations[currentLanguage].id}:</span>
+                    <span class="ml-2 font-medium">${referral.id}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">${translations[currentLanguage].name}:</span>
+                    <span class="ml-2 font-medium">${referral.name}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">${translations[currentLanguage].status}:</span>
+                    <span class="ml-2 status-badge ${statusClass}">${statusText}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">${translations[currentLanguage].date}:</span>
+                    <span class="ml-2 font-medium">${formatDate(referral.date)}</span>
+                </div>
+                <div class="pt-3 border-t">
+                    <p class="text-gray-700">${referral.details}</p>
+                </div>
+            </div>
+        `,
+        confirmButtonText: translations[currentLanguage].close,
+        confirmButtonColor: '#4f46e5'
+    });
+}
 
-    function exportReferrals() {
-        let filteredReferrals = referralHistory.filter(ref => {
-            if (currentReferralFilter !== 'all' && ref.status !== currentReferralFilter) return false;
-            if (currentReferralSearch) {
-                const searchLower = currentReferralSearch.toLowerCase();
-                return (
-                    ref.id.toLowerCase().includes(searchLower) ||
-                    ref.name.toLowerCase().includes(searchLower) ||
-                    ref.amount.toString().includes(searchLower) ||
-                    ref.status.toLowerCase().includes(searchLower) ||
-                    ref.details.toLowerCase().includes(searchLower)
-                );
-            }
-            return true;
-        });
-        
-        let csv = 'ID,Name,Amount,Status,Date,Details\n';
-        filteredReferrals.forEach(ref => {
-            csv += `"${ref.id}","${ref.name}","${ref.amount}","${ref.status}","${formatDate(ref.date, true)}","${ref.details}"\n`;
-        });
-        
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `referrals_${new Date().toISOString().slice(0, 10)}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        Swal.fire({
-            title: 'Success',
-            text: 'Referrals exported successfully',
-            icon: 'success',
-            confirmButtonText: translations[currentLanguage].close,
-            confirmButtonColor: '#4f46e5'
-        });
-    }
+function exportTransactions() {
+    let filteredTransactions = transactionHistory.filter(txn => {
+        if (currentTransactionFilter !== 'all' && txn.status !== currentTransactionFilter) return false;
+        if (currentTransactionSearch) {
+            const searchLower = currentTransactionSearch.toLowerCase();
+            return (
+                txn.id.toLowerCase().includes(searchLower) ||
+                txn.type.toLowerCase().includes(searchLower) ||
+                txn.amount.toString().includes(searchLower) ||
+                txn.status.toLowerCase().includes(searchLower) ||
+                txn.details.toLowerCase().includes(searchLower)
+            );
+        }
+        return true;
+    });
+    
+    let csv = 'ID,Type,Amount,Status,Date,Details\n';
+    filteredTransactions.forEach(txn => {
+        csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.status}","${formatDate(txn.date, true)}","${txn.details}"\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    Swal.fire({
+        title: 'Success',
+        text: 'Transactions exported successfully',
+        icon: 'success',
+        confirmButtonText: translations[currentLanguage].close,
+        confirmButtonColor: '#4f46e5'
+    });
+}
+
+function exportReferrals() {
+    let filteredReferrals = referralHistory.filter(ref => {
+        if (currentReferralFilter !== 'all' && ref.status !== currentReferralFilter) return false;
+        if (currentReferralSearch) {
+            const searchLower = currentReferralSearch.toLowerCase();
+            return (
+                ref.id.toLowerCase().includes(searchLower) ||
+                ref.name.toLowerCase().includes(searchLower) ||
+                ref.amount.toString().includes(searchLower) ||
+                ref.status.toLowerCase().includes(searchLower) ||
+                ref.details.toLowerCase().includes(searchLower)
+            );
+        }
+        return true;
+    });
+    
+    let csv = 'ID,Name,Amount,Status,Date,Details\n';
+    filteredReferrals.forEach(ref => {
+        csv += `"${ref.id}","${ref.name}","${ref.amount}","${ref.status}","${formatDate(ref.date, true)}","${ref.details}"\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `referrals_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    Swal.fire({
+        title: 'Success',
+        text: 'Referrals exported successfully',
+        icon: 'success',
+        confirmButtonText: translations[currentLanguage].close,
+        confirmButtonColor: '#4f46e5'
+    });
+}
 </script>
+    
 </body>
 </html>
