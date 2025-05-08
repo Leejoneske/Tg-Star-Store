@@ -609,50 +609,91 @@ document.addEventListener('DOMContentLoaded', function() {
     function changeLanguage(language) {
         applyLanguage(language);
     }
-
     async function loadReferralData() {
-        try {
-            const response = await fetch(`/api/referral-data/${state.userId}`);
-            if (!response.ok) throw new Error('Failed to load referral data');
-            
-            const data = await response.json();
-            if (!data.success) throw new Error(data.error || 'Failed to load data');
-            
-            state.stats = {
-                availableBalance: data.stats.availableBalance,
-                totalEarned: data.stats.totalEarned,
-                referralsCount: data.stats.referralsCount,
-                pendingAmount: data.stats.pendingAmount
-            };
-            
-            state.referrals = data.referrals.map(ref => ({
-                userId: ref.userId,
-                name: ref.name,
-                status: ref.status,
-                date: ref.date
-            }));
-            
-            state.withdrawals = data.withdrawals.map(wd => ({
-                amount: wd.amount,
-                walletAddress: wd.walletAddress,
-                status: wd.status,
-                date: wd.date
-            }));
-            
-            state.referralCode = data.referralCode;
-            state.referralLink = data.referralLink;
-            
-            updateUI();
-        } catch (error) {
-            Swal.fire({
-                title: 'Error',
-                text: translations[state.language]['withdraw-error'],
-                icon: 'error',
-                confirmButtonText: translations[state.language].close,
-                confirmButtonColor: '#4f46e5'
-            });
+    try {
+        // Show loading state
+        document.getElementById('noReferrals').classList.add('hide');
+        document.getElementById('referralsList').classList.add('hide');
+        document.getElementById('referralsLoading').classList.remove('hide');
+
+        const response = await fetch(`/api/referral-data/${state.userId}`, {
+            headers: {
+                'tg-web-app-data': Telegram.WebApp.initData,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'API request failed');
         }
+
+        // Transform data like the working example
+        state.referrals = result.referrals.map(ref => ({
+            userId: ref.userId,
+            name: ref.name || `User ${ref.userId.substring(0, 6)}`,
+            status: ref.status.toLowerCase(), // Ensure consistent casing
+            date: new Date(ref.date) // Convert to Date object
+        }));
+
+        state.stats = result.stats;
+        state.referralLink = result.referralLink;
+
+        updateUI();
+
+    } catch (error) {
+        console.error('Referral load error:', error);
+        document.getElementById('referralsLoading').classList.add('hide');
+        document.getElementById('noReferrals').classList.remove('hide');
+        
+        Swal.fire({
+            title: 'Error',
+            text: 'Failed to load referral data',
+            icon: 'error'
+        });
     }
+}
+
+function updateUI() {
+    // Update stats
+    document.getElementById('availableBalance').textContent = 
+        `${state.stats.availableBalance.toFixed(2)} USDT`;
+    
+    // Update referral list
+    const container = document.getElementById('referralsContainer');
+    container.innerHTML = '';
+
+    if (state.referrals.length === 0) {
+        document.getElementById('noReferrals').classList.remove('hide');
+        return;
+    }
+
+    state.referrals.forEach(ref => {
+        const item = document.createElement('div');
+        item.className = 'py-3 flex justify-between items-center border-b';
+        item.innerHTML = `
+            <div>
+                <div class="font-medium">${ref.name}</div>
+                <div class="text-xs text-gray-500">
+                    ${ref.date.toLocaleDateString()}
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-sm ${ref.status === 'completed' ? 
+                    'text-green-500' : 'text-yellow-500'}">
+                    ${ref.status}
+                </div>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+
+    document.getElementById('referralsList').classList.remove('hide');
+}
+    
 
     function updateUI() {
         document.getElementById('availableBalance').textContent = `${state.stats.availableBalance.toFixed(2)} USDT`;
