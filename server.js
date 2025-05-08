@@ -562,8 +562,74 @@ app.get("/api/sell-orders", async (req, res) => {
     }
 });
 
+// kitu ya database to get data for referral page 
+app.get('/api/referral-data/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
+        
+        const withdrawals = await Withdrawal.find({ userId })
+            .sort({ date: -1 })
+            .lean();
+        
+        const completedReferrals = referrals.filter(r => r.status === 'completed');
+        const pendingReferrals = referrals.filter(r => r.status === 'pending');
+        
+        const stats = {
+            availableBalance: completedReferrals.length * 0.5,
+            totalEarned: completedReferrals.length * 0.5,
+            referralsCount: completedReferrals.length,
+            pendingAmount: pendingReferrals.length * 0.5
+        };
+        
+        res.json({
+            success: true,
+            stats,
+            referrals: referrals.map(r => ({
+                userId: r.referredUserId,
+                name: r.referredUsername,
+                status: r.status,
+                date: r.dateReferred
+            })),
+            withdrawals: withdrawals.map(w => ({
+                amount: w.amount,
+                walletAddress: w.walletAddress,
+                status: w.status,
+                date: w.date
+            })),
+            referralCode: userId,
+            referralLink: `https://t.me/TgStarStore_bot?start=ref_${userId}`
+        });
+    } catch (error) {
+        console.error('Error fetching referral data:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
 
-// Check if adminIds is already declared to avoid redeclaration
+app.post('/api/withdrawals', async (req, res) => {
+    try {
+        const { userId, amount, walletAddress } = req.body;
+        
+        const withdrawal = new Withdrawal({
+            userId,
+            amount,
+            walletAddress,
+            status: 'pending',
+            date: new Date()
+        });
+        
+        await withdrawal.save();
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error processing withdrawal:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 
 // Check if adminIds is already declared
 if (typeof adminIds === 'undefined') {
