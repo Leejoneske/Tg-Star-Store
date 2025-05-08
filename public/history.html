@@ -198,23 +198,6 @@
                 transform: translateX(100%);
             }
         }
-        .footer {
-            text-align: center;
-            padding: 8px;
-            font-size: 12px;
-            color: #6b7280;
-            background: white;
-            border-top: 1px solid #e5e7eb;
-            width: 100%;
-            max-width: 480px;
-        }
-        .footer a {
-            color: #4f46e5;
-            text-decoration: none;
-        }
-        .footer a:hover {
-            text-decoration: underline;
-        }
     </style>
 </head>
 <body>
@@ -385,9 +368,6 @@
                 </button>
             </div>
         </div>
-        <div class="footer">
-            <span data-lang="copyright">© 2023 StarStore. All rights reserved.</span>
-        </div>
     </div>
 
     <script>
@@ -444,8 +424,7 @@
                 total: "Total",
                 view_details: "View Details",
                 stars_purchase: "Stars Purchase",
-                close: "Close",
-                copyright: "© 2023 StarStore. All rights reserved."
+                close: "Close"
             },
             ru: {
                 menu: "Меню",
@@ -484,8 +463,7 @@
                 total: "Всего",
                 view_details: "Просмотр деталей",
                 stars_purchase: "Покупка звезд",
-                close: "Закрыть",
-                copyright: "© 2023 StarStore. Все права защищены."
+                close: "Закрыть"
             }
         };
 
@@ -507,7 +485,6 @@
         }
 
         function setupEventListeners() {
-            document.getElementById('menuBtn').addEventListener('click', toggleMenu);
             document.getElementById('transactionsTab').addEventListener('click', () => switchTab('transactions'));
             document.getElementById('referralsTab').addEventListener('click', () => switchTab('referrals'));
             document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -584,263 +561,52 @@
             document.getElementById('transactionsLoading').style.display = 'block';
             document.getElementById('transactionsList').style.display = 'none';
             document.getElementById('transactionsEmpty').style.display = 'none';
-            const userId = Telegram.WebApp.initDataUnsafe.user?.id;
-            if (!userId) {
+            
+            setTimeout(() => {
                 document.getElementById('transactionsLoading').style.display = 'none';
                 document.getElementById('transactionsEmpty').style.display = 'flex';
-                return;
-            }
-            axios.get(`/api/transactions/${userId}`)
-                .then(response => {
-                    transactionHistory = response.data.map(item => {
-                        const isBuyOrder = item.hasOwnProperty('amountToBuy');
-                        const starRate = 0.009;
-                        return {
-                            id: item._id,
-                            type: isBuyOrder ? 'Stars Purchase' : 'Stars Sale',
-                            amount: isBuyOrder ? item.amountToBuy : item.amountToSell,
-                            usdtValue: (isBuyOrder ? item.amountToBuy : item.amountToSell) * starRate,
-                            status: mapOrderStatus(item.status),
-                            date: new Date(item.dateCreated),
-                            details: isBuyOrder ? `Purchased ${item.amountToBuy} stars` : `Sold ${item.amountToSell} stars for ${((item.amountToSell * starRate).toFixed(3))} USDT`
-                        };
-                    });
-                    updateTransactionList();
-                    updateTransactionChart();
-                })
-                .catch(error => {
-                    document.getElementById('transactionsLoading').style.display = 'none';
-                    document.getElementById('transactionsEmpty').style.display = 'flex';
-                });
+            }, 1000);
         }
 
         function loadReferralHistory() {
             document.getElementById('referralsLoading').style.display = 'block';
             document.getElementById('referralsList').style.display = 'none';
             document.getElementById('referralsEmpty').style.display = 'none';
-            const userId = Telegram.WebApp.initDataUnsafe.user?.id;
-            if (!userId) {
+            
+            setTimeout(() => {
                 document.getElementById('referralsLoading').style.display = 'none';
                 document.getElementById('referralsEmpty').style.display = 'flex';
-                return;
-            }
-            axios.get(`/api/referrals/${userId}`)
-                .then(response => {
-                    const data = response.data.data;
-                    referralHistory = [...data.referralsMade, ...data.referralsReceived].map(ref => {
-                        const isReferrer = ref.referrerUserId === userId;
-                        return {
-                            id: ref._id,
-                            name: isReferrer ? 'Referred User' : 'Referrer',
-                            status: mapReferralStatus(ref.status),
-                            date: new Date(ref.dateReferred),
-                            amount: 0,
-                            details: isReferrer ? 'You referred a user' : 'You were referred',
-                            isReferrer: isReferrer
-                        };
-                    });
-                    updateReferralList();
-                })
-                .catch(error => {
-                    document.getElementById('referralsLoading').style.display = 'none';
-                    document.getElementById('referralsEmpty').style.display = 'flex';
-                });
-        }
-
-        function mapOrderStatus(backendStatus) {
-            const statusMap = {
-                'completed': 'completed',
-                'processing': 'processing',
-                'pending': 'processing',
-                'failed': 'declined',
-                'cancelled': 'declined'
-            };
-            return statusMap[backendStatus] || 'processing';
-        }
-
-        function mapReferralStatus(backendStatus) {
-            const statusMap = {
-                'completed': 'active',
-                'processing': 'processing',
-                'pending': 'processing',
-                'expired': 'declined'
-            };
-            return statusMap[backendStatus] || 'processing';
+            }, 1000);
         }
 
         function updateTransactionList() {
-            let filteredTransactions = transactionHistory.filter(txn => {
-                if (currentTransactionFilter !== 'all' && txn.status !== currentTransactionFilter) return false;
-                if (currentTransactionSearch) {
-                    const searchLower = currentTransactionSearch.toLowerCase();
-                    return (
-                        txn.id.toLowerCase().includes(searchLower) ||
-                        txn.type.toLowerCase().includes(searchLower) ||
-                        txn.amount.toString().includes(searchLower) ||
-                        txn.status.toLowerCase().includes(searchLower) ||
-                        txn.details.toLowerCase().includes(searchLower)
-                    );
-                }
-                return true;
-            });
-            const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-            const startIndex = (currentTransactionPage - 1) * itemsPerPage;
-            const paginatedTransactions = filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
-            updateTransactionCounts(filteredTransactions);
             document.getElementById('transactionsLoading').style.display = 'none';
-            if (paginatedTransactions.length === 0) {
-                document.getElementById('transactionsList').style.display = 'none';
-                document.getElementById('transactionsEmpty').style.display = 'flex';
-            } else {
-                document.getElementById('transactionsList').style.display = 'block';
-                document.getElementById('transactionsEmpty').style.display = 'none';
-                const transactionsList = document.getElementById('transactionsList');
-                transactionsList.innerHTML = '';
-                paginatedTransactions.forEach(txn => {
-                    const txnCard = document.createElement('div');
-                    txnCard.className = 'transaction-card bg-white p-4';
-                    const dateStr = formatDate(txn.date);
-                    let statusClass = '';
-                    let statusText = '';
-                    switch(txn.status) {
-                        case 'completed':
-                            statusClass = 'status-completed';
-                            statusText = translations[currentLanguage].completed;
-                            break;
-                        case 'processing':
-                            statusClass = 'status-processing';
-                            statusText = translations[currentLanguage].processing;
-                            break;
-                        case 'declined':
-                            statusClass = 'status-declined';
-                            statusText = translations[currentLanguage].declined;
-                            break;
-                    }
-                    txnCard.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="font-medium">${txn.type}</div>
-                            <div class="text-sm text-gray-500">${dateStr}</div>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <div class="text-xs text-gray-500 mb-1">${txn.id}</div>
-                                <span class="status-badge ${statusClass}">${statusText}</span>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-lg font-semibold">${txn.amount} ★</div>
-                                ${!txn.type.includes('Purchase') ? `<div class="text-sm text-gray-600">${txn.usdtValue.toFixed(3)} USDT</div>` : ''}
-                            </div>
-                        </div>
-                    `;
-                    txnCard.addEventListener('click', () => showTransactionDetails(txn));
-                    transactionsList.appendChild(txnCard);
-                });
-            }
-            updatePagination('transactionsPagination', currentTransactionPage, totalPages, (page) => {
-                currentTransactionPage = page;
-                updateTransactionList();
-            });
+            document.getElementById('transactionsList').style.display = 'none';
+            document.getElementById('transactionsEmpty').style.display = 'flex';
         }
 
         function updateReferralList() {
-            let filteredReferrals = referralHistory.filter(ref => {
-                if (currentReferralFilter !== 'all' && ref.status !== currentReferralFilter) return false;
-                if (currentReferralSearch) {
-                    const searchLower = currentReferralSearch.toLowerCase();
-                    return (
-                        ref.id.toLowerCase().includes(searchLower) ||
-                        ref.name.toLowerCase().includes(searchLower) ||
-                        ref.amount.toString().includes(searchLower) ||
-                        ref.status.toLowerCase().includes(searchLower) ||
-                        ref.details.toLowerCase().includes(searchLower)
-                    );
-                }
-                return true;
-            });
-            const totalPages = Math.ceil(filteredReferrals.length / itemsPerPage);
-            const startIndex = (currentReferralPage - 1) * itemsPerPage;
-            const paginatedReferrals = filteredReferrals.slice(startIndex, startIndex + itemsPerPage);
             document.getElementById('referralsLoading').style.display = 'none';
-            if (paginatedReferrals.length === 0) {
-                document.getElementById('referralsList').style.display = 'none';
-                document.getElementById('referralsEmpty').style.display = 'flex';
-            } else {
-                document.getElementById('referralsList').style.display = 'block';
-                document.getElementById('referralsEmpty').style.display = 'none';
-                const referralsList = document.getElementById('referralsList');
-                referralsList.innerHTML = '';
-                paginatedReferrals.forEach(ref => {
-                    const refCard = document.createElement('div');
-                    refCard.className = 'transaction-card bg-white p-4';
-                    const dateStr = formatDate(ref.date);
-                    let statusClass = '';
-                    let statusText = '';
-                    switch(ref.status) {
-                        case 'active':
-                            statusClass = 'status-active';
-                            statusText = translations[currentLanguage].active;
-                            break;
-                        case 'processing':
-                            statusClass = 'status-processing';
-                            statusText = translations[currentLanguage].processing;
-                            break;
-                    }
-                    refCard.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="font-medium">${ref.name}</div>
-                            <div class="text-sm text-gray-500">${dateStr}</div>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <div class="text-xs text-gray-500 mb-1">${ref.id}</div>
-                                <span class="status-badge ${statusClass}">${statusText}</span>
-                            </div>
-                            <div class="text-sm text-gray-600">${ref.details}</div>
-                        </div>
-                    `;
-                    refCard.addEventListener('click', () => showReferralDetails(ref));
-                    referralsList.appendChild(refCard);
-                });
-            }
-            updatePagination('referralsPagination', currentReferralPage, totalPages, (page) => {
-                currentReferralPage = page;
-                updateReferralList();
-            });
+            document.getElementById('referralsList').style.display = 'none';
+            document.getElementById('referralsEmpty').style.display = 'flex';
         }
 
         function updateTransactionCounts(transactions) {
-            document.getElementById('completedCount').textContent = transactions.filter(t => t.status === 'completed').length;
-            document.getElementById('processingCount').textContent = transactions.filter(t => t.status === 'processing').length;
-            document.getElementById('declinedCount').textContent = transactions.filter(t => t.status === 'declined').length;
+            document.getElementById('completedCount').textContent = 0;
+            document.getElementById('processingCount').textContent = 0;
+            document.getElementById('declinedCount').textContent = 0;
         }
 
         function updateTransactionChart() {
             const ctx = document.getElementById('transactionChart').getContext('2d');
-            const now = new Date();
-            const days = [];
-            const data = [];
-            for (let i = 6; i >= 0; i--) {
-                const date = new Date(now);
-                date.setDate(now.getDate() - i);
-                days.push(formatDate(date, true));
-                const dayStart = new Date(date);
-                dayStart.setHours(0, 0, 0, 0);
-                const dayEnd = new Date(date);
-                dayEnd.setHours(23, 59, 59, 999);
-                const dayTransactions = transactionHistory.filter(txn => 
-                    txn.date >= dayStart && txn.date <= dayEnd && txn.status === 'completed'
-                );
-                const dayTotal = dayTransactions.reduce((sum, txn) => sum + txn.amount, 0);
-                data.push(dayTotal);
-            }
             if (transactionChart) transactionChart.destroy();
             transactionChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: days,
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
                     datasets: [{
                         label: translations[currentLanguage].total,
-                        data: data,
+                        data: [0, 0, 0, 0, 0, 0, 0],
                         backgroundColor: 'rgba(79, 70, 229, 0.1)',
                         borderColor: 'rgba(79, 70, 229, 1)',
                         borderWidth: 2,
@@ -891,243 +657,47 @@
         function updatePagination(elementId, currentPage, totalPages, callback) {
             const paginationContainer = document.getElementById(elementId);
             paginationContainer.innerHTML = '';
-            if (totalPages <= 1) return;
-            const prevButton = document.createElement('button');
-            prevButton.className = 'pagination-btn border';
-            prevButton.innerHTML = '&lt;';
-            prevButton.disabled = currentPage === 1;
-            prevButton.addEventListener('click', () => {
-                if (currentPage > 1) callback(currentPage - 1);
-            });
-            paginationContainer.appendChild(prevButton);
-            const maxVisiblePages = 5;
-            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-            if (endPage - startPage + 1 < maxVisiblePages) {
-                startPage = Math.max(1, endPage - maxVisiblePages + 1);
-            }
-            if (startPage > 1) {
-                const firstButton = document.createElement('button');
-                firstButton.className = 'pagination-btn border';
-                firstButton.textContent = '1';
-                firstButton.addEventListener('click', () => callback(1));
-                paginationContainer.appendChild(firstButton);
-                if (startPage > 2) {
-                    const ellipsis = document.createElement('span');
-                    ellipsis.className = 'px-2';
-                    ellipsis.textContent = '...';
-                    paginationContainer.appendChild(ellipsis);
-                }
-            }
-            for (let i = startPage; i <= endPage; i++) {
-                const pageButton = document.createElement('button');
-                pageButton.className = `pagination-btn border ${i === currentPage ? 'active' : ''}`;
-                pageButton.textContent = i;
-                pageButton.addEventListener('click', () => callback(i));
-                paginationContainer.appendChild(pageButton);
-            }
-            if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                    const ellipsis = document.createElement('span');
-                    ellipsis.className = 'px-2';
-                    ellipsis.textContent = '...';
-                    paginationContainer.appendChild(ellipsis);
-                }
-                const lastButton = document.createElement('button');
-                lastButton.className = 'pagination-btn border';
-                lastButton.textContent = totalPages;
-                lastButton.addEventListener('click', () => callback(totalPages));
-                paginationContainer.appendChild(lastButton);
-            }
-            const nextButton = document.createElement('button');
-            nextButton.className = 'pagination-btn border';
-            nextButton.innerHTML = '&gt;';
-            nextButton.disabled = currentPage === totalPages;
-            nextButton.addEventListener('click', () => {
-                if (currentPage < totalPages) callback(currentPage + 1);
-            });
-            paginationContainer.appendChild(nextButton);
         }
 
         function formatDate(date, short = false) {
-            const now = new Date();
-            const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-            if (short) {
-                const options = { weekday: 'short' };
-                return new Intl.DateTimeFormat(currentLanguage === 'ru' ? 'ru-RU' : 'en-US', options).format(date);
-            }
-            if (diffInDays === 0) return translations[currentLanguage].today;
-            else if (diffInDays === 1) return translations[currentLanguage].yesterday;
-            else if (diffInDays < 7) return `${diffInDays} ${translations[currentLanguage].days_ago}`;
-            else {
-                const options = { year: 'numeric', month: 'short', day: 'numeric' };
-                return new Intl.DateTimeFormat(currentLanguage === 'ru' ? 'ru-RU' : 'en-US', options).format(date);
-            }
+            return translations[currentLanguage].today;
         }
 
         function showTransactionDetails(transaction) {
-            let statusClass = '';
-            let statusText = '';
-            switch(transaction.status) {
-                case 'completed':
-                    statusClass = 'status-completed';
-                    statusText = translations[currentLanguage].completed;
-                    break;
-                case 'processing':
-                    statusClass = 'status-processing';
-                    statusText = translations[currentLanguage].processing;
-                    break;
-                case 'declined':
-                    statusClass = 'status-declined';
-                    statusText = translations[currentLanguage].declined;
-                    break;
-            }
             Swal.fire({
                 title: translations[currentLanguage].transaction_details,
-                html: `
-                    <div class="text-left space-y-3">
-                        <div>
-                            <span class="text-gray-500">${translations[currentLanguage].id}:</span>
-                            <span class="ml-2 font-medium">${transaction.id}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">${translations[currentLanguage].type}:</span>
-                            <span class="ml-2 font-medium">${transaction.type}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">${translations[currentLanguage].amount}:</span>
-                            <span class="ml-2 font-medium">${transaction.amount} ★</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">${translations[currentLanguage].status}:</span>
-                            <span class="ml-2 status-badge ${statusClass}">${statusText}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">${translations[currentLanguage].date}:</span>
-                            <span class="ml-2 font-medium">${formatDate(transaction.date)}</span>
-                        </div>
-                        <div class="pt-3 border-t">
-                            <p class="text-gray-700">${transaction.details}</p>
-                        </div>
-                    </div>
-                `,
+                text: 'No transaction data available',
+                icon: 'info',
                 confirmButtonText: translations[currentLanguage].close,
                 confirmButtonColor: '#4f46e5'
             });
         }
 
         function showReferralDetails(referral) {
-            let statusClass = '';
-            let statusText = '';
-            switch(referral.status) {
-                case 'active':
-                    statusClass = 'status-active';
-                    statusText = translations[currentLanguage].active;
-                    break;
-                case 'processing':
-                    statusClass = 'status-processing';
-                    statusText = translations[currentLanguage].processing;
-                    break;
-            }
             Swal.fire({
                 title: translations[currentLanguage].referral_details,
-                html: `
-                    <div class="text-left space-y-3">
-                        <div>
-                            <span class="text-gray-500">${translations[currentLanguage].id}:</span>
-                            <span class="ml-2 font-medium">${referral.id}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">${translations[currentLanguage].name}:</span>
-                            <span class="ml-2 font-medium">${referral.name}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">${translations[currentLanguage].status}:</span>
-                            <span class="ml-2 status-badge ${statusClass}">${statusText}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">${translations[currentLanguage].date}:</span>
-                            <span class="ml-2 font-medium">${formatDate(referral.date)}</span>
-                        </div>
-                        <div class="pt-3 border-t">
-                            <p class="text-gray-700">${referral.details}</p>
-                        </div>
-                    </div>
-                `,
+                text: 'No referral data available',
+                icon: 'info',
                 confirmButtonText: translations[currentLanguage].close,
                 confirmButtonColor: '#4f46e5'
             });
         }
 
         function exportTransactions() {
-            let filteredTransactions = transactionHistory.filter(txn => {
-                if (currentTransactionFilter !== 'all' && txn.status !== currentTransactionFilter) return false;
-                if (currentTransactionSearch) {
-                    const searchLower = currentTransactionSearch.toLowerCase();
-                    return (
-                        txn.id.toLowerCase().includes(searchLower) ||
-                        txn.type.toLowerCase().includes(searchLower) ||
-                        txn.amount.toString().includes(searchLower) ||
-                        txn.status.toLowerCase().includes(searchLower) ||
-                        txn.details.toLowerCase().includes(searchLower)
-                    );
-                }
-                return true;
-            });
-            let csv = 'ID,Type,Amount,Status,Date,Details\n';
-            filteredTransactions.forEach(txn => {
-                csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.status}","${formatDate(txn.date, true)}","${txn.details}"\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.setAttribute('href', url);
-            link.setAttribute('download', `transactions_${new Date().toISOString().slice(0, 10)}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
             Swal.fire({
-                title: 'Success',
-                text: 'Transactions exported successfully',
-                icon: 'success',
+                title: 'Export',
+                text: 'No transactions to export',
+                icon: 'info',
                 confirmButtonText: translations[currentLanguage].close,
                 confirmButtonColor: '#4f46e5'
             });
         }
 
         function exportReferrals() {
-            let filteredReferrals = referralHistory.filter(ref => {
-                if (currentReferralFilter !== 'all' && ref.status !== currentReferralFilter) return false;
-                if (currentReferralSearch) {
-                    const searchLower = currentReferralSearch.toLowerCase();
-                    return (
-                        ref.id.toLowerCase().includes(searchLower) ||
-                        ref.name.toLowerCase().includes(searchLower) ||
-                        ref.amount.toString().includes(searchLower) ||
-                        ref.status.toLowerCase().includes(searchLower) ||
-                        ref.details.toLowerCase().includes(searchLower)
-                    );
-                }
-                return true;
-            });
-            let csv = 'ID,Name,Amount,Status,Date,Details\n';
-            filteredReferrals.forEach(ref => {
-                csv += `"${ref.id}","${ref.name}","${ref.amount}","${ref.status}","${formatDate(ref.date, true)}","${ref.details}"\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.setAttribute('href', url);
-            link.setAttribute('download', `referrals_${new Date().toISOString().slice(0, 10)}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
             Swal.fire({
-                title: 'Success',
-                text: 'Referrals exported successfully',
-                icon: 'success',
+                title: 'Export',
+                text: 'No referrals to export',
+                icon: 'info',
                 confirmButtonText: translations[currentLanguage].close,
                 confirmButtonColor: '#4f46e5'
             });
