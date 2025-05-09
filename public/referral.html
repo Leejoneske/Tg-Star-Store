@@ -424,18 +424,279 @@
         tgWebApp.enableClosingConfirmation();
     }
 
-    const menuOverlay = document.getElementById('menuOverlay');
-    const sideMenu = document.getElementById('sideMenu');
-    const menuButton = document.getElementById('menuButton');
-    const copyButton = document.getElementById('copyButton');
-    const withdrawButton = document.getElementById('withdrawButton');
-    const referralLinkDisplay = document.getElementById('referralLinkDisplay');
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabContents = document.querySelectorAll('.tab-content');
-    const languageBtns = document.querySelectorAll('.language-btn');
-    const shareFb = document.getElementById('shareFb');
-    const shareTw = document.getElementById('shareTw');
-    const shareWa = document.getElementById('shareWa');
+    const state = {
+        userId: tgWebApp?.initDataUnsafe?.user?.id || 'default_user_id',
+        username: tgWebApp?.initDataUnsafe?.user?.username || 'User',
+        language: localStorage.getItem('appLanguage') || 'en',
+        referralCode: null,
+        referralLink: null,
+        stats: {
+            availableBalance: 0,
+            totalEarned: 0,
+            referralsCount: 0,
+            pendingAmount: 0
+        },
+        referrals: [],
+        withdrawals: []
+    };
+
+    function init() {
+        setupEventListeners();
+        loadReferralData();
+    }
+
+    async function loadReferralData() {
+        try {
+            const response = await fetch(`/api/referral-stats/${state.userId}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to load referral data');
+            }
+
+            state.referrals = data.referrals || [];
+            state.stats = data.stats || {
+                availableBalance: 0,
+                totalEarned: 0,
+                referralsCount: 0,
+                pendingAmount: 0
+            };
+            state.referralLink = data.referralLink || '#';
+
+            updateUI();
+        } catch (error) {
+            console.error('Error loading referral data:', error);
+            showError('Failed to load referral data');
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('availableBalance').textContent = `${state.stats.availableBalance.toFixed(2)} USDT`;
+        document.getElementById('totalEarned').textContent = `${state.stats.totalEarned.toFixed(2)} USDT`;
+        document.getElementById('referralsCount').textContent = state.stats.referralsCount;
+        document.getElementById('pendingAmount').textContent = `${state.stats.pendingAmount.toFixed(2)} USDT`;
+        
+        document.getElementById('referralLinkDisplay').textContent = state.referralLink;
+        
+        updateReferralsList();
+        updateWithdrawalsList();
+    }
+
+    function updateReferralsList() {
+        const container = document.getElementById('referralsContainer');
+        container.innerHTML = '';
+        
+        if (state.referrals.length === 0) {
+            document.getElementById('noReferrals').classList.remove('hide');
+            document.getElementById('referralsList').classList.add('hide');
+            return;
+        }
+        
+        document.getElementById('noReferrals').classList.add('hide');
+        document.getElementById('referralsList').classList.remove('hide');
+        
+        state.referrals.forEach(referral => {
+            const item = document.createElement('div');
+            item.className = 'py-3 flex justify-between items-center';
+            item.innerHTML = `
+                <div>
+                    <div class="flex items-center">
+                        <span class="dot ${referral.status === 'completed' ? 'dot-success' : 'dot-pending'}"></span>
+                        <span class="font-medium">${referral.name || referral.userId.substring(0, 8)}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">${new Date(referral.date).toLocaleDateString()}</div>
+                </div>
+                <div class="text-right">
+                    <div class="font-medium text-gray-800">+0.5 USDT</div>
+                    <div class="text-xs ${referral.status === 'completed' ? 'text-green-500' : 'text-yellow-500'}">${referral.status}</div>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function updateWithdrawalsList() {
+        const container = document.getElementById('withdrawalsContainer');
+        container.innerHTML = '';
+        
+        if (state.withdrawals.length === 0) {
+            document.getElementById('noWithdrawals').classList.remove('hide');
+            document.getElementById('withdrawalsList').classList.add('hide');
+            return;
+        }
+        
+        document.getElementById('noWithdrawals').classList.add('hide');
+        document.getElementById('withdrawalsList').classList.remove('hide');
+        
+        state.withdrawals.forEach(withdrawal => {
+            const item = document.createElement('div');
+            item.className = 'py-3 flex justify-between items-center';
+            item.innerHTML = `
+                <div>
+                    <div class="font-medium">Withdrawal to TON wallet</div>
+                    <div class="text-xs text-gray-500 mt-1">${new Date(withdrawal.date).toLocaleDateString()}</div>
+                </div>
+                <div class="text-right">
+                    <div class="font-medium text-gray-800">${withdrawal.amount.toFixed(2)} USDT</div>
+                    <div class="text-xs ${withdrawal.status === 'completed' ? 'text-green-500' : 'text-yellow-500'}">${withdrawal.status}</div>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function setupEventListeners() {
+        document.getElementById('menuButton').addEventListener('click', toggleMenu);
+        document.getElementById('menuOverlay').addEventListener('click', toggleMenu);
+        document.getElementById('copyButton').addEventListener('click', copyReferralLink);
+        document.getElementById('withdrawButton').addEventListener('click', showWithdrawPopup);
+        
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const tabName = button.getAttribute('data-tab');
+                switchTab(tabName);
+            });
+        });
+        
+        document.querySelectorAll('.language-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const language = btn.getAttribute('data-language');
+                changeLanguage(language);
+            });
+        });
+    }
+
+    function toggleMenu() {
+        document.getElementById('menuOverlay').classList.toggle('active');
+        document.getElementById('sideMenu').classList.toggle('active');
+    }
+
+    function changeLanguage(language) {
+        state.language = language;
+        localStorage.setItem('language', language);
+        applyTranslations();
+    }
+
+    function applyTranslations() {
+        document.querySelectorAll('[data-lang]').forEach(el => {
+            const key = el.getAttribute('data-lang');
+            if (translations[state.language] && translations[state.language][key]) {
+                el.textContent = translations[state.language][key];
+            }
+        });
+    }
+
+    function copyReferralLink() {
+        navigator.clipboard.writeText(state.referralLink).then(() => {
+            showSuccess('Link copied to clipboard!');
+        }).catch(err => {
+            showError('Failed to copy link');
+        });
+    }
+
+    function showWithdrawPopup() {
+        if (state.stats.availableBalance < 1) {
+            showError('Minimum withdrawal amount is 1 USDT');
+            return;
+        }
+        
+        Swal.fire({
+            title: 'Withdraw Funds',
+            html: `
+                <form id="withdrawalForm" class="text-left">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
+                        <input type="number" name="amount" min="1" max="${state.stats.availableBalance}" step="0.01" class="w-full p-2 border rounded" placeholder="0.00" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
+                        <input type="text" name="wallet" class="w-full p-2 border rounded" placeholder="UQ..." required>
+                    </div>
+                </form>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Submit Withdrawal',
+            preConfirm: () => {
+                const form = document.getElementById('withdrawalForm');
+                const amount = parseFloat(form.querySelector('input[name="amount"]').value);
+                const walletAddress = form.querySelector('input[name="wallet"]').value;
+                
+                if (amount < 1) {
+                    Swal.showValidationMessage('Minimum withdrawal amount is 1 USDT');
+                    return false;
+                }
+                
+                if (amount > state.stats.availableBalance) {
+                    Swal.showValidationMessage('Insufficient balance');
+                    return false;
+                }
+                
+                return { amount, walletAddress };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                submitWithdrawal(result.value);
+            }
+        });
+    }
+
+    async function submitWithdrawal({ amount, walletAddress }) {
+        try {
+            const response = await fetch('/api/withdrawals', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId: state.userId,
+                    amount,
+                    walletAddress
+                })
+            });
+
+            if (!response.ok) throw new Error('Withdrawal failed');
+            
+            const data = await response.json();
+            
+            if (!data.success) throw new Error(data.error || 'Withdrawal failed');
+            
+            state.withdrawals.unshift({
+                amount,
+                walletAddress,
+                date: new Date().toISOString(),
+                status: 'pending'
+            });
+            
+            state.stats.availableBalance -= amount;
+            updateUI();
+            
+            showSuccess('Withdrawal request submitted');
+        } catch (error) {
+            showError('Withdrawal failed: ' + error.message);
+        }
+    }
+
+    function showSuccess(message) {
+        Swal.fire({
+            title: message,
+            icon: 'success',
+            timer: 2000,
+            showConfirmButton: false
+        });
+    }
+
+    function showError(message) {
+        Swal.fire({
+            title: 'Error',
+            text: message,
+            icon: 'error'
+        });
+    }
 
     const translations = {
         en: {
@@ -533,378 +794,6 @@
             'no-balance': 'У вас недостаточно средств для вывода'
         }
     };
-
-    const state = {
-        userId: tgWebApp?.initDataUnsafe?.user?.id || null,
-        username: tgWebApp?.initDataUnsafe?.user?.username || 'User',
-        language: localStorage.getItem('appLanguage') || 'en',
-        referralCode: null,
-        referralLink: null,
-        stats: {
-            availableBalance: 0,
-            totalEarned: 0,
-            referralsCount: 0,
-            pendingAmount: 0
-        },
-        referrals: [],
-        withdrawals: []
-    };
-
-    function init() {
-        applyLanguage(state.language);
-        setupEventListeners();
-        loadReferralData();
-    }
-
-    function applyLanguage(lang) {
-        state.language = lang;
-        localStorage.setItem('language', lang);
-        
-        languageBtns.forEach(btn => {
-            if (btn.getAttribute('data-language') === lang) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-        
-        document.querySelectorAll('[data-lang]').forEach(el => {
-            const key = el.getAttribute('data-lang');
-            if (translations[lang] && translations[lang][key]) {
-                el.textContent = translations[lang][key];
-            }
-        });
-    }
-
-    function setupEventListeners() {
-        menuButton.addEventListener('click', toggleMenu);
-        menuOverlay.addEventListener('click', toggleMenu);
-        copyButton.addEventListener('click', copyReferralLink);
-        withdrawButton.addEventListener('click', showWithdrawPopup);
-        
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const tabName = button.getAttribute('data-tab');
-                switchTab(tabName);
-            });
-        });
-        
-        languageBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const language = btn.getAttribute('data-language');
-                changeLanguage(language);
-            });
-        });
-        
-        shareFb.addEventListener('click', () => shareReferralLink('facebook'));
-        shareTw.addEventListener('click', () => shareReferralLink('twitter'));
-        shareWa.addEventListener('click', () => shareReferralLink('whatsapp'));
-    }
-
-    function toggleMenu() {
-        menuOverlay.classList.toggle('active');
-        sideMenu.classList.toggle('active');
-    }
-
-    function changeLanguage(language) {
-        applyLanguage(language);
-    }
-
-    async function loadReferralData() {
-        try {
-            const response = await fetch(`/api/referral-stats/${state.userId}`, {
-                headers: {
-                    'tg-web-app-data': Telegram.WebApp.initData,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
-            
-            if (!result.success) {
-                throw new Error(result.error || 'API request failed');
-            }
-
-            state.referrals = result.referrals;
-            state.stats = result.stats;
-            state.referralLink = result.referralLink;
-
-            updateUI();
-
-        } catch (error) {
-            console.error('Referral load error:', error);
-            Swal.fire({
-                title: 'Error',
-                text: 'Failed to load referral data',
-                icon: 'error'
-            });
-        }
-    }
-
-    function updateUI() {
-        document.getElementById('availableBalance').textContent = `${state.stats.availableBalance.toFixed(2)} USDT`;
-        document.getElementById('totalEarned').textContent = `${state.stats.totalEarned.toFixed(2)} USDT`;
-        document.getElementById('referralsCount').textContent = state.stats.referralsCount;
-        document.getElementById('pendingAmount').textContent = `${state.stats.pendingAmount.toFixed(2)} USDT`;
-        
-        referralLinkDisplay.textContent = state.referralLink;
-        updateReferralsList();
-        updateWithdrawalsList();
-    }
-
-    function updateReferralsList() {
-        const noReferrals = document.getElementById('noReferrals');
-        const referralsList = document.getElementById('referralsList');
-        const referralsContainer = document.getElementById('referralsContainer');
-        
-        if (state.referrals.length === 0) {
-            noReferrals.classList.remove('hide');
-            referralsList.classList.add('hide');
-            return;
-        }
-        
-        noReferrals.classList.add('hide');
-        referralsList.classList.remove('hide');
-        referralsContainer.innerHTML = '';
-        
-        state.referrals.forEach(referral => {
-            const dateStr = formatDate(new Date(referral.date));
-            
-            const referralItem = document.createElement('div');
-            referralItem.className = 'py-3 flex justify-between items-center';
-            referralItem.innerHTML = `
-                <div>
-                    <div class="flex items-center">
-                        <span class="dot ${referral.status === 'completed' ? 'dot-success' : 'dot-pending'}"></span>
-                        <span class="font-medium">${referral.name || referral.userId.substring(0, 8)}</span>
-                    </div>
-                    <div class="text-xs text-gray-500 mt-1">${dateStr}</div>
-                </div>
-                <div class="text-right">
-                    <div class="font-medium text-gray-800">+0.5 USDT</div>
-                    <div class="text-xs ${referral.status === 'completed' ? 'text-green-500' : 'text-yellow-500'}">${translations[state.language][referral.status]}</div>
-                </div>
-            `;
-            
-            referralsContainer.appendChild(referralItem);
-        });
-    }
-
-    function updateWithdrawalsList() {
-        const noWithdrawals = document.getElementById('noWithdrawals');
-        const withdrawalsList = document.getElementById('withdrawalsList');
-        const withdrawalsContainer = document.getElementById('withdrawalsContainer');
-        
-        if (state.withdrawals.length === 0) {
-            noWithdrawals.classList.remove('hide');
-            withdrawalsList.classList.add('hide');
-            return;
-        }
-        
-        noWithdrawals.classList.add('hide');
-        withdrawalsList.classList.remove('hide');
-        withdrawalsContainer.innerHTML = '';
-        
-        state.withdrawals.forEach(withdrawal => {
-            const dateStr = formatDate(new Date(withdrawal.date));
-            
-            const withdrawalItem = document.createElement('div');
-            withdrawalItem.className = 'py-3 flex justify-between items-center';
-            withdrawalItem.innerHTML = `
-                <div>
-                    <div class="font-medium">Withdrawal to TON wallet</div>
-                    <div class="text-xs text-gray-500 mt-1">${dateStr}</div>
-                </div>
-                <div class="text-right">
-                    <div class="font-medium text-gray-800">${withdrawal.amount.toFixed(2)} USDT</div>
-                    <div class="text-xs ${withdrawal.status === 'completed' ? 'text-green-500' : 'text-yellow-500'}">${translations[state.language][withdrawal.status]}</div>
-                </div>
-            `;
-            
-            withdrawalsContainer.appendChild(withdrawalItem);
-        });
-    }
-
-    function formatDate(date) {
-        const now = new Date();
-        const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-        
-        if (diffInDays === 0) return translations[state.language].today;
-        else if (diffInDays === 1) return translations[state.language].yesterday;
-        else if (diffInDays < 7) return `${diffInDays} ${translations[state.language].days_ago}`;
-        else {
-            const options = { year: 'numeric', month: 'short', day: 'numeric' };
-            return new Intl.DateTimeFormat(state.language === 'ru' ? 'ru-RU' : 'en-US', options).format(date);
-        }
-    }
-
-    function copyReferralLink() {
-        navigator.clipboard.writeText(state.referralLink).then(() => {
-            Swal.fire({
-                title: translations[state.language]['link-copied'],
-                icon: 'success',
-                timer: 1500,
-                showConfirmButton: false
-            });
-            copyButton.classList.add('bg-green-100', 'text-green-600');
-            setTimeout(() => {
-                copyButton.classList.remove('bg-green-100', 'text-green-600');
-            }, 1000);
-        }).catch(err => {
-            Swal.fire({
-                title: 'Error',
-                text: 'Failed to copy link',
-                icon: 'error',
-                confirmButtonText: translations[state.language].close,
-                confirmButtonColor: '#4f46e5'
-            });
-        });
-    }
-
-    function switchTab(tabName) {
-        tabButtons.forEach(button => {
-            if (button.getAttribute('data-tab') === tabName) {
-                button.classList.add('active', 'text-gray-800');
-                button.classList.remove('text-gray-500');
-            } else {
-                button.classList.remove('active', 'text-gray-800');
-                button.classList.add('text-gray-500');
-            }
-        });
-        
-        tabContents.forEach(content => {
-            if (content.id === `${tabName}-tab`) {
-                content.classList.remove('hide');
-            } else {
-                content.classList.add('hide');
-            }
-        });
-    }
-
-    function showWithdrawPopup() {
-        if (state.stats.availableBalance < 1) {
-            Swal.fire({
-                title: translations[state.language]['min-withdraw'],
-                icon: 'warning',
-                confirmButtonText: translations[state.language].close,
-                confirmButtonColor: '#4f46e5'
-            });
-            return;
-        }
-        
-        Swal.fire({
-            title: translations[state.language]['withdraw-title'],
-            html: `
-                <form id="withdrawalForm" class="text-left">
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">${translations[state.language]['amount']}</label>
-                        <input type="number" name="amount" min="1" max="${state.stats.availableBalance}" step="0.01" class="w-full p-2 border rounded" placeholder="0.00" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">${translations[state.language]['wallet-address']}</label>
-                        <input type="text" name="wallet" class="w-full p-2 border rounded" placeholder="UQ..." required>
-                    </div>
-                </form>
-            `,
-            showCancelButton: true,
-            confirmButtonText: translations[state.language]['submit-withdrawal'],
-            cancelButtonText: translations[state.language].close,
-            confirmButtonColor: '#4f46e5',
-            preConfirm: () => {
-                const form = document.getElementById('withdrawalForm');
-                const amount = parseFloat(form.querySelector('input[name="amount"]').value);
-                const walletAddress = form.querySelector('input[name="wallet"]').value;
-                
-                if (amount < 1) {
-                    Swal.showValidationMessage(translations[state.language]['min-withdraw']);
-                    return false;
-                }
-                
-                if (amount > state.stats.availableBalance) {
-                    Swal.showValidationMessage(translations[state.language]['no-balance']);
-                    return false;
-                }
-                
-                return { amount, walletAddress };
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                submitWithdrawal(result.value);
-            }
-        });
-    }
-
-    async function submitWithdrawal({ amount, walletAddress }) {
-        try {
-            const response = await fetch('/api/withdrawals', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    userId: state.userId,
-                    amount: parseFloat(amount),
-                    walletAddress
-                })
-            });
-
-            if (!response.ok) throw new Error('Withdrawal failed');
-            
-            const data = await response.json();
-            
-            if (!data.success) throw new Error(data.error || 'Withdrawal failed');
-            
-            state.withdrawals.unshift({
-                amount: parseFloat(amount),
-                walletAddress,
-                date: new Date().toISOString(),
-                status: 'pending'
-            });
-            
-            state.stats.availableBalance -= parseFloat(amount);
-            updateUI();
-            
-            Swal.fire({
-                title: translations[state.language]['withdraw-success'],
-                icon: 'success',
-                confirmButtonText: translations[state.language].close,
-                confirmButtonColor: '#4f46e5'
-            });
-        } catch (error) {
-            Swal.fire({
-                title: translations[state.language]['withdraw-error'],
-                text: error.message,
-                icon: 'error',
-                confirmButtonText: translations[state.language].close,
-                confirmButtonColor: '#4f46e5'
-            });
-        }
-    }
-
-    function shareReferralLink(platform) {
-        const text = encodeURIComponent(`Join StarStore and get premium features! Use my referral link:`);
-        const url = encodeURIComponent(state.referralLink);
-        
-        let shareUrl = '';
-        
-        switch (platform) {
-            case 'facebook':
-                shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${text}`;
-                break;
-            case 'twitter':
-                shareUrl = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
-                break;
-            case 'whatsapp':
-                shareUrl = `https://wa.me/?text=${text} ${url}`;
-                break;
-        }
-        
-        if (shareUrl) {
-            window.open(shareUrl, '_blank', 'noopener,noreferrer');
-        }
-    }
 
     init();
 });
