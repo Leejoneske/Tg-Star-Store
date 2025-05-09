@@ -417,7 +417,7 @@
     </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+ document.addEventListener('DOMContentLoaded', function() {
     const tgWebApp = window.Telegram?.WebApp;
     if (tgWebApp) {
         tgWebApp.expand();
@@ -609,60 +609,39 @@ document.addEventListener('DOMContentLoaded', function() {
     function changeLanguage(language) {
         applyLanguage(language);
     }
-async function getReferralData(userId) {
-    const referrals = await Referral.find({ referrerUserId: userId })
-        .sort({ dateReferred: -1 })
-        .lean();
-        
-    const referredUsers = await User.find({ 
-        id: { $in: referrals.map(r => r.referredUserId) } 
-    }).lean();
-    
-    const userMap = referredUsers.reduce((acc, user) => {
-        acc[user.id] = user;
-        return acc;
-    }, {});
 
-    return { referrals, userMap };
-}
+    async function loadReferralData() {
+        try {
+            const response = await fetch(`/api/referral-stats/${state.userId}`, {
+                headers: {
+                    'tg-web-app-data': Telegram.WebApp.initData,
+                    'Content-Type': 'application/json'
+                }
+            });
 
-function updateUI() {
-    // Update stats
-    document.getElementById('availableBalance').textContent = 
-        `${state.stats.availableBalance.toFixed(2)} USDT`;
-    
-    // Update referral list
-    const container = document.getElementById('referralsContainer');
-    container.innerHTML = '';
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    if (state.referrals.length === 0) {
-        document.getElementById('noReferrals').classList.remove('hide');
-        return;
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'API request failed');
+            }
+
+            state.referrals = result.referrals;
+            state.stats = result.stats;
+            state.referralLink = result.referralLink;
+
+            updateUI();
+
+        } catch (error) {
+            console.error('Referral load error:', error);
+            Swal.fire({
+                title: 'Error',
+                text: 'Failed to load referral data',
+                icon: 'error'
+            });
+        }
     }
-
-    state.referrals.forEach(ref => {
-        const item = document.createElement('div');
-        item.className = 'py-3 flex justify-between items-center border-b';
-        item.innerHTML = `
-            <div>
-                <div class="font-medium">${ref.name}</div>
-                <div class="text-xs text-gray-500">
-                    ${ref.date.toLocaleDateString()}
-                </div>
-            </div>
-            <div class="text-right">
-                <div class="text-sm ${ref.status === 'completed' ? 
-                    'text-green-500' : 'text-yellow-500'}">
-                    ${ref.status}
-                </div>
-            </div>
-        `;
-        container.appendChild(item);
-    });
-
-    document.getElementById('referralsList').classList.remove('hide');
-}
-    
 
     function updateUI() {
         document.getElementById('availableBalance').textContent = `${state.stats.availableBalance.toFixed(2)} USDT`;
@@ -929,7 +908,6 @@ function updateUI() {
 
     init();
 });
- 
 </script>
  
 </body>
