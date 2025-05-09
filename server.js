@@ -562,34 +562,28 @@ app.get("/api/sell-orders", async (req, res) => {
     }
 });
 
-
-// Updated backend endpoint
-app.get('/api/referral-data/:userId', verifyTelegramData, async (req, res) => {
+// Simplified referral data endpoint (without verifyTelegramData)
+app.get('/api/referral-data/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
         
         const referrals = await Referral.find({ referrerUserId: userId })
             .sort({ dateReferred: -1 })
             .lean();
-        
-        const withdrawals = await Withdrawal.find({ userId })
-            .sort({ date: -1 })
-            .lean();
 
-        // Format data exactly like your working endpoint
         const formattedReferrals = referrals.map(r => ({
             id: r._id,
             userId: r.referredUserId,
             name: r.referredUsername || `User ${r.referredUserId.substring(0, 6)}`,
-            status: r.status.toLowerCase(), // Ensure lowercase
+            status: r.status.toLowerCase(),
             date: r.dateReferred,
-            amount: 0.5 // Fixed reward amount
+            amount: 0.5 
         }));
 
-        res.json(formattedReferrals); // Return raw array like working endpoint
+        res.json(formattedReferrals);
         
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error fetching referral data:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -941,35 +935,9 @@ bot.onText(/\/notify (.+)/, async (msg, match) => {
         });
 });
 
-//verification for telegram data
-const verifyTelegramData = (req, res, next) => {
-    const initData = new URLSearchParams(req.headers['tg-web-app-data']);
-    const hash = initData.get('hash');
-    initData.delete('hash');
-    
-    const secret = crypto.createHash('sha256')
-        .update(process.env.BOT_TOKEN)
-        .digest();
-    
-    const dataCheckString = Array.from(initData.entries())
-        .map(([key, value]) => `${key}=${value}`)
-        .sort()
-        .join('\n');
-    
-    const calculatedHash = crypto.createHmac('sha256', secret)
-        .update(dataCheckString)
-        .digest('hex');
-    
-    if (calculatedHash !== hash) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-    
-    next();
-};
-// API Endpoints
-// Add these endpoints before the webhook handler
 
-// Get transaction history
+
+// Get transaction history and should NOT TOUCH THIS CODE
 app.get('/api/transactions/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
@@ -1001,7 +969,7 @@ app.get('/api/transactions/:userId', async (req, res) => {
                 status: order.status.toLowerCase(),
                 date: order.dateCreated,
                 details: `Sell order for ${order.stars} stars`,
-                usdtValue: null // Will be calculated on client if needed
+                usdtValue: null 
             }))
         ];
 
