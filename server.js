@@ -562,47 +562,6 @@ app.get("/api/sell-orders", async (req, res) => {
     }
 });
 
-// No verification middleware needed
-app.get('/api/referrals/:userId', async (req, res) => {
-    try {
-        const { userId } = req.params;
-        
-        // Get referrals for this user
-        const referrals = await Referral.find({ referrerUserId: userId })
-            .sort({ dateReferred: -1 })
-            .lean();
-
-        // Calculate stats
-        const totalReferrals = referrals.length;
-        const completedReferrals = referrals.filter(r => r.status === 'completed').length;
-        
-        res.json({
-            success: true,
-            referrals: referrals.map(ref => ({
-                id: ref._id,
-                userId: ref.referredUserId,
-                name: ref.referredUsername || `User ${ref.referredUserId.substring(0, 6)}`,
-                status: ref.status.toLowerCase(),
-                date: ref.dateReferred,
-                amount: 0.5 // Fixed reward amount
-            })),
-            stats: {
-                availableBalance: completedReferrals * 0.5,
-                totalEarned: completedReferrals * 0.5,
-                referralsCount: totalReferrals,
-                pendingAmount: (totalReferrals - completedReferrals) * 0.5
-            },
-            referralLink: `https://t.me/yourbot?start=${userId}`
-        });
-        
-    } catch (error) {
-        console.error('Error fetching referrals:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Failed to load referral data' 
-        });
-    }
-});
 
 app.post('/api/withdrawals', async (req, res) => {
     try {
@@ -1015,7 +974,7 @@ app.get('/api/referrals/:userId', async (req, res) => {
                 status: referral.status.toLowerCase(),
                 date: referral.dateReferred,
                 details: `Referred user ${referredUser?.username || referral.referredUserId}`,
-                amount: 100 // Fixed bonus amount or calculate based on your logic
+                amount: 0.5 // Fixed bonus amount or calculate based on your logic
             };
         }));
 
