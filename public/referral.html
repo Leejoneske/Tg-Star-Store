@@ -417,12 +417,26 @@
     </div>
 
 <script>
- document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     const tgWebApp = window.Telegram?.WebApp;
+    
+    // Improved user ID extraction
     const tgUser = tgWebApp?.initDataUnsafe?.user;
+    let userId = 'default_user_id';
+    
+    if (tgUser) {
+        if (tgUser.id) userId = tgUser.id.toString();
+        if (tgWebApp.initData) {
+            const urlParams = new URLSearchParams(tgWebApp.initData);
+            const startParam = urlParams.get('start');
+            if (startParam && startParam.startsWith('ref_')) {
+                userId = startParam.split('ref_')[1];
+            }
+        }
+    }
     
     const state = {
-        userId: tgUser?.id.toString() || 'default_user_id',
+        userId: userId, 
         username: tgUser?.username || 'User',
         language: localStorage.getItem('appLanguage') || 'en',
         referralCode: null,
