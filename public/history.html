@@ -628,9 +628,9 @@ function mapOrderStatus(status) {
     const statusMap = {
         'completed': 'completed',
         'processing': 'processing',
-        'pending': 'processing',
+        'pending': 'pending',
         'declined': 'declined',
-        'failed': 'declined',
+        'failed': 'que',
         'cancelled': 'declined'
     };
     return statusMap[status.toLowerCase()] || 'processing';
