@@ -562,34 +562,28 @@ app.get("/api/sell-orders", async (req, res) => {
     }
 });
 
-//for referral page
+//for referral page 
 app.get('/api/referral-stats/:userId', async (req, res) => {
     try {
-        // 1. Find all referrals where the user is the referrer
         const referrals = await Referral.find({ referrerUserId: req.params.userId });
-        
-        // 2. Get usernames of referred users
         const referredUserIds = referrals.map(r => r.referredUserId);
         const users = await User.find({ id: { $in: referredUserIds } });
         
-        // 3. Create user map for easy lookup
         const userMap = {};
-        users.forEach(user => {
-            userMap[user.id] = user.username;
-        });
-        
-        // 4. Calculate stats
+        users.forEach(user => userMap[user.id] = user.username);
+
         const totalReferrals = referrals.length;
-        const completedReferrals = referrals.filter(r => r.status === 'completed').length;
-        
-        // 5. Prepare response
+        const completedReferrals = referrals.filter(r => 
+            r.status === 'completed' || r.status === 'active'
+        ).length;
+
         res.json({
             success: true,
             referrals: referrals.map(ref => ({
                 userId: ref.referredUserId,
                 name: userMap[ref.referredUserId] || `User ${ref.referredUserId.substring(0, 6)}`,
                 status: ref.status.toLowerCase(),
-                date: ref.dateReferred,
+                date: ref.dateReferred || ref.dateCreated || new Date(0),
                 amount: 0.5
             })),
             stats: {
@@ -598,17 +592,18 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
                 referralsCount: totalReferrals,
                 pendingAmount: (totalReferrals - completedReferrals) * 0.5
             },
-            referralLink: `https://t.me/${process.env.BOT_USERNAME}?start=ref_${req.params.userId}`
+            referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`
         });
         
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Referral stats error:', error);
         res.status(500).json({ 
             success: false,
             error: 'Failed to load referral data' 
         });
     }
 });
+
 app.post('/api/withdrawals', async (req, res) => {
     try {
         const { userId, amount, walletAddress } = req.body;
