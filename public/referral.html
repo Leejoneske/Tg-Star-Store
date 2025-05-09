@@ -609,59 +609,22 @@ document.addEventListener('DOMContentLoaded', function() {
     function changeLanguage(language) {
         applyLanguage(language);
     }
-    async function loadReferralData() {
-    try {
-      
-        let userId;
+async function getReferralData(userId) {
+    const referrals = await Referral.find({ referrerUserId: userId })
+        .sort({ dateReferred: -1 })
+        .lean();
         
-        // Try Telegram WebApp first
-        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
-            userId = Telegram.WebApp.initDataUnsafe.user.id;
-        } 
-        // Fallback to URL parameter
-        else {
-            const urlParams = new URLSearchParams(window.location.search);
-            userId = urlParams.get('userId');
-            
-            // If still no ID, check local storage
-            if (!userId) {
-                userId = localStorage.getItem('userId');
-            }
-        }
+    const referredUsers = await User.find({ 
+        id: { $in: referrals.map(r => r.referredUserId) } 
+    }).lean();
+    
+    const userMap = referredUsers.reduce((acc, user) => {
+        acc[user.id] = user;
+        return acc;
+    }, {});
 
-        if (!userId) {
-            throw new Error('User ID not found');
-        }
-
-        // Save for future use
-        localStorage.setItem('userId', userId);
-        state.userId = userId;
-
-        // Simple fetch without Telegram headers
-        const response = await fetch(`/api/referrals/${userId}`);
-        
-        if (!response.ok) throw new Error('Failed to load data');
-        
-        const data = await response.json();
-        
-        if (!data.success) {
-            throw new Error(data.error || 'Request failed');
-        }
-
-        // Update state and UI
-        state.referrals = data.referrals;
-        state.stats = data.stats;
-        state.referralLink = data.referralLink;
-        
-        updateUI();
-
-    } catch (error) {
-        console.error('Error:', error);
-        // Show error to user
-        document.getElementById('noReferrals').classList.remove('hide');
-        document.getElementById('referralsList').classList.add('hide');
-    }
-    }
+    return { referrals, userMap };
+}
 
 function updateUI() {
     // Update stats
