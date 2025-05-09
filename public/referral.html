@@ -419,14 +419,11 @@
 <script>
  document.addEventListener('DOMContentLoaded', function() {
     const tgWebApp = window.Telegram?.WebApp;
-    if (tgWebApp) {
-        tgWebApp.expand();
-        tgWebApp.enableClosingConfirmation();
-    }
-
+    const tgUser = tgWebApp?.initDataUnsafe?.user;
+    
     const state = {
-        userId: tgWebApp?.initDataUnsafe?.user?.id || 'default_user_id',
-        username: tgWebApp?.initDataUnsafe?.user?.username || 'User',
+        userId: tgUser?.id.toString() || 'default_user_id',
+        username: tgUser?.username || 'User',
         language: localStorage.getItem('appLanguage') || 'en',
         referralCode: null,
         referralLink: null,
@@ -448,16 +445,10 @@
     async function loadReferralData() {
         try {
             const response = await fetch(`/api/referral-stats/${state.userId}`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
             const data = await response.json();
-            
-            if (!data.success) {
-                throw new Error(data.error || 'Failed to load referral data');
-            }
+            if (!data.success) throw new Error(data.error || 'Failed to load referral data');
 
             state.referrals = data.referrals || [];
             state.stats = data.stats || {
@@ -466,7 +457,7 @@
                 referralsCount: 0,
                 pendingAmount: 0
             };
-            state.referralLink = data.referralLink || '#';
+            state.referralLink = data.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
 
             updateUI();
         } catch (error) {
@@ -480,9 +471,7 @@
         document.getElementById('totalEarned').textContent = `${state.stats.totalEarned.toFixed(2)} USDT`;
         document.getElementById('referralsCount').textContent = state.stats.referralsCount;
         document.getElementById('pendingAmount').textContent = `${state.stats.pendingAmount.toFixed(2)} USDT`;
-        
         document.getElementById('referralLinkDisplay').textContent = state.referralLink;
-        
         updateReferralsList();
         updateWithdrawalsList();
     }
@@ -576,19 +565,22 @@
         document.getElementById('sideMenu').classList.toggle('active');
     }
 
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+            btn.classList.toggle('text-gray-800', btn.getAttribute('data-tab') === tabName);
+            btn.classList.toggle('text-gray-500', btn.getAttribute('data-tab') !== tabName);
+        });
+        
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('hide', content.id !== `${tabName}-tab`);
+        });
+    }
+
     function changeLanguage(language) {
         state.language = language;
         localStorage.setItem('language', language);
         applyTranslations();
-    }
-
-    function applyTranslations() {
-        document.querySelectorAll('[data-lang]').forEach(el => {
-            const key = el.getAttribute('data-lang');
-            if (translations[state.language] && translations[state.language][key]) {
-                el.textContent = translations[state.language][key];
-            }
-        });
     }
 
     function copyReferralLink() {
@@ -794,6 +786,15 @@
             'no-balance': 'У вас недостаточно средств для вывода'
         }
     };
+
+    function applyTranslations() {
+        document.querySelectorAll('[data-lang]').forEach(el => {
+            const key = el.getAttribute('data-lang');
+            if (translations[state.language] && translations[state.language][key]) {
+                el.textContent = translations[state.language][key];
+            }
+        });
+    }
 
     init();
 });
