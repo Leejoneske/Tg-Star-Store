@@ -562,7 +562,40 @@ app.get("/api/sell-orders", async (req, res) => {
     }
 });
 
-
+//for referral page
+app.get('/api/referral-stats/:userId', async (req, res) => {
+    try {
+        const { referrals, userMap } = await getReferralData(req.params.userId);
+        const totalReferrals = referrals.length;
+        const completedReferrals = referrals.filter(r => r.status === 'completed').length;
+        
+        res.json({
+            success: true,
+            referrals: referrals.map(ref => ({
+                id: ref._id,
+                userId: ref.referredUserId,
+                name: userMap[ref.referredUserId]?.username || `User ${ref.referredUserId.substring(0, 6)}`,
+                status: ref.status.toLowerCase(),
+                date: ref.dateReferred,
+                amount: 0.5
+            })),
+            stats: {
+                availableBalance: completedReferrals * 0.5,
+                totalEarned: completedReferrals * 0.5,
+                referralsCount: totalReferrals,
+                pendingAmount: (totalReferrals - completedReferrals) * 0.5
+            },
+            referralLink: `https://t.me/yourbot?start=${req.params.userId}`
+        });
+        
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to load referral data' 
+        });
+    }
+});
 app.post('/api/withdrawals', async (req, res) => {
     try {
         const { userId, amount, walletAddress } = req.body;
