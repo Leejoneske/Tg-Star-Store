@@ -565,16 +565,29 @@ app.get("/api/sell-orders", async (req, res) => {
 //for referral page
 app.get('/api/referral-stats/:userId', async (req, res) => {
     try {
-        const { referrals, userMap } = await getReferralData(req.params.userId);
+        // 1. Find all referrals where the user is the referrer
+        const referrals = await Referral.find({ referrerUserId: req.params.userId });
+        
+        // 2. Get usernames of referred users
+        const referredUserIds = referrals.map(r => r.referredUserId);
+        const users = await User.find({ id: { $in: referredUserIds } });
+        
+        // 3. Create user map for easy lookup
+        const userMap = {};
+        users.forEach(user => {
+            userMap[user.id] = user.username;
+        });
+        
+        // 4. Calculate stats
         const totalReferrals = referrals.length;
         const completedReferrals = referrals.filter(r => r.status === 'completed').length;
         
+        // 5. Prepare response
         res.json({
             success: true,
             referrals: referrals.map(ref => ({
-                id: ref._id,
                 userId: ref.referredUserId,
-                name: userMap[ref.referredUserId]?.username || `User ${ref.referredUserId.substring(0, 6)}`,
+                name: userMap[ref.referredUserId] || `User ${ref.referredUserId.substring(0, 6)}`,
                 status: ref.status.toLowerCase(),
                 date: ref.dateReferred,
                 amount: 0.5
@@ -585,7 +598,7 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
                 referralsCount: totalReferrals,
                 pendingAmount: (totalReferrals - completedReferrals) * 0.5
             },
-            referralLink: `https://t.me/yourbot?start=${req.params.userId}`
+            referralLink: `https://t.me/${process.env.BOT_USERNAME}?start=ref_${req.params.userId}`
         });
         
     } catch (error) {
