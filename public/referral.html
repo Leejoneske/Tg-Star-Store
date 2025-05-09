@@ -611,51 +611,57 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     async function loadReferralData() {
     try {
-        // Show loading state
-        document.getElementById('noReferrals').classList.add('hide');
-        document.getElementById('referralsList').classList.add('hide');
-        document.getElementById('referralsLoading').classList.remove('hide');
-
-        const response = await fetch(`/api/referral-data/${state.userId}`, {
-            headers: {
-                'tg-web-app-data': Telegram.WebApp.initData,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const result = await response.json();
+      
+        let userId;
         
-        if (!result.success) {
-            throw new Error(result.error || 'API request failed');
+        // Try Telegram WebApp first
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            userId = Telegram.WebApp.initDataUnsafe.user.id;
+        } 
+        // Fallback to URL parameter
+        else {
+            const urlParams = new URLSearchParams(window.location.search);
+            userId = urlParams.get('userId');
+            
+            // If still no ID, check local storage
+            if (!userId) {
+                userId = localStorage.getItem('userId');
+            }
         }
 
-        // Transform data like the working example
-        state.referrals = result.referrals.map(ref => ({
-            userId: ref.userId,
-            name: ref.name || `User ${ref.userId.substring(0, 6)}`,
-            status: ref.status.toLowerCase(), // Ensure consistent casing
-            date: new Date(ref.date) // Convert to Date object
-        }));
+        if (!userId) {
+            throw new Error('User ID not found');
+        }
 
-        state.stats = result.stats;
-        state.referralLink = result.referralLink;
+        // Save for future use
+        localStorage.setItem('userId', userId);
+        state.userId = userId;
 
+        // Simple fetch without Telegram headers
+        const response = await fetch(`/api/referrals/${userId}`);
+        
+        if (!response.ok) throw new Error('Failed to load data');
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.error || 'Request failed');
+        }
+
+        // Update state and UI
+        state.referrals = data.referrals;
+        state.stats = data.stats;
+        state.referralLink = data.referralLink;
+        
         updateUI();
 
     } catch (error) {
-        console.error('Referral load error:', error);
-        document.getElementById('referralsLoading').classList.add('hide');
+        console.error('Error:', error);
+        // Show error to user
         document.getElementById('noReferrals').classList.remove('hide');
-        
-        Swal.fire({
-            title: 'Error',
-            text: 'Failed to load referral data',
-            icon: 'error'
-        });
+        document.getElementById('referralsList').classList.add('hide');
     }
-}
+    }
 
 function updateUI() {
     // Update stats
