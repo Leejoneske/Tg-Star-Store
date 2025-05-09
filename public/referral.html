@@ -417,26 +417,28 @@
     </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const tgWebApp = window.Telegram?.WebApp;
-    
-    // Improved user ID extraction
-    const tgUser = tgWebApp?.initDataUnsafe?.user;
-    let userId = 'default_user_id';
-    
-    if (tgUser) {
-        if (tgUser.id) userId = tgUser.id.toString();
-        if (tgWebApp.initData) {
-            const urlParams = new URLSearchParams(tgWebApp.initData);
-            const startParam = urlParams.get('start');
-            if (startParam && startParam.startsWith('ref_')) {
-                userId = startParam.split('ref_')[1];
-            }
-        }
+Telegram.WebApp.ready();
+
+const tgWebApp = window.Telegram?.WebApp;
+const tgUser = tgWebApp?.initDataUnsafe?.user;
+const BASE_API_URL = window.location.origin + '/api';
+
+let userId = 'default_user_id';
+if (tgUser?.id) userId = tgUser.id.toString();
+
+// Parse start parameter if available
+if (tgWebApp?.initData) {
+    const urlParams = new URLSearchParams(tgWebApp.initData);
+    const startParam = urlParams.get('start');
+    if (startParam?.startsWith('ref_')) {
+        userId = startParam.split('ref_')[1] || userId;
     }
+}
+
+
     
     const state = {
-        userId: userId, 
+        userId,
         username: tgUser?.username || 'User',
         language: localStorage.getItem('appLanguage') || 'en',
         referralCode: null,
