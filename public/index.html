@@ -7,6 +7,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+ 
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -49,16 +51,17 @@
         }
 
         .buy-button {
-            background: #4f46e5;
-            color: white;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-        }
+    background: #3f3aaf; 
+    color: white;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
 
-        .buy-button:hover {
-            background: #6366f1;
-            transform: scale(1.02);
-        }
+.buy-button:hover {
+    background: #5054c0; 
+    transform: scale(1.02);
+}
+     
 
         .footer {
             text-align: center;
@@ -357,6 +360,45 @@
                             <span data-translate="about">About</span>
                         </a>
                     </nav>
+                 <hr class="my-4 border-gray-300">
+
+<div class="px-6 pb-6 text-gray-700 text-sm">
+    <div class="mb-4">
+        <p class="font-semibold mb-2">Follow us on socials</p>
+        <div class="flex gap-4 text-lg">
+            <a href="https://facebook.com/HighlandsForum" target="_blank" class="hover:text-blue-600">
+                <i class="fab fa-facebook"></i>
+            </a>
+            <a href="https://x.com/HighlandsForum" target="_blank" class="hover:text-black">
+                <i class="fab fa-x-twitter"></i>
+            </a>
+            <a href="https://youtube.com/HighlandsForum" target="_blank" class="hover:text-red-600">
+                <i class="fab fa-youtube"></i>
+            </a>
+            <a href="https://t.me/HighlandsForum" target="_blank" class="hover:text-blue-400">
+                <i class="fab fa-telegram"></i>
+            </a>
+            <a href="mailto:info@highlandsforum.com" class="hover:text-indigo-600">
+                <i class="fas fa-envelope"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="mb-3 flex items-center gap-2">
+        <i class="fas fa-hand-holding-heart text-indigo-500"></i>
+        <span>Powered by <strong>The Highlands Forum</strong></span>
+    </div>
+
+    <div class="mb-2 flex items-center gap-2">
+        <i class="fas fa-gavel text-gray-500"></i>
+        <a href="terms.html" class="text-indigo-600 hover:underline">Terms of Use</a>
+    </div>
+
+    <p class="text-xs text-gray-500 mt-2">
+        Representative: The Highlands Forum Ltd. • Contact: <a href="mailto:info@highlandsforum.com" class="underline">info@highlandsforum.com</a>
+    </p>
+</div>
+                 
                 </div>
             </div>
             <div class="p-4 flex justify-between items-center bg-white shadow-sm">
@@ -460,12 +502,7 @@
                     </div>
                 </div>
             </div>
-            <div class="footer">
-                <span data-translate="poweredBy">Powered by</span> THLF | 
-                <a href="https://telegram.org/privacy-tpa" target="_blank" rel="noopener noreferrer" data-translate="terms">Terms & Conditions</a>
-            </div>
-        </div>
-    </div>
+            
 
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
