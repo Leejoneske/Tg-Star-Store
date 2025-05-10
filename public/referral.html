@@ -734,51 +734,50 @@ function isValidTONAddress(address) {
         </form>`,
         showCancelButton: true,
         confirmButtonText: 'Request Withdrawal',
-       
+        
         preConfirm: () => {
-            const form = document.getElementById('withdrawalForm');
-            const amountInput = form.querySelector('input[name="amount"]');
-            const walletInput = form.querySelector('input[name="wallet"]');
-            
-            // Get the raw input value first
-            const amountValue = amountInput.value;
-            
-            // Convert to number
-            const amount = parseFloat(amountValue);
-            
-            const walletAddress = walletInput.value.trim();
+    const form = document.getElementById('withdrawalForm');
+    const amountInput = form.querySelector('input[name="amount"]');
+    const walletInput = form.querySelector('input[name="wallet"]');
+    
+    // Get the raw input value and trim whitespace
+    const amountValue = amountInput.value.trim();
+    
+    // Convert to number and handle decimal places
+    const amount = parseFloat(amountValue);
+    
+    // Validate the number format (allows 0.50, 1.00, etc.)
+    if (!amountValue || isNaN(amount) || !/^\d+(\.\d{1,2})?$/.test(amountValue)) {
+        Swal.showValidationMessage('Please enter a valid amount like 0.50');
+        return false;
+    }
+    
+    // Convert to fixed decimal to avoid floating point issues
+    const fixedAmount = parseFloat(amount.toFixed(2));
+    
+    // Check minimum amount (0.50)
+    if (fixedAmount < 0.5) {
+        Swal.showValidationMessage('Minimum withdrawal is 0.50 USDT');
+        return false;
+    }
+    
+    // Check available balance
+    if (fixedAmount > state.stats.availableBalance) {
+        Swal.showValidationMessage(`Maximum withdrawal is ${state.stats.availableBalance.toFixed(2)} USDT`);
+        return false;
+    }
+    
+    // Validate wallet address
+    const walletAddress = walletInput.value.trim();
+    if (!isValidTONAddress(walletAddress)) {
+        Swal.showValidationMessage('Please enter a valid TON wallet address (starts with EQ or UQ)');
+        return false;
+    }
 
-            if (!amountValue || isNaN(amount)) {
-                Swal.showValidationMessage('Please enter a valid amount like 0.50');
-                return false;
-            }
-            
-            // Compare as numbers, not strings, and handle floating point precision
-            if (amount < 0.5) {
-                Swal.showValidationMessage('Minimum withdrawal is 0.50 USDT');
-                return false;
-            }
-            
-            // Round to 2 decimal places for display and storage
-            const roundedAmount = Math.round(amount * 100) / 100;
-            
-            if (roundedAmount > state.stats.availableBalance) {
-                Swal.showValidationMessage(`Maximum withdrawal is ${state.stats.availableBalance.toFixed(2)} USDT`);
-                return false;
-            }
-            
-            if (!isValidTONAddress(walletAddress)) {
-                Swal.showValidationMessage('Please enter a valid TON wallet address (starts with EQ or UQ)');
-                return false;
-            }
-
-            return { amount: roundedAmount.toFixed(2), walletAddress };
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            submitWithdrawal(result.value);
-        }
-    });
+    return { 
+        amount: fixedAmount.toFixed(2), 
+        walletAddress 
+    };
 }
 
 async function submitWithdrawal({ amount, walletAddress }) {
