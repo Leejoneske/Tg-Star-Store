@@ -741,37 +741,27 @@ function showWithdrawPopup() {
         showCancelButton: true,
         confirmButtonText: 'Request Withdrawal',
         preConfirm: () => {
-            const form = document.getElementById('withdrawalForm');
-            const amount = parseFloat(form.querySelector('input[name="amount"]').value);
-            const walletAddress = form.querySelector('input[name="wallet"]').value.trim();
+    const form = document.getElementById('withdrawalForm');
+    const amount = parseFloat(form.querySelector('input[name="amount"]').value.trim()); 
+    const walletAddress = form.querySelector('input[name="wallet"]').value.trim();
 
-            if (isNaN(amount)) {
-                Swal.showValidationMessage('Please enter a valid amount');
-                return false;
-            }
-            
-            if (amount < 0.5) {
-                Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
-                return false;
-            }
-            
-            if (amount > state.stats.availableBalance) {
-                Swal.showValidationMessage(`You only have ${state.stats.availableBalance.toFixed(2)} USDT available`);
-                return false;
-            }
-            
-            if (!isValidTONAddress(walletAddress)) {
-                Swal.showValidationMessage('Please enter a valid TON wallet address (starts with EQ or UQ)');
-                return false;
-            }
+    // Use toFixed to ensure consistent precision
+    if (isNaN(amount) || amount.toFixed(2) < 0.5) {
+        Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
+        return false;
+    }
 
-            return { amount, walletAddress };
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            submitWithdrawal(result.value);
-        }
-    });
+    if (amount > state.stats.availableBalance) {
+        Swal.showValidationMessage(`You only have ${state.stats.availableBalance.toFixed(2)} USDT available`);
+        return false;
+    }
+
+    if (!isValidTONAddress(walletAddress)) {
+        Swal.showValidationMessage('Please enter a valid TON wallet address (starts with EQ or UQ)');
+        return false;
+    }
+
+    return { amount: parseFloat(amount.toFixed(2)), walletAddress }; 
 }
 
 async function submitWithdrawal({ amount, walletAddress }) {
