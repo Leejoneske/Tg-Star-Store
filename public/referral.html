@@ -734,7 +734,6 @@ function isValidTONAddress(address) {
         </form>`,
         showCancelButton: true,
         confirmButtonText: 'Request Withdrawal',
-        
         preConfirm: () => {
     const form = document.getElementById('withdrawalForm');
     const amountInput = form.querySelector('input[name="amount"]');
@@ -743,7 +742,7 @@ function isValidTONAddress(address) {
     // Get the raw input value and trim whitespace
     const amountValue = amountInput.value.trim();
     
-    // Convert to number and handle decimal places
+    // Convert to number
     const amount = parseFloat(amountValue);
     
     // Validate the number format (allows 0.50, 1.00, etc.)
@@ -779,6 +778,7 @@ function isValidTONAddress(address) {
         walletAddress 
     };
 }
+
 
 async function submitWithdrawal({ amount, walletAddress }) {
     try {
