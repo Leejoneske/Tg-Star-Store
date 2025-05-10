@@ -210,6 +210,31 @@
     transform: translateY(0);
     box-shadow: none;
 }
+     
+.withdrawal-item {
+    transition: all 0.2s ease;
+}
+
+.withdrawal-item:hover {
+    background-color: #f9fafb;
+}
+
+.status-pending {
+    color: #f59e0b;
+}
+
+.status-completed {
+    color: #10b981;
+}
+
+.status-declined {
+    color: #ef4444;
+}
+
+.wallet-address {
+    font-family: monospace;
+    letter-spacing: 0.5px;
+}
     </style>
 </head>
 <body>
@@ -561,17 +586,21 @@ if (tgWebApp?.initData) {
     
     state.withdrawals.forEach(withdrawal => {
         const item = document.createElement('div');
-        item.className = 'py-3 flex justify-between items-center';
+        item.className = 'py-3 flex justify-between items-center border-b border-gray-100';
         item.innerHTML = `
-            <div>
-                <div class="font-medium">Withdrawal to TON wallet</div>
-                <div class="text-xs text-gray-500 mt-1">${new Date(withdrawal.date).toLocaleDateString()}</div>
-                <div class="text-xs text-gray-500 mt-1">${withdrawal.walletAddress.substring(0, 6)}...${withdrawal.walletAddress.substring(walletAddress.length - 4)}</div>
+            <div class="flex-1">
+                <div class="font-medium text-gray-800">${withdrawal.amount.toFixed(2)} USDT</div>
+                <div class="text-xs text-gray-500 mt-1">
+                    ${withdrawal.walletAddress.substring(0, 6)}...${withdrawal.walletAddress.slice(-4)}
+                </div>
             </div>
             <div class="text-right">
-                <div class="font-medium text-gray-800">${withdrawal.amount.toFixed(2)} USDT</div>
-                <div class="text-xs ${withdrawal.status === 'completed' ? 'text-green-500' : withdrawal.status === 'declined' ? 'text-red-500' : 'text-yellow-500'}">
+                <div class="text-sm ${withdrawal.status === 'completed' ? 'text-green-500' : 
+                                   withdrawal.status === 'declined' ? 'text-red-500' : 'text-yellow-500'}">
                     ${withdrawal.status}
+                </div>
+                <div class="text-xs text-gray-400 mt-1">
+                    ${new Date(withdrawal.date).toLocaleDateString()}
                 </div>
             </div>
         `;
@@ -706,46 +735,52 @@ function init() {
 
 
  
-
-    function showWithdrawPopup() {
+//withdraw pop-up window
+function showWithdrawPopup() {
     if (state.stats.availableBalance < 0.5) {
-        showError('Minimum withdrawal amount is 0.5 USDT per active referral');
+        showError('Minimum withdrawal amount is 0.5 USDT');
         return;
     }
     
     Swal.fire({
-        title: 'Withdraw Funds',
+        title: 'Withdraw USDT (TON Network)',
         html: `
             <form id="withdrawalForm" class="text-left">
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
-                    <input type="number" name="amount" min="0.5" max="${state.stats.availableBalance}" step="0.01" class="w-full p-2 border rounded" placeholder="0.00" required>
-                    <p class="text-xs text-gray-500 mt-1">Minimum 0.5 USDT per active referral</p>
+                    <input type="number" name="amount" min="0.5" max="${state.stats.availableBalance}" 
+                           step="0.01" class="w-full p-2 border rounded" 
+                           placeholder="0.50" required>
+                    <p class="text-xs text-gray-500 mt-1">Available: ${state.stats.availableBalance.toFixed(2)} USDT</p>
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
-                    <input type="text" name="wallet" class="w-full p-2 border rounded" placeholder="UQ..." required>
+                    <input type="text" name="wallet" class="w-full p-2 border rounded" 
+                           placeholder="EQ or UQ..." required>
+                    <p class="text-xs text-gray-500 mt-1">Only TON network addresses accepted</p>
                 </div>
             </form>
         `,
         showCancelButton: true,
-        confirmButtonText: 'Submit Withdrawal',
+        confirmButtonText: 'Request Withdrawal',
         preConfirm: () => {
             const form = document.getElementById('withdrawalForm');
             const amount = parseFloat(form.querySelector('input[name="amount"]').value);
             const walletAddress = form.querySelector('input[name="wallet"]').value.trim();
             
+            // Basic amount validation
             if (amount < 0.5) {
-                Swal.showValidationMessage('Minimum withdrawal amount is 0.5 USDT per active referral');
+                Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
                 return false;
             }
             
             if (amount > state.stats.availableBalance) {
-                Swal.showValidationMessage('Insufficient balance');
+                Swal.showValidationMessage(`You can't withdraw more than ${state.stats.availableBalance.toFixed(2)} USDT`);
                 return false;
             }
             
-            if (!walletAddress.startsWith('UQ') || walletAddress.length < 10) {
+            // Wallet address validation (TON)
+            if (!isValidTONAddress(walletAddress)) {
                 Swal.showValidationMessage('Please enter a valid TON wallet address');
                 return false;
             }
@@ -759,7 +794,7 @@ function init() {
     });
 }
 
-    async function submitWithdrawal({ amount, walletAddress }) {
+async function submitWithdrawal({ amount, walletAddress }) {
     try {
         const response = await fetch('/api/referral-withdrawals', {
             method: 'POST',
@@ -776,48 +811,35 @@ function init() {
         const data = await response.json();
         
         if (!response.ok) {
-            throw new Error(data.error || 'Withdrawal failed');
+            throw new Error(data.error || 'Withdrawal request failed');
         }
         
-        if (!data.success) {
-            throw new Error(data.error || 'Withdrawal failed');
-        }
-        
-        // Update local state
+        // Update UI
         state.withdrawals.unshift({
             amount,
             walletAddress,
             date: new Date().toISOString(),
-            status: 'pending',
-            id: data.withdrawalId
+            status: 'pending'
         });
         
         state.stats.availableBalance -= amount;
         updateUI();
         
-        showSuccess('Withdrawal request submitted. Admin will process it shortly.');
+        showSuccess(`
+            Withdrawal request submitted!
+            <br><br>
+            <strong>${amount} USDT</strong> to 
+            <strong>${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}</strong>
+            <br><br>
+            Processing usually takes 1-24 hours
+        `);
+        
     } catch (error) {
-        showError('Withdrawal failed: ' + error.message);
+        showError(error.message || 'Failed to submit withdrawal');
     }
 }
+
     
-
-    function showSuccess(message) {
-        Swal.fire({
-            title: message,
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false
-        });
-    }
-
-    function showError(message) {
-        Swal.fire({
-            title: 'Error',
-            text: message,
-            icon: 'error'
-        });
-    }
 
     const translations = {
         en: {
