@@ -735,48 +735,32 @@ function isValidTONAddress(address) {
         showCancelButton: true,
         confirmButtonText: 'Request Withdrawal',
         preConfirm: () => {
-    const form = document.getElementById('withdrawalForm');
-    const amountInput = form.querySelector('input[name="amount"]');
-    const walletInput = form.querySelector('input[name="wallet"]');
-    
-    // Get the raw input value and trim whitespace
-    const amountValue = amountInput.value.trim();
-    
-    // Convert to number
-    const amount = parseFloat(amountValue);
-    
-    // Validate the number format (allows 0.50, 1.00, etc.)
-    if (!amountValue || isNaN(amount) || !/^\d+(\.\d{1,2})?$/.test(amountValue)) {
-        Swal.showValidationMessage('Please enter a valid amount like 0.50');
-        return false;
-    }
-    
-    // Convert to fixed decimal to avoid floating point issues
-    const fixedAmount = parseFloat(amount.toFixed(2));
-    
-    // Check minimum amount (0.50)
-    if (fixedAmount < 0.5) {
-        Swal.showValidationMessage('Minimum withdrawal is 0.50 USDT');
-        return false;
-    }
-    
-    // Check available balance
-    if (fixedAmount > state.stats.availableBalance) {
-        Swal.showValidationMessage(`Maximum withdrawal is ${state.stats.availableBalance.toFixed(2)} USDT`);
-        return false;
-    }
-    
-    // Validate wallet address
-    const walletAddress = walletInput.value.trim();
-    if (!isValidTONAddress(walletAddress)) {
-        Swal.showValidationMessage('Please enter a valid TON wallet address (starts with EQ or UQ)');
-        return false;
-    }
+    try {
+        const form = document.getElementById('withdrawalForm');
+        const amount = Number(form.amount.value);
+        const wallet = form.wallet.value.trim();
 
-    return { 
-        amount: fixedAmount.toFixed(2), 
-        walletAddress 
-    };
+        // Simple validation
+        if (amount < 0.5) {
+            throw 'Minimum withdrawal is 0.50 USDT';
+        }
+        
+        if (amount > state.stats.availableBalance) {
+            throw `Maximum withdrawal is ${state.stats.availableBalance.toFixed(2)} USDT`;
+        }
+        
+        if (!isValidTONAddress(wallet)) {
+            throw 'Please enter a valid TON wallet address';
+        }
+
+        return { 
+            amount: amount.toFixed(2), // Ensure 2 decimal places
+            walletAddress: wallet 
+        };
+    } catch (error) {
+        Swal.showValidationMessage(error);
+        return false;
+    }
 }
 
 
