@@ -709,7 +709,7 @@ function isValidTONAddress(address) {
     return isBasicValid && cleanAddr.length >= 48 && !/[OIl]/.test(cleanAddr);
 }
  //withdraw shit
- function showWithdrawPopup() {
+function showWithdrawPopup() {
     if (state.stats.availableBalance < 0.5) {
         showError('Minimum withdrawal amount is 0.5 USDT');
         return;
@@ -735,32 +735,41 @@ function isValidTONAddress(address) {
         showCancelButton: true,
         confirmButtonText: 'Request Withdrawal',
         preConfirm: () => {
-    try {
-        const form = document.getElementById('withdrawalForm');
-        const amount = Number(form.amount.value);
-        const wallet = form.wallet.value.trim();
+            const form = document.getElementById('withdrawalForm');
+            const amount = parseFloat(form.amount.value);
+            const walletAddress = form.wallet.value.trim();
 
-        // Simple validation
-        if (amount < 0.5) {
-            throw 'Minimum withdrawal is 0.50 USDT';
-        }
-        
-        if (amount > state.stats.availableBalance) {
-            throw `Maximum withdrawal is ${state.stats.availableBalance.toFixed(2)} USDT`;
-        }
-        
-        if (!isValidTONAddress(wallet)) {
-            throw 'Please enter a valid TON wallet address';
-        }
+            // Basic validation
+            if (isNaN(amount)) {
+                Swal.showValidationMessage('Please enter a valid amount');
+                return false;
+            }
+            
+            if (amount < 0.5) {
+                Swal.showValidationMessage('Minimum withdrawal is 0.50 USDT');
+                return false;
+            }
+            
+            if (amount > state.stats.availableBalance) {
+                Swal.showValidationMessage(`You can withdraw up to ${state.stats.availableBalance.toFixed(2)} USDT`);
+                return false;
+            }
+            
+            if (!isValidTONAddress(walletAddress)) {
+                Swal.showValidationMessage('Please enter a valid TON wallet address');
+                return false;
+            }
 
-        return { 
-            amount: amount.toFixed(2), // Ensure 2 decimal places
-            walletAddress: wallet 
-        };
-    } catch (error) {
-        Swal.showValidationMessage(error);
-        return false;
-    }
+            return { 
+                amount: amount.toFixed(2), 
+                walletAddress 
+            };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            submitWithdrawal(result.value);
+        }
+    });
 }
 
 
