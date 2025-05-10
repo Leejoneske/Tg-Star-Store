@@ -737,15 +737,17 @@ function init() {
  
 //withdraw pop-up window
 function showWithdrawPopup() {
-    if (state.stats.availableBalance < 0.5) {
-        showError('Minimum withdrawal amount is 0.5 USDT');
-        return;
-    }
-    
-    Swal.fire({
-        title: 'Withdraw USDT (TON Network)',
-        html: `
-            <form id="withdrawalForm" class="text-left">
+  console.log('showWithdrawPopup called'); // Debug 2
+  
+  if (state.stats.availableBalance < 0.5) {
+    console.log('Insufficient balance'); // Debug 3
+    showError('Minimum withdrawal amount is 0.5 USDT');
+    return;
+  }
+
+  Swal.fire({
+    title: 'Withdraw USDT (TON Network)',
+    html: `<form id="withdrawalForm" class="text-left">
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
                     <input type="number" name="amount" min="0.5" max="${state.stats.availableBalance}" 
@@ -759,86 +761,99 @@ function showWithdrawPopup() {
                            placeholder="EQ or UQ..." required>
                     <p class="text-xs text-gray-500 mt-1">Only TON network addresses accepted</p>
                 </div>
-            </form>
-        `,
-        showCancelButton: true,
-        confirmButtonText: 'Request Withdrawal',
-        preConfirm: () => {
-            const form = document.getElementById('withdrawalForm');
-            const amount = parseFloat(form.querySelector('input[name="amount"]').value);
-            const walletAddress = form.querySelector('input[name="wallet"]').value.trim();
-            
-            // Basic amount validation
-            if (amount < 0.5) {
-                Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
-                return false;
-            }
-            
-            if (amount > state.stats.availableBalance) {
-                Swal.showValidationMessage(`You can't withdraw more than ${state.stats.availableBalance.toFixed(2)} USDT`);
-                return false;
-            }
-            
-            // Wallet address validation (TON)
-            if (!isValidTONAddress(walletAddress)) {
-                Swal.showValidationMessage('Please enter a valid TON wallet address');
-                return false;
-            }
-            
-            return { amount, walletAddress };
+            </form>`, 
+    showCancelButton: true,
+    confirmButtonText: 'Request Withdrawal',
+    preConfirm: () => {
+      try {
+        const form = document.getElementById('withdrawalForm');
+        if (!form) {
+          console.error('Form not found'); // Debug 4
+          Swal.showValidationMessage('Form error');
+          return false;
         }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            submitWithdrawal(result.value);
-        }
-    });
-}
 
-async function submitWithdrawal({ amount, walletAddress }) {
-    try {
-        const response = await fetch('/api/referral-withdrawals', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                userId: state.userId,
-                amount,
-                walletAddress
-            })
-        });
+        const amount = parseFloat(form.querySelector('input[name="amount"]').value);
+        const walletAddress = form.querySelector('input[name="wallet"]').value.trim();
 
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || 'Withdrawal request failed');
+        console.log('Attempting withdrawal:', { amount, walletAddress }); // Debug 5
+
+        if (amount < 0.5) {
+          throw new Error('Minimum withdrawal is 0.5 USDT');
         }
         
-        // Update UI
-        state.withdrawals.unshift({
-            amount,
-            walletAddress,
-            date: new Date().toISOString(),
-            status: 'pending'
-        });
-        
-        state.stats.availableBalance -= amount;
-        updateUI();
-        
-        showSuccess(`
-            Withdrawal request submitted!
-            <br><br>
-            <strong>${amount} USDT</strong> to 
-            <strong>${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}</strong>
-            <br><br>
-            Processing usually takes 1-24 hours
-        `);
-        
-    } catch (error) {
-        showError(error.message || 'Failed to submit withdrawal');
+        if (amount > state.stats.availableBalance) {
+          throw new Error(`Maximum withdrawal is ${state.stats.availableBalance.toFixed(2)} USDT`);
+        }
+
+        if (!isValidTONAddress(walletAddress)) {
+          throw new Error('Invalid TON wallet address');
+        }
+
+        return { amount, walletAddress };
+      } catch (error) {
+        console.error('Validation error:', error.message); // Debug 6
+        Swal.showValidationMessage(error.message);
+        return false;
+      }
     }
+  }).then((result) => {
+    if (result.isConfirmed) {
+      console.log('Withdrawal confirmed', result.value); // Debug 7
+      submitWithdrawal(result.value);
+    } else {
+      console.log('Withdrawal cancelled'); // Debug 8
+    }
+  });
 }
+ 
+async function submitWithdrawal({ amount, walletAddress }) {
+  console.log('submitWithdrawal called', { amount, walletAddress }); // Debug 9
+  
+  try {
+    const response = await fetch('/api/referral-withdrawals', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: state.userId,
+        amount,
+        walletAddress
+      })
+    });
 
+    console.log('Response status:', response.status); // Debug 10
+
+    const data = await response.json();
+    console.log('Response data:', data); // Debug 11
+
+    if (!response.ok) {
+      throw new Error(data.error || `Server error: ${response.status}`);
+    }
+
+    if (!data.success) {
+      throw new Error(data.error || 'Withdrawal failed');
+    }
+
+    // Update UI
+    state.withdrawals.unshift({
+      amount,
+      walletAddress,
+      date: new Date().toISOString(),
+      status: 'pending'
+    });
+    
+    state.stats.availableBalance -= amount;
+    updateUI();
+    
+    showSuccess(`Withdrawal request for ${amount} USDT submitted!`);
+    
+  } catch (error) {
+    console.error('Withdrawal error:', error); // Debug 12
+    showError(error.message || 'Withdrawal failed. Please try again.');
+  }
+}
     
 
     const translations = {
