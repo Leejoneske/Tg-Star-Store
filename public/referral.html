@@ -734,31 +734,7 @@ function isValidTONAddress(address) {
         </form>`,
         showCancelButton: true,
         confirmButtonText: 'Request Withdrawal',
-        function showWithdrawPopup() {
-    if (state.stats.availableBalance < 0.5) {
-        showError('Minimum withdrawal amount is 0.5 USDT');
-        return;
-    }
-
-    Swal.fire({
-        title: 'Withdraw USDT (TON Network)',
-        html: `<form id="withdrawalForm" class="text-left">
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
-                <input type="number" name="amount" min="0.5" max="${state.stats.availableBalance}" 
-                       step="0.01" class="w-full p-2 border rounded" 
-                       placeholder="0.50" required>
-                <p class="text-xs text-gray-500 mt-1">Available: ${state.stats.availableBalance.toFixed(2)} USDT</p>
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
-                <input type="text" name="wallet" class="w-full p-2 border rounded" 
-                       placeholder="EQ or UQ..." required>
-                <p class="text-xs text-gray-500 mt-1">Only TON network addresses accepted</p>
-            </div>
-        </form>`,
-        showCancelButton: true,
-        confirmButtonText: 'Request Withdrawal',
+       
         preConfirm: () => {
             const form = document.getElementById('withdrawalForm');
             const amountInput = form.querySelector('input[name="amount"]');
