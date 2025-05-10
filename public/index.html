@@ -63,25 +63,7 @@
 }
      
 
-        .footer {
-            text-align: center;
-            padding: 8px;
-            font-size: 12px;
-            color: #6b7280;
-            background: white;
-            border-top: 1px solid #e5e7eb;
-            width: 100%;
-            max-width: 480px;
-        }
-
-        .footer a {
-            color: #4f46e5;
-            text-decoration: none;
-        }
-
-        .footer a:hover {
-            text-decoration: underline;
-        }
+        
 
         .menu-overlay {
             position: fixed;
@@ -103,16 +85,22 @@
         }
 
         .side-menu {
-            position: fixed;
-            top: 0;
-            left: -100%;
-            width: 64%;
-            height: 100%;
-            background: white;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-            z-index: 50;
-            transition: all 0.3s ease;
-        }
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 64%;
+    height: 100%;
+    background: white;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    transition: all 0.3s ease;
+
+ 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
 
         .side-menu.active {
             left: 0;
@@ -395,7 +383,7 @@
     </div>
 
     <p class="text-xs text-gray-500 mt-2">
-        Representative: The Highlands Forum Ltd. • Contact: <a href="mailto:info@highlandsforum.com" class="underline">info@highlandsforum.com</a>
+        Representative: The Highlands Forum Ltd. • Contact: <a href="support@starstore.com" class="underline">info@highlandsforum.com</a>
     </p>
 </div>
                  
