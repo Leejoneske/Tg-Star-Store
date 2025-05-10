@@ -772,7 +772,7 @@ function isValidTONAddress(address) {
     }
 
     return { amount: roundedAmount.toFixed(2), walletAddress };
-}
+
 async function submitWithdrawal({ amount, walletAddress }) {
     try {
         const response = await fetch('/api/referral-withdrawals', {
