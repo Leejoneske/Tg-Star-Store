@@ -325,9 +325,14 @@
                         </svg>
                     </button>
                 </div>
-
-                <div class="flex space-x-2 mb-4">
-    <!-- Telegram button will be added automatically if in Telegram WebApp -->
+             
+             <div class="flex space-x-2 mb-4">
+    <button class="share-button flex-1 bg-indigo-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-600 transition-colors flex items-center justify-center" id="shareTg">
+        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm4.441 16.892c-2.102.144-6.784.144-8.883 0-2.276-.156-2.541-1.27-2.558-4.892.017-3.629.285-4.736 2.558-4.892 2.099-.144 6.782-.144 8.883 0 2.277.156 2.541 1.27 2.559 4.892-.018 3.629-.285 4.736-2.559 4.892zm-6.441-7.234l4.917 2.338-4.917 2.346v-4.684z"/>
+        </svg>
+        <span data-lang="share-telegram">Share</span>
+    </button>
     <button class="share-button flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center" id="shareFb">
         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
             <path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/>
@@ -348,6 +353,7 @@
     </button>
 </div>
 
+                
                 <div class="bg-indigo-50 rounded-lg p-4 text-indigo-800 text-sm flex items-start">
                     <svg class="w-5 h-5 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -614,7 +620,7 @@ function setupEventListeners() {
     document.getElementById('shareFb').addEventListener('click', shareToFacebook);
     document.getElementById('shareTw').addEventListener('click', shareToTwitter);
     document.getElementById('shareWa').addEventListener('click', shareToWhatsApp);
-    
+    document.getElementById('shareTg').addEventListener('click', shareViaTelegram);
     document.querySelectorAll('.tab-button').forEach(button => {
         button.addEventListener('click', () => {
             const tabName = button.getAttribute('data-tab');
@@ -684,21 +690,6 @@ function openShareWindow(url, width, height) {
     window.open(url, '_blank', `width=${width},height=${height},top=${top},left=${left},toolbar=no,menubar=no,scrollbars=no,resizable=yes`);
 }
 
-function setupTelegramSharing() {
-    if (window.Telegram?.WebApp?.isExpanded) {
-        const shareBtn = document.createElement('button');
-        shareBtn.className = 'flex-1 bg-indigo-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-600 transition-colors flex items-center justify-center';
-        shareBtn.innerHTML = `
-            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm4.441 16.892c-2.102.144-6.784.144-8.883 0-2.276-.156-2.541-1.27-2.558-4.892.017-3.629.285-4.736 2.558-4.892 2.099-.144 6.782-.144 8.883 0 2.277.156 2.541 1.27 2.559 4.892-.018 3.629-.285 4.736-2.559 4.892zm-6.441-7.234l4.917 2.338-4.917 2.346v-4.684z"/>
-            </svg>
-            <span data-lang="share-telegram">Share</span>
-        `;
-        shareBtn.addEventListener('click', shareViaTelegram);
-        const shareContainer = document.querySelector('.flex.space-x-2.mb-4');
-        shareContainer.insertBefore(shareBtn, shareContainer.firstChild);
-    }
-}
 
 function shareViaTelegram() {
     if (window.Telegram?.WebApp?.share) {
