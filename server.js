@@ -111,8 +111,25 @@ const cacheSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now }
 });
 
+// ReferralWithdrawal Schema
+const referralWithdrawalSchema = new mongoose.Schema({
+    userId: { type: String, required: true },
+    username: { type: String },
+    amount: { type: Number, required: true, min: 0.5 },
+    walletAddress: { type: String, required: true },
+    status: { type: String, enum: ['pending', 'completed', 'declined'], default: 'pending' },
+    referralIds: [{ type: String }], // Track which referrals this withdrawal covers
+    date: { type: Date, default: Date.now },
+    completedAt: { type: Date },
+    adminAction: {
+        adminId: { type: String },
+        action: { type: String, enum: ['completed', 'declined'] },
+        actionDate: { type: Date }
+    }
+});
 
 
+const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
 const Cache = mongoose.model('Cache', cacheSchema);
 const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
 const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
@@ -603,27 +620,167 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
         });
     }
 });
-
-app.post('/api/withdrawals', async (req, res) => {
+//referral withdraw process
+app.post('/api/referral-withdrawals', async (req, res) => {
     try {
         const { userId, amount, walletAddress } = req.body;
         
-        const withdrawal = new Withdrawal({
-            userId,
-            amount,
-            walletAddress,
-            status: 'pending',
-            date: new Date()
+        // Validate minimum amount (0.5 USDT per active referral)
+        if (amount < 0.5) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Minimum withdrawal amount is 0.5 USDT per active referral' 
+            });
+        }
+
+        // Check if user has pending withdrawals
+        const pendingWithdrawal = await ReferralWithdrawal.findOne({ 
+            userId, 
+            status: 'pending' 
         });
         
+        if (pendingWithdrawal) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'You already have a pending withdrawal' 
+            });
+        }
+
+        // Get active referrals that haven't been withdrawn yet
+        const activeReferrals = await Referral.find({
+            userId,
+            status: 'completed',
+            withdrawn: false
+        }).limit(Math.floor(amount / 0.5)); // Only use enough referrals to cover the amount
+
+        if (activeReferrals.length < Math.floor(amount / 0.5)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Not enough active referrals for this withdrawal amount' 
+            });
+        }
+
+        // Create withdrawal
+        const withdrawal = new ReferralWithdrawal({
+            userId,
+            username: req.user?.username || 'Unknown',
+            amount,
+            walletAddress,
+            referralIds: activeReferrals.map(r => r._id),
+            status: 'pending'
+        });
+
         await withdrawal.save();
-        
-        res.json({ success: true });
+
+        // Mark referrals as withdrawn
+        await Referral.updateMany(
+            { _id: { $in: activeReferrals.map(r => r._id) } },
+            { $set: { withdrawn: true } }
+        );
+
+        // Notify admins
+        if (adminIds.length > 0) {
+            const message = `📌 New Referral Withdrawal Request\n\n` +
+                            `👤 User: ${withdrawal.username} (${withdrawal.userId})\n` +
+                            `💰 Amount: ${withdrawal.amount} USDT\n` +
+                            `📭 Wallet: ${withdrawal.walletAddress}\n\n` +
+                            `🆔 Withdrawal ID: ${withdrawal._id}`;
+
+            const keyboard = {
+                inline_keyboard: [
+                    [
+                        { text: '✅ Complete', callback_data: `complete_withdrawal_${withdrawal._id}` },
+                        { text: '❌ Decline', callback_data: `decline_withdrawal_${withdrawal._id}` }
+                    ]
+                ]
+            };
+
+            // Send to all admins
+            for (const adminId of adminIds) {
+                await bot.telegram.sendMessage(adminId, message, {
+                    reply_markup: keyboard
+                });
+            }
+        }
+
+        res.json({ success: true, withdrawalId: withdrawal._id });
+
     } catch (error) {
-        console.error('Error processing withdrawal:', error);
+        console.error('Error processing referral withdrawal:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
+// Handle admin actions on withdrawals
+bot.action(/^(complete|decline)_withdrawal_(.+)/, async (ctx) => {
+    try {
+        if (!adminIds.includes(ctx.from.id.toString())) {
+            return ctx.answerCbQuery('Unauthorized', { show_alert: true });
+        }
+
+        const action = ctx.match[1];
+        const withdrawalId = ctx.match[2];
+
+        const withdrawal = await ReferralWithdrawal.findById(withdrawalId);
+        if (!withdrawal) {
+            return ctx.answerCbQuery('Withdrawal not found', { show_alert: true });
+        }
+
+        if (withdrawal.status !== 'pending') {
+            return ctx.answerCbQuery('Withdrawal already processed', { show_alert: true });
+        }
+
+        // Update withdrawal status
+        withdrawal.status = action === 'complete' ? 'completed' : 'declined';
+        withdrawal.adminAction = {
+            adminId: ctx.from.id.toString(),
+            action: action === 'complete' ? 'completed' : 'declined',
+            actionDate: new Date()
+        };
+
+        if (action === 'complete') {
+            withdrawal.completedAt = new Date();
+        } else {
+            // If declined, mark referrals as not withdrawn
+            await Referral.updateMany(
+                { _id: { $in: withdrawal.referralIds } },
+                { $set: { withdrawn: false } }
+            );
+        }
+
+        await withdrawal.save();
+
+        // Update admin message with action taken
+        await ctx.editMessageReplyMarkup({
+            inline_keyboard: [
+                [
+                    { 
+                        text: action === 'complete' ? '✅ Completed' : '❌ Declined', 
+                        callback_data: 'already_processed' 
+                    }
+                ]
+            ]
+        });
+
+        // Notify user
+        const userMessage = action === 'complete' ?
+            `🎉 Your withdrawal of ${withdrawal.amount} USDT has been completed!` :
+            `⚠️ Your withdrawal request of ${withdrawal.amount} USDT has been declined.`;
+
+        await bot.telegram.sendMessage(withdrawal.userId, userMessage);
+
+        ctx.answerCbQuery(`Withdrawal ${action}d successfully`);
+
+    } catch (error) {
+        console.error('Error processing admin action:', error);
+        ctx.answerCbQuery('Error processing action', { show_alert: true });
+    }
+});
+
+
+
+
+
+
 
 
 // Check if adminIds is already declared
