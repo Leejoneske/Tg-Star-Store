@@ -717,7 +717,8 @@ function isValidTONAddress(address) {
     const isBasicValid = tonRegex.test(cleanAddr);
     return isBasicValid && cleanAddr.length >= 48 && !/[OIl]/.test(cleanAddr);
 }
-function showWithdrawPopup() {
+ //withdraw shit
+ function showWithdrawPopup() {
     if (state.stats.availableBalance < 0.5) {
         showError('Minimum withdrawal amount is 0.5 USDT');
         return;
@@ -730,7 +731,7 @@ function showWithdrawPopup() {
                 <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
                 <input type="number" name="amount" min="0.5" max="${state.stats.availableBalance}" 
                        step="0.01" class="w-full p-2 border rounded" 
-                       placeholder="0.50" value="0.50" required>
+                       placeholder="0.50" required>
                 <p class="text-xs text-gray-500 mt-1">Available: ${state.stats.availableBalance.toFixed(2)} USDT</p>
             </div>
             <div class="mb-4">
@@ -747,21 +748,26 @@ function showWithdrawPopup() {
             const amountInput = form.querySelector('input[name="amount"]');
             const walletInput = form.querySelector('input[name="wallet"]');
             
-            const amount = parseFloat(amountInput.value);
+            // Get the raw input value first
+            const amountValue = amountInput.value;
+            
+            // Convert to number and fix decimal places
+            const amount = parseFloat(amountValue).toFixed(2);
+            
             const walletAddress = walletInput.value.trim();
 
-            if (!amountInput.value || isNaN(amount)) {
-                Swal.showValidationMessage('Please enter a valid amount (e.g. 0.50)');
+            if (!amountValue || isNaN(amount)) {
+                Swal.showValidationMessage('Please enter a valid amount like 0.50');
                 return false;
             }
             
             if (amount < 0.5) {
-                Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
+                Swal.showValidationMessage('Minimum withdrawal is 0.50 USDT');
                 return false;
             }
             
             if (amount > state.stats.availableBalance) {
-                Swal.showValidationMessage(`You only have ${state.stats.availableBalance.toFixed(2)} USDT available`);
+                Swal.showValidationMessage(`Maximum withdrawal is ${state.stats.availableBalance.toFixed(2)} USDT`);
                 return false;
             }
             
