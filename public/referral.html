@@ -529,34 +529,37 @@ if (tgWebApp?.initData) {
     }
 
     function updateWithdrawalsList() {
-        const container = document.getElementById('withdrawalsContainer');
-        container.innerHTML = '';
-        
-        if (state.withdrawals.length === 0) {
-            document.getElementById('noWithdrawals').classList.remove('hide');
-            document.getElementById('withdrawalsList').classList.add('hide');
-            return;
-        }
-        
-        document.getElementById('noWithdrawals').classList.add('hide');
-        document.getElementById('withdrawalsList').classList.remove('hide');
-        
-        state.withdrawals.forEach(withdrawal => {
-            const item = document.createElement('div');
-            item.className = 'py-3 flex justify-between items-center';
-            item.innerHTML = `
-                <div>
-                    <div class="font-medium">Withdrawal to TON wallet</div>
-                    <div class="text-xs text-gray-500 mt-1">${new Date(withdrawal.date).toLocaleDateString()}</div>
-                </div>
-                <div class="text-right">
-                    <div class="font-medium text-gray-800">${withdrawal.amount.toFixed(2)} USDT</div>
-                    <div class="text-xs ${withdrawal.status === 'completed' ? 'text-green-500' : 'text-yellow-500'}">${withdrawal.status}</div>
-                </div>
-            `;
-            container.appendChild(item);
-        });
+    const container = document.getElementById('withdrawalsContainer');
+    container.innerHTML = '';
+    
+    if (state.withdrawals.length === 0) {
+        document.getElementById('noWithdrawals').classList.remove('hide');
+        document.getElementById('withdrawalsList').classList.add('hide');
+        return;
     }
+    
+    document.getElementById('noWithdrawals').classList.add('hide');
+    document.getElementById('withdrawalsList').classList.remove('hide');
+    
+    state.withdrawals.forEach(withdrawal => {
+        const item = document.createElement('div');
+        item.className = 'py-3 flex justify-between items-center';
+        item.innerHTML = `
+            <div>
+                <div class="font-medium">Withdrawal to TON wallet</div>
+                <div class="text-xs text-gray-500 mt-1">${new Date(withdrawal.date).toLocaleDateString()}</div>
+                <div class="text-xs text-gray-500 mt-1">${withdrawal.walletAddress.substring(0, 6)}...${withdrawal.walletAddress.substring(walletAddress.length - 4)}</div>
+            </div>
+            <div class="text-right">
+                <div class="font-medium text-gray-800">${withdrawal.amount.toFixed(2)} USDT</div>
+                <div class="text-xs ${withdrawal.status === 'completed' ? 'text-green-500' : withdrawal.status === 'declined' ? 'text-red-500' : 'text-yellow-500'}">
+                    ${withdrawal.status}
+                </div>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
 
     function setupEventListeners() {
         document.getElementById('menuButton').addEventListener('click', toggleMenu);
@@ -611,86 +614,99 @@ if (tgWebApp?.initData) {
     }
 
     function showWithdrawPopup() {
-        if (state.stats.availableBalance < 1) {
-            showError('Minimum withdrawal amount is 1 USDT');
-            return;
-        }
-        
-        Swal.fire({
-            title: 'Withdraw Funds',
-            html: `
-                <form id="withdrawalForm" class="text-left">
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
-                        <input type="number" name="amount" min="1" max="${state.stats.availableBalance}" step="0.01" class="w-full p-2 border rounded" placeholder="0.00" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
-                        <input type="text" name="wallet" class="w-full p-2 border rounded" placeholder="UQ..." required>
-                    </div>
-                </form>
-            `,
-            showCancelButton: true,
-            confirmButtonText: 'Submit Withdrawal',
-            preConfirm: () => {
-                const form = document.getElementById('withdrawalForm');
-                const amount = parseFloat(form.querySelector('input[name="amount"]').value);
-                const walletAddress = form.querySelector('input[name="wallet"]').value;
-                
-                if (amount < 1) {
-                    Swal.showValidationMessage('Minimum withdrawal amount is 1 USDT');
-                    return false;
-                }
-                
-                if (amount > state.stats.availableBalance) {
-                    Swal.showValidationMessage('Insufficient balance');
-                    return false;
-                }
-                
-                return { amount, walletAddress };
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                submitWithdrawal(result.value);
-            }
-        });
+    if (state.stats.availableBalance < 0.5) {
+        showError('Minimum withdrawal amount is 0.5 USDT per active referral');
+        return;
     }
+    
+    Swal.fire({
+        title: 'Withdraw Funds',
+        html: `
+            <form id="withdrawalForm" class="text-left">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
+                    <input type="number" name="amount" min="0.5" max="${state.stats.availableBalance}" step="0.01" class="w-full p-2 border rounded" placeholder="0.00" required>
+                    <p class="text-xs text-gray-500 mt-1">Minimum 0.5 USDT per active referral</p>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
+                    <input type="text" name="wallet" class="w-full p-2 border rounded" placeholder="UQ..." required>
+                </div>
+            </form>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Submit Withdrawal',
+        preConfirm: () => {
+            const form = document.getElementById('withdrawalForm');
+            const amount = parseFloat(form.querySelector('input[name="amount"]').value);
+            const walletAddress = form.querySelector('input[name="wallet"]').value.trim();
+            
+            if (amount < 0.5) {
+                Swal.showValidationMessage('Minimum withdrawal amount is 0.5 USDT per active referral');
+                return false;
+            }
+            
+            if (amount > state.stats.availableBalance) {
+                Swal.showValidationMessage('Insufficient balance');
+                return false;
+            }
+            
+            if (!walletAddress.startsWith('UQ') || walletAddress.length < 10) {
+                Swal.showValidationMessage('Please enter a valid TON wallet address');
+                return false;
+            }
+            
+            return { amount, walletAddress };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            submitWithdrawal(result.value);
+        }
+    });
+}
 
     async function submitWithdrawal({ amount, walletAddress }) {
-        try {
-            const response = await fetch('/api/withdrawals', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    userId: state.userId,
-                    amount,
-                    walletAddress
-                })
-            });
-
-            if (!response.ok) throw new Error('Withdrawal failed');
-            
-            const data = await response.json();
-            
-            if (!data.success) throw new Error(data.error || 'Withdrawal failed');
-            
-            state.withdrawals.unshift({
+    try {
+        const response = await fetch('/api/referral-withdrawals', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                userId: state.userId,
                 amount,
-                walletAddress,
-                date: new Date().toISOString(),
-                status: 'pending'
-            });
-            
-            state.stats.availableBalance -= amount;
-            updateUI();
-            
-            showSuccess('Withdrawal request submitted');
-        } catch (error) {
-            showError('Withdrawal failed: ' + error.message);
+                walletAddress
+            })
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Withdrawal failed');
         }
+        
+        if (!data.success) {
+            throw new Error(data.error || 'Withdrawal failed');
+        }
+        
+        // Update local state
+        state.withdrawals.unshift({
+            amount,
+            walletAddress,
+            date: new Date().toISOString(),
+            status: 'pending',
+            id: data.withdrawalId
+        });
+        
+        state.stats.availableBalance -= amount;
+        updateUI();
+        
+        showSuccess('Withdrawal request submitted. Admin will process it shortly.');
+    } catch (error) {
+        showError('Withdrawal failed: ' + error.message);
     }
+}
+    
 
     function showSuccess(message) {
         Swal.fire({
