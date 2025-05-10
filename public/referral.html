@@ -717,7 +717,6 @@ function isValidTONAddress(address) {
     const isBasicValid = tonRegex.test(cleanAddr);
     return isBasicValid && cleanAddr.length >= 48 && !/[OIl]/.test(cleanAddr);
 }
-
 function showWithdrawPopup() {
     if (state.stats.availableBalance < 0.5) {
         showError('Minimum withdrawal amount is 0.5 USDT');
@@ -729,39 +728,55 @@ function showWithdrawPopup() {
         html: `<form id="withdrawalForm" class="text-left">
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
-                <input type="number" name="amount" min="0.5" max="${state.stats.availableBalance}" step="0.01" class="w-full p-2 border rounded" placeholder="0.50" required>
+                <input type="number" name="amount" min="0.5" max="${state.stats.availableBalance}" 
+                       step="0.01" class="w-full p-2 border rounded" 
+                       placeholder="0.50" value="0.50" required>
                 <p class="text-xs text-gray-500 mt-1">Available: ${state.stats.availableBalance.toFixed(2)} USDT</p>
             </div>
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
-                <input type="text" name="wallet" class="w-full p-2 border rounded" placeholder="EQ or UQ..." required>
+                <input type="text" name="wallet" class="w-full p-2 border rounded" 
+                       placeholder="EQ or UQ..." required>
                 <p class="text-xs text-gray-500 mt-1">Only TON network addresses accepted</p>
             </div>
         </form>`,
         showCancelButton: true,
         confirmButtonText: 'Request Withdrawal',
         preConfirm: () => {
-    const form = document.getElementById('withdrawalForm');
-    const amount = parseFloat(form.querySelector('input[name="amount"]').value.trim()); 
-    const walletAddress = form.querySelector('input[name="wallet"]').value.trim();
+            const form = document.getElementById('withdrawalForm');
+            const amountInput = form.querySelector('input[name="amount"]');
+            const walletInput = form.querySelector('input[name="wallet"]');
+            
+            const amount = parseFloat(amountInput.value);
+            const walletAddress = walletInput.value.trim();
 
-    // Use toFixed to ensure consistent precision
-    if (isNaN(amount) || amount.toFixed(2) < 0.5) {
-        Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
-        return false;
-    }
+            if (!amountInput.value || isNaN(amount)) {
+                Swal.showValidationMessage('Please enter a valid amount (e.g. 0.50)');
+                return false;
+            }
+            
+            if (amount < 0.5) {
+                Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
+                return false;
+            }
+            
+            if (amount > state.stats.availableBalance) {
+                Swal.showValidationMessage(`You only have ${state.stats.availableBalance.toFixed(2)} USDT available`);
+                return false;
+            }
+            
+            if (!isValidTONAddress(walletAddress)) {
+                Swal.showValidationMessage('Please enter a valid TON wallet address (starts with EQ or UQ)');
+                return false;
+            }
 
-    if (amount > state.stats.availableBalance) {
-        Swal.showValidationMessage(`You only have ${state.stats.availableBalance.toFixed(2)} USDT available`);
-        return false;
-    }
-
-    if (!isValidTONAddress(walletAddress)) {
-        Swal.showValidationMessage('Please enter a valid TON wallet address (starts with EQ or UQ)');
-        return false;
-    }
-
-    return { amount: parseFloat(amount.toFixed(2)), walletAddress }; 
+            return { amount, walletAddress };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            submitWithdrawal(result.value);
+        }
+    });
 }
 
 async function submitWithdrawal({ amount, walletAddress }) {
