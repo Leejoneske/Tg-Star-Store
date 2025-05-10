@@ -621,6 +621,110 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
     }
 });
 //referral withdraw process
+
+// Handle callback queries (for withdrawal approval buttons)
+bot.on('callback_query', async (callbackQuery) => {
+    const msg = callbackQuery.message;
+    const data = callbackQuery.data;
+    const chatId = msg.chat.id;
+    const fromId = callbackQuery.from.id;
+
+    try {
+        // Check if it's a withdrawal action
+        if (data.startsWith('complete_withdrawal_') || data.startsWith('decline_withdrawal_')) {
+            // Verify admin
+            if (!adminIds.includes(fromId.toString())) {
+                return bot.answerCallbackQuery(callbackQuery.id, {
+                    text: "🚫 Unauthorized access",
+                    show_alert: true
+                });
+            }
+
+            const action = data.startsWith('complete_') ? 'complete' : 'decline';
+            const withdrawalId = data.split('_')[2];
+
+            // Find withdrawal
+            const withdrawal = await ReferralWithdrawal.findById(withdrawalId);
+            if (!withdrawal) {
+                return bot.answerCallbackQuery(callbackQuery.id, {
+                    text: "❌ Withdrawal not found",
+                    show_alert: true
+                });
+            }
+
+            if (withdrawal.status !== 'pending') {
+                return bot.answerCallbackQuery(callbackQuery.id, {
+                    text: "ℹ️ Withdrawal already processed",
+                    show_alert: true
+                });
+            }
+
+            // Update withdrawal status
+            withdrawal.status = action === 'complete' ? 'completed' : 'declined';
+            withdrawal.adminAction = {
+                adminId: fromId.toString(),
+                action: action,
+                actionDate: new Date()
+            };
+
+            if (action === 'complete') {
+                withdrawal.completedAt = new Date();
+            } else {
+                // If declined, reset referral withdrawn status
+                await Referral.updateMany(
+                    { _id: { $in: withdrawal.referralIds } },
+                    { $set: { withdrawn: false } }
+                );
+            }
+
+            await withdrawal.save();
+
+            // Edit original message to show action taken
+            await bot.editMessageReplyMarkup({
+                chat_id: chatId,
+                message_id: msg.message_id,
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { 
+                                text: action === 'complete' ? '✅ Completed' : '❌ Declined', 
+                                callback_data: 'processed_' + withdrawalId
+                            }
+                        ]
+                    ]
+                }
+            });
+
+            // Notify user
+            const userMessage = action === 'complete' 
+                ? `🎉 Your withdrawal of ${withdrawal.amount} USDT has been approved!` 
+                : `⚠️ Your withdrawal of ${withdrawal.amount} USDT was declined.`;
+            
+            try {
+                await bot.sendMessage(withdrawal.userId, userMessage);
+            } catch (userError) {
+                console.error('Error notifying user:', userError);
+                await bot.sendMessage(chatId, `⚠️ Could not notify user ${withdrawal.userId}`);
+            }
+
+            return bot.answerCallbackQuery(callbackQuery.id, {
+                text: `Withdrawal ${action}d successfully`
+            });
+        }
+    } catch (error) {
+        console.error('Withdrawal action error:', error);
+        await bot.answerCallbackQuery(callbackQuery.id, {
+            text: '❌ Error processing action',
+            show_alert: true
+        });
+        await bot.sendMessage(chatId, '⚠️ Error processing withdrawal action. Please check logs.');
+    }
+});
+
+// ==============================================
+// WITHDRAWAL REQUEST ENDPOINT
+// ==============================================
+
 app.post('/api/referral-withdrawals', async (req, res) => {
     try {
         const { userId, amount, walletAddress } = req.body;
@@ -633,7 +737,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             });
         }
 
-        // Check if user has pending withdrawals
+        // Check for pending withdrawals
         const pendingWithdrawal = await ReferralWithdrawal.findOne({ 
             userId, 
             status: 'pending' 
@@ -646,12 +750,12 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             });
         }
 
-        // Get active referrals that haven't been withdrawn yet
+        // Get active referrals
         const activeReferrals = await Referral.find({
             userId,
             status: 'completed',
             withdrawn: false
-        }).limit(Math.floor(amount / 0.5)); // Only use enough referrals to cover the amount
+        }).limit(Math.floor(amount / 0.5));
 
         if (activeReferrals.length < Math.floor(amount / 0.5)) {
             return res.status(400).json({ 
@@ -681,10 +785,10 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         // Notify admins
         if (adminIds.length > 0) {
             const message = `📌 New Referral Withdrawal Request\n\n` +
-                            `👤 User: ${withdrawal.username} (${withdrawal.userId})\n` +
-                            `💰 Amount: ${withdrawal.amount} USDT\n` +
-                            `📭 Wallet: ${withdrawal.walletAddress}\n\n` +
-                            `🆔 Withdrawal ID: ${withdrawal._id}`;
+                          `👤 User: ${withdrawal.username} (${withdrawal.userId})\n` +
+                          `💰 Amount: ${withdrawal.amount} USDT\n` +
+                          `📭 Wallet: ${withdrawal.walletAddress}\n\n` +
+                          `🆔 Withdrawal ID: ${withdrawal._id}`;
 
             const keyboard = {
                 inline_keyboard: [
@@ -697,9 +801,13 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
             // Send to all admins
             for (const adminId of adminIds) {
-                await bot.telegram.sendMessage(adminId, message, {
-                    reply_markup: keyboard
-                });
+                try {
+                    await bot.sendMessage(adminId, message, {
+                        reply_markup: keyboard
+                    });
+                } catch (adminError) {
+                    console.error(`Error notifying admin ${adminId}:`, adminError);
+                }
             }
         }
 
@@ -708,71 +816,6 @@ app.post('/api/referral-withdrawals', async (req, res) => {
     } catch (error) {
         console.error('Error processing referral withdrawal:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
-    }
-});
-// Handle admin actions on withdrawals
-bot.action(/^(complete|decline)_withdrawal_(.+)/, async (ctx) => {
-    try {
-        if (!adminIds.includes(ctx.from.id.toString())) {
-            return ctx.answerCbQuery('Unauthorized', { show_alert: true });
-        }
-
-        const action = ctx.match[1];
-        const withdrawalId = ctx.match[2];
-
-        const withdrawal = await ReferralWithdrawal.findById(withdrawalId);
-        if (!withdrawal) {
-            return ctx.answerCbQuery('Withdrawal not found', { show_alert: true });
-        }
-
-        if (withdrawal.status !== 'pending') {
-            return ctx.answerCbQuery('Withdrawal already processed', { show_alert: true });
-        }
-
-        // Update withdrawal status
-        withdrawal.status = action === 'complete' ? 'completed' : 'declined';
-        withdrawal.adminAction = {
-            adminId: ctx.from.id.toString(),
-            action: action === 'complete' ? 'completed' : 'declined',
-            actionDate: new Date()
-        };
-
-        if (action === 'complete') {
-            withdrawal.completedAt = new Date();
-        } else {
-            // If declined, mark referrals as not withdrawn
-            await Referral.updateMany(
-                { _id: { $in: withdrawal.referralIds } },
-                { $set: { withdrawn: false } }
-            );
-        }
-
-        await withdrawal.save();
-
-        // Update admin message with action taken
-        await ctx.editMessageReplyMarkup({
-            inline_keyboard: [
-                [
-                    { 
-                        text: action === 'complete' ? '✅ Completed' : '❌ Declined', 
-                        callback_data: 'already_processed' 
-                    }
-                ]
-            ]
-        });
-
-        // Notify user
-        const userMessage = action === 'complete' ?
-            `🎉 Your withdrawal of ${withdrawal.amount} USDT has been completed!` :
-            `⚠️ Your withdrawal request of ${withdrawal.amount} USDT has been declined.`;
-
-        await bot.telegram.sendMessage(withdrawal.userId, userMessage);
-
-        ctx.answerCbQuery(`Withdrawal ${action}d successfully`);
-
-    } catch (error) {
-        console.error('Error processing admin action:', error);
-        ctx.answerCbQuery('Error processing action', { show_alert: true });
     }
 });
 
