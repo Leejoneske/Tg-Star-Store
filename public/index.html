@@ -13,278 +13,274 @@
  
  
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #f3f4f6;
+    body {
+        font-family: 'Inter', sans-serif;
+        background: #f3f4f6;
+    }
+
+    .app-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        margin: 0 auto;
+        background: white;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .profile-image {
+        width: 64px;
+        height: 64px;
+        border: 3px solid #4f46e5;
+        border-radius: 50%;
+        overflow: hidden;
+        transition: transform 0.3s ease;
+    }
+
+    .profile-image:hover {
+        transform: scale(1.05);
+    }
+
+    .package-option {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+
+    .package-option:hover {
+        border-color: #4f46e5;
+        transform: translateY(-4px);
+        box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+    }
+
+    .buy-button {
+        background: #3f3aaf;
+        color: white;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .buy-button:hover {
+        background: #5054c0;
+        transform: scale(1.02);
+    }
+
+    .menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+        z-index: 40;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .menu-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .side-menu {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 64%;
+        height: 100%;
+        background: white;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        z-index: 50;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+    }
+
+    .side-menu > .p-6 {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding-bottom: 0;
+        overflow-y: auto;
+    }
+
+    .side-menu .px-6.pb-6 {
+        margin-top: auto;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+        background-color: #f9f9f9;
+    }
+
+    .side-menu.active {
+        left: 0;
+    }
+
+    .menu-item {
+        padding: 12px 16px;
+        font-size: 16px;
+        color: #4f46e5;
+        transition: all 0.2s ease;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .menu-item:last-child {
+        border-bottom: none;
+    }
+
+    .menu-item:hover {
+        background: #f3f4f6;
+        transform: translateX(5px);
+    }
+
+    #connectWallet {
+        padding: 8px 16px;
+        font-size: 14px;
+        border: 1px solid #4f46e5;
+        border-radius: 8px;
+        color: #4f46e5;
+        background-color: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 120px;
+        white-space: nowrap;
+    }
+
+    #connectWallet.wallet-connected {
+        background-color: white;
+        color: #4f46e5;
+    }
+
+    .wallet-address {
+        font-size: 12px;
+        color: #6b7280;
+        font-family: monospace;
+    }
+
+    .logo-header {
+        font-size: 24px;
+        font-weight: bold;
+        color: #4f46e5;
+        text-align: center;
+        padding: 16px;
+        background: linear-gradient(90deg, #4f46e5, #6366f1);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .language-toggle {
+        padding: 6px 12px;
+        font-size: 14px;
+        border: 1px solid #4f46e5;
+        border-radius: 8px;
+        color: #4f46e5;
+        background-color: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .language-toggle:hover {
+        background-color: #f3f4f6;
+    }
+
+    .notification-item {
+        padding: 8px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .notification-item:last-child {
+        border-bottom: none;
+    }
+
+    .user-info-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        gap: 16px;
+    }
+
+    .user-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .notifications-container {
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .skeleton {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 4px;
+        color: transparent !important;
+    }
+
+    .skeleton-img {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+    }
+
+    .skeleton-text {
+        height: 16px;
+        margin-bottom: 8px;
+    }
+
+    .skeleton-text.short {
+        width: 60%;
+    }
+
+    .skeleton-button {
+        width: 120px;
+        height: 36px;
+        border-radius: 8px;
+    }
+
+    .skeleton-card {
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+    }
+
+    .skeleton-item {
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+    }
+
+    @keyframes shimmer {
+        0% {
+            background-position: 200% 0;
         }
-
-        .app-container {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh; /* Ensures the container takes the full height of the viewport */
-    margin: 0 auto;
-    background: white;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    position: relative;
-    overflow: hidden;
-}
-
-.footer {
-    margin-top: auto; /* Pushes the footer to the bottom */
-    padding: 16px;
-    border-top: 1px solid #eee;
-    background-color: #f9f9f9; /* Optional: Footer background color */
-    text-align: center; /* Optional: Center-align footer content */
-    font-size: 14px;
-    color: #6b7280; /* Optional: Text color */
-}
-
-        .profile-image {
-            width: 64px;
-            height: 64px;
-            border: 3px solid #4f46e5;
-            border-radius: 50%;
-            overflow: hidden;
-            transition: transform 0.3s ease;
+        100% {
+            background-position: -200% 0;
         }
+    }
 
-        .profile-image:hover {
-            transform: scale(1.05);
-        }
-
-        .package-option {
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            transition: all 0.2s ease;
-        }
-
-        .package-option:hover {
-            border-color: #4f46e5;
-            transform: translateY(-4px);
-            box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
-        }
-
-        .buy-button {
-    background: #3f3aaf; 
-    color: white;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
-
-.buy-button:hover {
-    background: #5054c0; 
-    transform: scale(1.02);
-}
-     
-
-        
-
-        .menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(5px);
-            z-index: 40;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .menu-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .side-menu {
-    position: fixed;
-    top: 0;
-    left: -100%;
-    width: 64%;
-    height: 100%;
-    background: white;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-    z-index: 50;
-    transition: all 0.3s ease;
-
- 
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-
-        .side-menu.active {
-            left: 0;
-        }
-
-        .menu-item {
-            padding: 12px 16px;
-            font-size: 16px;
-            color: #4f46e5;
-            transition: all 0.2s ease;
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .menu-item:last-child {
-            border-bottom: none;
-        }
-
-        .menu-item:hover {
-            background: #f3f4f6;
-            transform: translateX(5px);
-        }
-
-        #connectWallet {
-            padding: 8px 16px;
-            font-size: 14px;
-            border: 1px solid #4f46e5;
-            border-radius: 8px;
-            color: #4f46e5;
-            background-color: white;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            min-width: 120px;
-            white-space: nowrap;
-        }
-
-        #connectWallet.wallet-connected {
-            background-color: white;
-            color: #4f46e5;
-        }
-
-        .wallet-address {
-            font-size: 12px;
-            color: #6b7280;
-            font-family: monospace;
-        }
-
-        .logo-header {
-            font-size: 24px;
-            font-weight: bold;
-            color: #4f46e5;
-            text-align: center;
-            padding: 16px;
-            background: linear-gradient(90deg, #4f46e5, #6366f1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .language-toggle {
-            padding: 6px 12px;
-            font-size: 14px;
-            border: 1px solid #4f46e5;
-            border-radius: 8px;
-            color: #4f46e5;
-            background-color: white;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .language-toggle:hover {
-            background-color: #f3f4f6;
-        }
-
-        .notification-item {
-            padding: 8px;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 12px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .notification-item:last-child {
-            border-bottom: none;
-        }
-
-        .user-info-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            gap: 16px;
-        }
-
-        .user-details {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .notifications-container {
-            max-width: 180px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* Skeleton Loading Styles */
-        .skeleton {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 4px;
-            color: transparent !important;
-        }
-
-        .skeleton-img {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-        }
-
-        .skeleton-text {
-            height: 16px;
-            margin-bottom: 8px;
-        }
-
-        .skeleton-text.short {
-            width: 60%;
-        }
-
-        .skeleton-button {
-            width: 120px;
-            height: 36px;
-            border-radius: 8px;
-        }
-
-        .skeleton-card {
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 16px;
-        }
-
-        .skeleton-item {
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 12px;
-        }
-
-        @keyframes shimmer {
-            0% {
-                background-position: 200% 0;
-            }
-            100% {
-                background-position: -200% 0;
-            }
-        }
-
-        /* Hide content while loading */
-        #content-container {
-            display: none;
-        }
-     
-    </style>
+    #content-container {
+        display: none;
+    }
+</style>
 </head>
 <body>
     <div class="app-container">
@@ -336,74 +332,82 @@
         </div>
 
         <!-- Original Content (hidden initially) -->
-        <div id="content-container">
-            <div class="menu-overlay" id="menuOverlay"></div>
-            <div class="side-menu" id="sideMenu">
-                <div class="p-6">
-                    <div class="text-xl font-bold mb-8" data-translate="menu">Menu</div>
-                    <nav class="space-y-2">
-                        <a href="#" class="menu-item">
-                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
-                            <span data-translate="home">Home</span>
-                        </a>
-                        <a href="sell.html" class="menu-item">
-                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
-                            <span data-translate="sell">Sell</span>
-                        </a>
-                        <a href="history.html" class="menu-item">
-                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
-                            <span data-translate="history">History</span>
-                        </a>
-                        <a href="referral.html" class="menu-item">
-                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
-                            <span data-translate="referral">Referral</span>
-                        </a>
-                        <a href="about.html" class="menu-item">
-                            <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
-                            <span data-translate="about">About</span>
-                        </a>
-                    </nav>
-                 <hr class="my-4 border-gray-300">
+      <div id="content-container">
+    <div class="menu-overlay" id="menuOverlay"></div>
+    <div class="side-menu" id="sideMenu">
+        <div class="p-6 flex flex-col h-full">
+            <div>
+                <div class="text-xl font-bold mb-8" data-translate="menu">Menu</div>
+                <nav class="space-y-2">
+                    <a href="#" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                        <span data-translate="home">Home</span>
+                    </a>
+                    <a href="sell.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                        <span data-translate="sell">Sell</span>
+                    </a>
+                    <a href="history.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                        <span data-translate="history">History</span>
+                    </a>
+                    <a href="referral.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                        <span data-translate="referral">Referral</span>
+                    </a>
+                    <a href="about.html" class="menu-item">
+                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                        <span data-translate="about">About</span>
+                    </a>
+                </nav>
+                <hr class="my-4 border-gray-300">
+            </div>
 
-<div class="px-6 pb-6 text-gray-700 text-sm">
-    <div class="mb-4">
-        <p class="font-semibold mb-2">Follow us on socials</p>
-        <div class="flex gap-4 text-lg">
-            <a href="https://facebook.com/HighlandsForum" target="_blank" class="hover:text-blue-600">
-                <i class="fab fa-facebook"></i>
-            </a>
-            <a href="https://x.com/HighlandsForum" target="_blank" class="hover:text-black">
-                <i class="fab fa-x-twitter"></i>
-            </a>
-            <a href="https://youtube.com/HighlandsForum" target="_blank" class="hover:text-red-600">
-                <i class="fab fa-youtube"></i>
-            </a>
-            <a href="https://t.me/HighlandsForum" target="_blank" class="hover:text-blue-400">
-                <i class="fab fa-telegram"></i>
-            </a>
-            <a href="support@starstore.site" class="hover:text-indigo-600">
-                <i class="fas fa-envelope"></i>
-            </a>
-        </div>
-    </div>
+            <div class="mt-auto">
+                <div class="px-6 pb-6 text-gray-700 text-sm">
+                    <div class="mb-4">
+                        <p class="font-semibold mb-2">Follow us on socials</p>
+                        <div class="flex gap-4 text-lg">
+                            <a href="https://facebook.com/HighlandsForum" target="_blank" class="hover:text-blue-600">
+                                <i class="fab fa-facebook"></i>
+                            </a>
+                            <a href="https://x.com/HighlandsForum" target="_blank" class="hover:text-black">
+                                <i class="fab fa-x-twitter"></i>
+                            </a>
+                            <a href="https://youtube.com/HighlandsForum" target="_blank" class="hover:text-red-600">
+                                <i class="fab fa-youtube"></i>
+                            </a>
+                            <a href="https://t.me/HighlandsForum" target="_blank" class="hover:text-blue-400">
+                                <i class="fab fa-telegram"></i>
+                            </a>
+                            <a href="support@starstore.site" class="hover:text-indigo-600">
+                                <i class="fas fa-envelope"></i>
+                            </a>
+                        </div>
+                    </div>
 
-    <div class="mb-3 flex items-center gap-2">
-        <i class="fas fa-hand-holding-heart text-indigo-500"></i>
-        <span>Powered by <strong>The Highlands Forum</strong></span>
-    </div>
+                    <div class="mb-3 flex items-center gap-2">
+                        <i class="fas fa-hand-holding-heart text-indigo-500"></i>
+                        <span>Powered by <strong>The Highlands Forum</strong></span>
+                    </div>
 
-    <div class="mb-2 flex items-center gap-2">
-        <i class="fas fa-gavel text-gray-500"></i>
-        <a href="terms.html" class="text-indigo-600 hover:underline">Terms of Use</a>
-    </div>
+                    <div class="mb-2 flex items-center gap-2">
+                        <i class="fas fa-gavel text-gray-500"></i>
+                        <a href="terms.html" class="text-indigo-600 hover:underline">Terms of Use</a>
+                    </div>
 
-    <p class="text-xs text-gray-500 mt-2">
-        Representative: The Highlands Forum Ltd. • Contact: <a href="support@starstore.site" class="underline">support@starstore.site</a>
-    </p>
-</div>
-                 
+                    <p class="text-xs text-gray-500 mt-2">
+                        Representative: The Highlands Forum Ltd. • Contact: <a href="support@starstore.site" class="underline">support@starstore.site</a>
+                    </p>
                 </div>
             </div>
+        </div>
+    </div>
+      </div>
+                 
+    </div>
+     
+            
             <div class="p-4 flex justify-between items-center bg-white shadow-sm">
                 <button id="menuButton" class="p-2">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
