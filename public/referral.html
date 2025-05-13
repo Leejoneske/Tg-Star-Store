@@ -775,8 +775,9 @@ function showWithdrawPopup() {
         }
     });
 }
- 
-async function submitWithdrawal({ amount, walletAddress }) {
+
+
+ async function submitWithdrawal({ amount, walletAddress }) {
     try {
         const response = await fetch('/api/referral-withdrawals', {
             method: 'POST',
@@ -785,8 +786,8 @@ async function submitWithdrawal({ amount, walletAddress }) {
             },
             body: JSON.stringify({
                 userId: state.userId,
-                amount,
-                walletAddress
+                amount: parseFloat(amount), // Ensure number format
+                walletAddress: walletAddress.trim() // Clean whitespace
             })
         });
 
@@ -800,43 +801,26 @@ async function submitWithdrawal({ amount, walletAddress }) {
             throw new Error(data.error || 'Withdrawal failed');
         }
 
+        // Update local state
         state.withdrawals.unshift({
-            amount,
+            amount: parseFloat(amount),
             walletAddress,
             date: new Date().toISOString(),
             status: 'pending'
         });
         
-        state.stats.availableBalance -= amount;
+        state.stats.availableBalance -= parseFloat(amount);
         updateUI();
         
         showSuccess(`Withdrawal request for ${amount} USDT submitted!`);
         
     } catch (error) {
+        console.error('Withdrawal error:', error);
         showError(error.message || 'Withdrawal failed. Please try again.');
     }
 }
 
-function showSuccess(message) {
-    Swal.fire({
-        title: message,
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false
-    });
-}
-
-function showError(message) {
-    Swal.fire({
-        title: 'Error',
-        text: message,
-        icon: 'error'
-    });
-}
-
-init();
-    
-
+ 
     const translations = {
         en: {
             'menu': 'Menu',
