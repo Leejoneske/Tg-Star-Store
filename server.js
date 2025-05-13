@@ -727,98 +727,164 @@ bot.on('callback_query', async (callbackQuery) => {
 
 app.post('/api/referral-withdrawals', async (req, res) => {
     try {
+        // Validate input
         const { userId, amount, walletAddress } = req.body;
         
-        // Validate minimum amount (0.5 USDT per active referral)
-        if (amount < 0.5) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Minimum withdrawal amount is 0.5 USDT per active referral' 
+        if (!userId || !amount || !walletAddress) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: userId, amount, or walletAddress'
+            });
+        }
+
+        // Convert and validate amount
+        const amountNum = parseFloat(amount);
+        if (isNaN(amountNum) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid amount format'
+            });
+        }
+
+        // Validate minimum amount
+        const minAmount = 0.5;
+        if (amountNum < minAmount) {
+            return res.status(400).json({
+                success: false,
+                error: `Minimum withdrawal amount is ${minAmount} USDT per active referral`
+            });
+        }
+
+        // Validate wallet address format
+        if (!isValidTONAddress(walletAddress)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid TON wallet address format'
             });
         }
 
         // Check for pending withdrawals
-        const pendingWithdrawal = await ReferralWithdrawal.findOne({ 
-            userId, 
-            status: 'pending' 
+        const hasPendingWithdrawal = await ReferralWithdrawal.exists({
+            userId,
+            status: 'pending'
         });
         
-        if (pendingWithdrawal) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'You already have a pending withdrawal' 
+        if (hasPendingWithdrawal) {
+            return res.status(400).json({
+                success: false,
+                error: 'You already have a pending withdrawal'
             });
         }
 
+        // Calculate required referrals
+        const referralsRequired = Math.floor(amountNum / minAmount);
+        
         // Get active referrals
         const activeReferrals = await Referral.find({
             userId,
             status: 'completed',
             withdrawn: false
-        }).limit(Math.floor(amount / 0.5));
+        }).limit(referralsRequired);
 
-        if (activeReferrals.length < Math.floor(amount / 0.5)) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Not enough active referrals for this withdrawal amount' 
+        // Validate sufficient referrals
+        if (activeReferrals.length < referralsRequired) {
+            return res.status(400).json({
+                success: false,
+                error: `Not enough active referrals. You need ${referralsRequired} referrals to withdraw ${amountNum} USDT`
             });
         }
+
+        // Get user info
+        const user = await User.findById(userId).select('username') || { username: 'Unknown' };
 
         // Create withdrawal
         const withdrawal = new ReferralWithdrawal({
             userId,
-            username: req.user?.username || 'Unknown',
-            amount,
-            walletAddress,
+            username: user.username,
+            amount: amountNum,
+            walletAddress: walletAddress.trim(),
             referralIds: activeReferrals.map(r => r._id),
             status: 'pending'
         });
 
-        await withdrawal.save();
+        // Start transaction
+        const session = await mongoose.startSession();
+        session.startTransaction();
 
-        // Mark referrals as withdrawn
-        await Referral.updateMany(
-            { _id: { $in: activeReferrals.map(r => r._id) } },
-            { $set: { withdrawn: true } }
-        );
+        try {
+            // Save withdrawal
+            await withdrawal.save({ session });
 
-        // Notify admins
-        if (adminIds.length > 0) {
-            const message = `📌 New Referral Withdrawal Request\n\n` +
-                          `👤 User: ${withdrawal.username} (${withdrawal.userId})\n` +
-                          `💰 Amount: ${withdrawal.amount} USDT\n` +
-                          `📭 Wallet: ${withdrawal.walletAddress}\n\n` +
-                          `🆔 Withdrawal ID: ${withdrawal._id}`;
+            // Mark referrals as withdrawn
+            await Referral.updateMany(
+                { _id: { $in: activeReferrals.map(r => r._id) } },
+                { $set: { withdrawn: true } },
+                { session }
+            );
 
-            const keyboard = {
-                inline_keyboard: [
-                    [
-                        { text: '✅ Complete', callback_data: `complete_withdrawal_${withdrawal._id}` },
-                        { text: '❌ Decline', callback_data: `decline_withdrawal_${withdrawal._id}` }
-                    ]
-                ]
-            };
+            // Commit transaction
+            await session.commitTransaction();
 
-            // Send to all admins
-            for (const adminId of adminIds) {
-                try {
-                    await bot.sendMessage(adminId, message, {
-                        reply_markup: keyboard
-                    });
-                } catch (adminError) {
-                    console.error(`Error notifying admin ${adminId}:`, adminError);
-                }
-            }
+            // Notify admins (non-blocking)
+            notifyAdminsAboutWithdrawal(withdrawal);
+
+            return res.json({
+                success: true,
+                withdrawalId: withdrawal._id,
+                message: 'Withdrawal request submitted successfully'
+            });
+
+        } catch (transactionError) {
+            await session.abortTransaction();
+            throw transactionError;
+        } finally {
+            session.endSession();
         }
-
-        res.json({ success: true, withdrawalId: withdrawal._id });
 
     } catch (error) {
         console.error('Error processing referral withdrawal:', error);
-        res.status(500).json({ success: false, error: 'Internal server error' });
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
+// Helper function for admin notifications
+async function notifyAdminsAboutWithdrawal(withdrawal) {
+    if (!adminIds?.length) return;
+
+    const message = `📌 New Referral Withdrawal Request\n\n` +
+                  `👤 User: ${withdrawal.username} (${withdrawal.userId})\n` +
+                  `💰 Amount: ${withdrawal.amount} USDT\n` +
+                  `📭 Wallet: ${withdrawal.walletAddress}\n\n` +
+                  `🆔 Withdrawal ID: ${withdrawal._id}`;
+
+    const keyboard = {
+        inline_keyboard: [
+            [
+                { text: '✅ Complete', callback_data: `complete_withdrawal_${withdrawal._id}` },
+                { text: '❌ Decline', callback_data: `decline_withdrawal_${withdrawal._id}` }
+            ]
+        ]
+    };
+
+    // Process notifications in parallel
+    await Promise.allSettled(
+        adminIds.map(adminId => 
+            bot.sendMessage(adminId, message, { reply_markup: keyboard })
+                .catch(err => console.error(`Error notifying admin ${adminId}:`, err))
+        )
+    );
+}
+
+// TON wallet validation helper
+function isValidTONAddress(address) {
+    if (!address || typeof address !== 'string') return false;
+    const cleanAddr = address.replace(/^ton:\/\//, '').trim();
+    return /^(EQ|UQ)[a-zA-Z0-9_-]{43,48}$/.test(cleanAddr);
+}
 
 
 
