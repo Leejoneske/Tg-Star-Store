@@ -728,33 +728,32 @@ bot.on('callback_query', async (callbackQuery) => {
 app.post('/api/referral-withdrawals', async (req, res) => {
     try {
         // Validate input
-        const { userId, amount, walletAddress } = req.body;
-        
-        if (!userId || !amount || !walletAddress) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields: userId, amount, or walletAddress'
-            });
-        }
+const { userId, amount, walletAddress } = req.body;
 
-        // Convert and validate amount
-        const amountNum = parseFloat(amount);
-        if (isNaN(amountNum) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid amount format'
-            });
-        }
+if (!userId || !amount || !walletAddress) {
+    return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: userId, amount, or walletAddress'
+    });
+}
 
-        // Validate minimum amount
-        const minAmount = 0.5;
-        if (amountNum < minAmount) {
-            return res.status(400).json({
-                success: false,
-                error: `Minimum withdrawal amount is ${minAmount} USDT per active referral`
-            });
-        }
+// Convert and validate amount
+const amountNum = parseFloat(amount);
+if (isNaN(amountNum)) {
+    return res.status(400).json({
+        success: false,
+        error: 'Invalid amount format'
+    });
+}
 
+// Validate minimum amount
+const minAmount = 0.5;
+if (amountNum < minAmount) {
+    return res.status(400).json({
+        success: false,
+        error: `Minimum withdrawal amount is ${minAmount} USDT per active referral`
+    });
+}
         // Validate wallet address format
         if (!isValidTONAddress(walletAddress)) {
             return res.status(400).json({
