@@ -703,10 +703,14 @@ function shareViaTelegram() {
 
 function isValidTONAddress(address) {
     if (!address || typeof address !== 'string') return false;
-    const cleanAddr = address.replace(/^ton:\/\//, '').trim();
-    const tonRegex = /^(EQ|UQ)[a-zA-Z0-9_-]{43,48}$/;
-    const isBasicValid = tonRegex.test(cleanAddr);
-    return isBasicValid && cleanAddr.length >= 48 && !/[OIl]/.test(cleanAddr);
+    try {
+        const cleanAddr = address.replace(/^ton:\/\//, '').trim();
+        const tonRegex = /^(EQ|UQ)[a-zA-Z0-9_-]{43,48}$/;
+        const isBasicValid = tonRegex.test(cleanAddr);
+        return isBasicValid && cleanAddr.length >= 48 && !/[OIl]/.test(cleanAddr);
+    } catch (e) {
+        return false;
+    }
 }
  //withdraw shit
 function showWithdrawPopup() {
