@@ -735,49 +735,50 @@ function showWithdrawPopup() {
         showCancelButton: true,
         confirmButtonText: 'Request Withdrawal',
         preConfirm: () => {
-            try {
-                const form = document.getElementById('withdrawalForm');
-                const amountInput = form.querySelector('[name="amount"]');
-                const walletInput = form.querySelector('[name="wallet"]');
-                
-                // Check for empty fields first
-                if (!amountInput.value.trim()) {
-                    throw 'Please enter an amount to withdraw';
-                }
-                
-                if (!walletInput.value.trim()) {
-                    throw 'Please enter a wallet address';
-                }
-                
-                // Amount validation
-                const amount = parseFloat(amountInput.value);
-                if (isNaN(amount)) {
-                    throw 'Please enter a valid numeric amount';
-                }
-                
-                if (amount < 0.5) {
-                    throw 'Minimum withdrawal is 0.50 USDT';
-                }
-                
-                if (amount > state.stats.availableBalance) {
-                    throw `You can withdraw maximum ${state.stats.availableBalance.toFixed(2)} USDT`;
-                }
-                
-                // Wallet validation
-                const walletAddress = walletInput.value.trim();
-                if (!isValidTONAddress(walletAddress)) {
-                    throw 'Please enter a valid TON wallet address (starts with EQ or UQ)';
-                }
-                
-                return { 
-                    amount: amount.toFixed(2),
-                    walletAddress: walletAddress
-                };
-                
-            } catch (error) {
-                Swal.showValidationMessage(error);
+            const form = document.getElementById('withdrawalForm');
+            const amountInput = form.querySelector('[name="amount"]');
+            const walletInput = form.querySelector('[name="wallet"]');
+            
+            // Check for empty amount first
+            if (!amountInput.value.trim()) {
+                Swal.showValidationMessage('Please enter an amount to withdraw');
                 return false;
             }
+            
+            // Then check for empty wallet
+            if (!walletInput.value.trim()) {
+                Swal.showValidationMessage('Please enter a wallet address');
+                return false;
+            }
+            
+            // Amount validation
+            const amount = parseFloat(amountInput.value);
+            if (isNaN(amount)) {
+                Swal.showValidationMessage('Please enter a valid numeric amount');
+                return false;
+            }
+            
+            if (amount < 0.5) {
+                Swal.showValidationMessage('Minimum withdrawal is 0.50 USDT');
+                return false;
+            }
+            
+            if (amount > state.stats.availableBalance) {
+                Swal.showValidationMessage(`You can withdraw maximum ${state.stats.availableBalance.toFixed(2)} USDT`);
+                return false;
+            }
+            
+            // Wallet validation
+            const walletAddress = walletInput.value.trim();
+            if (!isValidTONAddress(walletAddress)) {
+                Swal.showValidationMessage('Please enter a valid TON wallet address (starts with EQ or UQ)');
+                return false;
+            }
+            
+            return { 
+                amount: amount.toFixed(2),
+                walletAddress: walletAddress
+            };
         }
     }).then((result) => {
         if (result.isConfirmed) {
@@ -785,7 +786,6 @@ function showWithdrawPopup() {
         }
     });
 }
-
  
 async function submitWithdrawal({ amount, walletAddress }) {
     try {
