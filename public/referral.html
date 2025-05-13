@@ -778,6 +778,14 @@ function showWithdrawPopup() {
 
 async function submitWithdrawal({ amount, walletAddress }) {
     try {
+        // Validate inputs before sending
+        if (!walletAddress || typeof walletAddress !== 'string') {
+            throw new Error('Wallet address is required');
+        }
+        if (!amount || isNaN(parseFloat(amount))) {
+            throw new Error('Valid amount is required');
+        }
+
         const response = await fetch('/api/referral-withdrawals', {
             method: 'POST',
             headers: {
@@ -786,19 +794,16 @@ async function submitWithdrawal({ amount, walletAddress }) {
             body: JSON.stringify({
                 userId: state.userId,
                 amount: parseFloat(amount),
-                walletAddress: walletAddress.trim()
+                walletAddress: walletAddress.trim() // Only call trim if it exists
             })
         });
 
-        const data = await response.json();
-
         if (!response.ok) {
-            throw new Error(data.error || `Withdrawal failed (${response.status})`);
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Withdrawal failed');
         }
 
-        if (!data.success) {
-            throw new Error(data.error || 'Withdrawal request failed');
-        }
+        const data = await response.json();
 
         // Update local state
         state.withdrawals.unshift({
@@ -811,26 +816,19 @@ async function submitWithdrawal({ amount, walletAddress }) {
         state.stats.availableBalance -= parseFloat(amount);
         updateUI();
         
-        // Show success and keep popup open
-        Swal.fire({
-            title: 'Success!',
-            text: `Withdrawal request for ${amount} USDT submitted`,
-            icon: 'success',
-            confirmButtonText: 'OK'
-        });
+        return {
+            success: true,
+            message: `Withdrawal request for ${amount} USDT submitted!`
+        };
         
     } catch (error) {
         console.error('Withdrawal error:', error);
-        // Show error and keep popup open
-        Swal.fire({
-            title: 'Error',
-            text: error.message || 'Withdrawal failed. Please try again.',
-            icon: 'error',
-            confirmButtonText: 'OK'
-        });
+        return {
+            success: false,
+            error: error.message || 'Withdrawal failed. Please try again.'
+        };
     }
 }
-
  
     const translations = {
         en: {
