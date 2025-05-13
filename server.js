@@ -702,83 +702,117 @@ bot.on('callback_query', async (callbackQuery) => {
 
 // API endpoint
 app.post('/api/referral-withdrawals', async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
     try {
         const { userId, amount, walletAddress } = req.body;
         const amountNum = parseFloat(amount);
         const minAmount = 0.5;
 
-        // Validation chain
+        // Validate input
         if (!userId || !amount || !walletAddress) {
-            return res.status(400).json({ success: false, error: 'Missing fields' });
-        }
-        if (isNaN(amountNum)) {
-            return res.status(400).json({ success: false, error: 'Invalid amount' });
-        }
-        if (amountNum < minAmount) {
-            return res.status(400).json({ success: false, error: `Minimum ${minAmount} USDT` });
-        }
-        if (!isValidTONAddress(walletAddress)) {
-            return res.status(400).json({ success: false, error: 'Invalid TON address' });
-        }
-        if (await ReferralWithdrawal.exists({ userId, status: 'pending' })) {
-            return res.status(400).json({ success: false, error: 'Pending withdrawal exists' });
+            await session.abortTransaction();
+            return res.status(400).json({ 
+                success: false, 
+                error: 'All fields are required' 
+            });
         }
 
+        if (isNaN(amountNum) || amountNum <= 0) {
+            await session.abortTransaction();
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid amount' 
+            });
+        }
+
+        if (amountNum < minAmount) {
+            await session.abortTransaction();
+            return res.status(400).json({ 
+                success: false, 
+                error: `Minimum withdrawal is ${minAmount} USDT` 
+            });
+        }
+
+        if (!isValidTONAddress(walletAddress)) {
+            await session.abortTransaction();
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid TON wallet address' 
+            });
+        }
+
+        // Check for pending withdrawals
+        const pendingExists = await ReferralWithdrawal.exists({ 
+            userId, 
+            status: 'pending' 
+        }).session(session);
+
+        if (pendingExists) {
+            await session.abortTransaction();
+            return res.status(400).json({ 
+                success: false, 
+                error: 'You have a pending withdrawal already' 
+            });
+        }
+
+        // Process withdrawal
         const referralsRequired = Math.floor(amountNum / minAmount);
         const activeReferrals = await Referral.find({
             userId,
             status: 'completed',
             withdrawn: false
-        }).limit(referralsRequired);
+        }).limit(referralsRequired).session(session);
 
         if (activeReferrals.length < referralsRequired) {
+            await session.abortTransaction();
             return res.status(400).json({ 
                 success: false, 
-                error: `Need ${referralsRequired} active referrals` 
+                error: `Not enough active referrals (need ${referralsRequired})` 
             });
         }
 
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        const user = await User.findById(userId)
+            .select('username')
+            .session(session) || { username: 'Unknown' };
 
-        try {
-            const user = await User.findById(userId).select('username').lean() || { username: 'Unknown' };
-            const withdrawal = await ReferralWithdrawal.create([{
-                userId,
-                username: user.username,
-                amount: amountNum,
-                walletAddress: walletAddress.trim(),
-                referralIds: activeReferrals.map(r => r._id),
-                status: 'pending'
-            }], { session });
+        const withdrawal = await ReferralWithdrawal.create([{
+            userId,
+            username: user.username,
+            amount: amountNum,
+            walletAddress: walletAddress.trim(),
+            referralIds: activeReferrals.map(r => r._id),
+            status: 'pending'
+        }], { session });
 
-            await Referral.updateMany(
-                { _id: { $in: activeReferrals.map(r => r._id) } },
-                { $set: { withdrawn: true } },
-                { session }
-            );
+        await Referral.updateMany(
+            { _id: { $in: activeReferrals.map(r => r._id) } },
+            { $set: { withdrawn: true } },
+            { session }
+        );
 
-            await session.commitTransaction();
-            notifyAdmins(withdrawal[0]);
-            
-            return res.json({ 
-                success: true, 
-                withdrawalId: withdrawal[0]._id 
-            });
+        await session.commitTransaction();
+        
+        // Notify admins (non-blocking)
+        notifyAdmins(withdrawal[0]);
 
-        } catch (error) {
-            await session.abortTransaction();
-            throw error;
-        } finally {
-            session.endSession();
-        }
+        return res.json({ 
+            success: true,
+            withdrawalId: withdrawal[0]._id,
+            message: 'Withdrawal request submitted'
+        });
 
     } catch (error) {
-        console.error('Withdrawal error:', error);
+        await session.abortTransaction();
+        console.error('Withdrawal processing error:', error);
         return res.status(500).json({ 
-            success: false, 
-            error: 'Internal error' 
+            success: false,
+            error: 'Internal server error',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
+    } finally {
+        session.endSession();
     }
 });
 
