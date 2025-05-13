@@ -622,141 +622,106 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
 });
 //referral withdraw process
 
+// Telegram bot withdrawal handler
 bot.on('callback_query', async (callbackQuery) => {
-    const msg = callbackQuery.message;
-    const data = callbackQuery.data;
-    const chatId = msg.chat.id;
-    const fromId = callbackQuery.from.id;
+    const { message, data, from } = callbackQuery;
+    const chatId = message.chat.id;
+
+    if (!data.includes('withdrawal_')) return;
 
     try {
-        if (data.startsWith('complete_withdrawal_') || data.startsWith('decline_withdrawal_')) {
-            if (!adminIds.includes(fromId.toString())) {
-                return bot.answerCallbackQuery(callbackQuery.id, {
-                    text: "🚫 Unauthorized access",
-                    show_alert: true
-                });
-            }
-
-            const action = data.startsWith('complete_') ? 'complete' : 'decline';
-            const withdrawalId = data.split('_')[2];
-
-            const withdrawal = await ReferralWithdrawal.findById(withdrawalId);
-            if (!withdrawal) {
-                return bot.answerCallbackQuery(callbackQuery.id, {
-                    text: "❌ Withdrawal not found",
-                    show_alert: true
-                });
-            }
-
-            if (withdrawal.status !== 'pending') {
-                return bot.answerCallbackQuery(callbackQuery.id, {
-                    text: "ℹ️ Withdrawal already processed",
-                    show_alert: true
-                });
-            }
-
-            withdrawal.status = action === 'complete' ? 'completed' : 'declined';
-            withdrawal.adminAction = {
-                adminId: fromId.toString(),
-                action: action,
-                actionDate: new Date()
-            };
-
-            if (action === 'complete') {
-                withdrawal.completedAt = new Date();
-            } else {
-                await Referral.updateMany(
-                    { _id: { $in: withdrawal.referralIds } },
-                    { $set: { withdrawn: false } }
-                );
-            }
-
-            await withdrawal.save();
-
-            await bot.editMessageReplyMarkup({
-                chat_id: chatId,
-                message_id: msg.message_id,
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { 
-                                text: action === 'complete' ? '✅ Completed' : '❌ Declined', 
-                                callback_data: 'processed_' + withdrawalId
-                            }
-                        ]
-                    ]
-                }
-            });
-
-            const userMessage = action === 'complete' 
-                ? `🎉 Your withdrawal of ${withdrawal.amount} USDT has been approved!` 
-                : `⚠️ Your withdrawal of ${withdrawal.amount} USDT was declined.`;
-            
-            try {
-                await bot.sendMessage(withdrawal.userId, userMessage);
-            } catch (userError) {
-                console.error('Error notifying user:', userError);
-                await bot.sendMessage(chatId, `⚠️ Could not notify user ${withdrawal.userId}`);
-            }
-
+        if (!adminIds.includes(from.id.toString())) {
             return bot.answerCallbackQuery(callbackQuery.id, {
-                text: `Withdrawal ${action}d successfully`
+                text: "🚫 Unauthorized",
+                show_alert: true
             });
         }
+
+        const [action, _, withdrawalId] = data.split('_');
+        const withdrawal = await ReferralWithdrawal.findById(withdrawalId);
+
+        if (!withdrawal || withdrawal.status !== 'pending') {
+            return bot.answerCallbackQuery(callbackQuery.id, {
+                text: withdrawal ? "Already processed" : "Not found",
+                show_alert: true
+            });
+        }
+
+        withdrawal.status = action === 'complete' ? 'completed' : 'declined';
+        withdrawal.adminAction = {
+            adminId: from.id.toString(),
+            action,
+            actionDate: new Date()
+        };
+
+        if (action === 'decline') {
+            await Referral.updateMany(
+                { _id: { $in: withdrawal.referralIds } },
+                { $set: { withdrawn: false } }
+            );
+        }
+
+        await withdrawal.save();
+
+        await bot.editMessageReplyMarkup({
+            chat_id: chatId,
+            message_id: message.message_id,
+            reply_markup: {
+                inline_keyboard: [
+                    [{ 
+                        text: action === 'complete' ? '✅ Completed' : '❌ Declined', 
+                        callback_data: 'processed_' + withdrawalId
+                    }]
+                ]
+            }
+        });
+
+        try {
+            await bot.sendMessage(
+                withdrawal.userId,
+                action === 'complete' 
+                    ? `🎉 Withdrawal of ${withdrawal.amount} USDT approved!` 
+                    : `⚠️ Withdrawal of ${withdrawal.amount} USDT declined`
+            );
+        } catch (error) {
+            console.error('Notify user failed:', error);
+        }
+
+        return bot.answerCallbackQuery(callbackQuery.id, {
+            text: `Withdrawal ${action}d`
+        });
+
     } catch (error) {
-        console.error('Withdrawal action error:', error);
+        console.error('Callback error:', error);
         await bot.answerCallbackQuery(callbackQuery.id, {
-            text: '❌ Error processing action',
+            text: '❌ Processing failed',
             show_alert: true
         });
-        await bot.sendMessage(chatId, '⚠️ Error processing withdrawal action. Please check logs.');
     }
 });
 
+// API endpoint
 app.post('/api/referral-withdrawals', async (req, res) => {
     try {
         const { userId, amount, walletAddress } = req.body;
-
-        if (!userId || !amount || !walletAddress) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields'
-            });
-        }
-
         const amountNum = parseFloat(amount);
-        if (isNaN(amountNum)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid amount'
-            });
-        }
-
         const minAmount = 0.5;
+
+        // Validation chain
+        if (!userId || !amount || !walletAddress) {
+            return res.status(400).json({ success: false, error: 'Missing fields' });
+        }
+        if (isNaN(amountNum)) {
+            return res.status(400).json({ success: false, error: 'Invalid amount' });
+        }
         if (amountNum < minAmount) {
-            return res.status(400).json({
-                success: false,
-                error: `Minimum withdrawal is ${minAmount} USDT`
-            });
+            return res.status(400).json({ success: false, error: `Minimum ${minAmount} USDT` });
         }
-
         if (!isValidTONAddress(walletAddress)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid TON wallet'
-            });
+            return res.status(400).json({ success: false, error: 'Invalid TON address' });
         }
-
-        const hasPendingWithdrawal = await ReferralWithdrawal.exists({
-            userId,
-            status: 'pending'
-        });
-        
-        if (hasPendingWithdrawal) {
-            return res.status(400).json({
-                success: false,
-                error: 'Pending withdrawal exists'
-            });
+        if (await ReferralWithdrawal.exists({ userId, status: 'pending' })) {
+            return res.status(400).json({ success: false, error: 'Pending withdrawal exists' });
         }
 
         const referralsRequired = Math.floor(amountNum / minAmount);
@@ -767,38 +732,40 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         }).limit(referralsRequired);
 
         if (activeReferrals.length < referralsRequired) {
-            return res.status(400).json({
-                success: false,
-                error: `Need ${referralsRequired} active referrals`
+            return res.status(400).json({ 
+                success: false, 
+                error: `Need ${referralsRequired} active referrals` 
             });
         }
-
-        const user = await User.findById(userId).select('username') || { username: 'Unknown' };
-        const withdrawal = new ReferralWithdrawal({
-            userId,
-            username: user.username,
-            amount: amountNum,
-            walletAddress: walletAddress.trim(),
-            referralIds: activeReferrals.map(r => r._id),
-            status: 'pending'
-        });
 
         const session = await mongoose.startSession();
         session.startTransaction();
 
         try {
-            await withdrawal.save({ session });
+            const user = await User.findById(userId).select('username').lean() || { username: 'Unknown' };
+            const withdrawal = await ReferralWithdrawal.create([{
+                userId,
+                username: user.username,
+                amount: amountNum,
+                walletAddress: walletAddress.trim(),
+                referralIds: activeReferrals.map(r => r._id),
+                status: 'pending'
+            }], { session });
+
             await Referral.updateMany(
                 { _id: { $in: activeReferrals.map(r => r._id) } },
                 { $set: { withdrawn: true } },
                 { session }
             );
+
             await session.commitTransaction();
-            notifyAdminsAboutWithdrawal(withdrawal);
-            return res.json({
-                success: true,
-                withdrawalId: withdrawal._id
+            notifyAdmins(withdrawal[0]);
+            
+            return res.json({ 
+                success: true, 
+                withdrawalId: withdrawal[0]._id 
             });
+
         } catch (error) {
             await session.abortTransaction();
             throw error;
@@ -808,26 +775,27 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
     } catch (error) {
         console.error('Withdrawal error:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Internal server error'
+        return res.status(500).json({ 
+            success: false, 
+            error: 'Internal error' 
         });
     }
 });
 
-async function notifyAdminsAboutWithdrawal(withdrawal) {
+// Helper functions
+async function notifyAdmins(withdrawal) {
     if (!adminIds?.length) return;
 
-    const message = `📌 New Withdrawal Request\n\n` +
-                  `👤 User: ${withdrawal.username}\n` +
-                  `💰 Amount: ${withdrawal.amount} USDT\n` +
-                  `📭 Wallet: ${withdrawal.walletAddress}\n\n` +
-                  `🆔 ID: ${withdrawal._id}`;
+    const message = `📌 New Withdrawal\n\n` +
+                  `👤 ${withdrawal.username}\n` +
+                  `💰 ${withdrawal.amount} USDT\n` +
+                  `📭 ${withdrawal.walletAddress}\n\n` +
+                  `🆔 ${withdrawal._id}`;
 
     const keyboard = {
         inline_keyboard: [
             [
-                { text: '✅ Complete', callback_data: `complete_withdrawal_${withdrawal._id}` },
+                { text: '✅ Approve', callback_data: `complete_withdrawal_${withdrawal._id}` },
                 { text: '❌ Decline', callback_data: `decline_withdrawal_${withdrawal._id}` }
             ]
         ]
@@ -836,17 +804,14 @@ async function notifyAdminsAboutWithdrawal(withdrawal) {
     await Promise.allSettled(
         adminIds.map(adminId => 
             bot.sendMessage(adminId, message, { reply_markup: keyboard })
-                .catch(err => console.error(`Admin notify error:`, err))
         )
     );
 }
 
 function isValidTONAddress(address) {
-    if (!address || typeof address !== 'string') return false;
-    const cleanAddr = address.replace(/^ton:\/\//, '').trim();
+    const cleanAddr = (address || '').toString().replace(/^ton:\/\//, '').trim();
     return /^(EQ|UQ)[a-zA-Z0-9_-]{43,48}$/.test(cleanAddr);
 }
-
 
 
 
