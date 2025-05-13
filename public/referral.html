@@ -778,14 +778,9 @@ function showWithdrawPopup() {
 
 async function submitWithdrawal({ amount, walletAddress }) {
     try {
-        // Validate inputs before sending
-        if (!walletAddress || typeof walletAddress !== 'string') {
-            throw new Error('Wallet address is required');
-        }
-        if (!amount || isNaN(parseFloat(amount))) {
-            throw new Error('Valid amount is required');
-        }
-
+        // Show loading state
+        Swal.showLoading();
+        
         const response = await fetch('/api/referral-withdrawals', {
             method: 'POST',
             headers: {
@@ -794,16 +789,15 @@ async function submitWithdrawal({ amount, walletAddress }) {
             body: JSON.stringify({
                 userId: state.userId,
                 amount: parseFloat(amount),
-                walletAddress: walletAddress.trim() // Only call trim if it exists
+                walletAddress: walletAddress.trim()
             })
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Withdrawal failed');
-        }
-
         const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Withdrawal failed');
+        }
 
         // Update local state
         state.withdrawals.unshift({
@@ -816,17 +810,26 @@ async function submitWithdrawal({ amount, walletAddress }) {
         state.stats.availableBalance -= parseFloat(amount);
         updateUI();
         
-        return {
-            success: true,
-            message: `Withdrawal request for ${amount} USDT submitted!`
-        };
+        // Show success message
+        await Swal.fire({
+            title: 'Success!',
+            text: `Withdrawal request for ${amount} USDT submitted`,
+            icon: 'success',
+            confirmButtonText: 'OK'
+        });
         
+        return true;
+
     } catch (error) {
         console.error('Withdrawal error:', error);
-        return {
-            success: false,
-            error: error.message || 'Withdrawal failed. Please try again.'
-        };
+        // Show error message
+        await Swal.fire({
+            title: 'Error',
+            text: error.message || 'Withdrawal failed. Please try again.',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+        return false;
     }
 }
  
