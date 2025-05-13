@@ -776,8 +776,7 @@ function showWithdrawPopup() {
     });
 }
 
-
- async function submitWithdrawal({ amount, walletAddress }) {
+async function submitWithdrawal({ amount, walletAddress }) {
     try {
         const response = await fetch('/api/referral-withdrawals', {
             method: 'POST',
@@ -786,19 +785,19 @@ function showWithdrawPopup() {
             },
             body: JSON.stringify({
                 userId: state.userId,
-                amount: parseFloat(amount), // Ensure number format
-                walletAddress: walletAddress.trim() // Clean whitespace
+                amount: parseFloat(amount),
+                walletAddress: walletAddress.trim()
             })
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error || `Server error: ${response.status}`);
+            throw new Error(data.error || `Withdrawal failed (${response.status})`);
         }
 
         if (!data.success) {
-            throw new Error(data.error || 'Withdrawal failed');
+            throw new Error(data.error || 'Withdrawal request failed');
         }
 
         // Update local state
@@ -812,11 +811,23 @@ function showWithdrawPopup() {
         state.stats.availableBalance -= parseFloat(amount);
         updateUI();
         
-        showSuccess(`Withdrawal request for ${amount} USDT submitted!`);
+        // Show success and keep popup open
+        Swal.fire({
+            title: 'Success!',
+            text: `Withdrawal request for ${amount} USDT submitted`,
+            icon: 'success',
+            confirmButtonText: 'OK'
+        });
         
     } catch (error) {
         console.error('Withdrawal error:', error);
-        showError(error.message || 'Withdrawal failed. Please try again.');
+        // Show error and keep popup open
+        Swal.fire({
+            title: 'Error',
+            text: error.message || 'Withdrawal failed. Please try again.',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
     }
 }
 
