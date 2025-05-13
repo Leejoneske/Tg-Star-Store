@@ -740,10 +740,19 @@ function showWithdrawPopup() {
                 const amountInput = form.querySelector('[name="amount"]');
                 const walletInput = form.querySelector('[name="wallet"]');
                 
+                // Check for empty fields first
+                if (!amountInput.value.trim()) {
+                    throw 'Please enter an amount to withdraw';
+                }
+                
+                if (!walletInput.value.trim()) {
+                    throw 'Please enter a wallet address';
+                }
+                
                 // Amount validation
                 const amount = parseFloat(amountInput.value);
-                if (isNaN(amount) || amountInput.value.trim() === '') {
-                    throw 'Please enter a valid amount like 0.50';
+                if (isNaN(amount)) {
+                    throw 'Please enter a valid numeric amount';
                 }
                 
                 if (amount < 0.5) {
@@ -751,15 +760,11 @@ function showWithdrawPopup() {
                 }
                 
                 if (amount > state.stats.availableBalance) {
-                    throw `Maximum withdrawal is ${state.stats.availableBalance.toFixed(2)} USDT`;
+                    throw `You can withdraw maximum ${state.stats.availableBalance.toFixed(2)} USDT`;
                 }
                 
                 // Wallet validation
                 const walletAddress = walletInput.value.trim();
-                if (!walletAddress) {
-                    throw 'Please enter a wallet address';
-                }
-                
                 if (!isValidTONAddress(walletAddress)) {
                     throw 'Please enter a valid TON wallet address (starts with EQ or UQ)';
                 }
@@ -781,6 +786,7 @@ function showWithdrawPopup() {
     });
 }
 
+ 
 async function submitWithdrawal({ amount, walletAddress }) {
     try {
         const response = await fetch('/api/referral-withdrawals', {
