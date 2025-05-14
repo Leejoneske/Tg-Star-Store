@@ -329,7 +329,7 @@
              <div class="flex space-x-2 mb-4">
     <button class="share-button flex-1 bg-indigo-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-600 transition-colors flex items-center justify-center" id="shareTg">
         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm4.441 16.892c-2.102.144-6.784.144-8.883 0-2.276-.156-2.541-1.27-2.558-4.892.017-3.629.285-4.736 2.558-4.892 2.099-.144 6.782-.144 8.883 0 2.277.156 2.541 1.27 2.559 4.892-.018 3.629-.285 4.736-2.559 4.892zm-6.441-7.234l4.917 2.338-4.917 2.346v-4.684z"/>
+            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.225l-2.237 10.54c-.168.746-.765.926-1.55.576l-4.275-3.15-2.064 1.984c-.23.23-.42.42-.85.42l.305-4.305 7.83-7.07c.34-.305-.074-.473-.523-.168l-9.67 6.08-4.16-1.298c-.9-.277-.915-.9.187-1.33l16.262-6.262c.746-.275 1.394.182 1.146 1.355z"/>
         </svg>
         <span data-lang="share-telegram">Share</span>
     </button>
@@ -690,16 +690,17 @@ function openShareWindow(url, width, height) {
     window.open(url, '_blank', `width=${width},height=${height},top=${top},left=${left},toolbar=no,menubar=no,scrollbars=no,resizable=yes`);
 }
 
-
 function shareViaTelegram() {
     if (window.Telegram?.WebApp?.share) {
-        const text = "Check out StarStore! Use my referral link to get started: " + state.referralLink;
-        Telegram.WebApp.share(text);
+        const text = "Check out StarStore! Use my referral link to get started: " + (window.state?.referralLink || "[REFERRAL_LINK]");
+        window.Telegram.WebApp.share(text);
     } else {
+        const text = "Check out StarStore! Use my referral link to get started: " + (window.state?.referralLink || "[REFERRAL_LINK]");
         const shareUrl = `tg://msg?text=${encodeURIComponent(text)}`;
         openShareWindow(shareUrl, 600, 600);
     }
 }
+
 
 function isValidTONAddress(address) {
     if (!address || typeof address !== 'string') return false;
