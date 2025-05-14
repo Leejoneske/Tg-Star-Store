@@ -635,7 +635,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         const { userId, amount, walletAddress } = req.body;
         const amountNum = parseFloat(amount);
 
-        if (isNaN(amountNum) {
+        if (isNaN(amountNum)) {
             throw new Error('Invalid amount');
         }
 
