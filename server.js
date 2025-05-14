@@ -625,30 +625,13 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
 });
 
 // get withdraw for referrals page 
-app.get('/api/user-withdrawals/:userId', async (req, res) => {
-    try {
-        const withdrawals = await ReferralWithdrawal.find({ 
-            userId: req.params.userId 
-        }).sort({ createdAt: -1 });
-
-        res.json({
-            success: true,
-            withdrawals: withdrawals.map(w => ({
-                id: `WD${w._id.toString().slice(-8).toUpperCase()}`,
-                amount: w.amount,
-                walletAddress: w.walletAddress,
-                status: w.status,
-                date: w.completedAt || w.declinedAt || w.createdAt
-            }))
-        });
-    } catch (error) {
-        console.error('Withdrawal history error:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Failed to load withdrawal history' 
-        });
+const event = new CustomEvent('withdrawalUpdate', {
+    detail: {
+        withdrawalId: withdrawal._id,
+        status: action === 'complete' ? 'completed' : 'declined'
     }
 });
+window.dispatchEvent(event);
 
 
 // Withdrawal endpoint
