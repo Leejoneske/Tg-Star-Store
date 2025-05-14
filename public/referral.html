@@ -574,7 +574,7 @@ function updateReferralsList() {
     });
 }
 
- function updateWithdrawalsList() {
+function updateWithdrawalsList() {
     const container = document.getElementById('withdrawalsContainer');
     container.innerHTML = '';
     
@@ -612,8 +612,6 @@ function updateReferralsList() {
         container.appendChild(item);
     });
 }
-
-
 
 
 function setupEventListeners() {
@@ -822,12 +820,14 @@ async function submitWithdrawal({ amount, walletAddress }) {
 
         const data = await response.json();
 
-        if (!response.ok) throw new Error(data.error || 'Withdrawal failed');
+        if (!response.ok) {
+            throw new Error(data.error || 'Withdrawal failed');
+        }
 
         state.withdrawals.unshift({
             id: data.withdrawalId,
             amount: parseFloat(amount),
-            walletAddress,
+            walletAddress: walletAddress,
             date: new Date().toISOString(),
             status: 'pending'
         });
