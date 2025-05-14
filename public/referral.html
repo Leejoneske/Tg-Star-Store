@@ -502,12 +502,23 @@ const state = {
     withdrawals: []
 };
 
+
 function init() {
     setupEventListeners();
     loadReferralData();
     setupTelegramSharing();
+    
+    // Listen for withdrawal status updates
+    window.addEventListener('withdrawalUpdate', (e) => {
+        const { withdrawalId, status } = e.detail;
+        const withdrawal = state.withdrawals.find(w => w.id === withdrawalId);
+        if (withdrawal) {
+            withdrawal.status = status;
+            updateUI();
+        }
+    });
 }
-
+ 
 async function loadReferralData() {
     try {
         const response = await fetch(`/api/referral-stats/${state.userId}`);
@@ -588,20 +599,25 @@ function updateWithdrawalsList() {
     document.getElementById('noWithdrawals').classList.add('hide');
     document.getElementById('withdrawalsList').classList.remove('hide');
     
-    state.withdrawals.forEach(withdrawal => {
+    // Sort by date (newest first)
+    const sortedWithdrawals = [...state.withdrawals].sort((a, b) => 
+        new Date(b.date) - new Date(a.date)
+    );
+    
+    sortedWithdrawals.forEach(withdrawal => {
         const item = document.createElement('div');
-        item.className = 'py-3 flex justify-between items-center border-b border-gray-100';
+        item.className = 'withdrawal-item py-3 flex justify-between items-center border-b border-gray-100';
         item.innerHTML = `
             <div class="flex-1">
                 <div class="font-medium text-gray-800">${withdrawal.amount.toFixed(2)} USDT</div>
-                <div class="text-xs text-gray-500 mt-1">
+                <div class="text-xs text-gray-500 mt-1 wallet-address">
                     ${withdrawal.walletAddress.substring(0, 6)}...${withdrawal.walletAddress.slice(-4)}
                 </div>
             </div>
             <div class="text-right">
-                <div class="text-sm ${withdrawal.status === 'completed' ? 'text-green-500' : 
-                                   withdrawal.status === 'declined' ? 'text-red-500' : 'text-yellow-500'}">
-                    ${withdrawal.status}
+                <div class="text-sm ${withdrawal.status === 'completed' ? 'status-completed' : 
+                                   withdrawal.status === 'declined' ? 'status-declined' : 'status-pending'}">
+                    ${withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}
                 </div>
                 <div class="text-xs text-gray-400 mt-1">
                     ${new Date(withdrawal.date).toLocaleDateString()}
@@ -821,11 +837,13 @@ async function submitWithdrawal({ amount, walletAddress }) {
             throw new Error(data.error || 'Withdrawal failed');
         }
 
+        // Add withdrawal with pending status
         state.withdrawals.unshift({
+            id: data.withdrawalId,
             amount: parseFloat(amount),
-            walletAddress,
-            date: new Date().toISOString(),
-            status: 'pending'
+            walletAddress: walletAddress,
+            status: 'pending',
+            date: new Date().toISOString()
         });
         
         state.stats.availableBalance -= parseFloat(amount);
