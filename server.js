@@ -625,82 +625,6 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
 });
 
 // Referral withdrawal processing system (Full Implementation)
-// Telegram bot withdrawal handler
-bot.on('callback_query', async (callbackQuery) => {
-    const { message, data, from } = callbackQuery;
-    const chatId = message.chat.id;
-
-    if (!data.startsWith('withdrawal_')) return;
-
-    try {
-        // Verify admin
-        if (!adminIds.includes(from.id.toString())) {
-            return bot.answerCallbackQuery(callbackQuery.id, {
-                text: "🚫 Unauthorized",
-                show_alert: true
-            });
-        }
-
-        const [action, withdrawalId] = data.split('_').slice(1);
-        const withdrawal = await ReferralWithdrawal.findById(withdrawalId);
-
-        // Validate withdrawal
-        if (!withdrawal) {
-            return bot.answerCallbackQuery(callbackQuery.id, {
-                text: "Withdrawal not found",
-                show_alert: true
-            });
-        }
-
-        if (withdrawal.status !== 'pending') {
-            return bot.answerCallbackQuery(callbackQuery.id, {
-                text: `Already ${withdrawal.status}`,
-                show_alert: true
-            });
-        }
-
-        // Process action
-        withdrawal.status = action === 'confirm' ? 'completed' : 'declined';
-        withdrawal.processedBy = from.id;
-        await withdrawal.save();
-
-        // Update admin message buttons
-        await bot.editMessageReplyMarkup({
-            chat_id: chatId,
-            message_id: message.message_id,
-            reply_markup: {
-                inline_keyboard: [
-                    [{
-                        text: action === 'confirm' ? '✅ Approved' : '❌ Declined',
-                        callback_data: `processed_${withdrawalId}`
-                    }]
-                ]
-            }
-        });
-
-        // Notify user
-        const userMessage = action === 'confirm'
-            ? `🎉 Withdrawal Approved!\n` +
-              `💰 Amount: ${withdrawal.amount} USDT\n` +
-              `💳 Wallet: ${withdrawal.walletAddress.slice(0, 6)}...${withdrawal.walletAddress.slice(-4)}`
-            : `⚠️ Withdrawal Declined\n` +
-              `Amount: ${withdrawal.amount} USDT\n` +
-              `Contact support for details`;
-
-        await bot.sendMessage(withdrawal.userId, userMessage);
-
-        return bot.answerCallbackQuery(callbackQuery.id, {
-            text: `Withdrawal ${action === 'confirm' ? 'approved' : 'declined'}`
-        });
-
-    } catch (error) {
-        console.error('Withdrawal processing error:', error);
-        return bot.answerCallbackQuery(callbackQuery.id, {
-            text: '❌ Processing failed',
-            show_alert: true
-        });
-    }
-});
 
 // API endpoint for withdrawals
 app.post('/api/referral-withdrawals', async (req, res) => {
@@ -709,44 +633,39 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
     try {
         const { userId, amount, walletAddress } = req.body;
-
-        // Validation
         const amountNum = parseFloat(amount);
-        if (isNaN(amountNum) || amountNum < 0.5) {
-            throw new Error('Minimum withdrawal is 0.5 USDT');
+
+        if (isNaN(amountNum) {
+            throw new Error('Invalid amount');
         }
 
-        const trimmedWallet = walletAddress.trim();
-        if (!/^(EQ|UQ)[a-zA-Z0-9_-]{43,48}$/.test(trimmedWallet)) {
-            throw new Error('Invalid TON wallet address');
-        }
-
-        // Check available balance
         const availableReferrals = await Referral.find({
             referrerUserId: userId,
             status: { $in: ['completed', 'active'] },
-            withdrawn: false
+            withdrawn: { $ne: true }
         }).session(session);
 
         const availableBalance = availableReferrals.length * 0.5;
-        if (amountNum > availableBalance) {
-            throw new Error(`Insufficient balance: ${availableBalance.toFixed(2)} USDT available`);
+
+        if (amountNum < 0.5) {
+            throw new Error('Minimum withdrawal is 0.5 USDT');
         }
 
-        // Create withdrawal
-        const user = await User.findOne({ id: userId }).session(session) || { username: 'User' };
+        if (amountNum > availableBalance) {
+            throw new Error(`Insufficient balance. Available: ${availableBalance.toFixed(2)} USDT`);
+        }
+
         const referralsNeeded = Math.ceil(amountNum / 0.5);
         const referralsToMark = availableReferrals.slice(0, referralsNeeded);
 
         const [withdrawal] = await ReferralWithdrawal.create([{
             userId,
-            username: user.username,
             amount: amountNum,
-            walletAddress: trimmedWallet,
-            referralIds: referralsToMark.map(r => r._id)
+            walletAddress: walletAddress.trim(),
+            referralIds: referralsToMark.map(r => r._id),
+            status: 'pending'
         }], { session });
 
-        // Mark referrals as withdrawn
         await Referral.updateMany(
             { _id: { $in: referralsToMark.map(r => r._id) } },
             { $set: { withdrawn: true } },
@@ -755,12 +674,11 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         await session.commitTransaction();
 
-        // Notify admins with action buttons
         const adminMessage = `📌 New Withdrawal Request\n\n` +
-                           `👤 ${withdrawal.username}\n` +
-                           `🆔 ${userId}\n` +
-                           `💰 ${amountNum} USDT\n` +
-                           `🔗 ${trimmedWallet.slice(0, 6)}...${trimmedWallet.slice(-4)}`;
+                           `👤 User: ${withdrawal.username || userId}\n` +
+                           `💰 Amount: ${amountNum} USDT\n` +
+                           `📭 Wallet: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}\n` +
+                           `🔢 Using ${referralsNeeded} referrals`;
 
         const adminButtons = {
             inline_keyboard: [
@@ -771,29 +689,19 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             ]
         };
 
-        // Send to all admins
-        await Promise.all(adminIds.map(adminId => 
-            bot.sendMessage(adminId, adminMessage, { reply_markup: adminButtons })
-        ));
-
-        // User confirmation
-        await bot.sendMessage(
-            userId,
-            `⏳ Withdrawal request received\n` +
-            `Amount: ${amountNum} USDT\n` +
-            `Processing time: 1-24 hours`
-        );
+        adminIds.forEach(adminId => {
+            bot.sendMessage(adminId, adminMessage, { reply_markup: adminButtons });
+        });
 
         return res.json({
             success: true,
             withdrawalId: withdrawal._id,
             amount: amountNum,
-            status: 'pending'
+            referralsUsed: referralsNeeded
         });
 
     } catch (error) {
         await session.abortTransaction();
-        console.error('Withdrawal error:', error.message);
         return res.status(400).json({
             success: false,
             error: error.message
