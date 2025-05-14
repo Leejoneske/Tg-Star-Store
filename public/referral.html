@@ -715,8 +715,12 @@ function isValidTONAddress(address) {
 }
  //withdraw shit
 async function showWithdrawPopup() {
-    if (state.stats.availableBalance < 0.5) {
-        showError('Minimum withdrawal amount is 0.5 USDT');
+    // Calculate maximum withdrawable amount based on active referrals
+    const activeReferrals = state.referrals.filter(r => r.status === 'completed' && !r.withdrawn);
+    const maxWithdrawable = activeReferrals.length * 0.5;
+    
+    if (maxWithdrawable < 0.5) {
+        showError(`You need at least 1 completed referral to withdraw. You have ${activeReferrals.length} available.`);
         return;
     }
 
@@ -725,10 +729,10 @@ async function showWithdrawPopup() {
         html: `
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
-                <input type="number" id="withdrawAmount" name="amount" min="0.5" max="${state.stats.availableBalance}" 
+                <input type="number" id="withdrawAmount" name="amount" min="0.5" max="${maxWithdrawable.toFixed(2)}" 
                        step="0.01" class="w-full p-2 border rounded" 
-                       placeholder="0.50" required value="${Math.min(0.5, state.stats.availableBalance).toFixed(2)}">
-                <p class="text-xs text-gray-500 mt-1">Available: ${state.stats.availableBalance.toFixed(2)} USDT</p>
+                       placeholder="0.50" required value="${Math.min(0.5, maxWithdrawable).toFixed(2)}">
+                <p class="text-xs text-gray-500 mt-1">Available: ${maxWithdrawable.toFixed(2)} USDT (${activeReferrals.length} active referrals)</p>
             </div>
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
@@ -750,21 +754,21 @@ async function showWithdrawPopup() {
                 return false;
             }
 
-            const amount = amountInput.value;
+            const amount = parseFloat(amountInput.value);
             const walletAddress = walletInput.value;
 
-            if (!amount || isNaN(parseFloat(amount))) {
+            if (isNaN(amount) || amount <= 0) {
                 Swal.showValidationMessage('Please enter a valid amount');
                 return false;
             }
 
-            if (parseFloat(amount) < 0.5) {
+            if (amount < 0.5) {
                 Swal.showValidationMessage('Minimum withdrawal is 0.50 USDT');
                 return false;
             }
 
-            if (parseFloat(amount) > state.stats.availableBalance) {
-                Swal.showValidationMessage(`You can withdraw maximum ${state.stats.availableBalance.toFixed(2)} USDT`);
+            if (amount > maxWithdrawable) {
+                Swal.showValidationMessage(`You can only withdraw ${maxWithdrawable.toFixed(2)} USDT (${activeReferrals.length} active referrals)`);
                 return false;
             }
 
@@ -779,22 +783,14 @@ async function showWithdrawPopup() {
             }
 
             return {
-                amount: parseFloat(amount).toFixed(2),
+                amount: amount.toFixed(2),
                 walletAddress: walletAddress.trim()
             };
         }
     });
 
     if (formValues) {
-        const success = await submitWithdrawal(formValues);
-        if (success) {
-            await Swal.fire({
-                title: 'Success!',
-                text: `Withdrawal request for ${formValues.amount} USDT submitted`,
-                icon: 'success',
-                confirmButtonText: 'OK'
-            });
-        }
+        await submitWithdrawal(formValues);
     }
 }
 
