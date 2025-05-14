@@ -993,6 +993,7 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
 
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
+    const userId = msg.from.id; 
     const username = msg.from.username || 'user';
     const deepLinkParam = match[1]?.trim();
 
@@ -1000,11 +1001,14 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         let user = await User.findOne({ id: chatId });
         if (!user) user = await User.create({ id: chatId, username });
 
+        // Send sticker (fixed to use chatId instead of undefined userId)
         try {
-            await bot.sendSticker(userId, 'CAACAgIAAxkBAAEOfYRoJQbAGJ_uoVDJp5O3xyvEPR77BAACbgUAAj-VzAqGOtldiLy3NTYE');
+            await bot.sendSticker(chatId, 'CAACAgIAAxkBAAEOfYRoJQbAGJ_uoVDJp5O3xyvEPR77BAACbgUAAj-VzAqGOtldiLy3NTYE');
         } catch (stickerError) {
             console.error('Failed to send sticker:', stickerError);
         }
+
+        // Original welcome message with buttons
         await bot.sendMessage(chatId, `Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`, {
             reply_markup: {
                 inline_keyboard: [
@@ -1014,6 +1018,7 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
             }
         });
 
+        // Original referral handling
         if (deepLinkParam?.startsWith('ref_')) {
             const referrerUserId = deepLinkParam.split('_')[1];
             if (!referrerUserId || !/^\d+$/.test(referrerUserId) || referrerUserId === chatId.toString()) return;
