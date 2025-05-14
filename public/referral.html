@@ -510,36 +510,35 @@ function init() {
 
 async function loadReferralData() {
     try {
-        const response = await fetch(`/api/referral-stats/${state.userId}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const [statsResponse, withdrawalsResponse] = await Promise.all([
+            fetch(`/api/referral-stats/${state.userId}`),
+            fetch(`/api/user-withdrawals/${state.userId}`)
+        ]);
         
-        const data = await response.json();
-        if (!data.success) throw new Error(data.error || 'Failed to load referral data');
+        if (!statsResponse.ok) throw new Error(`HTTP error! status: ${statsResponse.status}`);
+        if (!withdrawalsResponse.ok) throw new Error(`HTTP error! status: ${withdrawalsResponse.status}`);
+        
+        const statsData = await statsResponse.json();
+        const withdrawalsData = await withdrawalsResponse.json();
+        
+        if (!statsData.success) throw new Error(statsData.error || 'Failed to load referral data');
+        if (!withdrawalsData.success) throw new Error(withdrawalsData.error || 'Failed to load withdrawals');
 
-        state.referrals = data.referrals || [];
-        state.stats = data.stats || {
+        state.referrals = statsData.referrals || [];
+        state.stats = statsData.stats || {
             availableBalance: 0,
             totalEarned: 0,
             referralsCount: 0,
             pendingAmount: 0
         };
-        state.referralLink = data.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
+        state.referralLink = statsData.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
+        state.withdrawals = withdrawalsData.withdrawals || [];
 
         updateUI();
     } catch (error) {
         console.error('Error loading referral data:', error);
         showError('Failed to load referral data');
     }
-}
-
-function updateUI() {
-    document.getElementById('availableBalance').textContent = `${state.stats.availableBalance.toFixed(2)} USDT`;
-    document.getElementById('totalEarned').textContent = `${state.stats.totalEarned.toFixed(2)} USDT`;
-    document.getElementById('referralsCount').textContent = state.stats.referralsCount;
-    document.getElementById('pendingAmount').textContent = `${state.stats.pendingAmount.toFixed(2)} USDT`;
-    document.getElementById('referralLinkDisplay').textContent = state.referralLink;
-    updateReferralsList();
-    updateWithdrawalsList();
 }
 
 function updateReferralsList() {
@@ -575,6 +574,7 @@ function updateReferralsList() {
     });
 }
 
+ 
 function updateWithdrawalsList() {
     const container = document.getElementById('withdrawalsContainer');
     container.innerHTML = '';
@@ -588,20 +588,24 @@ function updateWithdrawalsList() {
     document.getElementById('noWithdrawals').classList.add('hide');
     document.getElementById('withdrawalsList').classList.remove('hide');
     
-    state.withdrawals.forEach(withdrawal => {
+    const sortedWithdrawals = [...state.withdrawals].sort((a, b) => 
+        new Date(b.date) - new Date(a.date)
+    );
+    
+    sortedWithdrawals.forEach(withdrawal => {
         const item = document.createElement('div');
-        item.className = 'py-3 flex justify-between items-center border-b border-gray-100';
+        item.className = 'withdrawal-item py-3 flex justify-between items-center border-b border-gray-100';
         item.innerHTML = `
             <div class="flex-1">
                 <div class="font-medium text-gray-800">${withdrawal.amount.toFixed(2)} USDT</div>
-                <div class="text-xs text-gray-500 mt-1">
+                <div class="text-xs text-gray-500 mt-1 wallet-address">
                     ${withdrawal.walletAddress.substring(0, 6)}...${withdrawal.walletAddress.slice(-4)}
                 </div>
             </div>
             <div class="text-right">
-                <div class="text-sm ${withdrawal.status === 'completed' ? 'text-green-500' : 
-                                   withdrawal.status === 'declined' ? 'text-red-500' : 'text-yellow-500'}">
-                    ${withdrawal.status}
+                <div class="text-sm ${withdrawal.status === 'completed' ? 'status-completed' : 
+                                   withdrawal.status === 'declined' ? 'status-declined' : 'status-pending'}">
+                    ${withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}
                 </div>
                 <div class="text-xs text-gray-400 mt-1">
                     ${new Date(withdrawal.date).toLocaleDateString()}
@@ -611,6 +615,8 @@ function updateWithdrawalsList() {
         container.appendChild(item);
     });
 }
+
+
 
 function setupEventListeners() {
     document.getElementById('menuButton').addEventListener('click', toggleMenu);
@@ -822,6 +828,7 @@ async function submitWithdrawal({ amount, walletAddress }) {
         }
 
         state.withdrawals.unshift({
+            id: data.withdrawalId,
             amount: parseFloat(amount),
             walletAddress,
             date: new Date().toISOString(),
@@ -844,6 +851,7 @@ async function submitWithdrawal({ amount, walletAddress }) {
         Swal.hideLoading();
     }
 }
+
 
  
     const translations = {
