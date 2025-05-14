@@ -701,29 +701,34 @@ function shareViaTelegram() {
     }
 }
 
-
 function isValidTONAddress(address) {
     if (!address || typeof address !== 'string') return false;
-    try {
-        const cleanAddr = address.replace(/^ton:\/\//, '').trim();
-        const tonRegex = /^(EQ|UQ)[a-zA-Z0-9_-]{43,48}$/;
-        const isBasicValid = tonRegex.test(cleanAddr);
-        return isBasicValid && cleanAddr.length >= 48 && !/[OIl]/.test(cleanAddr);
-    } catch (e) {
-        return false;
-    }
+    const cleanAddr = address.replace(/^ton:\/\//, '').trim();
+    return /^(EQ|UQ)[a-zA-Z0-9_-]{43,48}$/.test(cleanAddr) && 
+           cleanAddr.length >= 48 && 
+           !/[OIl]/.test(cleanAddr);
 }
- //withdraw shit
+
 async function showWithdrawPopup() {
     try {
-        // Calculate available balance from active referrals
-        const activeReferrals = state.referrals.filter(r => r.status === 'completed' && !r.withdrawn);
-        const availableBalance = activeReferrals.length * 0.5;
+        await loadReferralData();
         
+        const activeReferrals = state.referrals.filter(r => 
+            ['completed', 'active'].includes(r.status) && !r.withdrawn
+        );
+        
+        const availableBalance = activeReferrals.length * 0.5;
+
         if (availableBalance < 0.5) {
             await Swal.fire({
                 title: 'Insufficient Balance',
-                text: `You need at least 1 completed referral (0.5 USDT) to withdraw. You have ${activeReferrals.length} available.`,
+                html: `<div class="text-center">
+                    <p>You need at least 1 completed referral (0.5 USDT) to withdraw.</p>
+                    <p class="mt-2">
+                        <span class="font-semibold">Your balance:</span> 
+                        ${availableBalance.toFixed(2)} USDT (${activeReferrals.length} active referrals)
+                    </p>
+                </div>`,
                 icon: 'error',
                 confirmButtonText: 'OK'
             });
@@ -735,70 +740,42 @@ async function showWithdrawPopup() {
             html: `
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
-                    <input type="number" id="withdrawAmount" name="amount" 
-                           min="0.5" max="${availableBalance.toFixed(2)}" 
-                           step="0.01" class="w-full p-2 border rounded" 
-                           placeholder="0.50" required 
-                           value="${Math.min(0.5, availableBalance).toFixed(2)}">
+                    <input type="number" id="withdrawAmount" 
+                           min="0.5" max="${availableBalance}" 
+                           step="0.01" value="${Math.min(0.5, availableBalance).toFixed(2)}"
+                           class="w-full p-2 border rounded" required>
                     <p class="text-xs text-gray-500 mt-1">
-                        Available: ${availableBalance.toFixed(2)} USDT (${activeReferrals.length} active referrals)
+                        Available: ${availableBalance.toFixed(2)} USDT
                     </p>
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
-                    <input type="text" id="withdrawWallet" name="wallet" 
+                    <input type="text" id="withdrawWallet" 
                            class="w-full p-2 border rounded" 
-                           placeholder="EQ or UQ..." required>
-                    <p class="text-xs text-gray-500 mt-1">Only TON network addresses accepted</p>
-                </div>
-            `,
+                           placeholder="EQ..." required>
+                </div>`,
             focusConfirm: false,
             showCancelButton: true,
-            confirmButtonText: 'Request Withdrawal',
-            allowOutsideClick: false,
             preConfirm: () => {
-                const amountInput = Swal.getPopup().querySelector('#withdrawAmount');
-                const walletInput = Swal.getPopup().querySelector('#withdrawWallet');
-                
-                if (!amountInput || !walletInput) {
-                    Swal.showValidationMessage('Form fields not found');
-                    return false;
-                }
+                const amount = parseFloat(document.getElementById('withdrawAmount').value);
+                const wallet = document.getElementById('withdrawWallet').value.trim();
 
-                const amount = parseFloat(amountInput.value);
-                const walletAddress = walletInput.value.trim();
-
-                // Validate amount
-                if (isNaN(amount)) {
-                    Swal.showValidationMessage('Please enter a valid amount');
-                    return false;
-                }
-
-                if (amount < 0.5) {
-                    Swal.showValidationMessage('Minimum withdrawal is 0.50 USDT');
+                if (!amount || amount < 0.5) {
+                    Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
                     return false;
                 }
 
                 if (amount > availableBalance) {
-                    Swal.showValidationMessage(`You can only withdraw ${availableBalance.toFixed(2)} USDT`);
+                    Swal.showValidationMessage(`Maximum withdrawal is ${availableBalance.toFixed(2)} USDT`);
                     return false;
                 }
 
-                // Validate wallet
-                if (!walletAddress) {
-                    Swal.showValidationMessage('Please enter a wallet address');
+                if (!isValidTONAddress(wallet)) {
+                    Swal.showValidationMessage('Invalid TON wallet address');
                     return false;
                 }
 
-                if (!isValidTONAddress(walletAddress)) {
-                    Swal.showValidationMessage('Please enter a valid TON wallet address (starts with EQ or UQ)');
-                    return false;
-                }
-
-                return {
-                    amount: amount.toFixed(2),
-                    walletAddress
-                };
+                return { amount, walletAddress: wallet };
             }
         });
 
@@ -807,19 +784,17 @@ async function showWithdrawPopup() {
             if (success) {
                 await Swal.fire({
                     title: 'Success!',
-                    text: `Withdrawal request for ${formValues.amount} USDT submitted`,
-                    icon: 'success',
-                    confirmButtonText: 'OK'
+                    text: `Withdrawal of ${formValues.amount} USDT requested`,
+                    icon: 'success'
                 });
+                await loadReferralData();
             }
         }
     } catch (error) {
-        console.error('Withdrawal popup error:', error);
         await Swal.fire({
             title: 'Error',
-            text: 'Failed to process withdrawal request',
-            icon: 'error',
-            confirmButtonText: 'OK'
+            text: error.message || 'Withdrawal failed',
+            icon: 'error'
         });
     }
 }
@@ -843,14 +818,9 @@ async function submitWithdrawal({ amount, walletAddress }) {
         const data = await response.json();
 
         if (!response.ok) {
-            // Handle specific error cases
-            if (data.error && data.error.includes('active referrals')) {
-                throw new Error(data.error);
-            }
             throw new Error(data.error || 'Withdrawal failed');
         }
 
-        // Update local state
         state.withdrawals.unshift({
             amount: parseFloat(amount),
             walletAddress,
@@ -858,13 +828,11 @@ async function submitWithdrawal({ amount, walletAddress }) {
             status: 'pending'
         });
         
-        // Update balance
         state.stats.availableBalance -= parseFloat(amount);
         updateUI();
         
         return true;
     } catch (error) {
-        console.error('Withdrawal submission error:', error);
         await Swal.fire({
             title: 'Error',
             text: error.message || 'Withdrawal failed. Please try again.',
