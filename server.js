@@ -625,8 +625,6 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
 });
 
 // Referral withdrawal processing system (Full Implementation)
-
-// API endpoint for withdrawals
 app.post('/api/referral-withdrawals', async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -635,10 +633,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         const { userId, amount, walletAddress } = req.body;
         const amountNum = parseFloat(amount);
 
-        if (isNaN(amountNum)) {
-            throw new Error('Invalid amount');
-        }
-
+        const user = await User.findOne({ id: userId }).session(session) || {};
         const availableReferrals = await Referral.find({
             referrerUserId: userId,
             status: { $in: ['completed', 'active'] },
@@ -647,19 +642,15 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         const availableBalance = availableReferrals.length * 0.5;
 
-        if (amountNum < 0.5) {
-            throw new Error('Minimum withdrawal is 0.5 USDT');
-        }
-
-        if (amountNum > availableBalance) {
-            throw new Error(`Insufficient balance. Available: ${availableBalance.toFixed(2)} USDT`);
-        }
+        if (amountNum < 0.5) throw new Error('Minimum withdrawal is 0.5 USDT');
+        if (amountNum > availableBalance) throw new Error(`Insufficient balance. Available: ${availableBalance.toFixed(2)} USDT`);
 
         const referralsNeeded = Math.ceil(amountNum / 0.5);
         const referralsToMark = availableReferrals.slice(0, referralsNeeded);
 
         const [withdrawal] = await ReferralWithdrawal.create([{
             userId,
+            username: user.username || `user_${userId.slice(-6)}`,
             amount: amountNum,
             walletAddress: walletAddress.trim(),
             referralIds: referralsToMark.map(r => r._id),
@@ -674,30 +665,39 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         await session.commitTransaction();
 
-        const adminMessage = `📌 New Withdrawal Request\n\n` +
-                           `👤 User: ${withdrawal.username || userId}\n` +
-                           `💰 Amount: ${amountNum} USDT\n` +
-                           `📭 Wallet: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}\n` +
-                           `🔢 Using ${referralsNeeded} referrals`;
+        const adminMessage = `💸 *New Withdrawal Request* 💸\n\n` +
+                           `👤 *User:* ${withdrawal.username}\n` +
+                           `🆔 *ID:* ${userId}\n` +
+                           `💰 *Amount:* ${amountNum} USDT\n` +
+                           `📭 *Wallet:* \`${walletAddress}\`\n` +
+                           `🔢 *Referrals Used:* ${referralsNeeded}\n` +
+                           `⏱ *Time:* ${new Date().toLocaleString()}`;
 
         const adminButtons = {
-            inline_keyboard: [
-                [
-                    { text: '✅ Confirm', callback_data: `withdrawal_confirm_${withdrawal._id}` },
-                    { text: '❌ Decline', callback_data: `withdrawal_decline_${withdrawal._id}` }
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { 
+                            text: '✅ Approve', 
+                            callback_data: `withdrawal_approve_${withdrawal._id}`
+                        },
+                        { 
+                            text: '❌ Decline', 
+                            callback_data: `withdrawal_decline_${withdrawal._id}`
+                        }
+                    ]
                 ]
-            ]
+            }
         };
 
         adminIds.forEach(adminId => {
-            bot.sendMessage(adminId, adminMessage, { reply_markup: adminButtons });
+            bot.sendMessage(adminId, adminMessage, adminButtons);
         });
 
         return res.json({
             success: true,
-            withdrawalId: withdrawal._id,
-            amount: amountNum,
-            referralsUsed: referralsNeeded
+            withdrawalId: withdrawal._id
         });
 
     } catch (error) {
@@ -708,6 +708,92 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         });
     } finally {
         session.endSession();
+    }
+});
+
+bot.on('callback_query', async (callbackQuery) => {
+    const { message, data, from } = callbackQuery;
+    const chatId = message.chat.id;
+
+    try {
+        if (!adminIds.includes(from.id.toString())) {
+            return bot.answerCallbackQuery(callbackQuery.id, {
+                text: "🚫 Unauthorized",
+                show_alert: true
+            });
+        }
+
+        const [action, withdrawalId] = data.split('_').slice(1);
+        const withdrawal = await ReferralWithdrawal.findById(withdrawalId);
+
+        if (!withdrawal) {
+            return bot.answerCallbackQuery(callbackQuery.id, {
+                text: "Withdrawal not found",
+                show_alert: true
+            });
+        }
+
+        if (withdrawal.status !== 'pending') {
+            return bot.answerCallbackQuery(callbackQuery.id, {
+                text: `Already ${withdrawal.status}`,
+                show_alert: true
+            });
+        }
+
+        withdrawal.status = action === 'approve' ? 'completed' : 'declined';
+        withdrawal.processedBy = from.username || `admin_${from.id.toString().slice(-4)}`;
+        withdrawal.processedAt = new Date();
+        await withdrawal.save();
+
+        if (action === 'decline') {
+            await Referral.updateMany(
+                { _id: { $in: withdrawal.referralIds } },
+                { $set: { withdrawn: false } }
+            );
+        }
+
+        await bot.editMessageReplyMarkup({
+            chat_id: chatId,
+            message_id: message.message_id,
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { 
+                            text: action === 'approve' ? '✅ Approved' : '❌ Declined', 
+                            callback_data: `processed_${withdrawal._id}`
+                        }
+                    ]
+                ]
+            }
+        });
+
+        const userMessage = action === 'approve'
+            ? `🎉 *Withdrawal Approved!*\n\n` +
+              `💰 *Amount:* ${withdrawal.amount} USDT\n` +
+              `📭 *Wallet:* \`${withdrawal.walletAddress}\`\n` +
+              `🆔 *Transaction ID:* WD${withdrawal._id.toString().slice(-8).toUpperCase()}`
+            : `⚠️ *Withdrawal Declined*\n\n` +
+              `💰 *Amount:* ${withdrawal.amount} USDT\n` +
+              `📭 *Wallet:* \`${withdrawal.walletAddress}\`\n` +
+              `ℹ️ Contact support for more information`;
+
+        try {
+            await bot.sendMessage(withdrawal.userId, userMessage, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('Failed to notify user:', error);
+        }
+
+        return bot.answerCallbackQuery(callbackQuery.id, {
+            text: `Withdrawal ${action === 'approve' ? 'approved' : 'declined'}`,
+            show_alert: false
+        });
+
+    } catch (error) {
+        console.error('Withdrawal processing error:', error);
+        return bot.answerCallbackQuery(callbackQuery.id, {
+            text: '❌ Processing failed',
+            show_alert: true
+        });
     }
 });
 
