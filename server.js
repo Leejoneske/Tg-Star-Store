@@ -90,11 +90,11 @@ const notificationSchema = new mongoose.Schema({
 });
 
 const referralSchema = new mongoose.Schema({
-    referredUserId: String,
-    referrerUserId: String,
-    status: String,
-    dateReferred: Date,
-    dateCompleted: Date
+  referrerUserId: { type: String, required: true },
+  referredUserId: { type: String, required: true },
+  status: { type: String, enum: ['pending', 'active', 'completed'], default: 'pending' },
+  withdrawn: { type: Boolean, default: false }, 
+  dateReferred: { type: Date, default: Date.now }
 });
 
 
@@ -112,22 +112,16 @@ const cacheSchema = new mongoose.Schema({
 });
 
 // ReferralWithdrawal Schema
-const referralWithdrawalSchema = new mongoose.Schema({
-    userId: { type: String, required: true },
-    username: { type: String },
-    amount: { type: Number, required: true, min: 0.5 },
-    walletAddress: { type: String, required: true },
-    status: { type: String, enum: ['pending', 'completed', 'declined'], default: 'pending' },
-    referralIds: [{ type: String }], // Track which referrals this withdrawal covers
-    date: { type: Date, default: Date.now },
-    completedAt: { type: Date },
-    adminAction: {
-        adminId: { type: String },
-        action: { type: String, enum: ['completed', 'declined'] },
-        actionDate: { type: Date }
-    }
-});
 
+const referralWithdrawalSchema = new mongoose.Schema({
+    userId: String,
+    username: String,
+    amount: Number,
+    walletAddress: String,
+    referralIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Referral' }],
+    status: { type: String, enum: ['pending', 'completed', 'declined'], default: 'pending' },
+    createdAt: { type: Date, default: Date.now }
+});
 
 const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
 const Cache = mongoose.model('Cache', cacheSchema);
