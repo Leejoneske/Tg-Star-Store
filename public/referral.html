@@ -574,8 +574,7 @@ function updateReferralsList() {
     });
 }
 
- 
-function updateWithdrawalsList() {
+ function updateWithdrawalsList() {
     const container = document.getElementById('withdrawalsContainer');
     container.innerHTML = '';
     
@@ -588,9 +587,7 @@ function updateWithdrawalsList() {
     document.getElementById('noWithdrawals').classList.add('hide');
     document.getElementById('withdrawalsList').classList.remove('hide');
     
-    const sortedWithdrawals = [...state.withdrawals].sort((a, b) => 
-        new Date(b.date) - new Date(a.date)
-    );
+    const sortedWithdrawals = [...state.withdrawals].sort((a, b) => new Date(b.date) - new Date(a.date));
     
     sortedWithdrawals.forEach(withdrawal => {
         const item = document.createElement('div');
@@ -615,6 +612,7 @@ function updateWithdrawalsList() {
         container.appendChild(item);
     });
 }
+
 
 
 
@@ -805,6 +803,7 @@ async function showWithdrawPopup() {
     }
 }
 
+
 async function submitWithdrawal({ amount, walletAddress }) {
     try {
         Swal.showLoading();
@@ -823,9 +822,7 @@ async function submitWithdrawal({ amount, walletAddress }) {
 
         const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(data.error || 'Withdrawal failed');
-        }
+        if (!response.ok) throw new Error(data.error || 'Withdrawal failed');
 
         state.withdrawals.unshift({
             id: data.withdrawalId,
@@ -851,7 +848,6 @@ async function submitWithdrawal({ amount, walletAddress }) {
         Swal.hideLoading();
     }
 }
-
 
  
     const translations = {
