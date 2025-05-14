@@ -713,20 +713,22 @@ function isValidTONAddress(address) {
     }
 }
  //withdraw shit
+
+
 function showWithdrawPopup() {
     if (state.stats.availableBalance < 0.5) {
         showError('Minimum withdrawal amount is 0.5 USDT');
         return;
     }
 
-    Swal.fire({
+    const swalInstance = Swal.fire({
         title: 'Withdraw USDT (TON Network)',
         html: `<form id="withdrawalForm" class="text-left">
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
                 <input type="number" id="withdrawAmount" name="amount" min="0.5" max="${state.stats.availableBalance}" 
                        step="0.01" class="w-full p-2 border rounded" 
-                       placeholder="0.50" required>
+                       placeholder="0.50" required value="${Math.min(0.5, state.stats.availableBalance).toFixed(2)}">
                 <p class="text-xs text-gray-500 mt-1">Available: ${state.stats.availableBalance.toFixed(2)} USDT</p>
             </div>
             <div class="mb-4">
@@ -738,51 +740,76 @@ function showWithdrawPopup() {
         </form>`,
         showCancelButton: true,
         confirmButtonText: 'Request Withdrawal',
-        preConfirm: () => {
-            return new Promise((resolve) => {
-                const amountInput = document.getElementById('withdrawAmount');
-                const walletInput = document.getElementById('withdrawWallet');
-                let errorMessage = '';
-                
-                // Validate amount
-                if (!amountInput.value.trim()) {
-                    errorMessage = 'Please enter an amount to withdraw';
-                } else if (isNaN(parseFloat(amountInput.value))) {
-                    errorMessage = 'Please enter a valid numeric amount';
-                } else if (parseFloat(amountInput.value) < 0.5) {
-                    errorMessage = 'Minimum withdrawal is 0.50 USDT';
-                } else if (parseFloat(amountInput.value) > state.stats.availableBalance) {
-                    errorMessage = `Maximum withdrawal is ${state.stats.availableBalance.toFixed(2)} USDT`;
-                }
-                
-                // Validate wallet (only if amount is valid)
-                if (!errorMessage && !walletInput.value.trim()) {
-                    errorMessage = 'Please enter a wallet address';
-                } else if (!errorMessage && !isValidTONAddress(walletInput.value.trim())) {
-                    errorMessage = 'Please enter a valid TON wallet address (starts with EQ or UQ)';
-                }
-                
-                if (errorMessage) {
-                    Swal.showValidationMessage(errorMessage);
-                    resolve(false);
-                } else {
-                    resolve({
-                        amount: parseFloat(amountInput.value).toFixed(2),
-                        walletAddress: walletInput.value.trim()
-                    });
-                }
-            });
-        }
-    }).then((result) => {
-        if (result) {
-            submitWithdrawal(result);
+        focusConfirm: false,
+        allowOutsideClick: false,
+        preConfirm: async () => {
+            const amountInput = document.getElementById('withdrawAmount');
+            const walletInput = document.getElementById('withdrawWallet');
+            
+            // Validate inputs
+            if (!amountInput || !walletInput) {
+                Swal.showValidationMessage('Form fields not found');
+                return false;
+            }
+
+            const amount = amountInput.value;
+            const walletAddress = walletInput.value;
+
+            if (!amount || isNaN(parseFloat(amount))) {
+                Swal.showValidationMessage('Please enter a valid amount');
+                return false;
+            }
+
+            if (parseFloat(amount) < 0.5) {
+                Swal.showValidationMessage('Minimum withdrawal is 0.50 USDT');
+                return false;
+            }
+
+            if (parseFloat(amount) > state.stats.availableBalance) {
+                Swal.showValidationMessage(`You can withdraw maximum ${state.stats.availableBalance.toFixed(2)} USDT`);
+                return false;
+            }
+
+            if (!walletAddress) {
+                Swal.showValidationMessage('Please enter a wallet address');
+                return false;
+            }
+
+            if (!isValidTONAddress(walletAddress)) {
+                Swal.showValidationMessage('Please enter a valid TON wallet address (starts with EQ or UQ)');
+                return false;
+            }
+
+            return {
+                amount: parseFloat(amount).toFixed(2),
+                walletAddress: walletAddress.trim()
+            };
         }
     });
+
+    try {
+        const result = await swalInstance;
+        
+        if (result.isConfirmed && result.value) {
+            const success = await submitWithdrawal(result.value);
+            if (success) {
+                // Only close if successful
+                Swal.fire({
+                    title: 'Success!',
+                    text: `Withdrawal request for ${result.value.amount} USDT submitted`,
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Withdrawal error:', error);
+        // Don't close the popup on error
+    }
 }
 
 async function submitWithdrawal({ amount, walletAddress }) {
     try {
-        // Show loading state
         Swal.showLoading();
         
         const response = await fetch('/api/referral-withdrawals', {
@@ -793,7 +820,7 @@ async function submitWithdrawal({ amount, walletAddress }) {
             body: JSON.stringify({
                 userId: state.userId,
                 amount: parseFloat(amount),
-                walletAddress: walletAddress.trim()
+                walletAddress: walletAddress
             })
         });
 
@@ -814,26 +841,19 @@ async function submitWithdrawal({ amount, walletAddress }) {
         state.stats.availableBalance -= parseFloat(amount);
         updateUI();
         
-        // Show success message
-        await Swal.fire({
-            title: 'Success!',
-            text: `Withdrawal request for ${amount} USDT submitted`,
-            icon: 'success',
-            confirmButtonText: 'OK'
-        });
-        
         return true;
-
     } catch (error) {
         console.error('Withdrawal error:', error);
-        // Show error message
-        await Swal.fire({
+        Swal.fire({
             title: 'Error',
             text: error.message || 'Withdrawal failed. Please try again.',
             icon: 'error',
             confirmButtonText: 'OK'
         });
         return false;
+    } finally {
+        // Ensure loading state is removed
+        Swal.hideLoading();
     }
 }
  
