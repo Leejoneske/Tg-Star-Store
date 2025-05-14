@@ -728,7 +728,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         // Validate amount
         const amountNum = parseFloat(amount);
-        if (isNaN(amountNum) || amountNum <= 0) {
+        if (isNaN(amountNum) {
             await session.abortTransaction();
             return res.status(400).json({ 
                 success: false, 
@@ -736,30 +736,22 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             });
         }
 
-        const minAmount = 0.5; // Each referral gives 0.5 USDT
-        if (amountNum < minAmount) {
+        // Changed validation to allow 0.5 USDT minimum
+        if (amountNum < 0.5) {
             await session.abortTransaction();
             return res.status(400).json({ 
                 success: false, 
-                error: `Minimum withdrawal is ${minAmount} USDT` 
+                error: 'Minimum withdrawal is 0.5 USDT' 
             });
         }
 
         // Validate wallet address
-        if (typeof walletAddress !== 'string') {
-            await session.abortTransaction();
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Invalid wallet address' 
-            });
-        }
-
         const trimmedWallet = walletAddress.trim();
         if (!/^(EQ|UQ)[a-zA-Z0-9_-]{43,48}$/.test(trimmedWallet)) {
             await session.abortTransaction();
             return res.status(400).json({ 
                 success: false, 
-                error: 'Invalid TON wallet format' 
+                error: 'Invalid TON wallet format (must start with EQ or UQ)' 
             });
         }
 
@@ -777,32 +769,29 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             });
         }
 
-        // Get all completed, non-withdrawn referrals
-        const activeReferrals = await Referral.find({
-            userId,
-            status: 'completed',
-            withdrawn: false
+        // Get available referrals (non-withdrawn and completed)
+        const availableReferrals = await Referral.find({
+            referrerUserId: userId,
+            status: { $in: ['completed', 'active'] },
+            withdrawn: { $ne: true }
         }).session(session);
 
-        console.log(`[DEBUG] User ${userId} has ${activeReferrals.length} active referrals`);
+        // Calculate available balance
+        const availableBalance = availableReferrals.length * 0.5;
 
-        // Calculate maximum withdrawable amount
-        const maxWithdrawable = activeReferrals.length * minAmount;
-        const requestedAmount = amountNum;
-
-        if (requestedAmount > maxWithdrawable) {
+        if (amountNum > availableBalance) {
             await session.abortTransaction();
             return res.status(400).json({ 
                 success: false, 
-                error: `You can only withdraw ${maxWithdrawable.toFixed(2)} USDT (${activeReferrals.length} active referrals × 0.5 USDT each)` 
+                error: `You can only withdraw up to ${availableBalance.toFixed(2)} USDT` 
             });
         }
 
         // Calculate how many referrals we need to use
-        const referralsToUse = Math.ceil(requestedAmount / minAmount);
-        const referralsToMark = activeReferrals.slice(0, referralsToUse);
+        const referralsNeeded = Math.ceil(amountNum / 0.5);
+        const referralsToMark = availableReferrals.slice(0, referralsNeeded);
 
-        const user = await User.findById(userId)
+        const user = await User.findOne({ id: userId })
             .select('username')
             .session(session) || { username: 'Unknown' };
 
@@ -810,7 +799,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         const withdrawal = await ReferralWithdrawal.create([{
             userId,
             username: user.username,
-            amount: requestedAmount,
+            amount: amountNum,
             walletAddress: trimmedWallet,
             referralIds: referralsToMark.map(r => r._id),
             status: 'pending'
@@ -828,11 +817,11 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         // Notify admins
         if (adminIds?.length > 0) {
             const message = `📌 New Withdrawal Request\n\n` +
-                            `👤 User: ${user.username}\n` +
-                            `🆔 ID: ${userId}\n` +
-                            `💰 Amount: ${requestedAmount} USDT\n` +
-                            `📭 Wallet: ${trimmedWallet}\n` +
-                            `🔢 Using ${referralsToUse} referrals`;
+                          `👤 User: ${user.username}\n` +
+                          `🆔 ID: ${userId}\n` +
+                          `💰 Amount: ${amountNum} USDT\n` +
+                          `📭 Wallet: ${trimmedWallet}\n` +
+                          `🔢 Using ${referralsNeeded} referrals`;
             
             adminIds.forEach(adminId => {
                 bot.sendMessage(adminId, message).catch(console.error);
@@ -842,9 +831,9 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         return res.json({ 
             success: true,
             withdrawalId: withdrawal[0]._id,
-            message: `Withdrawal request for ${requestedAmount} USDT submitted successfully`,
-            usedReferrals: referralsToUse,
-            remainingReferrals: activeReferrals.length - referralsToUse
+            message: `Withdrawal request for ${amountNum} USDT submitted successfully`,
+            usedReferrals: referralsNeeded,
+            remainingBalance: (availableBalance - amountNum).toFixed(2)
         });
 
     } catch (error) {
