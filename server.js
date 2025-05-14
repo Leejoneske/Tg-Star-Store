@@ -627,6 +627,7 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
 
 
 // Withdrawal endpoint
+// Withdrawal endpoint
 app.post('/api/referral-withdrawals', async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -667,36 +668,35 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         await session.commitTransaction();
 
-        const userMessage = `⌛ Withdrawal Request Submitted\n\n` +
-                          `💰 Amount: ${amountNum} USDT\n` +
-                          `📭 Wallet: ${walletAddress}\n` +
-                          `🆔 ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
-                          `Status: Pending admin approval`;
+        const userMessage = `Withdrawal Request Submitted\n\n` +
+                          `Amount: ${amountNum} USDT\n` +
+                          `Wallet: ${walletAddress}\n` +
+                          `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
+                          `Status: Pending approval`;
 
         await bot.sendMessage(userId, userMessage);
 
-        const adminMessage = `💸 New Withdrawal Request\n\n` +
-                           `👤 User: ${withdrawal.username}\n` +
-                           `🆔 ID: ${userId}\n` +
-                           `💰 Amount: ${amountNum} USDT\n` +
-                           `📭 Wallet: ${walletAddress}\n` +
-                           `🔢 Referrals: ${referralsNeeded}\n` +
-                           `🆔 WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
+        const adminMessage = `New Withdrawal Request\n\n` +
+                           `User: ${withdrawal.username}\n` +
+                           `ID: ${userId}\n` +
+                           `Amount: ${amountNum} USDT\n` +
+                           `Wallet: ${walletAddress}\n` +
+                           `Referrals: ${referralsNeeded}\n` +
+                           `WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
 
         const adminMarkup = {
             reply_markup: {
                 inline_keyboard: [
                     [
-                        { text: '✅ Approve', callback_data: `approve_${withdrawal._id}` },
-                        { text: '❌ Decline', callback_data: `decline_${withdrawal._id}` }
+                        { text: 'Approve', callback_data: `approve:${withdrawal._id}` },
+                        { text: 'Decline', callback_data: `decline:${withdrawal._id}` }
                     ]
                 ]
             }
         };
 
         await Promise.all(adminIds.map(adminId => {
-            return bot.sendMessage(adminId, adminMessage, adminMarkup)
-                .catch(err => console.error('Failed to notify admin:', adminId, err));
+            return bot.sendMessage(adminId, adminMessage, adminMarkup);
         }));
 
         return res.json({ success: true, withdrawalId: withdrawal._id });
@@ -725,7 +725,7 @@ bot.on('callback_query', async (callbackQuery) => {
             return;
         }
 
-        const [action, withdrawalId] = data.split('_');
+        const [action, withdrawalId] = data.split(':');
         const withdrawal = await ReferralWithdrawal.findById(withdrawalId).session(session);
 
         if (!withdrawal) {
@@ -757,19 +757,19 @@ bot.on('callback_query', async (callbackQuery) => {
             reply_markup: {
                 inline_keyboard: [
                     [{ 
-                        text: action === 'approve' ? '✅ Approved' : '❌ Declined', 
-                        callback_data: `processed_${withdrawal._id}`
+                        text: action === 'approve' ? 'Approved' : 'Declined', 
+                        callback_data: `processed:${withdrawal._id}`
                     }]
                 ]
             }
         });
 
         const userMessage = action === 'approve'
-            ? `🎉 Withdrawal Approved\n\n` +
-              `💰 Amount: ${withdrawal.amount} USDT\n` +
-              `📭 Wallet: ${withdrawal.walletAddress}\n` +
-              `🆔 ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`
-            : `⚠️ Withdrawal Declined\n\n` +
+            ? `Withdrawal Approved\n\n` +
+              `Amount: ${withdrawal.amount} USDT\n` +
+              `Wallet: ${withdrawal.walletAddress}\n` +
+              `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`
+            : `Withdrawal Declined\n\n` +
               `Amount: ${withdrawal.amount} USDT\n` +
               `Contact support for details`;
 
