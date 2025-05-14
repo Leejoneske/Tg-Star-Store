@@ -816,6 +816,10 @@ async function submitWithdrawal({ amount, walletAddress }) {
         const data = await response.json();
 
         if (!response.ok) {
+            // Handle specific error about referrals
+            if (data.error && data.error.includes('active referrals')) {
+                throw new Error('You need more completed referrals to withdraw this amount. Each referral gives you 0.5 USDT.');
+            }
             throw new Error(data.error || 'Withdrawal failed');
         }
 
@@ -829,6 +833,13 @@ async function submitWithdrawal({ amount, walletAddress }) {
         
         state.stats.availableBalance -= parseFloat(amount);
         updateUI();
+        
+        await Swal.fire({
+            title: 'Success!',
+            text: `Withdrawal request for ${amount} USDT submitted`,
+            icon: 'success',
+            confirmButtonText: 'OK'
+        });
         
         return true;
     } catch (error) {
@@ -844,7 +855,6 @@ async function submitWithdrawal({ amount, walletAddress }) {
         Swal.hideLoading();
     }
 }
-
  
     const translations = {
         en: {
