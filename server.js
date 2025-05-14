@@ -768,19 +768,22 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             });
         }
 
-        // Process withdrawal
-        const referralsRequired = Math.floor(amountNum / minAmount);
+        // Process withdrawal - modified to better debug referral issues
+        const referralsRequired = Math.ceil(amountNum / minAmount); // Changed to Math.ceil
         const activeReferrals = await Referral.find({
             userId,
             status: 'completed',
             withdrawn: false
-        }).limit(referralsRequired).session(session);
+        }).session(session);
+
+        console.log(`User ${userId} has ${activeReferrals.length} active referrals`);
+        console.log(`Required referrals for ${amountNum} USDT: ${referralsRequired}`);
 
         if (activeReferrals.length < referralsRequired) {
             await session.abortTransaction();
             return res.status(400).json({ 
                 success: false, 
-                error: `Need ${referralsRequired} active referrals` 
+                error: `Need ${referralsRequired} active referrals (you have ${activeReferrals.length})` 
             });
         }
 
@@ -805,7 +808,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         await session.commitTransaction();
 
-        // Notify admins (fire-and-forget)
+        // Notify admins
         if (adminIds?.length > 0) {
             const message = `📌 New Withdrawal\n\n👤 ${user.username}\n💰 ${amountNum} USDT\n📭 ${trimmedWallet}`;
             adminIds.forEach(adminId => {
