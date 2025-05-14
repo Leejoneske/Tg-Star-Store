@@ -728,7 +728,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         // Validate amount
         const amountNum = parseFloat(amount);
-        if (isNaN(amountNum) {
+        if (isNaN(amountNum)) {
             await session.abortTransaction();
             return res.status(400).json({ 
                 success: false, 
