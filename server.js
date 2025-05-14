@@ -727,7 +727,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             });
         }
 
-        const minAmount = 0.5;
+        const minAmount = 0.5; // Each referral gives 0.5 USDT
         if (amountNum < minAmount) {
             await session.abortTransaction();
             return res.status(400).json({ 
@@ -768,40 +768,48 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             });
         }
 
-        // Process withdrawal - modified to better debug referral issues
-        const referralsRequired = Math.ceil(amountNum / minAmount); // Changed to Math.ceil
+        // Get all completed, non-withdrawn referrals
         const activeReferrals = await Referral.find({
             userId,
             status: 'completed',
             withdrawn: false
         }).session(session);
 
-        console.log(`User ${userId} has ${activeReferrals.length} active referrals`);
-        console.log(`Required referrals for ${amountNum} USDT: ${referralsRequired}`);
+        console.log(`[DEBUG] User ${userId} has ${activeReferrals.length} active referrals`);
 
-        if (activeReferrals.length < referralsRequired) {
+        // Calculate maximum withdrawable amount
+        const maxWithdrawable = activeReferrals.length * minAmount;
+        const requestedAmount = amountNum;
+
+        if (requestedAmount > maxWithdrawable) {
             await session.abortTransaction();
             return res.status(400).json({ 
                 success: false, 
-                error: `Need ${referralsRequired} active referrals (you have ${activeReferrals.length})` 
+                error: `You can only withdraw ${maxWithdrawable.toFixed(2)} USDT (${activeReferrals.length} active referrals × 0.5 USDT each)` 
             });
         }
+
+        // Calculate how many referrals we need to use
+        const referralsToUse = Math.ceil(requestedAmount / minAmount);
+        const referralsToMark = activeReferrals.slice(0, referralsToUse);
 
         const user = await User.findById(userId)
             .select('username')
             .session(session) || { username: 'Unknown' };
 
+        // Create withdrawal record
         const withdrawal = await ReferralWithdrawal.create([{
             userId,
             username: user.username,
-            amount: amountNum,
+            amount: requestedAmount,
             walletAddress: trimmedWallet,
-            referralIds: activeReferrals.map(r => r._id),
+            referralIds: referralsToMark.map(r => r._id),
             status: 'pending'
         }], { session });
 
+        // Mark referrals as withdrawn
         await Referral.updateMany(
-            { _id: { $in: activeReferrals.map(r => r._id) } },
+            { _id: { $in: referralsToMark.map(r => r._id) } },
             { $set: { withdrawn: true } },
             { session }
         );
@@ -810,7 +818,13 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         // Notify admins
         if (adminIds?.length > 0) {
-            const message = `📌 New Withdrawal\n\n👤 ${user.username}\n💰 ${amountNum} USDT\n📭 ${trimmedWallet}`;
+            const message = `📌 New Withdrawal Request\n\n` +
+                            `👤 User: ${user.username}\n` +
+                            `🆔 ID: ${userId}\n` +
+                            `💰 Amount: ${requestedAmount} USDT\n` +
+                            `📭 Wallet: ${trimmedWallet}\n` +
+                            `🔢 Using ${referralsToUse} referrals`;
+            
             adminIds.forEach(adminId => {
                 bot.sendMessage(adminId, message).catch(console.error);
             });
@@ -818,7 +832,10 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         return res.json({ 
             success: true,
-            withdrawalId: withdrawal[0]._id
+            withdrawalId: withdrawal[0]._id,
+            message: `Withdrawal request for ${requestedAmount} USDT submitted successfully`,
+            usedReferrals: referralsToUse,
+            remainingReferrals: activeReferrals.length - referralsToUse
         });
 
     } catch (error) {
@@ -826,13 +843,13 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         console.error('Withdrawal error:', error);
         return res.status(500).json({ 
             success: false,
-            error: 'Internal server error'
+            error: 'Internal server error',
+            details: error.message
         });
     } finally {
         session.endSession();
     }
 });
-
 
 
 
