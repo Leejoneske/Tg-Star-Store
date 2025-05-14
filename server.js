@@ -580,6 +580,7 @@ app.get("/api/sell-orders", async (req, res) => {
 });
 
 //for referral page 
+// Updated referral stats endpoint
 app.get('/api/referral-stats/:userId', async (req, res) => {
     try {
         const referrals = await Referral.find({ referrerUserId: req.params.userId });
@@ -590,6 +591,14 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
         users.forEach(user => userMap[user.id] = user.username);
 
         const totalReferrals = referrals.length;
+        
+        // Get only completed AND non-withdrawn referrals for available balance
+        const availableReferrals = await Referral.find({ 
+            referrerUserId: req.params.userId,
+            status: { $in: ['completed', 'active'] },
+            withdrawn: false
+        }).countDocuments();
+
         const completedReferrals = referrals.filter(r => 
             r.status === 'completed' || r.status === 'active'
         ).length;
@@ -604,7 +613,7 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
                 amount: 0.5
             })),
             stats: {
-                availableBalance: completedReferrals * 0.5,
+                availableBalance: availableReferrals * 0.5, // Changed to use availableReferrals
                 totalEarned: completedReferrals * 0.5,
                 referralsCount: totalReferrals,
                 pendingAmount: (totalReferrals - completedReferrals) * 0.5
