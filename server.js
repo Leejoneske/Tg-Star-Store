@@ -625,7 +625,6 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
 });
 
 
-
 // Withdrawal endpoint
 app.post('/api/referral-withdrawals', async (req, res) => {
     const session = await mongoose.startSession();
@@ -657,7 +656,8 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             walletAddress: walletAddress.trim(),
             referralIds: referralsToMark.map(r => r._id),
             status: 'pending',
-            adminMessages: []
+            adminMessages: [],
+            createdAt: new Date()
         });
 
         await withdrawal.save({ session });
@@ -668,27 +668,25 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             { session }
         );
 
-        // Emoji for withdrawal notification
-        const moneyEmoji = '💰';
-        const successEmoji = '🎉';
-        const moneyBagEmoji = '🤑';
+        // First send animated GIF (money bag animation)
+        await bot.sendSticker(userId, 'CAACAgIAAxkBAAEL3Ndl7QABYbUS9QABHXHwCQZ6QlL3W0sAAp4PAAK8oWFK6_5h1Wj2s8U0BA');
 
-        const userMessage = `${moneyEmoji} *Withdrawal Request Submitted* ${moneyBagEmoji}\n\n` +
-                          `*Amount:* ${amountNum} USDT\n` +
-                          `*Wallet:* \`${walletAddress}\`\n` +
-                          `*ID:* WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
-                          `*Status:* Pending approval\n\n` +
-                          `We'll notify you once processed ${successEmoji}`;
+        // Then send withdrawal details
+        const userMessage = `Withdrawal Request Submitted\n\n` +
+                          `Amount: ${amountNum} USDT\n` +
+                          `Wallet: ${walletAddress}\n` +
+                          `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
+                          `Status: Pending approval`;
 
-        await bot.sendMessage(userId, userMessage, { parse_mode: "Markdown" });
+        await bot.sendMessage(userId, userMessage);
 
-        const adminMessage = `💰 *New Withdrawal Request*\n\n` +
-                           `👤 *User:* @${withdrawal.username}\n` +
-                           `🆔 *ID:* ${userId}\n` +
-                           `💵 *Amount:* ${amountNum} USDT\n` +
-                           `📭 *Wallet:* \`${walletAddress}\`\n` +
-                           `🔗 *Referrals:* ${referralsNeeded}\n` +
-                           `📌 *WDID:* WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
+        const adminMessage = `New Withdrawal Request\n\n` +
+                           `User: @${withdrawal.username}\n` +
+                           `ID: ${userId}\n` +
+                           `Amount: ${amountNum} USDT\n` +
+                           `Wallet: ${walletAddress}\n` +
+                           `Referrals: ${referralsNeeded}\n` +
+                           `WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
 
         const adminKeyboard = {
             inline_keyboard: [
@@ -699,15 +697,13 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             ]
         };
 
-        // Store admin messages with better error handling
         withdrawal.adminMessages = await Promise.all(adminIds.map(async adminId => {
             try {
                 const message = await bot.sendMessage(
                     adminId,
                     adminMessage,
                     { 
-                        reply_markup: adminKeyboard,
-                        parse_mode: "Markdown"
+                        reply_markup: adminKeyboard
                     }
                 );
                 return {
@@ -741,23 +737,22 @@ bot.on('callback_query', async (query) => {
 
     try {
         const { data, message, from } = query;
-        const action = data.startsWith('complete_withdrawal_') ? 'complete' : 'decline';
-        const withdrawalId = data.split('_')[2];
-
-        // Verify admin
         if (!adminIds.includes(from.id.toString())) {
-            await bot.answerCallbackQuery(query.id, { text: "Unauthorized action" });
+            await bot.answerCallbackQuery(query.id, { text: "Unauthorized" });
             return;
         }
 
-        // Find and update withdrawal status atomically
+        const action = data.startsWith('complete_withdrawal_') ? 'complete' : 'decline';
+        const withdrawalId = data.split('_')[2];
+
+        // Find and update withdrawal status
         const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
             { _id: withdrawalId, status: 'pending' },
             { 
                 $set: { 
                     status: action === 'complete' ? 'completed' : 'declined',
                     processedBy: from.id,
-                    [`${action === 'complete' ? 'completedAt' : 'declinedAt'}`]: new Date()
+                    ...(action === 'complete' ? { completedAt: new Date() } : { declinedAt: new Date() })
                 } 
             },
             { new: true, session }
@@ -776,75 +771,54 @@ bot.on('callback_query', async (query) => {
             );
         }
 
-        // Emojis for user notification
-        const moneyEmoji = '💰';
-        const successEmoji = '🎉';
-        const sadEmoji = '😢';
-        const moneyBagEmoji = '🤑';
-        const partyEmoji = '🎊';
+        // Send animated GIF first (different for complete/decline)
+        const stickerId = action === 'complete' 
+            ? 'CAACAgIAAxkBAAEL3N1l7QABYbUS9QABHXHwCQZ6QlL3W0sAAp4PAAK8oWFK6_5h1Wj2s8U0BA' // Money flying
+            : 'CAACAgIAAxkBAAEL3Ntl7QABYbUS9QABHXHwCQZ6QlL3W0sAAp4PAAK8oWFK6_5h1Wj2s8U0BA'; // Sad face
 
-        // Update user with animated emoji for completed withdrawal
+        await bot.sendSticker(withdrawal.userId, stickerId);
+        // Then send status message
         const userMessage = action === 'complete'
-            ? `${moneyEmoji} *Withdrawal Completed!* ${partyEmoji}\n\n` +
-              `*Amount:* ${withdrawal.amount} USDT\n` +
-              `*Wallet:* \`${withdrawal.walletAddress}\`\n` +
-              `*Transaction ID:* WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
-              `${moneyBagEmoji} Funds will be sent shortly! ${successEmoji}`
-            : `${sadEmoji} *Withdrawal Declined* ${sadEmoji}\n\n` +
-              `*Amount:* ${withdrawal.amount} USDT\n` +
-              `*Transaction ID:* WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
-              `Please contact support for more information`;
+            ? `Withdrawal #WD${withdrawal._id.toString().slice(-8).toUpperCase()} completed!\n\n` +
+              `Amount: ${withdrawal.amount} USDT\n` +
+              `Wallet: ${withdrawal.walletAddress}`
+            : `Withdrawal #WD${withdrawal._id.toString().slice(-8).toUpperCase()} declined\n\n` +
+              `Amount: ${withdrawal.amount} USDT\n` +
+              `Contact support for details`;
 
-        await bot.sendMessage(withdrawal.userId, userMessage, { parse_mode: "Markdown" });
+        await bot.sendMessage(withdrawal.userId, userMessage);
 
-        // Update all admin messages with better error handling
-        const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
-        const processedByText = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
-        const updatedText = `${withdrawal.adminMessages[0]?.originalText || 'Withdrawal details'}\n\n${statusText}\n${processedByText}`;
+        // Update admin messages
+        if (withdrawal.adminMessages && withdrawal.adminMessages.length > 0) {
+            const statusText = action === 'complete' ? 'Completed' : 'Declined';
+            const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
+            const updatedText = `${withdrawal.adminMessages[0].originalText}\n\nStatus: ${statusText}\n${processedBy}`;
 
-        await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
-            if (!adminMsg) return;
-            
-            try {
-                // First try to remove buttons
+            await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
+                if (!adminMsg) return;
+                
                 try {
+                    // Remove buttons
                     await bot.editMessageReplyMarkup(
                         { inline_keyboard: [] },
-                        { 
-                            chat_id: adminMsg.adminId, 
-                            message_id: adminMsg.messageId 
-                        }
+                        { chat_id: adminMsg.adminId, message_id: adminMsg.messageId }
                     );
-                } catch (err) {
-                    console.error(`Failed to remove buttons for admin ${adminMsg.adminId}:`, err);
-                }
-
-                // Then update message text
-                try {
+                    
+                    // Update message
                     await bot.editMessageText(updatedText, {
                         chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId,
-                        parse_mode: "Markdown"
+                        message_id: adminMsg.messageId
                     });
                 } catch (err) {
-                    console.error(`Failed to update text for admin ${adminMsg.adminId}:`, err);
-                    
-                    // If message doesn't exist, send a new one
-                    if (err.response?.statusCode === 400 && err.response?.body?.description?.includes('message not found')) {
-                        await bot.sendMessage(
-                            adminMsg.adminId,
-                            `⚠️ Original message not found, here's the update:\n\n${updatedText}`,
-                            { parse_mode: "Markdown" }
-                        );
-                    }
+                    console.error(`Failed to update admin message ${adminMsg.adminId}:`, err);
+                    // Fallback - send new message if edit fails
+                    await bot.sendMessage(adminMsg.adminId, `Update: ${updatedText}`);
                 }
-            } catch (err) {
-                console.error(`Complete error handling for admin ${adminMsg.adminId}:`, err);
-            }
-        }));
+            }));
+        }
 
         await session.commitTransaction();
-        await bot.answerCallbackQuery(query.id, { text: `Withdrawal ${action}d successfully` });
+        await bot.answerCallbackQuery(query.id, { text: `Withdrawal ${action}d` });
 
     } catch (error) {
         await session.abortTransaction();
