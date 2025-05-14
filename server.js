@@ -624,15 +624,6 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
     }
 });
 
-// get withdraw for referrals page 
-const event = new CustomEvent('withdrawalUpdate', {
-    detail: {
-        withdrawalId: withdrawal._id,
-        status: action === 'complete' ? 'completed' : 'declined'
-    }
-});
-window.dispatchEvent(event);
-
 
 // Withdrawal endpoint
 app.post('/api/referral-withdrawals', async (req, res) => {
