@@ -769,7 +769,7 @@ async function showWithdrawPopup() {
                 const walletAddress = walletInput.value.trim();
 
                 // Validate amount
-                if (isNaN(amount) {
+                if (isNaN(amount)) {
                     Swal.showValidationMessage('Please enter a valid amount');
                     return false;
                 }
