@@ -740,6 +740,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 });
 
 // Withdrawal action handler
+// Withdrawal action handler (updated version)
 bot.on('callback_query', async (query) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -755,6 +756,9 @@ bot.on('callback_query', async (query) => {
 
         const action = data.startsWith('complete_withdrawal_') ? 'complete' : 'decline';
         const withdrawalId = data.split('_')[2];
+
+        // First, acknowledge the button click immediately
+        await bot.answerCallbackQuery(query.id, { text: `Processing ${action}...` });
 
         // Update withdrawal status
         const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
@@ -794,16 +798,46 @@ bot.on('callback_query', async (query) => {
 
         await bot.sendMessage(withdrawal.userId, userMessage);
 
-        // Update admin messages
+        // Update the original admin message that contained the buttons
+        if (message) {
+            const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
+            const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
+            const originalText = message.text || withdrawal.adminMessages.find(m => m.messageId === message.message_id)?.originalText || 'Withdrawal details';
+            const updatedText = `${originalText.split('\n\nStatus:')[0]}\n\nStatus: ${statusText}\n${processedBy}`;
+
+            try {
+                // First remove the inline keyboard
+                await bot.editMessageReplyMarkup(
+                    { inline_keyboard: [] },
+                    { 
+                        chat_id: message.chat.id,
+                        message_id: message.message_id
+                    }
+                );
+
+                // Then update the message text
+                await bot.editMessageText(updatedText, {
+                    chat_id: message.chat.id,
+                    message_id: message.message_id
+                });
+            } catch (err) {
+                console.error('Failed to update admin message:', err);
+                // Fallback - send new message
+                await bot.sendMessage(message.chat.id, `Update: ${updatedText}`);
+            }
+        }
+
+        // Update all other admin messages in the database
         if (withdrawal.adminMessages && withdrawal.adminMessages.length > 0) {
             const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
             const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
-            const updatedText = `${withdrawal.adminMessages[0].originalText}\n\n${statusText}\n${processedBy}`;
-
+            
             await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
-                if (!adminMsg) return;
+                if (!adminMsg || (message && adminMsg.messageId === message.message_id)) return;
                 
                 try {
+                    const updatedText = `${adminMsg.originalText}\n\nStatus: ${statusText}\n${processedBy}`;
+                    
                     // Remove buttons
                     await bot.editMessageReplyMarkup(
                         { inline_keyboard: [] },
@@ -820,8 +854,6 @@ bot.on('callback_query', async (query) => {
                     });
                 } catch (err) {
                     console.error(`Failed to update admin message ${adminMsg.adminId}:`, err);
-                    // Fallback - send new message
-                    await bot.sendMessage(adminMsg.adminId, `Update: ${updatedText}`);
                 }
             }));
         }
@@ -968,8 +1000,11 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         let user = await User.findOne({ id: chatId });
         if (!user) user = await User.create({ id: chatId, username });
 
-        await bot.sendMessage(chatId, '👋');
-        
+        try {
+            await bot.sendSticker(userId, 'CAACAgIAAxkBAAEOfYRoJQbAGJ_uoVDJp5O3xyvEPR77BAACbgUAAj-VzAqGOtldiLy3NTYE');
+        } catch (stickerError) {
+            console.error('Failed to send sticker:', stickerError);
+        }
         await bot.sendMessage(chatId, `Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`, {
             reply_markup: {
                 inline_keyboard: [
