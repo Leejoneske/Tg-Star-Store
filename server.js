@@ -638,8 +638,8 @@ app.get('/api/withdrawal-history/:userId', async (req, res) => {
     }
 });
 
-// Withdrawal endpoint
 
+// Withdrawal endpoint
 app.post('/api/referral-withdrawals', async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -750,12 +750,13 @@ app.post('/api/referral-withdrawals', async (req, res) => {
     }
 });
 
+// Fixed withdrawal processing handler
 bot.on('callback_query', async (query) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-        const { data, message, from } = query;
+        const { data, from } = query;
         
         if (!adminIds.includes(from.id.toString())) {
             await bot.answerCallbackQuery(query.id, { text: "Unauthorized action" });
@@ -792,57 +793,59 @@ bot.on('callback_query', async (query) => {
             );
         }
 
+        // Notify user
         const userMessage = action === 'complete'
-            ? `Withdrawal #WD${withdrawal._id.toString().slice(-8).toUpperCase()} completed!\n\n` +
+            ? `✅ Withdrawal #WD${withdrawal._id.toString().slice(-8).toUpperCase()} completed!\n\n` +
               `Amount: ${withdrawal.amount} USDT\n` +
               `Wallet: ${withdrawal.walletAddress}`
-            : `Withdrawal #WD${withdrawal._id.toString().slice(-8).toUpperCase()} declined\n\n` +
+            : `❌ Withdrawal #WD${withdrawal._id.toString().slice(-8).toUpperCase()} declined\n\n` +
               `Amount: ${withdrawal.amount} USDT\n` +
               `Contact support for details`;
-
+        
         await bot.sendMessage(withdrawal.userId, userMessage);
 
+        // Update all admin messages
         const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
         const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
         
         const transformedKeyboard = {
             inline_keyboard: [
-                [
-                    { 
-                        text: statusText, 
-                        callback_data: 'processed',
-                        disabled: true
-                    }
-                ]
+                [{
+                    text: statusText,
+                    callback_data: 'processed',
+                    disabled: true
+                }]
             ]
         };
 
-        if (withdrawal.adminMessages && withdrawal.adminMessages.length > 0) {
-            await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
-                if (!adminMsg) return;
+        await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
+            if (!adminMsg) return;
+            
+            try {
+                // First update the message text
+                await bot.editMessageText(
+                    `${adminMsg.originalText}\n\nStatus: ${statusText}\n${processedBy}`,
+                    {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        parse_mode: "Markdown"
+                    }
+                );
                 
-                try {
-                    await bot.editMessageReplyMarkup(
-                        { inline_keyboard: transformedKeyboard.inline_keyboard },
-                        {
-                            chat_id: adminMsg.adminId,
-                            message_id: adminMsg.messageId
-                        }
-                    );
-
-                    await bot.editMessageText(
-                        `${adminMsg.originalText}\n\nStatus: ${statusText}\n${processedBy}`,
-                        {
-                            chat_id: adminMsg.adminId,
-                            message_id: adminMsg.messageId,
-                            parse_mode: "Markdown"
-                        }
-                    );
-                } catch (err) {
-                    console.error(`Failed to update admin message ${adminMsg.adminId}:`, err);
-                }
-            }));
-        }
+                // Then update the buttons
+                await bot.editMessageReplyMarkup(
+                    {
+                        inline_keyboard: transformedKeyboard.inline_keyboard
+                    },
+                    {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId
+                    }
+                );
+            } catch (err) {
+                console.error(`Failed to update admin message ${adminMsg.adminId}:`, err);
+            }
+        }));
 
         await session.commitTransaction();
         await bot.answerCallbackQuery(query.id, { text: `Withdrawal ${action}d successfully` });
@@ -856,15 +859,16 @@ bot.on('callback_query', async (query) => {
     }
 });
 
-// Separate handler for info buttons
+// Separate handler for processed withdrawals info
 bot.on('callback_query', async (infoQuery) => {
     if (infoQuery.data === 'processed') {
-        await bot.answerCallbackQuery(infoQuery.id, { 
+        await bot.answerCallbackQuery(infoQuery.id, {
             text: "This withdrawal has already been processed",
             show_alert: false
         });
     }
 });
+
 
 
 //referral tracking for referrals rewards
