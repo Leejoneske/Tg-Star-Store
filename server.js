@@ -818,34 +818,35 @@ bot.on('callback_query', async (query) => {
             ]
         };
 
-        await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
-            if (!adminMsg) return;
-            
-            try {
-                // First update the message text
-                await bot.editMessageText(
-                    `${adminMsg.originalText}\n\nStatus: ${statusText}\n${processedBy}`,
-                    {
-                        chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId,
-                        parse_mode: "Markdown"
-                    }
-                );
+        // Add null check for adminMessages
+        if (withdrawal.adminMessages && Array.isArray(withdrawal.adminMessages)) {
+            await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
+                if (!adminMsg || !adminMsg.adminId || !adminMsg.messageId) return;
                 
-                // Then update the buttons
-                await bot.editMessageReplyMarkup(
-                    {
-                        inline_keyboard: transformedKeyboard.inline_keyboard
-                    },
-                    {
-                        chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId
-                    }
-                );
-            } catch (err) {
-                console.error(`Failed to update admin message ${adminMsg.adminId}:`, err);
-            }
-        }));
+                try {
+                    // Update message text first
+                    await bot.editMessageText(
+                        `${adminMsg.originalText || 'Withdrawal request'}\n\nStatus: ${statusText}\n${processedBy}`,
+                        {
+                            chat_id: adminMsg.adminId,
+                            message_id: adminMsg.messageId,
+                            parse_mode: "Markdown"
+                        }
+                    );
+                    
+                    // Then update buttons
+                    await bot.editMessageReplyMarkup(
+                        { inline_keyboard: transformedKeyboard.inline_keyboard },
+                        {
+                            chat_id: adminMsg.adminId,
+                            message_id: adminMsg.messageId
+                        }
+                    );
+                } catch (err) {
+                    console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
+                }
+            }));
+        }
 
         await session.commitTransaction();
         await bot.answerCallbackQuery(query.id, { text: `Withdrawal ${action}d successfully` });
@@ -858,17 +859,6 @@ bot.on('callback_query', async (query) => {
         session.endSession();
     }
 });
-
-// Separate handler for processed withdrawals info
-bot.on('callback_query', async (infoQuery) => {
-    if (infoQuery.data === 'processed') {
-        await bot.answerCallbackQuery(infoQuery.id, {
-            text: "This withdrawal has already been processed",
-            show_alert: false
-        });
-    }
-});
-
 
 
 //referral tracking for referrals rewards
