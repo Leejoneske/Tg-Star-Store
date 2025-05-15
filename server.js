@@ -465,16 +465,21 @@ bot.on('callback_query', async (query) => {
             return;
         }
 
-        if (actionType === 'complete') {
-            order.status = 'completed';
-            if (data.startsWith('complete_sell_')) {
-                await trackStars(order.telegramId, order.stars, 'sell');
-            } else if (data.startsWith('complete_buy_')) {
-                await trackStars(order.telegramId, order.stars, 'buy');
-                if (order.isPremium) {
-                    await trackPremiumActivation(order.telegramId);
-                }
-            }
+        // In your order completion handler:
+if (actionType === 'complete') {
+    order.status = 'completed';
+    await order.save();
+    
+    if (data.startsWith('complete_sell_')) {
+        await trackStars(order.telegramId, order.stars, 'sell');
+    } 
+    if (data.startsWith('complete_buy_')) {
+        await trackStars(order.telegramId, order.stars, 'buy');
+        if (order.isPremium) {
+            await trackPremiumActivation(order.telegramId);
+        }
+    }
+
             await order.save();
         } else {
             order.status = 'declined';
@@ -858,79 +863,67 @@ bot.on('callback_query', async (query) => {
 
 
 //referral tracking for referrals rewards
-async function syncReferralStatus(referralId) {
+async function handleReferralActivation(tracker) {
     try {
-        const referral = await Referral.findById(referralId);
-        if (!referral) return;
+        // Update both tracker and referral
+        tracker.status = 'active';
+        tracker.dateActivated = new Date();
+        await tracker.save();
 
-        const tracker = await ReferralTracker.findOne({ referral: referralId });
-        if (!tracker) return;
-
-        const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
-        const shouldBeActive = totalStars >= 100 || tracker.premiumActivated;
-
-        if (shouldBeActive && referral.status !== 'active') {
-            referral.status = 'active';
-            referral.dateActivated = new Date();
-            await referral.save();
-            
-            await bot.sendMessage(
-                referral.referrerUserId,
-                `🎉 One of your referrals just qualified!\n\n` +
-                `You've received a bonus of 0.5 USDT.`
-            );
+        if (tracker.referral) {
+            await Referral.findByIdAndUpdate(tracker.referral, {
+                status: 'active',
+                dateActivated: new Date()
+            });
         }
 
-        tracker.lastUpdated = new Date();
-        await tracker.save();
+        // Send notification
+        await bot.sendMessage(
+            tracker.referrerUserId,
+            `🎉 One of your referrals just qualified!\n\n` +
+            `You've received a bonus of 0.5 USDT.`
+        );
     } catch (error) {
-        console.error('Error syncing referral status:', error);
+        console.error('Activation error:', error);
     }
 }
 
 async function trackStars(userId, stars, type) {
     try {
-        const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() }).populate('referral');
+        const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
         if (!tracker) return;
 
         if (type === 'buy') tracker.totalBoughtStars += stars || 0;
-        else if (type === 'sell') tracker.totalSoldStars += stars || 0;
+        if (type === 'sell') tracker.totalSoldStars += stars || 0;
 
         const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
-        if (totalStars >= 100 && tracker.status === 'pending') {
-            tracker.status = 'active';
-            tracker.dateActivated = new Date();
-            await tracker.save();
-            
-            if (tracker.referral) {
-                await syncReferralStatus(tracker.referral._id);
-            }
+        if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
+            await handleReferralActivation(tracker);
         } else {
             await tracker.save();
         }
     } catch (error) {
-        console.error('Error tracking stars:', error);
+        console.error('Tracking error:', error);
     }
 }
 
 async function trackPremiumActivation(userId) {
     try {
-        const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() }).populate('referral');
+        const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
         if (!tracker) return;
 
-        tracker.premiumActivated = true;
-        tracker.status = 'active';
-        tracker.dateActivated = new Date();
-        await tracker.save();
-        
-        if (tracker.referral) {
-            await syncReferralStatus(tracker.referral._id);
+        if (!tracker.premiumActivated) {
+            tracker.premiumActivated = true;
+            if (tracker.status === 'pending') {
+                await handleReferralActivation(tracker);
+            } else {
+                await tracker.save();
+            }
         }
     } catch (error) {
-        console.error('Error tracking premium activation:', error);
+        console.error('Premium activation error:', error);
     }
 }
-
 
 
 //end of referral track 
