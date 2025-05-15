@@ -125,16 +125,13 @@ const referralWithdrawalSchema = new mongoose.Schema({
 
 
 const referralTrackerSchema = new mongoose.Schema({
-    referrerUserId: { type: String, required: true },
-    referredUserId: { type: String, required: true, unique: true },
-    referredUsername: String,
+    referral: { type: mongoose.Schema.Types.ObjectId, ref: 'Referral', required: true },
     totalBoughtStars: { type: Number, default: 0 },
     totalSoldStars: { type: Number, default: 0 },
     premiumActivated: { type: Boolean, default: false },
-    status: { type: String, enum: ['pending', 'active'], default: 'pending' },
-    dateReferred: { type: Date, default: Date.now },
-    dateActivated: Date
-});
+    lastUpdated: { type: Date, default: Date.now }
+}, { timestamps: true });
+
 
 const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
 const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
@@ -278,12 +275,10 @@ bot.on('callback_query', async (query) => {
         if (actionType === 'complete') {
             order.status = 'completed';
             order.dateCompleted = new Date();
-            
-            if (actionType === 'complete') {
-    order.status = 'completed';
-    await updateReferralStars(order.telegramId, order.stars, 'buy');
-    await checkAndActivateReferral(order.telegramId, order.username);
-      }
+            await trackStars(order.telegramId, order.stars, 'buy');
+            if (order.isPremium) {
+                await trackPremiumActivation(order.telegramId);
+            }
         } else if (actionType === 'decline') {
             order.status = 'declined';
             order.dateDeclined = new Date();
@@ -444,7 +439,6 @@ bot.on('callback_query', async (query) => {
         const data = query.data;
         let order, actionType;
 
-        // Handle both sell and buy orders
         if (data.startsWith('complete_sell_')) {
             actionType = 'complete';
             order = await SellOrder.findOne({ id: data.split('_')[2] });
@@ -461,34 +455,33 @@ bot.on('callback_query', async (query) => {
             return await bot.answerCallbackQuery(query.id);
         }
 
-        // Check if order exists and is in correct status
         if (!order || (order.status !== 'processing' && order.status !== 'pending')) {
             await bot.answerCallbackQuery(query.id, { text: "Order not found or already processed" });
             return;
         }
 
-        // Process completion or declination
         if (actionType === 'complete') {
-    order.status = 'completed';
-    await updateReferralStars(order.telegramId, order.stars, 'sell');
-    await checkAndActivateReferral(order.telegramId, order.username);
-        }
+            order.status = 'completed';
+            if (data.startsWith('complete_sell_')) {
+                await trackStars(order.telegramId, order.stars, 'sell');
+            } else if (data.startsWith('complete_buy_')) {
+                await trackStars(order.telegramId, order.stars, 'buy');
+                if (order.isPremium) {
+                    await trackPremiumActivation(order.telegramId);
+                }
+            }
+            await order.save();
         } else {
-            // ===== ORDER DECLINATION LOGIC =====
             order.status = 'declined';
             order.declinedAt = new Date();
             await order.save();
-
-            // Notify user
             await bot.sendMessage(
                 order.telegramId,
-                `❌ Order #${order.id} declined\n\n` +
-                `Please contact support for resolution.`,
+                `❌ Order #${order.id} declined\n\nPlease contact support for resolution.`,
                 { parse_mode: "Markdown" }
             );
         }
 
-        // ===== UPDATE ADMIN MESSAGES =====
         for (const adminMsg of order.adminMessages) {
             try {
                 const statusText = order.status === 'completed' ? '✓ Completed' : '✗ Declined';
@@ -860,33 +853,87 @@ bot.on('callback_query', async (query) => {
 
 
 //referral tracking for referrals rewards
+async function syncReferralStatus(referralId) {
+    try {
+        const referral = await Referral.findById(referralId);
+        if (!referral) return;
 
-async function checkAndActivateReferral(userId, username, isPremium = false) {
-    const referral = await ReferralTracker.findOne({ referredUserId: userId });
-    if (!referral) return false;
+        const tracker = await ReferralTracker.findOne({ referral: referralId });
+        if (!tracker) return;
 
-    // Premium: Activate immediately
-    if (isPremium && !referral.premiumActivated) {
-        referral.status = 'active';
-        referral.premiumActivated = true;
-        referral.dateActivated = new Date();
-        await referral.save();
-        await bot.sendMessage(referral.referrerUserId, `🎉 @${username} bought premium! Bonus earned!`);
-        return true;
+        const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
+        const shouldBeActive = totalStars >= 100 || tracker.premiumActivated;
+
+        if (shouldBeActive && referral.status !== 'active') {
+            referral.status = 'active';
+            referral.dateActivated = new Date();
+            await referral.save();
+            
+            // Notify referrer
+            await bot.sendMessage(
+                referral.referrerUserId,
+                `🎉 Your referral @${tracker.referredUsername} has qualified! Bonus earned!`
+            );
+        }
+
+        tracker.lastUpdated = new Date();
+        await tracker.save();
+    } catch (error) {
+        console.error('Error syncing referral status:', error);
     }
-
-    // Regular: Check TOTAL stars (buys + sells)
-    const totalStars = referral.totalBoughtStars + referral.totalSoldStars;
-    if (totalStars >= 100 && referral.status === 'pending') {
-        referral.status = 'active';
-        referral.dateActivated = new Date();
-        await referral.save();
-        await bot.sendMessage(referral.referrerUserId, `🎉 @${username} hit ${totalStars} stars! Bonus earned!`);
-        return true;
-    }
-
-    return false;
 }
+
+async function trackStars(userId, stars, type) {
+    try {
+        // Find the referral for this user
+        const referral = await Referral.findOne({ referredUserId: userId.toString() });
+        if (!referral) return;
+
+        // Find or create tracker
+        let tracker = await ReferralTracker.findOne({ referral: referral._id });
+        if (!tracker) {
+            tracker = await ReferralTracker.create({
+                referral: referral._id,
+                referredUsername: referral.referredUsername || 'user'
+            });
+        }
+
+        // Update stars
+        if (type === 'buy') {
+            tracker.totalBoughtStars += stars || 0;
+        } else if (type === 'sell') {
+            tracker.totalSoldStars += stars || 0;
+        }
+
+        await tracker.save();
+        await syncReferralStatus(referral._id);
+    } catch (error) {
+        console.error('Error tracking stars:', error);
+    }
+}
+
+async function trackPremiumActivation(userId) {
+    try {
+        const referral = await Referral.findOne({ referredUserId: userId.toString() });
+        if (!referral) return;
+
+        let tracker = await ReferralTracker.findOne({ referral: referral._id });
+        if (!tracker) {
+            tracker = await ReferralTracker.create({
+                referral: referral._id,
+                referredUsername: referral.referredUsername || 'user'
+            });
+        }
+
+        tracker.premiumActivated = true;
+        await tracker.save();
+        await syncReferralStatus(referral._id);
+    } catch (error) {
+        console.error('Error tracking premium activation:', error);
+    }
+}
+
+//end of referral track 
 
 
 // Check if adminIds is already declared
