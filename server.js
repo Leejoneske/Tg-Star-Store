@@ -750,7 +750,6 @@ app.post('/api/referral-withdrawals', async (req, res) => {
     }
 });
 
-
 bot.on('callback_query', async (query) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -806,48 +805,44 @@ bot.on('callback_query', async (query) => {
         const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
         const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
         
-        // Create a transformed button that shows the action taken
         const transformedKeyboard = {
             inline_keyboard: [
                 [
                     { 
-                        text: action === 'complete' ? "✅ Completed" : "❌ Declined", 
-                        callback_data: `info_withdrawal_${withdrawal._id}` 
+                        text: statusText, 
+                        callback_data: 'processed',
+                        disabled: true
                     }
                 ]
             ]
         };
-        
-        // Update all admin messages with transformed button
+
         if (withdrawal.adminMessages && withdrawal.adminMessages.length > 0) {
             await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
                 if (!adminMsg) return;
                 
                 try {
-                    const originalText = adminMsg.originalText;
-                    const updatedText = `${originalText}\n\nStatus: ${statusText}\n${processedBy}`;
-                    
-                    // Update message text and transform the button
-                    await bot.editMessageText(updatedText, {
-                        chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId,
-                        reply_markup: transformedKeyboard
-                    });
+                    await bot.editMessageReplyMarkup(
+                        { inline_keyboard: transformedKeyboard.inline_keyboard },
+                        {
+                            chat_id: adminMsg.adminId,
+                            message_id: adminMsg.messageId
+                        }
+                    );
+
+                    await bot.editMessageText(
+                        `${adminMsg.originalText}\n\nStatus: ${statusText}\n${processedBy}`,
+                        {
+                            chat_id: adminMsg.adminId,
+                            message_id: adminMsg.messageId,
+                            parse_mode: "Markdown"
+                        }
+                    );
                 } catch (err) {
                     console.error(`Failed to update admin message ${adminMsg.adminId}:`, err);
                 }
             }));
         }
-
-        // Add handler for the info button that does nothing but show info
-        bot.on('callback_query', async (infoQuery) => {
-            if (infoQuery.data.startsWith('info_withdrawal_')) {
-                await bot.answerCallbackQuery(infoQuery.id, { 
-                    text: `This withdrawal was already ${action === 'complete' ? 'completed' : 'declined'}.`,
-                    show_alert: true
-                });
-            }
-        });
 
         await session.commitTransaction();
         await bot.answerCallbackQuery(query.id, { text: `Withdrawal ${action}d successfully` });
@@ -858,6 +853,16 @@ bot.on('callback_query', async (query) => {
         await bot.answerCallbackQuery(query.id, { text: "Error processing request" });
     } finally {
         session.endSession();
+    }
+});
+
+// Separate handler for info buttons
+bot.on('callback_query', async (infoQuery) => {
+    if (infoQuery.data === 'processed') {
+        await bot.answerCallbackQuery(infoQuery.id, { 
+            text: "This withdrawal has already been processed",
+            show_alert: false
+        });
     }
 });
 
