@@ -279,12 +279,11 @@ bot.on('callback_query', async (query) => {
             order.status = 'completed';
             order.dateCompleted = new Date();
             
-            if (order.isPremium) {
-                await checkAndActivateReferral(order.telegramId, order.username, true);
-            } else if (order.stars) {
-                await updateReferralStars(order.telegramId, order.stars, 'buy');
-                await checkAndActivateReferral(order.telegramId, order.username);
-            }
+            if (actionType === 'complete') {
+    order.status = 'completed';
+    await updateReferralStars(order.telegramId, order.stars, 'buy');
+    await checkAndActivateReferral(order.telegramId, order.username);
+      }
         } else if (actionType === 'decline') {
             order.status = 'declined';
             order.dateDeclined = new Date();
@@ -470,11 +469,10 @@ bot.on('callback_query', async (query) => {
 
         // Process completion or declination
         if (actionType === 'complete') {
-            order.status = 'completed';
-            order.dateCompleted = new Date();
-            
-            await updateReferralStars(order.telegramId, order.stars, 'sell');
-            await checkAndActivateReferral(order.telegramId, order.username);
+    order.status = 'completed';
+    await updateReferralStars(order.telegramId, order.stars, 'sell');
+    await checkAndActivateReferral(order.telegramId, order.username);
+        }
         } else {
             // ===== ORDER DECLINATION LOGIC =====
             order.status = 'declined';
@@ -867,43 +865,27 @@ async function checkAndActivateReferral(userId, username, isPremium = false) {
     const referral = await ReferralTracker.findOne({ referredUserId: userId });
     if (!referral) return false;
 
+    // Premium purchases activate immediately
     if (isPremium && !referral.premiumActivated) {
         referral.status = 'active';
         referral.premiumActivated = true;
         referral.dateActivated = new Date();
         await referral.save();
-        
-        await bot.sendMessage(
-            referral.referrerUserId,
-            `🎉 Your referral @${username} activated premium!`
-        );
+        await bot.sendMessage(referral.referrerUserId, `🎉 @${username} bought premium! You earned 0.5 USDT!`);
         return true;
     }
 
-    if (!isPremium && referral.status === 'pending') {
-        const totalStars = referral.totalBoughtStars + referral.totalSoldStars;
-        if (totalStars >= 100) {
-            referral.status = 'active';
-            referral.dateActivated = new Date();
-            await referral.save();
-            
-            await bot.sendMessage(
-                referral.referrerUserId,
-                `🎉 Your referral @${username} reached ${totalStars} stars!`
-            );
-            return true;
-        }
+    // Regular users: Check TOTAL stars (buys + sells)
+    const totalStars = referral.totalBoughtStars + referral.totalSoldStars;
+    if (totalStars >= 100 && referral.status === 'pending') {
+        referral.status = 'active';
+        referral.dateActivated = new Date();
+        await referral.save();
+        await bot.sendMessage(referral.referrerUserId, `🎉 @${username} reached ${totalStars} stars (buys + sells)! You earned 0.5 USDT!`);
+        return true;
     }
-    
-    return false;
-}
 
-async function updateReferralStars(userId, stars, type) {
-    const updateField = type === 'buy' ? 'totalBoughtStars' : 'totalSoldStars';
-    await ReferralTracker.findOneAndUpdate(
-        { referredUserId: userId },
-        { $inc: { [updateField]: stars } }
-    );
+    return false;
 }
 
 
