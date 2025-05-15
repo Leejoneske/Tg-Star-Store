@@ -1035,44 +1035,50 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
 
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
-    const userId = msg.from.id; 
     const username = msg.from.username || 'user';
     const deepLinkParam = match[1]?.trim();
-
     try {
         let user = await User.findOne({ id: chatId });
         if (!user) user = await User.create({ id: chatId, username });
-
         try {
             await bot.sendSticker(chatId, 'CAACAgIAAxkBAAEOfYRoJQbAGJ_uoVDJp5O3xyvEPR77BAACbgUAAj-VzAqGOtldiLy3NTYE');
         } catch (stickerError) {
             console.error('Failed to send sticker:', stickerError);
         }
-
-        await bot.sendMessage(chatId, `Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`, {
+        await bot.sendMessage(chatId, `👋 Welcome to StarStore, @${username}! ✨\n\nUse the app to purchase stars and enjoy exclusive benefits!`, {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: '🚀 Launch App', url: `https://t.me/TgStarStore_bot?startapp` }],
-                    [{ text: '👥 Join Community', url: `https://t.me/StarStore_Chat` }]
+                    [{ text: '🚀 Launch StarStore', url: `https://t.me/TgStarStore_bot/app?startapp=home_${chatId}` }]
                 ]
             }
         });
-
         if (deepLinkParam?.startsWith('ref_')) {
             const referrerUserId = deepLinkParam.split('_')[1];
-            if (!referrerUserId || !/^\d+$/.test(referrerUserId) return;
-            if (referrerUserId === chatId.toString()) return;
-
-            await ReferralTracker.findOneAndUpdate(
-                { referredUserId: chatId.toString() },
-                {
+            
+            // Check if user is trying to self-refer
+            if (!referrerUserId || referrerUserId === chatId.toString()) {
+                return;
+            }
+            
+            // Validate referrerUserId format
+            if (!/^\d+$/.test(referrerUserId)) {
+                return;
+            }
+            
+            // Check if this referral already exists
+            const existing = await ReferralTracker.findOne({ referredUserId: chatId.toString() });
+            if (!existing) {
+                await ReferralTracker.create({
                     referrerUserId,
+                    referredUserId: chatId.toString(),
                     referredUsername: username,
                     status: 'pending',
                     dateReferred: new Date()
-                },
-                { upsert: true }
-            );
+                });
+                
+                // Send notification without sharing user ID
+                await bot.sendMessage(referrerUserId, `🎉 Great news! Someone used your referral link and joined StarStore!`);
+            }
         }
     } catch (error) {
         console.error('Start command error:', error);
