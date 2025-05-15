@@ -724,19 +724,19 @@ function copyReferralLink() {
 function shareToFacebook() {
     const text = `Check out StarStore! Use my referral link to get started: ${state.referralLink}`;
     const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(state.referralLink)}&quote=${encodeURIComponent(text)}`;
-    openShareWindow(shareUrl, 600, 400);
+    window.open(shareUrl, '_blank', 'width=600,height=400');
 }
 
 function shareToTwitter() {
     const text = `Check out StarStore! Use my referral link to get started: ${state.referralLink}`;
     const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-    openShareWindow(shareUrl, 600, 300);
+    window.open(shareUrl, '_blank', 'width=600,height=300');
 }
 
 function shareToWhatsApp() {
     const text = `Check out StarStore! Use my referral link to get started: ${state.referralLink}`;
-    const shareUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    openShareWindow(shareUrl, 600, 600);
+    const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(shareUrl, '_blank', 'width=600,height=600');
 }
 
 function shareViaTelegram() {
@@ -744,18 +744,31 @@ function shareViaTelegram() {
     if (window.Telegram?.WebApp?.share) {
         window.Telegram.WebApp.share(text);
     } else {
-        const shareUrl = `tg://msg?text=${encodeURIComponent(text)}`;
-        openShareWindow(shareUrl, 600, 600);
+        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(state.referralLink)}&text=${encodeURIComponent(text)}`;
+        window.open(shareUrl, '_blank', 'width=600,height=600');
     }
 }
 
-
 function isValidTONAddress(address) {
     if (!address || typeof address !== 'string') return false;
-    const cleanAddr = address.replace(/^ton:\/\//, '').trim();
-    return /^(EQ|UQ)[a-zA-Z0-9_-]{43,48}$/.test(cleanAddr) && 
-           cleanAddr.length >= 48 && 
-           !/[OIl]/.test(cleanAddr);
+    
+    
+    const cleanAddr = address.replace(/^(ton:\/\/|ton:)/i, '').trim();
+    
+   
+    const tonAddressRegex = /^[a-zA-Z0-9_-]{48,}$/;
+    
+    
+    if (!tonAddressRegex.test(cleanAddr) || cleanAddr.length < 48) {
+        return false;
+    }
+    
+    
+    if (/[OIl]/.test(cleanAddr)) {
+        return false;
+    }
+    
+    return true;
 }
  
 async function showWithdrawPopup() {
