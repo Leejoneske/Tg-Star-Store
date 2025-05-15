@@ -125,12 +125,17 @@ const referralWithdrawalSchema = new mongoose.Schema({
 
 
 const referralTrackerSchema = new mongoose.Schema({
-    referral: { type: mongoose.Schema.Types.ObjectId, ref: 'Referral', required: true },
+    referral: { type: mongoose.Schema.Types.ObjectId, ref: 'Referral' },
+    referrerUserId: { type: String, required: true },
+    referredUserId: { type: String, required: true, unique: true },
+    referredUsername: String,
     totalBoughtStars: { type: Number, default: 0 },
     totalSoldStars: { type: Number, default: 0 },
     premiumActivated: { type: Boolean, default: false },
-    lastUpdated: { type: Date, default: Date.now }
-}, { timestamps: true });
+    status: { type: String, enum: ['pending', 'active'], default: 'pending' },
+    dateReferred: { type: Date, default: Date.now },
+    dateActivated: Date
+});
 
 
 const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
@@ -885,28 +890,25 @@ async function syncReferralStatus(referralId) {
 
 async function trackStars(userId, stars, type) {
     try {
-        // Find the referral for this user
-        const referral = await Referral.findOne({ referredUserId: userId.toString() });
-        if (!referral) return;
+        const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
+        if (!tracker) return;
 
-        // Find or create tracker
-        let tracker = await ReferralTracker.findOne({ referral: referral._id });
-        if (!tracker) {
-            tracker = await ReferralTracker.create({
-                referral: referral._id,
-                referredUsername: referral.referredUsername || 'user'
-            });
-        }
+        if (type === 'buy') tracker.totalBoughtStars += stars || 0;
+        else if (type === 'sell') tracker.totalSoldStars += stars || 0;
 
-        // Update stars
-        if (type === 'buy') {
-            tracker.totalBoughtStars += stars || 0;
-        } else if (type === 'sell') {
-            tracker.totalSoldStars += stars || 0;
+        const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
+        if (totalStars >= 100 && tracker.status === 'pending') {
+            tracker.status = 'active';
+            tracker.dateActivated = new Date();
+            if (tracker.referral) {
+                await Referral.findByIdAndUpdate(tracker.referral, {
+                    status: 'active',
+                    dateActivated: new Date()
+                });
+            }
         }
 
         await tracker.save();
-        await syncReferralStatus(referral._id);
     } catch (error) {
         console.error('Error tracking stars:', error);
     }
@@ -914,24 +916,26 @@ async function trackStars(userId, stars, type) {
 
 async function trackPremiumActivation(userId) {
     try {
-        const referral = await Referral.findOne({ referredUserId: userId.toString() });
-        if (!referral) return;
+        const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
+        if (!tracker) return;
 
-        let tracker = await ReferralTracker.findOne({ referral: referral._id });
-        if (!tracker) {
-            tracker = await ReferralTracker.create({
-                referral: referral._id,
-                referredUsername: referral.referredUsername || 'user'
+        tracker.premiumActivated = true;
+        tracker.status = 'active';
+        tracker.dateActivated = new Date();
+        
+        if (tracker.referral) {
+            await Referral.findByIdAndUpdate(tracker.referral, {
+                status: 'active',
+                dateActivated: new Date()
             });
         }
 
-        tracker.premiumActivated = true;
         await tracker.save();
-        await syncReferralStatus(referral._id);
     } catch (error) {
         console.error('Error tracking premium activation:', error);
     }
 }
+
 
 //end of referral track 
 
@@ -1056,41 +1060,43 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = msg.from.username || 'user';
     const deepLinkParam = match[1]?.trim();
+    
     try {
         let user = await User.findOne({ id: chatId });
         if (!user) user = await User.create({ id: chatId, username });
+        
         try {
             await bot.sendSticker(chatId, 'CAACAgIAAxkBAAEOfYRoJQbAGJ_uoVDJp5O3xyvEPR77BAACbgUAAj-VzAqGOtldiLy3NTYE');
         } catch (stickerError) {
             console.error('Failed to send sticker:', stickerError);
         }
+        
         await bot.sendMessage(chatId, `👋 Welcome to StarStore, @${username}! ✨\n\nUse the app to purchase stars and enjoy exclusive benefits!`, {
             reply_markup: {
                 inline_keyboard: [
-                    // Fixed Launch App button - uses the correct Telegram Web App URL format
                     [{ text: '🚀 Launch StarStore', web_app: { url: `https://starstore.site?startapp=home_${chatId}` } }],
-                    // New Join Community button
                     [{ text: '👥 Join Community', url: 'https://t.me/StarStore_Chat' }]
                 ]
             }
         });
+        
         if (deepLinkParam?.startsWith('ref_')) {
             const referrerUserId = deepLinkParam.split('_')[1];
             
-            // Check if user is trying to self-refer
-            if (!referrerUserId || referrerUserId === chatId.toString()) {
-                return;
-            }
+            if (!referrerUserId || referrerUserId === chatId.toString()) return;
+            if (!/^\d+$/.test(referrerUserId)) return;
             
-            // Validate referrerUserId format
-            if (!/^\d+$/.test(referrerUserId)) {
-                return;
-            }
-            
-            // Check if this referral already exists
             const existing = await ReferralTracker.findOne({ referredUserId: chatId.toString() });
             if (!existing) {
+                const referral = await Referral.create({
+                    referrerUserId,
+                    referredUserId: chatId.toString(),
+                    status: 'pending',
+                    dateReferred: new Date()
+                });
+                
                 await ReferralTracker.create({
+                    referral: referral._id,
                     referrerUserId,
                     referredUserId: chatId.toString(),
                     referredUsername: username,
@@ -1098,8 +1104,7 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                     dateReferred: new Date()
                 });
                 
-                // Send notification without sharing user ID
-                await bot.sendMessage(referrerUserId, `🎉 Great news! Someone used your referral link and joined StarStore!`);
+                await bot.sendMessage(referrerUserId, `🎉 Someone used your referral link and joined StarStore!`);
             }
         }
     } catch (error) {
