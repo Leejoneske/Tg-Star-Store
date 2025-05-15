@@ -874,10 +874,10 @@ async function syncReferralStatus(referralId) {
             referral.dateActivated = new Date();
             await referral.save();
             
-            // Notify referrer
             await bot.sendMessage(
                 referral.referrerUserId,
-                `🎉 Your referral @${tracker.referredUsername} has qualified! Bonus earned!`
+                `🎉 One of your referrals just qualified!\n\n` +
+                `You've received a bonus of 0.5 USDT.`
             );
         }
 
@@ -890,7 +890,7 @@ async function syncReferralStatus(referralId) {
 
 async function trackStars(userId, stars, type) {
     try {
-        const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
+        const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() }).populate('referral');
         if (!tracker) return;
 
         if (type === 'buy') tracker.totalBoughtStars += stars || 0;
@@ -900,15 +900,14 @@ async function trackStars(userId, stars, type) {
         if (totalStars >= 100 && tracker.status === 'pending') {
             tracker.status = 'active';
             tracker.dateActivated = new Date();
+            await tracker.save();
+            
             if (tracker.referral) {
-                await Referral.findByIdAndUpdate(tracker.referral, {
-                    status: 'active',
-                    dateActivated: new Date()
-                });
+                await syncReferralStatus(tracker.referral._id);
             }
+        } else {
+            await tracker.save();
         }
-
-        await tracker.save();
     } catch (error) {
         console.error('Error tracking stars:', error);
     }
@@ -916,25 +915,22 @@ async function trackStars(userId, stars, type) {
 
 async function trackPremiumActivation(userId) {
     try {
-        const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
+        const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() }).populate('referral');
         if (!tracker) return;
 
         tracker.premiumActivated = true;
         tracker.status = 'active';
         tracker.dateActivated = new Date();
+        await tracker.save();
         
         if (tracker.referral) {
-            await Referral.findByIdAndUpdate(tracker.referral, {
-                status: 'active',
-                dateActivated: new Date()
-            });
+            await syncReferralStatus(tracker.referral._id);
         }
-
-        await tracker.save();
     } catch (error) {
         console.error('Error tracking premium activation:', error);
     }
 }
+
 
 
 //end of referral track 
