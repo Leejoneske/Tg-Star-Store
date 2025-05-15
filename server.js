@@ -865,30 +865,28 @@ async function checkAndActivateReferral(userId, username, isPremium = false) {
     const referral = await ReferralTracker.findOne({ referredUserId: userId });
     if (!referral) return false;
 
-    // Premium purchases activate immediately
+    // Premium: Activate immediately
     if (isPremium && !referral.premiumActivated) {
         referral.status = 'active';
         referral.premiumActivated = true;
         referral.dateActivated = new Date();
         await referral.save();
-        await bot.sendMessage(referral.referrerUserId, `🎉 @${username} bought premium! You earned 0.5 USDT!`);
+        await bot.sendMessage(referral.referrerUserId, `🎉 @${username} bought premium! Bonus earned!`);
         return true;
     }
 
-    // Regular users: Check TOTAL stars (buys + sells)
+    // Regular: Check TOTAL stars (buys + sells)
     const totalStars = referral.totalBoughtStars + referral.totalSoldStars;
     if (totalStars >= 100 && referral.status === 'pending') {
         referral.status = 'active';
         referral.dateActivated = new Date();
         await referral.save();
-        await bot.sendMessage(referral.referrerUserId, `🎉 @${username} reached ${totalStars} stars (buys + sells)! You earned 0.5 USDT!`);
+        await bot.sendMessage(referral.referrerUserId, `🎉 @${username} hit ${totalStars} stars! Bonus earned!`);
         return true;
     }
 
     return false;
 }
-
-
 
 
 // Check if adminIds is already declared
