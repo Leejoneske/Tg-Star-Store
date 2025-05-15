@@ -623,7 +623,21 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
         });
     }
 });
+//get history for referrals withdraw for referral page
 
+app.get('/api/withdrawal-history/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const withdrawals = await ReferralWithdrawal.find({ userId })
+            .sort({ createdAt: -1 })
+            .limit(50);
+
+        res.json({ success: true, withdrawals });
+    } catch (error) {
+        console.error('Withdrawal history error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
 
 // Withdrawal endpoint
 app.post('/api/referral-withdrawals', async (req, res) => {
