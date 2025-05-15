@@ -123,6 +123,20 @@ const referralWithdrawalSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
+
+const referralTrackerSchema = new mongoose.Schema({
+    referrerUserId: { type: String, required: true },
+    referredUserId: { type: String, required: true, unique: true },
+    referredUsername: String,
+    totalBoughtStars: { type: Number, default: 0 },
+    totalSoldStars: { type: Number, default: 0 },
+    premiumActivated: { type: Boolean, default: false },
+    status: { type: String, enum: ['pending', 'active'], default: 'pending' },
+    dateReferred: { type: Date, default: Date.now },
+    dateActivated: Date
+});
+
+const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
 const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
 const Cache = mongoose.model('Cache', cacheSchema);
 const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
@@ -265,22 +279,12 @@ bot.on('callback_query', async (query) => {
             order.status = 'completed';
             order.dateCompleted = new Date();
             
-            const referral = await Referral.findOne({ 
-                referredUserId: order.telegramId,
-                status: 'pending'
-            });
-            
-            if (referral) {
-                referral.status = 'active';
-                referral.dateCompleted = new Date();
-                await referral.save();
-                
-                await bot.sendMessage(
-                    referral.referrerUserId,
-                    `🎉 Your referral @${order.username} has made a purchase!`
-                );
+            if (order.isPremium) {
+                await checkAndActivateReferral(order.telegramId, order.username, true);
+            } else if (order.stars) {
+                await updateReferralStars(order.telegramId, order.stars, 'buy');
+                await checkAndActivateReferral(order.telegramId, order.username);
             }
-            
         } else if (actionType === 'decline') {
             order.status = 'declined';
             order.dateDeclined = new Date();
@@ -464,11 +468,13 @@ bot.on('callback_query', async (query) => {
         }
 
         // Process completion or declination
-        if (actionType === 'complete') {
-            // ===== ORDER COMPLETION LOGIC =====
-            order.status = 'completed';
-            order.completedAt = new Date();
-            await order.save();
+                if (actionType === 'complete') {
+    order.status = 'completed';
+    order.dateCompleted = new Date();
+    
+    await updateReferralStars(order.telegramId, order.stars, 'sell');
+    await checkAndActivateReferral(order.telegramId, order.username);
+}
 
             // Notify user
             await bot.sendMessage(
@@ -863,6 +869,51 @@ bot.on('callback_query', async (query) => {
 });
 
 
+//referral tracking for referrals rewards
+
+async function checkAndActivateReferral(userId, username, isPremium = false) {
+    const referral = await ReferralTracker.findOne({ referredUserId: userId });
+    if (!referral) return false;
+
+    if (isPremium && !referral.premiumActivated) {
+        referral.status = 'active';
+        referral.premiumActivated = true;
+        referral.dateActivated = new Date();
+        await referral.save();
+        
+        await bot.sendMessage(
+            referral.referrerUserId,
+            `🎉 Your referral @${username} activated premium!`
+        );
+        return true;
+    }
+
+    if (!isPremium && referral.status === 'pending') {
+        const totalStars = referral.totalBoughtStars + referral.totalSoldStars;
+        if (totalStars >= 100) {
+            referral.status = 'active';
+            referral.dateActivated = new Date();
+            await referral.save();
+            
+            await bot.sendMessage(
+                referral.referrerUserId,
+                `🎉 Your referral @${username} reached ${totalStars} stars!`
+            );
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+async function updateReferralStars(userId, stars, type) {
+    const updateField = type === 'buy' ? 'totalBoughtStars' : 'totalSoldStars';
+    await ReferralTracker.findOneAndUpdate(
+        { referredUserId: userId },
+        { $inc: { [updateField]: stars } }
+    );
+}
+
 
 
 
@@ -992,14 +1043,12 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         let user = await User.findOne({ id: chatId });
         if (!user) user = await User.create({ id: chatId, username });
 
-        // Send sticker (fixed to use chatId instead of undefined userId)
         try {
             await bot.sendSticker(chatId, 'CAACAgIAAxkBAAEOfYRoJQbAGJ_uoVDJp5O3xyvEPR77BAACbgUAAj-VzAqGOtldiLy3NTYE');
         } catch (stickerError) {
             console.error('Failed to send sticker:', stickerError);
         }
 
-        // Original welcome message with buttons
         await bot.sendMessage(chatId, `Hello @${username}, welcome to StarStore!\n\nUse the app to purchase stars and enjoy exclusive benefits. 🌟`, {
             reply_markup: {
                 inline_keyboard: [
@@ -1009,29 +1058,21 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
             }
         });
 
-        // Original referral handling
         if (deepLinkParam?.startsWith('ref_')) {
             const referrerUserId = deepLinkParam.split('_')[1];
-            if (!referrerUserId || !/^\d+$/.test(referrerUserId) || referrerUserId === chatId.toString()) return;
-            
-            const referrer = await User.findOne({ id: referrerUserId });
-            if (!referrer) return;
+            if (!referrerUserId || !/^\d+$/.test(referrerUserId) return;
+            if (referrerUserId === chatId.toString()) return;
 
-            const existingReferral = await Referral.findOne({
-                referrerUserId: referrerUserId,
-                referredUserId: chatId.toString()
-            });
-
-            if (!existingReferral) {
-                await new Referral({
-                    referrerUserId: referrerUserId,
-                    referredUserId: chatId.toString(),
+            await ReferralTracker.findOneAndUpdate(
+                { referredUserId: chatId.toString() },
+                {
+                    referrerUserId,
+                    referredUsername: username,
                     status: 'pending',
-                    dateCreated: new Date()
-                }).save();
-                
-                await bot.sendMessage(referrerUserId, `🎉 New referral! User ID: ${chatId}`);
-            }
+                    dateReferred: new Date()
+                },
+                { upsert: true }
+            );
         }
     } catch (error) {
         console.error('Start command error:', error);
