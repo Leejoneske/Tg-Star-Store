@@ -752,24 +752,26 @@ function shareViaTelegram() {
 function isValidTONAddress(address) {
     if (!address || typeof address !== 'string') return false;
     
+    // Remove any prefix and trim whitespace
+    const cleanAddr = address.replace(/^(ton:\/\/|ton:|TON:|t.me\/|@)/i, '').trim();
     
-    const cleanAddr = address.replace(/^(ton:\/\/|ton:)/i, '').trim();
+    // Support different TON address formats
+    const tonAddressRegex = /^[0-9A-Za-z_-]{48,}$/;
     
-   
-    const tonAddressRegex = /^[a-zA-Z0-9_-]{48,}$/;
-    
-    
-    if (!tonAddressRegex.test(cleanAddr) || cleanAddr.length < 48) {
-        return false;
+    // Check if it's a valid TON address
+    if (tonAddressRegex.test(cleanAddr) && cleanAddr.length >= 48) {
+        return true;
     }
     
-    
-    if (/[OIl]/.test(cleanAddr)) {
-        return false;
+    // Add support for user-friendly TON DNS addresses
+    const tonDnsRegex = /^[a-z0-9][a-z0-9\-_.]+\.(ton|t\.me)$/i;
+    if (tonDnsRegex.test(cleanAddr)) {
+        return true;
     }
     
-    return true;
+    return false;
 }
+
  
 async function showWithdrawPopup() {
     try {
