@@ -808,6 +808,7 @@ bot.on('callback_query', async (query) => {
         const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
         const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
         
+        // Create transformed button - single button showing status
         const transformedKeyboard = {
             inline_keyboard: [
                 [{
@@ -818,30 +819,22 @@ bot.on('callback_query', async (query) => {
             ]
         };
 
-        // Add null check for adminMessages
+        // Update all admin messages
         if (withdrawal.adminMessages && Array.isArray(withdrawal.adminMessages)) {
             await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
                 if (!adminMsg || !adminMsg.adminId || !adminMsg.messageId) return;
                 
                 try {
-                    // Update message text first
-                    await bot.editMessageText(
-                        `${adminMsg.originalText || 'Withdrawal request'}\n\nStatus: ${statusText}\n${processedBy}`,
-                        {
-                            chat_id: adminMsg.adminId,
-                            message_id: adminMsg.messageId,
-                            parse_mode: "Markdown"
-                        }
-                    );
+                    // First update the message text
+                    const updatedText = `${adminMsg.originalText}\n\nStatus: ${statusText}\n${processedBy}`;
                     
-                    // Then update buttons
-                    await bot.editMessageReplyMarkup(
-                        { inline_keyboard: transformedKeyboard.inline_keyboard },
-                        {
-                            chat_id: adminMsg.adminId,
-                            message_id: adminMsg.messageId
-                        }
-                    );
+                    // Then update the reply markup (buttons)
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: transformedKeyboard,
+                        parse_mode: "Markdown"
+                    });
                 } catch (err) {
                     console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
                 }
