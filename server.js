@@ -1040,7 +1040,10 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         await bot.sendMessage(chatId, `👋 Welcome to StarStore, @${username}! ✨\n\nUse the app to purchase stars and enjoy exclusive benefits!`, {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: '🚀 Launch StarStore', url: `https://t.me/TgStarStore_bot/app?startapp=home_${chatId}` }]
+                    // Fixed Launch App button - uses the correct Telegram Web App URL format
+                    [{ text: '🚀 Launch StarStore', web_app: { url: `https://starstore.site?startapp=home_${chatId}` } }],
+                    // New Join Community button
+                    [{ text: '👥 Join Community', url: 'https://t.me/StarStore_Chat' }]
                 ]
             }
         });
