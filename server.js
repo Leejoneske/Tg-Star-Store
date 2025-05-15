@@ -438,6 +438,7 @@ bot.on("successful_payment", async (msg) => {
         }
     }
 });
+
 // ===== ADMIN ACTION HANDLER (RESTORED WORKING VERSION) =====
 bot.on('callback_query', async (query) => {
     try {
@@ -468,22 +469,12 @@ bot.on('callback_query', async (query) => {
         }
 
         // Process completion or declination
-                if (actionType === 'complete') {
-    order.status = 'completed';
-    order.dateCompleted = new Date();
-    
-    await updateReferralStars(order.telegramId, order.stars, 'sell');
-    await checkAndActivateReferral(order.telegramId, order.username);
-}
-
-            // Notify user
-            await bot.sendMessage(
-                order.telegramId,
-                `✅ Order #${order.id} completed!\n\n` +
-                `Your ${order.stars} stars have been processed.\n` +
-                `Funds sent to: \`${order.walletAddress}\``,
-                { parse_mode: "Markdown" }
-            );
+        if (actionType === 'complete') {
+            order.status = 'completed';
+            order.dateCompleted = new Date();
+            
+            await updateReferralStars(order.telegramId, order.stars, 'sell');
+            await checkAndActivateReferral(order.telegramId, order.username);
         } else {
             // ===== ORDER DECLINATION LOGIC =====
             order.status = 'declined';
@@ -527,6 +518,7 @@ bot.on('callback_query', async (query) => {
         await bot.answerCallbackQuery(query.id, { text: "Error processing request" });
     }
 });
+
 
 
 // ===== INVOICE GENERATION (UNCHANGED) =====
