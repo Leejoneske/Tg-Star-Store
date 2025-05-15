@@ -739,7 +739,6 @@ function isValidTONAddress(address) {
            cleanAddr.length >= 48 && 
            !/[OIl]/.test(cleanAddr);
 }
-
 async function showWithdrawPopup() {
     try {
         await loadReferralData();
@@ -748,16 +747,16 @@ async function showWithdrawPopup() {
             ['completed', 'active'].includes(r.status) && !r.withdrawn
         );
         
-        const availableBalance = state.stats.availableBalance;
+        const availableBalance = activeReferrals.length * 0.5;
 
         if (availableBalance < 0.5) {
             await Swal.fire({
-                title: translations[state.language]['insufficient-balance-title'] || 'Insufficient Balance',
+                title: 'Insufficient Balance',
                 html: `<div class="text-center">
-                    <p>${translations[state.language]['insufficient-balance-text'] || 'You need at least 1 completed referral (0.5 USDT) to withdraw.'}</p>
+                    <p>You need at least 1 completed referral (0.5 USDT) to withdraw.</p>
                     <p class="mt-2">
-                        <span class="font-semibold">${translations[state.language]['your-balance'] || 'Your balance:'}</span> 
-                        ${availableBalance.toFixed(2)} USDT
+                        <span class="font-semibold">Your balance:</span> 
+                        ${availableBalance.toFixed(2)} USDT (${activeReferrals.length} active referrals)
                     </p>
                 </div>`,
                 icon: 'error',
@@ -767,44 +766,42 @@ async function showWithdrawPopup() {
         }
 
         const { value: formValues } = await Swal.fire({
-            title: translations[state.language]['withdraw-popup-title'] || 'Withdraw USDT (TON Network)',
+            title: 'Withdraw USDT (TON Network)',
             html: `
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">${translations[state.language]['amount'] || 'Amount (USDT)'}</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
                     <input type="number" id="withdrawAmount" 
                            min="0.5" max="${availableBalance}" 
                            step="0.01" value="${Math.min(0.5, availableBalance).toFixed(2)}"
                            class="w-full p-2 border rounded" required>
                     <p class="text-xs text-gray-500 mt-1">
-                        ${translations[state.language]['available'] || 'Available'}: ${availableBalance.toFixed(2)} USDT
+                        Available: ${availableBalance.toFixed(2)} USDT
                     </p>
                 </div>
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">${translations[state.language]['wallet-address'] || 'TON Wallet Address'}</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
                     <input type="text" id="withdrawWallet" 
                            class="w-full p-2 border rounded" 
                            placeholder="EQ..." required>
                 </div>`,
             focusConfirm: false,
             showCancelButton: true,
-            confirmButtonText: translations[state.language]['submit-withdrawal'] || 'Submit Withdrawal',
-            cancelButtonText: translations[state.language]['cancel'] || 'Cancel',
             preConfirm: () => {
                 const amount = parseFloat(document.getElementById('withdrawAmount').value);
                 const wallet = document.getElementById('withdrawWallet').value.trim();
 
                 if (!amount || amount < 0.5) {
-                    Swal.showValidationMessage(translations[state.language]['min-withdraw'] || 'Minimum withdrawal is 0.5 USDT');
+                    Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
                     return false;
                 }
 
                 if (amount > availableBalance) {
-                    Swal.showValidationMessage(`${translations[state.language]['max-withdraw'] || 'Maximum withdrawal is'} ${availableBalance.toFixed(2)} USDT`);
+                    Swal.showValidationMessage(`Maximum withdrawal is ${availableBalance.toFixed(2)} USDT`);
                     return false;
                 }
 
                 if (!isValidTONAddress(wallet)) {
-                    Swal.showValidationMessage(translations[state.language]['invalid-wallet'] || 'Invalid TON wallet address');
+                    Swal.showValidationMessage('Invalid TON wallet address');
                     return false;
                 }
 
@@ -816,22 +813,22 @@ async function showWithdrawPopup() {
             const success = await submitWithdrawal(formValues);
             if (success) {
                 await Swal.fire({
-                    title: translations[state.language]['withdraw-success-title'] || 'Success!',
-                    text: `${translations[state.language]['withdraw-success-text'] || 'Withdrawal of'} ${formValues.amount} USDT ${translations[state.language]['requested'] || 'requested'}`,
+                    title: 'Success!',
+                    text: `Withdrawal of ${formValues.amount} USDT requested`,
                     icon: 'success'
                 });
                 await loadReferralData();
-                await loadWithdrawalHistory();
             }
         }
     } catch (error) {
         await Swal.fire({
-            title: translations[state.language]['error'] || 'Error',
-            text: error.message || translations[state.language]['withdraw-error'] || 'Withdrawal failed',
+            title: 'Error',
+            text: error.message || 'Withdrawal failed',
             icon: 'error'
         });
     }
 }
+
 
 async function submitWithdrawal({ amount, walletAddress }) {
     try {
