@@ -489,7 +489,7 @@ if (tgWebApp?.initData) {
 const state = {
     userId,
     username: tgUser?.username || 'User',
-    language: localStorage.getItem('appLanguage') || 'en',
+    language: detectLanguage(),
     referralCode: null,
     referralLink: null,
     stats: {
@@ -502,15 +502,25 @@ const state = {
     withdrawals: []
 };
 
+function detectLanguage() {
+    const storedLang = localStorage.getItem('appLanguage');
+    if (storedLang) return storedLang;
+    const userLang = navigator.language || navigator.userLanguage;
+    return userLang.startsWith('ru') ? 'ru' : 'en';
+}
+
 function init() {
     setupEventListeners();
     loadReferralData();
+    loadWithdrawalHistory();
     setupTelegramSharing();
+    applyTranslations();
+    document.querySelector(`.language-btn[data-language="${state.language}"]`).classList.add('active');
 }
 
 async function loadReferralData() {
     try {
-        const response = await fetch(`/api/referral-stats/${state.userId}`);
+        const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const data = await response.json();
@@ -529,6 +539,21 @@ async function loadReferralData() {
     } catch (error) {
         console.error('Error loading referral data:', error);
         showError('Failed to load referral data');
+    }
+}
+
+async function loadWithdrawalHistory() {
+    try {
+        const response = await fetch(`${BASE_API_URL}/withdrawal-history/${state.userId}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.json();
+        if (data.success) {
+            state.withdrawals = data.withdrawals || [];
+            updateWithdrawalsList();
+        }
+    } catch (error) {
+        console.error('Error loading withdrawal history:', error);
     }
 }
 
@@ -589,18 +614,20 @@ function updateWithdrawalsList() {
     document.getElementById('withdrawalsList').classList.remove('hide');
     
     state.withdrawals.forEach(withdrawal => {
+        const statusClass = withdrawal.status === 'completed' ? 'status-completed' : 
+                          withdrawal.status === 'declined' ? 'status-declined' : 'status-pending';
+        
         const item = document.createElement('div');
-        item.className = 'py-3 flex justify-between items-center border-b border-gray-100';
+        item.className = 'py-3 flex justify-between items-center withdrawal-item';
         item.innerHTML = `
             <div class="flex-1">
                 <div class="font-medium text-gray-800">${withdrawal.amount.toFixed(2)} USDT</div>
-                <div class="text-xs text-gray-500 mt-1">
+                <div class="text-xs text-gray-500 mt-1 wallet-address">
                     ${withdrawal.walletAddress.substring(0, 6)}...${withdrawal.walletAddress.slice(-4)}
                 </div>
             </div>
             <div class="text-right">
-                <div class="text-sm ${withdrawal.status === 'completed' ? 'text-green-500' : 
-                                   withdrawal.status === 'declined' ? 'text-red-500' : 'text-yellow-500'}">
+                <div class="text-sm ${statusClass}">
                     ${withdrawal.status}
                 </div>
                 <div class="text-xs text-gray-400 mt-1">
@@ -621,6 +648,7 @@ function setupEventListeners() {
     document.getElementById('shareTw').addEventListener('click', shareToTwitter);
     document.getElementById('shareWa').addEventListener('click', shareToWhatsApp);
     document.getElementById('shareTg').addEventListener('click', shareViaTelegram);
+    
     document.querySelectorAll('.tab-button').forEach(button => {
         button.addEventListener('click', () => {
             const tabName = button.getAttribute('data-tab');
@@ -655,8 +683,11 @@ function switchTab(tabName) {
 
 function changeLanguage(language) {
     state.language = language;
-    localStorage.setItem('language', language);
+    localStorage.setItem('appLanguage', language);
     applyTranslations();
+    document.querySelectorAll('.language-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-language') === language);
+    });
 }
 
 function copyReferralLink() {
@@ -673,13 +704,13 @@ function shareToFacebook() {
 }
 
 function shareToTwitter() {
-    const text = "Check out StarStore! Use my referral link to get started:";
+    const text = translations[state.language]['share-tw-text'] || "Check out StarStore! Use my referral link to get started:";
     const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(state.referralLink)}`;
     openShareWindow(shareUrl, 600, 300);
 }
 
 function shareToWhatsApp() {
-    const text = "Check out StarStore! Use my referral link to get started: " + state.referralLink;
+    const text = translations[state.language]['share-wa-text'] || "Check out StarStore! Use my referral link to get started: " + state.referralLink;
     const shareUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
     openShareWindow(shareUrl, 600, 600);
 }
@@ -691,11 +722,11 @@ function openShareWindow(url, width, height) {
 }
 
 function shareViaTelegram() {
+    const text = translations[state.language]['share-tg-text'] || "Check out StarStore! Use my referral link to get started: " + state.referralLink;
+    
     if (window.Telegram?.WebApp?.share) {
-        const text = "Check out StarStore! Use my referral link to get started: " + (window.state?.referralLink || "[REFERRAL_LINK]");
         window.Telegram.WebApp.share(text);
     } else {
-        const text = "Check out StarStore! Use my referral link to get started: " + (window.state?.referralLink || "[REFERRAL_LINK]");
         const shareUrl = `tg://msg?text=${encodeURIComponent(text)}`;
         openShareWindow(shareUrl, 600, 600);
     }
@@ -717,16 +748,16 @@ async function showWithdrawPopup() {
             ['completed', 'active'].includes(r.status) && !r.withdrawn
         );
         
-        const availableBalance = activeReferrals.length * 0.5;
+        const availableBalance = state.stats.availableBalance;
 
         if (availableBalance < 0.5) {
             await Swal.fire({
-                title: 'Insufficient Balance',
+                title: translations[state.language]['insufficient-balance-title'] || 'Insufficient Balance',
                 html: `<div class="text-center">
-                    <p>You need at least 1 completed referral (0.5 USDT) to withdraw.</p>
+                    <p>${translations[state.language]['insufficient-balance-text'] || 'You need at least 1 completed referral (0.5 USDT) to withdraw.'}</p>
                     <p class="mt-2">
-                        <span class="font-semibold">Your balance:</span> 
-                        ${availableBalance.toFixed(2)} USDT (${activeReferrals.length} active referrals)
+                        <span class="font-semibold">${translations[state.language]['your-balance'] || 'Your balance:'}</span> 
+                        ${availableBalance.toFixed(2)} USDT
                     </p>
                 </div>`,
                 icon: 'error',
@@ -736,42 +767,44 @@ async function showWithdrawPopup() {
         }
 
         const { value: formValues } = await Swal.fire({
-            title: 'Withdraw USDT (TON Network)',
+            title: translations[state.language]['withdraw-popup-title'] || 'Withdraw USDT (TON Network)',
             html: `
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">${translations[state.language]['amount'] || 'Amount (USDT)'}</label>
                     <input type="number" id="withdrawAmount" 
                            min="0.5" max="${availableBalance}" 
                            step="0.01" value="${Math.min(0.5, availableBalance).toFixed(2)}"
                            class="w-full p-2 border rounded" required>
                     <p class="text-xs text-gray-500 mt-1">
-                        Available: ${availableBalance.toFixed(2)} USDT
+                        ${translations[state.language]['available'] || 'Available'}: ${availableBalance.toFixed(2)} USDT
                     </p>
                 </div>
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">${translations[state.language]['wallet-address'] || 'TON Wallet Address'}</label>
                     <input type="text" id="withdrawWallet" 
                            class="w-full p-2 border rounded" 
                            placeholder="EQ..." required>
                 </div>`,
             focusConfirm: false,
             showCancelButton: true,
+            confirmButtonText: translations[state.language]['submit-withdrawal'] || 'Submit Withdrawal',
+            cancelButtonText: translations[state.language]['cancel'] || 'Cancel',
             preConfirm: () => {
                 const amount = parseFloat(document.getElementById('withdrawAmount').value);
                 const wallet = document.getElementById('withdrawWallet').value.trim();
 
                 if (!amount || amount < 0.5) {
-                    Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
+                    Swal.showValidationMessage(translations[state.language]['min-withdraw'] || 'Minimum withdrawal is 0.5 USDT');
                     return false;
                 }
 
                 if (amount > availableBalance) {
-                    Swal.showValidationMessage(`Maximum withdrawal is ${availableBalance.toFixed(2)} USDT`);
+                    Swal.showValidationMessage(`${translations[state.language]['max-withdraw'] || 'Maximum withdrawal is'} ${availableBalance.toFixed(2)} USDT`);
                     return false;
                 }
 
                 if (!isValidTONAddress(wallet)) {
-                    Swal.showValidationMessage('Invalid TON wallet address');
+                    Swal.showValidationMessage(translations[state.language]['invalid-wallet'] || 'Invalid TON wallet address');
                     return false;
                 }
 
@@ -783,17 +816,18 @@ async function showWithdrawPopup() {
             const success = await submitWithdrawal(formValues);
             if (success) {
                 await Swal.fire({
-                    title: 'Success!',
-                    text: `Withdrawal of ${formValues.amount} USDT requested`,
+                    title: translations[state.language]['withdraw-success-title'] || 'Success!',
+                    text: `${translations[state.language]['withdraw-success-text'] || 'Withdrawal of'} ${formValues.amount} USDT ${translations[state.language]['requested'] || 'requested'}`,
                     icon: 'success'
                 });
                 await loadReferralData();
+                await loadWithdrawalHistory();
             }
         }
     } catch (error) {
         await Swal.fire({
-            title: 'Error',
-            text: error.message || 'Withdrawal failed',
+            title: translations[state.language]['error'] || 'Error',
+            text: error.message || translations[state.language]['withdraw-error'] || 'Withdrawal failed',
             icon: 'error'
         });
     }
@@ -803,7 +837,7 @@ async function submitWithdrawal({ amount, walletAddress }) {
     try {
         Swal.showLoading();
         
-        const response = await fetch('/api/referral-withdrawals', {
+        const response = await fetch(`${BASE_API_URL}/referral-withdrawals`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -818,7 +852,7 @@ async function submitWithdrawal({ amount, walletAddress }) {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error || 'Withdrawal failed');
+            throw new Error(data.error || translations[state.language]['withdraw-error'] || 'Withdrawal failed');
         }
 
         state.withdrawals.unshift({
@@ -834,8 +868,8 @@ async function submitWithdrawal({ amount, walletAddress }) {
         return true;
     } catch (error) {
         await Swal.fire({
-            title: 'Error',
-            text: error.message || 'Withdrawal failed. Please try again.',
+            title: translations[state.language]['error'] || 'Error',
+            text: error.message || translations[state.language]['withdraw-error'] || 'Withdrawal failed. Please try again.',
             icon: 'error',
             confirmButtonText: 'OK'
         });
@@ -845,116 +879,157 @@ async function submitWithdrawal({ amount, walletAddress }) {
     }
 }
 
- 
-    const translations = {
-        en: {
-            'menu': 'Menu',
-            'home': 'Home',
-            'sell': 'Sell',
-            'history': 'History',
-            'referral': 'Referral',
-            'about': 'About',
-            'referral-title': 'Referral Program',
-            'referral-subtitle': 'Invite friends and earn rewards',
-            'available-balance': 'Available Balance',
-            'withdraw': 'Withdraw',
-            'total-earned': 'Total Earned',
-            'referrals': 'Referrals',
-            'pending': 'Pending',
-            'your-link': 'Your Referral Link',
-            'share-text': 'Share this link with friends and earn 0.5 USDT for every successful referral',
-            'share-fb': 'Share',
-            'share-tw': 'Share',
-            'share-wa': 'Share',
-            'referral-info': 'You will earn 0.5 USDT for each successful referral. Earnings can be withdrawn to your TON wallet.',
-            'my-referrals': 'My Referrals',
-            'withdrawals': 'Withdrawals',
-            'no-referrals': 'You don\'t have any referrals yet',
-            'share-invite': 'Share your referral link to invite friends',
-            'completed': 'Completed',
-            'no-withdrawals': 'No withdrawal history yet',
-            'start-earning': 'Start earning by inviting friends',
-            'how-it-works': 'How It Works',
-            'step1-title': 'Share Your Link',
-            'step1-desc': 'Copy your unique referral link and share it with friends',
-            'step2-title': 'Friends Make a Purchase',
-            'step2-desc': 'They get instant access to Premium or Stars',
-            'step3-title': 'You Earn Rewards',
-            'step3-desc': 'Get 0.5 USDT for each successful referral',
-            'step4-title': 'Withdraw Earnings',
-            'step4-desc': 'Transfer funds to your TON wallet when ready',
-            'withdraw-title': 'Withdraw Funds',
-            'withdraw-desc': 'Transfer your earnings to your TON wallet',
-            'amount': 'Amount (USDT)',
-            'wallet-address': 'TON Wallet Address',
-            'submit-withdrawal': 'Submit Withdrawal',
-            'link-copied': 'Link copied to clipboard!',
-            'min-withdraw': 'Minimum withdrawal amount is 1 USDT',
-            'withdraw-success': 'Withdrawal request submitted successfully',
-            'withdraw-error': 'Error processing withdrawal request',
-            'no-balance': 'You don\'t have enough balance to withdraw'
-        },
-        ru: {
-            'menu': 'Меню',
-            'home': 'Главная',
-            'sell': 'Продать',
-            'history': 'История',
-            'referral': 'Реферальная программа',
-            'about': 'О нас',
-            'referral-title': 'Реферальная программа',
-            'referral-subtitle': 'Приглашайте друзей и получайте вознаграждения',
-            'available-balance': 'Доступный баланс',
-            'withdraw': 'Вывести',
-            'total-earned': 'Всего заработано',
-            'referrals': 'Рефералы',
-            'pending': 'В ожидании',
-            'your-link': 'Ваша реферальная ссылка',
-            'share-text': 'Поделитесь этой ссылкой с друзьями и получите 0.5 USDT за каждого успешного реферала',
-            'share-fb': 'Поделиться',
-            'share-tw': 'Поделиться',
-            'share-wa': 'Поделиться',
-            'referral-info': 'Вы заработаете 0.5 USDT за каждого успешного реферала. Заработок можно вывести на ваш TON кошелек.',
-            'my-referrals': 'Мои рефералы',
-            'withdrawals': 'Выводы',
-            'no-referrals': 'У вас пока нет рефералов',
-            'share-invite': 'Поделитесь своей реферальной ссылкой, чтобы пригласить друзей',
-            'completed': 'Завершено',
-            'no-withdrawals': 'История выводов пуста',
-            'start-earning': 'Начните зарабатывать, приглашая друзей',
-            'how-it-works': 'Как это работает',
-            'step1-title': 'Поделитесь своей ссылкой',
-            'step1-desc': 'Скопируйте уникальную реферальную ссылку и поделитесь ею с друзьями',
-            'step2-title': 'Друзья совершают покупку',
-            'step2-desc': 'Они получают мгновенный доступ к Premium или Stars',
-            'step3-title': 'Вы получаете вознаграждение',
-            'step3-desc': 'Получите 0.5 USDT за каждого успешного реферала',
-            'step4-title': 'Выведите заработок',
-            'step4-desc': 'Переведите средства на свой TON кошелек, когда будете готовы',
-            'withdraw-title': 'Вывод средств',
-            'withdraw-desc': 'Перевод заработка на ваш TON кошелек',
-            'amount': 'Сумма (USDT)',
-            'wallet-address': 'Адрес TON кошелька',
-            'submit-withdrawal': 'Отправить запрос на вывод',
-            'link-copied': 'Ссылка скопирована в буфер обмена!',
-            'min-withdraw': 'Минимальная сумма вывода 1 USDT',
-            'withdraw-success': 'Запрос на вывод успешно отправлен',
-            'withdraw-error': 'Ошибка при обработке запроса на вывод',
-            'no-balance': 'У вас недостаточно средств для вывода'
-        }
-    };
+function showSuccess(message) {
+    Swal.fire({
+        position: 'top',
+        icon: 'success',
+        title: message,
+        showConfirmButton: false,
+        timer: 1500
+    });
+}
 
-    function applyTranslations() {
-        document.querySelectorAll('[data-lang]').forEach(el => {
-            const key = el.getAttribute('data-lang');
-            if (translations[state.language] && translations[state.language][key]) {
-                el.textContent = translations[state.language][key];
-            }
-        });
+function showError(message) {
+    Swal.fire({
+        position: 'top',
+        icon: 'error',
+        title: message,
+        showConfirmButton: false,
+        timer: 1500
+    });
+}
+
+const translations = {
+    en: {
+        'menu': 'Menu',
+        'home': 'Home',
+        'sell': 'Sell',
+        'history': 'History',
+        'referral': 'Referral',
+        'about': 'About',
+        'referral-title': 'Referral Program',
+        'referral-subtitle': 'Invite friends and earn rewards',
+        'available-balance': 'Available Balance',
+        'withdraw': 'Withdraw',
+        'total-earned': 'Total Earned',
+        'referrals': 'Referrals',
+        'pending': 'Pending',
+        'your-link': 'Your Referral Link',
+        'share-text': 'Share this link with friends and earn 0.5 USDT for every successful referral',
+        'share-fb': 'Share',
+        'share-tw': 'Share',
+        'share-wa': 'Share',
+        'share-tg': 'Share',
+        'share-tw-text': 'Check out StarStore! Use my referral link to get started:',
+        'share-wa-text': 'Check out StarStore! Use my referral link to get started:',
+        'share-tg-text': 'Check out StarStore! Use my referral link to get started:',
+        'referral-info': 'You will earn 0.5 USDT for each successful referral. Earnings can be withdrawn to your TON wallet.',
+        'my-referrals': 'My Referrals',
+        'withdrawals': 'Withdrawals',
+        'no-referrals': 'You don\'t have any referrals yet',
+        'share-invite': 'Share your referral link to invite friends',
+        'completed': 'Completed',
+        'no-withdrawals': 'No withdrawal history yet',
+        'start-earning': 'Start earning by inviting friends',
+        'how-it-works': 'How It Works',
+        'step1-title': 'Share Your Link',
+        'step1-desc': 'Copy your unique referral link and share it with friends',
+        'step2-title': 'Friends Make a Purchase',
+        'step2-desc': 'They get instant access to Premium or Stars',
+        'step3-title': 'You Earn Rewards',
+        'step3-desc': 'Get 0.5 USDT for each successful referral',
+        'step4-title': 'Withdraw Earnings',
+        'step4-desc': 'Transfer funds to your TON wallet when ready',
+        'withdraw-title': 'Withdraw Funds',
+        'withdraw-desc': 'Transfer your earnings to your TON wallet',
+        'amount': 'Amount (USDT)',
+        'wallet-address': 'TON Wallet Address',
+        'submit-withdrawal': 'Submit Withdrawal',
+        'link-copied': 'Link copied to clipboard!',
+        'min-withdraw': 'Minimum withdrawal is 0.5 USDT',
+        'max-withdraw': 'Maximum withdrawal is',
+        'invalid-wallet': 'Invalid TON wallet address',
+        'withdraw-success-title': 'Success!',
+        'withdraw-success-text': 'Withdrawal of',
+        'requested': 'requested',
+        'withdraw-error': 'Withdrawal failed',
+        'insufficient-balance-title': 'Insufficient Balance',
+        'insufficient-balance-text': 'You need at least 1 completed referral (0.5 USDT) to withdraw.',
+        'your-balance': 'Your balance:',
+        'error': 'Error',
+        'cancel': 'Cancel'
+    },
+    ru: {
+        'menu': 'Меню',
+        'home': 'Главная',
+        'sell': 'Продать',
+        'history': 'История',
+        'referral': 'Реферальная программа',
+        'about': 'О нас',
+        'referral-title': 'Реферальная программа',
+        'referral-subtitle': 'Приглашайте друзей и получайте вознаграждения',
+        'available-balance': 'Доступный баланс',
+        'withdraw': 'Вывести',
+        'total-earned': 'Всего заработано',
+        'referrals': 'Рефералы',
+        'pending': 'В ожидании',
+        'your-link': 'Ваша реферальная ссылка',
+        'share-text': 'Поделитесь этой ссылкой с друзьями и получите 0.5 USDT за каждого успешного реферала',
+        'share-fb': 'Поделиться',
+        'share-tw': 'Поделиться',
+        'share-wa': 'Поделиться',
+        'share-tg': 'Поделиться',
+        'share-tw-text': 'Попробуйте StarStore! Используйте мою реферальную ссылку:',
+        'share-wa-text': 'Попробуйте StarStore! Используйте мою реферальную ссылку:',
+        'share-tg-text': 'Попробуйте StarStore! Используйте мою реферальную ссылку:',
+        'referral-info': 'Вы заработаете 0.5 USDT за каждого успешного реферала. Заработок можно вывести на ваш TON кошелек.',
+        'my-referrals': 'Мои рефералы',
+        'withdrawals': 'Выводы',
+        'no-referrals': 'У вас пока нет рефералов',
+        'share-invite': 'Поделитесь своей реферальной ссылкой, чтобы пригласить друзей',
+        'completed': 'Завершено',
+        'no-withdrawals': 'История выводов пуста',
+        'start-earning': 'Начните зарабатывать, приглашая друзей',
+        'how-it-works': 'Как это работает',
+        'step1-title': 'Поделитесь своей ссылкой',
+        'step1-desc': 'Скопируйте уникальную реферальную ссылку и поделитесь ею с друзьями',
+        'step2-title': 'Друзья совершают покупку',
+        'step2-desc': 'Они получают мгновенный доступ к Premium или Stars',
+        'step3-title': 'Вы получаете вознаграждение',
+        'step3-desc': 'Получите 0.5 USDT за каждого успешного реферала',
+        'step4-title': 'Выведите заработок',
+        'step4-desc': 'Переведите средства на свой TON кошелек, когда будете готовы',
+        'withdraw-title': 'Вывод средств',
+        'withdraw-desc': 'Перевод заработка на ваш TON кошелек',
+        'amount': 'Сумма (USDT)',
+        'wallet-address': 'Адрес TON кошелька',
+        'submit-withdrawal': 'Отправить запрос на вывод',
+        'link-copied': 'Ссылка скопирована в буфер обмена!',
+        'min-withdraw': 'Минимальная сумма вывода 0.5 USDT',
+        'max-withdraw': 'Максимальная сумма вывода',
+        'invalid-wallet': 'Неверный адрес TON кошелька',
+        'withdraw-success-title': 'Успешно!',
+        'withdraw-success-text': 'Запрос на вывод',
+        'requested': 'отправлен',
+        'withdraw-error': 'Ошибка при выводе средств',
+        'insufficient-balance-title': 'Недостаточно средств',
+        'insufficient-balance-text': 'Для вывода требуется хотя бы 1 завершенный реферал (0.5 USDT).',
+        'your-balance': 'Ваш баланс:',
+        'error': 'Ошибка',
+        'cancel': 'Отмена'
     }
+};
 
+function applyTranslations() {
+    document.querySelectorAll('[data-lang]').forEach(el => {
+        const key = el.getAttribute('data-lang');
+        if (translations[state.language] && translations[state.language][key]) {
+            el.textContent = translations[state.language][key];
+        }
+    });
+}
 
-    init();
- 
+init();
 </script>
  
 </body>
