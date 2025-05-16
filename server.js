@@ -1681,42 +1681,52 @@ bot.onText(/\/ref_activate (\d+)(?:\s+(\d+))?/, async (msg, match) => {
         const userId = match[1];
         const count = match[2] ? parseInt(match[2]) : 1;
 
+        // Verify user exists
         const user = await User.findOne({ id: userId });
         if (!user) return bot.sendMessage(chatId, `❌ User ${userId} not found`);
 
-        const referrals = await Referral.find({ 
-            referredUserId: userId, 
-            status: 'pending' 
-        }).limit(count);
+        // Get pending referrals with proper locking
+        const pendingRefs = await Referral.find({
+            referredUserId: userId,
+            status: 'pending'
+        }).limit(count).lean();
 
-        if (referrals.length === 0) {
-            return bot.sendMessage(chatId, `❌ No pending referrals for ${user.username || userId}`);
+        if (pendingRefs.length === 0) {
+            return bot.sendMessage(chatId, `ℹ️ No pending referrals found for ${user.username || userId}`);
         }
 
-        await Referral.updateMany(
-            { _id: { $in: referrals.map(r => r._id) } },
-            { $set: { status: 'active' } }
+        // Update only the found referrals
+        const updateResult = await Referral.updateMany(
+            { _id: { $in: pendingRefs.map(r => r._id) } },
+            { $set: { status: 'active', activatedAt: new Date() } }
         );
 
-        const referrer = await User.findOne({ id: referrals[0].referrerUserId });
+        if (updateResult.modifiedCount === 0) {
+            return bot.sendMessage(chatId, `⚠️ No referrals were updated (already active?)`);
+        }
+
+        // Get referrer info
+        const referrer = await User.findOne({ id: pendingRefs[0].referrerUserId });
+
+        // Send notifications
+        await bot.sendMessage(
+            chatId,
+            `✅ Activated ${updateResult.modifiedCount} referrals\n` +
+            `• User: @${user.username || userId}\n` +
+            `• Referrer: @${referrer?.username || pendingRefs[0].referrerUserId}`
+        );
+
         if (referrer) {
             await bot.sendMessage(
                 referrer.id,
-                `🎉 Admin activated ${referrals.length} referrals!\n` +
-                `For user: @${user.username || userId}`
-            ).catch(() => {});
+                `🎉 ${updateResult.modifiedCount} referrals activated!\n` +
+                `For: @${user.username || userId}`
+            ).catch(() => {}); // Silently fail if user blocked bot
         }
-
-        return bot.sendMessage(
-            chatId,
-            `✅ Activated ${referrals.length} referrals\n` +
-            `User: @${user.username || userId}\n` +
-            `Referrer: @${referrer?.username || referrals[0].referrerUserId}`
-        );
 
     } catch (error) {
         console.error('Activation error:', error);
-        return bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+        await bot.sendMessage(chatId, `❌ Database error: ${error.message}`);
     }
 });
 
@@ -1726,42 +1736,49 @@ bot.onText(/\/ref_deactivate (\d+)/, async (msg, match) => {
 
     try {
         const userId = match[1];
+
+        // Verify user exists
         const user = await User.findOne({ id: userId });
         if (!user) return bot.sendMessage(chatId, `❌ User ${userId} not found`);
 
-        const referrals = await Referral.find({ 
-            referredUserId: userId, 
-            status: 'active' 
-        });
+        // Get active referrals with proper locking
+        const activeRefs = await Referral.find({
+            referredUserId: userId,
+            status: 'active'
+        }).lean();
 
-        if (referrals.length === 0) {
-            return bot.sendMessage(chatId, `❌ No active referrals for ${user.username || userId}`);
+        if (activeRefs.length === 0) {
+            return bot.sendMessage(chatId, `ℹ️ No active referrals found for ${user.username || userId}`);
         }
 
-        await Referral.updateMany(
-            { _id: { $in: referrals.map(r => r._id) } },
-            { $set: { status: 'pending' } }
+        // Update only the found referrals
+        const updateResult = await Referral.updateMany(
+            { _id: { $in: activeRefs.map(r => r._id) } },
+            { $set: { status: 'pending', deactivatedAt: new Date() } }
         );
 
-        const referrer = await User.findOne({ id: referrals[0].referrerUserId });
+        // Get referrer info
+        const referrer = await User.findOne({ id: activeRefs[0].referrerUserId });
+
+        // Send notifications
+        await bot.sendMessage(
+            chatId,
+            `✅ Deactivated ${updateResult.modifiedCount} referrals\n` +
+            `• User: @${user.username || userId}\n` +
+            `• Referrer: @${referrer?.username || activeRefs[0].referrerUserId}`
+        );
+
         if (referrer) {
             await bot.sendMessage(
                 referrer.id,
-                `⚠️ Admin deactivated ${referrals.length} referrals\n` +
-                `For user: @${user.username || userId}`
-            ).catch(() => {});
+                `⚠️ ${updateResult.modifiedCount} referrals deactivated\n` +
+                `For: @${user.username || userId}`
+            ).catch(() => {}); // Silently fail if user blocked bot
         }
-
-        return bot.sendMessage(
-            chatId,
-            `✅ Deactivated ${referrals.length} referrals\n` +
-            `User: @${user.username || userId}\n` +
-            `Referrer: @${referrer?.username || referrals[0].referrerUserId}`
-        );
 
     } catch (error) {
         console.error('Deactivation error:', error);
-        return bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+        await bot.sendMessage(chatId, `❌ Database error: ${error.message}`);
     }
 });
 
@@ -1771,72 +1788,85 @@ bot.onText(/\/ref_status (\d+)/, async (msg, match) => {
 
     try {
         const userId = match[1];
+
+        // Verify user exists
         const user = await User.findOne({ id: userId });
         if (!user) return bot.sendMessage(chatId, `❌ User ${userId} not found`);
 
-        const referrals = await Referral.find({ referredUserId: userId });
-        if (referrals.length === 0) return bot.sendMessage(chatId, `ℹ️ No referrals for ${user.username || userId}`);
+        // Get all referrals for user
+        const referrals = await Referral.find({ referredUserId: userId }).lean();
+        if (referrals.length === 0) return bot.sendMessage(chatId, `ℹ️ No referrals found for ${user.username || userId}`);
 
-        const referrer = await User.findOne({ id: referrals[0].referrerUserId });
+        // Calculate stats
         const activeCount = referrals.filter(r => r.status === 'active').length;
         const pendingCount = referrals.length - activeCount;
+        const referrer = await User.findOne({ id: referrals[0].referrerUserId });
 
+        // Prepare message
         const message = [
             `📊 Referral Status for @${user.username || userId}`,
             `👤 Referrer: @${referrer?.username || referrals[0].referrerUserId}`,
-            `🔢 Total: ${referrals.length}`,
+            `📅 Total Referrals: ${referrals.length}`,
             `✅ Active: ${activeCount}`,
             `🔄 Pending: ${pendingCount}`,
-            `💰 Potential Earnings: ${activeCount * 0.5} USDT`
+            `💰 Potential Earnings: ${activeCount * 0.5} USDT`,
+            `\nLast Active: ${referrals[0].activatedAt?.toLocaleString() || 'Never'}`
         ].join('\n');
 
+        // Prepare buttons
         const keyboard = {
             inline_keyboard: [
-                [
-                    { 
-                        text: `✅ Activate All`, 
-                        callback_data: `admin_activate_${userId}_${pendingCount}` 
-                    },
-                    { 
-                        text: `❌ Deactivate All`, 
-                        callback_data: `admin_deactivate_${userId}_${activeCount}` 
-                    }
-                ]
+                ...(pendingCount > 0 ? [[{
+                    text: `✅ Activate All (${pendingCount})`,
+                    callback_data: `ref_activate_${userId}_${pendingCount}`
+                }]] : []),
+                ...(activeCount > 0 ? [[{
+                    text: `❌ Deactivate All (${activeCount})`,
+                    callback_data: `ref_deactivate_${userId}_${activeCount}`
+                }]] : []),
+                [{
+                    text: '🔄 Refresh',
+                    callback_data: `ref_refresh_${userId}`
+                }]
             ]
         };
 
+        // Send message with auto-delete
         const sentMsg = await bot.sendMessage(chatId, message, { reply_markup: keyboard });
         
-        // Store message ID for cleanup
-        setTimeout(async () => {
-            try {
-                await bot.deleteMessage(chatId, sentMsg.message_id);
-            } catch (e) {}
-        }, 300000); // Auto-delete after 5 minutes
+        // Auto-delete after 5 minutes
+        setTimeout(() => {
+            bot.deleteMessage(chatId, sentMsg.message_id).catch(() => {});
+        }, 300000);
 
     } catch (error) {
         console.error('Status error:', error);
-        return bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+        await bot.sendMessage(chatId, `❌ Database error: ${error.message}`);
     }
 });
 
 bot.on('callback_query', async (query) => {
+    const chatId = query.message.chat.id;
+    const data = query.data;
+
     try {
-        const chatId = query.message.chat.id;
-        const data = query.data;
-        
         // Delete the original message immediately
         await bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
 
-        if (data.startsWith('admin_activate_')) {
+        if (data.startsWith('ref_activate_')) {
             const [_, userId, count] = data.split('_');
-            await bot.answerCallbackQuery(query.id, { text: "Activating..." });
+            await bot.answerCallbackQuery(query.id, { text: "Activating referrals..." });
             await bot.sendMessage(chatId, `/ref_activate ${userId} ${count}`);
-            
-        } else if (data.startsWith('admin_deactivate_')) {
+
+        } else if (data.startsWith('ref_deactivate_')) {
             const [_, userId] = data.split('_');
-            await bot.answerCallbackQuery(query.id, { text: "Deactivating..." });
+            await bot.answerCallbackQuery(query.id, { text: "Deactivating referrals..." });
             await bot.sendMessage(chatId, `/ref_deactivate ${userId}`);
+
+        } else if (data.startsWith('ref_refresh_')) {
+            const [_, userId] = data.split('_');
+            await bot.answerCallbackQuery(query.id, { text: "Refreshing..." });
+            await bot.sendMessage(chatId, `/ref_status ${userId}`);
         }
 
     } catch (error) {
