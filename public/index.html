@@ -834,13 +834,24 @@
         }
         
         fetch('menubar.html')
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById('menubar-container').innerHTML = html;
-            })
-            .catch(error => {
-                console.error('Error loading menubar:', error);
-            });
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('menubar-container').innerHTML = html;
+        // Call initMenu after the menu HTML has been injected
+        if (typeof initMenu === 'function') {
+            initMenu();
+        } else {
+            // If initMenu isn't defined globally, it might be in a script tag inside the menubar.html
+            // In this case, you can try to execute it directly
+            const menuScript = document.querySelector('#menubar-container script');
+            if (menuScript) {
+                eval(menuScript.textContent);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error loading menubar:', error);
+    });
     </script>
 </body>
 </html>
