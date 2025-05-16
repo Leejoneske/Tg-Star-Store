@@ -1,34 +1,40 @@
 
 <div class="menu-overlay" id="menuOverlay"></div>
 <div class="side-menu" id="sideMenu">
-    <div class="p-6">
-        <div class="text-xl font-bold mb-8" data-translate="menu">Menu</div>
-        <nav class="space-y-2">
-            <a href="index.html" class="menu-item">
-                <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
-                <span data-translate="home">Home</span>
-            </a>
-            <a href="sell.html" class="menu-item">
-                <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
-                <span data-translate="sell">Sell</span>
-            </a>
-            <a href="history.html" class="menu-item">
-                <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
-                <span data-translate="history">History</span>
-            </a>
-            <a href="referral.html" class="menu-item">
-                <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
-                <span data-translate="referral">Referral</span>
-            </a>
-            <a href="about.html" class="menu-item">
-                <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
-                <span data-translate="about">About</span>
-            </a>
-        </nav>
-        <hr class="my-4 border-gray-300">
+    <div class="flex flex-col h-full">
+        <!-- Menu Header and Navigation (flex-grow-0) -->
+        <div class="p-6">
+            <div class="text-xl font-bold mb-8" data-translate="menu">Menu</div>
+            <nav class="space-y-2">
+                <a href="index.html" class="menu-item">
+                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                    <span data-translate="home">Home</span>
+                </a>
+                <a href="sell.html" class="menu-item">
+                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                    <span data-translate="sell">Sell</span>
+                </a>
+                <a href="history.html" class="menu-item">
+                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                    <span data-translate="history">History</span>
+                </a>
+                <a href="referral.html" class="menu-item">
+                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                    <span data-translate="referral">Referral</span>
+                </a>
+                <a href="about.html" class="menu-item">
+                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                    <span data-translate="about">About</span>
+                </a>
+            </nav>
+        </div>
 
-        <div class="px-6 pb-6 text-gray-700 text-sm">
-            <div class="mb-4">
+        <!-- Spacer (flex-grow-1) -->
+        <div class="flex-grow"></div>
+
+        <!-- Footer (flex-grow-0) -->
+        <div class="px-6 pb-6 text-gray-700 text-sm mt-auto border-t border-gray-300">
+            <div class="mb-4 pt-4">
                 <p class="font-semibold mb-2">Follow us on socials</p>
                 <div class="flex gap-4 text-lg">
                     <a href="https://facebook.com/HighlandsForum" target="_blank" class="hover:text-blue-600">
@@ -65,7 +71,6 @@
         </div>
     </div>
 </div>
-
 <script>
 function initMenu() {
     const menuButton = document.getElementById('menuButton');
