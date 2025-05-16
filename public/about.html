@@ -30,6 +30,7 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
+             /* Menu Styles */
         .menu-overlay {
             position: fixed;
             top: 0;
@@ -43,10 +44,12 @@
             visibility: hidden;
             transition: all 0.3s ease;
         }
+
         .menu-overlay.active {
             opacity: 1;
             visibility: visible;
         }
+
         .side-menu {
             position: fixed;
             top: 0;
@@ -57,10 +60,20 @@
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
             z-index: 50;
             transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
+
         .side-menu.active {
             left: 0;
         }
+
+        .menu-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+
         .menu-item {
             padding: 12px 16px;
             font-size: 16px;
@@ -72,62 +85,38 @@
             gap: 8px;
             border-bottom: 1px solid #e5e7eb;
         }
+
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+
         .menu-item:hover {
             background: #f3f4f6;
             transform: translateX(5px);
         }
-        .footer {
-            text-align: center;
-            padding: 8px;
-            font-size: 12px;
-            color: #6b7280;
-            background: white;
+
+        .menu-footer {
+            padding: 1rem;
             border-top: 1px solid #e5e7eb;
-            width: 100%;
-            max-width: 480px;
+            background-color: #f9f9f9;
+            flex-shrink: 0;
         }
-        .footer a {
-            color: #4f46e5;
-            text-decoration: none;
-        }
-        .footer a:hover {
-            text-decoration: underline;
-        }
-     
+
     
         
     </style>
 </head>
 <body>
     <div class="app-container">
-        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
-        <div class="side-menu" id="sideMenu">
-            <div class="p-6">
-                <div class="text-xl font-bold mb-8" data-lang="menu">Menu</div>
-                <nav class="space-y-2">
-                    <a href="index.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
-                        <span data-lang="home">Home</span>
-                    </a>
-                    <a href="sell.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
-                        <span data-lang="sell">Sell</span>
-                    </a>
-                    <a href="history.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
-                        <span data-lang="history">History</span>
-                    </a>
-                    <a href="referral.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
-                        <span data-lang="referral">Referral</span>
-                    </a>
-                    <a href="about.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
-                        <span data-lang="about">About</span>
-                    </a>
-                </nav>
+   <div id="content-container">
+            <div id="menubar-container"></div>
+            <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+                <button id="menuButton" class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
             </div>
-        </div>
 
         <div class="p-4 flex justify-between items-center bg-white shadow-sm">
             <button onclick="toggleMenu()" class="p-2">
@@ -301,14 +290,6 @@
             }
         };
 
-        // Menu toggle function
-        function toggleMenu() {
-            const menuOverlay = document.getElementById('menuOverlay');
-            const sideMenu = document.getElementById('sideMenu');
-            menuOverlay.classList.toggle('active');
-            sideMenu.classList.toggle('active');
-        }
-
         // Add event listeners to menu items
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', () => {
@@ -376,6 +357,37 @@
                 }
             }
         });
+     
+     function initMenu() {
+    const menuButton = document.getElementById('menuButton');
+    const menuOverlay = document.getElementById('menuOverlay');
+    const sideMenu = document.getElementById('sideMenu');
+    
+    if (!menuButton || !menuOverlay || !sideMenu) return;
+    
+    const toggleMenu = () => {
+        menuOverlay.classList.toggle('active');
+        sideMenu.classList.toggle('active');
+    };
+    
+    menuButton.addEventListener('click', toggleMenu);
+    menuOverlay.addEventListener('click', toggleMenu);
+    
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', toggleMenu);
+    });
+}
+
+fetch('menubar.html')
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('menubar-container').innerHTML = html;
+        // Call initMenu after the menu HTML has been injected
+        initMenu();
+    })
+    .catch(error => {
+        console.error('Error loading menubar:', error);
+    });
     </script>
 </body>
 </html>
