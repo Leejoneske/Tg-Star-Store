@@ -1672,8 +1672,173 @@ bot.onText(/\/detect_users/, async (msg) => {
     }
 });
 
+//supa power for activating referrals. can be deleted anytime.
+bot.onText(/\/ref_activate (\d+)(?:\s+(\d+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
 
+    const userId = match[1];
+    const count = match[2] ? parseInt(match[2]) : 1;
 
+    try {
+        const referrals = await Referral.find({ 
+            referredUserId: userId,
+            status: 'pending'
+        }).limit(count);
+
+        if (referrals.length === 0) {
+            return bot.sendMessage(chatId, `❌ No pending referrals found for user ${userId}`);
+        }
+
+        for (const referral of referrals) {
+            referral.status = 'active';
+            await referral.save();
+
+            await ReferralTracker.updateMany(
+                { referredUserId: userId },
+                { $set: { status: 'active' } }
+            );
+        }
+
+        const referrerUser = await User.findOne({ id: referrals[0].referrerUserId });
+        if (referrerUser) {
+            await bot.sendMessage(
+                referrerUser.id,
+                `🎉 Admin activated ${referrals.length} of your referrals!\n\n` +
+                `User: ${userId}\n\n` +
+                `Thank you for bringing users to StarStore!`
+            );
+        }
+
+        return bot.sendMessage(
+            chatId,
+            `✅ Successfully activated ${referrals.length} referral(s) for user ${userId}`
+        );
+
+    } catch (error) {
+        console.error('Error activating referral:', error);
+        return bot.sendMessage(chatId, `❌ Failed to activate referral: ${error.message}`);
+    }
+});
+
+bot.onText(/\/ref_deactivate (\d+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+
+    const userId = match[1];
+
+    try {
+        const referrals = await Referral.find({ 
+            referredUserId: userId,
+            status: 'active'
+        });
+
+        if (referrals.length === 0) {
+            return bot.sendMessage(chatId, `❌ No active referrals found for user ${userId}`);
+        }
+
+        for (const referral of referrals) {
+            referral.status = 'pending';
+            await referral.save();
+
+            await ReferralTracker.updateMany(
+                { referredUserId: userId },
+                { $set: { status: 'pending' } }
+            );
+        }
+
+        const referrerUser = await User.findOne({ id: referrals[0].referrerUserId });
+        if (referrerUser) {
+            await bot.sendMessage(
+                referrerUser.id,
+                `⚠️ Admin deactivated your referral\n\n` +
+                `User: ${userId}\n\n` +
+                `This referral will no longer count toward your bonuses. ` +
+                `Contact support if you believe this was done in error.`
+            );
+        }
+
+        return bot.sendMessage(
+            chatId,
+            `✅ Successfully deactivated ${referrals.length} referral(s) for user ${userId}`
+        );
+
+    } catch (error) {
+        console.error('Error deactivating referral:', error);
+        return bot.sendMessage(chatId, `❌ Failed to deactivate referral: ${error.message}`);
+    }
+});
+
+bot.onText(/\/ref_status (\d+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+
+    const userId = match[1];
+
+    try {
+        const referrals = await Referral.find({ referredUserId: userId });
+        
+        if (referrals.length === 0) {
+            return bot.sendMessage(chatId, `ℹ️ No referrals found for user ${userId}`);
+        }
+
+        let message = `📊 Referral Status for User ${userId}\n\n`;
+        
+        for (const referral of referrals) {
+            const referrer = await User.findOne({ id: referral.referrerUserId }) || {};
+            message += `🔗 Referrer: @${referrer.username || 'unknown'} (${referral.referrerUserId})\n`;
+            message += `🔄 Status: ${referral.status}\n`;
+            message += `💰 Amount: ${referral.amount || 0.5} USDT\n`;
+            message += `📅 Date: ${referral.dateReferred.toLocaleString()}\n`;
+            message += `---\n`;
+        }
+
+        const keyboard = {
+            inline_keyboard: [
+                [
+                    { text: '✅ Activate All', callback_data: `admin_activate_all_${userId}` },
+                    { text: '❌ Deactivate All', callback_data: `admin_deactivate_all_${userId}` }
+                ]
+            ]
+        };
+
+        return bot.sendMessage(chatId, message, { reply_markup: keyboard });
+
+    } catch (error) {
+        console.error('Error checking referral status:', error);
+        return bot.sendMessage(chatId, `❌ Failed to check referral status: ${error.message}`);
+    }
+});
+
+bot.on('callback_query', async (query) => {
+    try {
+        const data = query.data;
+        
+        if (data.startsWith('admin_activate_all_')) {
+            const userId = data.split('_')[3];
+            await bot.answerCallbackQuery(query.id, { text: "Activating all referrals..." });
+            await bot.sendMessage(query.message.chat.id, `/ref_activate ${userId}`, { parse_mode: 'Markdown' });
+            
+        } else if (data.startsWith('admin_deactivate_all_')) {
+            const userId = data.split('_')[3];
+            await bot.answerCallbackQuery(query.id, { text: "Deactivating all referrals..." });
+            await bot.sendMessage(query.message.chat.id, `/ref_deactivate ${userId}`, { parse_mode: 'Markdown' });
+        }
+    } catch (error) {
+        console.error('Error processing referral action:', error);
+        await bot.answerCallbackQuery(query.id, { text: "Error processing request" });
+    }
+});
+//end of supa power
 
 
 //survey form submission 
