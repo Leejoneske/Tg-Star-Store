@@ -15,8 +15,7 @@ const SERVER_URL = (process.env.RAILWAY_STATIC_URL ||
                    'tg-star-store-production.up.railway.app');
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
-const verifyTelegramAuth = require('./telegramAuth');
-
+const verifyTelegramAuth = require('./middleware/telegramAuth');
 // Middleware
 app.use(cors());
 app.use(express.json());
