@@ -139,6 +139,21 @@ const referralTrackerSchema = new mongoose.Schema({
 });
 
 
+// Add to your schemas section
+const feedbackSchema = new mongoose.Schema({
+    orderId: { type: String, required: true },
+    telegramId: { type: String, required: true },
+    username: String,
+    satisfaction: { type: Number, min: 1, max: 5 }, 
+    reasons: String, // Why they rated this way
+    suggestions: String, // What could be improved
+    additionalInfo: String, // Optional free-form feedback
+    dateSubmitted: { type: Date, default: Date.now }
+});
+
+
+
+const Feedback = mongoose.model('Feedback', feedbackSchema);
 const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
 const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
 const Cache = mongoose.model('Cache', cacheSchema);
@@ -1695,209 +1710,6 @@ bot.onText(/\/detect_users/, async (msg) => {
     }
 });
 
-//supa power for activating referrals. can be deleted anytime.
-bot.onText(/\/ref_activate (\d+)(?:\s+(\d+))?/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) return;
-
-    try {
-        const userId = match[1];
-        const count = match[2] ? parseInt(match[2]) : 1;
-
-        // Verify user exists
-        const user = await User.findOne({ id: userId });
-        if (!user) return bot.sendMessage(chatId, `❌ User ${userId} not found`);
-
-        // Get pending referrals with proper locking
-        const pendingRefs = await Referral.find({
-            referredUserId: userId,
-            status: 'pending'
-        }).limit(count).lean();
-
-        if (pendingRefs.length === 0) {
-            return bot.sendMessage(chatId, `ℹ️ No pending referrals found for ${user.username || userId}`);
-        }
-
-        // Update only the found referrals
-        const updateResult = await Referral.updateMany(
-            { _id: { $in: pendingRefs.map(r => r._id) } },
-            { $set: { status: 'active', activatedAt: new Date() } }
-        );
-
-        if (updateResult.modifiedCount === 0) {
-            return bot.sendMessage(chatId, `⚠️ No referrals were updated (already active?)`);
-        }
-
-        // Get referrer info
-        const referrer = await User.findOne({ id: pendingRefs[0].referrerUserId });
-
-        // Send notifications
-        await bot.sendMessage(
-            chatId,
-            `✅ Activated ${updateResult.modifiedCount} referrals\n` +
-            `• User: @${user.username || userId}\n` +
-            `• Referrer: @${referrer?.username || pendingRefs[0].referrerUserId}`
-        );
-
-        if (referrer) {
-            await bot.sendMessage(
-                referrer.id,
-                `🎉 ${updateResult.modifiedCount} referrals activated!\n` +
-                `For: @${user.username || userId}`
-            ).catch(() => {}); // Silently fail if user blocked bot
-        }
-
-    } catch (error) {
-        console.error('Activation error:', error);
-        await bot.sendMessage(chatId, `❌ Database error: ${error.message}`);
-    }
-});
-
-bot.onText(/\/ref_deactivate (\d+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) return;
-
-    try {
-        const userId = match[1];
-
-        // Verify user exists
-        const user = await User.findOne({ id: userId });
-        if (!user) return bot.sendMessage(chatId, `❌ User ${userId} not found`);
-
-        // Get active referrals with proper locking
-        const activeRefs = await Referral.find({
-            referredUserId: userId,
-            status: 'active'
-        }).lean();
-
-        if (activeRefs.length === 0) {
-            return bot.sendMessage(chatId, `ℹ️ No active referrals found for ${user.username || userId}`);
-        }
-
-        // Update only the found referrals
-        const updateResult = await Referral.updateMany(
-            { _id: { $in: activeRefs.map(r => r._id) } },
-            { $set: { status: 'pending', deactivatedAt: new Date() } }
-        );
-
-        // Get referrer info
-        const referrer = await User.findOne({ id: activeRefs[0].referrerUserId });
-
-        // Send notifications
-        await bot.sendMessage(
-            chatId,
-            `✅ Deactivated ${updateResult.modifiedCount} referrals\n` +
-            `• User: @${user.username || userId}\n` +
-            `• Referrer: @${referrer?.username || activeRefs[0].referrerUserId}`
-        );
-
-        if (referrer) {
-            await bot.sendMessage(
-                referrer.id,
-                `⚠️ ${updateResult.modifiedCount} referrals deactivated\n` +
-                `For: @${user.username || userId}`
-            ).catch(() => {}); // Silently fail if user blocked bot
-        }
-
-    } catch (error) {
-        console.error('Deactivation error:', error);
-        await bot.sendMessage(chatId, `❌ Database error: ${error.message}`);
-    }
-});
-
-bot.onText(/\/ref_status (\d+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) return;
-
-    try {
-        const userId = match[1];
-
-        // Verify user exists
-        const user = await User.findOne({ id: userId });
-        if (!user) return bot.sendMessage(chatId, `❌ User ${userId} not found`);
-
-        // Get all referrals for user
-        const referrals = await Referral.find({ referredUserId: userId }).lean();
-        if (referrals.length === 0) return bot.sendMessage(chatId, `ℹ️ No referrals found for ${user.username || userId}`);
-
-        // Calculate stats
-        const activeCount = referrals.filter(r => r.status === 'active').length;
-        const pendingCount = referrals.length - activeCount;
-        const referrer = await User.findOne({ id: referrals[0].referrerUserId });
-
-        // Prepare message
-        const message = [
-            `📊 Referral Status for @${user.username || userId}`,
-            `👤 Referrer: @${referrer?.username || referrals[0].referrerUserId}`,
-            `📅 Total Referrals: ${referrals.length}`,
-            `✅ Active: ${activeCount}`,
-            `🔄 Pending: ${pendingCount}`,
-            `💰 Potential Earnings: ${activeCount * 0.5} USDT`,
-            `\nLast Active: ${referrals[0].activatedAt?.toLocaleString() || 'Never'}`
-        ].join('\n');
-
-        // Prepare buttons
-        const keyboard = {
-            inline_keyboard: [
-                ...(pendingCount > 0 ? [[{
-                    text: `✅ Activate All (${pendingCount})`,
-                    callback_data: `ref_activate_${userId}_${pendingCount}`
-                }]] : []),
-                ...(activeCount > 0 ? [[{
-                    text: `❌ Deactivate All (${activeCount})`,
-                    callback_data: `ref_deactivate_${userId}_${activeCount}`
-                }]] : []),
-                [{
-                    text: '🔄 Refresh',
-                    callback_data: `ref_refresh_${userId}`
-                }]
-            ]
-        };
-
-        // Send message with auto-delete
-        const sentMsg = await bot.sendMessage(chatId, message, { reply_markup: keyboard });
-        
-        // Auto-delete after 5 minutes
-        setTimeout(() => {
-            bot.deleteMessage(chatId, sentMsg.message_id).catch(() => {});
-        }, 300000);
-
-    } catch (error) {
-        console.error('Status error:', error);
-        await bot.sendMessage(chatId, `❌ Database error: ${error.message}`);
-    }
-});
-
-bot.on('callback_query', async (query) => {
-    const chatId = query.message.chat.id;
-    const data = query.data;
-
-    try {
-        // Delete the original message immediately
-        await bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
-
-        if (data.startsWith('ref_activate_')) {
-            const [_, userId, count] = data.split('_');
-            await bot.answerCallbackQuery(query.id, { text: "Activating referrals..." });
-            await bot.sendMessage(chatId, `/ref_activate ${userId} ${count}`);
-
-        } else if (data.startsWith('ref_deactivate_')) {
-            const [_, userId] = data.split('_');
-            await bot.answerCallbackQuery(query.id, { text: "Deactivating referrals..." });
-            await bot.sendMessage(chatId, `/ref_deactivate ${userId}`);
-
-        } else if (data.startsWith('ref_refresh_')) {
-            const [_, userId] = data.split('_');
-            await bot.answerCallbackQuery(query.id, { text: "Refreshing..." });
-            await bot.sendMessage(chatId, `/ref_status ${userId}`);
-        }
-
-    } catch (error) {
-        console.error('Callback error:', error);
-        await bot.answerCallbackQuery(query.id, { text: "Error processing request" });
-    }
-});
-//end of supa power
 
 
 //survey form submission 
@@ -1944,482 +1756,289 @@ app.post('/api/survey', async (req, res) => {
 });
 
         
-//reminder for sell order
-const userSessions = {};
-const completedOrders = new Set();
-const userEngagement = {};
-
-bot.onText(/\/remind (.+)/, async (msg, match) => {
-    try {
-        const chatId = msg.chat.id;
-        if (!adminIds.includes(chatId.toString())) {
-            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
-        }
-
-        const orderId = match[1].trim();
-        const order = await SellOrder.findOne({ id: orderId });
-        
-        if (!order) {
-            return bot.sendMessage(chatId, `❌ Order ${orderId} not found.`);
-        }
-
-        if (completedOrders.has(orderId)) {
-            return bot.sendMessage(chatId, `❌ Order ${orderId} is already completed.`);
-        }
-
-        if (!userSessions[order.telegramId]) {
-            userSessions[order.telegramId] = { 
-                currentOrder: orderId,
-                language: 'en',
-                messageIds: [],
-                reminderCount: 0,
-                confirmed: false,
-                reminderInterval: null,
-                lastAction: 'init',
-                messageReceived: false,
-                messageOpened: false,
-                attemptedChange: false
-            };
-
-            userEngagement[order.telegramId] = {
-                orderId: orderId,
-                firstSent: new Date(),
-                lastReminded: null,
-                openCount: 0,
-                changeAttempts: 0,
-                confirmed: false,
-                remindersSent: 0,
-                lastAction: 'initialized'
-            };
-        }
-
-        await cleanupMessages(order.telegramId);
-        const sentSuccessfully = await sendWalletConfirmation(order.telegramId, order);
-        
-        if (sentSuccessfully) {
-            await bot.sendMessage(chatId, `✅ Sent wallet confirmation to user ${order.telegramId}`);
-            sendAdminReport(order.telegramId, 'message_sent');
-        } else {
-            await bot.sendMessage(chatId, `❌ Failed to send confirmation to user ${order.telegramId}`);
-        }
-    } catch (error) {
-        console.error('Error in /remind handler:', error);
-    }
-});
-
-async function cleanupMessages(userId) {
-    try {
-        const session = userSessions[userId];
-        if (!session || !session.messageIds) return;
-
-        for (const msgId of session.messageIds) {
-            try {
-                await bot.deleteMessage(userId, msgId);
-            } catch (e) {}
-        }
-        session.messageIds = [];
-    } catch (error) {
-        console.error('Error in cleanupMessages:', error);
-    }
-}
-
-function ensureNonHexAddress(address) {
-    if (!address) return address;
+//feedback on sell orders
+bot.onText(/\/sell_complete (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
     
-    if (address.startsWith('0x')) {
-        const hexPart = address.substring(2);
-        if (/^[0-9a-fA-F]+$/.test(hexPart)) {
-            try {
-                let result = '';
-                for (let i = 0; i < hexPart.length; i += 2) {
-                    const byte = hexPart.substr(i, 2);
-                    const charCode = parseInt(byte, 16);
-                    if (charCode >= 32 && charCode <= 126) {
-                        result += String.fromCharCode(charCode);
-                    } else {
-                        return hexPart;
-                    }
-                }
-                return result || hexPart;
-            } catch {
-                return hexPart;
-            }
-        }
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
-    return address;
-}
 
-async function sendWalletConfirmation(userId, order) {
+    const orderId = match[1].trim();
+    const order = await SellOrder.findOne({ id: orderId });
+    
+    if (!order) {
+        return bot.sendMessage(chatId, `❌ Order ${orderId} not found.`);
+    }
+
     try {
-        const session = userSessions[userId] || { language: 'en', messageIds: [] };
-        const isRussian = session.language === 'ru';
-        const displayAddress = ensureNonHexAddress(order.walletAddress);
+        // Send confirmation to user
+        const confirmationMessage = `🎉 Order #${orderId} Completed!\n\n` +
+                                 `We've successfully processed your sell order for ${order.stars} stars.\n\n` +
+                                 `Payment was sent to:\n` +
+                                 `\`${order.walletAddress}\`\n\n` +
+                                 `We'd love to hear about your experience!`;
         
-        const message = isRussian ? 
-            `👋 Привет, ${order.username}!\n\nМы готовим к завершению ваш заказ #${order.id}.\n\nКошелек для выплаты: ${displayAddress}\n\nЭто верный адрес?` :
-            `👋 Hello ${order.username}!\n\nWe're about to complete your sell order #${order.id}.\n\nPayout wallet: ${displayAddress}\n\nIs this address correct?`;
-
-        const keyboard = {
+        const feedbackKeyboard = {
             inline_keyboard: [
-                [
-                    { text: isRussian ? '✅ Подтвердить' : '✅ Confirm', callback_data: `confirm_wallet_${order.id}` },
-                    { text: isRussian ? '✏️ Изменить' : '✏️ Change', callback_data: `change_wallet_${order.id}` }
-                ],
-                [
-                    { text: isRussian ? '🌐 Русский' : '🌐 English', callback_data: `toggle_lang_${order.id}` }
-                ]
+                [{ text: "⭐ Leave Feedback", callback_data: `start_feedback_${orderId}` }],
+                [{ text: "Skip Feedback", callback_data: `skip_feedback_${orderId}` }]
             ]
         };
 
-        const sentMessage = await bot.sendMessage(userId, message, {
-            reply_markup: keyboard
-        });
-
-        session.messageIds = [sentMessage.message_id];
-        session.messageReceived = true;
-        session.lastAction = 'message_sent';
-        userSessions[userId] = session;
-
-        if (userEngagement[userId]) {
-            userEngagement[userId].lastReminded = new Date();
-            userEngagement[userId].remindersSent++;
-            userEngagement[userId].lastAction = 'reminder_sent';
-        }
-
-        if (!session.reminderInterval) {
-            startReminders(userId, order);
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error sending wallet confirmation:', error);
-        return false;
-    }
-}
-
-function startReminders(userId, order) {
-    try {
-        const session = userSessions[userId];
-        if (!session) return;
-
-        session.reminderInterval = setInterval(async () => {
-            try {
-                if (!userSessions[userId] || userSessions[userId].confirmed) {
-                    clearInterval(session.reminderInterval);
-                    return;
-                }
-                
-                session.reminderCount++;
-                userSessions[userId] = session;
-
-                if (session.reminderCount <= 12) {
-                    await cleanupMessages(userId);
-                    const sentSuccessfully = await sendWalletConfirmation(userId, order);
-                    if (sentSuccessfully) {
-                        sendAdminReport(userId, 'reminder_sent');
-                    }
-                } else {
-                    await endSession(userId, order.id);
-                    sendAdminReport(userId, 'session_ended');
-                }
-            } catch (error) {
-                console.error('Error in reminder interval:', error);
-            }
-        }, 2 * 60 * 60 * 1000);
-    } catch (error) {
-        console.error('Error in startReminders:', error);
-    }
-}
-
-async function endSession(userId, orderId) {
-    try {
-        const session = userSessions[userId];
-        if (!session) return;
-
-        if (session.reminderInterval) {
-            clearInterval(session.reminderInterval);
-        }
-
-        const isRussian = session.language === 'ru';
-        await cleanupMessages(userId);
         await bot.sendMessage(
-            userId,
-            isRussian ? 
-                '❌ Сессия завершена. Пожалуйста, свяжитесь с поддержкой для завершения вашего заказа.' :
-                '❌ Session ended. Please contact support to complete your order.'
+            order.telegramId,
+            confirmationMessage,
+            { 
+                parse_mode: 'Markdown',
+                reply_markup: feedbackKeyboard 
+            }
         );
 
-        if (userEngagement[userId]) {
-            userEngagement[userId].lastAction = 'session_ended';
-            userEngagement[userId].completed = false;
-        }
-
-        completedOrders.add(orderId);
-        delete userSessions[userId];
+        await bot.sendMessage(chatId, `✅ Sent completion notification for order ${orderId} to user @${order.username}`);
+        
     } catch (error) {
-        console.error('Error in endSession:', error);
-    }
-}
-
-async function sendAdminReport(userId, action) {
-    try {
-        const engagement = userEngagement[userId];
-        if (!engagement) return;
-
-        const order = await SellOrder.findOne({ id: engagement.orderId });
-        if (!order) return;
-
-        let status = '';
-        switch(action) {
-            case 'message_sent':
-                status = '📤 Message sent to user';
-                break;
-            case 'reminder_sent':
-                status = '🔔 Reminder sent to user';
-                break;
-            case 'message_opened':
-                status = '👀 User opened message';
-                break;
-            case 'session_ended':
-                status = '⏱ Session ended (no response)';
-                break;
-            default:
-                status = 'ℹ️ User activity';
+        if (error.response?.error_code === 403) {
+            await bot.sendMessage(chatId, `❌ Failed to notify user @${order.username} (user blocked the bot)`);
+        } else {
+            console.error('Notification error:', error);
+            await bot.sendMessage(chatId, `❌ Failed to send notification for order ${orderId}`);
         }
-
-        const report = `📊 ${status}\n\n` +
-                      `Order: ${order.id}\n` +
-                      `User: @${order.username}\n` +
-                      `Wallet: ${order.walletAddress}\n` +
-                      `Last action: ${engagement.lastAction}\n` +
-                      `Reminders sent: ${engagement.remindersSent}\n` +
-                      `Opened count: ${engagement.openCount}\n` +
-                      `Change attempts: ${engagement.changeAttempts}\n` +
-                      `First sent: ${engagement.firstSent.toLocaleString()}\n` +
-                      `Last interaction: ${engagement.lastInteraction ? engagement.lastInteraction.toLocaleString() : 'None'}`;
-
-        for (const adminId of adminIds) {
-            try {
-                await bot.sendMessage(adminId, report);
-            } catch (error) {
-                console.error('Error sending report to admin:', error);
-            }
-        }
-    } catch (error) {
-        console.error('Error generating admin report:', error);
     }
-}
+});
+// Feedback session state management
+const feedbackSessions = {};
 
 bot.on('callback_query', async (query) => {
-    try {
-        const data = query.data;
-        const userId = query.message.chat.id.toString();
-        const session = userSessions[userId];
+    const data = query.data;
+    const chatId = query.message.chat.id;
+    const messageId = query.message.message_id;
+    
+    if (data.startsWith('start_feedback_')) {
+        const orderId = data.split('_')[2];
+        const order = await SellOrder.findOne({ id: orderId });
         
-        if (!session) return;
-
-        session.messageOpened = true;
-        session.lastAction = 'message_opened';
-        userSessions[userId] = session;
-
-        if (userEngagement[userId]) {
-            userEngagement[userId].openCount++;
-            userEngagement[userId].lastAction = 'message_opened';
-            userEngagement[userId].lastInteraction = new Date();
-        }
-
-        sendAdminReport(userId, 'message_opened');
-
-        if (data.startsWith('confirm_wallet_')) {
-            const orderId = data.split('_')[2];
-            const order = await SellOrder.findOne({ id: orderId });
-            
-            if (!order) return;
-            
-            const isRussian = session.language === 'ru';
-            session.confirmed = true;
-            userSessions[userId] = session;
-            
-            if (session.reminderInterval) {
-                clearInterval(session.reminderInterval);
-            }
-            
-            await cleanupMessages(userId);
-            await bot.sendMessage(
-                userId,
-                isRussian ? 
-                    '✅ Адрес кошелька подтвержден! Администраторы уведомлены.' :
-                    '✅ Wallet address confirmed! Admins have been notified.'
-            );
-
-            if (userEngagement[userId]) {
-                userEngagement[userId].confirmed = true;
-                userEngagement[userId].lastAction = 'wallet_confirmed';
-                userEngagement[userId].completionTime = new Date();
-            }
-
-            sendAdminReport(userId, 'wallet_confirmed');
-            completedOrders.add(orderId);
-            delete userSessions[userId];
-            await bot.answerCallbackQuery(query.id);
-            
-        } else if (data.startsWith('change_wallet_')) {
-            const orderId = data.split('_')[2];
-            const order = await SellOrder.findOne({ id: orderId });
-            
-            if (!order) return;
-            
-            const isRussian = session.language === 'ru';
-            
-            session.attemptedChange = true;
-            session.lastAction = 'change_attempted';
-            userSessions[userId] = session;
-
-            if (userEngagement[userId]) {
-                userEngagement[userId].changeAttempts++;
-                userEngagement[userId].lastAction = 'change_attempted';
-            }
-            
-            await cleanupMessages(userId);
-            await bot.sendMessage(
-                userId,
-                isRussian ? 
-                    'Пожалуйста, введите ваш новый USDT (TON) адрес кошелька:' :
-                    'Please enter your new USDT (TON) wallet address:'
-            );
-            
-            session.awaiting = 'wallet';
-            session.currentOrder = orderId;
-            userSessions[userId] = session;
-            
-            await bot.answerCallbackQuery(query.id);
-            
-        } else if (data.startsWith('toggle_lang_')) {
-            const orderId = data.split('_')[2];
-            const order = await SellOrder.findOne({ id: orderId });
-            
-            if (!order) return;
-            
-            session.language = session.language === 'en' ? 'ru' : 'en';
-            session.lastAction = 'language_changed';
-            userSessions[userId] = session;
-
-            if (userEngagement[userId]) {
-                userEngagement[userId].lastAction = 'language_changed';
-            }
-            
-            await cleanupMessages(userId);
-            await sendWalletConfirmation(userId, order);
-            await bot.answerCallbackQuery(query.id);
-        }
-    } catch (error) {
-        console.error('Error in callback_query handler:', error);
-    }
-});
-
-bot.on('message', async (msg) => {
-    try {
-        if (!msg.text || msg.text.startsWith('/')) return;
-        
-        const userId = msg.chat.id.toString();
-        const session = userSessions[userId];
-        
-        if (!session || !session.awaiting) return;
-        
-        if (session.awaiting === 'wallet') {
-            if (msg.text.length < 10 || msg.text.length > 64) {
-                const isRussian = session.language === 'ru';
-                return bot.sendMessage(
-                    userId,
-                    isRussian ? 
-                        '❌ Неверный формат адреса. Пожалуйста, введите действительный адрес кошелька:' :
-                        '❌ Invalid address format. Please enter a valid wallet address:'
-                );
-            }
-            
-            session.newWallet = msg.text.trim();
-            session.awaiting = 'memo';
-            session.lastAction = 'wallet_received';
-            userSessions[userId] = session;
-
-            if (userEngagement[userId]) {
-                userEngagement[userId].lastAction = 'wallet_received';
-            }
-            
-            const isRussian = session.language === 'ru';
-            const keyboard = {
-                inline_keyboard: [[
-                    { 
-                        text: isRussian ? '⏭ Пропустить' : '⏭ Skip', 
-                        callback_data: `skip_memo_${session.currentOrder}`
-                    }
-                ]]
-            };
-            
-            await cleanupMessages(userId);
-            await bot.sendMessage(
-                userId,
-                isRussian ? 
-                    'Если ваш кошелек требует MEMO/тег, пожалуйста, введите его сейчас. Или нажмите "Пропустить":' :
-                    'If your wallet requires a MEMO/tag, please enter it now. Or click "Skip":',
-                { reply_markup: keyboard }
-            );
-            
-        } else if (session.awaiting === 'memo') {
-            await completeWalletUpdate(userId, session, msg.text);
-        }
-    } catch (error) {
-        console.error('Error in message handler:', error);
-    }
-});
-
-async function completeWalletUpdate(userId, session, memo) {
-    try {
-        const order = await SellOrder.findOne({ id: session.currentOrder });
         if (!order) return;
         
-        const isRussian = session.language === 'ru';
-        order.walletAddress = session.newWallet;
-        if (memo) order.memo = memo;
-        order.addressConfirmed = true;
-        await order.save();
-        
-        let userMessage = isRussian ?
-            `✅ Данные кошелька обновлены!\n\nАдрес: ${session.newWallet}` :
-            `✅ Wallet details updated!\n\nAddress: ${session.newWallet}`;
-        
-        if (memo) {
-            userMessage += isRussian ?
-                `\nMEMO: ${memo}` :
-                `\nMEMO: ${memo}`;
-        }
-        
-        session.lastAction = 'wallet_updated';
-        userSessions[userId] = session;
+        // Initialize feedback session
+        feedbackSessions[chatId] = {
+            orderId: orderId,
+            telegramId: order.telegramId,
+            username: order.username,
+            currentQuestion: 1, // 1 = satisfaction, 2 = reasons, 3 = suggestions, 4 = additional info
+            responses: {},
+            active: true
+        };
 
-        if (userEngagement[userId]) {
-            userEngagement[userId].lastAction = 'wallet_updated';
-            userEngagement[userId].walletChanged = true;
-        }
+        // Ask first question
+        await askFeedbackQuestion(chatId, 1);
+        await bot.answerCallbackQuery(query.id);
         
-        await cleanupMessages(userId);
-        await bot.sendMessage(userId, userMessage);
+    } else if (data.startsWith('skip_feedback_')) {
+        const orderId = data.split('_')[2];
+        
+        // Update message to show feedback was skipped
+        await bot.editMessageReplyMarkup(
+            { inline_keyboard: [[{ text: "✓ Feedback Skipped", callback_data: 'feedback_skipped' }]] },
+            { chat_id: chatId, message_id: messageId }
+        );
+        
+        await bot.sendMessage(chatId, "Thank you for your order! We appreciate your business.");
+        await bot.answerCallbackQuery(query.id);
+        
+    } else if (data.startsWith('feedback_rating_')) {
+        // Handle rating selection
+        const rating = parseInt(data.split('_')[2]);
+        const session = feedbackSessions[chatId];
+        
+        if (session && session.active) {
+            session.responses.satisfaction = rating;
+            session.currentQuestion = 2;
+            
+            await askFeedbackQuestion(chatId, 2);
+            await bot.answerCallbackQuery(query.id);
+        }
+    }
+    // Add other feedback handlers here if needed
+});
 
-        sendAdminReport(userId, 'wallet_updated');
-        
-        completedOrders.add(order.id);
-        if (session.reminderInterval) {
-            clearInterval(session.reminderInterval);
+async function askFeedbackQuestion(chatId, questionNumber) {
+    const session = feedbackSessions[chatId];
+    if (!session) return;
+    
+    let questionText = '';
+    let replyMarkup = {};
+    
+    switch(questionNumber) {
+        case 1: // Satisfaction rating
+            questionText = "How satisfied are you with our service? (1-5 stars)";
+            replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "⭐", callback_data: `feedback_rating_1` },
+                        { text: "⭐⭐", callback_data: `feedback_rating_2` },
+                        { text: "⭐⭐⭐", callback_data: `feedback_rating_3` },
+                        { text: "⭐⭐⭐⭐", callback_data: `feedback_rating_4` },
+                        { text: "⭐⭐⭐⭐⭐", callback_data: `feedback_rating_5` }
+                    ],
+                    [{ text: "Skip", callback_data: `feedback_skip_1` }]
+                ]
+            };
+            break;
+            
+        case 2: // Reasons for rating
+            questionText = "Could you tell us why you gave this rating?";
+            replyMarkup = {
+                inline_keyboard: [
+                    [{ text: "Skip", callback_data: `feedback_skip_2` }]
+                ]
+            };
+            break;
+            
+        case 3: // Suggestions
+            questionText = "What could we improve or add to make your experience better?";
+            replyMarkup = {
+                inline_keyboard: [
+                    [{ text: "Skip", callback_data: `feedback_skip_3` }]
+                ]
+            };
+            break;
+            
+        case 4: // Additional info
+            questionText = "Any additional comments? (Optional - you can skip this)";
+            replyMarkup = {
+                inline_keyboard: [
+                    [{ text: "Skip and Submit", callback_data: `feedback_complete` }]
+                ]
+            };
+            break;
+    }
+    
+    // If we're moving to a new question, send it
+    if (questionText) {
+        // Delete previous question if exists
+        if (session.lastQuestionMessageId) {
+            try {
+                await bot.deleteMessage(chatId, session.lastQuestionMessageId);
+            } catch (e) {}
         }
-        delete userSessions[userId];
-    } catch (error) {
-        console.error('Error in completeWalletUpdate:', error);
+        
+        const message = await bot.sendMessage(chatId, questionText, { reply_markup: replyMarkup });
+        session.lastQuestionMessageId = message.message_id;
     }
 }
 
+// Handle text responses to feedback questions
+bot.on('message', async (msg) => {
+    if (!msg.text || msg.text.startsWith('/')) return;
+    
+    const chatId = msg.chat.id.toString();
+    const session = feedbackSessions[chatId];
+    
+    if (!session || !session.active) return;
+    
+    try {
+        switch(session.currentQuestion) {
+            case 2: // Reasons for rating
+                session.responses.reasons = msg.text;
+                session.currentQuestion = 3;
+                await askFeedbackQuestion(chatId, 3);
+                break;
+                
+            case 3: // Suggestions
+                session.responses.suggestions = msg.text;
+                session.currentQuestion = 4;
+                await askFeedbackQuestion(chatId, 4);
+                break;
+                
+            case 4: // Additional info
+                session.responses.additionalInfo = msg.text;
+                await completeFeedback(chatId);
+                break;
+        }
+    } catch (error) {
+        console.error('Feedback processing error:', error);
+    }
+});
+
+async function completeFeedback(chatId) {
+    const session = feedbackSessions[chatId];
+    if (!session) return;
+    
+    try {
+        // Save feedback to database
+        const feedback = new Feedback({
+            orderId: session.orderId,
+            telegramId: session.telegramId,
+            username: session.username,
+            satisfaction: session.responses.satisfaction,
+            reasons: session.responses.reasons,
+            suggestions: session.responses.suggestions,
+            additionalInfo: session.responses.additionalInfo
+        });
+        
+        await feedback.save();
+        
+        // Notify admins
+        const adminMessage = `📝 New Feedback Received\n\n` +
+                            `Order: ${session.orderId}\n` +
+                            `User: @${session.username}\n` +
+                            `Rating: ${session.responses.satisfaction}/5\n` +
+                            `Reasons: ${session.responses.reasons || 'Not provided'}\n` +
+                            `Suggestions: ${session.responses.suggestions || 'Not provided'}\n` +
+                            `Additional Info: ${session.responses.additionalInfo || 'None'}`;
+        
+        for (const adminId of adminIds) {
+            try {
+                await bot.sendMessage(adminId, adminMessage);
+            } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
+            }
+        }
+        
+        // Thank user
+        await bot.sendMessage(chatId, "Thank you for your feedback! We appreciate your time.");
+        
+    } catch (error) {
+        console.error('Error saving feedback:', error);
+        await bot.sendMessage(chatId, "Sorry, we couldn't save your feedback. Please try again later.");
+    } finally {
+        // Clean up session
+        delete feedbackSessions[chatId];
+    }
+}
+
+// Handle skip actions for feedback questions
+bot.on('callback_query', async (query) => {
+    const data = query.data;
+    const chatId = query.message.chat.id;
+    
+    if (data.startsWith('feedback_skip_')) {
+        const questionNumber = parseInt(data.split('_')[2]);
+        const session = feedbackSessions[chatId];
+        
+        if (session) {
+            if (questionNumber < 4) {
+                // Move to next question
+                session.currentQuestion = questionNumber + 1;
+                await askFeedbackQuestion(chatId, session.currentQuestion);
+            } else {
+                // Complete feedback if on last question
+                await completeFeedback(chatId);
+            }
+        }
+        await bot.answerCallbackQuery(query.id);
+        
+    } else if (data === 'feedback_complete') {
+        await completeFeedback(chatId);
+        await bot.answerCallbackQuery(query.id);
+    }
+});
+//end of sell order feedback
 
 
-      //notification for reversing orders
+
+//notification for reversing orders
 bot.onText(/\/sell_decline (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     
