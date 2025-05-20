@@ -1806,8 +1806,10 @@ bot.onText(/\/sell_complete (.+)/, async (msg, match) => {
         }
     }
 });
+
 // Feedback session state management
 const feedbackSessions = {};
+const completedFeedbacks = new Set(); // Track users who have already submitted feedback
 
 bot.on('callback_query', async (query) => {
     const data = query.data;
@@ -1819,6 +1821,13 @@ bot.on('callback_query', async (query) => {
         const order = await SellOrder.findOne({ id: orderId });
         
         if (!order) return;
+        
+        // Check if user has already completed feedback for this order
+        if (completedFeedbacks.has(chatId.toString() + '_' + orderId)) {
+            await bot.sendMessage(chatId, "You have already submitted feedback for this order. Thank you!");
+            await bot.answerCallbackQuery(query.id);
+            return;
+        }
         
         // Initialize feedback session
         feedbackSessions[chatId] = {
@@ -1914,15 +1923,8 @@ async function askFeedbackQuestion(chatId, questionNumber) {
             break;
     }
     
-    // If we're moving to a new question, send it
+    // If we're moving to a new question, send it (but don't delete previous ones)
     if (questionText) {
-        // Delete previous question if exists
-        if (session.lastQuestionMessageId) {
-            try {
-                await bot.deleteMessage(chatId, session.lastQuestionMessageId);
-            } catch (e) {}
-        }
-        
         const message = await bot.sendMessage(chatId, questionText, { reply_markup: replyMarkup });
         session.lastQuestionMessageId = message.message_id;
     }
@@ -1978,6 +1980,9 @@ async function completeFeedback(chatId) {
         });
         
         await feedback.save();
+        
+        // Add to completed feedbacks set
+        completedFeedbacks.add(chatId.toString() + '_' + session.orderId);
         
         // Notify admins
         const adminMessage = `📝 New Feedback Received\n\n` +
