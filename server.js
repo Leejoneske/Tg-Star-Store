@@ -579,22 +579,19 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
             currency: 'XTR',
             prices: [
                 {
-                  l  label: `${stars} Telegram Stars`,
+                    label: `${stars} Telegram Stars`,  
                     amount: stars * 1
                 }
             ]
         });
 
-        if (response.data.ok) {
-            return response.data.result;
-        } else {
-            throw new Error(response.data.description || 'Failed to create invoice');
-        }
+        return response.data.result;
     } catch (error) {
-        console.error('Error creating Telegram invoice:', error);
+        console.error('Error creating invoice:', error);
         throw error;
     }
 }
+
  //end of sell process    
 
 
