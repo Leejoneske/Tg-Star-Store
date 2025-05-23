@@ -16,6 +16,8 @@ const SERVER_URL = (process.env.RAILWAY_STATIC_URL ||
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 const verifyTelegramAuth = require('./middleware/telegramAuth');
+const reversalRequests = new Map();
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -50,18 +52,6 @@ app.post(WEBHOOK_PATH, (req, res) => {
 });
 
 
-bot.refundStarPayment = async (chargeId) => {
-    try {
-        const response = await axios.post(
-            `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
-            { telegram_payment_charge_id: chargeId }
-        );
-        return response.data;
-    } catch (error) {
-        console.error('Refund error:', error.response?.data || error.message);
-        throw error;
-    }
-};
 
 // Health check
 app.get('/health', (req, res) => {
@@ -100,27 +90,57 @@ const sellOrderSchema = new mongoose.Schema({
     walletAddress: String,
     status: {
         type: String,
-        enum: ['pending', 'processing', 'completed', 'declined'],
+        enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded'],
         default: 'pending'
     },
-    telegram_payment_charge_id: String, // Critical for refunds
-    refundRequested: {
-        type: Boolean,
-        default: false
-    },
-    refundReason: String,
-    refundStatus: {
+    telegram_payment_charge_id: {
         type: String,
-        enum: ['none', 'requested', 'approved', 'processed', 'denied'],
-        default: 'none'
+        required: true
     },
+    reversible: {
+        type: Boolean,
+        default: true
+    },
+    reversalData: {
+        requested: Boolean,
+        reason: String,
+        status: {
+            type: String,
+            enum: ['none', 'requested', 'approved', 'rejected', 'processed'],
+            default: 'none'
+        },
+        adminId: String,
+        processedAt: Date
+    },
+    refundData: {
+        requested: Boolean,
+        reason: String,
+        status: {
+            type: String,
+            enum: ['none', 'requested', 'approved', 'rejected', 'processed'],
+            default: 'none'
+        },
+        adminId: String,
+        processedAt: Date,
+        chargeId: String
+    },
+    adminMessages: [{
+        adminId: String,
+        messageId: Number,
+        originalText: String,
+        messageType: {
+            type: String,
+            enum: ['order', 'refund', 'reversal']
+        }
+    }],
     dateCreated: {
         type: Date,
         default: Date.now
-    }
+    },
+    dateCompleted: Date,
+    dateReversed: Date,
+    dateRefunded: Date
 });
-
-// That's it. Nothing extra.
 
 const userSchema = new mongoose.Schema({
     id: String,
@@ -144,7 +164,6 @@ const referralSchema = new mongoose.Schema({
 const bannedUserSchema = new mongoose.Schema({
     users: Array
 });
-
 
 
 
@@ -193,33 +212,20 @@ const feedbackSchema = new mongoose.Schema({
     dateSubmitted: { type: Date, default: Date.now }
 });
 
-const refundLogSchema = new mongoose.Schema({
-    orderId: String,
-    orderType: {
-        type: String,
-        enum: ['buy', 'sell'],
-        required: true
-    },
-    telegramId: String,
+const reversalSchema = new mongoose.Schema({
+    orderId: { type: String, required: true },
+    telegramId: { type: String, required: true },
     username: String,
-    stars: Number,
-    amount: Number,
-    chargeId: String,
-    status: {
-        type: String,
-        enum: ['requested', 'processing', 'completed', 'failed', 'denied'],
-        required: true
-    },
-    reason: String,
-    requestedAt: { type: Date, default: Date.now },
-    processedAt: Date,
-    processedBy: String,
-    failureReason: String,
-    retryAttempts: { type: Number, default: 0 },
-    telegramResponse: mongoose.Schema.Types.Mixed
+    stars: { type: Number, required: true },
+    reason: { type: String, required: true },
+    status: { type: String, enum: ['pending', 'approved', 'rejected', 'processed'], default: 'pending' },
+    adminId: String,
+    adminUsername: String,
+    processedAt: Date
 });
 
-const RefundLog = mongoose.model('RefundLog', refundLogSchema);
+
+const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
 const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
 const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
@@ -431,17 +437,16 @@ bot.on('callback_query', async (query) => {
 });
 //end of buy order and referral check 
 
-// ===== SELL ORDER CONTROLLER =====
+
+// ===== COMPLETE SELL ORDER CONTROLLER =====
 app.post("/api/sell-orders", async (req, res) => {
     try {
         // ===== INPUT VALIDATION =====
-        const { telegramId, username, stars, walletAddress, telegram_payment_charge_id } = req.body;
-        
-        if (!telegram_payment_charge_id) {
-            return res.status(400).json({ error: "Payment reference required" });
+        const { telegramId, username, stars, walletAddress } = req.body;
+        if (!telegramId || !stars || !walletAddress) {
+            return res.status(400).json({ error: "Missing required fields" });
         }
 
-      
         // ===== BAN CHECK =====
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
@@ -461,13 +466,13 @@ app.post("/api/sell-orders", async (req, res) => {
             adminMessages: [],
         });
 
-        await order.save();
-
         // ===== PAYMENT LINK GENERATION =====
         const paymentLink = await createTelegramInvoice(telegramId, order.id, stars, `Purchase of ${stars} Telegram Stars`);
         if (!paymentLink) {
             return res.status(500).json({ error: "Failed to generate payment link" });
         }
+
+        await order.save();
 
         // ===== USER NOTIFICATION =====
         const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\nPay here: ${paymentLink}`;
@@ -480,14 +485,14 @@ app.post("/api/sell-orders", async (req, res) => {
     }
 });
 
-// ===== PAYMENT VERIFICATION HANDLER =====
+// ===== COMPLETE PAYMENT VERIFICATION HANDLER =====
 bot.on('pre_checkout_query', async (query) => {
     const orderId = query.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId }) || await BuyOrder.findOne({ id: orderId });
     await bot.answerPreCheckoutQuery(query.id, !!order);
 });
 
-// ===== PAYMENT SUCCESS HANDLER =====
+// ===== COMPLETE PAYMENT SUCCESS HANDLER =====
 bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId });
@@ -495,6 +500,9 @@ bot.on("successful_payment", async (msg) => {
     if (!order) {
         return await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Please contact support.");
     }
+
+    // ===== STORE PAYMENT REFERENCE =====
+    order.telegram_payment_charge_id = msg.successful_payment.telegram_payment_charge_id;
 
     // ===== ORDER STATUS UPDATE =====
     order.status = "processing"; 
@@ -545,7 +553,7 @@ bot.on("successful_payment", async (msg) => {
     }
 });
 
-// ===== ADMIN ACTION HANDLER (RESTORED WORKING VERSION) =====
+// ===== COMPLETE ADMIN ACTION HANDLER =====
 bot.on('callback_query', async (query) => {
     try {
         const data = query.data;
@@ -572,20 +580,19 @@ bot.on('callback_query', async (query) => {
             return;
         }
 
-        // In your order completion handler:
-if (actionType === 'complete') {
-    order.status = 'completed';
-    await order.save();
-    
-    if (data.startsWith('complete_sell_')) {
-        await trackStars(order.telegramId, order.stars, 'sell');
-    } 
-    if (data.startsWith('complete_buy_')) {
-        await trackStars(order.telegramId, order.stars, 'buy');
-        if (order.isPremium) {
-            await trackPremiumActivation(order.telegramId);
-        }
-    }
+        if (actionType === 'complete') {
+            order.status = 'completed';
+            await order.save();
+            
+            if (data.startsWith('complete_sell_')) {
+                await trackStars(order.telegramId, order.stars, 'sell');
+            } 
+            if (data.startsWith('complete_buy_')) {
+                await trackStars(order.telegramId, order.stars, 'buy');
+                if (order.isPremium) {
+                    await trackPremiumActivation(order.telegramId);
+                }
+            }
 
             await order.save();
         } else {
@@ -627,9 +634,7 @@ if (actionType === 'complete') {
     }
 });
 
-
-
-// ===== INVOICE GENERATION (UNCHANGED) =====
+// ===== COMPLETE INVOICE GENERATION =====
 async function createTelegramInvoice(chatId, orderId, stars, description) {
     try {
         const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/createInvoiceLink`, {
@@ -646,7 +651,6 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
                 }
             ]
         });
-
         return response.data.result;
     } catch (error) {
         console.error('Error creating invoice:', error);
@@ -654,387 +658,133 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
     }
 }
 
+
  //end of sell process    
 
-// State tracker for refund requests
-const activeRefunds = new Map();
+//stars refund
+const reversalRequests = new Map();
 
-// Combined /refund and /paySupport command
-bot.onText(/^\/(refund|paysupport)$/i, (msg) => {
+bot.onText(/\/reverse (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
+    const orderId = match[1].trim();
     
-    const welcomeMessage = `🛠️ *Sell Order Support Portal*\n\n` +
-                         `This portal helps you request refunds for sell orders.\n\n` +
-                         `❗ *Important Notes*:\n` +
-                         `- Only *processing* orders can be refunded\n` +
-                         `- Pending or completed orders cannot be refunded\n` +
-                         `- Refunds must be requested within 21 days\n` +
-                         `- Refunds are for the full star amount\n\n` +
-                         `To continue, please provide your *Order ID*:`;
-    
-    bot.sendMessage(chatId, welcomeMessage, { 
-        parse_mode: 'Markdown',
-        reply_markup: { remove_keyboard: true }
-    });
-    
-    activeRefunds.set(chatId, { 
-        step: 'await_order_id', 
-        timestamp: Date.now() 
-    });
-});
-
-// Refund process handler
-bot.on('message', async (msg) => {
-    const chatId = msg.chat.id;
-    const refund = activeRefunds.get(chatId);
-    if (!refund || msg.text?.startsWith('/')) return;
-
-    try {
-        if (refund.step === 'await_order_id') {
-            const orderId = msg.text.trim();
-            if (!orderId) {
-                return bot.sendMessage(chatId, '❌ Please provide a valid Order ID');
-            }
-
-            const order = await SellOrder.findOne({
-                id: orderId,
-                telegramId: chatId.toString()
-            });
-
-            if (!order) {
-                return bot.sendMessage(chatId, '❌ Order not found. Please check your Order ID');
-            }
-
-            // Validate order status
-            if (order.status !== 'processing') {
-                let statusMessage = '';
-                if (order.status === 'pending') {
-                    statusMessage = 'This order is still pending payment';
-                } else if (order.status === 'completed') {
-                    statusMessage = 'This order has already been completed';
-                } else if (order.refundStatus === 'processed') {
-                    statusMessage = 'This order has already been refunded';
-                }
-
-                return bot.sendMessage(
-                    chatId,
-                    `❌ Cannot refund this order:\n${statusMessage}\n\n` +
-                    `Only orders with "processing" status can be refunded.`
-                );
-            }
-
-            if (!order.telegram_payment_charge_id) {
-                return bot.sendMessage(
-                    chatId,
-                    '❌ Technical issue: Missing payment reference\n' +
-                    'Please contact support for manual assistance'
-                );
-            }
-
-            // Store order details and move to next step
-            refund.orderId = order.id;
-            refund.stars = order.stars;
-            refund.step = 'await_reason';
-            
-            bot.sendMessage(
-                chatId,
-                `🔍 Order Found:\n\n` +
-                `ID: ${order.id}\n` +
-                `Stars: ${order.stars}\n` +
-                `Status: ${order.status}\n\n` +
-                `Please explain why you need this refund:`,
-                { reply_markup: { remove_keyboard: true } }
-            );
-            
-        } else if (refund.step === 'await_reason') {
-            const reason = msg.text.trim();
-            if (!reason || reason.length < 10) {
-                return bot.sendMessage(
-                    chatId,
-                    '❌ Please provide a detailed reason (at least 10 characters)'
-                );
-            }
-
-            const order = await SellOrder.findOneAndUpdate(
-                { id: refund.orderId },
-                {
-                    refundRequested: true,
-                    refundReason: reason,
-                    refundStatus: 'requested',
-                    status: 'refund_requested' // Special status
-                },
-                { new: true }
-            );
-
-            // Format admin message
-            const adminMsg = `🔄 *Refund Request - Review Needed*\n\n` +
-                           `Order: \`${order.id}\`\n` +
-                           `User: @${order.username || 'unknown'} (ID: ${order.telegramId})\n` +
-                           `Stars: ${order.stars}\n` +
-                           `Reason: ${reason}\n\n` +
-                           `⚠️ *Action Required*: Approve or deny this refund`;
-
-            const keyboard = {
-                inline_keyboard: [
-                    [
-                        { 
-                            text: '✅ Approve Refund', 
-                            callback_data: `refund_approve_${order.id}_${chatId}`
-                        },
-                        { 
-                            text: '❌ Deny Refund', 
-                            callback_data: `refund_deny_${order.id}_${chatId}`
-                        }
-                    ],
-                    [
-                        { 
-                            text: '🗂️ View Order Details', 
-                            callback_data: `view_order_${order.id}`
-                        }
-                    ]
-                ]
-            };
-
-            // Send to all admins
-            let adminMessageIds = [];
-            for (const adminId of adminIds) {
-                try {
-                    const message = await bot.sendMessage(adminId, adminMsg, {
-                        reply_markup: keyboard,
-                        parse_mode: 'Markdown'
-                    });
-                    adminMessageIds.push({
-                        adminId,
-                        messageId: message.message_id
-                    });
-                } catch (err) {
-                    console.error(`Failed to notify admin ${adminId}:`, err);
-                }
-            }
-
-            // Update refund record with admin message IDs
-            await SellOrder.updateOne(
-                { id: order.id },
-                { $set: { adminRefundMessages: adminMessageIds } }
-            );
-
-            // Confirm to user
-            bot.sendMessage(
-                chatId,
-                `📨 Your refund request has been submitted!\n\n` +
-                `Order ID: ${order.id}\n` +
-                `Stars: ${order.stars}\n` +
-                `Reason: ${reason}\n\n` +
-                `Our team will review your request shortly. You'll get a notification when processed.`,
-                { reply_markup: { remove_keyboard: true } }
-            );
-
-            // Clear the session
-            activeRefunds.delete(chatId);
-        }
-    } catch (error) {
-        console.error('Refund process error:', error);
-        bot.sendMessage(
-            chatId,
-            '❌ An error occurred. Please try again or contact support.'
-        );
-        activeRefunds.delete(chatId);
+    const order = await SellOrder.findOne({ id: orderId, telegramId: chatId.toString() });
+    if (!order || !order.reversible) {
+        return bot.sendMessage(chatId, "❌ Order not found or not reversible");
     }
+
+    reversalRequests.set(chatId, { orderId, timestamp: Date.now() });
+    bot.sendMessage(chatId, "Please provide reason for reversal:");
 });
 
-// Admin approval handler
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id.toString();
+    if (!reversalRequests.has(chatId) return;
+
+    const { orderId, timestamp } = reversalRequests.get(chatId);
+    if (Date.now() - timestamp > 300000) {
+        reversalRequests.delete(chatId);
+        return;
+    }
+
+    const order = await SellOrder.findOne({ id: orderId });
+    const reversal = new Reversal({
+        orderId,
+        telegramId: chatId,
+        username: order.username,
+        stars: order.stars,
+        reason: msg.text,
+        status: 'pending'
+    });
+    await reversal.save();
+
+    const adminMsg = `🔄 Reversal Request\n\nOrder: ${orderId}\nUser: @${order.username}\nStars: ${order.stars}\nReason: ${msg.text}`;
+    const keyboard = {
+        inline_keyboard: [
+            [{ text: "✅ Approve", callback_data: `rev_approve_${orderId}` }],
+            [{ text: "❌ Reject", callback_data: `rev_reject_${orderId}` }]
+        ]
+    };
+
+    adminIds.forEach(adminId => {
+        bot.sendMessage(adminId, adminMsg, { reply_markup: keyboard });
+    });
+
+    reversalRequests.delete(chatId);
+    bot.sendMessage(chatId, "✅ Reversal request submitted for admin approval");
+});
+
 bot.on('callback_query', async (query) => {
-    try {
-        const action = query.data.startsWith('refund_approve_') ? 'approve' : 
-                      query.data.startsWith('refund_deny_') ? 'deny' : null;
-        
-        if (!action) return;
+    if (!query.data.startsWith('rev_')) return;
+    if (!adminIds.includes(query.from.id.toString())) {
+        return bot.answerCallbackQuery(query.id, { text: "Unauthorized" });
+    }
 
-        const [orderId, userChatId] = query.data.split('_').slice(2);
-        const order = await SellOrder.findOne({ id: orderId });
+    const [_, action, orderId] = query.data.split('_');
+    const reversal = await Reversal.findOne({ orderId });
+    if (!reversal) {
+        return bot.answerCallbackQuery(query.id, { text: "Request not found" });
+    }
 
-        if (!order) {
-            return await bot.answerCallbackQuery(query.id, {
-                text: "Order not found"
-            });
-        }
+    if (action === 'approve') {
+        reversal.status = 'approved';
+        reversal.adminId = query.from.id.toString();
+        reversal.adminUsername = query.from.username;
+        await reversal.save();
 
-        // Verify admin
-        if (!adminIds.includes(query.from.id.toString())) {
-            return await bot.answerCallbackQuery(query.id, {
-                text: "Unauthorized"
-            });
-        }
+        await processReversal(orderId);
+        await bot.editMessageText(`${query.message.text}\n\n✅ Approved by @${query.from.username || 'admin'}`, {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id
+        });
+    } else {
+        reversal.status = 'rejected';
+        reversal.adminId = query.from.id.toString();
+        reversal.adminUsername = query.from.username;
+        await reversal.save();
 
-        if (action === 'approve') {
-            // Process the refund
-            try {
-                await bot.answerCallbackQuery(query.id, {
-                    text: "Processing refund..."
-                });
-
-                const result = await bot.refundStarPayment(order.telegram_payment_charge_id);
-                
-                // Update order status
-                await SellOrder.updateOne(
-                    { id: orderId },
-                    {
-                        status: 'refunded',
-                        refundStatus: 'processed',
-                        refundedAt: new Date(),
-                        processedBy: query.from.id
-                    }
-                );
-
-                // Notify user
-                await bot.sendMessage(
-                    userChatId,
-                    `✅ Your refund for order ${order.id} has been processed!\n\n` +
-                    `⭐ ${order.stars} stars have been returned to your account.\n\n` +
-                    `Thank you for using our service.`
-                );
-
-                // Update all admin messages
-                const adminUsername = query.from.username || `admin_${query.from.id.toString().slice(-4)}`;
-                const processedText = `♻️ Refund Processed by @${adminUsername}\n` +
-                                    `⏱️ ${new Date().toLocaleString()}`;
-
-                if (order.adminRefundMessages?.length) {
-                    for (const msg of order.adminRefundMessages) {
-                        try {
-                            await bot.editMessageText(
-                                `${query.message.text}\n\n${processedText}`,
-                                {
-                                    chat_id: msg.adminId,
-                                    message_id: msg.messageId,
-                                    parse_mode: 'Markdown'
-                                }
-                            );
-                            
-                            await bot.editMessageReplyMarkup(
-                                {
-                                    inline_keyboard: [
-                                        [{
-                                            text: '✅ Refund Completed',
-                                            callback_data: 'processed',
-                                            disabled: true
-                                        }]
-                                    ]
-                                },
-                                {
-                                    chat_id: msg.adminId,
-                                    message_id: msg.messageId
-                                }
-                            );
-                        } catch (err) {
-                            console.error(`Failed to update admin message ${msg.messageId}:`, err);
-                        }
-                    }
-                }
-
-            } catch (err) {
-                console.error('Refund failed:', err);
-                
-                // Show retry option to admin
-                await bot.editMessageReplyMarkup(
-                    {
-                        inline_keyboard: [
-                            [
-                                { 
-                                    text: '🔄 Retry Refund', 
-                                    callback_data: `refund_approve_${order.id}_${userChatId}`
-                                },
-                                { 
-                                    text: '❌ Deny', 
-                                    callback_data: `refund_deny_${order.id}_${userChatId}`
-                                }
-                            ]
-                        ]
-                    },
-                    { 
-                        chat_id: query.message.chat.id, 
-                        message_id: query.message.message_id 
-                    }
-                );
-
-                await bot.answerCallbackQuery(query.id, {
-                    text: "Refund failed - Please retry"
-                });
-            }
-        } 
-        else if (action === 'deny') {
-            // Update order status
-            await SellOrder.updateOne(
-                { id: orderId },
-                {
-                    refundStatus: 'denied',
-                    processedBy: query.from.id
-                }
-            );
-
-            // Notify user
-            await bot.sendMessage(
-                userChatId,
-                `❌ Your refund request for order ${order.id} was denied.\n\n` +
-                `If you believe this was an error, please contact support.`
-            );
-
-            // Update admin message
-            const adminUsername = query.from.username || `admin_${query.from.id.toString().slice(-4)}`;
-            const processedText = `❌ Refund Denied by @${adminUsername}\n` +
-                                `⏱️ ${new Date().toLocaleString()}`;
-
-            await bot.editMessageText(
-                `${query.message.text}\n\n${processedText}`,
-                {
-                    chat_id: query.message.chat.id,
-                    message_id: query.message.message_id,
-                    parse_mode: 'Markdown'
-                }
-            );
-
-            await bot.editMessageReplyMarkup(
-                {
-                    inline_keyboard: [
-                        [{
-                            text: '❌ Refund Denied',
-                            callback_data: 'processed',
-                            disabled: true
-                        }]
-                    ]
-                },
-                {
-                    chat_id: query.message.chat.id,
-                    message_id: query.message.message_id
-                }
-            );
-
-            await bot.answerCallbackQuery(query.id, {
-                text: "Refund denied"
-            });
-        }
-    } catch (error) {
-        console.error('Refund callback error:', error);
-        await bot.answerCallbackQuery(query.id, {
-            text: "Error processing request"
+        bot.sendMessage(reversal.telegramId, `❌ Your reversal request for order ${orderId} was rejected`);
+        await bot.editMessageText(`${query.message.text}\n\n❌ Rejected by @${query.from.username || 'admin'}`, {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id
         });
     }
+
+    bot.answerCallbackQuery(query.id, { text: `Reversal ${action === 'approve' ? 'approved' : 'rejected'}` });
 });
 
-// Cleanup expired refund sessions every hour
+async function processReversal(orderId) {
+    const order = await SellOrder.findOne({ id: orderId });
+    const reversal = await Reversal.findOne({ orderId });
+
+    try {
+        await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`, {
+            telegram_payment_charge_id: order.telegram_payment_charge_id
+        });
+
+        order.status = 'reversed';
+        await order.save();
+
+        reversal.status = 'processed';
+        reversal.processedAt = new Date();
+        await reversal.save();
+
+        bot.sendMessage(order.telegramId, `✅ Order ${orderId} reversed successfully\n${order.stars} stars returned to your account`);
+    } catch (error) {
+        console.error('Reversal failed:', error);
+        bot.sendMessage(reversal.adminId || adminIds[0], `❌ Failed to reverse order ${orderId}`);
+    }
+}
+
 setInterval(() => {
     const now = Date.now();
-    activeRefunds.forEach((refund, chatId) => {
-        if (now - refund.timestamp > 3600000) { // 1 hour
-            bot.sendMessage(
-                chatId, 
-                '⌛ Your refund session has expired. Please start again if needed.'
-            );
-            activeRefunds.delete(chatId);
+    reversalRequests.forEach((value, chatId) => {
+        if (now - value.timestamp > 300000) {
+            bot.sendMessage(chatId, "⌛ Reversal request timed out");
+            reversalRequests.delete(chatId);
         }
     });
-}, 3600000);
-
+}, 60000);
 
 
 // quarry database to get sell order for sell page
