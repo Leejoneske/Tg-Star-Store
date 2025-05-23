@@ -435,11 +435,13 @@ bot.on('callback_query', async (query) => {
 app.post("/api/sell-orders", async (req, res) => {
     try {
         // ===== INPUT VALIDATION =====
-        const { telegramId, username, stars, walletAddress } = req.body;
-        if (!telegramId || !stars || !walletAddress) {
-            return res.status(400).json({ error: "Missing required fields" });
+        const { telegramId, username, stars, walletAddress, telegram_payment_charge_id } = req.body;
+        
+        if (!telegram_payment_charge_id) {
+            return res.status(400).json({ error: "Payment reference required" });
         }
 
+      
         // ===== BAN CHECK =====
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
