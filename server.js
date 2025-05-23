@@ -461,6 +461,7 @@ app.post("/api/sell-orders", async (req, res) => {
             stars,
             walletAddress,
             status: "pending", 
+            telegram_payment_charge_id: "temp_" + Date.now(),
             reversible: true,
             dateCreated: new Date(),
             adminMessages: [],
