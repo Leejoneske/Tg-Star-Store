@@ -662,6 +662,9 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
 
  //end of sell process    
 
+// ===== REVERSAL/PAYMENT SUPPORT SYSTEM =====
+const reversalRequests = new Map();
+
 // Handle both /reverse and /paySupport commands
 bot.onText(/^\/(reverse|paysupport) (.+)/i, async (msg, match) => {
     const chatId = msg.chat.id;
@@ -689,7 +692,7 @@ bot.onText(/^\/(reverse|paysupport) (.+)/i, async (msg, match) => {
 
 // Handle reversal/support reasons
 bot.on('message', async (msg) => {
-    const chatId = msg.chat.id.toString();
+    const chatId = msg.chat.id;
     const request = reversalRequests.get(chatId);
     
     if (!request || !msg.text || msg.text.startsWith('/')) return;
@@ -707,7 +710,7 @@ bot.on('message', async (msg) => {
     // Create request record
     const requestDoc = new Reversal({
         orderId,
-        telegramId: chatId,
+        telegramId: chatId.toString(),
         username: user.username || `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
         stars: order.stars,
         reason: msg.text,
@@ -729,9 +732,6 @@ bot.on('message', async (msg) => {
             [
                 { text: "✅ Approve", callback_data: `req_approve_${orderId}_${commandType}` },
                 { text: "❌ Reject", callback_data: `req_reject_${orderId}_${commandType}` }
-            ],
-            [
-                { text: "💬 Respond", callback_data: `req_message_${orderId}_${chatId}` }
             ]
         ]
     };
@@ -772,7 +772,7 @@ bot.on('message', async (msg) => {
 // Admin action handler
 bot.on('callback_query', async (query) => {
     try {
-        const [_, action, orderId, reqType, userId] = query.data.split('_');
+        const [_, action, orderId, reqType] = query.data.split('_');
         
         if (!adminIds.includes(query.from.id.toString())) {
             return bot.answerCallbackQuery(query.id, { text: "❌ Unauthorized" });
@@ -820,19 +820,6 @@ bot.on('callback_query', async (query) => {
                 `❌ Your ${reqType} request for order ${orderId} was declined.\n\n` +
                 `Contact support if you have questions.`
             );
-        } else if (action === 'message' && userId) {
-            // Handle admin response
-            await bot.answerCallbackQuery(query.id, {
-                text: "Please type your response to the user:",
-                show_alert: true
-            });
-            
-            // Store admin response state
-            adminResponses.set(query.from.id, {
-                targetUserId: userId,
-                orderId,
-                timestamp: Date.now()
-            });
         }
 
         await bot.answerCallbackQuery(query.id);
@@ -841,41 +828,6 @@ bot.on('callback_query', async (query) => {
         console.error('Callback error:', err);
         await bot.answerCallbackQuery(query.id, { text: "❌ Processing failed" });
     }
-});
-
-// Admin response handler
-const adminResponses = new Map();
-
-bot.on('message', async (msg) => {
-    if (!msg.from || !adminResponses.has(msg.from.id)) return;
-
-    const response = adminResponses.get(msg.from.id);
-    if (Date.now() - response.timestamp > 300000) {
-        adminResponses.delete(msg.from.id);
-        return;
-    }
-
-    try {
-        // Send to user
-        await bot.sendMessage(
-            response.targetUserId,
-            `📨 Admin Response\n\n` +
-            `Regarding order: ${response.orderId}\n\n` +
-            `${msg.text}`
-        );
-
-        // Confirm to admin
-        await bot.sendMessage(
-            msg.chat.id,
-            `✅ Response sent to user for order ${response.orderId}`
-        );
-
-    } catch (err) {
-        console.error('Failed to send admin response:', err);
-        await bot.sendMessage(msg.chat.id, "❌ Failed to send response");
-    }
-
-    adminResponses.delete(msg.from.id);
 });
 
 // Process reversals
@@ -928,14 +880,8 @@ setInterval(() => {
             reversalRequests.delete(chatId);
         }
     });
-    
-    // Clean admin responses
-    adminResponses.forEach((value, adminId) => {
-        if (now - value.timestamp > 300000) {
-            adminResponses.delete(adminId);
-        }
-    });
 }, 60000);
+
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
