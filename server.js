@@ -173,7 +173,7 @@ const feedbackSchema = new mongoose.Schema({
 });
 
 
-
+const RefundLog = mongoose.model('RefundLog', refundLogSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
 const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
 const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
