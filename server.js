@@ -677,7 +677,7 @@ bot.onText(/\/reverse (.+)/, async (msg, match) => {
 
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id.toString();
-    if (!reversalRequests.has(chatId) return;
+    if (!reversalRequests.has(chatId)) return;
 
     const { orderId, timestamp } = reversalRequests.get(chatId);
     if (Date.now() - timestamp > 300000) {
