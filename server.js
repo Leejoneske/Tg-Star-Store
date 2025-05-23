@@ -83,23 +83,44 @@ const buyOrderSchema = new mongoose.Schema({
 });
 
 const sellOrderSchema = new mongoose.Schema({
-    id: String,
-    telegramId: String,
+    id: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    telegramId: {
+        type: String,
+        required: true
+    },
     username: String,
-    stars: Number,
+    stars: {
+        type: Number,
+        required: true
+    },
     walletAddress: String,
-    status: String,
-    reversible: Boolean,
-    dateCreated: Date,
-    adminMessages: Array,
-    telegram_payment_charge_id: String,
-    refundRequested: { type: Boolean, default: false },
-    refundStatus: { 
-        type: String, 
+    status: {
+        type: String,
+        enum: ['pending', 'processing', 'completed', 'declined'],
+        default: 'pending'
+    },
+    telegram_payment_charge_id: String, // Critical for refunds
+    refundRequested: {
+        type: Boolean,
+        default: false
+    },
+    refundReason: String,
+    refundStatus: {
+        type: String,
         enum: ['none', 'requested', 'approved', 'processed', 'denied'],
-        default: 'none' 
+        default: 'none'
+    },
+    dateCreated: {
+        type: Date,
+        default: Date.now
     }
 });
+
+// That's it. Nothing extra.
 
 const userSchema = new mongoose.Schema({
     id: String,
@@ -172,6 +193,31 @@ const feedbackSchema = new mongoose.Schema({
     dateSubmitted: { type: Date, default: Date.now }
 });
 
+const refundLogSchema = new mongoose.Schema({
+    orderId: String,
+    orderType: {
+        type: String,
+        enum: ['buy', 'sell'],
+        required: true
+    },
+    telegramId: String,
+    username: String,
+    stars: Number,
+    amount: Number,
+    chargeId: String,
+    status: {
+        type: String,
+        enum: ['requested', 'processing', 'completed', 'failed', 'denied'],
+        required: true
+    },
+    reason: String,
+    requestedAt: { type: Date, default: Date.now },
+    processedAt: Date,
+    processedBy: String,
+    failureReason: String,
+    retryAttempts: { type: Number, default: 0 },
+    telegramResponse: mongoose.Schema.Types.Mixed
+});
 
 const RefundLog = mongoose.model('RefundLog', refundLogSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
