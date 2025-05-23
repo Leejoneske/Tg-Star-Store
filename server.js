@@ -75,18 +75,16 @@ const sellOrderSchema = new mongoose.Schema({
     stars: Number,
     walletAddress: String,
     status: String,
-    telegram_payment_charge_id: String,
     reversible: Boolean,
     dateCreated: Date,
     adminMessages: Array,
-    refundRequested: Boolean,
-    refundReason: String,
-    refundStatus: {
-        type: String,
+    telegram_payment_charge_id: String,
+    refundRequested: { type: Boolean, default: false },
+    refundStatus: { 
+        type: String, 
         enum: ['none', 'requested', 'approved', 'processed', 'denied'],
-        default: 'none'
-    },
-    refundProcessedAt: Date
+        default: 'none' 
+    }
 });
 
 const userSchema = new mongoose.Schema({
