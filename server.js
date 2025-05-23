@@ -662,129 +662,280 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
 
  //end of sell process    
 
-//stars refund
-bot.onText(/\/reverse (.+)/, async (msg, match) => {
+// Handle both /reverse and /paySupport commands
+bot.onText(/^\/(reverse|paysupport) (.+)/i, async (msg, match) => {
     const chatId = msg.chat.id;
-    const orderId = match[1].trim();
+    const command = match[1].toLowerCase();
+    const orderId = match[2].trim();
     
     const order = await SellOrder.findOne({ id: orderId, telegramId: chatId.toString() });
-    if (!order || !order.reversible) {
-        return bot.sendMessage(chatId, "❌ Order not found or not reversible");
+    
+    if (!order) {
+        return bot.sendMessage(chatId, "❌ Order not found");
+    }
+    
+    if (!order.reversible) {
+        return bot.sendMessage(chatId, "❌ This order cannot be reversed");
     }
 
-    reversalRequests.set(chatId, { orderId, timestamp: Date.now() });
-    bot.sendMessage(chatId, "Please provide reason for reversal:");
+    reversalRequests.set(chatId, { 
+        orderId, 
+        timestamp: Date.now(),
+        commandType: command 
+    });
+    
+    bot.sendMessage(chatId, `Please explain why you need to ${command === 'reverse' ? 'reverse' : 'get support for'} this order:`);
 });
 
+// Handle reversal/support reasons
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id.toString();
-    if (!reversalRequests.has(chatId)) return;
+    const request = reversalRequests.get(chatId);
+    
+    if (!request || !msg.text || msg.text.startsWith('/')) return;
 
-    const { orderId, timestamp } = reversalRequests.get(chatId);
-    if (Date.now() - timestamp > 300000) {
+    // Check timeout
+    if (Date.now() - request.timestamp > 300000) {
         reversalRequests.delete(chatId);
-        return;
+        return bot.sendMessage(chatId, "⌛ Session expired. Please start again.");
     }
 
+    const { orderId, commandType } = request;
     const order = await SellOrder.findOne({ id: orderId });
-    const reversal = new Reversal({
+    const user = msg.from;
+
+    // Create request record
+    const requestDoc = new Reversal({
         orderId,
         telegramId: chatId,
-        username: order.username,
+        username: user.username || `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
         stars: order.stars,
         reason: msg.text,
+        requestType: commandType,
         status: 'pending'
     });
-    await reversal.save();
+    await requestDoc.save();
 
-    const adminMsg = `🔄 Reversal Request\n\nOrder: ${orderId}\nUser: @${order.username}\nStars: ${order.stars}\nReason: ${msg.text}`;
+    // Notify admins
+    const adminMsg = `🔄 New ${commandType === 'reverse' ? 'Reversal' : 'Support'} Request\n\n` +
+                   `Order: ${orderId}\n` +
+                   `User: @${requestDoc.username} (${chatId})\n` +
+                   `Stars: ${order.stars}\n` +
+                   `Type: ${commandType}\n` +
+                   `Reason: ${msg.text}`;
+
     const keyboard = {
         inline_keyboard: [
-            [{ text: "✅ Approve", callback_data: `rev_approve_${orderId}` }],
-            [{ text: "❌ Reject", callback_data: `rev_reject_${orderId}` }]
+            [
+                { text: "✅ Approve", callback_data: `req_approve_${orderId}_${commandType}` },
+                { text: "❌ Reject", callback_data: `req_reject_${orderId}_${commandType}` }
+            ],
+            [
+                { text: "💬 Respond", callback_data: `req_message_${orderId}_${chatId}` }
+            ]
         ]
     };
 
-    adminIds.forEach(adminId => {
-        bot.sendMessage(adminId, adminMsg, { reply_markup: keyboard });
-    });
+    // Send to all admins
+    const adminMessages = [];
+    for (const adminId of adminIds) {
+        try {
+            const message = await bot.sendMessage(
+                adminId,
+                adminMsg,
+                { reply_markup: keyboard, parse_mode: 'Markdown' }
+            );
+            adminMessages.push({
+                adminId,
+                messageId: message.message_id
+            });
+        } catch (err) {
+            console.error(`Failed to notify admin ${adminId}:`, err);
+        }
+    }
+
+    // Update request with admin message IDs
+    requestDoc.adminMessages = adminMessages;
+    await requestDoc.save();
+
+    // Confirm to user
+    bot.sendMessage(
+        chatId,
+        `📨 Your ${commandType} request has been submitted!\n\n` +
+        `Order ID: ${orderId}\n` +
+        `Status: Pending admin review`
+    );
 
     reversalRequests.delete(chatId);
-    bot.sendMessage(chatId, "✅ Reversal request submitted for admin approval");
 });
 
+// Admin action handler
 bot.on('callback_query', async (query) => {
-    if (!query.data.startsWith('rev_')) return;
-    if (!adminIds.includes(query.from.id.toString())) {
-        return bot.answerCallbackQuery(query.id, { text: "Unauthorized" });
+    try {
+        const [_, action, orderId, reqType, userId] = query.data.split('_');
+        
+        if (!adminIds.includes(query.from.id.toString())) {
+            return bot.answerCallbackQuery(query.id, { text: "❌ Unauthorized" });
+        }
+
+        const request = await Reversal.findOne({ orderId });
+        if (!request) {
+            return bot.answerCallbackQuery(query.id, { text: "Request not found" });
+        }
+
+        const adminName = query.from.username || `admin_${query.from.id.toString().slice(-4)}`;
+
+        if (action === 'approve') {
+            // Process approval
+            request.status = 'approved';
+            request.processedBy = adminName;
+            await request.save();
+
+            if (reqType === 'reverse') {
+                await processReversal(orderId);
+            }
+
+            // Update admin messages
+            await updateAdminMessages(request, `✅ Approved by @${adminName}`);
+
+            // Notify user
+            const userMsg = reqType === 'reverse' 
+                ? `✅ Your reversal for order ${orderId} was approved!\n\nStars have been returned to your account.`
+                : `✅ Your support request for order ${orderId} was approved!\n\nOur team will contact you shortly.`;
+            
+            await bot.sendMessage(request.telegramId, userMsg);
+
+        } else if (action === 'reject') {
+            // Process rejection
+            request.status = 'rejected';
+            request.processedBy = adminName;
+            await request.save();
+
+            // Update admin messages
+            await updateAdminMessages(request, `❌ Rejected by @${adminName}`);
+
+            // Notify user
+            await bot.sendMessage(
+                request.telegramId,
+                `❌ Your ${reqType} request for order ${orderId} was declined.\n\n` +
+                `Contact support if you have questions.`
+            );
+        } else if (action === 'message' && userId) {
+            // Handle admin response
+            await bot.answerCallbackQuery(query.id, {
+                text: "Please type your response to the user:",
+                show_alert: true
+            });
+            
+            // Store admin response state
+            adminResponses.set(query.from.id, {
+                targetUserId: userId,
+                orderId,
+                timestamp: Date.now()
+            });
+        }
+
+        await bot.answerCallbackQuery(query.id);
+
+    } catch (err) {
+        console.error('Callback error:', err);
+        await bot.answerCallbackQuery(query.id, { text: "❌ Processing failed" });
     }
-
-    const [_, action, orderId] = query.data.split('_');
-    const reversal = await Reversal.findOne({ orderId });
-    if (!reversal) {
-        return bot.answerCallbackQuery(query.id, { text: "Request not found" });
-    }
-
-    if (action === 'approve') {
-        reversal.status = 'approved';
-        reversal.adminId = query.from.id.toString();
-        reversal.adminUsername = query.from.username;
-        await reversal.save();
-
-        await processReversal(orderId);
-        await bot.editMessageText(`${query.message.text}\n\n✅ Approved by @${query.from.username || 'admin'}`, {
-            chat_id: query.message.chat.id,
-            message_id: query.message.message_id
-        });
-    } else {
-        reversal.status = 'rejected';
-        reversal.adminId = query.from.id.toString();
-        reversal.adminUsername = query.from.username;
-        await reversal.save();
-
-        bot.sendMessage(reversal.telegramId, `❌ Your reversal request for order ${orderId} was rejected`);
-        await bot.editMessageText(`${query.message.text}\n\n❌ Rejected by @${query.from.username || 'admin'}`, {
-            chat_id: query.message.chat.id,
-            message_id: query.message.message_id
-        });
-    }
-
-    bot.answerCallbackQuery(query.id, { text: `Reversal ${action === 'approve' ? 'approved' : 'rejected'}` });
 });
 
-async function processReversal(orderId) {
-    const order = await SellOrder.findOne({ id: orderId });
-    const reversal = await Reversal.findOne({ orderId });
+// Admin response handler
+const adminResponses = new Map();
+
+bot.on('message', async (msg) => {
+    if (!msg.from || !adminResponses.has(msg.from.id)) return;
+
+    const response = adminResponses.get(msg.from.id);
+    if (Date.now() - response.timestamp > 300000) {
+        adminResponses.delete(msg.from.id);
+        return;
+    }
 
     try {
-        await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`, {
-            telegram_payment_charge_id: order.telegram_payment_charge_id
-        });
+        // Send to user
+        await bot.sendMessage(
+            response.targetUserId,
+            `📨 Admin Response\n\n` +
+            `Regarding order: ${response.orderId}\n\n` +
+            `${msg.text}`
+        );
+
+        // Confirm to admin
+        await bot.sendMessage(
+            msg.chat.id,
+            `✅ Response sent to user for order ${response.orderId}`
+        );
+
+    } catch (err) {
+        console.error('Failed to send admin response:', err);
+        await bot.sendMessage(msg.chat.id, "❌ Failed to send response");
+    }
+
+    adminResponses.delete(msg.from.id);
+});
+
+// Process reversals
+async function processReversal(orderId) {
+    try {
+        const order = await SellOrder.findOne({ id: orderId });
+        if (!order.telegram_payment_charge_id) {
+            throw new Error("Missing payment reference");
+        }
+
+        const result = await axios.post(
+            `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
+            { telegram_payment_charge_id: order.telegram_payment_charge_id }
+        );
 
         order.status = 'reversed';
+        order.reversedAt = new Date();
         await order.save();
 
-        reversal.status = 'processed';
-        reversal.processedAt = new Date();
-        await reversal.save();
+        return result.data;
 
-        bot.sendMessage(order.telegramId, `✅ Order ${orderId} reversed successfully\n${order.stars} stars returned to your account`);
-    } catch (error) {
-        console.error('Reversal failed:', error);
-        bot.sendMessage(reversal.adminId || adminIds[0], `❌ Failed to reverse order ${orderId}`);
+    } catch (err) {
+        console.error('Reversal failed:', err);
+        throw err;
     }
 }
 
+// Update all admin messages
+async function updateAdminMessages(request, statusText) {
+    await Promise.all(request.adminMessages.map(async msg => {
+        try {
+            await bot.editMessageReplyMarkup(
+                { inline_keyboard: [[{ text: statusText, callback_data: 'processed' }]] },
+                { chat_id: msg.adminId, message_id: msg.messageId }
+            );
+        } catch (err) {
+            console.error(`Failed to update admin message ${msg.messageId}:`, err);
+        }
+    }));
+}
+
+// Cleanup expired requests
 setInterval(() => {
     const now = Date.now();
+    
+    // Clean reversal requests
     reversalRequests.forEach((value, chatId) => {
         if (now - value.timestamp > 300000) {
-            bot.sendMessage(chatId, "⌛ Reversal request timed out");
+            bot.sendMessage(chatId, "⌛ Your request session has expired");
             reversalRequests.delete(chatId);
         }
     });
+    
+    // Clean admin responses
+    adminResponses.forEach((value, adminId) => {
+        if (now - value.timestamp > 300000) {
+            adminResponses.delete(adminId);
+        }
+    });
 }, 60000);
-
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
