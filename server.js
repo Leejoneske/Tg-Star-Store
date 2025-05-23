@@ -663,9 +663,6 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
  //end of sell process    
 
 // ===== REVERSAL/PAYMENT SUPPORT SYSTEM =====
-const reversalRequests = new Map();
-
-// Handle both /reverse and /paySupport commands
 bot.onText(/^\/(reverse|paysupport) (.+)/i, async (msg, match) => {
     const chatId = msg.chat.id;
     const command = match[1].toLowerCase();
