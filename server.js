@@ -662,8 +662,6 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
  //end of sell process    
 
 //stars refund
-const reversalRequests = new Map();
-
 bot.onText(/\/reverse (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const orderId = match[1].trim();
