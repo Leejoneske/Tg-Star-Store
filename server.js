@@ -791,28 +791,42 @@ bot.on('message', async (msg) => {
     reversalRequests.delete(chatId);
 });
 
+
 async function processRefund(orderId) {
     const session = await mongoose.startSession();
     session.startTransaction();
+    
     try {
         const order = await SellOrder.findOne({ id: orderId }).session(session);
-        if (!order || order.status !== 'processing') throw new Error("Invalid order state");
-        if (!order.telegram_payment_charge_id) throw new Error("Missing payment reference");
+        if (!order || order.status !== 'processing') {
+            throw new Error("Order not eligible for refund");
+        }
+
+        if (!order.telegram_payment_charge_id || order.telegram_payment_charge_id.startsWith('temp_')) {
+            throw new Error("Invalid payment reference");
+        }
+
+        const payload = {
+            telegram_payment_charge_id: order.telegram_payment_charge_id,
+            amount: order.stars * 100 // Convert stars to cents
+        };
 
         const { data } = await axios.post(
             `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
+            payload,
             { 
-                telegram_payment_charge_id: order.telegram_payment_charge_id,
-                amount: order.stars * 100 // Convert stars to cents if needed
-            },
-            { 
-                timeout: 10000,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                timeout: 15000,
+                headers: { 'Content-Type': 'application/json' }
             }
         );
-        if (!data.ok) throw new Error(data.description || "Refund failed");
+
+        if (!data.ok) {
+            if (data.description.includes('invalid user_id')) {
+                console.warn(`User blocked bot but refund processed for order ${orderId}`);
+                return { processed: true, chargeId: order.telegram_payment_charge_id };
+            }
+            throw new Error(data.description);
+        }
 
         order.status = 'reversed';
         order.reversedAt = new Date();
@@ -823,10 +837,18 @@ async function processRefund(orderId) {
         };
         await order.save({ session });
         await session.commitTransaction();
-        return true;
+        
+        return { processed: true, chargeId: order.telegram_payment_charge_id };
+
     } catch (error) {
         await session.abortTransaction();
-        console.error(`Refund error for ${orderId}:`, error.response?.data || error.message);
+        
+        if (error.response?.data?.description?.includes('invalid user_id')) {
+            console.warn(`User blocked bot but refund should be processed for ${orderId}`);
+            return { processed: true, chargeId: order.telegram_payment_charge_id };
+        }
+        
+        console.error(`Refund failed for ${orderId}:`, error.message);
         throw error;
     } finally {
         session.endSession();
@@ -843,23 +865,32 @@ bot.on('callback_query', async (query) => {
 
         if (action === 'approve') {
             try {
-                const success = await processRefund(orderId);
-                if (success) {
-                    request.status = 'processed';
-                    await request.save();
-                    await bot.sendMessage(query.from.id, `✅ Refund processed for ${orderId}`);
-                    
+                const result = await processRefund(orderId);
+                
+                request.status = 'processed';
+                await request.save();
+
+                const adminMsg = result.processed 
+                    ? `✅ Refund processed for ${orderId}\nCharge ID: ${result.chargeId}`
+                    : `❌ Refund failed for ${orderId}`;
+
+                await bot.sendMessage(query.from.id, adminMsg);
+
+                if (result.processed) {
                     try {
                         await bot.sendMessage(
                             request.telegramId,
-                            `💸 Refund Completed\nOrder: ${orderId}\nStars: ${request.stars}\nTX ID: ${request.refundData.chargeId}`
+                            `💸 Refund Processed\nOrder: ${orderId}\nTX ID: ${result.chargeId}`
                         );
-                    } catch (userError) {}
+                    } catch (userError) {
+                        console.log(`User notification failed but refund processed for ${orderId}`);
+                    }
                 }
+
             } catch (error) {
                 await bot.sendMessage(
-                    query.from.id, 
-                    `❌ Refund failed for ${orderId}: ${error.response?.data?.description || error.message}`
+                    query.from.id,
+                    `❌ Refund failed for ${orderId}:\n${error.message}`
                 );
             }
         } else {
@@ -870,6 +901,7 @@ bot.on('callback_query', async (query) => {
 
         await updateAdminMessages(request, action === 'approve' ? "✅ Approved" : "❌ Rejected");
         await bot.answerCallbackQuery(query.id);
+
     } catch (error) {
         console.error('Callback error:', error);
         await bot.answerCallbackQuery(query.id, { text: "Processing error" });
