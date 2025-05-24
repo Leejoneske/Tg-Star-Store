@@ -827,28 +827,65 @@ bot.on('callback_query', async (query) => {
     }
 });
 
-// Process reversals
+// Process reversals with proper error handling
 async function processReversal(orderId) {
     try {
         const order = await SellOrder.findOne({ id: orderId });
+        
+        if (!order) {
+            throw new Error("Order not found");
+        }
+        
         if (!order.telegram_payment_charge_id) {
             throw new Error("Missing payment reference");
         }
 
+        // Check if it's a temporary charge ID (not a real payment)
+        if (order.telegram_payment_charge_id.startsWith('temp_')) {
+            throw new Error("Cannot refund temporary payment reference");
+        }
+
+        console.log(`Processing refund for order ${orderId} with charge ID: ${order.telegram_payment_charge_id}`);
+
         const result = await axios.post(
             `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
-            { telegram_payment_charge_id: order.telegram_payment_charge_id }
+            { 
+                telegram_payment_charge_id: order.telegram_payment_charge_id 
+            },
+            {
+                timeout: 10000, // 10 second timeout
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
         );
 
+        console.log('Telegram refund response:', result.data);
+
+        // Check if Telegram API responded with success
+        if (!result.data.ok) {
+            throw new Error(`Telegram API error: ${result.data.description || 'Unknown error'}`);
+        }
+
+        // Update order status
         order.status = 'reversed';
         order.reversedAt = new Date();
         await order.save();
 
+        console.log(`Successfully processed refund for order ${orderId}`);
         return result.data;
 
     } catch (err) {
-        console.error('Reversal failed:', err);
-        throw err;
+        console.error(`Reversal failed for order ${orderId}:`, err.message);
+        
+        // More specific error handling
+        if (err.code === 'ECONNABORTED') {
+            throw new Error('Request timeout - please try again');
+        } else if (err.response?.data) {
+            throw new Error(`Telegram API error: ${err.response.data.description || err.message}`);
+        } else {
+            throw new Error(`Refund processing failed: ${err.message}`);
+        }
     }
 }
 
