@@ -840,117 +840,110 @@ async function processReversal(orderId) {
     try {
         const order = await SellOrder.findOne({ id: orderId }).session(session);
         if (!order) throw new Error("Order not found");
+
+        // Validate payment reference
         if (!order.telegram_payment_charge_id || order.telegram_payment_charge_id.startsWith('temp_')) {
-            throw new Error("Cannot refund temporary payment");
+            throw new Error("Invalid payment reference");
         }
 
-        const result = await axios.post(
+        // Process refund through Telegram API
+        const refundResult = await axios.post(
             `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
-            { telegram_payment_charge_id: order.telegram_payment_charge_id },
-            { timeout: 10000, headers: { 'Content-Type': 'application/json' } }
+            { 
+                telegram_payment_charge_id: order.telegram_payment_charge_id 
+            },
+            { 
+                timeout: 15000,
+                headers: { 'Content-Type': 'application/json' }
+            }
         );
 
-        if (!result.data.ok) throw new Error(result.data.description || 'Refund failed');
+        // Verify refund was successful
+        if (!refundResult.data?.ok) {
+            throw new Error(refundResult.data?.description || "Refund failed");
+        }
 
+        // Update order status
         order.status = 'reversed';
         order.reversedAt = new Date();
         await order.save({ session });
 
+        // Attempt user notification (non-blocking)
         try {
             await bot.sendMessage(
                 order.telegramId,
-                `🔄 Order #${order.id} Reversed\n\n${order.stars} stars returned\nTX ID: ${order.telegram_payment_charge_id}`
+                `💸 Refund Processed\n\n` +
+                `Order: ${order.id}\n` +
+                `Amount: ${order.stars} stars\n` +
+                `TX ID: ${order.telegram_payment_charge_id}\n\n` +
+                `Funds should appear within 24 hours.`
             );
-        } catch {}
+        } catch (notificationError) {
+            console.log(`Notification failed for ${order.telegramId}`);
+        }
 
         await session.commitTransaction();
-        return { success: true, data: result.data };
+        
+        // Return complete refund details
+        return {
+            success: true,
+            orderId: order.id,
+            chargeId: order.telegram_payment_charge_id,
+            stars: order.stars,
+            processedAt: new Date(),
+            telegramResponse: refundResult.data
+        };
 
-    } catch (err) {
+    } catch (error) {
         await session.abortTransaction();
         
-        if (err.response?.data?.description?.includes('invalid user_id')) {
-            return { success: true, data: { ok: true } };
+        // Enhanced error classification
+        let errorMessage = "Refund processing failed";
+        if (error.response) {
+            errorMessage = `Telegram API: ${error.response.data?.description || error.response.statusText}`;
+        } else if (error.request) {
+            errorMessage = "Telegram API timeout - check refund status later";
         }
         
-        return { 
-            success: false, 
-            error: err.response?.data?.description || err.message 
-        };
+        console.error(`Reversal failed for ${orderId}:`, errorMessage);
+        throw new Error(errorMessage);
     } finally {
         session.endSession();
     }
 }
 
+// Admin handler with status verification
 bot.on('callback_query', async (query) => {
     try {
-        const [_, action, orderId, reqType] = query.data.split('_');
-        if (!adminIds.includes(query.from.id.toString())) return;
-
-        const request = await Reversal.findOne({ orderId });
-        if (!request) return;
-
-        const adminName = query.from.username || `admin_${query.from.id.toString().slice(-4)}`;
-
+        const [_, action, orderId] = query.data.split('_');
+        
         if (action === 'approve') {
-            request.status = 'approved';
-            request.processedBy = adminName;
-            await request.save();
-
-            if (reqType === 'reverse') {
-                const { success, error } = await processReversal(orderId);
-                
-                if (success) {
-                    request.status = 'processed';
-                    await request.save();
-                    await bot.sendMessage(
-                        query.from.id,
-                        `✅ Reversal processed for order ${orderId}`
-                    );
-                } else {
-                    request.status = 'approved';
-                    request.error = error;
-                    await request.save();
-                    await bot.sendMessage(
-                        query.from.id,
-                        `⚠️ Reversal failed for ${orderId}\n${error}`
-                    );
-                    return bot.answerCallbackQuery(query.id, { text: "❌ Refund failed" });
-                }
-            }
-
-            await updateAdminMessages(request, `✅ Approved by @${adminName}`);
-        } else if (action === 'reject') {
-            request.status = 'rejected';
-            request.processedBy = adminName;
-            await request.save();
-            await updateAdminMessages(request, `❌ Rejected by @${adminName}`);
+            const refundResult = await processReversal(orderId);
+            
+            await bot.sendMessage(
+                query.from.id,
+                `✅ Refund Completed\n\n` +
+                `Order: ${refundResult.orderId}\n` +
+                `Stars: ${refundResult.stars}\n` +
+                `Charge ID: ${refundResult.chargeId}\n` +
+                `Processed: ${refundResult.processedAt.toLocaleString()}\n\n` +
+                `User notified: ${refundResult.telegramResponse.ok ? 'Yes' : 'No'}`
+            );
         }
+        
+        await bot.answerCallbackQuery(query.id, { text: "Action processed" });
 
-        await bot.answerCallbackQuery(query.id);
-
-    } catch (err) {
-        console.error('Callback error:', err);
-        await bot.answerCallbackQuery(query.id, { text: `❌ Error: ${err.message}` });
+    } catch (error) {
+        await bot.sendMessage(
+            query.from.id,
+            `❌ Refund Failed\n\n` +
+            `Order: ${orderId}\n` +
+            `Error: ${error.message}`
+        );
+        await bot.answerCallbackQuery(query.id, { text: "Processing failed" });
     }
 });
 
-
-
-async function updateAdminMessages(request, statusText) {
-    if (!request.adminMessages || !Array.isArray(request.adminMessages)) return;
-    
-    await Promise.all(request.adminMessages.map(async msg => {
-        try {
-            await bot.editMessageReplyMarkup(
-                { inline_keyboard: [[{ text: statusText, callback_data: 'processed' }]] },
-                { chat_id: msg.adminId, message_id: msg.messageId }
-            );
-        } catch (err) {
-            console.error(`Failed to update admin ${msg.adminId}:`, err.message);
-        }
-    }));
-}
 
 setInterval(async () => {
     const now = Date.now();
