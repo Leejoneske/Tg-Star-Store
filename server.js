@@ -155,19 +155,19 @@ const bannedUserSchema = new mongoose.Schema({
     users: Array
 });
 
+
 const notificationSchema = new mongoose.Schema({
     message: String,
     timestamp: String
 });
+
+
 const cacheSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     username: { type: String, required: true },
     date: { type: Date, default: Date.now }
 });
 
-const bannedUserSchema = new mongoose.Schema({
-    users: Array
-});
 
 const referralSchema = new mongoose.Schema({
     referrerUserId: { type: String, required: true },
