@@ -737,102 +737,6 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
  //end of sell process    
 
 // ===== REVERSAL/PAYMENT SUPPORT SYSTEM =====
-bot.onText(/^\/(reverse|paysupport) (.+)/i, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const command = match[1].toLowerCase();
-    const orderId = match[2].trim();
-    
-    const order = await SellOrder.findOne({ id: orderId, telegramId: chatId.toString() });
-    
-    if (!order) {
-        return bot.sendMessage(chatId, "❌ Order not found");
-    }
-    
-    if (!order.reversible) {
-        return bot.sendMessage(chatId, "❌ This order cannot be reversed");
-    }
-
-    reversalRequests.set(chatId, { 
-        orderId, 
-        timestamp: Date.now(),
-        commandType: command 
-    });
-    
-    bot.sendMessage(chatId, `Please explain why you need to ${command === 'reverse' ? 'reverse' : 'get support for'} this order:`);
-});
-
-bot.on('message', async (msg) => {
-    const chatId = msg.chat.id;
-    const request = reversalRequests.get(chatId);
-    
-    if (!request || !msg.text || msg.text.startsWith('/')) return;
-
-    if (Date.now() - request.timestamp > 300000) {
-        reversalRequests.delete(chatId);
-        return bot.sendMessage(chatId, "⌛ Session expired. Please start again.");
-    }
-
-    const { orderId, commandType } = request;
-    const order = await SellOrder.findOne({ id: orderId });
-    const user = msg.from;
-
-    const requestDoc = new Reversal({
-        orderId,
-        telegramId: chatId.toString(),
-        username: user.username || `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
-        stars: order.stars,
-        reason: msg.text,
-        requestType: commandType,
-        status: 'pending'
-    });
-    await requestDoc.save();
-
-    const adminMsg = `🔄 New ${commandType === 'reverse' ? 'Reversal' : 'Support'} Request\n\n` +
-                   `Order: ${orderId}\n` +
-                   `User: @${requestDoc.username} (${chatId})\n` +
-                   `Stars: ${order.stars}\n` +
-                   `Type: ${commandType}\n` +
-                   `Reason: ${msg.text}`;
-
-    const keyboard = {
-        inline_keyboard: [
-            [
-                { text: "✅ Approve", callback_data: `req_approve_${orderId}_${commandType}` },
-                { text: "❌ Reject", callback_data: `req_reject_${orderId}_${commandType}` }
-            ]
-        ]
-    };
-
-    const adminMessages = [];
-    for (const adminId of adminIds) {
-        try {
-            const message = await bot.sendMessage(
-                adminId,
-                adminMsg,
-                { reply_markup: keyboard, parse_mode: 'Markdown' }
-            );
-            adminMessages.push({
-                adminId,
-                messageId: message.message_id
-            });
-        } catch (err) {
-            console.error(`Failed to notify admin ${adminId}:`, err);
-        }
-    }
-
-    requestDoc.adminMessages = adminMessages;
-    await requestDoc.save();
-
-    bot.sendMessage(
-        chatId,
-        `📨 Your ${commandType} request has been submitted!\n\n` +
-        `Order ID: ${orderId}\n` +
-        `Status: Pending admin review`
-    );
-
-    reversalRequests.delete(chatId);
-});
-
 async function processReversal(orderId) {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -841,106 +745,62 @@ async function processReversal(orderId) {
         const order = await SellOrder.findOne({ id: orderId }).session(session);
         if (!order) throw new Error("Order not found");
 
-        // Validate payment reference
-        if (!order.telegram_payment_charge_id || order.telegram_payment_charge_id.startsWith('temp_')) {
-            throw new Error("Invalid payment reference");
-        }
-
-        // Process refund through Telegram API
+        // Process refund
         const refundResult = await axios.post(
             `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
-            { 
-                telegram_payment_charge_id: order.telegram_payment_charge_id 
-            },
-            { 
-                timeout: 15000,
-                headers: { 'Content-Type': 'application/json' }
-            }
+            { telegram_payment_charge_id: order.telegram_payment_charge_id },
+            { timeout: 15000 }
         );
 
-        // Verify refund was successful
         if (!refundResult.data?.ok) {
             throw new Error(refundResult.data?.description || "Refund failed");
         }
 
-        // Update order status
         order.status = 'reversed';
         order.reversedAt = new Date();
         await order.save({ session });
 
-        // Attempt user notification (non-blocking)
+        // Attempt notification (non-critical)
         try {
             await bot.sendMessage(
                 order.telegramId,
-                `💸 Refund Processed\n\n` +
-                `Order: ${order.id}\n` +
-                `Amount: ${order.stars} stars\n` +
-                `TX ID: ${order.telegram_payment_charge_id}\n\n` +
-                `Funds should appear within 24 hours.`
+                `💸 Refund Processed\nOrder: ${order.id}\nStars: ${order.stars}`
             );
-        } catch (notificationError) {
-            console.log(`Notification failed for ${order.telegramId}`);
-        }
+        } catch {}
 
         await session.commitTransaction();
-        
-        // Return complete refund details
-        return {
-            success: true,
-            orderId: order.id,
-            chargeId: order.telegram_payment_charge_id,
-            stars: order.stars,
-            processedAt: new Date(),
-            telegramResponse: refundResult.data
-        };
+        return true;
 
     } catch (error) {
         await session.abortTransaction();
-        
-        // Enhanced error classification
-        let errorMessage = "Refund processing failed";
-        if (error.response) {
-            errorMessage = `Telegram API: ${error.response.data?.description || error.response.statusText}`;
-        } else if (error.request) {
-            errorMessage = "Telegram API timeout - check refund status later";
-        }
-        
-        console.error(`Reversal failed for ${orderId}:`, errorMessage);
-        throw new Error(errorMessage);
+        console.error(`Reversal failed for ${orderId}:`, error.message);
+        return false;
     } finally {
         session.endSession();
     }
 }
 
-// Admin handler with status verification
+// Admin handler with error protection
 bot.on('callback_query', async (query) => {
     try {
-        const [_, action, orderId] = query.data.split('_');
-        
+        const [_, action, orderId] = query.data.split('_') || [];
+        if (!orderId) throw new Error("Invalid order ID");
+
         if (action === 'approve') {
-            const refundResult = await processReversal(orderId);
+            const success = await processReversal(orderId);
             
             await bot.sendMessage(
                 query.from.id,
-                `✅ Refund Completed\n\n` +
-                `Order: ${refundResult.orderId}\n` +
-                `Stars: ${refundResult.stars}\n` +
-                `Charge ID: ${refundResult.chargeId}\n` +
-                `Processed: ${refundResult.processedAt.toLocaleString()}\n\n` +
-                `User notified: ${refundResult.telegramResponse.ok ? 'Yes' : 'No'}`
+                success ? `✅ Refund processed for ${orderId}` 
+                       : `❌ Failed to process ${orderId}`
             );
         }
-        
-        await bot.answerCallbackQuery(query.id, { text: "Action processed" });
+
+        await bot.answerCallbackQuery(query.id);
 
     } catch (error) {
-        await bot.sendMessage(
-            query.from.id,
-            `❌ Refund Failed\n\n` +
-            `Order: ${orderId}\n` +
-            `Error: ${error.message}`
-        );
-        await bot.answerCallbackQuery(query.id, { text: "Processing failed" });
+        console.error('Callback error:', error);
+        await bot.answerCallbackQuery(query.id, { text: "Processing error" });
     }
 });
 
