@@ -749,6 +749,116 @@ bot.onText(/^\/(reverse|paysupport) (.+)/i, async (msg, match) => {
     bot.sendMessage(chatId, "Please explain why you need to reverse this order:");
 });
 
+bot.onText(/^\/adminrefund (.+)/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
+    
+    const txId = match[1].trim();
+    const order = await SellOrder.findOne({ telegram_payment_charge_id: txId });
+    
+    if (!order) return bot.sendMessage(chatId, "❌ Order not found with this TX ID");
+    if (order.status === 'reversed') return bot.sendMessage(chatId, "❌ Order already refunded");
+    
+    try {
+        const result = await processRefund(order.id);
+        
+        if (result.success) {
+            const statusMessage = result.alreadyRefunded 
+                ? `✅ Order ${order.id} was already refunded\nTX ID: ${result.chargeId}`
+                : `✅ Admin refund processed for order ${order.id}\nTX ID: ${result.chargeId}`;
+            
+            await bot.sendMessage(chatId, statusMessage);
+            
+            try {
+                await bot.sendMessage(
+                    order.telegramId,
+                    `💸 Refund Processed by Admin\nOrder: ${order.id}\nTX ID: ${result.chargeId}`
+                );
+            } catch (userError) {
+                await bot.sendMessage(chatId, `⚠️ Refund processed but user notification failed`);
+            }
+        }
+    } catch (error) {
+        await bot.sendMessage(chatId, `❌ Admin refund failed for ${order.id}\nError: ${error.message}`);
+    }
+});
+
+bot.onText(/^\/refundtx (.+)/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
+    
+    const txId = match[1].trim();
+    
+    try {
+        const refundPayload = {
+            telegram_payment_charge_id: txId
+        };
+
+        const { data } = await axios.post(
+            `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
+            refundPayload,
+            { 
+                timeout: 15000,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (!data.ok) {
+            if (data.description && data.description.includes('CHARGE_ALREADY_REFUNDED')) {
+                return bot.sendMessage(chatId, `✅ TX ${txId} was already refunded`);
+            }
+            throw new Error(data.description || "Refund API call failed");
+        }
+
+        const order = await SellOrder.findOne({ telegram_payment_charge_id: txId });
+        if (order) {
+            order.status = 'reversed';
+            order.reversedAt = new Date();
+            order.refundData = {
+                status: 'admin_processed',
+                processedAt: new Date(),
+                chargeId: txId,
+                telegramResponse: data.result
+            };
+            await order.save();
+            
+            try {
+                await bot.sendMessage(
+                    order.telegramId,
+                    `💸 Refund Processed by Admin\nOrder: ${order.id}\nTX ID: ${txId}`
+                );
+            } catch (userError) {}
+        }
+
+        await bot.sendMessage(chatId, `✅ Direct refund processed for TX: ${txId}`);
+
+    } catch (error) {
+        await bot.sendMessage(chatId, `❌ Direct refund failed for TX ${txId}\nError: ${error.message}`);
+    }
+});
+
+bot.onText(/^\/findorder (.+)/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
+    
+    const txId = match[1].trim();
+    const order = await SellOrder.findOne({ telegram_payment_charge_id: txId });
+    
+    if (!order) return bot.sendMessage(chatId, "❌ Order not found with this TX ID");
+    
+    const orderInfo = `📋 Order Details\n` +
+        `Order ID: ${order.id}\n` +
+        `User ID: ${order.telegramId}\n` +
+        `Stars: ${order.stars}\n` +
+        `Status: ${order.status}\n` +
+        `TX ID: ${order.telegram_payment_charge_id}\n` +
+        `Created: ${order.createdAt ? order.createdAt.toISOString().split('T')[0] : 'N/A'}`;
+    
+    bot.sendMessage(chatId, orderInfo);
+});
+
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const request = reversalRequests.get(chatId);
