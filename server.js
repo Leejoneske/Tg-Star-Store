@@ -791,36 +791,41 @@ bot.on('message', async (msg) => {
     reversalRequests.delete(chatId);
 });
 
-
 async function processRefund(orderId) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
+    let order;
     try {
-        const order = await SellOrder.findOne({ id: orderId }).session(session);
-        if (!order) throw new Error("Order not found");
-        if (order.status !== 'processing') throw new Error("Order not in processing state");
-        if (!order.telegram_payment_charge_id) throw new Error("Missing payment reference");
+        order = await SellOrder.findOne({ id: orderId }).session(session);
+        if (!order) {
+            throw new Error("Order not found");
+        }
+        if (order.status !== 'processing') {
+            throw new Error(`Order status is ${order.status} - only processing orders can be refunded`);
+        }
 
-        const payload = {
-            telegram_payment_charge_id: order.telegram_payment_charge_id,
-            amount: order.stars * 100 // Convert stars to cents
-        };
+        const chargeId = order.telegram_payment_charge_id;
+        if (!chargeId || chargeId.startsWith('temp_')) {
+            throw new Error("Invalid payment reference");
+        }
 
         const { data } = await axios.post(
             `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
-            payload,
-            {
+            { 
+                telegram_payment_charge_id: chargeId,
+                amount: order.stars * 1 // Convert stars to cents
+            },
+            { 
                 timeout: 10000,
                 headers: { 'Content-Type': 'application/json' }
             }
         );
 
         if (!data.ok) {
-            // Special handling for known Telegram API quirks
             if (data.description.includes('already refunded')) {
-                console.warn(`Payment already refunded for ${orderId}`);
-                return { success: true, chargeId: order.telegram_payment_charge_id };
+                console.log(`Payment already refunded for ${orderId}`);
+                return { success: true, chargeId };
             }
             throw new Error(data.description || "Refund failed");
         }
@@ -830,24 +835,27 @@ async function processRefund(orderId) {
         order.refundData = {
             status: 'processed',
             processedAt: new Date(),
-            chargeId: order.telegram_payment_charge_id
+            chargeId: chargeId
         };
         await order.save({ session });
         await session.commitTransaction();
-        return { success: true, chargeId: order.telegram_payment_charge_id };
+
+        return { success: true, chargeId };
 
     } catch (error) {
         await session.abortTransaction();
         
-        // Handle specific 400 error cases
-        if (error.response?.status === 400) {
-            if (error.response.data?.description?.includes('invalid user_id')) {
-                console.warn(`User blocked bot but refund should be processed for ${orderId}`);
-                return { success: true, chargeId: order.telegram_payment_charge_id };
+        if (error.response?.data?.description?.includes('invalid user_id')) {
+            console.log(`User blocked bot but refund processed for ${orderId}`);
+            if (order) {
+                return { 
+                    success: true, 
+                    chargeId: order.telegram_payment_charge_id 
+                };
             }
-            throw new Error(`Telegram API: ${error.response.data?.description || 'Bad Request'}`);
         }
         
+        console.error(`Refund failed for ${orderId}:`, error.message);
         throw error;
     } finally {
         session.endSession();
@@ -869,34 +877,26 @@ bot.on('callback_query', async (query) => {
                 request.status = 'processed';
                 await request.save();
 
+                const message = result.success
+                    ? `✅ Refund processed for ${orderId}\nCharge ID: ${result.chargeId}`
+                    : `❌ Refund failed for ${orderId}`;
+                
+                await bot.sendMessage(query.from.id, message);
+
                 if (result.success) {
-                    await bot.sendMessage(
-                        query.from.id,
-                        `✅ Refund processed for ${orderId}\n` +
-                        `Charge ID: ${result.chargeId}`
-                    );
-                    
                     try {
                         await bot.sendMessage(
                             request.telegramId,
-                            `💸 Refund Processed\n` +
-                            `Order: ${orderId}\n` +
-                            `TX ID: ${result.chargeId}`
+                            `💸 Refund Processed\nOrder: ${orderId}\nTX ID: ${result.chargeId}`
                         );
                     } catch (userError) {
                         console.log(`User notification failed for ${orderId}`);
                     }
-                } else {
-                    await bot.sendMessage(
-                        query.from.id,
-                        `❌ Refund failed for ${orderId}`
-                    );
                 }
             } catch (error) {
                 await bot.sendMessage(
                     query.from.id,
-                    `❌ Refund failed for ${orderId}\n` +
-                    `Error: ${error.message}`
+                    `❌ Refund failed for ${orderId}\nError: ${error.message}`
                 );
             }
         } else {
@@ -913,6 +913,7 @@ bot.on('callback_query', async (query) => {
         await bot.answerCallbackQuery(query.id, { text: "Processing error" });
     }
 });
+
 
 async function updateAdminMessages(request, statusText) {
     if (!request.adminMessages) return;
