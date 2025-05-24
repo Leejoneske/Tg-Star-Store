@@ -840,7 +840,89 @@ bot.on('message', async (msg) => {
     reversalRequests.delete(chatId);
 });
 
-// Admin action handler
+
+// ===== REVERSAL/REFUND PROCESSING =====
+async function processReversal(orderId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const order = await SellOrder.findOne({ id: orderId }).session(session);
+        
+        if (!order) {
+            throw new Error("Order not found");
+        }
+        
+        // Validate user ID before processing
+        if (!order.telegramId || isNaN(parseInt(order.telegramId))) {
+            throw new Error("Invalid user ID in order");
+        }
+
+        // Check if it's a real payment (not temp ID)
+        if (!order.telegram_payment_charge_id || order.telegram_payment_charge_id.startsWith('temp_')) {
+            throw new Error("Cannot refund temporary payment");
+        }
+
+        console.log(`Processing refund for order ${orderId}...`);
+
+        // Process Telegram refund
+        const result = await axios.post(
+            `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
+            { 
+                telegram_payment_charge_id: order.telegram_payment_charge_id 
+            },
+            {
+                timeout: 10000,
+                headers: { 'Content-Type': 'application/json' }
+            }
+        );
+
+        if (!result.data.ok) {
+            throw new Error(`Telegram API: ${result.data.description || 'Unknown error'}`);
+        }
+
+        // Update order status
+        order.status = 'reversed';
+        order.reversedAt = new Date();
+        await order.save({ session });
+
+        // Notify user (with error handling)
+        try {
+            await bot.sendMessage(
+                order.telegramId,
+                `🔄 Order #${order.id} Reversed\n\n` +
+                `${order.stars} stars have been returned to your account.\n` +
+                `Transaction ID: ${order.telegram_payment_charge_id}`
+            );
+        } catch (userError) {
+            console.error(`Failed to notify user ${order.telegramId}:`, userError.message);
+            // Continue processing even if notification fails
+        }
+
+        await session.commitTransaction();
+        console.log(`Successfully processed refund for order ${orderId}`);
+        return result.data;
+
+    } catch (err) {
+        await session.abortTransaction();
+        console.error(`Reversal failed for order ${orderId}:`, err.message);
+
+        // Enhanced error classification
+        if (err.code === 'ECONNABORTED') {
+            throw new Error('Payment gateway timeout - please try again');
+        } else if (err.response?.data?.description?.includes('invalid user_id')) {
+            throw new Error('User not found - they may have blocked the bot');
+        } else if (err.response?.data) {
+            throw new Error(`Payment error: ${err.response.data.description}`);
+        } else {
+            throw new Error(`Refund failed: ${err.message}`);
+        }
+    } finally {
+        session.endSession();
+    }
+}
+
+// Updated admin action handler
 bot.on('callback_query', async (query) => {
     try {
         const [_, action, orderId, reqType] = query.data.split('_');
@@ -863,18 +945,35 @@ bot.on('callback_query', async (query) => {
             await request.save();
 
             if (reqType === 'reverse') {
-                await processReversal(orderId);
+                try {
+                    await processReversal(orderId);
+                    request.status = 'processed';
+                    await request.save();
+                } catch (processError) {
+                    console.error('Reversal processing failed:', processError);
+                    await bot.sendMessage(
+                        query.from.id,
+                        `⚠️ Failed to process reversal for order ${orderId}\n\n${processError.message}`
+                    );
+                    throw processError;
+                }
             }
 
             // Update admin messages
             await updateAdminMessages(request, `✅ Approved by @${adminName}`);
 
-            // Notify user
-            const userMsg = reqType === 'reverse' 
-                ? `✅ Your reversal for order ${orderId} was approved!\n\nStars have been returned to your account.`
-                : `✅ Your support request for order ${orderId} was approved!\n\nOur team will contact you shortly.`;
-            
-            await bot.sendMessage(request.telegramId, userMsg);
+            // Notify user if reversal was successful
+            if (reqType === 'reverse') {
+                try {
+                    await bot.sendMessage(
+                        request.telegramId,
+                        `✅ Your reversal for order ${orderId} was processed!\n\n` +
+                        `Stars have been returned to your account.`
+                    );
+                } catch (userError) {
+                    console.error('Failed to notify user:', userError);
+                }
+            }
 
         } else if (action === 'reject') {
             // Process rejection
@@ -882,89 +981,34 @@ bot.on('callback_query', async (query) => {
             request.processedBy = adminName;
             await request.save();
 
-            // Update admin messages
             await updateAdminMessages(request, `❌ Rejected by @${adminName}`);
 
             // Notify user
-            await bot.sendMessage(
-                request.telegramId,
-                `❌ Your ${reqType} request for order ${orderId} was declined.\n\n` +
-                `Contact support if you have questions.`
-            );
+            try {
+                await bot.sendMessage(
+                    request.telegramId,
+                    `❌ Your ${reqType} request for order ${orderId} was declined.\n\n` +
+                    `Contact support if you have questions.`
+                );
+            } catch (userError) {
+                console.error('Failed to notify user:', userError);
+            }
         }
 
         await bot.answerCallbackQuery(query.id);
 
     } catch (err) {
-        console.error('Callback error:', err);
-        await bot.answerCallbackQuery(query.id, { text: "❌ Processing failed" });
+        console.error('Reversal callback error:', err);
+        await bot.answerCallbackQuery(query.id, { 
+            text: `❌ Failed: ${err.message}` 
+        });
     }
 });
 
-// Process reversals with proper error handling
-async function processReversal(orderId) {
-    try {
-        const order = await SellOrder.findOne({ id: orderId });
-        
-        if (!order) {
-            throw new Error("Order not found");
-        }
-        
-        if (!order.telegram_payment_charge_id) {
-            throw new Error("Missing payment reference");
-        }
-
-        // Check if it's a temporary charge ID (not a real payment)
-        if (order.telegram_payment_charge_id.startsWith('temp_')) {
-            throw new Error("Cannot refund temporary payment reference");
-        }
-
-        console.log(`Processing refund for order ${orderId} with charge ID: ${order.telegram_payment_charge_id}`);
-
-        const result = await axios.post(
-            `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
-            { 
-                telegram_payment_charge_id: order.telegram_payment_charge_id 
-            },
-            {
-                timeout: 10000, // 10 second timeout
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-
-        console.log('Telegram refund response:', result.data);
-
-        // Check if Telegram API responded with success
-        if (!result.data.ok) {
-            throw new Error(`Telegram API error: ${result.data.description || 'Unknown error'}`);
-        }
-
-        // Update order status
-        order.status = 'reversed';
-        order.reversedAt = new Date();
-        await order.save();
-
-        console.log(`Successfully processed refund for order ${orderId}`);
-        return result.data;
-
-    } catch (err) {
-        console.error(`Reversal failed for order ${orderId}:`, err.message);
-        
-        // More specific error handling
-        if (err.code === 'ECONNABORTED') {
-            throw new Error('Request timeout - please try again');
-        } else if (err.response?.data) {
-            throw new Error(`Telegram API error: ${err.response.data.description || err.message}`);
-        } else {
-            throw new Error(`Refund processing failed: ${err.message}`);
-        }
-    }
-}
-
-// Update all admin messages
+// Helper function to update admin messages
 async function updateAdminMessages(request, statusText) {
+    if (!request.adminMessages || !Array.isArray(request.adminMessages)) return;
+    
     await Promise.all(request.adminMessages.map(async msg => {
         try {
             await bot.editMessageReplyMarkup(
@@ -972,7 +1016,7 @@ async function updateAdminMessages(request, statusText) {
                 { chat_id: msg.adminId, message_id: msg.messageId }
             );
         } catch (err) {
-            console.error(`Failed to update admin message ${msg.messageId}:`, err);
+            console.error(`Failed to update admin ${msg.adminId}:`, err.message);
         }
     }));
 }
