@@ -146,11 +146,14 @@ const sellOrderSchema = new mongoose.Schema({
     dateRefunded: Date
 });
 
+const userSchema = new mongoose.Schema({
+    id: String,
+    username: String
+});
 
 const bannedUserSchema = new mongoose.Schema({
     users: Array
 });
-
 
 
 const cacheSchema = new mongoose.Schema({
@@ -159,7 +162,6 @@ const cacheSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now }
 });
 
-// ReferralWithdrawal Schema
 
 const referralWithdrawalSchema = new mongoose.Schema({
     id: {  
