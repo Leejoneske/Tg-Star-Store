@@ -95,7 +95,11 @@ const sellOrderSchema = new mongoose.Schema({
     },
     telegram_payment_charge_id: {
         type: String,
-        required: true
+        required: function() {
+            
+            return this.dateCreated > new Date('2025-05-23'); 
+        },
+        default: null
     },
     reversible: {
         type: Boolean,
@@ -142,24 +146,6 @@ const sellOrderSchema = new mongoose.Schema({
     dateRefunded: Date
 });
 
-const userSchema = new mongoose.Schema({
-    id: String,
-    username: String
-});
-
-const notificationSchema = new mongoose.Schema({
-    message: String,
-    timestamp: String
-});
-
-const referralSchema = new mongoose.Schema({
-  referrerUserId: { type: String, required: true },
-  referredUserId: { type: String, required: true },
-  status: { type: String, enum: ['pending', 'active', 'completed'], default: 'pending' },
-  withdrawn: { type: Boolean, default: false }, 
-  dateReferred: { type: Date, default: Date.now }
-});
-
 
 const bannedUserSchema = new mongoose.Schema({
     users: Array
@@ -176,6 +162,11 @@ const cacheSchema = new mongoose.Schema({
 // ReferralWithdrawal Schema
 
 const referralWithdrawalSchema = new mongoose.Schema({
+    id: {  
+        type: String,
+        required: true,
+        unique: true
+    },
     userId: String,
     username: String,
     amount: Number,
@@ -560,64 +551,103 @@ bot.on('callback_query', async (query) => {
         const data = query.data;
         let order, actionType;
 
+        // Handle sell order completions
         if (data.startsWith('complete_sell_')) {
             actionType = 'complete';
             order = await SellOrder.findOne({ id: data.split('_')[2] });
-        } else if (data.startsWith('decline_sell_')) {
+
+            if (!order) {
+                await bot.answerCallbackQuery(query.id, { text: "Order not found" });
+                return;
+            }
+
+            // Skip charge ID validation for completed/declined orders
+            if (order.status === 'completed' || order.status === 'declined') {
+                await bot.answerCallbackQuery(query.id, { text: `Order already ${order.status}` });
+                return;
+            }
+
+            // For processing orders, check if charge ID exists (only for new orders)
+            if (!order.telegram_payment_charge_id && order.dateCreated > new Date('2025-05-23')) {
+                await bot.answerCallbackQuery(query.id, { text: "Cannot complete - missing payment reference" });
+                return;
+            }
+
+            order.status = 'completed';
+            order.dateCompleted = new Date();
+            await order.save();
+            
+            await trackStars(order.telegramId, order.stars, 'sell');
+        } 
+        // Handle sell order declines
+        else if (data.startsWith('decline_sell_')) {
             actionType = 'decline';
             order = await SellOrder.findOne({ id: data.split('_')[2] });
-        } else if (data.startsWith('complete_buy_')) {
+
+            if (!order) {
+                await bot.answerCallbackQuery(query.id, { text: "Order not found" });
+                return;
+            }
+
+            order.status = 'declined';
+            order.dateDeclined = new Date();
+            await order.save();
+        }
+        // Handle buy order completions
+        else if (data.startsWith('complete_buy_')) {
             actionType = 'complete';
             order = await BuyOrder.findOne({ id: data.split('_')[2] });
-        } else if (data.startsWith('decline_buy_')) {
+
+            if (!order) {
+                await bot.answerCallbackQuery(query.id, { text: "Order not found" });
+                return;
+            }
+
+            order.status = 'completed';
+            order.dateCompleted = new Date();
+            await order.save();
+            
+            await trackStars(order.telegramId, order.stars, 'buy');
+            if (order.isPremium) {
+                await trackPremiumActivation(order.telegramId);
+            }
+        }
+        // Handle buy order declines
+        else if (data.startsWith('decline_buy_')) {
             actionType = 'decline';
             order = await BuyOrder.findOne({ id: data.split('_')[2] });
-        } else {
+
+            if (!order) {
+                await bot.answerCallbackQuery(query.id, { text: "Order not found" });
+                return;
+            }
+
+            order.status = 'declined';
+            order.dateDeclined = new Date();
+            await order.save();
+        }
+        else {
             return await bot.answerCallbackQuery(query.id);
         }
 
-        if (!order || (order.status !== 'processing' && order.status !== 'pending')) {
-            await bot.answerCallbackQuery(query.id, { text: "Order not found or already processed" });
-            return;
-        }
-
-        if (actionType === 'complete') {
-            order.status = 'completed';
-            await order.save();
-            
-            if (data.startsWith('complete_sell_')) {
-                await trackStars(order.telegramId, order.stars, 'sell');
-            } 
-            if (data.startsWith('complete_buy_')) {
-                await trackStars(order.telegramId, order.stars, 'buy');
-                if (order.isPremium) {
-                    await trackPremiumActivation(order.telegramId);
-                }
-            }
-
-            await order.save();
-        } else {
-            order.status = 'declined';
-            order.declinedAt = new Date();
-            await order.save();
-            await bot.sendMessage(
-                order.telegramId,
-                `❌ Order #${order.id} declined\n\nPlease contact support for resolution.`,
-                { parse_mode: "Markdown" }
-            );
-        }
-
+        // Update admin messages
         for (const adminMsg of order.adminMessages) {
             try {
                 const statusText = order.status === 'completed' ? '✓ Completed' : '✗ Declined';
+                const processedBy = `Processed by: @${query.from.username || `admin_${query.from.id}`}`;
+                
                 await bot.editMessageText(
-                    `${adminMsg.originalText}\n\nStatus: ${statusText}`,
+                    `${adminMsg.originalText}\n\nStatus: ${statusText}\n${processedBy}`,
                     {
                         chat_id: adminMsg.adminId,
                         message_id: adminMsg.messageId,
                         reply_markup: {
                             inline_keyboard: [[
-                                { text: statusText, callback_data: 'processed' }
+                                { 
+                                    text: statusText, 
+                                    callback_data: 'processed',
+                                    disabled: true
+                                }
                             ]]
                         },
                         parse_mode: "Markdown"
@@ -628,10 +658,28 @@ bot.on('callback_query', async (query) => {
             }
         }
 
-        await bot.answerCallbackQuery(query.id, { text: `Order ${order.status}` });
+        // Notify user
+        if (order.status === 'completed') {
+            await bot.sendMessage(
+                order.telegramId,
+                `✅ Order #${order.id} confirmed!\n\nThank you for your purchase!`
+            );
+        } else {
+            await bot.sendMessage(
+                order.telegramId,
+                `❌ Order #${order.id} declined\n\nContact support if needed.`
+            );
+        }
+
+        await bot.answerCallbackQuery(query.id, { 
+            text: `Order ${order.status}` 
+        });
+
     } catch (err) {
-        console.error('Error processing order action:', err);
-        await bot.answerCallbackQuery(query.id, { text: "Error processing request" });
+        console.error('Order processing error:', err);
+        await bot.answerCallbackQuery(query.id, { 
+            text: "Processing failed" 
+        });
     }
 });
 
