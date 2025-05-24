@@ -875,7 +875,7 @@ async function processReversal(orderId) {
 
         try {
             await bot.sendMessage(
-                order.telegramId,
+                parseInt(order.telegramId),
                 `🔄 Order #${order.id} Reversed\n\n` +
                 `${order.stars} stars have been returned to your account.\n` +
                 `Transaction ID: ${order.telegram_payment_charge_id}`
@@ -894,6 +894,10 @@ async function processReversal(orderId) {
 
         if (err.code === 'ECONNABORTED') {
             throw new Error('Payment gateway timeout - please try again');
+        } else if (err.response?.data?.description?.includes('CHARGE_NOT_FOUND')) {
+            throw new Error('Payment charge not found - refund may have already been processed');
+        } else if (err.response?.data?.description?.includes('CHARGE_ALREADY_REFUNDED')) {
+            throw new Error('This payment has already been refunded');
         } else if (err.response?.data?.description?.includes('invalid user_id')) {
             throw new Error('User not found - they may have blocked the bot');
         } else if (err.response?.data) {
@@ -946,7 +950,7 @@ bot.on('callback_query', async (query) => {
             if (reqType === 'reverse') {
                 try {
                     await bot.sendMessage(
-                        request.telegramId,
+                        parseInt(request.telegramId),
                         `✅ Your reversal for order ${request.orderId} was processed!\n\n` +
                         `Stars have been returned to your account.`
                     );
@@ -964,7 +968,7 @@ bot.on('callback_query', async (query) => {
 
             try {
                 await bot.sendMessage(
-                    request.telegramId,
+                    parseInt(request.telegramId),
                     `❌ Your ${reqType} request for order ${request.orderId} was declined.\n\n` +
                     `Contact support if you have questions.`
                 );
@@ -1010,7 +1014,7 @@ setInterval(async () => {
     
     for (const chatId of expiredChats) {
         try {
-            await bot.sendMessage(chatId, "⌛ Your request session has expired");
+            await bot.sendMessage(parseInt(chatId), "⌛ Your request session has expired");
         } catch (err) {
             console.error(`Failed to notify expired session to ${chatId}:`, err);
         }
