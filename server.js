@@ -839,36 +839,18 @@ async function processReversal(orderId) {
 
     try {
         const order = await SellOrder.findOne({ id: orderId }).session(session);
-        
-        if (!order) {
-            throw new Error("Order not found");
-        }
-        
-        if (!order.telegramId || isNaN(parseInt(order.telegramId))) {
-            throw new Error("Invalid user ID in order");
-        }
-
+        if (!order) throw new Error("Order not found");
         if (!order.telegram_payment_charge_id || order.telegram_payment_charge_id.startsWith('temp_')) {
             throw new Error("Cannot refund temporary payment");
         }
 
-        console.log(`Processing refund for order ${orderId}...`);
-
         const result = await axios.post(
             `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
-            { 
-                telegram_payment_charge_id: order.telegram_payment_charge_id 
-            },
-            {
-                timeout: 10000,
-                headers: { 'Content-Type': 'application/json' }
-            }
+            { telegram_payment_charge_id: order.telegram_payment_charge_id },
+            { timeout: 10000, headers: { 'Content-Type': 'application/json' } }
         );
 
-        if (!result.data.ok) {
-            console.error(`Telegram refund API error:`, result.data);
-            throw new Error(`Telegram API: ${result.data.description || 'Unknown error'}`);
-        }
+        if (!result.data.ok) throw new Error(result.data.description || 'Refund failed');
 
         order.status = 'reversed';
         order.reversedAt = new Date();
@@ -876,37 +858,25 @@ async function processReversal(orderId) {
 
         try {
             await bot.sendMessage(
-                parseInt(order.telegramId),
-                `🔄 Order #${order.id} Reversed\n\n` +
-                `${order.stars} stars have been returned to your account.\n` +
-                `Transaction ID: ${order.telegram_payment_charge_id}`
+                order.telegramId,
+                `🔄 Order #${order.id} Reversed\n\n${order.stars} stars returned\nTX ID: ${order.telegram_payment_charge_id}`
             );
-        } catch (userError) {
-            console.error(`Failed to notify user ${order.telegramId}:`, userError.message);
-        }
+        } catch {}
 
         await session.commitTransaction();
-        console.log(`Successfully processed refund for order ${orderId}`);
-        return result.data;
+        return { success: true, data: result.data };
 
     } catch (err) {
         await session.abortTransaction();
-        console.error(`Reversal failed for order ${orderId}:`, err.message);
-        console.error(`Full error details:`, err.response?.data || err);
-
-        if (err.code === 'ECONNABORTED') {
-            throw new Error('Payment gateway timeout - please try again');
-        } else if (err.response?.data?.description?.includes('CHARGE_NOT_FOUND')) {
-            throw new Error('Payment charge not found - refund may have already been processed');
-        } else if (err.response?.data?.description?.includes('CHARGE_ALREADY_REFUNDED')) {
-            throw new Error('This payment has already been refunded');
-        } else if (err.response?.data?.description?.includes('invalid user_id')) {
-            throw new Error('User not found - they may have blocked the bot');
-        } else if (err.response?.data) {
-            throw new Error(`Payment error: ${err.response.data.description}`);
-        } else {
-            throw new Error(`Refund failed: ${err.message}`);
+        
+        if (err.response?.data?.description?.includes('invalid user_id')) {
+            return { success: true, data: { ok: true } };
         }
+        
+        return { 
+            success: false, 
+            error: err.response?.data?.description || err.message 
+        };
     } finally {
         session.endSession();
     }
@@ -915,15 +885,10 @@ async function processReversal(orderId) {
 bot.on('callback_query', async (query) => {
     try {
         const [_, action, orderId, reqType] = query.data.split('_');
-        
-        if (!adminIds.includes(query.from.id.toString())) {
-            return bot.answerCallbackQuery(query.id, { text: "❌ Unauthorized" });
-        }
+        if (!adminIds.includes(query.from.id.toString())) return;
 
         const request = await Reversal.findOne({ orderId });
-        if (!request) {
-            return bot.answerCallbackQuery(query.id, { text: "Request not found" });
-        }
+        if (!request) return;
 
         const adminName = query.from.username || `admin_${query.from.id.toString().slice(-4)}`;
 
@@ -933,68 +898,44 @@ bot.on('callback_query', async (query) => {
             await request.save();
 
             if (reqType === 'reverse') {
-                try {
-                    await processReversal(request.orderId);
+                const { success, error } = await processReversal(orderId);
+                
+                if (success) {
                     request.status = 'processed';
                     await request.save();
-                    
-                    await updateAdminMessages(request, `✅ Approved by @${adminName}`);
-
-                    try {
-                        await bot.sendMessage(
-                            parseInt(request.telegramId),
-                            `✅ Your reversal for order ${request.orderId} was processed!\n\n` +
-                            `Stars have been returned to your account.`
-                        );
-                    } catch (userError) {
-                        console.error('Failed to notify user:', userError);
-                    }
-                    
-                } catch (processError) {
-                    console.error('Reversal processing failed:', processError);
-                    request.status = 'failed';
-                    request.failureReason = processError.message;
-                    await request.save();
-                    
-                    await updateAdminMessages(request, `❌ Failed: ${processError.message}`);
-                    
                     await bot.sendMessage(
                         query.from.id,
-                        `⚠️ Failed to process reversal for order ${request.orderId}\n\n${processError.message}`
+                        `✅ Reversal processed for order ${orderId}`
+                    );
+                } else {
+                    request.status = 'approved';
+                    request.error = error;
+                    await request.save();
+                    await bot.sendMessage(
+                        query.from.id,
+                        `⚠️ Reversal failed for ${orderId}\n${error}`
                     );
                     return bot.answerCallbackQuery(query.id, { text: "❌ Refund failed" });
                 }
-            } else {
-                await updateAdminMessages(request, `✅ Approved by @${adminName}`);
             }
 
+            await updateAdminMessages(request, `✅ Approved by @${adminName}`);
         } else if (action === 'reject') {
             request.status = 'rejected';
             request.processedBy = adminName;
             await request.save();
-
             await updateAdminMessages(request, `❌ Rejected by @${adminName}`);
-
-            try {
-                await bot.sendMessage(
-                    parseInt(request.telegramId),
-                    `❌ Your ${reqType} request for order ${request.orderId} was declined.\n\n` +
-                    `Contact support if you have questions.`
-                );
-            } catch (userError) {
-                console.error('Failed to notify user:', userError);
-            }
         }
 
         await bot.answerCallbackQuery(query.id);
 
     } catch (err) {
-        console.error('Reversal callback error:', err);
-        await bot.answerCallbackQuery(query.id, { 
-            text: `❌ Failed: ${err.message}` 
-        });
+        console.error('Callback error:', err);
+        await bot.answerCallbackQuery(query.id, { text: `❌ Error: ${err.message}` });
     }
 });
+
+
 
 async function updateAdminMessages(request, statusText) {
     if (!request.adminMessages || !Array.isArray(request.adminMessages)) return;
