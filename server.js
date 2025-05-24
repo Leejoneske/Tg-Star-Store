@@ -783,14 +783,16 @@ bot.onText(/^\/adminrefund (.+)/i, async (msg, match) => {
     }
 });
 
-bot.onText(/^\/refundtx (.+)/i, async (msg, match) => {
+bot.onText(/^\/refundtx (.+) (.+)/i, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
     
     const txId = match[1].trim();
+    const userId = match[2].trim();
     
     try {
         const refundPayload = {
+            user_id: parseInt(userId),
             telegram_payment_charge_id: txId
         };
 
@@ -823,19 +825,70 @@ bot.onText(/^\/refundtx (.+)/i, async (msg, match) => {
                 telegramResponse: data.result
             };
             await order.save();
-            
-            try {
-                await bot.sendMessage(
-                    order.telegramId,
-                    `💸 Refund Processed by Admin\nOrder: ${order.id}\nTX ID: ${txId}`
-                );
-            } catch (userError) {}
         }
 
-        await bot.sendMessage(chatId, `✅ Direct refund processed for TX: ${txId}`);
+        try {
+            await bot.sendMessage(
+                userId,
+                `💸 Refund Processed by Admin\nTX ID: ${txId}`
+            );
+        } catch (userError) {}
+
+        await bot.sendMessage(chatId, `✅ Direct refund processed for TX: ${txId}\nUser: ${userId}`);
 
     } catch (error) {
         await bot.sendMessage(chatId, `❌ Direct refund failed for TX ${txId}\nError: ${error.message}`);
+    }
+});
+
+bot.onText(/^\/getpayment (.+)/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
+    
+    const txId = match[1].trim();
+    
+    try {
+        const { data } = await axios.post(
+            `https://api.telegram.org/bot${process.env.BOT_TOKEN}/getStarTransactions`,
+            { offset: 0, limit: 100 },
+            { 
+                timeout: 15000,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (!data.ok) {
+            throw new Error(data.description || "Failed to get transactions");
+        }
+
+        const transaction = data.result.transactions.find(t => 
+            t.id === txId || (t.source && t.source.charge && t.source.charge.id === txId)
+        );
+
+        if (!transaction) {
+            return bot.sendMessage(chatId, `❌ Transaction not found: ${txId}`);
+        }
+
+        const txInfo = `💳 Transaction Details\n` +
+            `TX ID: ${transaction.id}\n` +
+            `Amount: ${transaction.amount} stars\n` +
+            `Date: ${new Date(transaction.date * 1000).toISOString()}\n` +
+            `User ID: ${transaction.source ? transaction.source.user?.id || 'N/A' : 'N/A'}\n` +
+            `Type: ${transaction.source ? transaction.source.type : 'N/A'}`;
+
+        await bot.sendMessage(chatId, txInfo);
+
+        if (transaction.source && transaction.source.user && transaction.source.user.id) {
+            await bot.sendMessage(chatId, 
+                `To refund this transaction, use:\n` +
+                `/refundtx ${txId} ${transaction.source.user.id}`
+            );
+        }
+
+    } catch (error) {
+        await bot.sendMessage(chatId, `❌ Failed to get transaction details\nError: ${error.message}`);
     }
 });
 
