@@ -165,6 +165,18 @@ const cacheSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now }
 });
 
+const bannedUserSchema = new mongoose.Schema({
+    users: Array
+});
+
+const referralSchema = new mongoose.Schema({
+    referrerUserId: { type: String, required: true },
+    referredUserId: { type: String, required: true },
+    status: { type: String, enum: ['pending', 'active', 'completed'], default: 'pending' },
+    withdrawn: { type: Boolean, default: false },
+    dateReferred: { type: Date, default: Date.now }
+});
+
 const referralWithdrawalSchema = new mongoose.Schema({
     id: {  
         type: String,
