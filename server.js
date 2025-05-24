@@ -866,6 +866,7 @@ async function processReversal(orderId) {
         );
 
         if (!result.data.ok) {
+            console.error(`Telegram refund API error:`, result.data);
             throw new Error(`Telegram API: ${result.data.description || 'Unknown error'}`);
         }
 
@@ -891,6 +892,7 @@ async function processReversal(orderId) {
     } catch (err) {
         await session.abortTransaction();
         console.error(`Reversal failed for order ${orderId}:`, err.message);
+        console.error(`Full error details:`, err.response?.data || err);
 
         if (err.code === 'ECONNABORTED') {
             throw new Error('Payment gateway timeout - please try again');
@@ -935,28 +937,35 @@ bot.on('callback_query', async (query) => {
                     await processReversal(request.orderId);
                     request.status = 'processed';
                     await request.save();
+                    
+                    await updateAdminMessages(request, `✅ Approved by @${adminName}`);
+
+                    try {
+                        await bot.sendMessage(
+                            parseInt(request.telegramId),
+                            `✅ Your reversal for order ${request.orderId} was processed!\n\n` +
+                            `Stars have been returned to your account.`
+                        );
+                    } catch (userError) {
+                        console.error('Failed to notify user:', userError);
+                    }
+                    
                 } catch (processError) {
                     console.error('Reversal processing failed:', processError);
+                    request.status = 'failed';
+                    request.failureReason = processError.message;
+                    await request.save();
+                    
+                    await updateAdminMessages(request, `❌ Failed: ${processError.message}`);
+                    
                     await bot.sendMessage(
                         query.from.id,
                         `⚠️ Failed to process reversal for order ${request.orderId}\n\n${processError.message}`
                     );
-                    throw processError;
+                    return bot.answerCallbackQuery(query.id, { text: "❌ Refund failed" });
                 }
-            }
-
-            await updateAdminMessages(request, `✅ Approved by @${adminName}`);
-
-            if (reqType === 'reverse') {
-                try {
-                    await bot.sendMessage(
-                        parseInt(request.telegramId),
-                        `✅ Your reversal for order ${request.orderId} was processed!\n\n` +
-                        `Stars have been returned to your account.`
-                    );
-                } catch (userError) {
-                    console.error('Failed to notify user:', userError);
-                }
+            } else {
+                await updateAdminMessages(request, `✅ Approved by @${adminName}`);
             }
 
         } else if (action === 'reject') {
