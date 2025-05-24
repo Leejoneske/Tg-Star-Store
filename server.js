@@ -178,20 +178,30 @@ const referralSchema = new mongoose.Schema({
 });
 
 const referralWithdrawalSchema = new mongoose.Schema({
-    id: {  
+    withdrawalId: {  
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        default: () => generateOrderId() 
     },
     userId: String,
     username: String,
     amount: Number,
     walletAddress: String,
-    referralIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Referral' }],
-    status: { type: String, enum: ['pending', 'completed', 'declined'], default: 'pending' },
-    createdAt: { type: Date, default: Date.now }
+    referralIds: [{ 
+        type: String, 
+        ref: 'Referral' 
+    }],
+    status: { 
+        type: String, 
+        enum: ['pending', 'completed', 'declined'], 
+        default: 'pending' 
+    },
+    createdAt: { 
+        type: Date, 
+        default: Date.now 
+    }
 });
-
 
 const referralTrackerSchema = new mongoose.Schema({
     referral: { type: mongoose.Schema.Types.ObjectId, ref: 'Referral' },
@@ -1179,7 +1189,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
     }
 });
 
-// Fixed withdrawal processing handler
+// ===== WITHDRAWAL PROCESSING =====
 bot.on('callback_query', async (query) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -1187,33 +1197,37 @@ bot.on('callback_query', async (query) => {
     try {
         const { data, from } = query;
         
+        // Admin authorization check
         if (!adminIds.includes(from.id.toString())) {
-            await bot.answerCallbackQuery(query.id, { text: "Unauthorized action" });
+            await bot.answerCallbackQuery(query.id, { text: "⛔ Unauthorized action" });
             return;
         }
 
+        // Parse action and withdrawal ID
         const action = data.startsWith('complete_withdrawal_') ? 'complete' : 'decline';
-        const withdrawalId = data.split('_')[2];
+        const withdrawalId = data.split('_')[2]; // Custom string ID
 
-        await bot.answerCallbackQuery(query.id, { text: `Processing ${action}...` });
+        await bot.answerCallbackQuery(query.id, { text: `⏳ Processing ${action}...` });
 
+        // Find and update withdrawal using string ID
         const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
-            { _id: withdrawalId, status: 'pending' },
+            { withdrawalId: withdrawalId, status: 'pending' },
             { 
                 $set: { 
                     status: action === 'complete' ? 'completed' : 'declined',
                     processedBy: from.id,
-                    ...(action === 'complete' ? { completedAt: new Date() } : { declinedAt: new Date() })
+                    processedAt: new Date()
                 } 
             },
             { new: true, session }
         );
 
         if (!withdrawal) {
-            await bot.answerCallbackQuery(query.id, { text: "Withdrawal not found or already processed" });
+            await bot.answerCallbackQuery(query.id, { text: "❌ Withdrawal not found or already processed" });
             return;
         }
 
+        // If declined, mark referrals as not withdrawn
         if (action === 'decline') {
             await Referral.updateMany(
                 { _id: { $in: withdrawal.referralIds } },
@@ -1224,20 +1238,20 @@ bot.on('callback_query', async (query) => {
 
         // Notify user
         const userMessage = action === 'complete'
-            ? `✅ Withdrawal #WD${withdrawal._id.toString().slice(-8).toUpperCase()} completed!\n\n` +
+            ? `✅ Withdrawal #${withdrawal.withdrawalId} Completed!\n\n` +
               `Amount: ${withdrawal.amount} USDT\n` +
-              `Wallet: ${withdrawal.walletAddress}`
-            : `❌ Withdrawal #WD${withdrawal._id.toString().slice(-8).toUpperCase()} declined\n\n` +
+              `Wallet: ${withdrawal.walletAddress}\n\n` +
+              `Funds have been sent to your wallet.`
+            : `❌ Withdrawal #${withdrawal.withdrawalId} Declined\n\n` +
               `Amount: ${withdrawal.amount} USDT\n` +
-              `Contact support for details`;
-        
+              `Contact support for more information.`;
+
         await bot.sendMessage(withdrawal.userId, userMessage);
 
         // Update all admin messages
         const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
         const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
         
-        // Create transformed button - single button showing status
         const transformedKeyboard = {
             inline_keyboard: [
                 [{
@@ -1248,16 +1262,17 @@ bot.on('callback_query', async (query) => {
             ]
         };
 
-        // Update all admin messages
-        if (withdrawal.adminMessages && Array.isArray(withdrawal.adminMessages)) {
+        // Update each admin message
+        if (withdrawal.adminMessages?.length) {
             await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
-                if (!adminMsg || !adminMsg.adminId || !adminMsg.messageId) return;
+                if (!adminMsg?.adminId || !adminMsg?.messageId) return;
                 
                 try {
-                    // First update the message text
-                    const updatedText = `${adminMsg.originalText}\n\nStatus: ${statusText}\n${processedBy}`;
-                    
-                    // Then update the reply markup (buttons)
+                    const updatedText = `${adminMsg.originalText}\n\n` +
+                                      `Status: ${statusText}\n` +
+                                      `${processedBy}\n` +
+                                      `Processed at: ${new Date().toLocaleString()}`;
+
                     await bot.editMessageText(updatedText, {
                         chat_id: adminMsg.adminId,
                         message_id: adminMsg.messageId,
@@ -1265,23 +1280,30 @@ bot.on('callback_query', async (query) => {
                         parse_mode: "Markdown"
                     });
                 } catch (err) {
-                    console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
+                    console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
                 }
             }));
         }
 
         await session.commitTransaction();
-        await bot.answerCallbackQuery(query.id, { text: `Withdrawal ${action}d successfully` });
+        await bot.answerCallbackQuery(query.id, { 
+            text: `✔️ Withdrawal ${action === 'complete' ? 'completed' : 'declined'}` 
+        });
 
     } catch (error) {
         await session.abortTransaction();
         console.error('Withdrawal processing error:', error);
-        await bot.answerCallbackQuery(query.id, { text: "Error processing request" });
+        
+        let errorMsg = "❌ Processing failed";
+        if (error.message.includes("network error")) {
+            errorMsg = "⚠️ Network issue - please retry";
+        }
+        
+        await bot.answerCallbackQuery(query.id, { text: errorMsg });
     } finally {
         session.endSession();
     }
 });
-
 
 //referral tracking for referrals rewards
 async function handleReferralActivation(tracker) {
@@ -1314,12 +1336,33 @@ async function trackStars(userId, stars, type) {
         const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
         if (!tracker) return;
 
+        // Update star counts based on transaction type
         if (type === 'buy') tracker.totalBoughtStars += stars || 0;
         if (type === 'sell') tracker.totalSoldStars += stars || 0;
 
         const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
+        
+        // Activation logic (100+ stars or premium)
         if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
-            await handleReferralActivation(tracker);
+            tracker.status = 'active';
+            tracker.dateActivated = new Date();
+            await tracker.save();
+
+            // Update corresponding referral record
+            await Referral.findOneAndUpdate(
+                { referredUserId: userId },
+                { 
+                    status: 'active',
+                    dateActivated: new Date() 
+                }
+            );
+
+            // Notify referrer
+            await bot.sendMessage(
+                tracker.referrerUserId,
+                `🎉 Your referral @${tracker.referredUsername} just became active!\n` +
+                `You earned 0.5 USDT referral bonus.`
+            );
         } else {
             await tracker.save();
         }
