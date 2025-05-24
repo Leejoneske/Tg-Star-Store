@@ -797,8 +797,8 @@ bot.on('message', async (msg) => {
     const keyboard = {
         inline_keyboard: [
             [
-                { text: "✅ Approve", callback_data: `req_approve_${requestDoc._id}_${commandType}` },
-                { text: "❌ Reject", callback_data: `req_reject_${requestDoc._id}_${commandType}` }
+                { text: "✅ Approve", callback_data: `req_approve_${orderId}_${commandType}` },
+                { text: "❌ Reject", callback_data: `req_reject_${orderId}_${commandType}` }
             ]
         ]
     };
@@ -908,13 +908,13 @@ async function processReversal(orderId) {
 
 bot.on('callback_query', async (query) => {
     try {
-        const [_, action, requestId, reqType] = query.data.split('_');
+        const [_, action, orderId, reqType] = query.data.split('_');
         
         if (!adminIds.includes(query.from.id.toString())) {
             return bot.answerCallbackQuery(query.id, { text: "❌ Unauthorized" });
         }
 
-        const request = await Reversal.findById(requestId);
+        const request = await Reversal.findOne({ orderId });
         if (!request) {
             return bot.answerCallbackQuery(query.id, { text: "Request not found" });
         }
