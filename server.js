@@ -791,7 +791,6 @@ bot.on('message', async (msg) => {
     reversalRequests.delete(chatId);
 });
 
-
 async function processRefund(orderId) {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -802,20 +801,36 @@ async function processRefund(orderId) {
         if (order.status !== 'processing') throw new Error("Order not in processing state");
         if (!order.telegram_payment_charge_id) throw new Error("Missing payment reference");
 
+        const refundPayload = {
+            user_id: parseInt(order.telegramId),
+            telegram_payment_charge_id: order.telegram_payment_charge_id
+        };
+
         const { data } = await axios.post(
             `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
-            {
-                telegram_payment_charge_id: order.telegram_payment_charge_id,
-                amount: order.stars * 100
-            },
-            { timeout: 10000 }
+            refundPayload,
+            { 
+                timeout: 15000,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
         );
 
         if (!data.ok) {
-            if (data.description.includes('already refunded')) {
-                return { success: true, chargeId: order.telegram_payment_charge_id };
+            if (data.description && data.description.includes('CHARGE_ALREADY_REFUNDED')) {
+                order.status = 'reversed';
+                order.reversedAt = new Date();
+                order.refundData = {
+                    status: 'already_processed',
+                    processedAt: new Date(),
+                    chargeId: order.telegram_payment_charge_id
+                };
+                await order.save({ session });
+                await session.commitTransaction();
+                return { success: true, chargeId: order.telegram_payment_charge_id, alreadyRefunded: true };
             }
-            throw new Error(data.description || "Refund failed");
+            throw new Error(data.description || "Refund API call failed");
         }
 
         order.status = 'reversed';
@@ -823,7 +838,8 @@ async function processRefund(orderId) {
         order.refundData = {
             status: 'processed',
             processedAt: new Date(),
-            chargeId: order.telegram_payment_charge_id
+            chargeId: order.telegram_payment_charge_id,
+            telegramResponse: data.result
         };
         await order.save({ session });
         await session.commitTransaction();
@@ -831,9 +847,7 @@ async function processRefund(orderId) {
 
     } catch (error) {
         await session.abortTransaction();
-        if (error.response?.data?.description?.includes('invalid user_id')) {
-            return { success: true, chargeId: order.telegram_payment_charge_id };
-        }
+        console.error('Refund processing error:', error.message);
         throw error;
     } finally {
         session.endSession();
@@ -846,77 +860,93 @@ bot.on('callback_query', async (query) => {
         if (!adminIds.includes(query.from.id.toString())) return;
 
         const request = await Reversal.findOne({ orderId });
-        if (!request) return;
+        if (!request || request.status !== 'pending') return;
 
         if (action === 'approve') {
-            const result = await processRefund(orderId);
-            
-            request.status = 'processed';
-            await request.save();
+            try {
+                const result = await processRefund(orderId);
+                
+                request.status = 'processed';
+                request.processedAt = new Date();
+                await request.save();
 
-            if (result.success) {
-                await bot.sendMessage(
-                    query.from.id,
-                    `✅ Refund processed for ${orderId}\n` +
-                    `Charge ID: ${result.chargeId}\n` +
-                    `User notified: ${result.userNotified ? 'Yes' : 'No'}`
-                );
+                const statusMessage = result.alreadyRefunded 
+                    ? `✅ Order ${orderId} was already refunded\nCharge ID: ${result.chargeId}`
+                    : `✅ Refund processed successfully for ${orderId}\nCharge ID: ${result.chargeId}`;
+
+                await bot.sendMessage(query.from.id, statusMessage);
                 
                 try {
-                    await bot.sendMessage(
-                        request.telegramId,
-                        `💸 Refund Processed\n` +
-                        `Order: ${orderId}\n` +
-                        `TX ID: ${result.chargeId}`
-                    );
-                    result.userNotified = true;
+                    const userMessage = result.alreadyRefunded
+                        ? `💸 Your refund for order ${orderId} was already processed\nTX ID: ${result.chargeId}`
+                        : `💸 Refund Processed\nOrder: ${orderId}\nTX ID: ${result.chargeId}`;
+                    
+                    await bot.sendMessage(request.telegramId, userMessage);
                 } catch (userError) {
-                    result.userNotified = false;
+                    console.error('Failed to notify user:', userError.message);
+                    await bot.sendMessage(query.from.id, `⚠️ Refund processed but user notification failed`);
                 }
-            } else {
-                await bot.sendMessage(
-                    query.from.id,
-                    `❌ Refund failed for ${orderId}`
-                );
+
+            } catch (refundError) {
+                request.status = 'failed';
+                request.errorMessage = refundError.message;
+                await request.save();
+                
+                await bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}\nError: ${refundError.message}`);
             }
-        } else {
+        } else if (action === 'reject') {
             request.status = 'rejected';
+            request.processedAt = new Date();
             await request.save();
-            await bot.sendMessage(query.from.id, `❌ Rejected refund for ${orderId}`);
+            
+            await bot.sendMessage(query.from.id, `❌ Refund request rejected for ${orderId}`);
+            
+            try {
+                await bot.sendMessage(request.telegramId, `❌ Your refund request for order ${orderId} has been rejected.`);
+            } catch (userError) {
+                console.error('Failed to notify user of rejection:', userError.message);
+            }
         }
 
         await updateAdminMessages(request, action === 'approve' ? "✅ Approved" : "❌ Rejected");
         await bot.answerCallbackQuery(query.id);
 
     } catch (error) {
-        console.error('Callback error:', error);
-        await bot.answerCallbackQuery(query.id, { text: "Processing error" });
+        console.error('Callback processing error:', error);
+        await bot.answerCallbackQuery(query.id, { text: "Processing error occurred" });
     }
 });
 
-
 async function updateAdminMessages(request, statusText) {
-    if (!request.adminMessages) return;
+    if (!request.adminMessages || request.adminMessages.length === 0) return;
+    
     for (const msg of request.adminMessages) {
         try {
             await bot.editMessageReplyMarkup(
                 { inline_keyboard: [[{ text: statusText, callback_data: 'processed' }]] },
                 { chat_id: msg.adminId, message_id: msg.messageId }
             );
-        } catch (err) {}
+        } catch (err) {
+            console.error('Failed to update admin message:', err.message);
+        }
     }
 }
 
 setInterval(() => {
     const now = Date.now();
+    const expiredSessions = [];
+    
     reversalRequests.forEach((value, chatId) => {
         if (now - value.timestamp > 300000) {
-            bot.sendMessage(chatId, "⌛ Session expired");
-            reversalRequests.delete(chatId);
+            expiredSessions.push(chatId);
         }
     });
+    
+    expiredSessions.forEach(chatId => {
+        bot.sendMessage(chatId, "⌛ Session expired").catch(() => {});
+        reversalRequests.delete(chatId);
+    });
 }, 60000);
-
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
