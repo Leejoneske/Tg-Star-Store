@@ -801,18 +801,32 @@ async function processRefund(orderId) {
 
         const { data } = await axios.post(
             `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
-            { telegram_payment_charge_id: order.telegram_payment_charge_id },
-            { timeout: 10000 }
+            { 
+                telegram_payment_charge_id: order.telegram_payment_charge_id,
+                amount: order.stars * 100 // Convert stars to cents if needed
+            },
+            { 
+                timeout: 10000,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
         );
         if (!data.ok) throw new Error(data.description || "Refund failed");
 
         order.status = 'reversed';
         order.reversedAt = new Date();
+        order.refundData = {
+            status: 'processed',
+            processedAt: new Date(),
+            chargeId: order.telegram_payment_charge_id
+        };
         await order.save({ session });
         await session.commitTransaction();
         return true;
     } catch (error) {
         await session.abortTransaction();
+        console.error(`Refund error for ${orderId}:`, error.response?.data || error.message);
         throw error;
     } finally {
         session.endSession();
@@ -829,12 +843,24 @@ bot.on('callback_query', async (query) => {
 
         if (action === 'approve') {
             try {
-                await processRefund(orderId);
-                request.status = 'processed';
-                await request.save();
-                await bot.sendMessage(query.from.id, `✅ Refund processed for ${orderId}`);
+                const success = await processRefund(orderId);
+                if (success) {
+                    request.status = 'processed';
+                    await request.save();
+                    await bot.sendMessage(query.from.id, `✅ Refund processed for ${orderId}`);
+                    
+                    try {
+                        await bot.sendMessage(
+                            request.telegramId,
+                            `💸 Refund Completed\nOrder: ${orderId}\nStars: ${request.stars}\nTX ID: ${request.refundData.chargeId}`
+                        );
+                    } catch (userError) {}
+                }
             } catch (error) {
-                await bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}: ${error.message}`);
+                await bot.sendMessage(
+                    query.from.id, 
+                    `❌ Refund failed for ${orderId}: ${error.response?.data?.description || error.message}`
+                );
             }
         } else {
             request.status = 'rejected';
