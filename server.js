@@ -737,92 +737,191 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
  //end of sell process    
 
 // ===== REVERSAL/PAYMENT SUPPORT SYSTEM =====
-async function processReversal(orderId) {
+bot.onText(/^\/(reverse|paysupport) (.+)/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const command = match[1].toLowerCase();
+    const orderId = match[2].trim();
+    
+    const order = await SellOrder.findOne({ id: orderId, telegramId: chatId.toString() });
+    
+    if (!order) {
+        return bot.sendMessage(chatId, "❌ Order not found");
+    }
+    
+    if (order.status !== 'processing') {
+        return bot.sendMessage(chatId, `❌ Order is ${order.status} - cannot be reversed`);
+    }
+
+    reversalRequests.set(chatId, { 
+        orderId, 
+        timestamp: Date.now(),
+        commandType: command 
+    });
+    
+    bot.sendMessage(chatId, `Please explain why you need to reverse this order:`);
+});
+
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const request = reversalRequests.get(chatId);
+    
+    if (!request || !msg.text || msg.text.startsWith('/')) return;
+
+    if (Date.now() - request.timestamp > 300000) {
+        reversalRequests.delete(chatId);
+        return bot.sendMessage(chatId, "⌛ Session expired. Please start again.");
+    }
+
+    const { orderId, commandType } = request;
+    const order = await SellOrder.findOne({ id: orderId });
+    const user = msg.from;
+
+    const requestDoc = new Reversal({
+        orderId,
+        telegramId: chatId.toString(),
+        username: user.username || `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
+        stars: order.stars,
+        reason: msg.text,
+        requestType: commandType,
+        status: 'pending'
+    });
+    await requestDoc.save();
+
+    const adminMsg = `🔄 New Reversal Request\n\nOrder: ${orderId}\nUser: @${requestDoc.username}\nStars: ${order.stars}\nReason: ${msg.text}`;
+
+    const keyboard = {
+        inline_keyboard: [
+            [
+                { text: "✅ Approve", callback_data: `req_approve_${orderId}_reverse` },
+                { text: "❌ Reject", callback_data: `req_reject_${orderId}_reverse` }
+            ]
+        ]
+    };
+
+    const adminMessages = [];
+    for (const adminId of adminIds) {
+        try {
+            const message = await bot.sendMessage(adminId, adminMsg, { reply_markup: keyboard });
+            adminMessages.push({ adminId, messageId: message.message_id });
+        } catch (err) {
+            console.error(`Failed to notify admin ${adminId}:`, err);
+        }
+    }
+
+    requestDoc.adminMessages = adminMessages;
+    await requestDoc.save();
+
+    bot.sendMessage(chatId, `📨 Your reversal request has been submitted!\nOrder ID: ${orderId}\nStatus: Pending admin review`);
+
+    reversalRequests.delete(chatId);
+});
+
+async function processRefund(orderId) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
         const order = await SellOrder.findOne({ id: orderId }).session(session);
         if (!order) throw new Error("Order not found");
+        if (order.status !== 'processing') throw new Error("Order not in processing state");
+        if (!order.telegram_payment_charge_id || order.telegram_payment_charge_id.startsWith('temp_')) {
+            throw new Error("Invalid payment reference");
+        }
 
-        // Process refund
-        const refundResult = await axios.post(
+        const result = await axios.post(
             `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
             { telegram_payment_charge_id: order.telegram_payment_charge_id },
-            { timeout: 15000 }
+            { timeout: 10000 }
         );
 
-        if (!refundResult.data?.ok) {
-            throw new Error(refundResult.data?.description || "Refund failed");
-        }
+        if (!result.data.ok) throw new Error(result.data.description || "Refund failed");
 
         order.status = 'reversed';
         order.reversedAt = new Date();
         await order.save({ session });
 
-        // Attempt notification (non-critical)
         try {
             await bot.sendMessage(
                 order.telegramId,
-                `💸 Refund Processed\nOrder: ${order.id}\nStars: ${order.stars}`
+                `💸 Refund Processed\nOrder: ${order.id}\nStars: ${order.stars}\nTX ID: ${order.telegram_payment_charge_id}`
             );
         } catch {}
 
         await session.commitTransaction();
         return true;
-
     } catch (error) {
         await session.abortTransaction();
-        console.error(`Reversal failed for ${orderId}:`, error.message);
+        console.error(`Refund failed for ${orderId}:`, error.message);
         return false;
     } finally {
         session.endSession();
     }
 }
 
-// Admin handler with error protection
 bot.on('callback_query', async (query) => {
     try {
-        const [_, action, orderId] = query.data.split('_') || [];
-        if (!orderId) throw new Error("Invalid order ID");
+        const [_, action, orderId, reqType] = query.data.split('_');
+        if (!adminIds.includes(query.from.id.toString())) return;
+
+        const request = await Reversal.findOne({ orderId });
+        if (!request) return;
+
+        const adminName = query.from.username || `admin_${query.from.id.toString().slice(-4)}`;
 
         if (action === 'approve') {
-            const success = await processReversal(orderId);
-            
-            await bot.sendMessage(
-                query.from.id,
-                success ? `✅ Refund processed for ${orderId}` 
-                       : `❌ Failed to process ${orderId}`
-            );
+            request.status = 'approved';
+            request.processedBy = adminName;
+            await request.save();
+
+            if (reqType === 'reverse') {
+                const success = await processRefund(orderId);
+                if (success) {
+                    request.status = 'processed';
+                    await request.save();
+                    await bot.sendMessage(query.from.id, `✅ Refund processed for ${orderId}`);
+                } else {
+                    await bot.sendMessage(query.from.id, `❌ Failed to process refund for ${orderId}`);
+                }
+            }
+
+            await updateAdminMessages(request, `✅ Approved by @${adminName}`);
+        } else if (action === 'reject') {
+            request.status = 'rejected';
+            request.processedBy = adminName;
+            await request.save();
+            await updateAdminMessages(request, `❌ Rejected by @${adminName}`);
         }
 
         await bot.answerCallbackQuery(query.id);
-
-    } catch (error) {
-        console.error('Callback error:', error);
+    } catch (err) {
+        console.error('Callback error:', err);
         await bot.answerCallbackQuery(query.id, { text: "Processing error" });
     }
 });
 
-
-setInterval(async () => {
-    const now = Date.now();
+async function updateAdminMessages(request, statusText) {
+    if (!request.adminMessages || !Array.isArray(request.adminMessages)) return;
     
-    const expiredChats = [];
+    await Promise.all(request.adminMessages.map(async msg => {
+        try {
+            await bot.editMessageReplyMarkup(
+                { inline_keyboard: [[{ text: statusText, callback_data: 'processed' }]] },
+                { chat_id: msg.adminId, message_id: msg.messageId }
+            );
+        } catch (err) {
+            console.error(`Failed to update admin ${msg.adminId}:`, err.message);
+        }
+    }));
+}
+
+setInterval(() => {
+    const now = Date.now();
     reversalRequests.forEach((value, chatId) => {
         if (now - value.timestamp > 300000) {
-            expiredChats.push(chatId);
+            bot.sendMessage(chatId, "⌛ Your request session has expired");
+            reversalRequests.delete(chatId);
         }
     });
-    
-    for (const chatId of expiredChats) {
-        try {
-            await bot.sendMessage(parseInt(chatId), "⌛ Your request session has expired");
-        } catch (err) {
-            console.error(`Failed to notify expired session to ${chatId}:`, err);
-        }
-        reversalRequests.delete(chatId);
-    }
 }, 60000);
 
 
