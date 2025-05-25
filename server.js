@@ -479,23 +479,26 @@ bot.on('callback_query', async (query) => {
     session.startTransaction();
     
     try {
-        const data = query.data;
+        const data = query.data.trim();
         const adminUsername = query.from.username || `admin_${query.from.id}`;
-        console.log(`Processing callback: ${data} by ${adminUsername}`);
+        console.log(`Processing callback: "${data}" by ${adminUsername}`);
 
         let order, actionType, orderType;
 
         if (data.startsWith('complete_sell_')) {
             actionType = 'complete';
             orderType = 'sell';
-            order = await SellOrder.findOne({ id: data.split('_')[2] }).session(session);
+            const orderId = data.replace('complete_sell_', '').trim();
+            order = await SellOrder.findOne({ id: orderId }).session(session);
 
             if (!order) {
+                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
                 return;
             }
 
             if (order.status !== 'processing') {
+                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { 
                     text: `Order is ${order.status} - cannot complete` 
                 });
@@ -503,6 +506,7 @@ bot.on('callback_query', async (query) => {
             }
 
             if (!order.telegram_payment_charge_id && order.dateCreated > new Date('2025-05-23')) {
+                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { 
                     text: "Cannot complete - missing payment reference" 
                 });
@@ -518,9 +522,11 @@ bot.on('callback_query', async (query) => {
         else if (data.startsWith('decline_sell_')) {
             actionType = 'decline';
             orderType = 'sell';
-            order = await SellOrder.findOne({ id: data.split('_')[2] }).session(session);
+            const orderId = data.replace('decline_sell_', '').trim();
+            order = await SellOrder.findOne({ id: orderId }).session(session);
 
             if (!order) {
+                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
                 return;
             }
@@ -532,14 +538,17 @@ bot.on('callback_query', async (query) => {
         else if (data.startsWith('complete_buy_')) {
             actionType = 'complete';
             orderType = 'buy';
-            order = await BuyOrder.findOne({ id: data.split('_')[2] }).session(session);
+            const orderId = data.replace('complete_buy_', '').trim();
+            order = await BuyOrder.findOne({ id: orderId }).session(session);
 
             if (!order) {
+                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { text: "Buy order not found" });
                 return;
             }
 
             if (order.status !== 'pending') {
+                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { 
                     text: `Order is ${order.status} - cannot complete` 
                 });
@@ -558,9 +567,11 @@ bot.on('callback_query', async (query) => {
         else if (data.startsWith('decline_buy_')) {
             actionType = 'decline';
             orderType = 'buy';
-            order = await BuyOrder.findOne({ id: data.split('_')[2] }).session(session);
+            const orderId = data.replace('decline_buy_', '').trim();
+            order = await BuyOrder.findOne({ id: orderId }).session(session);
 
             if (!order) {
+                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { text: "Buy order not found" });
                 return;
             }
@@ -571,6 +582,7 @@ bot.on('callback_query', async (query) => {
         }
         else {
             await session.abortTransaction();
+            console.log(`Unhandled callback data: "${data}"`);
             return await bot.answerCallbackQuery(query.id);
         }
 
