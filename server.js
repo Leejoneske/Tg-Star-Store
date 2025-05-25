@@ -984,7 +984,7 @@ async function processRefund(orderId) {
                 order.status = 'reversed';
                 order.reversedAt = new Date();
                 order.refundData = {
-                    status: 'refund',
+                    status: 'refunded',
                     processedAt: new Date(),
                     chargeId: order.telegram_payment_charge_id
                 };
