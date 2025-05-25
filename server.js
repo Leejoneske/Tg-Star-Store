@@ -660,7 +660,7 @@ bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     const recentRequest = await Reversal.findOne({
         telegramId: userId,
         createdAt: { $gte: thirtyDaysAgo },
-        status: { $in: ['pending', 'processed'] }
+        status: { $in: ['pending', 'processing'] }
     });
     
     if (recentRequest) {
@@ -712,7 +712,7 @@ bot.onText(/^\/adminrefund (.+)/i, async (msg, match) => {
     const order = await SellOrder.findOne({ telegram_payment_charge_id: txId });
     
     if (!order) return bot.sendMessage(chatId, "❌ Order not found with this TX ID");
-    if (order.status === 'reversed') return bot.sendMessage(chatId, "❌ Order already refunded");
+    if (order.status === 'refunded') return bot.sendMessage(chatId, "❌ Order already refunded");
     
     try {
         const result = await processRefund(order.id);
@@ -771,10 +771,10 @@ bot.onText(/^\/refundtx (.+) (.+)/i, async (msg, match) => {
 
         const order = await SellOrder.findOne({ telegram_payment_charge_id: txId });
         if (order) {
-            order.status = 'reversed';
-            order.reversedAt = new Date();
+            order.status = 'refunded';
+            order.refundedAt = new Date();
             order.refundData = {
-                status: 'refund',
+                status: 'refunded',
                 processedAt: new Date(),
                 chargeId: txId,
                 telegramResponse: data.result
@@ -981,8 +981,8 @@ async function processRefund(orderId) {
 
         if (!data.ok) {
             if (data.description && data.description.includes('CHARGE_ALREADY_REFUNDED')) {
-                order.status = 'reversed';
-                order.reversedAt = new Date();
+                order.status = 'refunded';
+                order.refundedAt = new Date();
                 order.refundData = {
                     status: 'refunded',
                     processedAt: new Date(),
@@ -995,10 +995,10 @@ async function processRefund(orderId) {
             throw new Error(data.description || "Refund API call failed");
         }
 
-        order.status = 'reversed';
-        order.reversedAt = new Date();
+        order.status = 'refunded';
+        order.refundedAt = new Date();
         order.refundData = {
-            status: 'refund',
+            status: 'refunded',
             processedAt: new Date(),
             chargeId: order.telegram_payment_charge_id,
             telegramResponse: data.result
@@ -1028,7 +1028,7 @@ bot.on('callback_query', async (query) => {
             try {
                 const result = await processRefund(orderId);
                 
-                request.status = 'processed';
+                request.status = 'completed';
                 request.processedAt = new Date();
                 await request.save();
 
@@ -1050,14 +1050,14 @@ bot.on('callback_query', async (query) => {
                 }
 
             } catch (refundError) {
-                request.status = 'failed';
+                request.status = 'declined';
                 request.errorMessage = refundError.message;
                 await request.save();
                 
                 await bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}\nError: ${refundError.message}`);
             }
         } else if (action === 'reject') {
-            request.status = 'rejected';
+            request.status = 'declined';
             request.processedAt = new Date();
             await request.save();
             
