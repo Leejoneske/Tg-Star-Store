@@ -737,16 +737,58 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
  //end of sell process    
 
 // ===== REVERSAL/PAYMENT SUPPORT SYSTEM =====
-bot.onText(/^\/(reverse|paysupport) (.+)/i, async (msg, match) => {
+bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     const chatId = msg.chat.id;
-    const orderId = match[2].trim();
-    const order = await SellOrder.findOne({ id: orderId, telegramId: chatId.toString() });
+    const userId = chatId.toString();
     
-    if (!order) return bot.sendMessage(chatId, "❌ Order not found");
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentRequest = await Reversal.findOne({
+        telegramId: userId,
+        createdAt: { $gte: thirtyDaysAgo },
+        status: { $in: ['pending', 'processed'] }
+    });
+    
+    if (recentRequest) {
+        const nextAllowedDate = new Date(recentRequest.createdAt);
+        nextAllowedDate.setDate(nextAllowedDate.getDate() + 30);
+        return bot.sendMessage(chatId, 
+            `❌ You can only request one refund per month.\n` +
+            `Next refund available: ${nextAllowedDate.toDateString()}`
+        );
+    }
+    
+    const orderId = match[2] ? match[2].trim() : null;
+    
+    if (!orderId) {
+        const welcomeMsg = `🔄 Welcome to Sell Order Pay Support\n\n` +
+            `You are about to request a cancellation and refund for your order. ` +
+            `Please note that refund requests are limited to once per month.\n\n` +
+            `Please enter your Order ID:`;
+        
+        reversalRequests.set(chatId, { 
+            step: 'waiting_order_id', 
+            timestamp: Date.now() 
+        });
+        return bot.sendMessage(chatId, welcomeMsg);
+    }
+    
+    const order = await SellOrder.findOne({ id: orderId, telegramId: userId });
+    
+    if (!order) return bot.sendMessage(chatId, "❌ Order not found or doesn't belong to you");
     if (order.status !== 'processing') return bot.sendMessage(chatId, `❌ Order is ${order.status} - cannot be reversed`);
     
-    reversalRequests.set(chatId, { orderId, timestamp: Date.now() });
-    bot.sendMessage(chatId, "Please explain why you need to reverse this order:");
+    reversalRequests.set(chatId, { 
+        step: 'waiting_reason',
+        orderId, 
+        timestamp: Date.now() 
+    });
+    bot.sendMessage(chatId, 
+        `📋 Order Found: ${orderId}\n` +
+        `Stars: ${order.stars}\n\n` +
+        `Please provide a detailed explanation (minimum 10 words) for why you need to reverse this order:`
+    );
 });
 
 bot.onText(/^\/adminrefund (.+)/i, async (msg, match) => {
@@ -914,44 +956,88 @@ bot.onText(/^\/findorder (.+)/i, async (msg, match) => {
 
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
+    const userId = chatId.toString();
     const request = reversalRequests.get(chatId);
     if (!request || !msg.text || msg.text.startsWith('/')) return;
+    
     if (Date.now() - request.timestamp > 300000) {
         reversalRequests.delete(chatId);
-        return bot.sendMessage(chatId, "⌛ Session expired");
+        return bot.sendMessage(chatId, "⌛ Session expired. Please start over with /reverse or /paysupport");
     }
 
-    const order = await SellOrder.findOne({ id: request.orderId });
-    const requestDoc = new Reversal({
-        orderId: request.orderId,
-        telegramId: chatId.toString(),
-        username: msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`,
-        stars: order.stars,
-        reason: msg.text,
-        status: 'pending'
-    });
-    await requestDoc.save();
+    if (request.step === 'waiting_order_id') {
+        const orderId = msg.text.trim();
+        const order = await SellOrder.findOne({ id: orderId, telegramId: userId });
+        
+        if (!order) {
+            return bot.sendMessage(chatId, "❌ Order not found or doesn't belong to you. Please enter a valid Order ID:");
+        }
+        if (order.status !== 'processing') {
+            return bot.sendMessage(chatId, `❌ Order ${orderId} is ${order.status} - cannot be reversed. Please enter a different Order ID:`);
+        }
+        
+        request.step = 'waiting_reason';
+        request.orderId = orderId;
+        request.timestamp = Date.now();
+        reversalRequests.set(chatId, request);
+        
+        return bot.sendMessage(chatId, 
+            `📋 Order Found: ${orderId}\n` +
+            `Stars: ${order.stars}\n\n` +
+            `Please provide a detailed explanation (minimum 10 words) for why you need to reverse this order:`
+        );
+    }
 
-    const adminMsg = `🔄 Reversal Request\nOrder: ${request.orderId}\nUser: @${requestDoc.username}\nStars: ${order.stars}\nReason: ${msg.text}`;
-    
-    for (const adminId of adminIds) {
-        try {
-            const message = await bot.sendMessage(adminId, adminMsg, {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { text: "✅ Approve", callback_data: `req_approve_${request.orderId}` },
-                            { text: "❌ Reject", callback_data: `req_reject_${request.orderId}` }
+    if (request.step === 'waiting_reason') {
+        const reason = msg.text.trim();
+        const wordCount = reason.split(/\s+/).filter(word => word.length > 0).length;
+        
+        if (wordCount < 10) {
+            return bot.sendMessage(chatId, 
+                `❌ Please provide a more detailed reason (minimum 10 words). Current: ${wordCount} words.\n` +
+                `Please explain in detail why you need this refund:`
+            );
+        }
+
+        const order = await SellOrder.findOne({ id: request.orderId });
+        const requestDoc = new Reversal({
+            orderId: request.orderId,
+            telegramId: userId,
+            username: msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`,
+            stars: order.stars,
+            reason: reason,
+            status: 'pending'
+        });
+        await requestDoc.save();
+
+        const adminMsg = `🔄 Reversal Request\n` +
+            `Order: ${request.orderId}\n` +
+            `User: @${requestDoc.username}\n` +
+            `User ID: ${userId}\n` +
+            `Stars: ${order.stars}\n` +
+            `Reason: ${reason}`;
+        
+        for (const adminId of adminIds) {
+            try {
+                const message = await bot.sendMessage(adminId, adminMsg, {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: "✅ Approve", callback_data: `req_approve_${request.orderId}` },
+                                { text: "❌ Reject", callback_data: `req_reject_${request.orderId}` }
+                            ]
                         ]
-                    ]
-                }
-            });
-            requestDoc.adminMessages.push({ adminId, messageId: message.message_id });
-        } catch (err) {}
+                    }
+                });
+                requestDoc.adminMessages.push({ adminId, messageId: message.message_id });
+            } catch (err) {
+                console.error(`Failed to send to admin ${adminId}:`, err.message);
+            }
+        }
+        await requestDoc.save();
+        bot.sendMessage(chatId, `📨 Reversal request submitted for order ${request.orderId}\nYou will be notified once reviewed.`);
+        reversalRequests.delete(chatId);
     }
-    await requestDoc.save();
-    bot.sendMessage(chatId, `📨 Reversal submitted for order ${request.orderId}`);
-    reversalRequests.delete(chatId);
 });
 
 async function processRefund(orderId) {
@@ -1086,11 +1172,11 @@ async function updateAdminMessages(request, statusText) {
     for (const msg of request.adminMessages) {
         try {
             await bot.editMessageReplyMarkup(
-                { inline_keyboard: [[{ text: statusText, callback_data: 'processed' }]] },
+                { inline_keyboard: [[{ text: statusText, callback_data: 'processed_done' }]] },
                 { chat_id: msg.adminId, message_id: msg.messageId }
             );
         } catch (err) {
-            console.error('Failed to update admin message:', err.message);
+            console.error(`Failed to update admin message for ${msg.adminId}:`, err.message);
         }
     }
 }
