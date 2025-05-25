@@ -285,7 +285,7 @@ app.get('/api/get-wallet-address', (req, res) => {
     }
 });
 
-
+// ===== BUY ORDER CODE WITH FIXED BUTTONS ====
 app.post('/api/orders/create', async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
@@ -371,6 +371,7 @@ app.post('/api/orders/create', async (req, res) => {
     }
 });
 
+// ===== COMPLETE SELL ORDER CONTROLLER =====
 app.post("/api/sell-orders", async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress } = req.body;
@@ -467,12 +468,11 @@ bot.on("successful_payment", async (msg) => {
                 messageId: message.message_id,
                 originalText: adminMessage 
             });
+            await order.save();
         } catch (err) {
             console.error(`Failed to notify admin ${adminId}:`, err);
         }
     }
-    
-    await order.save();
 });
 
 bot.on('callback_query', async (query) => {
@@ -480,42 +480,29 @@ bot.on('callback_query', async (query) => {
     session.startTransaction();
     
     try {
-        const data = query.data.trim();
+        const data = query.data;
         const adminUsername = query.from.username || `admin_${query.from.id}`;
-        console.log(`Processing callback: "${data}" by ${adminUsername}`);
 
         let order, actionType, orderType;
 
         if (data.startsWith('complete_sell_')) {
             actionType = 'complete';
             orderType = 'sell';
-            const orderId = data.replace('complete_sell_', '').trim();
-            order = await SellOrder.findOne({ id: orderId }).session(session);
+            order = await SellOrder.findOne({ id: data.split('_')[2] }).session(session);
 
             if (!order) {
-                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
                 return;
             }
 
-            if (order.status === 'completed' || order.status === 'declined') {
-                await session.abortTransaction();
+            if (order.status !== 'processing') {
                 await bot.answerCallbackQuery(query.id, { 
-                    text: `Order already ${order.status}` 
-                });
-                return;
-            }
-
-            if (order.status !== 'processing' && order.status !== 'pending') {
-                await session.abortTransaction();
-                await bot.answerCallbackQuery(query.id, { 
-                    text: `Order status: ${order.status} - cannot complete` 
+                    text: `Order is ${order.status} - cannot complete` 
                 });
                 return;
             }
 
             if (!order.telegram_payment_charge_id && order.dateCreated > new Date('2025-05-23')) {
-                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { 
                     text: "Cannot complete - missing payment reference" 
                 });
@@ -524,75 +511,43 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'completed';
             order.dateCompleted = new Date();
-            if (!order.adminMessages) {
-                order.adminMessages = [];
-            }
             await order.save({ session });
-            
             await trackStars(order.telegramId, order.stars, 'sell');
         } 
         else if (data.startsWith('decline_sell_')) {
             actionType = 'decline';
             orderType = 'sell';
-            const orderId = data.replace('decline_sell_', '').trim();
-            order = await SellOrder.findOne({ id: orderId }).session(session);
+            order = await SellOrder.findOne({ id: data.split('_')[2] }).session(session);
 
             if (!order) {
-                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
-                return;
-            }
-
-            if (order.status === 'completed' || order.status === 'declined') {
-                await session.abortTransaction();
-                await bot.answerCallbackQuery(query.id, { 
-                    text: `Order already ${order.status}` 
-                });
                 return;
             }
 
             order.status = 'declined';
             order.dateDeclined = new Date();
-            if (!order.adminMessages) {
-                order.adminMessages = [];
-            }
             await order.save({ session });
         }
         else if (data.startsWith('complete_buy_')) {
             actionType = 'complete';
             orderType = 'buy';
-            const orderId = data.replace('complete_buy_', '').trim();
-            order = await BuyOrder.findOne({ id: orderId }).session(session);
+            order = await BuyOrder.findOne({ id: data.split('_')[2] }).session(session);
 
             if (!order) {
-                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { text: "Buy order not found" });
                 return;
             }
 
-            if (order.status === 'completed' || order.status === 'declined') {
-                await session.abortTransaction();
-                await bot.answerCallbackQuery(query.id, { 
-                    text: `Order already ${order.status}` 
-                });
-                return;
-            }
-
             if (order.status !== 'pending') {
-                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { 
-                    text: `Order status: ${order.status} - cannot complete` 
+                    text: `Order is ${order.status} - cannot complete` 
                 });
                 return;
             }
 
             order.status = 'completed';
             order.dateCompleted = new Date();
-            if (!order.adminMessages) {
-                order.adminMessages = [];
-            }
             await order.save({ session });
-            
             await trackStars(order.telegramId, order.stars, 'buy');
             if (order.isPremium) {
                 await trackPremiumActivation(order.telegramId);
@@ -601,69 +556,51 @@ bot.on('callback_query', async (query) => {
         else if (data.startsWith('decline_buy_')) {
             actionType = 'decline';
             orderType = 'buy';
-            const orderId = data.replace('decline_buy_', '').trim();
-            order = await BuyOrder.findOne({ id: orderId }).session(session);
+            order = await BuyOrder.findOne({ id: data.split('_')[2] }).session(session);
 
             if (!order) {
-                await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { text: "Buy order not found" });
-                return;
-            }
-
-            if (order.status === 'completed' || order.status === 'declined') {
-                await session.abortTransaction();
-                await bot.answerCallbackQuery(query.id, { 
-                    text: `Order already ${order.status}` 
-                });
                 return;
             }
 
             order.status = 'declined';
             order.dateDeclined = new Date();
-            if (!order.adminMessages) {
-                order.adminMessages = [];
-            }
             await order.save({ session });
         }
         else {
             await session.abortTransaction();
-            console.log(`Unhandled callback data: "${data}"`);
             return await bot.answerCallbackQuery(query.id);
         }
 
         const statusText = order.status === 'completed' ? '✅ Completed' : '❌ Declined';
         const processedBy = `Processed by: @${adminUsername}`;
-        const completionNote = orderType === 'sell' && order.status === 'completed' ? 
-            '\n\nStars have been transferred to the buyer.' : '';
+        const completionNote = orderType === 'sell' && order.status === 'completed' ? '\n\nStars have been transferred to the buyer.' : '';
 
-        if (order.adminMessages && order.adminMessages.length > 0) {
-            const updatePromises = order.adminMessages.map(async (adminMsg) => {
-                try {
-                    await bot.editMessageText(
-                        `${adminMsg.originalText}\n\n${statusText}\n${processedBy}${completionNote}`,
-                        {
-                            chat_id: adminMsg.adminId,
-                            message_id: adminMsg.messageId,
-                            reply_markup: {
-                                inline_keyboard: [[
-                                    { 
-                                        text: statusText, 
-                                        callback_data: 'processed'
-                                    }
-                                ]]
-                            },
-                            parse_mode: "Markdown"
-                        }
-                    );
-                } catch (err) {
-                    console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
-                }
-            });
+        const updatePromises = order.adminMessages.map(async (adminMsg) => {
+            try {
+                await bot.editMessageText(
+                    `${adminMsg.originalText}\n\n${statusText}\n${processedBy}${completionNote}`,
+                    {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: {
+                            inline_keyboard: [[
+                                { 
+                                    text: statusText, 
+                                    callback_data: 'processed',
+                                    disabled: true
+                                }
+                            ]]
+                        },
+                        parse_mode: "Markdown"
+                    }
+                );
+            } catch (err) {
+                console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
+            }
+        });
 
-            await Promise.all(updatePromises);
-        } else {
-            console.log(`Order ${order.id} has no admin messages to update (likely old order)`);
-        }
+        await Promise.all(updatePromises);
 
         const userMessage = order.status === 'completed' 
             ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your purchase!'}`
@@ -679,7 +616,6 @@ bot.on('callback_query', async (query) => {
     } catch (err) {
         await session.abortTransaction();
         console.error('Order processing error:', err);
-        
         const errorMsg = err.response?.description || err.message || "Processing failed";
         await bot.answerCallbackQuery(query.id, { 
             text: `Error: ${errorMsg.slice(0, 50)}` 
@@ -711,6 +647,7 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
         throw error;
     }
 }
+
 
 // ===== REVERSAL/PAYMENT SUPPORT SYSTEM =====
 bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
