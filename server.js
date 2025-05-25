@@ -285,6 +285,7 @@ app.get('/api/get-wallet-address', (req, res) => {
     }
 });
 
+
 app.post('/api/orders/create', async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
@@ -497,10 +498,18 @@ bot.on('callback_query', async (query) => {
                 return;
             }
 
-            if (order.status !== 'processing') {
+            if (order.status === 'completed' || order.status === 'declined') {
                 await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { 
-                    text: `Order is ${order.status} - cannot complete` 
+                    text: `Order already ${order.status}` 
+                });
+                return;
+            }
+
+            if (order.status !== 'processing' && order.status !== 'pending') {
+                await session.abortTransaction();
+                await bot.answerCallbackQuery(query.id, { 
+                    text: `Order status: ${order.status} - cannot complete` 
                 });
                 return;
             }
@@ -515,6 +524,9 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'completed';
             order.dateCompleted = new Date();
+            if (!order.adminMessages) {
+                order.adminMessages = [];
+            }
             await order.save({ session });
             
             await trackStars(order.telegramId, order.stars, 'sell');
@@ -531,8 +543,19 @@ bot.on('callback_query', async (query) => {
                 return;
             }
 
+            if (order.status === 'completed' || order.status === 'declined') {
+                await session.abortTransaction();
+                await bot.answerCallbackQuery(query.id, { 
+                    text: `Order already ${order.status}` 
+                });
+                return;
+            }
+
             order.status = 'declined';
             order.dateDeclined = new Date();
+            if (!order.adminMessages) {
+                order.adminMessages = [];
+            }
             await order.save({ session });
         }
         else if (data.startsWith('complete_buy_')) {
@@ -547,16 +570,27 @@ bot.on('callback_query', async (query) => {
                 return;
             }
 
+            if (order.status === 'completed' || order.status === 'declined') {
+                await session.abortTransaction();
+                await bot.answerCallbackQuery(query.id, { 
+                    text: `Order already ${order.status}` 
+                });
+                return;
+            }
+
             if (order.status !== 'pending') {
                 await session.abortTransaction();
                 await bot.answerCallbackQuery(query.id, { 
-                    text: `Order is ${order.status} - cannot complete` 
+                    text: `Order status: ${order.status} - cannot complete` 
                 });
                 return;
             }
 
             order.status = 'completed';
             order.dateCompleted = new Date();
+            if (!order.adminMessages) {
+                order.adminMessages = [];
+            }
             await order.save({ session });
             
             await trackStars(order.telegramId, order.stars, 'buy');
@@ -576,8 +610,19 @@ bot.on('callback_query', async (query) => {
                 return;
             }
 
+            if (order.status === 'completed' || order.status === 'declined') {
+                await session.abortTransaction();
+                await bot.answerCallbackQuery(query.id, { 
+                    text: `Order already ${order.status}` 
+                });
+                return;
+            }
+
             order.status = 'declined';
             order.dateDeclined = new Date();
+            if (!order.adminMessages) {
+                order.adminMessages = [];
+            }
             await order.save({ session });
         }
         else {
@@ -591,31 +636,34 @@ bot.on('callback_query', async (query) => {
         const completionNote = orderType === 'sell' && order.status === 'completed' ? 
             '\n\nStars have been transferred to the buyer.' : '';
 
-        const updatePromises = order.adminMessages.map(async (adminMsg) => {
-            try {
-                await bot.editMessageText(
-                    `${adminMsg.originalText}\n\n${statusText}\n${processedBy}${completionNote}`,
-                    {
-                        chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId,
-                        reply_markup: {
-                            inline_keyboard: [[
-                                { 
-                                    text: statusText, 
-                                    callback_data: 'processed',
-                                    disabled: true
-                                }
-                            ]]
-                        },
-                        parse_mode: "Markdown"
-                    }
-                );
-            } catch (err) {
-                console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
-            }
-        });
+        if (order.adminMessages && order.adminMessages.length > 0) {
+            const updatePromises = order.adminMessages.map(async (adminMsg) => {
+                try {
+                    await bot.editMessageText(
+                        `${adminMsg.originalText}\n\n${statusText}\n${processedBy}${completionNote}`,
+                        {
+                            chat_id: adminMsg.adminId,
+                            message_id: adminMsg.messageId,
+                            reply_markup: {
+                                inline_keyboard: [[
+                                    { 
+                                        text: statusText, 
+                                        callback_data: 'processed'
+                                    }
+                                ]]
+                            },
+                            parse_mode: "Markdown"
+                        }
+                    );
+                } catch (err) {
+                    console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
+                }
+            });
 
-        await Promise.all(updatePromises);
+            await Promise.all(updatePromises);
+        } else {
+            console.log(`Order ${order.id} has no admin messages to update (likely old order)`);
+        }
 
         const userMessage = order.status === 'completed' 
             ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your purchase!'}`
@@ -663,7 +711,6 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
         throw error;
     }
 }
-
 
 // ===== REVERSAL/PAYMENT SUPPORT SYSTEM =====
 bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
