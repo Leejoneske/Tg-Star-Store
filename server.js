@@ -774,7 +774,7 @@ bot.onText(/^\/refundtx (.+) (.+)/i, async (msg, match) => {
             order.status = 'reversed';
             order.reversedAt = new Date();
             order.refundData = {
-                status: 'admin_processed',
+                status: 'refund',
                 processedAt: new Date(),
                 chargeId: txId,
                 telegramResponse: data.result
@@ -984,7 +984,7 @@ async function processRefund(orderId) {
                 order.status = 'reversed';
                 order.reversedAt = new Date();
                 order.refundData = {
-                    status: 'already_processed',
+                    status: 'refund',
                     processedAt: new Date(),
                     chargeId: order.telegram_payment_charge_id
                 };
@@ -998,7 +998,7 @@ async function processRefund(orderId) {
         order.status = 'reversed';
         order.reversedAt = new Date();
         order.refundData = {
-            status: 'processed',
+            status: 'refund',
             processedAt: new Date(),
             chargeId: order.telegram_payment_charge_id,
             telegramResponse: data.result
