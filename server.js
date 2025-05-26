@@ -726,7 +726,7 @@ bot.onText(/^\/adminrefund (.+)/i, async (msg, match) => {
             
             try {
                 await bot.sendMessage(
-                    order.telegramId,
+                    parseInt(order.telegramId),
                     `💸 Refund Processed by Admin\nOrder: ${order.id}\nTX ID: ${result.chargeId}`
                 );
             } catch (userError) {
@@ -772,19 +772,19 @@ bot.onText(/^\/refundtx (.+) (.+)/i, async (msg, match) => {
         const order = await SellOrder.findOne({ telegram_payment_charge_id: txId });
         if (order) {
             order.status = 'refunded';
-            order.refundedAt = new Date();
+            order.dateRefunded = new Date();
             order.refundData = {
-                status: 'refunded',
+                requested: true,
+                status: 'processed',
                 processedAt: new Date(),
-                chargeId: txId,
-                telegramResponse: data.result
+                chargeId: txId
             };
             await order.save();
         }
 
         try {
             await bot.sendMessage(
-                userId,
+                parseInt(userId),
                 `💸 Refund Processed by Admin\nTX ID: ${txId}`
             );
         } catch (userError) {}
@@ -862,7 +862,7 @@ bot.onText(/^\/findorder (.+)/i, async (msg, match) => {
         `Stars: ${order.stars}\n` +
         `Status: ${order.status}\n` +
         `TX ID: ${order.telegram_payment_charge_id}\n` +
-        `Created: ${order.createdAt ? order.createdAt.toISOString().split('T')[0] : 'N/A'}`;
+        `Created: ${order.dateCreated ? order.dateCreated.toISOString().split('T')[0] : 'N/A'}`;
     
     bot.sendMessage(chatId, orderInfo);
 });
@@ -923,16 +923,19 @@ bot.on('message', async (msg) => {
         });
         await requestDoc.save();
 
+        const safeUsername = requestDoc.username.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+        const safeReason = reason.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+        
         const adminMsg = `🔄 Reversal Request\n` +
             `Order: ${request.orderId}\n` +
-            `User: @${requestDoc.username}\n` +
+            `User: @${safeUsername}\n` +
             `User ID: ${userId}\n` +
             `Stars: ${order.stars}\n` +
-            `Reason: ${reason}`;
+            `Reason: ${safeReason}`;
         
         for (const adminId of adminIds) {
             try {
-                const message = await bot.sendMessage(adminId, adminMsg, {
+                const message = await bot.sendMessage(parseInt(adminId), adminMsg, {
                     reply_markup: {
                         inline_keyboard: [
                             [
@@ -940,11 +943,35 @@ bot.on('message', async (msg) => {
                                 { text: "❌ Reject", callback_data: `req_reject_${request.orderId}` }
                             ]
                         ]
-                    }
+                    },
+                    parse_mode: 'MarkdownV2'
                 });
-                requestDoc.adminMessages.push({ adminId, messageId: message.message_id });
+                requestDoc.adminMessages.push({ 
+                    adminId: adminId, 
+                    messageId: message.message_id,
+                    messageType: 'refund'
+                });
             } catch (err) {
                 console.error(`Failed to send to admin ${adminId}:`, err.message);
+                try {
+                    await bot.sendMessage(parseInt(adminId), adminMsg, {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    { text: "✅ Approve", callback_data: `req_approve_${request.orderId}` },
+                                    { text: "❌ Reject", callback_data: `req_reject_${request.orderId}` }
+                                ]
+                            ]
+                        }
+                    });
+                    requestDoc.adminMessages.push({ 
+                        adminId: adminId, 
+                        messageId: message.message_id,
+                        messageType: 'refund'
+                    });
+                } catch (fallbackErr) {
+                    console.error(`Fallback send to admin ${adminId} also failed:`, fallbackErr.message);
+                }
             }
         }
         await requestDoc.save();
@@ -982,8 +1009,9 @@ async function processRefund(orderId) {
         if (!data.ok) {
             if (data.description && data.description.includes('CHARGE_ALREADY_REFUNDED')) {
                 order.status = 'refunded';
-                order.refundedAt = new Date();
+                order.dateRefunded = new Date();
                 order.refundData = {
+                    requested: true,
                     status: 'refunded',
                     processedAt: new Date(),
                     chargeId: order.telegram_payment_charge_id
@@ -996,12 +1024,12 @@ async function processRefund(orderId) {
         }
 
         order.status = 'refunded';
-        order.refundedAt = new Date();
+        order.dateRefunded = new Date();
         order.refundData = {
+            requested: true,
             status: 'refunded',
             processedAt: new Date(),
-            chargeId: order.telegram_payment_charge_id,
-            telegramResponse: data.result
+            chargeId: order.telegram_payment_charge_id
         };
         await order.save({ session });
         await session.commitTransaction();
@@ -1043,7 +1071,7 @@ bot.on('callback_query', async (query) => {
                         ? `💸 Your refund for order ${orderId} was already processed\nTX ID: ${result.chargeId}`
                         : `💸 Refund Processed\nOrder: ${orderId}\nTX ID: ${result.chargeId}`;
                     
-                    await bot.sendMessage(request.telegramId, userMessage);
+                    await bot.sendMessage(parseInt(request.telegramId), userMessage);
                 } catch (userError) {
                     console.error('Failed to notify user:', userError.message);
                     await bot.sendMessage(query.from.id, `⚠️ Refund processed but user notification failed`);
@@ -1064,13 +1092,13 @@ bot.on('callback_query', async (query) => {
             await bot.sendMessage(query.from.id, `❌ Refund request rejected for ${orderId}`);
             
             try {
-                await bot.sendMessage(request.telegramId, `❌ Your refund request for order ${orderId} has been rejected.`);
+                await bot.sendMessage(parseInt(request.telegramId), `❌ Your refund request for order ${orderId} has been rejected.`);
             } catch (userError) {
                 console.error('Failed to notify user of rejection:', userError.message);
             }
         }
 
-        await updateAdminMessages(request, action === 'approve' ? "✅ Approved" : "❌ Rejected");
+        await updateAdminMessages(request, action === 'approve' ? "✅ REFUNDED" : "❌ REJECTED");
         await bot.answerCallbackQuery(query.id);
 
     } catch (error) {
@@ -1086,7 +1114,7 @@ async function updateAdminMessages(request, statusText) {
         try {
             await bot.editMessageReplyMarkup(
                 { inline_keyboard: [[{ text: statusText, callback_data: 'processed_done' }]] },
-                { chat_id: msg.adminId, message_id: msg.messageId }
+                { chat_id: parseInt(msg.adminId), message_id: msg.messageId }
             );
         } catch (err) {
             console.error(`Failed to update admin message for ${msg.adminId}:`, err.message);
@@ -1109,6 +1137,8 @@ setInterval(() => {
         reversalRequests.delete(chatId);
     });
 }, 60000);
+
+
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
