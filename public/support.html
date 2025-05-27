@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StarStore Support</title>
     <style>
-        /* === LOADING SCREEN (FULLSCREEN OVERLAY) === */
         body {
             margin: 0;
             padding: 0;
@@ -42,13 +41,8 @@
             font-size: 16px;
             color: #333;
         }
-
-        /* Force hide all tawk elements during loading */
         body.loading iframe,
-        body.loading .tawk-min-container,
-        body.loading .tawk-button,
-        body.loading #tawk-bubble-container,
-        body.loading .tawk-bubble {
+        body.loading .livechat-widget {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -61,19 +55,13 @@
         <div class="loading-text">Connecting to StarStore support...</div>
     </div>
 
-    <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <script>
-        // ===== 1. PREVENT VISUAL GLITCHES =====
-        // Add strong CSS to hide Tawk.to elements immediately before they load
         (function() {
             const antiFlickerStyle = document.createElement('style');
             antiFlickerStyle.innerHTML = `
-                #tawk-bubble-container,
-                .tawk-min-container, 
-                .tawk-button,
-                .tawk-bubble,
+                .livechat-widget,
                 iframe[title*="chat"] {
                     visibility: hidden !important;
                     opacity: 0 !important;
@@ -83,7 +71,6 @@
             document.head.appendChild(antiFlickerStyle);
         })();
 
-        // ===== 2. TELEGRAM USER DATA =====
         function getTelegramUser() {
             if (window.Telegram && Telegram.WebApp.initDataUnsafe?.user) {
                 return {
@@ -94,97 +81,61 @@
             return null;
         }
 
-        // ===== 3. TAWK.TO CONFIG =====
-        window.Tawk_API = window.Tawk_API || {};
-        window.Tawk_LoadStart = new Date();
-        
-        // Disable auto-display to prevent flickering
-        Tawk_API.hideWidget = true;  // Hide widget initially
-        Tawk_API.onBeforeLoad = function() {
-            // Additional settings before widget loads
-            Tawk_API.hideWidget();
-        };
-        
-        // Track if onLoad has been called to avoid race conditions
-        let tawkLoaded = false;
+        let liveChatLoaded = false;
 
-        Tawk_API.onLoad = function() {
-            tawkLoaded = true;
-            console.log('Tawk widget loaded');
-            
-            // Set visitor data from Telegram
-            const user = getTelegramUser();
-            if (user) {
-                Tawk_API.setVisitorData({
-                    name: `[TG] ${user.username} (${user.id})`,
-                    email: `tg-${user.id}@starstore.support`,
-                    telegramId: user.id
-                });
+        function setupLiveChat() {
+            if (!window.LiveChatWidget) {
+                setTimeout(setupLiveChat, 100);
+                return;
             }
 
-            // Customize chat appearance
-            Tawk_API.setAttributes({
-                'theme': 'light', 
-                'hideBubble': true
-            });
+            liveChatLoaded = true;
+            console.log('LiveChat widget loaded');
+            
+            const user = getTelegramUser();
+            if (user) {
+                window.LiveChatWidget.call('set_customer_name', `[TG] ${user.username} (${user.id})`);
+                window.LiveChatWidget.call('set_customer_email', `tg-${user.id}@starstore.support`);
+            }
 
-            // Remove the anti-flicker style now that we're controlling display
             document.querySelectorAll('style').forEach(style => {
-                if (style.innerHTML.includes('tawk-min-container')) {
+                if (style.innerHTML.includes('livechat-widget')) {
                     style.remove();
                 }
             });
 
-            // Complete the loading process immediately when Tawk is ready
             completeLoading();
-        };
+        }
 
-        // Function to finalize the loading process
         function completeLoading() {
             console.log('Showing chat widget');
             
-            // Fade out loading screen
             const loadingScreen = document.getElementById('loadingScreen');
             loadingScreen.style.opacity = '0';
             
             setTimeout(() => {
-                // Remove loading class and hide loading screen
                 document.body.classList.remove('loading');
                 loadingScreen.style.display = 'none';
                 
-                // Show and maximize chat
-                if (window.Tawk_API) {
-                    Tawk_API.showWidget();
-                    setTimeout(() => {
-                        Tawk_API.maximize();
-                        
-                        // Mobile-specific fullscreen
-                        if (window.innerWidth <= 768) {
-                            Tawk_API.setAttributes({
-                                'mobileFullScreen': true
-                            });
-                        }
-                    }, 100);
+                if (window.LiveChatWidget) {
+                    window.LiveChatWidget.call('maximize');
                 }
             }, 300);
         }
 
-        // Force complete loading after a short timeout regardless of Tawk status
         setTimeout(() => {
             console.log('Ensuring loading completes');
             completeLoading();
         }, 3000);
 
-        // ===== 4. LOAD TAWK.TO WIDGET =====
-        // Load Tawk widget immediately
-        (function() {
-            var tawkScript = document.createElement('script');
-            tawkScript.async = true;
-            tawkScript.src = 'https://embed.tawk.to/67ecff100a2d5b1907b51428/1inqs8mce';
-            tawkScript.charset = 'UTF-8';
-            tawkScript.setAttribute('crossorigin', '*');
-            document.head.appendChild(tawkScript);
-        })();
+        window.__lc = window.__lc || {};
+        window.__lc.license = 19179271;
+        window.__lc.integration_name = "manual_channels";
+        window.__lc.product_name = "livechat";
+        ;(function(n,t,c){function i(n){return e._h?e._h.apply(null,n):e._q.push(n)}var e={_q:[],_h:null,_v:"2.0",on:function(){i(["on",c.call(arguments)])},once:function(){i(["once",c.call(arguments)])},off:function(){i(["off",c.call(arguments)])},get:function(){if(!e._h)throw new Error("[LiveChatWidget] You can't use getters before load.");return i(["get",c.call(arguments)])},call:function(){i(["call",c.call(arguments)])},init:function(){var n=t.createElement("script");n.async=!0,n.type="text/javascript",n.src="https://cdn.livechatinc.com/tracking.js",t.head.appendChild(n)}};!n.__lc.asyncInit&&e.init(),n.LiveChatWidget=n.LiveChatWidget||e}(window,document,[].slice))
+
+        setTimeout(setupLiveChat, 500);
     </script>
+    <noscript><a href="https://www.livechat.com/chat-with/19179271/" rel="nofollow">Chat with us</a>, powered by <a href="https://www.livechat.com/?welcome" rel="noopener nofollow" target="_blank">LiveChat</a></noscript>
 </body>
 </html>
