@@ -285,7 +285,6 @@ app.get('/api/get-wallet-address', (req, res) => {
     }
 });
 
-// ===== BUY ORDER CODE WITH FIXED BUTTONS ====
 app.post('/api/orders/create', async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
@@ -371,7 +370,6 @@ app.post('/api/orders/create', async (req, res) => {
     }
 });
 
-// ===== COMPLETE SELL ORDER CONTROLLER =====
 app.post("/api/sell-orders", async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress } = req.body;
@@ -442,7 +440,7 @@ bot.on("successful_payment", async (msg) => {
         `Order ID: ${order.id}\n` +
         `User: @${order.username} (ID: ${order.telegramId})\n` + 
         `Stars: ${order.stars}\n` +
-        `Wallet: \`${order.walletAddress}\``;
+        `Wallet: ${order.walletAddress}`;
 
     const adminKeyboard = {
         inline_keyboard: [
@@ -458,10 +456,7 @@ bot.on("successful_payment", async (msg) => {
             const message = await bot.sendMessage(
                 adminId,
                 adminMessage,
-                { 
-                    reply_markup: adminKeyboard,
-                    parse_mode: "Markdown"
-                }
+                { reply_markup: adminKeyboard }
             );
             order.adminMessages.push({ 
                 adminId, 
@@ -476,9 +471,6 @@ bot.on("successful_payment", async (msg) => {
 });
 
 bot.on('callback_query', async (query) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    
     try {
         const data = query.data;
         const adminUsername = query.from.username || `admin_${query.from.id}`;
@@ -488,7 +480,7 @@ bot.on('callback_query', async (query) => {
         if (data.startsWith('complete_sell_')) {
             actionType = 'complete';
             orderType = 'sell';
-            order = await SellOrder.findOne({ id: data.split('_')[2] }).session(session);
+            order = await SellOrder.findOne({ id: data.split('_')[2] });
 
             if (!order) {
                 await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
@@ -511,13 +503,13 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'completed';
             order.dateCompleted = new Date();
-            await order.save({ session });
+            await order.save();
             await trackStars(order.telegramId, order.stars, 'sell');
         } 
         else if (data.startsWith('decline_sell_')) {
             actionType = 'decline';
             orderType = 'sell';
-            order = await SellOrder.findOne({ id: data.split('_')[2] }).session(session);
+            order = await SellOrder.findOne({ id: data.split('_')[2] });
 
             if (!order) {
                 await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
@@ -526,12 +518,12 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'declined';
             order.dateDeclined = new Date();
-            await order.save({ session });
+            await order.save();
         }
         else if (data.startsWith('complete_buy_')) {
             actionType = 'complete';
             orderType = 'buy';
-            order = await BuyOrder.findOne({ id: data.split('_')[2] }).session(session);
+            order = await BuyOrder.findOne({ id: data.split('_')[2] });
 
             if (!order) {
                 await bot.answerCallbackQuery(query.id, { text: "Buy order not found" });
@@ -547,7 +539,7 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'completed';
             order.dateCompleted = new Date();
-            await order.save({ session });
+            await order.save();
             await trackStars(order.telegramId, order.stars, 'buy');
             if (order.isPremium) {
                 await trackPremiumActivation(order.telegramId);
@@ -556,7 +548,7 @@ bot.on('callback_query', async (query) => {
         else if (data.startsWith('decline_buy_')) {
             actionType = 'decline';
             orderType = 'buy';
-            order = await BuyOrder.findOne({ id: data.split('_')[2] }).session(session);
+            order = await BuyOrder.findOne({ id: data.split('_')[2] });
 
             if (!order) {
                 await bot.answerCallbackQuery(query.id, { text: "Buy order not found" });
@@ -565,10 +557,9 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'declined';
             order.dateDeclined = new Date();
-            await order.save({ session });
+            await order.save();
         }
         else {
-            await session.abortTransaction();
             return await bot.answerCallbackQuery(query.id);
         }
 
@@ -578,29 +569,31 @@ bot.on('callback_query', async (query) => {
 
         const updatePromises = order.adminMessages.map(async (adminMsg) => {
             try {
-                await bot.editMessageText(
-                    `${adminMsg.originalText}\n\n${statusText}\n${processedBy}${completionNote}`,
-                    {
-                        chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId,
-                        reply_markup: {
-                            inline_keyboard: [[
-                                { 
-                                    text: statusText, 
-                                    callback_data: 'processed',
-                                    disabled: true
-                                }
-                            ]]
-                        },
-                        parse_mode: "Markdown"
+                const updatedText = `${adminMsg.originalText}\n\n${statusText}\n${processedBy}${completionNote}`;
+                
+                if (updatedText.length > 4000) {
+                    console.warn(`Message too long for admin ${adminMsg.adminId}`);
+                    return;
+                }
+                
+                await bot.editMessageText(updatedText, {
+                    chat_id: adminMsg.adminId,
+                    message_id: adminMsg.messageId,
+                    reply_markup: {
+                        inline_keyboard: [[
+                            { 
+                                text: statusText, 
+                                callback_data: `processed_${order.id}_${Date.now()}`
+                            }
+                        ]]
                     }
-                );
+                });
             } catch (err) {
-                console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
+                console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
             }
         });
 
-        await Promise.all(updatePromises);
+        await Promise.allSettled(updatePromises);
 
         const userMessage = order.status === 'completed' 
             ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your purchase!'}`
@@ -608,20 +601,16 @@ bot.on('callback_query', async (query) => {
 
         await bot.sendMessage(order.telegramId, userMessage);
 
-        await session.commitTransaction();
         await bot.answerCallbackQuery(query.id, { 
             text: `${orderType} order ${order.status}` 
         });
 
     } catch (err) {
-        await session.abortTransaction();
         console.error('Order processing error:', err);
         const errorMsg = err.response?.description || err.message || "Processing failed";
         await bot.answerCallbackQuery(query.id, { 
             text: `Error: ${errorMsg.slice(0, 50)}` 
         });
-    } finally {
-        session.endSession();
     }
 });
 
