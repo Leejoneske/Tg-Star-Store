@@ -248,8 +248,8 @@ const UserWarningSchema = new mongoose.Schema({
         unique: true
     },
     warnings: [{
-        reason: {
-            type: String,
+        level: {
+            type: Number,
             required: true
         },
         issuedBy: {
