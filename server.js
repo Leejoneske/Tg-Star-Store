@@ -1530,94 +1530,178 @@ async function trackPremiumActivation(userId) {
 
 //end of referral track 
 
-
-// Check if adminIds is already declared
-if (typeof adminIds === 'undefined') {
-    const adminIds = process.env.ADMIN_TELEGRAM_IDS ? 
-        process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim()) : 
-        [];
-}
+//ban system 
 
 bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
-
-    // Authorization check
+    
     if (!adminIds.includes(requesterId)) {
-        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nAdministrator privileges required.', {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nAdministrator privileges required to execute this command.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
         });
     }
-
-    if (!match[1]) return sendUsageExample(chatId, msg.message_id);
-
+    
+    if (!match[1]) return sendBanUsageExample(chatId, msg.message_id);
+    
     const userId = match[1];
     const reason = match[2] || 'Terms of service violation';
     const durationValue = match[3] ? parseInt(match[3]) : null;
     const durationUnit = match[4] || null;
-
-    // Check if already banned
+    
     const existing = await BannedUser.findOne({ users: userId });
     if (existing) {
-        return bot.sendMessage(chatId, `⚠️ User ${userId} is already banned.`, {
+        return bot.sendMessage(chatId, `⚠️ User ${userId} is currently banned from the system.`, {
             reply_to_message_id: msg.message_id
         });
     }
-
-    // Add to banned users array (simple schema)
+    
     await BannedUser.updateOne(
         {}, 
         { $push: { users: userId } },
         { upsert: true }
     );
-
-    // Calculate ban period text
-    let banPeriod = '';
+    
+    let banDuration = '';
     if (durationValue && durationUnit) {
-        banPeriod = durationUnit === 'y' ? `${durationValue} year(s)` :
-                   durationUnit === 'm' ? `${durationValue} month(s)` :
-                   `${durationValue} day(s)`;
+        banDuration = durationUnit === 'y' ? `${durationValue} year(s)` :
+                     durationUnit === 'm' ? `${durationValue} month(s)` :
+                     `${durationValue} day(s)`;
     }
-
-    // Authoritative ban notification
+    
     try {
-        const banMessage = `🔴 YOUR ACCOUNT HAS BEEN BANNED\n\n` +
-            `**Reason**: ${reason}\n` +
-            (banPeriod ? `**Duration**: ${banPeriod}\n\n` : '\n') +
-            `**Restrictions Applied**:\n` +
-            `• Order placement disabled\n` +
-            `• Transaction abilities revoked\n` +
-            `• Full account access suspended\n\n` +
-            `You will continue receiving StarStore updates.\n\n` +
-            `This decision was made after careful review of your account activity. ` +
-            `If you believe this was made in error, please contact our support team.`;
-
-        await bot.sendMessage(userId, banMessage, { parse_mode: 'Markdown' });
-    } catch (e) {
-        console.error('Failed to notify user:', e);
+        const userNotification = `🔴 **ACCOUNT SUSPENSION NOTICE**\n\n` +
+            `Your account has been suspended due to: ${reason}\n` +
+            (banDuration ? `**Suspension Period**: ${banDuration}\n\n` : '\n') +
+            `**Restrictions in Effect**:\n` +
+            `• Service access suspended\n` +
+            `• Transaction capabilities disabled\n` +
+            `• Account functionality restricted\n\n` +
+            `For appeals or inquiries, please contact our support team.`;
+        
+        await bot.sendMessage(userId, userNotification, { parse_mode: 'Markdown' });
+    } catch (error) {
+        console.error('User notification delivery failed:', error);
     }
-
-    // Detailed admin confirmation
-    const adminMessage = `✅ **Ban Executed**\n\n` +
-        `▸ User: ${userId}\n` +
-        `▸ Reason: ${reason}\n` +
-        (banPeriod ? `▸ Duration: ${banPeriod}\n` : '▸ Type: Permanent\n') +
-        `▸ Actioned by: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}`;
-
-    await bot.sendMessage(chatId, adminMessage, {
+    
+    const adminConfirmation = `✅ **User Suspension Applied**\n\n` +
+        `**User ID**: ${userId}\n` +
+        `**Reason**: ${reason}\n` +
+        (banDuration ? `**Duration**: ${banDuration}\n` : `**Type**: Permanent\n`) +
+        `**Administrator**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}`;
+    
+    await bot.sendMessage(chatId, adminConfirmation, {
         parse_mode: 'Markdown',
         reply_to_message_id: msg.message_id
     });
 });
 
-function sendUsageExample(chatId, replyTo) {
+bot.onText(/\/warn(?:\s+(\d+))(?:\s+(.+))?$/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const requesterId = msg.from.id.toString();
+    
+    if (!adminIds.includes(requesterId)) {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nAdministrator privileges required to execute this command.', {
+            parse_mode: 'Markdown',
+            reply_to_message_id: msg.message_id
+        });
+    }
+    
+    if (!match[1]) return sendWarnUsageExample(chatId, msg.message_id);
+    
+    const userId = match[1];
+    const reason = match[2] || 'Policy compliance concern';
+    
+    let userWarnings = await UserWarning.findOne({ userId: userId });
+    if (!userWarnings) {
+        userWarnings = new UserWarning({ userId: userId, warnings: [] });
+    }
+    
+    userWarnings.warnings.push({
+        reason: reason,
+        issuedBy: requesterId,
+        timestamp: new Date()
+    });
+    
+    await userWarnings.save();
+    
+    const warningCount = userWarnings.warnings.length;
+    
+    try {
+        const userNotification = `⚠️ **ACCOUNT WARNING**\n\n` +
+            `You have received a warning regarding: ${reason}\n\n` +
+            `**Warning Count**: ${warningCount}\n\n` +
+            `Please review our terms of service and adjust your account activity accordingly. ` +
+            `Continued violations may result in permanent account suspension.\n\n` +
+            `If you have questions about this warning, please contact our support team.`;
+        
+        await bot.sendMessage(userId, userNotification, { parse_mode: 'Markdown' });
+    } catch (error) {
+        console.error('Warning notification delivery failed:', error);
+    }
+    
+    const adminConfirmation = `⚠️ **Warning Issued**\n\n` +
+        `**User ID**: ${userId}\n` +
+        `**Reason**: ${reason}\n` +
+        `**Total Warnings**: ${warningCount}\n` +
+        `**Administrator**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}`;
+    
+    await bot.sendMessage(chatId, adminConfirmation, {
+        parse_mode: 'Markdown',
+        reply_to_message_id: msg.message_id
+    });
+});
+
+bot.onText(/\/unban (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const requesterId = msg.from.id.toString();
+    
+    if (!adminIds.includes(requesterId)) {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nAdministrator privileges required to execute this command.', {
+            parse_mode: 'Markdown',
+            reply_to_message_id: msg.message_id
+        });
+    }
+    
+    const userId = match[1];
+    const bannedUser = await BannedUser.findOne({ users: userId });
+    
+    if (!bannedUser) {
+        return bot.sendMessage(chatId, `⚠️ User ${userId} is not currently banned.`, {
+            reply_to_message_id: msg.message_id
+        });
+    }
+    
+    await BannedUser.updateOne({}, { $pull: { users: userId } });
+    
+    try {
+        const reinstatementMessage = `✅ **Account Reinstatement**\n\n` +
+            `Your account has been reinstated and full access has been restored.\n\n` +
+            `Thank you for your cooperation during the review process.`;
+        
+        await bot.sendMessage(userId, reinstatementMessage, { parse_mode: 'Markdown' });
+    } catch (error) {
+        console.error('Reinstatement notification delivery failed:', error);
+    }
+    
+    const adminConfirmation = `✅ **User Reinstatement Completed**\n\n` +
+        `**User ID**: ${userId}\n` +
+        `**Administrator**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}`;
+    
+    await bot.sendMessage(chatId, adminConfirmation, {
+        parse_mode: 'Markdown',
+        reply_to_message_id: msg.message_id
+    });
+});
+
+function sendBanUsageExample(chatId, replyTo) {
     return bot.sendMessage(chatId,
-        `📝 **Ban Command Usage**\n\n` +
+        `📋 **Ban Command Usage**\n\n` +
         `\`/ban <user_id> [reason] [--duration=<value><y|m|d>]\`\n\n` +
         `**Examples**:\n` +
-        `• \`/ban 12345678 "Fraudulent activity"\`\n` +
-        `• \`/ban 78901234 "Policy violation" --duration=30d\``,
+        `• \`/ban 12345678 "Terms of service violation"\`\n` +
+        `• \`/ban 78901234 "Unauthorized activity" --duration=30d\``,
         {
             parse_mode: 'Markdown',
             reply_to_message_id: replyTo
@@ -1625,27 +1709,19 @@ function sendUsageExample(chatId, replyTo) {
     );
 }
 
-
-
-
-bot.onText(/\/unban (.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, '❌ Unauthorized');
-
-    const userId = match[1];
-    const bannedUser = await BannedUser.findOne({ users: userId });
-
-    if (!bannedUser) {
-        bot.sendMessage(chatId, `❌ User ${userId} is not banned.`);
-    } else {
-        await BannedUser.updateOne({}, { $pull: { users: userId } });
-
-        const unbanMessage = `🎉 **Account Reinstated**\n\nWe are pleased to inform you that your account has been reinstated. Welcome back!\n\nThank you for your patience and understanding.`;
-        bot.sendMessage(userId, unbanMessage, { parse_mode: 'Markdown' });
-
-        bot.sendMessage(chatId, `✅ User ${userId} has been unbanned.`);
-    }
-});
+function sendWarnUsageExample(chatId, replyTo) {
+    return bot.sendMessage(chatId,
+        `📋 **Warning Command Usage**\n\n` +
+        `\`/warn <user_id> [reason]\`\n\n` +
+        `**Examples**:\n` +
+        `• \`/warn 12345678 "Suspicious account activity"\`\n` +
+        `• \`/warn 78901234 "Policy compliance reminder"\``,
+        {
+            parse_mode: 'Markdown',
+            reply_to_message_id: replyTo
+        }
+    );
+}
 
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
