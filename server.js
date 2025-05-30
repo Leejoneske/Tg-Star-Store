@@ -1338,7 +1338,6 @@ app.post('/api/referral-withdrawals', async (req, res) => {
     }
 });
 
-// ===== WITHDRAWAL PROCESSING =====
 bot.on('callback_query', async (query) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -1346,21 +1345,27 @@ bot.on('callback_query', async (query) => {
     try {
         const { data, from } = query;
         
-        // Admin authorization check
         if (!adminIds.includes(from.id.toString())) {
             await bot.answerCallbackQuery(query.id, { text: "⛔ Unauthorized action" });
             return;
         }
 
-        // Parse action and withdrawal ID
+        if (!data.includes('withdrawal_')) {
+            return;
+        }
+
         const action = data.startsWith('complete_withdrawal_') ? 'complete' : 'decline';
-        const withdrawalId = data.split('_')[2]; // Custom string ID
+        const withdrawalId = data.split('_')[2];
+
+        if (!withdrawalId) {
+            await bot.answerCallbackQuery(query.id, { text: "❌ Invalid withdrawal ID" });
+            return;
+        }
 
         await bot.answerCallbackQuery(query.id, { text: `⏳ Processing ${action}...` });
 
-        // Find and update withdrawal using string ID
         const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
-            { withdrawalId: withdrawalId, status: 'pending' },
+            { _id: new mongoose.Types.ObjectId(withdrawalId), status: 'pending' },
             { 
                 $set: { 
                     status: action === 'complete' ? 'completed' : 'declined',
@@ -1373,10 +1378,10 @@ bot.on('callback_query', async (query) => {
 
         if (!withdrawal) {
             await bot.answerCallbackQuery(query.id, { text: "❌ Withdrawal not found or already processed" });
+            await session.abortTransaction();
             return;
         }
 
-        // If declined, mark referrals as not withdrawn
         if (action === 'decline') {
             await Referral.updateMany(
                 { _id: { $in: withdrawal.referralIds } },
@@ -1385,33 +1390,20 @@ bot.on('callback_query', async (query) => {
             );
         }
 
-        // Notify user
         const userMessage = action === 'complete'
-            ? `✅ Withdrawal #${withdrawal.withdrawalId} Completed!\n\n` +
+            ? `✅ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Completed!\n\n` +
               `Amount: ${withdrawal.amount} USDT\n` +
               `Wallet: ${withdrawal.walletAddress}\n\n` +
               `Funds have been sent to your wallet.`
-            : `❌ Withdrawal #${withdrawal.withdrawalId} Declined\n\n` +
+            : `❌ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Declined\n\n` +
               `Amount: ${withdrawal.amount} USDT\n` +
               `Contact support for more information.`;
 
         await bot.sendMessage(withdrawal.userId, userMessage);
 
-        // Update all admin messages
         const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
         const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
         
-        const transformedKeyboard = {
-            inline_keyboard: [
-                [{
-                    text: statusText,
-                    callback_data: 'processed',
-                    disabled: true
-                }]
-            ]
-        };
-
-        // Update each admin message
         if (withdrawal.adminMessages?.length) {
             await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
                 if (!adminMsg?.adminId || !adminMsg?.messageId) return;
@@ -1424,9 +1416,7 @@ bot.on('callback_query', async (query) => {
 
                     await bot.editMessageText(updatedText, {
                         chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId,
-                        reply_markup: transformedKeyboard,
-                        parse_mode: "Markdown"
+                        message_id: adminMsg.messageId
                     });
                 } catch (err) {
                     console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
@@ -1446,6 +1436,8 @@ bot.on('callback_query', async (query) => {
         let errorMsg = "❌ Processing failed";
         if (error.message.includes("network error")) {
             errorMsg = "⚠️ Network issue - please retry";
+        } else if (error.message.includes("Cast to ObjectId failed")) {
+            errorMsg = "❌ Invalid withdrawal ID";
         }
         
         await bot.answerCallbackQuery(query.id, { text: errorMsg });
@@ -1453,6 +1445,8 @@ bot.on('callback_query', async (query) => {
         session.endSession();
     }
 });
+
+
 
 //referral tracking for referrals rewards
 async function handleReferralActivation(tracker) {
