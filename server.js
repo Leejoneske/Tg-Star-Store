@@ -241,31 +241,18 @@ const reversalSchema = new mongoose.Schema({
     processedAt: Date
 });
 
-const UserWarningSchema = new mongoose.Schema({
-    userId: {
-        type: String,
-        required: true,
-        unique: true
-    },
-    warnings: [{
-        level: {
-            type: Number,
-            required: true
-        },
-        issuedBy: {
-            type: String,
-            required: true
-        },
-        timestamp: {
-            type: Date,
-            default: Date.now
-        }
-    }]
-}, {
-    timestamps: true
+const warningSchema = new mongoose.Schema({
+    userId: { type: String, required: true },
+    type: { type: String, enum: ['warning', 'ban'], required: true },
+    reason: { type: String, required: true },
+    issuedBy: { type: String, required: true },
+    issuedAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date },
+    isActive: { type: Boolean, default: true },
+    autoRemove: { type: Boolean, default: false }
 });
 
-const UserWarning = mongoose.model('UserWarning', UserWarningSchema);
+const Warning = mongoose.model('Warning', warningSchema);
 const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
 const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
@@ -1555,7 +1542,6 @@ async function trackPremiumActivation(userId) {
 //end of referral track 
 
 //ban system 
-// Replace the existing ban command handler with this:
 bot.onText(/\/ban(?:\s+(\d+))$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
@@ -1570,12 +1556,21 @@ bot.onText(/\/ban(?:\s+(\d+))$/, async (msg, match) => {
     if (!match[1]) return;
     
     const userId = match[1];
-    const existing = await BannedUser.findOne({ users: userId });
+    const existing = await Warning.findOne({ userId: userId, type: 'ban', isActive: true });
     if (existing) {
         return bot.sendMessage(chatId, `⚠️ User ${userId} is already banned.`, {
             reply_to_message_id: msg.message_id
         });
     }
+    
+    await Warning.create({
+        userId: userId,
+        type: 'ban',
+        reason: 'Policy violation',
+        issuedBy: requesterId,
+        isActive: true,
+        autoRemove: false
+    });
     
     await BannedUser.updateOne(
         {}, 
@@ -1584,12 +1579,12 @@ bot.onText(/\/ban(?:\s+(\d+))$/, async (msg, match) => {
     );
     
     try {
-        const userSuspensionNotice = `**ACCOUNT SUSPENSION NOTICE**\n\n` +
-            `Your account has been suspended due to violation of our terms of service.\n\n` +
-            `**Account Status**: Suspended\n` +
-            `**Effective Date**: ${new Date().toLocaleDateString()}\n` +
-            `**Reason**: Violation of platform rules\n\n` +
-            `All account functionality has been temporarily disabled.`;
+        const userSuspensionNotice = `**ACCOUNT NOTICE**\n\n` +
+            `We've detected unusual account activities that violate our terms of service.\n\n` +
+            `**Account Status**: Temporarily Restricted\n` +
+            `**Effective Date**: ${new Date().toLocaleDateString()}\n\n` +
+            `During this time, you will not be able to place orders until the restriction period ends.\n\n` +
+            `If you believe this is an error, please contact our support team.`;
         
         await bot.sendMessage(userId, userSuspensionNotice, { parse_mode: 'Markdown' });
     } catch (error) {
@@ -1609,7 +1604,6 @@ bot.onText(/\/ban(?:\s+(\d+))$/, async (msg, match) => {
     });
 });
 
-// Replace the existing warn command handler with this:
 bot.onText(/\/warn(?:\s+(\d+))$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
@@ -1625,7 +1619,19 @@ bot.onText(/\/warn(?:\s+(\d+))$/, async (msg, match) => {
     
     const userId = match[1];
     
-    // Add to banned users (temporary ban)
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 2);
+    
+    await Warning.create({
+        userId: userId,
+        type: 'warning',
+        reason: 'Minor policy violation',
+        issuedBy: requesterId,
+        expiresAt: expirationDate,
+        isActive: true,
+        autoRemove: true
+    });
+    
     await BannedUser.updateOne(
         {}, 
         { $push: { users: userId } },
@@ -1633,12 +1639,12 @@ bot.onText(/\/warn(?:\s+(\d+))$/, async (msg, match) => {
     );
     
     try {
-        const userWarningNotice = `**ACCOUNT WARNING NOTICE**\n\n` +
-            `Your account has been temporarily restricted due to violation of our terms of service.\n\n` +
+        const userWarningNotice = `**ACCOUNT NOTICE**\n\n` +
+            `We've detected unusual account activities that require attention.\n\n` +
             `**Account Status**: Temporarily Restricted\n` +
-            `**Effective Date**: ${new Date().toLocaleDateString()}\n` +
-            `**Reason**: Minor rule violation\n\n` +
-            `All account functionality will be automatically restored after a manual review.`;
+            `**Effective Date**: ${new Date().toLocaleDateString()}\n\n` +
+            `During this time, you will not be able to place orders until the restriction period ends.\n\n` +
+            `If you believe this is an error, please contact our support team.`;
         
         await bot.sendMessage(userId, userWarningNotice, { parse_mode: 'Markdown' });
     } catch (error) {
@@ -1657,21 +1663,20 @@ bot.onText(/\/warn(?:\s+(\d+))$/, async (msg, match) => {
         reply_to_message_id: msg.message_id
     });
 
-    // Schedule automatic unban after 2 days
     setTimeout(async () => {
+        await Warning.updateOne(
+            { userId: userId, type: 'warning', isActive: true, autoRemove: true },
+            { isActive: false }
+        );
         await BannedUser.updateOne({}, { $pull: { users: userId } });
         try {
-            await bot.sendMessage(userId, `✅ Your account restrictions have been automatically lifted.`);
+            await bot.sendMessage(userId, `✅ Your account restrictions have been lifted. You can now resume normal activities.`);
         } catch (error) {
             console.error('Failed to notify user of auto-unban:', error);
         }
-    }, 2 * 24 * 60 * 60 * 1000); // 2 days in milliseconds
+    }, 2 * 24 * 60 * 60 * 1000);
 });
 
-// Remove the existing usage example functions since we simplified the commands
-// (delete the sendBanUsageExample and sendWarnUsageExample functions)
-
-// Keep the existing unban command but simplify it
 bot.onText(/\/unban (\d+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
@@ -1684,21 +1689,26 @@ bot.onText(/\/unban (\d+)/, async (msg, match) => {
     }
     
     const userId = match[1];
-    const bannedUser = await BannedUser.findOne({ users: userId });
+    const activeWarning = await Warning.findOne({ userId: userId, isActive: true });
     
-    if (!bannedUser) {
+    if (!activeWarning) {
         return bot.sendMessage(chatId, `⚠️ User ${userId} is not currently banned.`, {
             reply_to_message_id: msg.message_id
         });
     }
     
+    await Warning.updateOne(
+        { userId: userId, isActive: true },
+        { isActive: false }
+    );
     await BannedUser.updateOne({}, { $pull: { users: userId } });
     
     try {
-        const reinstatementNotice = `**ACCOUNT REINSTATED**\n\n` +
+        const reinstatementNotice = `**ACCOUNT RESTORED**\n\n` +
             `Your account has been restored to full functionality.\n\n` +
             `**Account Status**: Active\n` +
-            `**Reinstatement Date**: ${new Date().toLocaleDateString()}`;
+            `**Restoration Date**: ${new Date().toLocaleDateString()}\n\n` +
+            `You can now resume all normal activities including placing orders.`;
         
         await bot.sendMessage(userId, reinstatementNotice, { parse_mode: 'Markdown' });
     } catch (error) {
@@ -1716,6 +1726,67 @@ bot.onText(/\/unban (\d+)/, async (msg, match) => {
         reply_to_message_id: msg.message_id
     });
 });
+
+bot.onText(/\/warnings (\d+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const requesterId = msg.from.id.toString();
+    
+    if (!adminIds.includes(requesterId)) {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+            parse_mode: 'Markdown',
+            reply_to_message_id: msg.message_id
+        });
+    }
+    
+    const userId = match[1];
+    const warnings = await Warning.find({ userId: userId }).sort({ issuedAt: -1 }).limit(10);
+    
+    if (warnings.length === 0) {
+        return bot.sendMessage(chatId, `📋 No warnings found for user ${userId}.`, {
+            reply_to_message_id: msg.message_id
+        });
+    }
+    
+    let warningsList = `📋 **Warning History for User ${userId}**\n\n`;
+    
+    warnings.forEach((warning, index) => {
+        const status = warning.isActive ? '🔴 Active' : '✅ Resolved';
+        const expiry = warning.expiresAt ? `\n**Expires**: ${warning.expiresAt.toLocaleDateString()}` : '';
+        
+        warningsList += `**${index + 1}.** ${warning.type.toUpperCase()}\n` +
+            `**Status**: ${status}\n` +
+            `**Reason**: ${warning.reason}\n` +
+            `**Date**: ${warning.issuedAt.toLocaleDateString()}${expiry}\n\n`;
+    });
+    
+    await bot.sendMessage(chatId, warningsList, {
+        parse_mode: 'Markdown',
+        reply_to_message_id: msg.message_id
+    });
+});
+
+setInterval(async () => {
+    const expiredWarnings = await Warning.find({
+        isActive: true,
+        autoRemove: true,
+        expiresAt: { $lte: new Date() }
+    });
+    
+    for (const warning of expiredWarnings) {
+        await Warning.updateOne(
+            { _id: warning._id },
+            { isActive: false }
+        );
+        await BannedUser.updateOne({}, { $pull: { users: warning.userId } });
+        
+        try {
+            await bot.sendMessage(warning.userId, `✅ Your account restrictions have been lifted. You can now resume normal activities.`);
+        } catch (error) {
+            console.error('Failed to notify user of auto-unban:', error);
+        }
+    }
+}, 60000);
+
 
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
