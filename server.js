@@ -1657,16 +1657,15 @@ bot.onText(/\/warn(?:\s+(\d+))?$/, async (msg, match) => {
         userWarnings = new UserWarning({ userId: userId, warnings: [] });
     }
     
-    const newLevel = userWarnings.warnings.length + 1;
+    const currentLevel = userWarnings.warnings.length + 1;
+    
     userWarnings.warnings.push({
-        level: newLevel,
+        level: currentLevel,
         issuedBy: requesterId,
         timestamp: new Date()
     });
     
     await userWarnings.save();
-    
-    const currentLevel = newLevel;
     const warningLevel = currentLevel === 1 ? 'First' : 
                         currentLevel === 2 ? 'Second' : 
                         currentLevel === 3 ? 'Final' : `Level ${currentLevel}`;
@@ -1818,7 +1817,6 @@ function sendWarnUsageExample(chatId, replyTo) {
         }
     );
 }
-
 
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
