@@ -1555,13 +1555,12 @@ async function trackPremiumActivation(userId) {
 //end of referral track 
 
 //ban system 
-
-bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?$/, async (msg, match) => {
+bot.onText(/\/ban(?:\s+(\d+))(?:\s+--duration=(\d+)([ymd]))?$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
     
     if (!adminIds.includes(requesterId)) {
-        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nAdministrator privileges required to execute this command.', {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
         });
@@ -1570,13 +1569,12 @@ bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?$/, asy
     if (!match[1]) return sendBanUsageExample(chatId, msg.message_id);
     
     const userId = match[1];
-    const reason = match[2] || 'Terms of service violation';
-    const durationValue = match[3] ? parseInt(match[3]) : null;
-    const durationUnit = match[4] || null;
+    const durationValue = match[2] ? parseInt(match[2]) : null;
+    const durationUnit = match[3] || null;
     
     const existing = await BannedUser.findOne({ users: userId });
     if (existing) {
-        return bot.sendMessage(chatId, `⚠️ User ${userId} is currently banned from the system.`, {
+        return bot.sendMessage(chatId, `⚠️ User ${userId} is currently under account restrictions.`, {
             reply_to_message_id: msg.message_id
         });
     }
@@ -1587,46 +1585,64 @@ bot.onText(/\/ban(?:\s+(\d+))(?:\s+(.+?))?(?:\s+--duration=(\d+)([ymd]))?$/, asy
         { upsert: true }
     );
     
-    let banDuration = '';
+    let suspensionPeriod = 'indefinite';
     if (durationValue && durationUnit) {
-        banDuration = durationUnit === 'y' ? `${durationValue} year(s)` :
-                     durationUnit === 'm' ? `${durationValue} month(s)` :
-                     `${durationValue} day(s)`;
+        suspensionPeriod = durationUnit === 'y' ? `${durationValue} year(s)` :
+                          durationUnit === 'm' ? `${durationValue} month(s)` :
+                          `${durationValue} day(s)`;
     }
     
     try {
-        const userNotification = `🔴 **ACCOUNT SUSPENSION NOTICE**\n\n` +
-            `Your account has been suspended due to: ${reason}\n` +
-            (banDuration ? `**Suspension Period**: ${banDuration}\n\n` : '\n') +
-            `**Restrictions in Effect**:\n` +
-            `• Service access suspended\n` +
-            `• Transaction capabilities disabled\n` +
-            `• Account functionality restricted\n\n` +
-            `For appeals or inquiries, please contact our support team.`;
+        const userSuspensionNotice = `**IMPORTANT ACCOUNT NOTICE**\n\n` +
+            `Dear Valued User,\n\n` +
+            `We regret to inform you that your account has been temporarily suspended following our routine security review process. This decision was made in accordance with our Terms of Service and User Agreement to maintain the integrity and security of our platform.\n\n` +
+            `**Account Status**: Suspended\n` +
+            `**Effective Date**: ${new Date().toLocaleDateString()}\n` +
+            `**Review Period**: ${suspensionPeriod}\n` +
+            `**Reason**: Unusual account activities detected during our automated monitoring systems\n\n` +
+            `**Restrictions Currently in Effect**:\n` +
+            `• All trading and transaction capabilities have been temporarily disabled\n` +
+            `• Account access has been restricted pending further review\n` +
+            `• Withdrawal functions are currently unavailable\n` +
+            `• Order placement and modification features are suspended\n\n` +
+            `**What This Means for You**:\n` +
+            `This suspension is a precautionary measure implemented by our risk management system. Your account security and funds remain protected during this review period. You will continue to receive important updates and notifications regarding your account status.\n\n` +
+            `**Next Steps**:\n` +
+            `Our compliance team will conduct a thorough review of your account activity. No action is required from you at this time. If additional information or documentation is needed, our support team will contact you directly through verified channels.\n\n` +
+            `**Appeal Process**:\n` +
+            `If you believe this suspension was applied in error, you may submit an appeal through our official support channels. Please include your account details and any relevant documentation that may assist in the review process.\n\n` +
+            `We understand that account restrictions can be inconvenient, and we appreciate your patience as we work to resolve this matter promptly. Our team is committed to ensuring a fair and thorough review process.\n\n` +
+            `For immediate assistance or inquiries regarding this suspension, please contact our customer support team through official channels only.\n\n` +
+            `Thank you for your understanding and cooperation.\n\n` +
+            `Best regards,\n` +
+            `Risk Management Team\n` +
+            `Compliance Department`;
         
-        await bot.sendMessage(userId, userNotification, { parse_mode: 'Markdown' });
+        await bot.sendMessage(userId, userSuspensionNotice, { parse_mode: 'Markdown' });
     } catch (error) {
-        console.error('User notification delivery failed:', error);
+        console.error('Suspension notification delivery failed:', error);
     }
     
-    const adminConfirmation = `✅ **User Suspension Applied**\n\n` +
-        `**User ID**: ${userId}\n` +
-        `**Reason**: ${reason}\n` +
-        (banDuration ? `**Duration**: ${banDuration}\n` : `**Type**: Permanent\n`) +
-        `**Administrator**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}`;
+    const adminSummary = `✅ **Account Suspension Applied**\n\n` +
+        `**Target Account**: ${userId}\n` +
+        `**Suspension Type**: ${suspensionPeriod === 'indefinite' ? 'Indefinite' : 'Temporary'}\n` +
+        `**Duration**: ${suspensionPeriod}\n` +
+        `**Classification**: Unusual Activity Detection\n` +
+        `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
+        `**Timestamp**: ${new Date().toLocaleString()}`;
     
-    await bot.sendMessage(chatId, adminConfirmation, {
+    await bot.sendMessage(chatId, adminSummary, {
         parse_mode: 'Markdown',
         reply_to_message_id: msg.message_id
     });
 });
 
-bot.onText(/\/warn(?:\s+(\d+))(?:\s+(.+))?$/, async (msg, match) => {
+bot.onText(/\/warn(?:\s+(\d+))?$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
     
     if (!adminIds.includes(requesterId)) {
-        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nAdministrator privileges required to execute this command.', {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
         });
@@ -1635,7 +1651,6 @@ bot.onText(/\/warn(?:\s+(\d+))(?:\s+(.+))?$/, async (msg, match) => {
     if (!match[1]) return sendWarnUsageExample(chatId, msg.message_id);
     
     const userId = match[1];
-    const reason = match[2] || 'Policy compliance concern';
     
     let userWarnings = await UserWarning.findOne({ userId: userId });
     if (!userWarnings) {
@@ -1643,35 +1658,66 @@ bot.onText(/\/warn(?:\s+(\d+))(?:\s+(.+))?$/, async (msg, match) => {
     }
     
     userWarnings.warnings.push({
-        reason: reason,
+        level: userWarnings.warnings.length + 1,
         issuedBy: requesterId,
         timestamp: new Date()
     });
     
     await userWarnings.save();
     
-    const warningCount = userWarnings.warnings.length;
+    const currentLevel = userWarnings.warnings.length;
+    const warningLevel = currentLevel === 1 ? 'First' : 
+                        currentLevel === 2 ? 'Second' : 
+                        currentLevel === 3 ? 'Final' : `Level ${currentLevel}`;
     
     try {
-        const userNotification = `⚠️ **ACCOUNT WARNING**\n\n` +
-            `You have received a warning regarding: ${reason}\n\n` +
-            `**Warning Count**: ${warningCount}\n\n` +
-            `Please review our terms of service and adjust your account activity accordingly. ` +
-            `Continued violations may result in permanent account suspension.\n\n` +
-            `If you have questions about this warning, please contact our support team.`;
+        const complianceWarning = `**ACCOUNT COMPLIANCE NOTICE**\n\n` +
+            `Dear Valued User,\n\n` +
+            `We regret to inform you that our automated monitoring systems have detected activities on your account that require immediate attention. This notice serves as a formal compliance warning regarding your account usage patterns.\n\n` +
+            `**Warning Classification**: ${warningLevel} Warning\n` +
+            `**Detection Date**: ${new Date().toLocaleDateString()}\n` +
+            `**Alert Category**: Unusual account activities detected\n` +
+            `**Current Status**: Account remains active with enhanced monitoring\n\n` +
+            `**Detected Issues**:\n` +
+            `Our risk management algorithms have identified transaction patterns and account behaviors that deviate from standard usage guidelines. This automated detection system is designed to protect both your account security and our platform integrity.\n\n` +
+            `**Compliance Requirements**:\n` +
+            `• Please review and ensure compliance with our Terms of Service\n` +
+            `• Verify that all account activities align with our User Agreement\n` +
+            `• Maintain standard usage patterns to avoid future alerts\n` +
+            `• Ensure all transactions comply with applicable regulations\n\n` +
+            `**Important Warning**:\n` +
+            `This is ${currentLevel > 1 ? `your ${warningLevel.toLowerCase()} warning` : 'an official compliance warning'}. Multiple warnings may result in temporary or permanent account restrictions, including but not limited to:\n` +
+            `• Temporary suspension of trading capabilities\n` +
+            `• Withdrawal limitations or delays\n` +
+            `• Enhanced verification requirements\n` +
+            `• Complete account suspension pending investigation\n\n` +
+            `**Immediate Action Required**:\n` +
+            `Please review your recent account activities and ensure full compliance with our platform policies. No specific action is required unless you receive additional instructions from our compliance team.\n\n` +
+            `**Escalation Notice**:\n` +
+            `${currentLevel >= 2 ? 'This is a repeated compliance concern. Further violations may result in immediate account restrictions without additional warnings.' : 'Future policy violations may result in additional warnings or account restrictions.'}\n\n` +
+            `**Support and Assistance**:\n` +
+            `If you believe this warning was issued in error, or if you require clarification regarding our compliance policies, please contact our customer support team through official channels. Our team is available to assist you in understanding and maintaining compliance with platform requirements.\n\n` +
+            `We appreciate your immediate attention to this matter and your continued cooperation in maintaining platform security and regulatory compliance.\n\n` +
+            `Thank you for your understanding.\n\n` +
+            `Best regards,\n` +
+            `Compliance Monitoring Team\n` +
+            `Risk Management Department`;
         
-        await bot.sendMessage(userId, userNotification, { parse_mode: 'Markdown' });
+        await bot.sendMessage(userId, complianceWarning, { parse_mode: 'Markdown' });
     } catch (error) {
-        console.error('Warning notification delivery failed:', error);
+        console.error('Compliance warning delivery failed:', error);
     }
     
-    const adminConfirmation = `⚠️ **Warning Issued**\n\n` +
-        `**User ID**: ${userId}\n` +
-        `**Reason**: ${reason}\n` +
-        `**Total Warnings**: ${warningCount}\n` +
-        `**Administrator**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}`;
+    const adminReport = `⚠️ **Compliance Warning Issued**\n\n` +
+        `**Target Account**: ${userId}\n` +
+        `**Warning Level**: ${warningLevel} (${currentLevel} total)\n` +
+        `**Classification**: Automated Activity Detection\n` +
+        `**Risk Assessment**: ${currentLevel >= 3 ? 'HIGH' : currentLevel >= 2 ? 'ELEVATED' : 'STANDARD'}\n` +
+        `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
+        `**Next Action**: ${currentLevel >= 3 ? 'Consider suspension review' : 'Continue monitoring'}\n` +
+        `**Timestamp**: ${new Date().toLocaleString()}`;
     
-    await bot.sendMessage(chatId, adminConfirmation, {
+    await bot.sendMessage(chatId, adminReport, {
         parse_mode: 'Markdown',
         reply_to_message_id: msg.message_id
     });
@@ -1682,7 +1728,7 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
     const requesterId = msg.from.id.toString();
     
     if (!adminIds.includes(requesterId)) {
-        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nAdministrator privileges required to execute this command.', {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
         });
@@ -1692,7 +1738,7 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
     const bannedUser = await BannedUser.findOne({ users: userId });
     
     if (!bannedUser) {
-        return bot.sendMessage(chatId, `⚠️ User ${userId} is not currently banned.`, {
+        return bot.sendMessage(chatId, `⚠️ User ${userId} is not currently under account restrictions.`, {
             reply_to_message_id: msg.message_id
         });
     }
@@ -1700,18 +1746,42 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
     await BannedUser.updateOne({}, { $pull: { users: userId } });
     
     try {
-        const reinstatementMessage = `✅ **Account Reinstatement**\n\n` +
-            `Your account has been reinstated and full access has been restored.\n\n` +
-            `Thank you for your cooperation during the review process.`;
+        const reinstatementNotice = `**ACCOUNT REINSTATEMENT NOTICE**\n\n` +
+            `Dear Valued User,\n\n` +
+            `We are pleased to inform you that following a comprehensive review by our compliance team, your account has been fully reinstated. All previous restrictions have been lifted, and your account access has been restored to full functionality.\n\n` +
+            `**Account Status**: Active\n` +
+            `**Reinstatement Date**: ${new Date().toLocaleDateString()}\n` +
+            `**Review Outcome**: Successfully completed\n` +
+            `**Access Level**: Full platform access restored\n\n` +
+            `**Services Now Available**:\n` +
+            `• All trading and transaction capabilities have been reactivated\n` +
+            `• Withdrawal and deposit functions are fully operational\n` +
+            `• Order placement and modification features are available\n` +
+            `• All account features have been restored to normal operation\n\n` +
+            `**Moving Forward**:\n` +
+            `Your account will continue to be monitored as part of our standard security protocols. We recommend reviewing our Terms of Service and User Agreement to ensure continued compliance with platform policies.\n\n` +
+            `**Important Reminder**:\n` +
+            `To maintain good standing and avoid future restrictions, please ensure all account activities comply with our established guidelines and regulatory requirements. Our automated monitoring systems remain active to protect both your account and our platform integrity.\n\n` +
+            `**Support Availability**:\n` +
+            `Our customer support team remains available should you have any questions about your account status or our compliance policies. We are committed to providing you with the best possible service experience.\n\n` +
+            `Thank you for your patience during the review process and your continued trust in our platform.\n\n` +
+            `Welcome back!\n\n` +
+            `Best regards,\n` +
+            `Account Management Team\n` +
+            `Customer Success Department`;
         
-        await bot.sendMessage(userId, reinstatementMessage, { parse_mode: 'Markdown' });
+        await bot.sendMessage(userId, reinstatementNotice, { parse_mode: 'Markdown' });
     } catch (error) {
         console.error('Reinstatement notification delivery failed:', error);
     }
     
-    const adminConfirmation = `✅ **User Reinstatement Completed**\n\n` +
-        `**User ID**: ${userId}\n` +
-        `**Administrator**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}`;
+    const adminConfirmation = `✅ **Account Reinstatement Completed**\n\n` +
+        `**Reinstated Account**: ${userId}\n` +
+        `**Status Change**: Suspended → Active\n` +
+        `**Review Result**: Compliance Cleared\n` +
+        `**Access Level**: Full Restoration\n` +
+        `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
+        `**Completion Date**: ${new Date().toLocaleString()}`;
     
     await bot.sendMessage(chatId, adminConfirmation, {
         parse_mode: 'Markdown',
@@ -1721,11 +1791,12 @@ bot.onText(/\/unban (.+)/, async (msg, match) => {
 
 function sendBanUsageExample(chatId, replyTo) {
     return bot.sendMessage(chatId,
-        `📋 **Ban Command Usage**\n\n` +
-        `\`/ban <user_id> [reason] [--duration=<value><y|m|d>]\`\n\n` +
+        `📋 **Account Suspension Command**\n\n` +
+        `\`/ban <user_id> [--duration=<value><y|m|d>]\`\n\n` +
         `**Examples**:\n` +
-        `• \`/ban 12345678 "Terms of service violation"\`\n` +
-        `• \`/ban 78901234 "Unauthorized activity" --duration=30d\``,
+        `• \`/ban 12345678\` - Indefinite suspension\n` +
+        `• \`/ban 78901234 --duration=30d\` - 30-day suspension\n` +
+        `• \`/ban 98765432 --duration=6m\` - 6-month suspension`,
         {
             parse_mode: 'Markdown',
             reply_to_message_id: replyTo
@@ -1735,17 +1806,18 @@ function sendBanUsageExample(chatId, replyTo) {
 
 function sendWarnUsageExample(chatId, replyTo) {
     return bot.sendMessage(chatId,
-        `📋 **Warning Command Usage**\n\n` +
-        `\`/warn <user_id> [reason]\`\n\n` +
+        `📋 **Compliance Warning Command**\n\n` +
+        `\`/warn <user_id>\`\n\n` +
         `**Examples**:\n` +
-        `• \`/warn 12345678 "Suspicious account activity"\`\n` +
-        `• \`/warn 78901234 "Policy compliance reminder"\``,
+        `• \`/warn 12345678\` - Issue compliance warning\n` +
+        `• \`/warn 78901234\` - Automated activity detection alert`,
         {
             parse_mode: 'Markdown',
             reply_to_message_id: replyTo
         }
     );
 }
+
 
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
