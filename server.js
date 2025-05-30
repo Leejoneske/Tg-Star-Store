@@ -241,7 +241,31 @@ const reversalSchema = new mongoose.Schema({
     processedAt: Date
 });
 
+const UserWarningSchema = new mongoose.Schema({
+    userId: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    warnings: [{
+        reason: {
+            type: String,
+            required: true
+        },
+        issuedBy: {
+            type: String,
+            required: true
+        },
+        timestamp: {
+            type: Date,
+            default: Date.now
+        }
+    }]
+}, {
+    timestamps: true
+});
 
+const UserWarning = mongoose.model('UserWarning', UserWarningSchema);
 const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
 const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
