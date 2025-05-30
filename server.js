@@ -1657,15 +1657,16 @@ bot.onText(/\/warn(?:\s+(\d+))?$/, async (msg, match) => {
         userWarnings = new UserWarning({ userId: userId, warnings: [] });
     }
     
+    const newLevel = userWarnings.warnings.length + 1;
     userWarnings.warnings.push({
-        level: userWarnings.warnings.length + 1,
+        level: newLevel,
         issuedBy: requesterId,
         timestamp: new Date()
     });
     
     await userWarnings.save();
     
-    const currentLevel = userWarnings.warnings.length;
+    const currentLevel = newLevel;
     const warningLevel = currentLevel === 1 ? 'First' : 
                         currentLevel === 2 ? 'Second' : 
                         currentLevel === 3 ? 'Final' : `Level ${currentLevel}`;
