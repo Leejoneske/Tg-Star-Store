@@ -1038,8 +1038,14 @@ async function updateAdminMessages(request, statusText) {
     for (const msg of request.adminMessages) {
         try {
             await bot.editMessageReplyMarkup(
-                { inline_keyboard: [[{ text: statusText, callback_data: 'processed_done' }]] },
-                { chat_id: parseInt(msg.adminId), message_id: msg.messageId }
+                parseInt(msg.adminId),
+                msg.messageId,
+                null,
+                {
+                    inline_keyboard: [[
+                        { text: statusText, callback_data: 'processed_done' }
+                    ]]
+                }
             );
         } catch (err) {
             console.error(`Failed to update admin message for ${msg.adminId}:`, err.message);
