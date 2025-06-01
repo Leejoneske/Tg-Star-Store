@@ -457,7 +457,8 @@ bot.on("successful_payment", async (msg) => {
         inline_keyboard: [
             [
                 { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
-                { text: "❌ Decline", callback_data: `decline_sell_${order.id}` }
+                { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
             ]
         ]
     };
@@ -527,8 +528,22 @@ bot.on('callback_query', async (query) => {
                 return;
             }
 
-            order.status = 'declined';
+            order.status = 'failed';
             order.dateDeclined = new Date();
+            await order.save();
+        }
+        else if (data.startsWith('refund_sell_')) {
+            actionType = 'refund';
+            orderType = 'sell';
+            order = await SellOrder.findOne({ id: data.split('_')[2] });
+
+            if (!order) {
+                await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
+                return;
+            }
+
+            order.status = 'refunded';
+            order.dateRefunded = new Date();
             await order.save();
         }
         else if (data.startsWith('complete_buy_')) {
@@ -574,7 +589,9 @@ bot.on('callback_query', async (query) => {
             return await bot.answerCallbackQuery(query.id);
         }
 
-        const statusText = order.status === 'completed' ? '✅ Completed' : '❌ Declined';
+        const statusText = order.status === 'completed' ? '✅ Completed' : 
+                          order.status === 'failed' ? '❌ Failed' : 
+                          order.status === 'refunded' ? '💸 Refunded' : '❌ Declined';
         const processedBy = `Processed by: @${adminUsername}`;
         const completionNote = orderType === 'sell' && order.status === 'completed' ? '\n\nStars have been transferred to the buyer.' : '';
 
@@ -608,7 +625,11 @@ bot.on('callback_query', async (query) => {
 
         const userMessage = order.status === 'completed' 
             ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your purchase!'}`
-            : `❌ Your ${orderType} order #${order.id} has been declined.\n\nPlease contact support if you believe this was a mistake.`;
+            : order.status === 'failed'
+            ? `❌ Your sell order #${order.id} has failed.\n\nPlease contact support if you believe this was a mistake.`
+            : order.status === 'refunded'
+            ? `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your wallet for the refund.`
+            : `❌ Your buy order #${order.id} has been declined.\n\nPlease contact support if you believe this was a mistake.`;
 
         await bot.sendMessage(order.telegramId, userMessage);
 
@@ -648,8 +669,6 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
     }
 }
 
-
-// ===== REVERSAL/PAYMENT SUPPORT SYSTEM =====
 bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     const chatId = msg.chat.id;
     const userId = chatId.toString();
@@ -1137,7 +1156,6 @@ setInterval(() => {
         reversalRequests.delete(chatId);
     });
 }, 60000);
-
 
 
 // quarry database to get sell order for sell page
