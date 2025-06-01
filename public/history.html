@@ -629,9 +629,9 @@ function mapOrderStatus(status) {
         'completed': 'completed',
         'processing': 'processing',
         'pending': 'pending',
+        'failed': 'declined',
         'declined': 'declined',
-        'failed': 'failed',
-        'cancelled': 'failed'
+        'refunded': 'declined'
     };
     return statusMap[status.toLowerCase()] || 'processing';
 }
