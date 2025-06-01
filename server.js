@@ -590,7 +590,7 @@ bot.on('callback_query', async (query) => {
                           order.status === 'failed' ? '❌ Failed' : 
                           order.status === 'refunded' ? '💸 Refunded' : '❌ Declined';
         const processedBy = `Processed by: @${adminUsername}`;
-        const completionNote = orderType === 'sell' && order.status === 'completed' ? '\n\nStars have been transferred to the buyer.' : '';
+        const completionNote = orderType === 'sell' && order.status === 'completed' ? '\n\nPayments have been sent to the seller.' : '';
 
         const updatePromises = order.adminMessages.map(async (adminMsg) => {
             try {
@@ -739,15 +739,6 @@ bot.onText(/^\/adminrefund (.+)/i, async (msg, match) => {
                 : `✅ Admin refund processed for order ${order.id}\nTX ID: ${result.chargeId}`;
             
             await bot.sendMessage(chatId, statusMessage);
-            
-            try {
-                await bot.sendMessage(
-                    parseInt(order.telegramId),
-                    `💸 Refund Processed by Admin\nOrder: ${order.id}\nTX ID: ${result.chargeId}`
-                );
-            } catch (userError) {
-                await bot.sendMessage(chatId, `⚠️ Refund processed but user notification failed`);
-            }
         }
     } catch (error) {
         await bot.sendMessage(chatId, `❌ Admin refund failed for ${order.id}\nError: ${error.message}`);
@@ -797,13 +788,6 @@ bot.onText(/^\/refundtx (.+) (.+)/i, async (msg, match) => {
             };
             await order.save();
         }
-
-        try {
-            await bot.sendMessage(
-                parseInt(userId),
-                `💸 Refund Processed by Admin\nTX ID: ${txId}`
-            );
-        } catch (userError) {}
 
         await bot.sendMessage(chatId, `✅ Direct refund processed for TX: ${txId}\nUser: ${userId}`);
 
@@ -1071,41 +1055,12 @@ bot.on('callback_query', async (query) => {
         if (action === 'approve') {
             try {
                 const result = await processRefund(orderId);
-                
-                request.status = 'completed';
-                request.processedAt = new Date();
-                await request.save();
-
-                const statusMessage = result.alreadyRefunded 
-                    ? `✅ Order ${orderId} was already refunded\nCharge ID: ${result.chargeId}`
-                    : `✅ Refund processed successfully for ${orderId}\nCharge ID: ${result.chargeId}`;
-
-                await bot.sendMessage(query.from.id, statusMessage);
-                
-                try {
-                    const userMessage = result.alreadyRefunded
-                        ? `💸 Your refund for order ${orderId} was already processed\nTX ID: ${result.chargeId}`
-                        : `💸 Refund Processed\nOrder: ${orderId}\nTX ID: ${result.chargeId}`;
-                    
-                    await bot.sendMessage(parseInt(request.telegramId), userMessage);
-                } catch (userError) {
-                    console.error('Failed to notify user:', userError.message);
-                    await bot.sendMessage(query.from.id, `⚠️ Refund processed but user notification failed`);
-                }
-
+                await updateAdminMessages(request, "✅ APPROVED");
             } catch (refundError) {
-                request.status = 'declined';
-                request.errorMessage = refundError.message;
-                await request.save();
-                
                 await bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}\nError: ${refundError.message}`);
             }
         } else if (action === 'reject') {
-            request.status = 'declined';
-            request.processedAt = new Date();
-            await request.save();
-            
-            await bot.sendMessage(query.from.id, `❌ Refund request rejected for ${orderId}`);
+            await updateAdminMessages(request, "❌ REJECTED");
             
             try {
                 await bot.sendMessage(parseInt(request.telegramId), `❌ Your refund request for order ${orderId} has been rejected.`);
@@ -1114,7 +1069,6 @@ bot.on('callback_query', async (query) => {
             }
         }
 
-        await updateAdminMessages(request, action === 'approve' ? "✅ REFUNDED" : "❌ REJECTED");
         await bot.answerCallbackQuery(query.id);
 
     } catch (error) {
@@ -1153,7 +1107,6 @@ setInterval(() => {
         reversalRequests.delete(chatId);
     });
 }, 60000);
-
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
