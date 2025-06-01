@@ -919,7 +919,8 @@ bot.on('message', async (msg) => {
             username: msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`,
             stars: order.stars,
             reason: reason,
-            status: 'pending'
+            status: 'pending',
+            adminMessages: [] 
         });
         await requestDoc.save();
 
