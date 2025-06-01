@@ -953,25 +953,6 @@ bot.on('message', async (msg) => {
                 });
             } catch (err) {
                 console.error(`Failed to send to admin ${adminId}:`, err.message);
-                try {
-                    await bot.sendMessage(parseInt(adminId), adminMsg, {
-                        reply_markup: {
-                            inline_keyboard: [
-                                [
-                                    { text: "✅ Approve", callback_data: `req_approve_${request.orderId}` },
-                                    { text: "❌ Reject", callback_data: `req_reject_${request.orderId}` }
-                                ]
-                            ]
-                        }
-                    });
-                    requestDoc.adminMessages.push({ 
-                        adminId: adminId, 
-                        messageId: message.message_id,
-                        messageType: 'refund'
-                    });
-                } catch (fallbackErr) {
-                    console.error(`Fallback send to admin ${adminId} also failed:`, fallbackErr.message);
-                }
             }
         }
         await requestDoc.save();
@@ -981,11 +962,8 @@ bot.on('message', async (msg) => {
 });
 
 async function processRefund(orderId) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-        const order = await SellOrder.findOne({ id: orderId }).session(session);
+        const order = await SellOrder.findOne({ id: orderId });
         if (!order) throw new Error("Order not found");
         if (order.status !== 'processing') throw new Error("Order not in processing state");
         if (!order.telegram_payment_charge_id) throw new Error("Missing payment reference");
@@ -1008,39 +986,16 @@ async function processRefund(orderId) {
 
         if (!data.ok) {
             if (data.description && data.description.includes('CHARGE_ALREADY_REFUNDED')) {
-                order.status = 'refunded';
-                order.dateRefunded = new Date();
-                order.refundData = {
-                    requested: true,
-                    status: 'refunded',
-                    processedAt: new Date(),
-                    chargeId: order.telegram_payment_charge_id
-                };
-                await order.save({ session });
-                await session.commitTransaction();
                 return { success: true, chargeId: order.telegram_payment_charge_id, alreadyRefunded: true };
             }
             throw new Error(data.description || "Refund API call failed");
         }
 
-        order.status = 'refunded';
-        order.dateRefunded = new Date();
-        order.refundData = {
-            requested: true,
-            status: 'refunded',
-            processedAt: new Date(),
-            chargeId: order.telegram_payment_charge_id
-        };
-        await order.save({ session });
-        await session.commitTransaction();
         return { success: true, chargeId: order.telegram_payment_charge_id };
 
     } catch (error) {
-        await session.abortTransaction();
         console.error('Refund processing error:', error.message);
         throw error;
-    } finally {
-        session.endSession();
     }
 }
 
