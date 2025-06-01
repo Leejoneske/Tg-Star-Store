@@ -630,8 +630,8 @@ function mapOrderStatus(status) {
         'processing': 'processing',
         'pending': 'pending',
         'declined': 'declined',
-        'failed': 'que',
-        'cancelled': 'declined'
+        'failed': 'failed',
+        'cancelled': 'failed'
     };
     return statusMap[status.toLowerCase()] || 'processing';
 }
