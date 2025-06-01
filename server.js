@@ -51,9 +51,6 @@ app.post(WEBHOOK_PATH, (req, res) => {
   res.sendStatus(200);
 });
 
-
-
-// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
@@ -90,7 +87,7 @@ const sellOrderSchema = new mongoose.Schema({
     walletAddress: String,
     status: {
         type: String,
-        enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded'],
+        enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed'],
         default: 'pending'
     },
     telegram_payment_charge_id: {
