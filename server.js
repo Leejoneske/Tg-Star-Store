@@ -83,11 +83,6 @@ app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
 const buyOrderSchema = new mongoose.Schema({
     id: String,
     telegramId: String,
