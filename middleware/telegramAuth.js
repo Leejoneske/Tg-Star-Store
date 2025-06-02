@@ -9,7 +9,7 @@ module.exports = (botToken, botUsername) => {
                         req.headers['sec-fetch-site'] === 'none';
       
       if (!isTelegram) {
-        return res.redirect(`https://t.me/${botUsername}`);
+        return res.redirect(`https://t.me/${botUsername}?start=web_${req.path.slice(1)}`);
       }
       return next();
     }
