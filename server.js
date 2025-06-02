@@ -7,13 +7,12 @@ const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
+const CryptoJS = require('crypto-js');
 
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 
-const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
-                   process.env.RAILWAY_PUBLIC_DOMAIN || 
-                   'tg-star-store-production.up.railway.app');
+const SERVER_URL = process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || 'tg-star-store-production.up.railway.app';
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 const verifyTelegramAuth = require('./middleware/telegramAuth');
@@ -25,8 +24,7 @@ app.use(bodyParser.json());
 app.use(verifyTelegramAuth(process.env.BOT_TOKEN));
 
 app.use((req, res, next) => {
-  if (req.path.includes('/api/') || req.path.includes('.') || 
-      req.path === '/' || req.path === '/health') {
+  if (req.path.includes('/api/') || req.path.includes('.') || req.path === '/' || req.path === '/health') {
     return next();
   }
   if (req.path.endsWith('/')) {
@@ -48,30 +46,29 @@ app.use(express.static('public', {
   redirect: false,
   extensions: ['html', 'htm'],
   maxAge: '1d',
-  setHeaders: (res, path) => {
-    if (path.endsWith('.html')) {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
       res.set('Cache-Control', 'public, max-age=3600');
     }
   }
 }));
 
 bot.setWebHook(WEBHOOK_URL)
-  .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
+  .then(() => console.log(`Webhook set at ${WEBHOOK_URL}`))
   .catch(err => {
-    console.error('❌ Webhook setup failed:', err.message);
+    console.error('Webhook setup failed:', err);
     process.exit(1);
   });
 
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected successfully'))
+  .then(() => console.log('MongoDB connected'))
   .catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
+    console.error('MongoDB connection error:', err);
     process.exit(1);
   });
 
 app.post(WEBHOOK_PATH, (req, res) => {
-  if (process.env.WEBHOOK_SECRET && 
-      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+  if (process.env.WEBHOOK_SECRET && req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
     return res.sendStatus(403);
   }
   bot.processUpdate(req.body);
@@ -84,6 +81,11 @@ app.get('/health', (req, res) => {
 
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+});
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
 const buyOrderSchema = new mongoose.Schema({
