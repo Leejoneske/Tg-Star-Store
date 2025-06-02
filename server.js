@@ -19,41 +19,42 @@ const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 const verifyTelegramAuth = require('./middleware/telegramAuth');
 const reversalRequests = new Map();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(verifyTelegramAuth(process.env.BOT_TOKEN));
 
-// Trailing slash removal middleware
 app.use((req, res, next) => {
-  // Skip API routes and files with extensions
-  if (req.path.includes('/api/') || req.path.includes('.') || req.path === '/') {
+  if (req.path.includes('/api/') || req.path.includes('.') || 
+      req.path === '/' || req.path === '/health') {
     return next();
   }
-  
-  // Remove trailing slash
-  if (req.path.endsWith('/') && req.path.length > 1) {
-    const query = req.url.slice(req.path.length);
-    return res.redirect(301, req.path.slice(0, -1) + query);
+  if (req.path.endsWith('/')) {
+    return res.redirect(301, req.path.slice(0, -1) + (req.url.slice(req.path.length) || ''));
   }
-  
   next();
 });
 
-// Explicit route for blog
-app.get('/blog/:slug', (req, res, next) => {
-  // Serve the blog HTML file
-  res.sendFile(path.join(__dirname, 'public', 'blog', req.params.slug, 'index.html'));
+app.get('/blog/:post', (req, res) => {
+  const postFile = path.join(__dirname, 'public', 'blog', `${req.params.post}.html`);
+  res.sendFile(postFile, (err) => {
+    if (err) {
+      res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
+    }
+  });
 });
 
-// Static files with redirect disabled
 app.use(express.static('public', {
   redirect: false,
-  extensions: ['html'] 
+  extensions: ['html', 'htm'],
+  maxAge: '1d',
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.set('Cache-Control', 'public, max-age=3600');
+    }
+  }
 }));
 
-// Webhook setup
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
   .catch(err => {
@@ -61,7 +62,6 @@ bot.setWebHook(WEBHOOK_URL)
     process.exit(1);
   });
 
-// MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected successfully'))
   .catch(err => {
@@ -69,7 +69,6 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
-// Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
   if (process.env.WEBHOOK_SECRET && 
       req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
@@ -81,6 +80,10 @@ app.post(WEBHOOK_PATH, (req, res) => {
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
+});
+
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
 
 const buyOrderSchema = new mongoose.Schema({
