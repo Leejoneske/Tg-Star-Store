@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
+const path = require('path');
 
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
@@ -22,17 +23,35 @@ const reversalRequests = new Map();
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(express.static('public'));
 app.use(verifyTelegramAuth(process.env.BOT_TOKEN));
 
+// Trailing slash removal middleware
 app.use((req, res, next) => {
-  if (!req.path.endsWith('/') && req.path.indexOf('.') === -1) {
-    const query = req.url.slice(req.path.length);
-    res.redirect(301, req.path + '/' + query);
-  } else {
-    next();
+  // Skip API routes and files with extensions
+  if (req.path.includes('/api/') || req.path.includes('.') || req.path === '/') {
+    return next();
   }
+  
+  // Remove trailing slash
+  if (req.path.endsWith('/') && req.path.length > 1) {
+    const query = req.url.slice(req.path.length);
+    return res.redirect(301, req.path.slice(0, -1) + query);
+  }
+  
+  next();
 });
+
+// Explicit route for blog
+app.get('/blog/:slug', (req, res, next) => {
+  // Serve the blog HTML file
+  res.sendFile(path.join(__dirname, 'public', 'blog', req.params.slug, 'index.html'));
+});
+
+// Static files with redirect disabled
+app.use(express.static('public', {
+  redirect: false,
+  extensions: ['html'] 
+}));
 
 // Webhook setup
 bot.setWebHook(WEBHOOK_URL)
