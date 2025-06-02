@@ -25,6 +25,15 @@ app.use(bodyParser.json());
 app.use(express.static('public'));
 app.use(verifyTelegramAuth(process.env.BOT_TOKEN));
 
+app.use((req, res, next) => {
+  if (req.path.slice(-1) === '/' && req.path.length > 1) {
+    const query = req.url.slice(req.path.length);
+    res.redirect(301, req.path.slice(0, -1) + query);
+  } else {
+    next();
+  }
+});
+
 // Webhook setup
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
