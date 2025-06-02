@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
-const CryptoJS = require('crypto-js');
+const fs = require('fs');
 
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
@@ -15,13 +15,14 @@ const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || 'tg-star-store-production.up.railway.app';
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
-const verifyTelegramAuth = require('./middleware/telegramAuth');
-const reversalRequests = new Map();
+const BOT_USERNAME = 'TgStarStore_bot';
 
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(verifyTelegramAuth(process.env.BOT_TOKEN));
+
+const verifyTelegramAuth = require('./middleware/telegramAuth');
+app.use(verifyTelegramAuth(process.env.BOT_TOKEN, BOT_USERNAME));
 
 app.use((req, res, next) => {
   if (req.path.includes('/api/') || req.path.includes('.') || req.path === '/' || req.path === '/health') {
@@ -37,7 +38,7 @@ app.get('/blog/:post', (req, res) => {
   const postFile = path.join(__dirname, 'public', 'blog', `${req.params.post}.html`);
   res.sendFile(postFile, (err) => {
     if (err) {
-      res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
+      res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
     }
   });
 });
