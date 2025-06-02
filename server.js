@@ -3,11 +3,8 @@ const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const crypto = require('crypto');
 const cors = require('cors');
-const axios = require('axios');
-const path = require('path');
-const fs = require('fs');
+const path = require('fs');
 
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
@@ -22,14 +19,24 @@ app.use(express.json());
 app.use(bodyParser.json());
 
 const verifyTelegramAuth = require('./middleware/telegramAuth');
-app.use(verifyTelegramAuth(process.env.BOT_TOKEN, BOT_USERNAME));
+
+const publicPaths = [
+  '/blog',
+  '/blog/',
+  '/blog/index.html',
+  '/health'
+];
 
 app.use((req, res, next) => {
-  if (req.path.includes('/api/') || req.path.includes('.') || req.path === '/' || req.path === '/health') {
+  if (publicPaths.some(path => req.path.startsWith(path))) {
     return next();
   }
-  if (req.path.endsWith('/')) {
-    return res.redirect(301, req.path.slice(0, -1) + (req.url.slice(req.path.length) || ''));
+  verifyTelegramAuth(process.env.BOT_TOKEN, BOT_USERNAME)(req, res, next);
+});
+
+app.use((req, res, next) => {
+  if (req.path.endsWith('/') && req.path.length > 1) {
+    return res.redirect(301, req.path.slice(0, -1));
   }
   next();
 });
