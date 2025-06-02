@@ -16,33 +16,45 @@ const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 const BOT_USERNAME = 'TgStarStore_bot';
 
-// Middleware Setup
+// ======================
+// MIDDLEWARE SETUP
+// ======================
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
-// Enhanced Static File Serving
-app.use(express.static('public', {
-  redirect: false,
-  extensions: ['html', 'htm'],
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html')) {
-      res.set('Cache-Control', 'public, max-age=3600');
-    }
+// ======================
+// WEBHOOK HANDLER (must come before auth)
+// ======================
+app.post(WEBHOOK_PATH, (req, res) => {
+  if (process.env.WEBHOOK_SECRET && 
+      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+    return res.sendStatus(403);
   }
-}));
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
 
-// Public Routes (No Telegram Auth Required)
-const publicPaths = [
-  '/blog',
-  '/blog/',
-  '/blog/index.html',
-  '/health',
-  '/404.html'
-];
+// ======================
+// PUBLIC ROUTES (no auth)
+// ======================
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
-// Authentication Middleware
+app.get('/blog/:post', (req, res) => {
+  const postFile = path.join(__dirname, 'public', 'blog', `${req.params.post}.html`);
+  fs.access(postFile, fs.constants.F_OK, (err) => {
+    res.status(err ? 404 : 200)
+       .sendFile(err ? path.join(__dirname, 'public', '404.html') : postFile);
+  });
+});
+
+// ======================
+// AUTHENTICATION MIDDLEWARE
+// ======================
 app.use((req, res, next) => {
+  const publicPaths = ['/blog', '/health', '/404.html'];
   if (publicPaths.some(path => req.path.startsWith(path))) {
     return next();
   }
@@ -86,33 +98,23 @@ app.use((req, res, next) => {
   }
 });
 
-// Blog Route (Public Access)
-app.get('/blog/:post', (req, res) => {
-  const postFile = path.join(__dirname, 'public', 'blog', `${req.params.post}.html`);
-  fs.access(postFile, fs.constants.F_OK, (err) => {
-    res.status(err ? 404 : 200)
-       .sendFile(err ? path.join(__dirname, 'public', '404.html') : postFile);
-  });
-});
+// ======================
+// STATIC FILES (after auth)
+// ======================
+app.use(express.static('public', {
+  redirect: false,
+  extensions: ['html', 'htm'],
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.set('Cache-Control', 'public, max-age=3600');
+    }
+  },
+  fallthrough: false
+}));
 
-// Webhook Setup (Keep your existing command handlers)
-bot.setWebHook(WEBHOOK_URL)
-  .then(() => console.log(`Webhook set at ${WEBHOOK_URL}`))
-  .catch(err => {
-    console.error('Webhook setup failed:', err);
-    process.exit(1);
-  });
-
-app.post(WEBHOOK_PATH, (req, res) => {
-  if (process.env.WEBHOOK_SECRET && 
-      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
-    return res.sendStatus(403);
-  }
-  bot.processUpdate(req.body); 
-  res.sendStatus(200);
-});
-
-// MongoDB Connection
+// ======================
+// DATABASE CONNECTION
+// ======================
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => {
@@ -120,15 +122,15 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
-// Health Check
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
-// 404 Handler 
-app.use((req, res) => {
-  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
-});
+// ======================
+// WEBHOOK SETUP
+// ======================
+bot.setWebHook(WEBHOOK_URL)
+  .then(() => console.log(`Webhook set at ${WEBHOOK_URL}`))
+  .catch(err => {
+    console.error('Webhook setup failed:', err);
+    process.exit(1);
+  });
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
@@ -2915,7 +2917,10 @@ bot.onText(/\/users/, async (msg) => {
     }
 });
 
-
+//404 error page
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+});
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
