@@ -41,16 +41,6 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
-// Webhook handler
-app.post(WEBHOOK_PATH, (req, res) => {
-  if (process.env.WEBHOOK_SECRET && 
-      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
-    return res.sendStatus(403);
-  }
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
-});
-
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
