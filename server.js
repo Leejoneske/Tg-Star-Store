@@ -2840,7 +2840,24 @@ bot.onText(/\/users/, async (msg) => {
     }
 });
 
-
+//referral anticheat
+bot.onText(/\/analyze_referrals/, async (msg) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+    
+    bot.sendMessage(chatId, 'Starting referral analysis...');
+    
+    try {
+        await analyzeReferrals();
+        bot.sendMessage(chatId, '✅ Referral analysis completed. Check server logs for details.');
+    } catch (error) {
+        bot.sendMessage(chatId, '❌ Failed to analyze referrals. Check server logs.');
+        console.error(error);
+    }
+});
+//end of anticheat
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
