@@ -26,9 +26,9 @@ app.use(express.static('public'));
 app.use(verifyTelegramAuth(process.env.BOT_TOKEN));
 
 app.use((req, res, next) => {
-  if (req.path.slice(-1) === '/' && req.path.length > 1) {
+  if (!req.path.endsWith('/') && req.path.indexOf('.') === -1) {
     const query = req.url.slice(req.path.length);
-    res.redirect(301, req.path.slice(0, -1) + query);
+    res.redirect(301, req.path + '/' + query);
   } else {
     next();
   }
