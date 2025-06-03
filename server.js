@@ -107,18 +107,6 @@ app.get('/', (req, res) => {
   }
 });
 
-// 404 handler - must be last
-app.get('*', (req, res) => {
-  const notFoundPath = path.join(__dirname, 'public/404.html');
-  
-  res.status(404).sendFile(notFoundPath, (err) => {
-    if (err) {
-      res.status(404).send('<h1>404 - Page Not Found</h1>');
-    }
-  });
-});
-
-
 const buyOrderSchema = new mongoose.Schema({
     id: String,
     telegramId: String,
@@ -2902,6 +2890,17 @@ bot.onText(/\/users/, async (msg) => {
         console.error('Error fetching user count:', err);
         bot.sendMessage(chatId, '❌ Failed to fetch user count.');
     }
+});
+
+// 404 handler - must be last
+app.get('*', (req, res) => {
+  const notFoundPath = path.join(__dirname, 'public/404.html');
+  
+  res.status(404).sendFile(notFoundPath, (err) => {
+    if (err) {
+      res.status(404).send('<h1>404 - Page Not Found</h1>');
+    }
+  });
 });
 
 const PORT = process.env.PORT || 8080;
