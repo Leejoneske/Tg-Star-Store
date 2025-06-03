@@ -22,6 +22,8 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
+app.use(express.static('public'));
+
 const telegramRedirectMiddleware = (req, res, next) => {
   if (req.path.startsWith('/app/')) {
     const userAgent = req.get('User-Agent') || '';
@@ -38,9 +40,14 @@ const telegramRedirectMiddleware = (req, res, next) => {
   next();
 };
 
-app.use(telegramRedirectMiddleware);
-app.use(express.static('public'));
+app.use('/app', telegramRedirectMiddleware);
 app.use('/app', express.static(path.join(__dirname, 'public/app')));
+
+app.get('/app*', (req, res, next) => {
+  console.log('App route accessed:', req.path);
+  console.log('File exists check for:', path.join(__dirname, 'public', req.path));
+  next();
+});
 
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
@@ -68,6 +75,7 @@ app.post(WEBHOOK_PATH, (req, res) => {
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
+
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
