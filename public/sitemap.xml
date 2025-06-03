@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://starstore.site/blog/</loc>
+    <lastmod>2024-06-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- Add individual blog posts like this: -->
+  <url>
+    <loc>https://your-domain.com/blog/post1.html</loc>
+    <lastmod>2024-06-15</lastmod>
+  </url>
+</urlset>
