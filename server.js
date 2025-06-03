@@ -24,13 +24,13 @@ mongoose.connect(process.env.MONGODB_URI).catch(err => {
 app.get('/app/*', requireTelegramAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', req.path), (err) => {
     if (err) res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
-  };
+  });
 });
 
 app.get('/blog/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', req.path), (err) => {
     if (err) res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
-  };
+  });
 });
 
 app.get(['/404.html', '/robots.txt', '/sitemap.xml', '/tonconnect-manifest.json'], (req, res) => {
