@@ -41,13 +41,14 @@ app.get('/', (req, res) => {
   isTelegramUser(req) 
     ? res.sendFile(path.join(__dirname, 'public/app/index.html'))
     : res.sendFile(path.join(__dirname, 'public/index.html'), (err) => {
-        err && res.send('<h1>Welcome</h1><p>Use Telegram to access app</p>');
+        if (err) res.send('<h1>Welcome</h1><p>Use Telegram to access app</p>');
       });
 });
 
 app.get('*', (req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
 });
+
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
