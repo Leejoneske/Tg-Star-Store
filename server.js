@@ -16,122 +16,65 @@ const SERVER_URL = (process.env.RAILWAY_STATIC_URL ||
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 
-// Import Telegram auth middleware
 const { requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
-
 const reversalRequests = new Map();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
-// Webhook setup
 bot.setWebHook(WEBHOOK_URL)
-  .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
+  .then(() => console.log(`Webhook set at ${WEBHOOK_URL}`))
   .catch(err => {
-    console.error('❌ Webhook setup failed:', err.message);
+    console.error('Webhook setup failed:', err.message);
     process.exit(1);
   });
 
-// MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected successfully'))
+  .then(() => console.log('MongoDB connected'))
   .catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
+    console.error('MongoDB connection error:', err.message);
     process.exit(1);
   });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+app.get('*', (req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
 });
 
-// Telegram-only routes (miniapp pages)
-app.get('/app/index.html', requireTelegramAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/app/index.html'));
-});
-
-app.get('/app/sell.html', requireTelegramAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/app/sell.html'));
-});
-
-app.get('/app/*', requireTelegramAuth, (req, res) => {
-  const filePath = path.join(__dirname, 'public', req.path);
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
-    }
-  });
-});
-
-// Public routes (accessible by everyone - SEO friendly)
-app.get('/blog/*', (req, res) => {
-  const filePath = path.join(__dirname, 'public', req.path);
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
-    }
-  });
-});
-
-// Serve static files for common resources (CSS, JS, images)
 app.use('/css', express.static(path.join(__dirname, 'public/css')));
 app.use('/js', express.static(path.join(__dirname, 'public/js')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 
-// Special files accessible by everyone
-app.get('/404.html', (req, res) => {
-  res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+app.get('/blog/*', (req, res) => {
+  const filePath = path.join(__dirname, 'public', req.path);
+  res.sendFile(filePath);
 });
 
-app.get('/tonmainitest.json', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/tonmainitest.json'));
+app.get('/404.html', (req, res) => res.sendFile(path.join(__dirname, 'public/404.html')));
+app.get('/robots.txt', (req, res) => res.sendFile(path.join(__dirname, 'public/robots.txt')));
+app.get('/sitemap.xml', (req, res) => res.sendFile(path.join(__dirname, 'public/sitemap.xml')));
+app.get('/tonconnect-manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'public/tonmainitest.json')));
+
+app.get('/app/*', requireTelegramAuth, (req, res) => {
+  const filePath = path.join(__dirname, 'public', req.path);
+  res.sendFile(filePath);
 });
 
-app.get('/robots.txt', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/robots.txt'));
-});
-
-app.get('/sitemap.xml', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/sitemap.xml'));
-});
-
-// Root route - check if user is from Telegram or web
 app.get('/', (req, res) => {
   if (isTelegramUser(req)) {
-    // Redirect Telegram users to the main app
     res.sendFile(path.join(__dirname, 'public/app/index.html'));
   } else {
-    // Serve a public landing page for web users (if exists)
-    res.sendFile(path.join(__dirname, 'public/index.html'), (err) => {
-      if (err) {
-        // If no public index.html exists, create a simple welcome page
-        res.send(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Welcome</title>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-          </head>
-          <body>
-            <h1>Welcome to Our Platform</h1>
-            <p>To access the full application, please visit us through Telegram.</p>
-            <p><a href="/blog">Visit our blog</a> for more information.</p>
-          </body>
-          </html>
-        `);
-      }
+    res.sendFile(path.join(__dirname, 'public/index.html'), { dotfiles: 'deny' }, (err) => {
+      if (err) res.send('<h1>Welcome</h1><p>Use Telegram to access app</p>');
     });
   }
 });
 
-// Catch-all route for 404 errors
-app.get('*', (req, res) => {
-  res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
 });
+
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
@@ -2917,9 +2860,6 @@ bot.onText(/\/users/, async (msg) => {
         bot.sendMessage(chatId, '❌ Failed to fetch user count.');
     }
 });
-
-
-module.exports = app;
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
