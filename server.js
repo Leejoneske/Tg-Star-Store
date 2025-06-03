@@ -23,6 +23,7 @@ app.use(express.json());
 app.use(bodyParser.json());
 
 app.use(express.static('public'));
+app.use('/app', express.static(path.join(__dirname, 'public/app')));
 
 const telegramRedirectMiddleware = (req, res, next) => {
   if (req.path.startsWith('/app/')) {
@@ -40,14 +41,11 @@ const telegramRedirectMiddleware = (req, res, next) => {
   next();
 };
 
-app.use('/app', telegramRedirectMiddleware);
-app.use('/app', express.static(path.join(__dirname, 'public/app')));
-
 app.get('/app*', (req, res, next) => {
   console.log('App route accessed:', req.path);
-  console.log('File exists check for:', path.join(__dirname, 'public', req.path));
+  console.log('File exists check for:', path.join(__dirname, 'public/app', req.path.replace('/app', '')));
   next();
-});
+}, telegramRedirectMiddleware);
 
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
