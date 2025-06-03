@@ -11,42 +11,111 @@ const WEBHOOK_URL = `https://${process.env.RAILWAY_STATIC_URL || 'tg-star-store-
 
 app.use(express.json());
 
+// Set up webhook
 bot.setWebHook(WEBHOOK_URL).catch(err => {
   console.error('Webhook setup failed:', err);
   process.exit(1);
 });
 
-mongoose.connect(process.env.MONGODB_URI).catch(err => {
-  console.error('MongoDB connection error:', err);
-  process.exit(1);
+// MongoDB connection with proper logging
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('✅ MongoDB connected successfully');
+  })
+  .catch(err => {
+    console.error('❌ MongoDB connection error:', err);
+    // Don't exit immediately, let the app run without DB for now
+    console.log('⚠️  App running without database connection');
+  });
+
+// Handle MongoDB connection events
+mongoose.connection.on('connected', () => {
+  console.log('🔗 Mongoose connected to MongoDB');
 });
 
+mongoose.connection.on('error', (err) => {
+  console.error('🚨 Mongoose connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('📴 Mongoose disconnected');
+});
+
+// Protected app routes
 app.get('/app/*', requireTelegramAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', req.path), (err) => {
-    if (err) res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+  const filePath = path.join(__dirname, 'public', req.path);
+  
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.log(`File not found: ${filePath}`);
+      if (!res.headersSent) {
+        res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+      }
+    }
   });
 });
 
+// Public blog routes
 app.get('/blog/*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', req.path), (err) => {
-    if (err) res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+  const filePath = path.join(__dirname, 'public', req.path);
+  
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.log(`Blog file not found: ${filePath}`);
+      if (!res.headersSent) {
+        res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+      }
+    }
   });
 });
 
+// Static files
 app.get(['/404.html', '/robots.txt', '/sitemap.xml', '/tonconnect-manifest.json'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', req.path));
 });
 
-app.get('/', (req, res) => {
-  isTelegramUser(req) 
-    ? res.sendFile(path.join(__dirname, 'public/app/index.html'))
-    : res.sendFile(path.join(__dirname, 'public/index.html'), (err) => {
-        if (err) res.send('<h1>Welcome</h1><p>Use Telegram to access app</p>');
-      });
+// Telegram webhook endpoint
+app.post('/telegram-webhook', (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
 });
 
+// Root route
+app.get('/', (req, res) => {
+  if (isTelegramUser(req)) {
+    const appIndexPath = path.join(__dirname, 'public/app/index.html');
+    
+    res.sendFile(appIndexPath, (err) => {
+      if (err) {
+        console.log(`App index not found: ${appIndexPath}`);
+        if (!res.headersSent) {
+          res.status(500).send('<h1>App Error</h1><p>App files not found</p>');
+        }
+      }
+    });
+  } else {
+    const publicIndexPath = path.join(__dirname, 'public/index.html');
+    
+    res.sendFile(publicIndexPath, (err) => {
+      if (err) {
+        console.log(`Public index not found: ${publicIndexPath}`);
+        if (!res.headersSent) {
+          res.send('<h1>Welcome</h1><p>Use Telegram to access app</p>');
+        }
+      }
+    });
+  }
+});
+
+// 404 handler - must be last
 app.get('*', (req, res) => {
-  res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+  const notFoundPath = path.join(__dirname, 'public/404.html');
+  
+  res.status(404).sendFile(notFoundPath, (err) => {
+    if (err) {
+      res.status(404).send('<h1>404 - Page Not Found</h1>');
+    }
+  });
 });
 
 
