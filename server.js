@@ -24,9 +24,14 @@ app.use(bodyParser.json());
 
 const telegramRedirectMiddleware = (req, res, next) => {
   const userAgent = req.get('User-Agent') || '';
-  const isTelegramWebApp = userAgent.includes('TelegramBot') || 
+  const isTelegramWebApp = userAgent.toLowerCase().includes('telegram') || 
                           req.headers['x-telegram-web-app-init-data'] ||
-                          req.query.tgWebAppStartParam;
+                          req.query.tgWebAppStartParam ||
+                          req.headers.referer?.includes('telegram');
+  
+  console.log('User-Agent:', userAgent);
+  console.log('Is Telegram Web App:', isTelegramWebApp);
+  console.log('Headers:', req.headers);
   
   if (!isTelegramWebApp) {
     const botUsername = process.env.BOT_USERNAME || 'TgStarStore_bot';
