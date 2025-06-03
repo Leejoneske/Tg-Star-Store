@@ -1,4 +1,4 @@
-
+// middleware/telegramAuth.js
 const crypto = require('crypto');
 
 function verifyTelegramWebAppData(initData) {
