@@ -23,7 +23,7 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
-app.use(verifyTelegramAuth(process.env.BOT_TOKEN));
+
 
 // Webhook setup
 bot.setWebHook(WEBHOOK_URL)
