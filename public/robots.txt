@@ -1,7 +1,0 @@
-User-agent: *
-Allow: /blog/
-Allow: /blog/*.html
-Allow: /sitemap.xml
-Disallow: /app/
-Disallow: /telegram-webhook
-Sitemap: https://starstore.site/sitemap.xml
