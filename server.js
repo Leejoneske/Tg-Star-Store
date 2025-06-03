@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
+const path = require('path');
 
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
@@ -15,17 +16,32 @@ const SERVER_URL = (process.env.RAILWAY_STATIC_URL ||
                    'tg-star-store-production.up.railway.app');
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
-const verifyTelegramAuth = require('./middleware/telegramAuth');
 const reversalRequests = new Map();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
+
+const telegramRedirectMiddleware = (req, res, next) => {
+  if (req.path.startsWith('/app/')) {
+    const userAgent = req.get('User-Agent') || '';
+    const isTelegramWebApp = userAgent.includes('TelegramBot') || 
+                            req.headers['x-telegram-web-app-init-data'] ||
+                            req.query.tgWebAppStartParam;
+    
+    if (!isTelegramWebApp) {
+      const botUsername = process.env.BOT_USERNAME || 'TgStarStore_bot';
+      const telegramUrl = `https://t.me/${botUsername}`;
+      return res.redirect(302, telegramUrl);
+    }
+  }
+  next();
+};
+
+app.use(telegramRedirectMiddleware);
 app.use(express.static('public'));
+app.use('/app', express.static(path.join(__dirname, 'public/app')));
 
-
-// Webhook setup
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
   .catch(err => {
@@ -33,7 +49,6 @@ bot.setWebHook(WEBHOOK_URL)
     process.exit(1);
   });
 
-// MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected successfully'))
   .catch(err => {
@@ -41,7 +56,6 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
-// Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
   if (process.env.WEBHOOK_SECRET && 
       req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
@@ -92,7 +106,7 @@ const sellOrderSchema = new mongoose.Schema({
     },
     telegram_payment_charge_id: {
         type: String,
-        required: function() {
+       required: function() {
             
             return this.dateCreated > new Date('2025-05-23'); 
         },
