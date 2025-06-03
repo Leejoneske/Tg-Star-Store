@@ -2,79 +2,52 @@ require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const crypto = require('crypto');
-const cors = require('cors');
-const axios = require('axios');
 const path = require('path');
+const { requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
 
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
-const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
-                   process.env.RAILWAY_PUBLIC_DOMAIN || 
-                   'tg-star-store-production.up.railway.app');
-const WEBHOOK_PATH = '/telegram-webhook';
-const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
+const WEBHOOK_URL = `https://${process.env.RAILWAY_STATIC_URL || 'tg-star-store-production.up.railway.app'}/telegram-webhook`;
 
-const { requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
-const reversalRequests = new Map();
-
-app.use(cors());
 app.use(express.json());
-app.use(bodyParser.json());
 
-bot.setWebHook(WEBHOOK_URL)
-  .then(() => console.log(`Webhook set at ${WEBHOOK_URL}`))
-  .catch(err => {
-    console.error('Webhook setup failed:', err.message);
-    process.exit(1);
-  });
+bot.setWebHook(WEBHOOK_URL).catch(err => {
+  console.error('Webhook setup failed:', err);
+  process.exit(1);
+});
 
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => {
-    console.error('MongoDB connection error:', err.message);
-    process.exit(1);
-  });
+mongoose.connect(process.env.MONGODB_URI).catch(err => {
+  console.error('MongoDB connection error:', err);
+  process.exit(1);
+});
+
+app.get('/app/*', requireTelegramAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', req.path), (err) => {
+    if (err) res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+  };
+});
+
+app.get('/blog/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', req.path), (err) => {
+    if (err) res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+  };
+});
+
+app.get(['/404.html', '/robots.txt', '/sitemap.xml', '/tonconnect-manifest.json'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', req.path));
+});
+
+app.get('/', (req, res) => {
+  isTelegramUser(req) 
+    ? res.sendFile(path.join(__dirname, 'public/app/index.html'))
+    : res.sendFile(path.join(__dirname, 'public/index.html'), (err) => {
+        err && res.send('<h1>Welcome</h1><p>Use Telegram to access app</p>');
+      });
+});
 
 app.get('*', (req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
 });
-
-app.use('/css', express.static(path.join(__dirname, 'public/css')));
-app.use('/js', express.static(path.join(__dirname, 'public/js')));
-app.use('/images', express.static(path.join(__dirname, 'public/images')));
-app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
-
-app.get('/blog/*', (req, res) => {
-  const filePath = path.join(__dirname, 'public', req.path);
-  res.sendFile(filePath);
-});
-
-app.get('/404.html', (req, res) => res.sendFile(path.join(__dirname, 'public/404.html')));
-app.get('/robots.txt', (req, res) => res.sendFile(path.join(__dirname, 'public/robots.txt')));
-app.get('/sitemap.xml', (req, res) => res.sendFile(path.join(__dirname, 'public/sitemap.xml')));
-app.get('/tonconnect-manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'public/tonconnect-manifest.json')));
-
-app.get('/app/*', requireTelegramAuth, (req, res) => {
-  const filePath = path.join(__dirname, 'public', req.path);
-  res.sendFile(filePath);
-});
-
-app.get('/', (req, res) => {
-  if (isTelegramUser(req)) {
-    res.sendFile(path.join(__dirname, 'public/app/index.html'));
-  } else {
-    res.sendFile(path.join(__dirname, 'public/index.html'), { dotfiles: 'deny' }, (err) => {
-      if (err) res.send('<h1>Welcome</h1><p>Use Telegram to access app</p>');
-    });
-  }
-});
-
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
