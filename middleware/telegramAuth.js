@@ -1,78 +1,40 @@
+
 const crypto = require('crypto');
 
-// Verify Telegram Web App data
-function verifyTelegramWebAppData(initData, botToken) {
-  if (!initData) return false;
-  
+function verifyTelegramWebAppData(initData) {
   try {
-    const urlParams = new URLSearchParams(initData);
-    const hash = urlParams.get('hash');
-    urlParams.delete('hash');
+    const params = new URLSearchParams(initData);
+    const hash = params.get('hash');
+    params.delete('hash');
     
-    const dataCheckString = Array.from(urlParams.entries())
+    const dataCheckString = [...params.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`)
+      .map(([k, v]) => `${k}=${v}`)
       .join('\n');
     
-    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
-    const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+    const secret = crypto.createHmac('sha256', 'WebAppData')
+      .update(process.env.BOT_TOKEN).digest();
     
-    return calculatedHash === hash;
-  } catch (error) {
-    console.error('Telegram auth verification error:', error);
+    return crypto.createHmac('sha256', secret)
+      .update(dataCheckString).digest('hex') === hash;
+  } catch (e) {
     return false;
   }
 }
 
-// Check if request is from Telegram
 function isTelegramUser(req) {
-  // Check for Telegram Web App init data
-  const initData = req.headers['x-telegram-init-data'] || 
-                   req.query.tgWebAppData || 
-                   req.body.initData;
+  const initData = req.headers['x-telegram-init-data'] || req.query.tgWebAppData;
+  if (initData && verifyTelegramWebAppData(initData)) return true;
   
-  if (initData && verifyTelegramWebAppData(initData, process.env.BOT_TOKEN)) {
-    return true;
-  }
+  const ua = req.headers['user-agent'] || '';
+  if (ua.includes('Telegram')) return true;
   
-  // Check User-Agent for Telegram
-  const userAgent = req.headers['user-agent'] || '';
-  if (userAgent.includes('TelegramBot') || userAgent.includes('Telegram')) {
-    return true;
-  }
-  
-  // Check for Telegram-specific headers
-  if (req.headers['x-telegram-bot-api-secret-token']) {
-    return true;
-  }
-  
-  // Check referer for Telegram Web App
-  const referer = req.headers['referer'] || '';
-  if (referer.includes('t.me') || referer.includes('telegram')) {
-    return true;
-  }
-  
-  return false;
+  return (req.headers['x-telegram-bot-api-secret-token'] || 
+          req.headers.referer || '').includes('t.me');
 }
 
-// Middleware to restrict access to Telegram users only
 function requireTelegramAuth(req, res, next) {
-  if (isTelegramUser(req)) {
-    next();
-  } else {
-    // Redirect to error page or show access denied
-    res.status(403).sendFile('public/403.html', { root: '.' }, (err) => {
-      if (err) {
-        res.status(403).json({ 
-          error: 'Access denied. This page is only accessible through Telegram.' 
-        });
-      }
-    });
-  }
+  isTelegramUser(req) ? next() : res.status(403).json({ error: 'Telegram access required' });
 }
 
-module.exports = {
-  requireTelegramAuth,
-  isTelegramUser,
-  verifyTelegramWebAppData
-};
+module.exports = { requireTelegramAuth, isTelegramUser };
