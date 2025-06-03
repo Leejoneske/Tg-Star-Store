@@ -54,7 +54,7 @@ app.get('/blog/*', (req, res) => {
 app.get('/404.html', (req, res) => res.sendFile(path.join(__dirname, 'public/404.html')));
 app.get('/robots.txt', (req, res) => res.sendFile(path.join(__dirname, 'public/robots.txt')));
 app.get('/sitemap.xml', (req, res) => res.sendFile(path.join(__dirname, 'public/sitemap.xml')));
-app.get('/tonconnect-manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'public/tonmainitest.json')));
+app.get('/tonconnect-manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'public/tonconnect-manifest.json')));
 
 app.get('/app/*', requireTelegramAuth, (req, res) => {
   const filePath = path.join(__dirname, 'public', req.path);
