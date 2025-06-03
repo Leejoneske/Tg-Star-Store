@@ -22,30 +22,39 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
-app.use(express.static('public'));
-app.use('/app', express.static(path.join(__dirname, 'public/app')));
-
 const telegramRedirectMiddleware = (req, res, next) => {
-  if (req.path.startsWith('/app/')) {
-    const userAgent = req.get('User-Agent') || '';
-    const isTelegramWebApp = userAgent.includes('TelegramBot') || 
-                            req.headers['x-telegram-web-app-init-data'] ||
-                            req.query.tgWebAppStartParam;
-    
-    if (!isTelegramWebApp) {
-      const botUsername = process.env.BOT_USERNAME || 'TgStarStore_bot';
-      const telegramUrl = `https://t.me/${botUsername}`;
-      return res.redirect(302, telegramUrl);
-    }
+  const userAgent = req.get('User-Agent') || '';
+  const isTelegramWebApp = userAgent.includes('TelegramBot') || 
+                          req.headers['x-telegram-web-app-init-data'] ||
+                          req.query.tgWebAppStartParam;
+  
+  if (!isTelegramWebApp) {
+    const botUsername = process.env.BOT_USERNAME || 'TgStarStore_bot';
+    const telegramUrl = `https://t.me/${botUsername}`;
+    return res.redirect(302, telegramUrl);
   }
   next();
 };
 
-app.get('/app*', (req, res, next) => {
-  console.log('App route accessed:', req.path);
-  console.log('File exists check for:', path.join(__dirname, 'public/app', req.path.replace('/app', '')));
-  next();
-}, telegramRedirectMiddleware);
+app.use(express.static('public'));
+
+app.get('/', telegramRedirectMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/app/index.html'));
+});
+
+app.get('/app', telegramRedirectMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/app/index.html'));
+});
+
+app.get('/app/', telegramRedirectMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/app/index.html'));
+});
+
+app.use('/app', express.static(path.join(__dirname, 'public/app')));
+
+app.use('*', (req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+});
 
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
@@ -73,7 +82,6 @@ app.post(WEBHOOK_PATH, (req, res) => {
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
-
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
