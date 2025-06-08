@@ -79,25 +79,7 @@
             background: #f3f4f6;
             transform: translateX(5px);
         }
-        .language-selector {
-            display: flex;
-            gap: 8px;
-        }
-        .language-btn {
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .language-btn.active {
-            background: #4f46e5;
-            color: white;
-        }
-        .language-btn:not(.active) {
-            background: #e5e7eb;
-            color: #4b5563;
-        }
+
         .copy-button {
             transition: all 0.2s ease;
         }
@@ -275,11 +257,8 @@
                 </svg>
             </button>
             <div class="logo-header">StarStore</div>
-            <div class="language-selector">
-                <div class="language-btn" data-language="en">EN</div>
-                <div class="language-btn" data-language="ru">RU</div>
-            </div>
-        </div>
+            
+          </div>
 
         <div class="p-6">
             <div class="text-center mb-6">
@@ -503,10 +482,16 @@ const state = {
 };
 
 function detectLanguage() {
-    const storedLang = localStorage.getItem('appLanguage');
-    if (storedLang) return storedLang;
-    const userLang = navigator.language || navigator.userLanguage;
-    return userLang.startsWith('ru') ? 'ru' : 'en';
+    // First try to get language from Telegram WebApp
+    if (window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code) {
+        const tgLang = window.Telegram.WebApp.initDataUnsafe.user.language_code;
+        if (tgLang.startsWith('ru')) return 'ru';
+        return 'en';
+    }
+    
+    // Fallback to browser language
+    const browserLang = navigator.language || navigator.userLanguage;
+    return browserLang.startsWith('ru') ? 'ru' : 'en';
 }
 
 function init() {
@@ -514,10 +499,9 @@ function init() {
     loadReferralData();
     loadWithdrawalHistory();
     setupTelegramSharing();
-    applyTranslations();
-    document.querySelector(`.language-btn[data-language="${state.language}"]`).classList.add('active');
+    applyTranslations(); 
 }
-
+ 
 async function loadReferralData() {
     try {
         const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`);
@@ -679,12 +663,6 @@ function setupEventListeners() {
         });
     });
     
-    document.querySelectorAll('.language-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const language = btn.getAttribute('data-language');
-            changeLanguage(language);
-        });
-    });
 }
 
 function toggleMenu() {
