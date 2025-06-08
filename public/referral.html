@@ -486,8 +486,8 @@ const state = {
 // Listen for language changes from index page
 window.addEventListener('storage', function(e) {
   if (e.key === 'appLanguage') {
-    currentLanguage = e.newValue || 'en';
-    updateLanguageTexts();
+    state.language = e.newValue || 'en';
+    applyTranslations();
   }
 });
 
