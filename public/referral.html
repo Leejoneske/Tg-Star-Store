@@ -470,7 +470,7 @@ if (tgWebApp?.initData) {
 const state = {
     userId,
     username: tgUser?.username || 'User',
-    language: detectLanguage(),
+    language: localStorage.getItem('appLanguage') || 'en',
     referralCode: null,
     referralLink: null,
     stats: {
