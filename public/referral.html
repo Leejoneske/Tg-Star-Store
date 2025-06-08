@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -654,11 +654,11 @@ function setupEventListeners() {
     document.getElementById('shareTg').addEventListener('click', shareViaTelegram);
     
     document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', () => {
-            const tabName = button.getAttribute('data-tab');
-            switchTab(tabName);
-        });
+    button.addEventListener('click', () => {
+        const tabName = button.getAttribute('data-tab');
+        switchTab(tabName);
     });
+});
     
 }
 
