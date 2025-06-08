@@ -454,6 +454,7 @@ const tgWebApp = window.Telegram?.WebApp;
 const tgUser = tgWebApp?.initDataUnsafe?.user;
 const BASE_API_URL = window.location.origin + '/api';
 
+let currentLanguage = localStorage.getItem('appLanguage') || 'en';
 let userId = 'default_user_id';
 if (tgUser?.id) userId = tgUser.id.toString();
 
