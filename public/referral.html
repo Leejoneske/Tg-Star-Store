@@ -482,18 +482,13 @@ const state = {
     withdrawals: []
 };
 
-function detectLanguage() {
-    // First try to get language from Telegram WebApp
-    if (window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code) {
-        const tgLang = window.Telegram.WebApp.initDataUnsafe.user.language_code;
-        if (tgLang.startsWith('ru')) return 'ru';
-        return 'en';
-    }
-    
-    // Fallback to browser language
-    const browserLang = navigator.language || navigator.userLanguage;
-    return browserLang.startsWith('ru') ? 'ru' : 'en';
-}
+// Listen for language changes from index page
+window.addEventListener('storage', function(e) {
+  if (e.key === 'appLanguage') {
+    currentLanguage = e.newValue || 'en';
+    updateLanguageTexts();
+  }
+});
 
 function init() {
     setupEventListeners();
