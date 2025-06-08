@@ -33,8 +33,12 @@ function isTelegramUser(req) {
           req.headers.referer || '').includes('t.me');
 }
 
-function requireTelegramAuth(req, res, next) {
-  isTelegramUser(req) ? next() : res.status(403).json({ error: 'Telegram access required' });
+function telegramRequired(req, res, next) {
+  if (isTelegram(req)) {
+    next();
+  } else {
+    res.sendFile(path.join(__dirname, '404.html')); 
+  }
 }
 
 module.exports = { requireTelegramAuth, isTelegramUser };
