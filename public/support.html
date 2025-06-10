@@ -42,7 +42,7 @@
             color: #333;
         }
         body.loading iframe,
-        body.loading .livechat-widget {
+        body.loading .tidio-chat {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -61,7 +61,7 @@
         (function() {
             const antiFlickerStyle = document.createElement('style');
             antiFlickerStyle.innerHTML = `
-                .livechat-widget,
+                .tidio-chat,
                 iframe[title*="chat"] {
                     visibility: hidden !important;
                     opacity: 0 !important;
@@ -81,25 +81,30 @@
             return null;
         }
 
-        let liveChatLoaded = false;
+        let tidioLoaded = false;
+        let tidioCheckInterval;
 
-        function setupLiveChat() {
-            if (!window.LiveChatWidget) {
-                setTimeout(setupLiveChat, 100);
+        function setupTidio() {
+            if (!window.tidioChatApi) {
+                if (!tidioCheckInterval) {
+                    tidioCheckInterval = setInterval(setupTidio, 100);
+                }
                 return;
             }
 
-            liveChatLoaded = true;
-            console.log('LiveChat widget loaded');
+            clearInterval(tidioCheckInterval);
+            tidioLoaded = true;
             
             const user = getTelegramUser();
             if (user) {
-                window.LiveChatWidget.call('set_customer_name', `[TG] ${user.username} (${user.id})`);
+                window.tidioChatApi.setVisitorData({
+                    name: `[TG] ${user.username} (${user.id})`
+                });
             }
 
-            window.LiveChatWidget.once('ready', function() {
+            window.tidioChatApi.on('ready', function() {
                 document.querySelectorAll('style').forEach(style => {
-                    if (style.innerHTML.includes('livechat-widget')) {
+                    if (style.innerHTML.includes('tidio-chat')) {
                         style.remove();
                     }
                 });
@@ -108,8 +113,6 @@
         }
 
         function completeLoading() {
-            console.log('Showing chat widget');
-            
             const loadingScreen = document.getElementById('loadingScreen');
             loadingScreen.style.opacity = '0';
             
@@ -117,27 +120,24 @@
                 document.body.classList.remove('loading');
                 loadingScreen.style.display = 'none';
                 
-                if (window.LiveChatWidget) {
-                    window.LiveChatWidget.call('maximize');
+                if (window.tidioChatApi) {
+                    window.tidioChatApi.show();
+                    window.tidioChatApi.open();
                 }
             }, 300);
         }
 
         setTimeout(() => {
-            if (!liveChatLoaded) {
-                console.log('Ensuring loading completes');
+            if (!tidioLoaded) {
                 completeLoading();
             }
         }, 5000);
 
-        window.__lc = window.__lc || {};
-        window.__lc.license = 19179271;
-        window.__lc.integration_name = "manual_channels";
-        window.__lc.product_name = "livechat";
-        ;(function(n,t,c){function i(n){return e._h?e._h.apply(null,n):e._q.push(n)}var e={_q:[],_h:null,_v:"2.0",on:function(){i(["on",c.call(arguments)])},once:function(){i(["once",c.call(arguments)])},off:function(){i(["off",c.call(arguments)])},get:function(){if(!e._h)throw new Error("[LiveChatWidget] You can't use getters before load.");return i(["get",c.call(arguments)])},call:function(){i(["call",c.call(arguments)])},init:function(){var n=t.createElement("script");n.async=!0,n.type="text/javascript",n.src="https://cdn.livechatinc.com/tracking.js",t.head.appendChild(n)}};!n.__lc.asyncInit&&e.init(),n.LiveChatWidget=n.LiveChatWidget||e}(window,document,[].slice))
-
-        setTimeout(setupLiveChat, 100);
+        document.addEventListener('DOMContentLoaded', function() {
+            setupTidio();
+        });
     </script>
-    <noscript><a href="https://www.livechat.com/chat-with/19179271/" rel="nofollow">Chat with us</a>, powered by <a href="https://www.livechat.com/?welcome" rel="noopener nofollow" target="_blank">LiveChat</a></noscript>
+
+    <script src="//code.tidio.co/2eplfarnhl3xdyrvsgtdzukrgiwlxq4c.js" async></script>
 </body>
 </html>
