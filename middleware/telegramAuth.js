@@ -1,5 +1,6 @@
 // middleware/telegramAuth.js
 const crypto = require('crypto');
+const path = require('path');
 
 function verifyTelegramWebAppData(initData) {
   try {
@@ -22,6 +23,10 @@ function verifyTelegramWebAppData(initData) {
   }
 }
 
+function verifyTelegramAuth(initData) {
+  return verifyTelegramWebAppData(initData);
+}
+
 function isTelegramUser(req) {
   const initData = req.headers['x-telegram-init-data'] || req.query.tgWebAppData;
   if (initData && verifyTelegramWebAppData(initData)) return true;
@@ -33,12 +38,20 @@ function isTelegramUser(req) {
           req.headers.referer || '').includes('t.me');
 }
 
-function telegramRequired(req, res, next) {
-  if (isTelegram(req)) {
+function requireTelegramAuth(req, res, next) {
+  if (isTelegramUser(req)) {
     next();
   } else {
-    res.sendFile(path.join(__dirname, '404.html')); 
+    res.status(403).json({ 
+      error: 'Access denied', 
+      message: 'This application can only be accessed through Telegram' 
+    });
   }
 }
 
-module.exports = { requireTelegramAuth, isTelegramUser };
+module.exports = { 
+  verifyTelegramAuth, 
+  verifyTelegramWebAppData,
+  requireTelegramAuth, 
+  isTelegramUser 
+};
