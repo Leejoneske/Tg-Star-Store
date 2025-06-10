@@ -17,6 +17,7 @@ const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 const verifyTelegramAuth = require('./middleware/telegramAuth');
 const reversalRequests = new Map();
+const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
 
 // Middleware
 app.use(cors());
