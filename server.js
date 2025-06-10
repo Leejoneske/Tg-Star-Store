@@ -6,25 +6,24 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
-
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
-
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
                    'tg-star-store-production.up.railway.app');
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
-const verifyTelegramAuth = require('./middleware/telegramAuth');
-const reversalRequests = new Map();
+
+// Import Telegram auth middleware (single import only)
 const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
+
+const reversalRequests = new Map();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
-
 
 // Webhook setup
 bot.setWebHook(WEBHOOK_URL)
