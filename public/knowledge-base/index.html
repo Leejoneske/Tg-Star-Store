@@ -1,0 +1,232 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Base - StarStore</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        .app-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(90deg, #1e40af, #3b82f6);
+            color: white;
+        }
+        .section-title {
+            color: #1e40af;
+            border-bottom: 2px solid #3b82f6;
+        }
+        .feature-card {
+            border-left: 4px solid #3b82f6;
+        }
+        .package-card {
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        .package-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1);
+        }
+        .highlight {
+            background-color: #f1f5f9;
+            border-left: 4px solid #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header p-6 text-center">
+            <h1 class="text-3xl font-bold">StarStore Knowledge Base</h1>
+            <p class="mt-2 opacity-90">Your comprehensive guide to buying and selling Telegram Stars</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="p-6">
+            <!-- Introduction -->
+            <section class="mb-12">
+                <h2 class="text-2xl font-bold section-title pb-2 mb-4">About StarStore</h2>
+                <p class="mb-4">StarStore is a Telegram MiniApp launched on December 4, 2024, by Highlands Forum Developers. Our platform provides a secure and seamless marketplace for buying and selling Telegram Stars with instant conversion to USDT.</p>
+                <div class="grid md:grid-cols-3 gap-4 mt-6">
+                    <div class="feature-card bg-white p-4 rounded shadow-sm">
+                        <h3 class="font-bold mb-2">Instant Transactions</h3>
+                        <p class="text-sm text-gray-600">Buy Telegram Stars instantly with competitive pricing starting from just 15 Stars.</p>
+                    </div>
+                    <div class="feature-card bg-white p-4 rounded shadow-sm">
+                        <h3 class="font-bold mb-2">Secure Trading</h3>
+                        <p class="text-sm text-gray-600">Robust security measures to protect all transactions and user data.</p>
+                    </div>
+                    <div class="feature-card bg-white p-4 rounded shadow-sm">
+                        <h3 class="font-bold mb-2">Flexible Options</h3>
+                        <p class="text-sm text-gray-600">Multiple payment options including USDT (TON Network) and TRON20.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Buy Section -->
+            <section class="mb-12">
+                <h2 class="text-2xl font-bold section-title pb-2 mb-4">Buying Telegram Stars</h2>
+                <p class="mb-4">StarStore offers the most competitive prices for Telegram Stars with instant delivery upon successful payment.</p>
+                
+                <h3 class="text-xl font-semibold mt-6 mb-3">Available Packages</h3>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="package-card bg-white p-4 rounded">
+                        <h4 class="font-bold text-blue-800">Basic Package</h4>
+                        <ul class="mt-2 text-sm space-y-1">
+                            <li>• 15-99 Stars</li>
+                            <li>• Instant delivery</li>
+                            <li>• Best market price</li>
+                        </ul>
+                    </div>
+                    <div class="package-card bg-white p-4 rounded">
+                        <h4 class="font-bold text-blue-800">Standard Package</h4>
+                        <ul class="mt-2 text-sm space-y-1">
+                            <li>• 100-999 Stars</li>
+                            <li>• Instant delivery</li>
+                            <li>• Volume discount</li>
+                        </ul>
+                    </div>
+                    <div class="package-card bg-white p-4 rounded">
+                        <h4 class="font-bold text-blue-800">Premium Package</h4>
+                        <ul class="mt-2 text-sm space-y-1">
+                            <li>• 1,000-9,999 Stars</li>
+                            <li>• Instant delivery</li>
+                            <li>• Significant discount</li>
+                        </ul>
+                    </div>
+                    <div class="package-card bg-white p-4 rounded">
+                        <h4 class="font-bold text-blue-800">Wholesale Package</h4>
+                        <ul class="mt-2 text-sm space-y-1">
+                            <li>• 10,000+ Stars</li>
+                            <li>• Instant delivery</li>
+                            <li>• Best wholesale rates</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="highlight p-4 mt-6 rounded">
+                    <h4 class="font-bold mb-2">Premium Telegram Subscription</h4>
+                    <p>StarStore also offers Telegram Premium subscriptions with instant activation. Purchase through our Buy page for seamless service.</p>
+                </div>
+            </section>
+
+            <!-- Sell Section -->
+            <section class="mb-12">
+                <h2 class="text-2xl font-bold section-title pb-2 mb-4">Selling Telegram Stars</h2>
+                <p class="mb-4">Convert your Telegram Stars to USDT with StarStore's secure selling platform.</p>
+                
+                <div class="grid md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3">Selling Process</h3>
+                        <ol class="space-y-3">
+                            <li>1. Navigate to the Sell page in StarStore</li>
+                            <li>2. Enter the amount of Stars to sell (50-80,000 per transaction)</li>
+                            <li>3. Provide your USDT (TON Network) wallet address</li>
+                            <li>4. Confirm the transaction</li>
+                            <li>5. Stars will be held for 21 days for security verification</li>
+                            <li>6. USDT payment sent after holding period</li>
+                        </ol>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3">Important Notes</h3>
+                        <ul class="space-y-3">
+                            <li>• Minimum sell amount: 50 Stars</li>
+                            <li>• Maximum per transaction: 80,000 Stars</li>
+                            <li>• 21-day holding period for fraud prevention</li>
+                            <li>• Payments made in USDT (TON Network or TRON20)</li>
+                            <li>• Transaction history available in your History page</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="highlight p-4 mt-6 rounded">
+                    <h4 class="font-bold mb-2">Security Measures</h4>
+                    <p>The 21-day holding period is mandatory to prevent refund fraud and protect both buyers and sellers. This period allows us to verify transactions and prevent losses from chargebacks.</p>
+                </div>
+            </section>
+
+            <!-- Referral Program -->
+            <section class="mb-12">
+                <h2 class="text-2xl font-bold section-title pb-2 mb-4">Referral Program</h2>
+                <p class="mb-4">Earn 0.5 USDT for every active user you refer to StarStore.</p>
+                
+                <h3 class="text-xl font-semibold mt-6 mb-3">How It Works</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold mb-2">Active User Definition</h4>
+                        <p>A referred user becomes active when they:</p>
+                        <ul class="mt-2 space-y-2">
+                            <li>• Purchase at least 100 Stars (can be cumulative)</li>
+                            <li>• Sell at least 100 Stars (counted after 21-day period)</li>
+                            <li>• Buy Telegram Premium (counted immediately)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-2">Withdrawing Earnings</h4>
+                        <ul class="space-y-2">
+                            <li>• Pending balance moves to available after activation</li>
+                            <li>• Minimum withdrawal: 0.5 USDT</li>
+                            <li>• Withdraw to USDT (TON Network or TRON20)</li>
+                            <li>• Track referrals in History or Referral page</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Refund Policy -->
+            <section class="mb-12">
+                <h2 class="text-2xl font-bold section-title pb-2 mb-4">Refund Policy</h2>
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Refund Conditions</h3>
+                        <p>Refunds are only granted under specific circumstances:</p>
+                        <ul class="mt-2 space-y-2">
+                            <li>• Service charges higher amounts than expected</li>
+                            <li>• Internal server errors affecting transactions</li>
+                            <li>• Technical issues on StarStore's platform</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Non-Refundable Cases</h3>
+                        <ul class="space-y-2">
+                            <li>• Issues with Telegram's native API</li>
+                            <li>• Unrelated external technical problems</li>
+                            <li>• Change of mind after transaction</li>
+                        </ul>
+                    </div>
+                    <div class="highlight p-4 rounded">
+                        <h4 class="font-bold mb-2">Requesting a Refund</h4>
+                        <p>To request a refund, type <span class="font-mono bg-gray-100 px-2 py-1 rounded">/paysupport</span> in the StarStore bot and follow the instructions. Note: Users may only request one refund per month.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- User Regulations -->
+            <section>
+                <h2 class="text-2xl font-bold section-title pb-2 mb-4">User Regulations</h2>
+                <div class="space-y-4">
+                    <p>StarStore reserves the right to ban users who violate our terms of service or engage in fraudulent activities. Banned users will lose access to all StarStore services.</p>
+                    <p>For complete terms and conditions, please visit our <a href="policy.html" class="text-blue-600 hover:underline">Policy page</a>.</p>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer class="mt-12 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
+                <p>© 2024 StarStore by Highlands Forum Developers. All rights reserved.</p>
+                <p class="mt-2">For additional support, contact us through the StarStore Telegram bot.</p>
+            </footer>
+        </div>
+    </div>
+</body>
+</html>
