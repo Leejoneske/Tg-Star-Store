@@ -42,6 +42,16 @@
             background-color: #f1f5f9;
             border-left: 4px solid #3b82f6;
         }
+        .warning-box {
+            background-color: #fff8f1;
+            border-left: 4px solid #f59e0b;
+        }
+        .code {
+            font-family: monospace;
+            background-color: #f1f5f9;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -57,20 +67,23 @@
             <!-- Introduction -->
             <section class="mb-12">
                 <h2 class="text-2xl font-bold section-title pb-2 mb-4">About StarStore</h2>
-                <p class="mb-4">StarStore is a Telegram MiniApp launched on December 4, 2024, by Highlands Forum Developers. Our platform provides a secure and seamless marketplace for buying and selling Telegram Stars with instant conversion to USDT.</p>
+                <p class="mb-4">StarStore is a Telegram MiniApp launched on December 4, 2024, providing a secure marketplace for buying and selling Telegram Stars with instant conversion to USDT.</p>
                 <div class="grid md:grid-cols-3 gap-4 mt-6">
                     <div class="feature-card bg-white p-4 rounded shadow-sm">
-                        <h3 class="font-bold mb-2">Instant Transactions</h3>
-                        <p class="text-sm text-gray-600">Buy Telegram Stars instantly with competitive pricing starting from just 15 Stars.</p>
+                        <h3 class="font-bold mb-2">Lowest Prices</h3>
+                        <p class="text-sm text-gray-600">Buy Telegram Stars starting from just 15 Stars ($0.30)</p>
                     </div>
                     <div class="feature-card bg-white p-4 rounded shadow-sm">
                         <h3 class="font-bold mb-2">Secure Trading</h3>
-                        <p class="text-sm text-gray-600">Robust security measures to protect all transactions and user data.</p>
+                        <p class="text-sm text-gray-600">Robust security measures including 21-day holding period</p>
                     </div>
                     <div class="feature-card bg-white p-4 rounded shadow-sm">
-                        <h3 class="font-bold mb-2">Flexible Options</h3>
-                        <p class="text-sm text-gray-600">Multiple payment options including USDT (TON Network) and TRON20.</p>
+                        <h3 class="font-bold mb-2">Multiple Options</h3>
+                        <p class="text-sm text-gray-600">USDT (TON Network) and TRON20 payments accepted</p>
                     </div>
+                </div>
+                <div class="mt-6 text-center">
+                    <p>Access StarStore through our official Telegram bot: <span class="code">@TgStarStore_bot</span></p>
                 </div>
             </section>
 
@@ -79,45 +92,51 @@
                 <h2 class="text-2xl font-bold section-title pb-2 mb-4">Buying Telegram Stars</h2>
                 <p class="mb-4">StarStore offers the most competitive prices for Telegram Stars with instant delivery upon successful payment.</p>
                 
-                <h3 class="text-xl font-semibold mt-6 mb-3">Available Packages</h3>
+                <h3 class="text-xl font-semibold mt-6 mb-3">Star Packages</h3>
                 <div class="grid md:grid-cols-2 gap-4">
                     <div class="package-card bg-white p-4 rounded">
-                        <h4 class="font-bold text-blue-800">Basic Package</h4>
-                        <ul class="mt-2 text-sm space-y-1">
-                            <li>• 15-99 Stars</li>
-                            <li>• Instant delivery</li>
-                            <li>• Best market price</li>
-                        </ul>
+                        <h4 class="font-bold text-blue-800">15 Stars</h4>
+                        <p class="text-lg font-semibold">$0.30</p>
                     </div>
                     <div class="package-card bg-white p-4 rounded">
-                        <h4 class="font-bold text-blue-800">Standard Package</h4>
-                        <ul class="mt-2 text-sm space-y-1">
-                            <li>• 100-999 Stars</li>
-                            <li>• Instant delivery</li>
-                            <li>• Volume discount</li>
-                        </ul>
+                        <h4 class="font-bold text-blue-800">25 Stars</h4>
+                        <p class="text-lg font-semibold">$0.60</p>
                     </div>
                     <div class="package-card bg-white p-4 rounded">
-                        <h4 class="font-bold text-blue-800">Premium Package</h4>
-                        <ul class="mt-2 text-sm space-y-1">
-                            <li>• 1,000-9,999 Stars</li>
-                            <li>• Instant delivery</li>
-                            <li>• Significant discount</li>
-                        </ul>
+                        <h4 class="font-bold text-blue-800">50 Stars</h4>
+                        <p class="text-lg font-semibold">$1.00</p>
                     </div>
                     <div class="package-card bg-white p-4 rounded">
-                        <h4 class="font-bold text-blue-800">Wholesale Package</h4>
-                        <ul class="mt-2 text-sm space-y-1">
-                            <li>• 10,000+ Stars</li>
-                            <li>• Instant delivery</li>
-                            <li>• Best wholesale rates</li>
-                        </ul>
+                        <h4 class="font-bold text-blue-800">100 Stars</h4>
+                        <p class="text-lg font-semibold">$2.00</p>
+                    </div>
+                    <div class="package-card bg-white p-4 rounded">
+                        <h4 class="font-bold text-blue-800">500 Stars</h4>
+                        <p class="text-lg font-semibold">$10.00</p>
+                    </div>
+                    <div class="package-card bg-white p-4 rounded">
+                        <h4 class="font-bold text-blue-800">1000 Stars</h4>
+                        <p class="text-lg font-semibold">$20.00</p>
                     </div>
                 </div>
 
-                <div class="highlight p-4 mt-6 rounded">
-                    <h4 class="font-bold mb-2">Premium Telegram Subscription</h4>
-                    <p>StarStore also offers Telegram Premium subscriptions with instant activation. Purchase through our Buy page for seamless service.</p>
+                <h3 class="text-xl font-semibold mt-8 mb-3">Telegram Premium Subscriptions</h3>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="package-card bg-white p-4 rounded">
+                        <h4 class="font-bold text-blue-800">3 Months</h4>
+                        <p class="text-sm text-gray-600">Visit our site for pricing</p>
+                    </div>
+                    <div class="package-card bg-white p-4 rounded">
+                        <h4 class="font-bold text-blue-800">6 Months</h4>
+                        <p class="text-sm text-gray-600">Visit our site for pricing</p>
+                    </div>
+                    <div class="package-card bg-white p-4 rounded">
+                        <h4 class="font-bold text-blue-800">12 Months</h4>
+                        <p class="text-sm text-gray-600">Visit our site for pricing</p>
+                    </div>
+                </div>
+                <div class="mt-4 text-center">
+                    <p>For complete pricing details, visit: <a href="https://starstore.site" class="text-blue-600 hover:underline">starstore.site</a></p>
                 </div>
             </section>
 
@@ -131,10 +150,10 @@
                         <h3 class="text-xl font-semibold mb-3">Selling Process</h3>
                         <ol class="space-y-3">
                             <li>1. Navigate to the Sell page in StarStore</li>
-                            <li>2. Enter the amount of Stars to sell (50-80,000 per transaction)</li>
-                            <li>3. Provide your USDT (TON Network) wallet address</li>
+                            <li>2. Enter amount (50-80,000 Stars per transaction)</li>
+                            <li>3. Manually enter your USDT (TON Network) wallet address</li>
                             <li>4. Confirm the transaction</li>
-                            <li>5. Stars will be held for 21 days for security verification</li>
+                            <li>5. Stars held for 21 days for security verification</li>
                             <li>6. USDT payment sent after holding period</li>
                         </ol>
                     </div>
@@ -143,16 +162,21 @@
                         <ul class="space-y-3">
                             <li>• Minimum sell amount: 50 Stars</li>
                             <li>• Maximum per transaction: 80,000 Stars</li>
-                            <li>• 21-day holding period for fraud prevention</li>
-                            <li>• Payments made in USDT (TON Network or TRON20)</li>
-                            <li>• Transaction history available in your History page</li>
+                            <li>• Wallet must be on TON network with no memo/tag</li>
+                            <li>• Transaction history available in History page</li>
                         </ul>
                     </div>
                 </div>
 
                 <div class="highlight p-4 mt-6 rounded">
-                    <h4 class="font-bold mb-2">Security Measures</h4>
-                    <p>The 21-day holding period is mandatory to prevent refund fraud and protect both buyers and sellers. This period allows us to verify transactions and prevent losses from chargebacks.</p>
+                    <h4 class="font-bold mb-2">Why There's a 21-Day Wait After Selling Stars</h4>
+                    <p class="mb-2">When you sell Telegram Stars, your stars are held for 21 days before payment is made. Here's why:</p>
+                    <ul class="space-y-2">
+                        <li>• <strong>Protecting the Stars Ecosystem:</strong> Keeps the system stable and fair for everyone</li>
+                        <li>• <strong>Aligned with Telegram's Policy:</strong> Follows similar standards to remain compliant</li>
+                        <li>• <strong>Preventing Fraud:</strong> Allows us to confirm transactions were valid and protect users</li>
+                    </ul>
+                    <p class="mt-2">This policy ensures a trusted platform that rewards real users fairly.</p>
                 </div>
             </section>
 
@@ -161,37 +185,53 @@
                 <h2 class="text-2xl font-bold section-title pb-2 mb-4">Referral Program</h2>
                 <p class="mb-4">Earn 0.5 USDT for every active user you refer to StarStore.</p>
                 
-                <h3 class="text-xl font-semibold mt-6 mb-3">How It Works</h3>
                 <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold mb-2">Active User Definition</h4>
+                        <h3 class="text-xl font-semibold mb-3">How Referrals Work</h3>
                         <p>A referred user becomes active when they:</p>
                         <ul class="mt-2 space-y-2">
-                            <li>• Purchase at least 100 Stars (can be cumulative)</li>
-                            <li>• Sell at least 100 Stars (counted after 21-day period)</li>
+                            <li>• Purchase at least 100 Stars (can be cumulative through multiple transactions)</li>
+                            <li>• Sell at least 100 Stars (counted after 21-day holding period)</li>
                             <li>• Buy Telegram Premium (counted immediately)</li>
                         </ul>
+                        <div class="warning-box p-4 rounded mt-4">
+                            <p><strong>Important:</strong> Referrals must use the official <span class="code">@TgStarStore_bot</span> when making purchases. Transactions outside the bot won't be tracked.</p>
+                        </div>
                     </div>
                     <div>
-                        <h4 class="font-semibold mb-2">Withdrawing Earnings</h4>
-                        <ul class="space-y-2">
+                        <h3 class="text-xl font-semibold mb-3">Withdrawing Referral Earnings</h3>
+                        <ul class="space-y-3">
                             <li>• Pending balance moves to available after activation</li>
                             <li>• Minimum withdrawal: 0.5 USDT</li>
                             <li>• Withdraw to USDT (TON Network or TRON20)</li>
                             <li>• Track referrals in History or Referral page</li>
                         </ul>
+                        <div class="highlight p-4 rounded mt-4">
+                            <h4 class="font-bold mb-2">Why We Require Genuine Referrals</h4>
+                            <ul class="space-y-2">
+                                <li>• Keeps the program fair for all users</li>
+                                <li>• Prevents fraud and abuse from fake accounts</li>
+                                <li>• Ensures fast, reliable payouts</li>
+                                <li>• Helps keep our fees low</li>
+                            </ul>
+                        </div>
                     </div>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="text-xl font-semibold mb-3">Maximizing Your Referral Earnings</h3>
+                    <p>The top earners don't just invite random friends—they actively spread the word about buying and selling Stars on StarStore.</p>
+                    <p class="mt-2">Be the reason someone buys or sells their first 100 Stars—you'll get rewarded every time.</p>
                 </div>
             </section>
 
             <!-- Refund Policy -->
             <section class="mb-12">
                 <h2 class="text-2xl font-bold section-title pb-2 mb-4">Refund Policy</h2>
-                <div class="space-y-4">
+                <div class="space-y-6">
                     <div>
-                        <h3 class="text-xl font-semibold mb-2">Refund Conditions</h3>
-                        <p>Refunds are only granted under specific circumstances:</p>
-                        <ul class="mt-2 space-y-2">
+                        <h3 class="text-xl font-semibold mb-2">When Refunds Are Granted</h3>
+                        <ul class="space-y-2">
                             <li>• Service charges higher amounts than expected</li>
                             <li>• Internal server errors affecting transactions</li>
                             <li>• Technical issues on StarStore's platform</li>
@@ -207,7 +247,12 @@
                     </div>
                     <div class="highlight p-4 rounded">
                         <h4 class="font-bold mb-2">Requesting a Refund</h4>
-                        <p>To request a refund, type <span class="font-mono bg-gray-100 px-2 py-1 rounded">/paysupport</span> in the StarStore bot and follow the instructions. Note: Users may only request one refund per month.</p>
+                        <p>To request a refund:</p>
+                        <ol class="mt-2 space-y-2">
+                            <li>1. Type <span class="code">/paysupport</span> in the StarStore bot</li>
+                            <li>2. Follow the provided instructions</li>
+                        </ol>
+                        <p class="mt-2"><strong>Note:</strong> Users may only request one refund per month.</p>
                     </div>
                 </div>
             </section>
@@ -224,7 +269,8 @@
             <!-- Footer -->
             <footer class="mt-12 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
                 <p>© 2024 StarStore by Highlands Forum Developers. All rights reserved.</p>
-                <p class="mt-2">For additional support, contact us through the StarStore Telegram bot.</p>
+                <p class="mt-2">Access our service through the official Telegram bot: <span class="code">@TgStarStore_bot</span></p>
+                <p class="mt-2">Visit our website: <a href="https://starstore.site" class="text-blue-600 hover:underline">starstore.site</a></p>
             </footer>
         </div>
     </div>
