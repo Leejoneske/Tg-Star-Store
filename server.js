@@ -441,7 +441,7 @@ bot.on("successful_payment", async (msg) => {
 
     await bot.sendMessage(
         order.telegramId,
-        `✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Processing (Under admin review)`
+        '✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Processing (On 21-day hold)\nA payout will be released after this period.'
     );
 
     const adminMessage = `💰 New Payment Received!\n\n` +
@@ -590,7 +590,7 @@ bot.on('callback_query', async (query) => {
                           order.status === 'failed' ? '❌ Failed' : 
                           order.status === 'refunded' ? '💸 Refunded' : '❌ Declined';
         const processedBy = `Processed by: @${adminUsername}`;
-        const completionNote = orderType === 'sell' && order.status === 'completed' ? '\n\nStars have been transferred to the buyer.' : '';
+        const completionNote = orderType === 'sell' && order.status === 'completed' ? '\n\nPayments have been transferred to the seller.' : '';
 
         const updatePromises = order.adminMessages.map(async (adminMsg) => {
             try {
@@ -623,9 +623,9 @@ bot.on('callback_query', async (query) => {
         const userMessage = order.status === 'completed' 
             ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your purchase!'}`
             : order.status === 'failed'
-            ? `❌ Your sell order #${order.id} has failed.\n\nPlease contact support if you believe this was a mistake.`
+            ? `❌ Your sell order #${order.id} has failed.\n\nPlease try a lower amount or contact support for the issue persist.`
             : order.status === 'refunded'
-            ? `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your wallet for the refund.`
+            ? `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`
             : `❌ Your buy order #${order.id} has been declined.\n\nPlease contact support if you believe this was a mistake.`;
 
         await bot.sendMessage(order.telegramId, userMessage);
