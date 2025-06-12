@@ -440,10 +440,17 @@ bot.on("successful_payment", async (msg) => {
     await order.save();
 
     await bot.sendMessage(
-        order.telegramId,
-        '✅ Payment successful!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Processing (On 21-day hold)\nA payout will be released after this period.'
-    );
+    order.telegramId,
+    `✅ Payment successful!
 
+Order ID: ${order.id}
+Stars: ${order.stars}
+Status: Processing (On 21-day hold)
+
+A payout will be released after this period.`
+);
+  
+     
     const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
         `User: @${order.username} (ID: ${order.telegramId})\n` + 
