@@ -1199,7 +1199,7 @@ function openTransactionDetails(transaction) {
         translations[currentLanguage].processingPaymentDesc || 'Your payment is being processed and will be sent to your wallet.', 
         transaction.status === 'processing' || transaction.status === 'completed' ? 
         formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 7)) : 
-        formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 7)), 
+        formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 7)),
         processingStatus);
 
     // Step 4: Payment Sent
