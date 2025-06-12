@@ -762,7 +762,15 @@
             paymentSentDesc: "USDT был отправлен на ваш кошелек"
           }
         };
-
+// Check if the user has accepted the notice
+function checkNoticeStatus() {
+    const noticeAccepted = localStorage.getItem('noticeAccepted');
+    if (noticeAccepted === 'true') {
+        showAppContent(); 
+    } else {
+        noticeModal.style.display = 'flex'; 
+    }
+}
 // Show the main app content
 function showAppContent() {
     skeletonLoading.style.display = 'none';
