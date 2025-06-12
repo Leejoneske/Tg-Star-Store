@@ -777,6 +777,8 @@ function checkNoticeStatus() {
 function showAppContent() {
     skeletonLoading.style.display = 'none';
     appContent.style.display = 'block';
+    // Fetch transactions when app content is shown
+    fetchTransactions();
 }
 
 // Continue button handler for notice modal
@@ -920,41 +922,41 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-    // Stars amount handling
-    function incrementStars() {
-        const currentValue = parseInt(starsInput.value) || 0;
-        starsInput.value = Math.min(currentValue + 5, 80000);
-        calculateTonAmount();
-    }
-
-    function decrementStars() {
-        const currentValue = parseInt(starsInput.value) || 0;
-        starsInput.value = Math.max(currentValue - 5, 50);
-        calculateTonAmount();
-    }
-
-    function calculateTonAmount() {
-        // Ensure value stays within bounds
-        let stars = parseInt(starsInput.value) || 0;
-        if (stars < 50) {
-            stars = 50;
-            starsInput.value = 50;
-        } else if (stars > 80000) {
-            stars = 80000;
-            starsInput.value = 80000;
-        }
-        
-        const tonAmount = (stars * rate).toFixed(3);
-        tonAmountDisplay.textContent = `${tonAmount} USDT`;
-        return tonAmount;
-    }
-
-    // Update the input field attributes to reflect new limits
-    starsInput.min = "50";
-    starsInput.max = "80000";
-    starsInput.value = "50"; 
-
+// Stars amount handling
+function incrementStars() {
+    const currentValue = parseInt(starsInput.value) || 0;
+    starsInput.value = Math.min(currentValue + 5, 80000);
     calculateTonAmount();
+}
+
+function decrementStars() {
+    const currentValue = parseInt(starsInput.value) || 0;
+    starsInput.value = Math.max(currentValue - 5, 50);
+    calculateTonAmount();
+}
+
+function calculateTonAmount() {
+    // Ensure value stays within bounds
+    let stars = parseInt(starsInput.value) || 0;
+    if (stars < 50) {
+        stars = 50;
+        starsInput.value = 50;
+    } else if (stars > 80000) {
+        stars = 80000;
+        starsInput.value = 80000;
+    }
+    
+    const tonAmount = (stars * rate).toFixed(3);
+    tonAmountDisplay.textContent = `${tonAmount} USDT`;
+    return tonAmount;
+}
+
+// Update the input field attributes to reflect new limits
+starsInput.min = "50";
+starsInput.max = "80000";
+starsInput.value = "50"; 
+
+calculateTonAmount();
      
 // Payment modal handling
 sellStarsBtn.addEventListener('click', () => {
@@ -1041,93 +1043,67 @@ confirmPaymentBtn.addEventListener('click', async () => {
     }
 });
 
-        // Create Transaction Details Panel
-        function createTransactionDetailsPanel() {
-            const panel = document.createElement('div');
-            panel.id = 'transactionDetailsOverlay';
-            panel.className = 'transaction-details-overlay';
-            
-            panel.innerHTML = `
-                <div id="transactionDetailsPanel" class="transaction-details-panel">
-                    <div class="p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-xl font-bold">${translations[currentLanguage].transactionDetails}</h3>
-                            <button class="close-details" id="closeTransactionDetails">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
-                        <div class="flex justify-between items-center mb-4">
-                            <div>
-                                <div class="text-sm text-gray-600">${translations[currentLanguage].amount}</div>
-                                <div id="transactionAmount" class="font-bold text-xl"></div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-sm text-gray-600">${translations[currentLanguage].toBeReceived}</div>
-                                <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].currentStatus}</div>
-                            <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].estimatedCompletion}</div>
-                            <div id="transactionEstimatedCompletion" class="font-medium"></div>
-                        </div>
-                        
-                        <div class="progress-container">
-                            <div id="progressBar" class="progress-bar" style="width: 0%"></div>
-                        </div>
-                        
-                        <div id="transactionTimeline" class="mt-6">
-                            <!-- Timeline steps will be inserted here -->
-                        </div>
+// Create Transaction Details Panel
+function createTransactionDetailsPanel() {
+    const panel = document.createElement('div');
+    panel.id = 'transactionDetailsOverlay';
+    panel.className = 'transaction-details-overlay';
+    
+    panel.innerHTML = `
+        <div id="transactionDetailsPanel" class="transaction-details-panel">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold">${translations[currentLanguage].transactionDetails}</h3>
+                    <button class="close-details" id="closeTransactionDetails">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <div class="text-sm text-gray-600">${translations[currentLanguage].amount}</div>
+                        <div id="transactionAmount" class="font-bold text-xl"></div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-gray-600">${translations[currentLanguage].toBeReceived}</div>
+                        <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
                     </div>
                 </div>
-            `;
-            
-            document.body.appendChild(panel);
-            
-            document.getElementById('closeTransactionDetails').addEventListener('click', closeTransactionDetails);
-            document.getElementById('transactionDetailsOverlay').addEventListener('click', (e) => {
-                if (e.target === document.getElementById('transactionDetailsOverlay')) {
-                    closeTransactionDetails();
-                }
-            });
+                
+                <div class="mb-4">
+                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].currentStatus}</div>
+                    <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].estimatedCompletion}</div>
+                    <div id="transactionEstimatedCompletion" class="font-medium"></div>
+                </div>
+                
+                <div class="progress-container">
+                    <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+                </div>
+                
+                <div id="transactionTimeline" class="mt-6">
+                    <!-- Timeline steps will be inserted here -->
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(panel);
+    
+    document.getElementById('closeTransactionDetails').addEventListener('click', closeTransactionDetails);
+    document.getElementById('transactionDetailsOverlay').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('transactionDetailsOverlay')) {
+            closeTransactionDetails();
         }
+    });
+}
 
-        // Open transaction details
-        function openTransactionDetails(transaction) {
-            const overlay = document.getElementById('transactionDetailsOverlay');
-            const panel = document.getElementById('transactionDetailsPanel');
-            const timeline = document.getElementById('transactionTimeline');
-            
-            // Set transaction details
-            document.getElementById('transactionId').textContent = `${translations[currentLanguage].transactionID} ${transaction.id || 'N/A'}`;
-            document.getElementById('transactionAmount').textContent = `${transaction.stars} Stars`;
-            document.getElementById('transactionValue').textContent = `${(transaction.stars * rate).toFixed(3)} USDT`;
-            
-            // Set status badge
-            const statusBadge = document.getElementById('transactionStatusBadge');
-            statusBadge.textContent = transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1);
-            statusBadge.className = 'inline-block px-3 py-1 rounded-full text-sm font-medium';
-            
-            if (transaction.status === 'pending') {
-                statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
-            } else if (transaction.status === 'completed') {
-                statusBadge.classList.add('bg-green-100', 'text-green-800');
-            } else if (transaction.status === 'processing') {
-                statusBadge.classList.add('bg-blue-100', 'text-blue-800');
-            } else {
-                statusBadge.classList.add('bg-red-100', 'text-red-800');
-            }
-
-            // Helper function to format dates with leading zeros
+// Helper function to format dates with leading zeros
 function formatDateWithLeadingZeros(date) {
     if (!date) return 'N/A';
     
@@ -1138,200 +1114,250 @@ function formatDateWithLeadingZeros(date) {
     
     return `${day}/${month}/${year}`;
 }
+
+// Open transaction details
+function openTransactionDetails(transaction) {
+    const overlay = document.getElementById('transactionDetailsOverlay');
+    const panel = document.getElementById('transactionDetailsPanel');
+    const timeline = document.getElementById('transactionTimeline');
+    
+    // Set transaction details
+    document.getElementById('transactionId').textContent = `${translations[currentLanguage].transactionID} ${transaction.id || 'N/A'}`;
+    document.getElementById('transactionAmount').textContent = `${transaction.stars} Stars`;
+    document.getElementById('transactionValue').textContent = `${(transaction.stars * rate).toFixed(3)} USDT`;
+    
+    // Set status badge
+    const statusBadge = document.getElementById('transactionStatusBadge');
+    statusBadge.textContent = transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1);
+    statusBadge.className = 'inline-block px-3 py-1 rounded-full text-sm font-medium';
+    
+    if (transaction.status === 'pending') {
+        statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
+    } else if (transaction.status === 'completed') {
+        statusBadge.classList.add('bg-green-100', 'text-green-800');
+    } else if (transaction.status === 'processing') {
+        statusBadge.classList.add('bg-blue-100', 'text-blue-800');
+    } else {
+        statusBadge.classList.add('bg-red-100', 'text-red-800');
+    }
           
-            // Calculate estimated completion date (21 days from creation)
-const creationDate = new Date(transaction.dateCreated);
-const completionDate = new Date(creationDate);
-completionDate.setDate(creationDate.getDate() + 21);
+    // Calculate estimated completion date (21 days from creation)
+    const creationDate = new Date(transaction.dateCreated);
+    const completionDate = new Date(creationDate);
+    completionDate.setDate(creationDate.getDate() + 21);
 
-// Show actual completion date if available, otherwise show estimated
-const displayDate = transaction.completedAt ? 
-    formatDateWithLeadingZeros(transaction.completedAt) : 
-    formatDateWithLeadingZeros(completionDate);
+    // Show actual completion date if available, otherwise show estimated
+    const displayDate = transaction.completedAt ? 
+        formatDateWithLeadingZeros(transaction.completedAt) : 
+        formatDateWithLeadingZeros(completionDate);
 
-document.getElementById('transactionEstimatedCompletion').textContent = displayDate;
+    document.getElementById('transactionEstimatedCompletion').textContent = displayDate;
           
-            // Calculate progress percentage
-            const now = new Date();
-            let progressPercentage = 0;
-            
-            if (transaction.status === 'completed') {
-                progressPercentage = 100;
-            } else if (transaction.status === 'declined') {
-                progressPercentage = 0;
-            } else if (transaction.status === 'processing') {
-                // Only start counting progress when status is processing
-                const daysPassed = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
-                progressPercentage = Math.min(Math.round((daysPassed / 21) * 100), 99);
-            }
-            // For pending status, progress remains at 0
-            
-            // Update progress bar
-            document.getElementById('progressBar').style.width = `${progressPercentage}%`;
-            
-            // Build timeline
-            timeline.innerHTML = '';
-            
-            // Step 1: Order Created
-            // In the addTimelineStep calls, update the date parameters:
-addTimelineStep(timeline, 1, translations[currentLanguage].orderCreated, translations[currentLanguage].orderCreatedDesc, 
-    formatDateWithLeadingZeros(transaction.dateCreated), 'completed');
+    // Calculate progress percentage
+    const now = new Date();
+    let progressPercentage = 0;
+    
+    if (transaction.status === 'completed') {
+        progressPercentage = 100;
+    } else if (transaction.status === 'declined') {
+        progressPercentage = 0;
+    } else if (transaction.status === 'processing') {
+        // Only start counting progress when status is processing
+        const daysPassed = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
+        progressPercentage = Math.min(Math.round((daysPassed / 21) * 100), 99);
+    }
+    // For pending status, progress remains at 0
+    
+    // Update progress bar
+    document.getElementById('progressBar').style.width = `${progressPercentage}%`;
+    
+    // Build timeline
+    timeline.innerHTML = '';
+    
+    // Define payment and completion status
+    let paymentStatus = 'pending';
+    let completionStatus = 'pending';
+    
+    if (transaction.status === 'processing' || transaction.status === 'completed') {
+        paymentStatus = 'completed';
+    }
+    if (transaction.status === 'completed') {
+        completionStatus = 'completed';
+    }
+    
+    // Step 1: Order Created
+    addTimelineStep(timeline, 1, translations[currentLanguage].orderCreated, translations[currentLanguage].orderCreatedDesc, 
+        formatDateWithLeadingZeros(transaction.dateCreated), 'completed');
 
-addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
-    transaction.status === 'pending' ? formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 1)) : 
-    (transaction.datePaid ? formatDateWithLeadingZeros(transaction.datePaid) : ''),
-    paymentStatus);
+    addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
+        transaction.status === 'pending' ? formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 1)) : 
+        (transaction.datePaid ? formatDateWithLeadingZeros(transaction.datePaid) : ''),
+        paymentStatus);
 
-addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
-    transaction.status === 'completed' ? formatDateWithLeadingZeros(transaction.completedAt) : 
-    formatDateWithLeadingZeros(completionDate), completionStatus);
-            
-            // Show the panel
-            overlay.style.display = 'block';
-            setTimeout(() => {
-                panel.classList.add('active');
-            }, 50);
+    addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
+        transaction.status === 'completed' ? formatDateWithLeadingZeros(transaction.completedAt) : 
+        formatDateWithLeadingZeros(completionDate), completionStatus);
+    
+    // Show the panel
+    overlay.style.display = 'block';
+    setTimeout(() => {
+        panel.classList.add('active');
+    }, 50);
+}
+
+// Close transaction details
+function closeTransactionDetails() {
+    const panel = document.getElementById('transactionDetailsPanel');
+    const overlay = document.getElementById('transactionDetailsOverlay');
+    
+    panel.classList.remove('active');
+    setTimeout(() => {
+        overlay.style.display = 'none';
+    }, 300);
+}
+
+// Helper function to add timeline step
+function addTimelineStep(container, number, title, description, date, status) {
+    const step = document.createElement('div');
+    step.className = 'transaction-step';
+    
+    // Determine step status class
+    let statusClass = '';
+    if (status === 'completed') {
+        statusClass = 'completed';
+    } else if (status === 'active') {
+        statusClass = 'active';
+    }
+    
+    // Add step line if not the last step
+    if (number < 4) {
+        const line = document.createElement('div');
+        line.className = `step-line ${statusClass}`;
+        step.appendChild(line);
+    }
+    
+    step.innerHTML += `
+        <div class="step-number ${statusClass}">
+            ${status === 'completed' ? 
+                '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : 
+                number}
+        </div>
+        <div class="step-content">
+            <div class="font-medium">${title}</div>
+            <div class="text-sm text-gray-600">${description}</div>
+            ${date ? `<div class="step-date">${date}</div>` : ''}
+        </div>
+    `;
+    
+    container.appendChild(step);
+}
+
+// Helper function to calculate step dates
+function calculateStepDate(startDateStr, daysToAdd) {
+    const date = new Date(startDateStr);
+    date.setDate(date.getDate() + daysToAdd);
+    return date;
+}
+
+// Fetch and display transactions
+const fetchTransactions = async () => {
+    try {
+        // Add loading indicator
+        const transactionsList = document.getElementById('transactionsList');
+        if (!transactionsList) {
+            console.error('Transaction list element not found');
+            return;
         }
+        
+        const response = await axios.get('/api/sell-orders', {
+            params: {
+                telegramId: Telegram.WebApp.initDataUnsafe.user.id
+            }
+        });
 
-        // Close transaction details
-        function closeTransactionDetails() {
-            const panel = document.getElementById('transactionDetailsPanel');
-            const overlay = document.getElementById('transactionDetailsOverlay');
-            
-            panel.classList.remove('active');
-            setTimeout(() => {
-                overlay.style.display = 'none';
-            }, 300);
+        transactionsList.innerHTML = '';
+
+        if (response.data && response.data.length > 0) {
+            response.data.forEach(transaction => {
+                const transactionItem = document.createElement('div');
+                transactionItem.className = 'transaction-item cursor-pointer hover:bg-gray-50';
+                transactionItem.onclick = () => openTransactionDetails(transaction);
+
+                const transactionInfo = document.createElement('div');
+                transactionInfo.className = 'transaction-info';
+
+                const starsAmount = document.createElement('div');
+                starsAmount.className = 'font-bold';
+                starsAmount.textContent = `${transaction.stars} Stars`;
+
+                const dateCreated = document.createElement('div');
+                dateCreated.className = 'text-sm text-gray-500';
+                dateCreated.textContent = formatDateWithLeadingZeros(transaction.dateCreated);
+
+                transactionInfo.appendChild(starsAmount);
+                transactionInfo.appendChild(dateCreated);
+
+                const transactionStatus = document.createElement('div');
+                transactionStatus.className = `transaction-status ${
+                    transaction.status === 'pending' ? 'status-pending' : 
+                    transaction.status === 'processing' ? 'status-processing' :
+                    transaction.status === 'completed' ? 'status-completed' : 'status-declined'
+                }`;
+                transactionStatus.textContent = transaction.status;
+
+                transactionItem.appendChild(transactionInfo);
+                transactionItem.appendChild(transactionStatus);
+
+                transactionsList.appendChild(transactionItem);
+            });
+        } else {
+            const noTransactions = document.createElement('div');
+            noTransactions.className = 'text-gray-500 text-center py-4 text-sm';
+            noTransactions.textContent = translations[currentLanguage].noTransactions;
+            transactionsList.appendChild(noTransactions);
         }
-
-        // Helper function to add timeline step
-        function addTimelineStep(container, number, title, description, date, status) {
-            const step = document.createElement('div');
-            step.className = 'transaction-step';
-            
-            // Determine step status class
-            let statusClass = '';
-            if (status === 'completed') {
-                statusClass = 'completed';
-            } else if (status === 'active') {
-                statusClass = 'active';
-            }
-            
-            // Add step line if not the last step
-            if (number < 4) {
-                const line = document.createElement('div');
-                line.className = `step-line ${statusClass}`;
-                step.appendChild(line);
-            }
-            
-            step.innerHTML += `
-                <div class="step-number ${statusClass}">
-                    ${status === 'completed' ? 
-                        '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : 
-                        number}
-                </div>
-                <div class="step-content">
-                    <div class="font-medium">${title}</div>
-                    <div class="text-sm text-gray-600">${description}</div>
-                    ${date ? `<div class="step-date">${date}</div>` : ''}
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+        
+        // Show error message in the transactions list
+        const transactionsList = document.getElementById('transactionsList');
+        if (transactionsList) {
+            transactionsList.innerHTML = `
+                <div class="text-red-500 text-center py-4 text-sm">
+                    ${currentLanguage === 'en' ? 'Error loading transactions' : 'Ошибка загрузки транзакций'}
                 </div>
             `;
-            
-            container.appendChild(step);
         }
+    }
+};
 
-        // Helper function to calculate step dates
-        function calculateStepDate(startDateStr, daysToAdd) {
-            const date = new Date(startDateStr);
-            date.setDate(date.getDate() + daysToAdd);
-            return date;
-        }
+// Initialize the app
+document.addEventListener('DOMContentLoaded', () => {
+    // Check for language in localStorage first
+    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    setupWalletAddressMemory();
+    updateLanguageTexts();
+    createTransactionDetailsPanel();
+    
+    // Show skeleton loading initially
+    skeletonLoading.style.display = 'block';
+    appContent.style.display = 'none';
+    
+    // Check notice status after a small delay (simulating loading)
+    setTimeout(() => {
+        checkNoticeStatus();
+    }, 800);
+    
+    // Set up refresh interval for transactions (every 10 seconds instead of 5)
+    setInterval(fetchTransactions, 10000);
+    
+    // Set up Telegram WebApp
+    Telegram.WebApp.onEvent('viewportChanged', () => {
+        Telegram.WebApp.expand();
+    });
 
-        // Fetch and display transactions
-        const fetchTransactions = async () => {
-            try {
-                const response = await axios.get('/api/sell-orders', {
-                    params: {
-                        telegramId: Telegram.WebApp.initDataUnsafe.user.id
-                    }
-                });
-
-                const transactionsList = document.getElementById('transactionsList');
-                transactionsList.innerHTML = '';
-
-                if (response.data.length > 0) {
-                    response.data.forEach(transaction => {
-                        const transactionItem = document.createElement('div');
-                        transactionItem.className = 'transaction-item cursor-pointer hover:bg-gray-50';
-                        transactionItem.onclick = () => openTransactionDetails(transaction);
-
-                        const transactionInfo = document.createElement('div');
-                        transactionInfo.className = 'transaction-info';
-
-                        const starsAmount = document.createElement('div');
-                        starsAmount.className = 'font-bold';
-                        starsAmount.textContent = `${transaction.stars} Stars`;
-
-                        // In the fetchTransactions function, update the dateCreated display:
-const dateCreated = document.createElement('div');
-dateCreated.className = 'text-sm text-gray-500';
-dateCreated.textContent = formatDateWithLeadingZeros(transaction.dateCreated);
-                        
-
-                        transactionInfo.appendChild(starsAmount);
-                        transactionInfo.appendChild(dateCreated);
-
-                        const transactionStatus = document.createElement('div');
-                        transactionStatus.className = `transaction-status ${
-                            transaction.status === 'pending' ? 'status-pending' : 
-                            transaction.status === 'processing' ? 'status-processing' :
-                            transaction.status === 'completed' ? 'status-completed' : 'status-declined'
-                        }`;
-                        transactionStatus.textContent = transaction.status;
-
-                        transactionItem.appendChild(transactionInfo);
-                        transactionItem.appendChild(transactionStatus);
-
-                        transactionsList.appendChild(transactionItem);
-                    });
-                } else {
-                    const noTransactions = document.createElement('div');
-                    noTransactions.className = 'text-gray-500 text-center py-4 text-sm';
-                    noTransactions.textContent = translations[currentLanguage].noTransactions;
-                    transactionsList.appendChild(noTransactions);
-                }
-            } catch (error) {
-                console.error('Error fetching transactions:', error);
-            }
-        };
-
-        // Initialize the app
-        document.addEventListener('DOMContentLoaded', () => {
-            // Check for language in localStorage first
-            currentLanguage = localStorage.getItem('appLanguage') || 'en';
-            setupWalletAddressMemory();
-            updateLanguageTexts();
-            createTransactionDetailsPanel();
-            
-            // Show skeleton loading initially
-            skeletonLoading.style.display = 'block';
-            appContent.style.display = 'none';
-            
-            // Check notice status after a small delay (simulating loading)
-            setTimeout(() => {
-                checkNoticeStatus();
-            }, 800);
-            
-            // Set up refresh interval for transactions
-            setInterval(fetchTransactions, 5000);
-            
-            // Set up Telegram WebApp
-            Telegram.WebApp.onEvent('viewportChanged', () => {
-                Telegram.WebApp.expand();
-            });
-
-            Telegram.WebApp.expand();
-        });
+    Telegram.WebApp.expand();
+});
     </script>
 </body>
 </html>
