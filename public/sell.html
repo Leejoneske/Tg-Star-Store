@@ -1195,12 +1195,12 @@ function openTransactionDetails(transaction) {
         paymentStatus);
 
     // Step 3: Processing Payment
-    addTimelineStep(timeline, 3, translations[currentLanguage].processingPayment || 'Processing Payment', 
-        translations[currentLanguage].processingPaymentDesc || 'Your payment is being processed and will be sent to your wallet.', 
-        transaction.status === 'processing' || transaction.status === 'completed' ? 
-        formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 7)) : 
-        formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 7)),
-        processingStatus);
+    addTimelineStep(timeline, 3, translations[currentLanguage].processing, 
+    translations[currentLanguage].processingDesc, 
+    transaction.status === 'processing' || transaction.status === 'completed' ? 
+    formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 7)) : 
+    formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 7)), 
+    processingStatus);
 
     // Step 4: Payment Sent
     addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
