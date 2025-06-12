@@ -763,16 +763,6 @@
           }
         };
 
-// Check if user has already seen and accepted the notice
-function checkNoticeStatus() {
-    const noticeAccepted = localStorage.getItem('noticeAccepted');
-    if (!noticeAccepted) {
-        noticeModal.style.display = 'flex';
-    } else {
-        showAppContent();
-    }
-}
-
 // Show the main app content
 function showAppContent() {
     skeletonLoading.style.display = 'none';
@@ -1185,15 +1175,34 @@ function openTransactionDetails(transaction) {
         completionStatus = 'completed';
     }
     
+    // Define processing status for step 3
+    let processingStatus = 'pending';
+    if (transaction.status === 'processing' || transaction.status === 'completed') {
+        processingStatus = 'active';
+    }
+    if (transaction.status === 'completed') {
+        processingStatus = 'completed';
+    }
+    
     // Step 1: Order Created
     addTimelineStep(timeline, 1, translations[currentLanguage].orderCreated, translations[currentLanguage].orderCreatedDesc, 
         formatDateWithLeadingZeros(transaction.dateCreated), 'completed');
 
+    // Step 2: Payment Verification
     addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
         transaction.status === 'pending' ? formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 1)) : 
         (transaction.datePaid ? formatDateWithLeadingZeros(transaction.datePaid) : ''),
         paymentStatus);
 
+    // Step 3: Processing Payment
+    addTimelineStep(timeline, 3, translations[currentLanguage].processingPayment || 'Processing Payment', 
+        translations[currentLanguage].processingPaymentDesc || 'Your payment is being processed and will be sent to your wallet.', 
+        transaction.status === 'processing' || transaction.status === 'completed' ? 
+        formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 7)) : 
+        formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 7)), 
+        processingStatus);
+
+    // Step 4: Payment Sent
     addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
         transaction.status === 'completed' ? formatDateWithLeadingZeros(transaction.completedAt) : 
         formatDateWithLeadingZeros(completionDate), completionStatus);
@@ -1358,6 +1367,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Telegram.WebApp.expand();
 });
+
     </script>
 </body>
 </html>
