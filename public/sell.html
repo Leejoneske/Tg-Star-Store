@@ -1126,13 +1126,31 @@ confirmPaymentBtn.addEventListener('click', async () => {
             } else {
                 statusBadge.classList.add('bg-red-100', 'text-red-800');
             }
-            
+
+            // Helper function to format dates with leading zeros
+function formatDateWithLeadingZeros(date) {
+    if (!date) return 'N/A';
+    
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+}
+          
             // Calculate estimated completion date (21 days from creation)
-            const creationDate = new Date(transaction.dateCreated);
-            const completionDate = new Date(creationDate);
-            completionDate.setDate(creationDate.getDate() + 21);
-            document.getElementById('transactionEstimatedCompletion').textContent = completionDate.toLocaleDateString();
-            
+const creationDate = new Date(transaction.dateCreated);
+const completionDate = new Date(creationDate);
+completionDate.setDate(creationDate.getDate() + 21);
+
+// Show actual completion date if available, otherwise show estimated
+const displayDate = transaction.completedAt ? 
+    formatDateWithLeadingZeros(transaction.completedAt) : 
+    formatDateWithLeadingZeros(completionDate);
+
+document.getElementById('transactionEstimatedCompletion').textContent = displayDate;
+          
             // Calculate progress percentage
             const now = new Date();
             let progressPercentage = 0;
@@ -1155,28 +1173,18 @@ confirmPaymentBtn.addEventListener('click', async () => {
             timeline.innerHTML = '';
             
             // Step 1: Order Created
-            addTimelineStep(timeline, 1, translations[currentLanguage].orderCreated, translations[currentLanguage].orderCreatedDesc, 
-                new Date(transaction.dateCreated).toLocaleString(), 'completed');
-            
-            // Step 2: Payment Verification
-            const paymentStatus = transaction.status === 'pending' ? 'future' : 'completed';
-            addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
-                transaction.status === 'pending' ? calculateStepDate(transaction.dateCreated, 1).toLocaleString() : 
-                (transaction.datePaid ? new Date(transaction.datePaid).toLocaleString() : ''),
-                paymentStatus);
-            
-            // Step 3: Processing
-            const processingStatus = transaction.status === 'completed' ? 'completed' : 
-                                   transaction.status === 'declined' ? 'future' : 
-                                   transaction.status === 'processing' ? 'active' : 'future';
-            addTimelineStep(timeline, 3, translations[currentLanguage].processing, translations[currentLanguage].processingDesc, 
-                calculateStepDate(transaction.dateCreated, 2).toLocaleString(), processingStatus);
-            
-            // Step 4: Payment Sent
-            const completionStatus = transaction.status === 'completed' ? 'completed' : 'future';
-            addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
-                transaction.status === 'completed' ? new Date(transaction.completedAt).toLocaleString() : 
-                completionDate.toLocaleString(), completionStatus);
+            // In the addTimelineStep calls, update the date parameters:
+addTimelineStep(timeline, 1, translations[currentLanguage].orderCreated, translations[currentLanguage].orderCreatedDesc, 
+    formatDateWithLeadingZeros(transaction.dateCreated), 'completed');
+
+addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
+    transaction.status === 'pending' ? formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 1)) : 
+    (transaction.datePaid ? formatDateWithLeadingZeros(transaction.datePaid) : ''),
+    paymentStatus);
+
+addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
+    transaction.status === 'completed' ? formatDateWithLeadingZeros(transaction.completedAt) : 
+    formatDateWithLeadingZeros(completionDate), completionStatus);
             
             // Show the panel
             overlay.style.display = 'block';
@@ -1264,9 +1272,11 @@ confirmPaymentBtn.addEventListener('click', async () => {
                         starsAmount.className = 'font-bold';
                         starsAmount.textContent = `${transaction.stars} Stars`;
 
-                        const dateCreated = document.createElement('div');
-                        dateCreated.className = 'text-sm text-gray-500';
-                        dateCreated.textContent = new Date(transaction.dateCreated).toLocaleString();
+                        // In the fetchTransactions function, update the dateCreated display:
+const dateCreated = document.createElement('div');
+dateCreated.className = 'text-sm text-gray-500';
+dateCreated.textContent = formatDateWithLeadingZeros(transaction.dateCreated);
+                        
 
                         transactionInfo.appendChild(starsAmount);
                         transactionInfo.appendChild(dateCreated);
