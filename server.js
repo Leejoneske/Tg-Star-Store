@@ -510,7 +510,7 @@ bot.on('callback_query', async (query) => {
                 return;
             }
 
-            if (!order.telegram_payment_charge_id && order.dateCreated > new Date('2025-05-23')) {
+            if (!order.telegram_payment_charge_id && order.dateCreated > new Date('2025-05-25')) {
                 await bot.answerCallbackQuery(query.id, { 
                     text: "Cannot complete - missing payment reference" 
                 });
