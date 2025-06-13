@@ -94,7 +94,7 @@ const sellOrderSchema = new mongoose.Schema({
         type: String,
         required: function() {
             
-            return this.dateCreated > new Date('2025-05-23'); 
+            return this.dateCreated > new Date('2025-05-25'); 
         },
         default: null
     },
