@@ -628,9 +628,9 @@ bot.on('callback_query', async (query) => {
         await Promise.allSettled(updatePromises);
 
         const userMessage = order.status === 'completed' 
-            ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your purchase!'}`
+            ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your choosing StarStore!'}`
             : order.status === 'failed'
-            ? `❌ Your sell order #${order.id} has failed.\n\nPlease try a lower amount or contact support for the issue persist.`
+            ? `❌ Your sell order #${order.id} has failed.\n\nPlease try selling a lower amount or contact support if the issue persist.`
             : order.status === 'refunded'
             ? `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`
             : `❌ Your buy order #${order.id} has been declined.\n\nPlease contact support if you believe this was a mistake.`;
