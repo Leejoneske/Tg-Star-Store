@@ -113,47 +113,59 @@
     </style>
 </head>
 <body>
-<div id="menubar-container">
-    <div class="menu-overlay" id="menuOverlay"></div>
-    <div class="side-menu" id="sideMenu">
-        <div class="menu-content">
-            <div class="menu-item" onclick="window.location.href='index.html'">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                </svg>
-                <span data-lang="home">Home</span>
+<div class="app-container">
+    <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+        <button id="menuButton" class="p-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+        <div class="logo-header" data-translate="appName">StarStore</div>
+        <div class="w-6"></div>
+    </div>
+
+    <div id="menubar-container">
+        <div class="menu-overlay" id="menuOverlay"></div>
+        <div class="side-menu" id="sideMenu">
+            <div class="menu-content">
+                <div class="menu-item" onclick="window.location.href='index.html'">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                    <span data-lang="home">Home</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='sell.html'">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    <span data-lang="sell">Sell</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='history.html'">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span data-lang="history">History</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='referral.html'">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                    </svg>
+                    <span data-lang="referral">Referral</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='about.html'">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span data-lang="about">About</span>
+                </div>
             </div>
-            <div class="menu-item" onclick="window.location.href='sell.html'">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
-                </svg>
-                <span data-lang="sell">Sell</span>
+            <div class="menu-footer">
+                <div class="text-xs text-gray-500 text-center" data-lang="footer-powered">Powered by</div>
+                <div class="text-sm font-medium text-indigo-600 text-center">StarStore</div>
             </div>
-            <div class="menu-item" onclick="window.location.href='history.html'">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <span data-lang="history">History</span>
-            </div>
-            <div class="menu-item" onclick="window.location.href='referral.html'">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
-                </svg>
-                <span data-lang="referral">Referral</span>
-            </div>
-            <div class="menu-item" onclick="window.location.href='about.html'">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <span data-lang="about">About</span>
-            </div>
-        </div>
-        <div class="menu-footer">
-            <div class="text-xs text-gray-500 text-center" data-lang="footer-powered">Powered by</div>
-            <div class="text-sm font-medium text-indigo-600 text-center">StarStore</div>
         </div>
     </div>
-</div>
+
     <div class="p-6 max-w-4xl mx-auto">
         <div class="text-center mb-12 animate__animated animate__fadeIn">
             <h1 class="text-4xl font-bold text-gray-900 mb-4">
@@ -245,7 +257,6 @@
         </div>
     </div>
 </div>
-
 <script>
     const translations = {
         'en': {
