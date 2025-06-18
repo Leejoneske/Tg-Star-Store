@@ -1166,38 +1166,39 @@ function populateTransactionDetails(transaction) {
         formatDateWithLeadingZeros(transaction.completedAt) : 
         formatDateWithLeadingZeros(completionDate);
     
-    // Build the main content
+    // Build the main content with improved mobile layout
     panel.innerHTML = `
-        <div class="transaction-details-content" style="opacity: 0; transform: translateY(20px); transition: all 0.3s ease;">
-            <div class="flex justify-between items-start mb-6">
-                <div>
-                    <h3 id="transactionId" class="text-lg font-semibold mb-2">${translations[currentLanguage].transactionID} ${transaction.id || 'N/A'}</h3>
-                    <div class="flex items-center gap-3">
-                        <span id="transactionAmount" class="text-2xl font-bold">${transaction.stars} Stars</span>
-                        <span id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></span>
+        <div class="transaction-details-content" style="opacity: 0; transform: translateY(20px); transition: all 0.3s ease; padding: 16px;">
+            <div class="flex justify-between items-start mb-4">
+                <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                    <div class="text-sm text-gray-500 mb-1">${translations[currentLanguage].transactionID}</div>
+                    <div class="font-mono text-sm text-gray-700 mb-2 truncate">${transaction.id || 'N/A'}</div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xl font-bold">${transaction.stars} Stars</span>
+                        <span id="transactionStatusBadge" class="inline-block px-2 py-0.5 rounded-full text-xs font-medium"></span>
                     </div>
-                    <div id="transactionValue" class="text-gray-600 mt-1">${(transaction.stars * rate).toFixed(3)} USDT</div>
+                    <div id="transactionValue" class="text-gray-600 text-sm mt-1">${(transaction.stars * rate).toFixed(3)} USDT</div>
                 </div>
-                <button onclick="closeTransactionDetails()" class="text-gray-400 hover:text-gray-600 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button onclick="closeTransactionDetails()" class="text-gray-400 hover:text-gray-600 transition-colors p-1" style="flex-shrink: 0;">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                 </button>
             </div>
             
-            <div class="mb-6">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-sm text-gray-600">Progress</span>
-                    <span class="text-sm text-gray-600">Estimated Completion: <span id="transactionEstimatedCompletion">${displayDate}</span></span>
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-1 text-xs">
+                    <span class="text-gray-600">Progress</span>
+                    <span class="text-gray-600">Est. completion: <span id="transactionEstimatedCompletion">${displayDate}</span></span>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                <div class="w-full bg-gray-200 rounded-full h-1.5">
+                    <div id="progressBar" class="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                 </div>
             </div>
             
-            <div class="timeline-section">
-                <h4 class="font-medium mb-4">Transaction Timeline</h4>
-                <div id="transactionTimeline" class="space-y-4"></div>
+            <div class="mt-6">
+                <h4 class="font-medium mb-3 text-sm">${translations[currentLanguage].transactionTimeline}</h4>
+                <div id="transactionTimeline" class="space-y-3"></div>
             </div>
         </div>
     `;
@@ -1205,7 +1206,7 @@ function populateTransactionDetails(transaction) {
     // Set status badge
     const statusBadge = document.getElementById('transactionStatusBadge');
     statusBadge.textContent = transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1);
-    statusBadge.className = 'inline-block px-3 py-1 rounded-full text-sm font-medium';
+    statusBadge.className = 'inline-block px-2 py-0.5 rounded-full text-xs font-medium';
     
     if (transaction.status === 'pending') {
         statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
@@ -1230,7 +1231,6 @@ function populateTransactionDetails(transaction) {
         const daysPassed = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
         progressPercentage = Math.min(Math.round((daysPassed / 21) * 100), 99);
     }
-    // For pending status, progress remains at 0
     
     // Build timeline
     const timeline = document.getElementById('transactionTimeline');
@@ -1266,10 +1266,10 @@ function populateTransactionDetails(transaction) {
         (transaction.datePaid ? formatDateWithLeadingZeros(transaction.datePaid) : ''),
         paymentStatus);
 
-    // Step 3: Processing Payment (removed the date display as requested)
+    // Step 3: Processing Payment
     addTimelineStep(timeline, 3, translations[currentLanguage].processing, 
         translations[currentLanguage].processingDesc, 
-        '', // Removed the date display for processing step
+        '', 
         processingStatus);
 
     // Step 4: Payment Sent
@@ -1326,8 +1326,10 @@ function addTimelineStep(container, number, title, description, date, status) {
     const step = document.createElement('div');
     step.className = 'transaction-step';
     step.style.opacity = '0';
-    step.style.transform = 'translateX(-20px)';
-    step.style.transition = 'all 0.3s ease';
+    step.style.transform = 'translateX(-10px)';
+    step.style.transition = 'all 0.2s ease';
+    step.style.paddingLeft = '8px';
+    step.style.marginBottom = '12px';
     
     // Determine step status class
     let statusClass = '';
@@ -1337,24 +1339,47 @@ function addTimelineStep(container, number, title, description, date, status) {
         statusClass = 'active';
     }
     
-    // Add step line if not the last step
-    if (number < 4) {
-        const line = document.createElement('div');
-        line.className = `step-line ${statusClass}`;
-        step.appendChild(line);
-    }
-    
-    step.innerHTML += `
-        <div class="step-number ${statusClass}">
-            ${status === 'completed' ? 
-                '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : 
-                number}
+    step.innerHTML = `
+        <div class="flex items-start gap-3">
+            <div class="step-number ${statusClass}" style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: bold;
+                flex-shrink: 0;
+                margin-top: 2px;
+                ${statusClass === 'completed' ? 'background: #10b981; color: white;' : 
+                 statusClass === 'active' ? 'background: #3b82f6; color: white;' : 
+                 'background: #e5e7eb; color: #6b7280;'}
+            ">
+                ${status === 'completed' ? 
+                    '✓' : 
+                    number}
+            </div>
+            <div style="flex: 1; min-width: 0;">
+                <div class="font-medium text-sm" style="
+                    ${statusClass === 'completed' ? 'color: #10b981;' : 
+                     statusClass === 'active' ? 'color: #3b82f6;' : 
+                     'color: #6b7280;'}
+                ">${title}</div>
+                <div class="text-xs text-gray-500 mt-0.5">${description}</div>
+                ${date ? `<div class="text-xs text-gray-400 mt-1">${date}</div>` : ''}
+            </div>
         </div>
-        <div class="step-content">
-            <div class="font-medium">${title}</div>
-            <div class="text-sm text-gray-600">${description}</div>
-            ${date ? `<div class="step-date">${date}</div>` : ''}
-        </div>
+        ${number < 4 ? `<div class="step-line ${statusClass}" style="
+            position: absolute;
+            left: 29px;
+            top: 22px;
+            bottom: -12px;
+            width: 2px;
+            ${statusClass === 'completed' ? 'background: #10b981;' : 
+             statusClass === 'active' ? 'background: #3b82f6;' : 
+             'background: #e5e7eb;'}
+        "></div>` : ''}
     `;
     
     container.appendChild(step);
