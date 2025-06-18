@@ -645,6 +645,7 @@ function initTelegramApp() {
             if (user) {
                 console.log('Telegram user data:', user); // Debug log
                 
+                // Update language if needed
                 if (user?.language_code === 'ru' && currentLanguage !== 'ru') {
                     currentLanguage = 'ru';
                     localStorage.setItem('appLanguage', 'ru');
@@ -653,19 +654,16 @@ function initTelegramApp() {
                 
                 updateUserInterface(user);
                 
+                // Expand the WebApp to full view
                 if (!Telegram.WebApp.isExpanded) {
                     Telegram.WebApp.expand();
                 }
             } else {
                 console.warn('No Telegram user data available');
-                // Try again after a short delay in case data isn't ready yet
+                // Try again after short delay
                 setTimeout(() => {
                     const retryUser = Telegram.WebApp.initDataUnsafe?.user;
-                    if (retryUser) {
-                        updateUserInterface(retryUser);
-                    } else {
-                        updateUserInterface(null);
-                    }
+                    updateUserInterface(retryUser || null);
                 }, 500);
             }
         } catch (error) {
