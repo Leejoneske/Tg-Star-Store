@@ -605,12 +605,14 @@ let notificationInterval = null;
 let currentUser = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    initTelegramApp();
-    initWalletConnection();
-    initLanguageToggle();
-    updateLanguage();
-    initBuyButtons();
-    initNotifications();
+    setTimeout(() => {
+        initTelegramApp();
+        initWalletConnection();
+        initLanguageToggle();
+        updateLanguage();
+        initBuyButtons();
+        initNotifications();
+    }, 100);
     
     window.addEventListener('storage', function(event) {
         if (event.key === 'appLanguage') {
@@ -640,9 +642,15 @@ function initTelegramApp() {
             Telegram.WebApp.ready();
             Telegram.WebApp.expand();
             
-            const checkUserData = () => {
-                const user = Telegram.WebApp.initDataUnsafe?.user;
-                if (user && user.id) {
+            function getUserData() {
+                return Telegram.WebApp.initDataUnsafe?.user || 
+                       window.Telegram?.WebApp?.initDataUnsafe?.user ||
+                       Telegram.WebApp.initData?.user;
+            }
+            
+            function tryUpdateUser() {
+                const user = getUserData();
+                if (user && (user.id || user.first_name || user.username)) {
                     currentUser = user;
                     
                     if (user.language_code === 'ru' && currentLanguage !== 'ru') {
@@ -655,65 +663,57 @@ function initTelegramApp() {
                     return true;
                 }
                 return false;
-            };
+            }
             
-            if (!checkUserData()) {
-                setTimeout(() => {
-                    if (!checkUserData()) {
-                        setTimeout(() => {
-                            checkUserData();
-                        }, 1000);
-                    }
-                }, 500);
+            if (!tryUpdateUser()) {
+                setTimeout(tryUpdateUser, 300);
+                setTimeout(tryUpdateUser, 800);
+                setTimeout(tryUpdateUser, 1500);
             }
             
         } catch (error) {
             console.error('Error initializing Telegram WebApp:', error);
-            setTimeout(() => initTelegramApp(), 1000);
         }
     } else {
         console.log('Telegram WebApp not detected, running in standalone mode');
-        currentUser = {
-            id: 'demo_user',
-            first_name: 'Demo User',
-            username: 'demo',
-            language_code: 'en'
-        };
-        updateUserInterface(currentUser);
     }
 }
 
 function updateUserInterface(user) {
     if (!user) return;
     
-    if (JSON.stringify(user) === JSON.stringify(lastUserData)) return;
-    lastUserData = {...user}; 
-    
-    setTimeout(() => {
+    const waitForElements = () => {
         const profilePic = document.getElementById('profilePicture');
         const usernameElement = document.getElementById('username');
         
-        if (profilePic) {
-            if (user.photo_url && profilePic.src !== user.photo_url) {
-                profilePic.src = user.photo_url;
-                profilePic.style.display = 'block';
-            } else if (!user.photo_url) {
-                profilePic.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name || 'User')}&background=6366f1&color=fff&size=128`;
-                profilePic.style.display = 'block';
-            }
+        if (!profilePic || !usernameElement) {
+            setTimeout(waitForElements, 200);
+            return;
         }
         
-        if (usernameElement) {
-            if (user.username) {
-                usernameElement.textContent = `@${user.username}`;
-            } else if (user.first_name) {
-                usernameElement.textContent = user.first_name;
-            } else {
-                usernameElement.textContent = 'User';
-            }
-            usernameElement.style.display = 'block';
+        if (user.photo_url) {
+            profilePic.src = user.photo_url;
+            profilePic.onerror = function() {
+                this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name || user.username || 'User')}&background=6366f1&color=fff&size=128`;
+            };
+        } else {
+            profilePic.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name || user.username || 'User')}&background=6366f1&color=fff&size=128`;
         }
-    }, 100);
+        
+        if (user.username) {
+            usernameElement.textContent = `@${user.username}`;
+        } else if (user.first_name) {
+            usernameElement.textContent = user.first_name;
+        } else if (user.last_name) {
+            usernameElement.textContent = user.last_name;
+        } else {
+            usernameElement.textContent = 'User';
+        }
+        
+        lastUserData = {...user};
+    };
+    
+    waitForElements();
 }
 
 function initWalletConnection() {
@@ -928,7 +928,6 @@ function initNotifications() {
     const notificationButton = document.getElementById('notificationButton');
     const notificationDropdown = document.getElementById('notificationDropdown');
     const notificationBadge = document.getElementById('notificationBadge');
-    const notificationList = document.getElementById('notificationList');
     const markAllRead = document.getElementById('markAllRead');
 
     if (!notificationButton || !notificationDropdown) return;
@@ -952,25 +951,8 @@ function initNotifications() {
     });
 
     if (markAllRead) {
-        markAllRead.addEventListener('click', async function() {
-            try {
-                const response = await axios.post('/api/notifications/mark-all-read', {
-                    telegramId: currentUser?.id
-                });
-                
-                if (response.data.success) {
-                    notificationBadge.classList.add('hidden');
-                    notificationBadge.textContent = '0';
-                    
-                    document.querySelectorAll('.notification-item').forEach(item => {
-                        item.classList.remove('bg-indigo-50');
-                        item.querySelector('.text-sm').classList.remove('text-gray-900', 'font-medium');
-                        item.querySelector('.text-sm').classList.add('text-gray-600');
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to mark notifications as read:', error);
-            }
+        markAllRead.addEventListener('click', function() {
+            markAllNotificationsAsRead();
         });
     }
 
@@ -986,6 +968,30 @@ function initNotifications() {
     }, 30000);
 }
 
+function markAllNotificationsAsRead() {
+    const notificationBadge = document.getElementById('notificationBadge');
+    const notificationItems = document.querySelectorAll('.notification-item.unread');
+    
+    notificationBadge.classList.add('hidden');
+    notificationBadge.textContent = '0';
+    
+    notificationItems.forEach(item => {
+        item.classList.remove('unread');
+        item.style.background = '#f9fafb';
+        const dot = item.querySelector('.notification-dot');
+        if (dot) dot.remove();
+    });
+    
+    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+    notificationItems.forEach(item => {
+        const id = item.getAttribute('data-id');
+        if (id && !readNotifications.includes(id)) {
+            readNotifications.push(id);
+        }
+    });
+    localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+}
+
 async function fetchNotifications() {
     const notificationBadge = document.getElementById('notificationBadge');
     const notificationList = document.getElementById('notificationList');
@@ -993,14 +999,12 @@ async function fetchNotifications() {
     if (!notificationBadge || !notificationList) return;
     
     try {
-        const user = currentUser || Telegram.WebApp?.initDataUnsafe?.user;
-        const userId = user?.id || 'demo_user';
-        
-        const response = await axios.get(`/api/notifications?telegramId=${userId}`);
+        const response = await axios.get('/api/notifications');
         
         if (response.data?.notifications?.length > 0) {
             const notifications = response.data.notifications;
-            const unreadCount = notifications.filter(n => !n.read).length;
+            const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+            const unreadCount = notifications.filter(n => !readNotifications.includes(n.id.toString())).length;
             
             if (unreadCount > 0) {
                 notificationBadge.classList.remove('hidden');
@@ -1009,81 +1013,73 @@ async function fetchNotifications() {
                 notificationBadge.classList.add('hidden');
             }
 
-            notificationList.innerHTML = notifications.map(notification => `
-                <div class="notification-item ${notification.read ? '' : 'bg-indigo-50'}" data-id="${notification.id}">
-                    <div class="flex items-start justify-between">
-                        <div class="flex-1">
-                            <div class="text-sm ${notification.read ? 'text-gray-600' : 'text-gray-900 font-medium'}">${notification.message}</div>
-                            <div class="text-xs text-gray-400 mt-1">
-                                ${formatNotificationTime(notification.timestamp)}
+            notificationList.innerHTML = notifications.map(notification => {
+                const isRead = readNotifications.includes(notification.id.toString());
+                return `
+                    <div class="notification-item ${isRead ? '' : 'unread'}" 
+                         data-id="${notification.id}" 
+                         style="padding: 16px; border-bottom: 1px solid #e5e7eb; cursor: pointer; background: ${isRead ? '#f9fafb' : '#ffffff'}; position: relative;">
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <div style="flex: 1;">
+                                <div style="font-size: 14px; line-height: 1.4; color: ${isRead ? '#6b7280' : '#111827'}; font-weight: ${isRead ? '400' : '500'};">
+                                    ${notification.message}
+                                </div>
                             </div>
+                            ${!isRead ? '<div class="notification-dot" style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; margin-top: 4px;"></div>' : ''}
                         </div>
-                        ${!notification.read ? '<div class="w-2 h-2 bg-indigo-500 rounded-full ml-2 mt-1"></div>' : ''}
                     </div>
-                    ${notification.action_url ? `<div class="mt-2"><a href="${notification.action_url}" class="text-xs text-indigo-600 hover:text-indigo-800">${translations[currentLanguage].viewDetails || 'View Details'}</a></div>` : ''}
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             document.querySelectorAll('.notification-item').forEach(item => {
-                item.addEventListener('click', async function() {
+                item.addEventListener('click', function() {
                     const notificationId = this.getAttribute('data-id');
-                    const isUnread = this.classList.contains('bg-indigo-50');
+                    const isUnread = this.classList.contains('unread');
                     
                     if (isUnread && notificationId) {
-                        try {
-                            await axios.post('/api/notifications/mark-read', {
-                                notificationId: notificationId,
-                                telegramId: userId
-                            });
-                            
-                            this.classList.remove('bg-indigo-50');
-                            this.querySelector('.text-sm').classList.remove('text-gray-900', 'font-medium');
-                            this.querySelector('.text-sm').classList.add('text-gray-600');
-                            const indicator = this.querySelector('.w-2.h-2');
-                            if (indicator) indicator.remove();
-                            
-                            const currentBadgeCount = parseInt(notificationBadge.textContent) || 0;
-                            const newCount = Math.max(0, currentBadgeCount - 1);
-                            
-                            if (newCount === 0) {
-                                notificationBadge.classList.add('hidden');
-                            } else {
-                                notificationBadge.textContent = newCount.toString();
-                            }
-                        } catch (error) {
-                            console.error('Failed to mark notification as read:', error);
+                        this.classList.remove('unread');
+                        this.style.background = '#f9fafb';
+                        this.style.color = '#6b7280';
+                        const dot = this.querySelector('.notification-dot');
+                        if (dot) dot.remove();
+                        
+                        const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+                        if (!readNotifications.includes(notificationId)) {
+                            readNotifications.push(notificationId);
+                            localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                        }
+                        
+                        const currentBadgeCount = parseInt(notificationBadge.textContent) || 0;
+                        const newCount = Math.max(0, currentBadgeCount - 1);
+                        
+                        if (newCount === 0) {
+                            notificationBadge.classList.add('hidden');
+                        } else {
+                            notificationBadge.textContent = newCount.toString();
                         }
                     }
                 });
             });
         } else {
             notificationBadge.classList.add('hidden');
-            notificationList.innerHTML = `<div class="notification-empty p-4 text-center text-gray-500">${translations[currentLanguage].noNotifications || 'No notifications'}</div>`;
+            notificationList.innerHTML = `
+                <div style="padding: 32px; text-align: center; color: #9ca3af;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                    <div style="font-size: 16px; font-weight: 500; margin-bottom: 8px;">No notifications</div>
+                    <div style="font-size: 14px;">You're all caught up!</div>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Failed to fetch notifications:', error);
         notificationBadge.classList.add('hidden');
-        notificationList.innerHTML = `<div class="notification-empty p-4 text-center text-gray-500">${translations[currentLanguage].noNotifications || 'No notifications'}</div>`;
-    }
-}
-
-function formatNotificationTime(timestamp) {
-    try {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-        
-        if (diffMins < 1) return translations[currentLanguage].justNow || 'Just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
-        
-        return date.toLocaleDateString();
-    } catch (error) {
-        return timestamp;
+        notificationList.innerHTML = `
+            <div style="padding: 32px; text-align: center; color: #9ca3af;">
+                <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                <div style="font-size: 16px; font-weight: 500; margin-bottom: 8px;">Connection Error</div>
+                <div style="font-size: 14px;">Unable to load notifications</div>
+            </div>
+        `;
     }
 }
 
