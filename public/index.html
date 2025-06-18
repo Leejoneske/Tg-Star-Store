@@ -631,87 +631,45 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('load', showContent);
     setTimeout(showContent, 1000);
 });
-
-function initTelegramApp() {
-    if (window.Telegram && window.Telegram.WebApp) {
-        try {
-            Telegram.WebApp.ready();
-            
-            // Try multiple ways to get user data
-            const user = Telegram.WebApp.initDataUnsafe?.user || 
-                         Telegram.WebApp.initData?.user || 
-                         Telegram.WebApp.cloudStorage?.user;
-            
-            if (user) {
-                console.log('Telegram user data:', user); // Debug log
-                
-                // Update language if needed
-                if (user?.language_code === 'ru' && currentLanguage !== 'ru') {
-                    currentLanguage = 'ru';
-                    localStorage.setItem('appLanguage', 'ru');
-                    updateLanguage();
-                }
-                
-                updateUserInterface(user);
-                
-                // Expand the WebApp to full view
-                if (!Telegram.WebApp.isExpanded) {
-                    Telegram.WebApp.expand();
+     
+        function initTelegramApp() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                try {
+                    Telegram.WebApp.ready();
+                    const user = Telegram.WebApp.initDataUnsafe.user;
+                    
+                    if (user?.language_code === 'ru' && currentLanguage !== 'ru') {
+                        currentLanguage = 'ru';
+                        localStorage.setItem('appLanguage', 'ru');
+                        updateLanguage();
+                    }
+                    
+                    updateUserInterface(user);
+                } catch (error) {
+                    console.error('Error initializing Telegram WebApp:', error);
                 }
             } else {
-                console.warn('No Telegram user data available');
-                // Try again after short delay
-                setTimeout(() => {
-                    const retryUser = Telegram.WebApp.initDataUnsafe?.user;
-                    updateUserInterface(retryUser || null);
-                }, 500);
+                console.log('Telegram WebApp not detected, running in standalone mode');
             }
-        } catch (error) {
-            console.error('Telegram WebApp init error:', error);
-            updateUserInterface(null);
         }
-    } else {
-        console.log('Running in standalone mode (not in Telegram)');
-        updateUserInterface(null);
-    }
-}
 
-function updateUserInterface(user) {
-    const profilePic = document.getElementById('profilePicture');
-    const usernameElement = document.getElementById('username');
-    
-    // Skip update if data hasn't changed
-    if (JSON.stringify(user) === JSON.stringify(lastUserData)) return;
-    lastUserData = user ? {...user} : null;
-    
-    // Update profile picture
-    if (user?.photo_url) {
-        profilePic.src = user.photo_url;
-    } else {
-        // Use Telegram's default user icon if available
-        profilePic.src = 'https://cdn.jsdelivr.net/gh/telegram-web-app/static@main/userpic.png';
-    }
-    
-    // Update username with multiple fallbacks
-    let displayName = translations[currentLanguage].connectWallet;
-    
-    if (user?.username) {
-        displayName = `@${user.username}`;
-    } else if (user?.first_name) {
-        displayName = user.first_name;
-        if (user?.last_name) {
-            displayName += ` ${user.last_name}`;
+        function updateUserInterface(user) {
+            if (JSON.stringify(user) === JSON.stringify(lastUserData)) return;
+            lastUserData = {...user}; 
+            
+            const profilePic = document.getElementById('profilePicture');
+            const usernameElement = document.getElementById('username');
+            
+            if (user?.photo_url && profilePic.src !== user.photo_url) {
+                profilePic.src = user.photo_url;
+            }
+            
+            if (user?.username) {
+                usernameElement.textContent = `@${user.username}`;
+            } else if (user?.first_name && usernameElement.textContent !== user.first_name) {
+                usernameElement.textContent = user.first_name;
+            }
         }
-    } else if (user?.last_name) {
-        displayName = user.last_name;
-    }
-    
-    usernameElement.textContent = displayName;
-    
-    // Debug output
-    console.log('Updating UI with user:', user);
-    console.log('Display name set to:', displayName);
-}
 
 function initWalletConnection() {
     try {
