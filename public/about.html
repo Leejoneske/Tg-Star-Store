@@ -318,6 +318,10 @@
     
     menuButton.addEventListener('click', toggleMenu);
     menuOverlay.addEventListener('click', toggleMenu);
+    
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', toggleMenu);
+    });
 }
 
 fetch('menubar.html')
