@@ -1,3 +1,4 @@
+
  <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -433,7 +434,6 @@
             </div>
         </div>
     </div>
-
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -681,7 +681,7 @@
         function updateLanguage() {
             const languageToggle = document.getElementById('languageToggle');
             if (languageToggle) {
-                languageToggle.textContent = currentLanguage === 'en' ? 'RU' : 'EN';
+                languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
             }
             
             document.querySelectorAll('[data-translate]').forEach(element => {
