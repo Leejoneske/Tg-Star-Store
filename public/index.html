@@ -632,7 +632,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(showContent, 1000);
 });
 
- function initTelegramApp() {
+function initTelegramApp() {
     if (window.Telegram && window.Telegram.WebApp) {
         try {
             Telegram.WebApp.ready();
@@ -646,40 +646,49 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 updateUserInterface(user);
+                
+                // Expand the WebApp to full view if not already
+                if (!Telegram.WebApp.isExpanded) {
+                    Telegram.WebApp.expand();
+                }
             } else {
-                console.log('No user data available in Telegram WebApp');
-                updateUserInterface(null); // Handle missing user data
+                console.log('Telegram user data not available');
+                updateUserInterface(null);
             }
         } catch (error) {
             console.error('Error initializing Telegram WebApp:', error);
-            updateUserInterface(null); // Handle errors
+            updateUserInterface(null);
         }
     } else {
         console.log('Telegram WebApp not detected, running in standalone mode');
-        updateUserInterface(null); // Handle standalone mode
+        updateUserInterface(null);
     }
-}       
-
+}
 
 function updateUserInterface(user) {
-    
-
-
-    
-    if (JSON.stringify(user) === JSON.stringify(lastUserData)) return;
-    lastUserData = {...user}; 
-    
     const profilePic = document.getElementById('profilePicture');
     const usernameElement = document.getElementById('username');
     
-    if (user?.photo_url && profilePic.src !== user.photo_url) {
+    // Skip update if user data hasn't changed
+    if (JSON.stringify(user) === JSON.stringify(lastUserData)) return;
+    lastUserData = user ? {...user} : null;
+    
+    // Handle profile picture
+    if (user?.photo_url) {
         profilePic.src = user.photo_url;
+    } else {
+        profilePic.src = 'https://via.placeholder.com/64';
     }
     
+    // Handle username display with multiple fallbacks
     if (user?.username) {
         usernameElement.textContent = `@${user.username}`;
-    } else if (user?.first_name && usernameElement.textContent !== user.first_name) {
+    } else if (user?.first_name) {
         usernameElement.textContent = user.first_name;
+    } else if (user?.last_name) {
+        usernameElement.textContent = user.last_name;
+    } else {
+        usernameElement.textContent = translations[currentLanguage].connectWallet;
     }
 }
 
@@ -1003,7 +1012,7 @@ fetch('menubar.html')
     .catch(error => {
         console.error('Error loading menubar:', error);
     });
-        </script>
+    </script>    
 </body>
 </html>
        
