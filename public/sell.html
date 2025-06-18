@@ -1146,7 +1146,10 @@ function showTransactionDetailsLoading() {
 function openTransactionDetails(transaction) {
     // Show loading state first
     showTransactionDetailsLoading();
-    
+    setTimeout(() => {
+        populateTransactionDetails(transaction);
+    }, 500);
+}
 
 // Populate transaction details (separated from openTransactionDetails for better organization)
 function populateTransactionDetails(transaction) {
