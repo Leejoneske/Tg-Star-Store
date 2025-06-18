@@ -29,6 +29,7 @@
             overflow: hidden;
         }
 
+        /* Menu Styles */
         .menu-overlay {
             position: fixed;
             top: 0;
@@ -100,6 +101,7 @@
             flex-shrink: 0;
         }
 
+        /* App Styles */
         .profile-image {
             width: 64px;
             height: 64px;
@@ -265,6 +267,7 @@
             margin-bottom: 12px;
         }
 
+        /* Notification styles */
         .notification-icon {
             position: relative;
             padding: 6px;
@@ -296,7 +299,7 @@
             background: white;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
+            z-index: 30;
             display: none;
             max-height: 400px;
             overflow-y: auto;
@@ -510,36 +513,6 @@
                     </div>
                 </div>
             </div>
-
-            <div class="menu-overlay" id="menuOverlay"></div>
-            <div class="side-menu" id="sideMenu">
-                <div class="menu-content">
-                    <div class="menu-item" data-translate="home">
-                        <i class="fas fa-home"></i>
-                        <span>Home</span>
-                    </div>
-                    <div class="menu-item" data-translate="sell">
-                        <i class="fas fa-dollar-sign"></i>
-                        <span>Sell</span>
-                    </div>
-                    <div class="menu-item" data-translate="history">
-                        <i class="fas fa-history"></i>
-                        <span>History</span>
-                    </div>
-                    <div class="menu-item" data-translate="referral">
-                        <i class="fas fa-users"></i>
-                        <span>Referral</span>
-                    </div>
-                    <div class="menu-item" data-translate="about">
-                        <i class="fas fa-info-circle"></i>
-                        <span>About</span>
-                    </div>
-                </div>
-                <div class="menu-footer">
-                    <div class="text-xs text-center text-gray-500" data-translate="poweredBy">Powered by StarStore</div>
-                    <div class="text-xs text-center text-gray-500 mt-1" data-translate="terms">Terms & Conditions</div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -637,7 +610,6 @@
                 updateLanguage();
                 initBuyButtons();
                 initNotifications();
-                initMenu();
             }, 100);
             
             window.addEventListener('storage', function(event) {
