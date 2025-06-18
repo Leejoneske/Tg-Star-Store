@@ -632,28 +632,40 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(showContent, 1000);
 });
 
-function initTelegramApp() {
+ function initTelegramApp() {
     if (window.Telegram && window.Telegram.WebApp) {
         try {
             Telegram.WebApp.ready();
-            const user = Telegram.WebApp.initDataUnsafe.user;
+            const user = Telegram.WebApp.initDataUnsafe?.user;
             
-            if (user?.language_code === 'ru' && currentLanguage !== 'ru') {
-                currentLanguage = 'ru';
-                localStorage.setItem('appLanguage', 'ru');
-                updateLanguage();
+            if (user) {
+                if (user?.language_code === 'ru' && currentLanguage !== 'ru') {
+                    currentLanguage = 'ru';
+                    localStorage.setItem('appLanguage', 'ru');
+                    updateLanguage();
+                }
+                
+                updateUserInterface(user);
+            } else {
+                console.log('No user data available in Telegram WebApp');
+                updateUserInterface(null); // Handle missing user data
             }
-            
-            updateUserInterface(user);
         } catch (error) {
             console.error('Error initializing Telegram WebApp:', error);
+            updateUserInterface(null); // Handle errors
         }
     } else {
         console.log('Telegram WebApp not detected, running in standalone mode');
+        updateUserInterface(null); // Handle standalone mode
     }
-}
+}       
+
 
 function updateUserInterface(user) {
+    
+
+
+    
     if (JSON.stringify(user) === JSON.stringify(lastUserData)) return;
     lastUserData = {...user}; 
     
