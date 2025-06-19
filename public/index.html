@@ -926,6 +926,53 @@ async function fetchCurrentRate() {
 }
 
 
+function initNotifications() {
+    const notificationButton = document.getElementById('notificationButton');
+    const notificationDropdown = document.getElementById('notificationDropdown');
+    
+    if (notificationButton && notificationDropdown) {
+        notificationButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            notificationDropdown.classList.toggle('active');
+            
+            // Load notifications when dropdown opens
+            if (notificationDropdown.classList.contains('active')) {
+                fetchNotifications();
+            }
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!notificationDropdown.contains(e.target) && 
+                !notificationButton.contains(e.target)) {
+                notificationDropdown.classList.remove('active');
+            }
+        });
+    }
+    
+    // Initialize mark all as read button
+    const markAllRead = document.getElementById('markAllRead');
+    if (markAllRead) {
+        markAllRead.addEventListener('click', function() {
+            const notifications = document.querySelectorAll('.notification-item');
+            const readNotifications = [];
+            
+            notifications.forEach(item => {
+                const id = item.getAttribute('data-id');
+                if (id) {
+                    readNotifications.push(id);
+                    item.classList.remove('unread');
+                    const dot = item.querySelector('.notification-dot');
+                    if (dot) dot.remove();
+                }
+            });
+            
+            localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+            document.getElementById('notificationBadge').classList.add('hidden');
+        });
+    }
+}
+        
 async function fetchNotifications() {
     const notificationBadge = document.getElementById('notificationBadge');
     const notificationList = document.getElementById('notificationList');
