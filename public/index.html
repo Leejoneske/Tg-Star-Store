@@ -977,152 +977,99 @@ async function fetchNotifications() {
     const notificationBadge = document.getElementById('notificationBadge');
     const notificationList = document.getElementById('notificationList');
     
-    if (!notificationBadge || !notificationList) {
-        console.warn('Notification elements not found for update');
-        return;
-    }
-    
+    if (!notificationBadge || !notificationList) return;
+
     try {
         // Show loading state
-        notificationList.innerHTML = `
-            <div class="notification-loading">
-                ${translations[currentLanguage].loadingNotifications}
-            </div>
-        `;
+        notificationList.innerHTML = `<div class="notification-loading">${translations[currentLanguage].loadingNotifications}</div>`;
 
+        // Get user ID (Telegram or guest)
         let userId;
         if (isTelegramEnv && Telegram.WebApp.initDataUnsafe?.user?.id) {
-            userId = Telegram.WebApp.initDataUnsafe.user.id;
+            userId = Telegram.WebApp.initDataUnsafe.user.id.toString();
         } else {
-            // For non-Telegram or when Telegram data isn't available
-            userId = localStorage.getItem('guestUserId');
-            if (!userId) {
-                // Create a guest user if none exists
-                userId = 'guest_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('guestUserId', userId);
-            }
+            userId = localStorage.getItem('guestUserId') || 'guest_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('guestUserId', userId);
         }
 
-        const response = await axios.get(`/api/notifications?userId=${encodeURIComponent(userId)}`, {
-            timeout: 10000,
-            validateStatus: function (status) {
-                return status >= 200 && status < 500; // Reject only if the status code is greater than or equal to 500
-            }
+        const response = await axios.get(`/api/notifications`, {
+            params: { userId },
+            timeout: 5000
         });
 
-        // Handle different response statuses
-        if (response.status === 404) {
-            // API endpoint not found - show appropriate message
-            notificationList.innerHTML = `
-                <div class="notification-empty">
-                    ${translations[currentLanguage].notificationsNotAvailable}
-                </div>
-            `;
-            return;
-        }
-
-        if (response.status === 401) {
-            // Unauthorized - show message about Telegram requirement if in web
-            if (!isTelegramEnv) {
-                notificationList.innerHTML = `
-                    <div class="notification-empty">
-                        ${translations[currentLanguage].telegramRequiredForNotifications}
-                    </div>
-                `;
-                return;
-            }
-        }
-
+        // Handle response
         if (!response.data) {
-            throw new Error('Invalid response format from notifications API');
+            throw new Error('Empty response from server');
         }
 
-        const notifications = Array.isArray(response.data) ? response.data : (response.data.notifications || []);
-        const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
-        const unreadCount = notifications.filter(n => !readNotifications.includes(n.id.toString())).length;
-        
-        // Update badge
-        if (notificationBadge) {
-            if (unreadCount > 0) {
-                notificationBadge.classList.remove('hidden');
-                notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
-            } else {
-                notificationBadge.classList.add('hidden');
-            }
-        }
+        const notifications = Array.isArray(response.data) ? 
+            response.data : 
+            (response.data.notifications || []);
 
-        // Update notification list
-        if (notifications.length > 0) {
-            notificationList.innerHTML = notifications.map(notification => {
-                const isRead = readNotifications.includes(notification.id.toString());
-                const notificationTime = notification.timestamp ? new Date(notification.timestamp).toLocaleString() : '';
-                
-                return `
-                    <div class="notification-item ${isRead ? '' : 'unread'}" 
-                         data-id="${notification.id}" 
-                         style="padding: 16px; border-bottom: 1px solid #e5e7eb; cursor: pointer; background: ${isRead ? '#f9fafb' : '#ffffff'}; position: relative;">
-                        <div style="display: flex; align-items: flex-start; gap: 12px;">
-                            <div style="flex: 1;">
-                                <div style="font-size: 14px; line-height: 1.4; color: ${isRead ? '#6b7280' : '#111827'}; font-weight: ${isRead ? '400' : '500'};">
-                                    ${notification.message}
-                                </div>
-                                ${notificationTime ? `<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">${notificationTime}</div>` : ''}
-                            </div>
-                            ${!isRead ? '<div class="notification-dot" style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; margin-top: 4px;"></div>' : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
+        updateNotificationUI(notifications);
 
-            // Add click handlers
-            document.querySelectorAll('.notification-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    const notificationId = this.getAttribute('data-id');
-                    const isUnread = this.classList.contains('unread');
-                    
-                    if (isUnread && notificationId) {
-                        this.classList.remove('unread');
-                        this.style.background = '#f9fafb';
-                        const dot = this.querySelector('.notification-dot');
-                        if (dot) dot.remove();
-                        
-                        const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
-                        if (!readNotifications.includes(notificationId)) {
-                            readNotifications.push(notificationId);
-                            localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
-                        }
-                        
-                        if (notificationBadge) {
-                            const currentBadgeCount = parseInt(notificationBadge.textContent) || 0;
-                            const newCount = Math.max(0, currentBadgeCount - 1);
-                            
-                            if (newCount === 0) {
-                                notificationBadge.classList.add('hidden');
-                            } else {
-                                notificationBadge.textContent = newCount.toString();
-                            }
-                        }
-                    }
-                });
-            });
-        } else {
-            notificationList.innerHTML = `
-                <div class="notification-empty" data-lang="noNotifications">
-                    ${translations[currentLanguage].noNotifications}
-                </div>
-            `;
-        }
     } catch (error) {
-        console.error('Notifications fetch error:', error);
+        console.error('Notifications error:', error);
         notificationList.innerHTML = `
             <div class="notification-error">
                 ${translations[currentLanguage].notificationsError}
-                ${!isTelegramEnv ? `<div style="margin-top: 8px; font-size: 12px;">${translations[currentLanguage].tryInTelegram}</div>` : ''}
+                <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                    ${error.message || ''}
+                </div>
             </div>
         `;
-        if (notificationBadge) {
+        notificationBadge.classList.add('hidden');
+    }
+}
+
+function updateNotificationUI(notifications) {
+    const notificationBadge = document.getElementById('notificationBadge');
+    const notificationList = document.getElementById('notificationList');
+    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || []);
+
+    // Filter and count unread notifications
+    const unreadNotifications = notifications.filter(
+        n => !readNotifications.includes(n._id || n.id)
+    );
+
+    // Update badge
+    if (notificationBadge) {
+        if (unreadNotifications.length > 0) {
+            notificationBadge.textContent = 
+                unreadNotifications.length > 99 ? '99+' : unreadNotifications.length.toString();
+            notificationBadge.classList.remove('hidden');
+        } else {
             notificationBadge.classList.add('hidden');
         }
+    }
+
+    // Update notification list
+    if (notifications.length > 0) {
+        notificationList.innerHTML = notifications.map(notification => {
+            const isRead = readNotifications.includes(notification._id || notification.id);
+            return `
+                <div class="notification-item ${isRead ? '' : 'unread'}" 
+                     data-id="${notification._id || notification.id}">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-1">
+                            <div class="${isRead ? 'text-gray-600' : 'text-gray-900 font-medium'}">
+                                ${notification.message}
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                ${new Date(notification.timestamp).toLocaleString()}
+                            </div>
+                        </div>
+                        ${!isRead ? '<div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>' : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } else {
+        notificationList.innerHTML = `
+            <div class="notification-empty">
+                ${translations[currentLanguage].noNotifications}
+            </div>
+        `;
     }
 }
 
