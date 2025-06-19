@@ -152,12 +152,18 @@ const bannedUserSchema = new mongoose.Schema({
     users: Array
 });
 
-
 const notificationSchema = new mongoose.Schema({
+    userId: String, 
     message: String,
-    timestamp: String
+    timestamp: { 
+        type: Date, 
+        default: Date.now 
+    },
+    isRead: {
+        type: Boolean,
+        default: false
+    }
 });
-
 
 const cacheSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
@@ -1996,9 +2002,23 @@ bot.onText(/\/broadcast/, async (msg) => {
     });
 });
 
+//fetch notifications for buypage 
 app.get('/api/notifications', async (req, res) => {
-    const notifications = await Notification.find({});
-    res.json({ notifications });
+    try {
+        const { userId } = req.query;
+        
+        if (!userId) {
+            return res.status(400).json({ error: "User ID is required" });
+        }
+
+        const notifications = await Notification.find({ userId })
+            .sort({ timestamp: -1 }) 
+            .limit(50); 
+        
+        res.json(notifications); 
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch notifications" });
+    }
 });
 
 bot.onText(/\/notify (.+)/, async (msg, match) => {
