@@ -153,13 +153,16 @@ const bannedUserSchema = new mongoose.Schema({
 });
 
 const notificationSchema = new mongoose.Schema({
-    userId: String, 
-    message: String,
-    timestamp: { 
-        type: Date, 
-        default: Date.now 
+    userId: {
+        type: String,
+        default: 'all' 
     },
-    isRead: {
+    message: String,
+    timestamp: {
+        type: Date,
+        default: Date.now
+    },
+    isGlobal: {
         type: Boolean,
         default: false
     }
@@ -2002,7 +2005,56 @@ bot.onText(/\/broadcast/, async (msg) => {
     });
 });
 
-//fetch notifications for buypage 
+
+bot.onText(/\/notify(?:\s+(all|@\w+))?\s+(.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+
+    const [_, target, notificationMessage] = match;
+    const timestamp = new Date();
+
+    try {
+        if (target === 'all') {
+            // Global notification
+            await Notification.create({
+                message: notificationMessage,
+                isGlobal: true
+            });
+            await bot.sendMessage(chatId, 
+                `🌍 Global notification sent at ${timestamp.toLocaleTimeString()}:\n\n${notificationMessage}`
+            );
+        } 
+        else if (target && target.startsWith('@')) {
+            // User-specific notification (by username)
+            const username = target.substring(1);
+            await Notification.create({
+                userId: username,
+                message: notificationMessage
+            });
+            await bot.sendMessage(chatId,
+                `👤 Notification sent to @${username} at ${timestamp.toLocaleTimeString()}:\n\n${notificationMessage}`
+            );
+        } 
+        else {
+            // Default behavior
+            await Notification.deleteMany({ isGlobal: true });
+            await Notification.create({
+                message: notificationMessage,
+                isGlobal: true
+            });
+            await bot.sendMessage(chatId,
+                `✅ Notification sent at ${timestamp.toLocaleTimeString()}:\n\n${notificationMessage}`
+            );
+        }
+    } catch (err) {
+        console.error('Notification error:', err);
+        bot.sendMessage(chatId, '❌ Failed to send notification.');
+    }
+});
+
+//fetch and display notifications 
 app.get('/api/notifications', async (req, res) => {
     try {
         const { userId } = req.query;
@@ -2011,36 +2063,21 @@ app.get('/api/notifications', async (req, res) => {
             return res.status(400).json({ error: "User ID is required" });
         }
 
-        const notifications = await Notification.find({ userId })
-            .sort({ timestamp: -1 }) 
-            .limit(50); 
-        
-        res.json(notifications); 
+        const notifications = await Notification.find({
+            $or: [
+                { userId: 'all' }, 
+                { userId }, 
+                { isGlobal: true } 
+            ]
+        })
+        .sort({ timestamp: -1 })
+        .limit(50);
+
+        res.json(notifications);
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch notifications" });
     }
 });
-
-bot.onText(/\/notify (.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) {
-        bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
-        return;
-    }
-
-    const notificationMessage = match[1];
-    const timestamp = new Date().toLocaleTimeString();
-
-    await Notification.deleteMany({});
-    await Notification.create({ message: notificationMessage, timestamp });
-
-    bot.sendMessage(chatId, `✅ Notification sent at ${timestamp}:\n\n${notificationMessage}`)
-        .catch(err => {
-            console.error('Failed to send confirmation to admin:', err);
-            bot.sendMessage(chatId, '❌ Failed to send notification.');
-        });
-});
-
 
 
 // Get transaction history and should NOT TOUCH THIS CODE
