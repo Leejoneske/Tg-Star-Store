@@ -651,9 +651,21 @@ function initTelegramApp() {
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         
-        const user = Telegram.WebApp.initDataUnsafe?.user || window.Telegram?.WebApp?.initDataUnsafe?.user || Telegram.WebApp.initData?.user;
-        
-        if (user && (user.id || user.first_name || user.username)) {
+        // Correct Telegram user data extraction
+        let user = null;
+        if (Telegram.WebApp.initDataUnsafe?.user) {
+            user = Telegram.WebApp.initDataUnsafe.user;
+        } else if (Telegram.WebApp.initData) {
+            try {
+                const initData = new URLSearchParams(Telegram.WebApp.initData);
+                const userJson = initData.get('user');
+                if (userJson) user = JSON.parse(userJson);
+            } catch (e) {
+                console.error('Error parsing initData:', e);
+            }
+        }
+
+        if (user) {
             currentUser = user;
             if (user.language_code === 'ru' && currentLanguage !== 'ru') {
                 currentLanguage = 'ru';
@@ -661,14 +673,6 @@ function initTelegramApp() {
                 updateLanguage();
             }
             updateUserInterface(user);
-        } else {
-            setTimeout(() => {
-                const user = Telegram.WebApp.initDataUnsafe?.user;
-                if (user) {
-                    currentUser = user;
-                    updateUserInterface(user);
-                }
-            }, 500);
         }
     } catch (error) {
         console.error('Telegram init error:', error);
