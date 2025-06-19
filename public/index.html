@@ -563,7 +563,8 @@
         notificationsNotAvailable: 'Notifications service not available',
         telegramRequiredForNotifications: 'Please open in Telegram to view notifications',
         tryInTelegram: 'Try opening in Telegram for full functionality',
-        noNotifications: 'No notifications yet'
+        noNotifications: 'No notifications yet',
+        userNotFound: "User information not found. Please refresh the page and try again."
     },
     ru: {
         appName: "StarStore",
@@ -606,7 +607,8 @@
         notificationsNotAvailable: 'Сервис уведомлений недоступен',
         telegramRequiredForNotifications: 'Откройте в Telegram для просмотра уведомлений',
         tryInTelegram: 'Попробуйте открыть в Telegram для полного функционала',
-        noNotifications: 'Пока нет уведомлений'
+        noNotifications: 'Пока нет уведомлений',
+        userNotFound: "Информация о пользователе не найдена. Пожалуйста, обновите страницу и попробуйте снова."
     }
 };
 
@@ -847,14 +849,22 @@ async function handlePurchase(item) {
         return;
     }
     
+    let loadingMessage;
     try {
         const parsedAmount = parseFloat(item.amount);
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
             showErrorMessage(translations[currentLanguage].invalidAmount);
             return;
         }
-        
-        const loadingMessage = Swal.fire({
+
+        // Validate user data exists
+        const user = currentUser || (isTelegramEnv && Telegram.WebApp?.initDataUnsafe?.user);
+        if (!user || !user.id) {
+            showErrorMessage(translations[currentLanguage].userNotFound);
+            return;
+        }
+
+        loadingMessage = Swal.fire({
             title: translations[currentLanguage].processing,
             text: translations[currentLanguage].preparingTransaction,
             allowOutsideClick: false,
@@ -885,10 +895,9 @@ async function handlePurchase(item) {
         const result = await tonConnectUI.sendTransaction(transaction);
         
         if (result) {
-            const user = currentUser || Telegram.WebApp?.initDataUnsafe?.user;
             const orderData = {
-                telegramId: user?.id,
-                username: user?.username || user?.first_name,
+                telegramId: user.id,
+                username: user.username || user.first_name || 'Unknown',
                 stars: item.stars || null,
                 isPremium: item.isPremium || false,
                 premiumDuration: item.premiumDuration || null,
@@ -912,7 +921,7 @@ async function handlePurchase(item) {
         }
     } catch (error) {
         console.error('Payment error:', error);
-        await loadingMessage.close();
+        if (loadingMessage) await loadingMessage.close();
         showErrorMessage(error.response?.data?.error || translations[currentLanguage].paymentFailed);
     }
 }
