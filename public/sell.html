@@ -506,12 +506,12 @@
         <div class="bg-white rounded-xl p-6 mb-6">
             <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
             <div class="rate-info mb-4">
-                <div>
-                    <span class="text-sm text-gray-600">Current Rate</span>
-                    <div class="font-bold">1 Star = 0.009 USDT</div>
-                </div>
-                <span class="info-badge">Minimum sell: 50 Stars</span>
-            </div>
+              <div class="text-center">
+                <span class="text-sm text-gray-600">Current Rate</span>
+               <div class="font-bold">1 Star = 0.009 USDT</div>
+             <span class="info-badge block mt-2">Minimum sell: 50 Stars</span>
+             </div>
+             </div>
  
             <div class="sell-option p-4 mb-6">
                 <div class="mb-4">
@@ -878,22 +878,33 @@ function setupWalletAddressMemory() {
   // Save button handler
   saveButton.addEventListener('click', () => {
     const address = manualWalletAddress.value.trim();
-    if (address) {
-      localStorage.setItem('userWalletAddress', address);
-      currentWalletAddress = address;
-      manualWalletAddress.disabled = true;
-      editButton.style.display = 'block';
-      Swal.fire({
-        icon: 'success',
-        title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
-        text: currentLanguage === 'en' ? 
-          'Your wallet address has been saved for future use.' : 
-          'Ваш адрес кошелька был сохранен для будущего использования.',
-        timer: 2000,
-        showConfirmButton: false
-      });
+    if (!isValidWalletAddress(address)) {
+        Swal.fire({
+            icon: 'error',
+            title: translations[currentLanguage].missingWalletAddress,
+            text: currentLanguage === 'en' ? 
+                'Please enter a valid wallet address (minimum 10 characters)' : 
+                'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
+        });
+        return;
     }
-  });
+    
+    if (address) {
+        localStorage.setItem('userWalletAddress', address);
+        currentWalletAddress = address;
+        manualWalletAddress.disabled = true;
+        editButton.style.display = 'block';
+        Swal.fire({
+            icon: 'success',
+            title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
+            text: currentLanguage === 'en' ? 
+                'Your wallet address has been saved for future use.' : 
+                'Ваш адрес кошелька был сохранен для будущего использования.',
+            timer: 2000,
+            showConfirmButton: false
+        });
+    }
+});
   
   // Edit button handler
   editButton.addEventListener('click', () => {
@@ -922,6 +933,11 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
+      //wallet validation
+function isValidWalletAddress(address) {
+    return address && address.length >= 10 && /^[a-zA-Z0-9].*$/.test(address);
+}
+      
 // Stars amount handling
 function incrementStars() {
     const currentValue = parseInt(starsInput.value) || 0;
@@ -961,11 +977,13 @@ calculateTonAmount();
      
 // Payment modal handling
 sellStarsBtn.addEventListener('click', () => {
-    if (!manualWalletAddress.value.trim()) {
+    if (!manualWalletAddress.value.trim() || !isValidWalletAddress(manualWalletAddress.value.trim())) {
         Swal.fire({
             icon: 'error',
             title: translations[currentLanguage].missingWalletAddress,
-            text: translations[currentLanguage].enterValidWallet
+            text: currentLanguage === 'en' ? 
+                'Please enter a valid wallet address (minimum 10 characters)' : 
+                'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
         });
         return;
     }
