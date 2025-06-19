@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
     <link rel="apple-touch-icon" href="/favicon.png">
 
@@ -267,68 +268,151 @@
             margin-bottom: 12px;
         }
 
-        /* Notification styles */
-        .notification-icon {
-            position: relative;
-            padding: 6px;
-            margin-right: 8px;
-            margin-right: 19px;
-            cursor: pointer;
-        }
+        /* Notification Icon */
+.notification-icon {
+    padding: 8px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    border-radius: 50%;
+}
 
-        .notification-badge {
-            position: absolute;
-            top: -2px;
-            right: -2px;
-            background-color: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 16px;
-            height: 16px;
-            font-size: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+.notification-icon:hover {
+    background-color: rgba(79, 70, 229, 0.1);
+}
 
-        .notification-dropdown {
-            position: absolute;
-            top: 50px;
-            right: 80px;
-            width: 280px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            z-index: 30;
-            display: none;
-            max-height: 400px;
-            overflow-y: auto;
-        }
+.notification-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
 
-        .notification-dropdown.active {
-            display: block;
-        }
+/* Notification Dropdown */
+.notification-dropdown {
+    position: absolute;
+    top: 50px;
+    right: 20px;
+    width: 320px;
+    max-height: 70vh;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
+                0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    z-index: 50;
+    display: none;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+}
 
-        .notification-header {
-            padding: 12px;
-            border-bottom: 1px solid #e5e7eb;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+.notification-dropdown.active {
+    display: block;
+    animation: fadeIn 0.2s ease-out;
+}
 
-        .notification-list {
-            max-height: 300px;
-            overflow-y: auto;
-        }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
-        .notification-empty {
-            padding: 16px;
-            text-align: center;
-            color: #6b7280;
-            font-size: 14px;
-        }
+.notification-header {
+    padding: 16px;
+    border-bottom: 1px solid #f3f4f6;
+    background: #f9fafb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notification-header span {
+    font-weight: 600;
+    color: #111827;
+}
+
+.notification-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notification-item {
+    padding: 16px;
+    border-bottom: 1px solid #f3f4f6;
+    transition: all 0.2s ease;
+    display: flex;
+    gap: 12px;
+}
+
+.notification-item:hover {
+    background-color: #f9fafb;
+}
+
+.notification-item.unread {
+    background-color: #f0f4ff;
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-message {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #111827;
+}
+
+.notification-item.unread .notification-message {
+    font-weight: 500;
+}
+
+.notification-time {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.notification-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.notification-empty .material-icons {
+    font-size: 48px;
+    color: #d1d5db;
+    margin-bottom: 12px;
+}
+
+.notification-mark-read {
+    color: #4f46e5;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.notification-mark-read:hover {
+    text-decoration: underline;
+}
 
         @keyframes shimmer {
             0% {
@@ -402,11 +486,10 @@
                 </button>
                 <div class="logo-header" data-translate="appName">StarStore</div>
                 <div class="flex items-center">
-                    <div class="notification-icon" id="notificationButton">
-                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                        </svg>
-                        <div class="notification-badge hidden" id="notificationBadge">0</div>
+                    <div class="notification-icon relative" id="notificationButton">
+                       <span class="material-icons text-gray-600 hover:text-indigo-600">notifications</span>
+                       <div class="notification-badge hidden" id="notificationBadge">0</div>
+                      </div>
                     </div>
                     <button id="languageToggle" class="language-toggle">🇬🇧</button>
                 </div>
@@ -1025,18 +1108,17 @@ async function fetchNotifications() {
 function updateNotificationUI(notifications) {
     const notificationBadge = document.getElementById('notificationBadge');
     const notificationList = document.getElementById('notificationList');
-    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || []);
+    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
 
-    // Filter and count unread notifications
-    const unreadNotifications = notifications.filter(
+    // Count unread notifications
+    const unreadCount = notifications.filter(
         n => !readNotifications.includes(n._id || n.id)
-    );
+    ).length;
 
     // Update badge
     if (notificationBadge) {
-        if (unreadNotifications.length > 0) {
-            notificationBadge.textContent = 
-                unreadNotifications.length > 99 ? '99+' : unreadNotifications.length.toString();
+        if (unreadCount > 0) {
+            notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
             notificationBadge.classList.remove('hidden');
         } else {
             notificationBadge.classList.add('hidden');
@@ -1047,30 +1129,92 @@ function updateNotificationUI(notifications) {
     if (notifications.length > 0) {
         notificationList.innerHTML = notifications.map(notification => {
             const isRead = readNotifications.includes(notification._id || notification.id);
+            const timeAgo = formatTimeAgo(new Date(notification.timestamp));
+            
             return `
                 <div class="notification-item ${isRead ? '' : 'unread'}" 
                      data-id="${notification._id || notification.id}">
-                    <div class="flex items-start gap-3">
-                        <div class="flex-1">
-                            <div class="${isRead ? 'text-gray-600' : 'text-gray-900 font-medium'}">
-                                ${notification.message}
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">
-                                ${new Date(notification.timestamp).toLocaleString()}
-                            </div>
+                    <span class="material-icons text-indigo-500" style="font-size: 20px">
+                        ${isRead ? 'notifications_none' : 'notifications_active'}
+                    </span>
+                    <div class="notification-content">
+                        <div class="notification-message">${notification.message}</div>
+                        <div class="notification-time">
+                            <span class="material-icons" style="font-size: 14px">schedule</span>
+                            ${timeAgo}
                         </div>
-                        ${!isRead ? '<div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>' : ''}
+                        ${!isRead ? `
+                        <div class="notification-actions">
+                            <button class="notification-mark-read mark-read-single">
+                                <span class="material-icons" style="font-size: 16px">done</span>
+                                <span data-lang="markRead">Mark as read</span>
+                            </button>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
         }).join('');
+
+        // Add click handlers for mark as read
+        document.querySelectorAll('.mark-read-single').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const notificationItem = this.closest('.notification-item');
+                const notificationId = notificationItem.getAttribute('data-id');
+                
+                // Mark as read in UI
+                notificationItem.classList.remove('unread');
+                notificationItem.querySelector('.material-icons').textContent = 'notifications_none';
+                this.remove();
+                
+                // Update local storage
+                const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+                if (!readNotifications.includes(notificationId)) {
+                    readNotifications.push(notificationId);
+                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                }
+                
+                // Update badge count
+                if (notificationBadge) {
+                    const currentCount = parseInt(notificationBadge.textContent) || 0;
+                    const newCount = Math.max(0, currentCount - 1);
+                    notificationBadge.textContent = newCount > 0 ? newCount.toString() : '';
+                    if (newCount === 0) notificationBadge.classList.add('hidden');
+                }
+            });
+        });
     } else {
         notificationList.innerHTML = `
             <div class="notification-empty">
-                ${translations[currentLanguage].noNotifications}
+                <span class="material-icons">notifications_off</span>
+                <div data-lang="noNotifications">No notifications yet</div>
             </div>
         `;
     }
+}
+
+// Helper function to format time
+function formatTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    
+    const intervals = {
+        year: 31536000,
+        month: 2592000,
+        week: 604800,
+        day: 86400,
+        hour: 3600,
+        minute: 60
+    };
+    
+    for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+        const interval = Math.floor(seconds / secondsInUnit);
+        if (interval >= 1) {
+            return `${interval} ${unit}${interval === 1 ? '' : 's'} ago`;
+        }
+    }
+    
+    return 'Just now';
 }
 
 function initMenu() {
