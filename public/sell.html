@@ -140,27 +140,30 @@
     .counter-button:hover {
         background: #e5e7eb;
     }
-    .rate-info {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px;
-        background: #f9fafb;
-        border-radius: 8px;
-        margin-bottom: 16px;
-    }
-    .info-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        background: rgba(79, 70, 229, 0.1);
-        color: #4f46e5;
-        border-radius: 4px;
-        font-size: 12px;
-        font-weight: 500;
-    }
+    
     .transaction-history {
         margin-top: 24px;
     }
+   .rate-info {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.info-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: rgba(79, 70, 229, 0.1);
+    color: #4f46e5;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    margin: 0 auto; 
+}
+  
     .transaction-item {
         display: flex;
         align-items: center;
@@ -505,13 +508,17 @@
     <div class="p-6">
         <div class="bg-white rounded-xl p-6 mb-6">
             <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
-            <div class="rate-info mb-4">
-              <div class="text-center">
-                <span class="text-sm text-gray-600">Current Rate</span>
-               <div class="font-bold">1 Star = 0.009 USDT</div>
-             <span class="info-badge block mt-2">Minimum sell: 50 Stars</span>
+            <div class="rate-info mb-4">        
+              <div class="flex justify-between items-center">
+                 <div>
+               <span class="text-sm text-gray-600">Current Rate</span>
+                  <div class="font-bold">1 Star = 0.009 USDT</div>
+               </div>
+            </div>
+               <div class="text-center mt-2">
+               <span class="info-badge">Minimum sell: 50 Stars</span>
              </div>
-             </div>
+           </div> 
  
             <div class="sell-option p-4 mb-6">
                 <div class="mb-4">
