@@ -899,22 +899,42 @@ async function handlePurchase(item) {
             const response = await axios.post('/api/orders/create', orderData);
             
             if (response.data.success) {
+                await loadingMessage.close();
                 showSuccessMessage(translations[currentLanguage].orderCreated);
                 setTimeout(() => fetchNotifications(), 1000);
             } else {
+                await loadingMessage.close();
                 showErrorMessage(response.data.error || translations[currentLanguage].orderFailed);
             }
         } else {
+            await loadingMessage.close();
             showErrorMessage(translations[currentLanguage].transactionFailed);
         }
     } catch (error) {
         console.error('Payment error:', error);
+        await loadingMessage.close();
         showErrorMessage(error.response?.data?.error || translations[currentLanguage].paymentFailed);
-    } finally {
-        Swal.close();
     }
 }
 
+function showSuccessMessage(message) {
+    Swal.fire({
+        title: translations[currentLanguage].success,
+        text: message,
+        icon: 'success',
+        confirmButtonText: translations[currentLanguage].ok
+    });
+}
+
+function showErrorMessage(message) {
+    Swal.fire({
+        title: translations[currentLanguage].error,
+        text: message,
+        icon: 'error',
+        confirmButtonText: translations[currentLanguage].ok
+    });
+}
+        
 async function fetchCurrentRate() {
     try {
         const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
