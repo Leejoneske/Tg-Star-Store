@@ -1,4 +1,5 @@
 
+<!-- notification.html -->
 <div class="notification-dropdown" id="notificationDropdown">
     <div class="notification-header">
         <span data-lang="notifications">Notifications</span>
@@ -9,68 +10,40 @@
     </div>
 </div>
 
-<style>
-    .notification-icon {
-        position: relative;
-        padding: 6px;
-        margin-right: 8px;
-        cursor: pointer;
-    }
-    .notification-badge {
-        position: absolute;
-        top: -2px;
-        right: -2px;
-        background-color: #ef4444;
-        color: white;
-        border-radius: 50%;
-        width: 16px;
-        height: 16px;
-        font-size: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .notification-dropdown {
-        position: fixed;
-        top: 60px;
-        right: 20px;
-        width: 280px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        z-index: 1000;
-        display: none;
-        max-height: 400px;
-        overflow-y: auto;
-    }
-    .notification-dropdown.active {
-        display: block;
-    }
-</style>
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const notificationButton = document.getElementById('notificationButton');
-    const dropdown = document.getElementById('notificationDropdown');
-    
-    if (notificationButton && dropdown) {
-        notificationButton.addEventListener('click', function(e) {
-            e.stopPropagation();
-            dropdown.classList.toggle('active');
-            if (dropdown.classList.contains('active')) fetchNotifications();
-        });
+(function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        const notificationButton = document.getElementById('notificationButton');
+        const dropdown = document.getElementById('notificationDropdown');
         
-        document.addEventListener('click', function(e) {
-            if (!dropdown.contains(e.target) && !notificationButton.contains(e.target)) {
-                dropdown.classList.remove('active');
-            }
-        });
-    }
+        if (notificationButton && dropdown) {
+            notificationButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropdown.classList.toggle('active');
+                if (dropdown.classList.contains('active')) {
+                    fetchNotifications();
+                }
+            });
+            
+            document.addEventListener('click', function(e) {
+                if (!dropdown.contains(e.target) && !notificationButton.contains(e.target)) {
+                    dropdown.classList.remove('active');
+                }
+            });
+        }
 
-    function fetchNotifications() {
-        const list = document.getElementById('notificationList');
-        if (!list) return;
-        list.innerHTML = `<div class="notification-item"><div>Test notification</div><div class="text-xs text-gray-500">Just now</div></div>`;
-    }
-});
+        function fetchNotifications() {
+            const list = document.getElementById('notificationList');
+            if (list) {
+                list.innerHTML = `
+                    <div class="notification-item">
+                        <div>Test notification</div>
+                        <div class="text-xs text-gray-500">Just now</div>
+                    </div>
+                `;
+            }
+        }
+    });
+})();
 </script>
