@@ -1,33 +1,11 @@
 
-<!-- notification.html -->
 <div class="notification-container hidden" id="notificationContainer">
     <div class="notification-dropdown">
-        <div class="notification-header flex justify-between items-center p-4 border-b border-gray-200 bg-indigo-50">
-            <div class="flex items-center">
-                <svg class="w-5 h-5 text-indigo-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
-                </svg>
-                <span class="font-semibold text-indigo-700" data-translate="notifications">Notifications</span>
-            </div>
-            <div class="flex items-center">
-                <button class="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-100 transition-colors" id="markAllRead" data-translate="markAllRead">Mark all as read</button>
-                <button class="ml-2 text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors" id="closeNotifications">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
+        <div class="notification-header">
+            <span>Notifications</span>
         </div>
-        <div class="notification-list p-2 max-h-80 overflow-y-auto" id="notificationList">
-            <div class="flex flex-col items-center justify-center py-8">
-                <svg class="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                </svg>
-                <span class="text-gray-500 text-sm" data-translate="noNotifications">No new notifications</span>
-            </div>
-        </div>
-        <div class="notification-footer p-3 border-t border-gray-200 bg-gray-50 text-center">
-            <a href="#" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium" data-translate="viewAll">View all notifications</a>
+        <div class="notification-list" id="notificationList">
+            <div class="text-center py-4 text-gray-500">No new notifications</div>
         </div>
     </div>
 </div>
@@ -37,315 +15,30 @@
     position: fixed;
     top: 60px;
     right: 20px;
-    width: 350px;
+    width: 320px;
     z-index: 1000;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
     background: white;
-    transform: translateY(-10px);
-    opacity: 0;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.notification-container.active {
-    transform: translateY(0);
-    opacity: 1;
+.notification-container.hidden {
+    display: none;
 }
 
 .notification-dropdown {
-    background: white;
-    border-radius: 12px;
-    overflow: hidden;
+    padding: 10px;
 }
 
-.notification-item {
-    padding: 12px;
-    margin: 4px 0;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: flex-start;
-    border-left: 3px solid transparent;
-}
-
-.notification-item.unread {
-    background: #f8fafc;
-    border-left-color: #4f46e5;
-}
-
-.notification-item:hover {
-    background: #f3f4f6;
-}
-
-.notification-item-content {
-    flex: 1;
-    margin-left: 10px;
-}
-
-.notification-item-title {
-    font-weight: 500;
-    color: #1f2937;
-    margin-bottom: 2px;
-}
-
-.notification-item-message {
-    font-size: 13px;
-    color: #6b7280;
-    line-height: 1.4;
-}
-
-.notification-item-time {
-    font-size: 11px;
-    color: #9ca3af;
-    margin-top: 4px;
-    display: flex;
-    align-items: center;
-}
-
-.notification-item-time svg {
-    width: 12px;
-    height: 12px;
-    margin-right: 4px;
-}
-
-.notification-badge {
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    background: #ef4444;
-    color: white;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: bold;
-    box-shadow: 0 0 0 2px white;
-}
-
-.notification-loading {
-    display: flex;
-    justify-content: center;
-    padding: 20px;
-}
-
-.notification-loading-spinner {
-    width: 24px;
-    height: 24px;
-    border: 3px solid rgba(79, 70, 229, 0.2);
-    border-top-color: #4f46e5;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
+.notification-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
 }
 </style>
 
 <script>
-(function() {
-    // Add translations for notification system
-    const notificationTranslations = {
-        en: {
-            notifications: "Notifications",
-            noNotifications: "No new notifications",
-            markAllRead: "Mark all as read",
-            viewAll: "View all notifications",
-            justNow: "Just now",
-            minutesAgo: "minutes ago",
-            hoursAgo: "hours ago",
-            daysAgo: "days ago"
-        },
-        ru: {
-            notifications: "Уведомления",
-            noNotifications: "Нет новых уведомлений",
-            markAllRead: "Отметить все как прочитанные",
-            viewAll: "Все уведомления",
-            justNow: "Только что",
-            minutesAgo: "минут назад",
-            hoursAgo: "часов назад",
-            daysAgo: "дней назад"
-        }
-    };
-
-    // Merge with existing translations
-    Object.keys(notificationTranslations).forEach(lang => {
-        if (!translations[lang]) translations[lang] = {};
-        Object.assign(translations[lang], notificationTranslations[lang]);
-    });
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const notificationButton = document.getElementById('notificationButton');
-        const notificationContainer = document.getElementById('notificationContainer');
-        
-        if (notificationButton && notificationContainer) {
-            // Add badge to notification button
-            const badge = document.createElement('div');
-            badge.className = 'notification-badge hidden';
-            badge.id = 'notificationBadge';
-            notificationButton.appendChild(badge);
-            
-            notificationButton.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                notificationContainer.classList.toggle('hidden');
-                notificationContainer.classList.toggle('active');
-                
-                if (notificationContainer.classList.contains('active')) {
-                    fetchNotifications();
-                }
-            });
-            
-            document.getElementById('closeNotifications')?.addEventListener('click', function(e) {
-                e.stopPropagation();
-                notificationContainer.classList.add('hidden');
-                notificationContainer.classList.remove('active');
-            });
-            
-            document.addEventListener('click', function(e) {
-                if (!notificationContainer.contains(e.target) {
-                    notificationContainer.classList.add('hidden');
-                    notificationContainer.classList.remove('active');
-                }
-            });
-        }
-
-        function formatTimeAgo(timestamp) {
-            const now = new Date();
-            const diffInSeconds = Math.floor((now - new Date(timestamp)) / 1000);
-            
-            if (diffInSeconds < 60) {
-                return translations[currentLanguage].justNow;
-            } else if (diffInSeconds < 3600) {
-                const minutes = Math.floor(diffInSeconds / 60);
-                return `${minutes} ${translations[currentLanguage].minutesAgo}`;
-            } else if (diffInSeconds < 86400) {
-                const hours = Math.floor(diffInSeconds / 3600);
-                return `${hours} ${translations[currentLanguage].hoursAgo}`;
-            } else {
-                const days = Math.floor(diffInSeconds / 86400);
-                return `${days} ${translations[currentLanguage].daysAgo}`;
-            }
-        }
-
-        function fetchNotifications() {
-            const list = document.getElementById('notificationList');
-            if (!list) return;
-            
-            // Show loading state
-            list.innerHTML = `
-                <div class="notification-loading">
-                    <div class="notification-loading-spinner"></div>
-                </div>
-            `;
-            
-            // Simulate API call with realistic data
-            setTimeout(() => {
-                const notifications = [
-                    {
-                        id: 1,
-                        title: "Purchase Successful",
-                        message: "Your purchase of 100 Stars has been completed successfully.",
-                        timestamp: new Date(Date.now() - 120000).toISOString(),
-                        unread: true,
-                        icon: "check-circle"
-                    },
-                    {
-                        id: 2,
-                        title: "New Feature Available",
-                        message: "Try our new premium packages with exclusive benefits.",
-                        timestamp: new Date(Date.now() - 3600000).toISOString(),
-                        unread: true,
-                        icon: "gift"
-                    },
-                    {
-                        id: 3,
-                        title: "Wallet Connected",
-                        message: "Your TON wallet has been successfully connected to your account.",
-                        timestamp: new Date(Date.now() - 86400000).toISOString(),
-                        unread: false,
-                        icon: "wallet"
-                    }
-                ];
-                
-                if (notifications.length === 0) {
-                    list.innerHTML = `
-                        <div class="flex flex-col items-center justify-center py-8">
-                            <svg class="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                            </svg>
-                            <span class="text-gray-500 text-sm">${translations[currentLanguage].noNotifications}</span>
-                        </div>
-                    `;
-                } else {
-                    list.innerHTML = notifications.map(notification => `
-                        <div class="notification-item ${notification.unread ? 'unread' : ''}" data-id="${notification.id}">
-                            <div class="flex-shrink-0">
-                                <svg class="w-5 h-5 text-indigo-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${getIconPath(notification.icon)}"/>
-                                </svg>
-                            </div>
-                            <div class="notification-item-content">
-                                <div class="notification-item-title">${notification.title}</div>
-                                <div class="notification-item-message">${notification.message}</div>
-                                <div class="notification-item-time">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                    ${formatTimeAgo(notification.timestamp)}
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-                    
-                    // Add click handler for notifications
-                    document.querySelectorAll('.notification-item').forEach(item => {
-                        item.addEventListener('click', function() {
-                            this.classList.remove('unread');
-                            updateBadgeCount();
-                        });
-                    });
-                }
-                
-                // Update badge count
-                const unreadCount = notifications.filter(n => n.unread).length;
-                updateBadgeCount(unreadCount);
-            }, 800);
-        }
-        
-        function getIconPath(iconName) {
-            const icons = {
-                "check-circle": "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
-                "gift": "M12 8v15m0-15V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm0 0h4.5a2.5 2.5 0 100-5H12v5zM4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M4 12h16M4 12l3-4m13 4l-3-4",
-                "wallet": "M3 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6zM17 12h.01M13 12h.01M13 8h.01M13 16h.01"
-            };
-            return icons[iconName] || icons["check-circle"];
-        }
-        
-        function updateBadgeCount(count = 0) {
-            const badge = document.getElementById('notificationBadge');
-            if (!badge) return;
-            
-            if (count > 0) {
-                badge.textContent = count > 9 ? '9+' : count.toString();
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-        
-        // Mark all as read functionality
-        document.getElementById('markAllRead')?.addEventListener('click', function() {
-            const items = document.querySelectorAll('.notification-item.unread');
-            items.forEach(item => item.classList.remove('unread'));
-            updateBadgeCount(0);
-        });
-        
-        // Initialize with 2 notifications (for demo)
-        updateBadgeCount(2);
-    });
-})();
+document.getElementById('notificationButton').addEventListener('click', function() {
+    document.getElementById('notificationContainer').classList.toggle('hidden');
+});
 </script>
