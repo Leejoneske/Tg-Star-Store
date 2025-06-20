@@ -467,8 +467,7 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-   
-        // Debugging tools
+// Debugging tools
 if (typeof eruda !== 'undefined') {
     eruda.init();
     eruda.add(erudaNetwork);
@@ -574,6 +573,8 @@ let lastUserData = null;
 let currentUser = null;
 let notificationInterval = null;
 let isTelegramEnv = false;
+let updateUserInterfaceRetryCount = 0;
+let isInitialized = false;
 
 // Check if we're in Telegram environment
 try {
@@ -586,11 +587,14 @@ try {
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', function() {
+    if (isInitialized) return;
+    isInitialized = true;
+    
     const skeleton = document.getElementById('skeleton-loading');
     const content = document.getElementById('content-container');
     
-    skeleton.style.display = 'block';
-    content.style.display = 'none';
+    if (skeleton) skeleton.style.display = 'block';
+    if (content) content.style.display = 'none';
 
     // Initialize components in sequence
     Promise.all([
@@ -618,12 +622,12 @@ function loadMenuBar() {
     return new Promise((resolve, reject) => {
         const menubarContainer = document.getElementById('menubar-container');
         if (!menubarContainer) {
-            return reject('Menubar container not found');
+            return reject(new Error('Menubar container not found'));
         }
 
         fetch('menubar.html')
             .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return response.text();
             })
             .then(html => {
@@ -643,7 +647,7 @@ function loadNotificationComponent() {
     return new Promise((resolve, reject) => {
         fetch('notification.html')
             .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return response.text();
             })
             .then(html => {
@@ -706,6 +710,10 @@ function initTelegramApp() {
     }
 
     try {
+        if (!window.Telegram || !window.Telegram.WebApp) {
+            throw new Error('Telegram WebApp not available');
+        }
+        
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         
@@ -730,6 +738,8 @@ function initTelegramApp() {
                 updateLanguage();
             }
             updateUserInterface(user);
+        } else {
+            console.warn('No user data available from Telegram');
         }
     } catch (error) {
         console.error('Telegram init error:', error);
@@ -749,17 +759,29 @@ function updateUserInterface(user) {
     
     if (!profilePic || !usernameElement) {
         console.error('User interface elements not found');
-        setTimeout(() => updateUserInterface(user), 200);
+        updateUserInterfaceRetryCount++;
+        if (updateUserInterfaceRetryCount < 10) {
+            setTimeout(() => updateUserInterface(user), 500);
+        } else {
+            console.error('Failed to find user interface elements after 10 retries');
+            updateUserInterfaceRetryCount = 0;
+        }
         return;
     }
+    
+    updateUserInterfaceRetryCount = 0;
+    
+    const displayName = user.first_name || user.username || 'User';
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=6366f1&color=fff&size=128`;
     
     if (user.photo_url) {
         profilePic.src = user.photo_url;
         profilePic.onerror = function() {
-            this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name || user.username || 'User')}&background=6366f1&color=fff&size=128`;
+            this.src = avatarUrl;
+            this.onerror = null; // Prevent infinite loop
         };
     } else {
-        profilePic.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name || user.username || 'User')}&background=6366f1&color=fff&size=128`;
+        profilePic.src = avatarUrl;
     }
     
     if (user.username) {
@@ -791,7 +813,7 @@ function initWalletConnection() {
         }
         
         tonConnectUI.onStatusChange(wallet => {
-            if (wallet) {
+            if (wallet && wallet.account && wallet.account.address) {
                 currentWalletAddress = wallet.account.address;
                 const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
                 connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
@@ -821,10 +843,15 @@ function initWalletConnection() {
         }
         
         connectWalletButton.addEventListener('click', () => {
-            if (walletConnected) {
-                tonConnectUI.disconnect();
-            } else {
-                tonConnectUI.connectWallet();
+            try {
+                if (walletConnected) {
+                    tonConnectUI.disconnect();
+                } else {
+                    tonConnectUI.connectWallet();
+                }
+            } catch (error) {
+                console.error('Wallet connection error:', error);
+                showErrorMessage(translations[currentLanguage].error);
             }
         });
     } catch (error) {
@@ -854,12 +881,19 @@ function initLanguageToggle() {
         
         // Update wallet connection UI if needed
         const connectWalletButton = document.getElementById('connectWallet');
-        if (walletConnected && currentWalletAddress) {
-            const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
-            connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
-            connectWalletButton.classList.add('wallet-connected');
-        } else {
-            connectWalletButton.textContent = translations[currentLanguage].connectWallet;
+        if (connectWalletButton) {
+            if (walletConnected && currentWalletAddress) {
+                const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
+                connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
+                connectWalletButton.classList.add('wallet-connected');
+            } else {
+                connectWalletButton.textContent = translations[currentLanguage].connectWallet;
+            }
+        }
+        
+        // Update TON Connect UI language if available
+        if (tonConnectUI && typeof tonConnectUI.setLanguage === 'function') {
+            tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
         }
     });
 }
@@ -882,7 +916,8 @@ function updateLanguage() {
 // Initialize buy buttons
 function initBuyButtons() {
     document.querySelectorAll('.buy-button').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
             const itemData = this.getAttribute('data-item');
             if (itemData) {
                 try {
@@ -913,7 +948,7 @@ async function handlePurchase(item) {
         }
 
         // Validate user data exists
-        const user = currentUser || (isTelegramEnv && Telegram.WebApp?.initDataUnsafe?.user);
+        const user = currentUser || (isTelegramEnv && window.Telegram?.WebApp?.initDataUnsafe?.user);
         if (!user || !user.id) {
             showErrorMessage(translations[currentLanguage].userNotFound);
             return;
@@ -923,14 +958,23 @@ async function handlePurchase(item) {
             title: translations[currentLanguage].processing,
             text: translations[currentLanguage].preparingTransaction,
             allowOutsideClick: false,
+            showConfirmButton: false,
             didOpen: () => {
                 Swal.showLoading();
             }
         });
 
-        const tonToUsdtRate = await fetchCurrentRate() || 3.64;
+        const tonToUsdtRate = await fetchCurrentRate();
+        if (!tonToUsdtRate || tonToUsdtRate <= 0) {
+            throw new Error('Failed to fetch current exchange rate');
+        }
+        
         const tonAmount = parsedAmount / tonToUsdtRate;
         const nanoTonAmount = Math.round(tonAmount * 1e9);
+        
+        if (!window.axios) {
+            throw new Error('Axios library not loaded');
+        }
         
         const walletResponse = await axios.get('/api/get-wallet-address');
         if (!walletResponse.data?.walletAddress) {
@@ -962,53 +1006,83 @@ async function handlePurchase(item) {
             
             const response = await axios.post('/api/orders/create', orderData);
             
-            if (response.data.success) {
-                await loadingMessage.close();
+            if (response.data && response.data.success) {
+                Swal.close();
                 showSuccessMessage(translations[currentLanguage].orderCreated);
                 setTimeout(() => fetchNotifications(), 1000);
             } else {
-                await loadingMessage.close();
-                showErrorMessage(response.data.error || translations[currentLanguage].orderFailed);
+                Swal.close();
+                showErrorMessage(response.data?.error || translations[currentLanguage].orderFailed);
             }
         } else {
-            await loadingMessage.close();
+            Swal.close();
             showErrorMessage(translations[currentLanguage].transactionFailed);
         }
     } catch (error) {
         console.error('Payment error:', error);
-        if (loadingMessage) await loadingMessage.close();
-        showErrorMessage(error.response?.data?.error || translations[currentLanguage].paymentFailed);
+        if (loadingMessage) Swal.close();
+        
+        let errorMessage = translations[currentLanguage].paymentFailed;
+        if (error.response?.data?.error) {
+            errorMessage = error.response.data.error;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
+        showErrorMessage(errorMessage);
     }
 }
 
 // Show success message
 function showSuccessMessage(message) {
-    Swal.fire({
-        title: translations[currentLanguage].success,
-        text: message,
-        icon: 'success',
-        confirmButtonText: translations[currentLanguage].ok
-    });
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: translations[currentLanguage].success,
+            text: message,
+            icon: 'success',
+            confirmButtonText: translations[currentLanguage].ok
+        });
+    } else {
+        alert(message);
+    }
 }
 
 // Show error message
 function showErrorMessage(message) {
-    Swal.fire({
-        title: translations[currentLanguage].error,
-        text: message,
-        icon: 'error',
-        confirmButtonText: translations[currentLanguage].ok
-    });
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: translations[currentLanguage].error,
+            text: message,
+            icon: 'error',
+            confirmButtonText: translations[currentLanguage].ok
+        });
+    } else {
+        alert(message);
+    }
 }
 
 // Fetch current TON to USDT rate
 async function fetchCurrentRate() {
     try {
-        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
-        return response.data['the-open-network']?.usd || null;
+        if (!window.axios) {
+            console.error('Axios library not loaded');
+            return 3.64; // fallback rate
+        }
+        
+        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd', {
+            timeout: 10000
+        });
+        
+        const rate = response.data?.['the-open-network']?.usd;
+        if (rate && rate > 0) {
+            return rate;
+        }
+        
+        console.warn('Invalid rate received, using fallback');
+        return 3.64; // fallback rate
     } catch (error) {
         console.error('Rate fetch error:', error);
-        return null;
+        return 3.64; // fallback rate
     }
 }
 
@@ -1021,37 +1095,60 @@ function initNotification() {
         button.addEventListener('click', (e) => {
             e.stopPropagation();
             container.classList.toggle('hidden');
-            fetchNotifications();
+            if (!container.classList.contains('hidden')) {
+                fetchNotifications();
+            }
         });
 
         document.addEventListener('click', (e) => {
-            if (!container.contains(e.target) {
+            if (!container.contains(e.target) && !button.contains(e.target)) {
                 container.classList.add('hidden');
             }
         });
     }
 
     // Start polling for notifications every 30 seconds if in Telegram
-    if (isTelegramEnv) {
-        notificationInterval = setInterval(fetchNotifications, 30000);
+    if (isTelegramEnv && currentUser) {
+        notificationInterval = setInterval(() => {
+            fetchNotifications();
+        }, 30000);
+        
+        // Initial fetch
+        fetchNotifications();
     }
 }
 
 // Fetch notifications
 async function fetchNotifications() {
-    if (!isTelegramEnv) {
-        console.log('Notifications only available in Telegram');
+    if (!isTelegramEnv || !currentUser) {
+        console.log('Notifications only available in Telegram with valid user');
         return;
     }
 
     try {
-        const response = await axios.get('/api/notifications');
-        if (response.data?.notifications) {
+        if (!window.axios) {
+            console.error('Axios library not loaded');
+            return;
+        }
+        
+        const response = await axios.get('/api/notifications', {
+            timeout: 10000,
+            params: {
+                userId: currentUser.id
+            }
+        });
+        
+        if (response.data?.notifications && Array.isArray(response.data.notifications)) {
             updateNotificationBadge(response.data.notifications.length);
             renderNotifications(response.data.notifications);
+        } else {
+            updateNotificationBadge(0);
+            renderNotifications([]);
         }
     } catch (error) {
         console.error('Error fetching notifications:', error);
+        updateNotificationBadge(0);
+        renderNotifications([]);
     }
 }
 
@@ -1061,7 +1158,7 @@ function updateNotificationBadge(count) {
     if (!badge) return;
 
     if (count > 0) {
-        badge.textContent = count;
+        badge.textContent = count > 99 ? '99+' : count.toString();
         badge.classList.remove('hidden');
     } else {
         badge.classList.add('hidden');
@@ -1073,29 +1170,52 @@ function renderNotifications(notifications) {
     const container = document.getElementById('notificationContainer');
     if (!container) return;
 
-    if (notifications.length === 0) {
+    if (!Array.isArray(notifications) || notifications.length === 0) {
         container.innerHTML = `<div class="p-4 text-center text-gray-500">${translations[currentLanguage].noNotifications}</div>`;
         return;
     }
 
-    const notificationsHTML = notifications.map(notification => 
-        `<div class="p-4 border-b border-gray-200">
-            <div class="font-medium">${notification.title}</div>
-            <div class="text-sm text-gray-600">${notification.message}</div>
-            <div class="text-xs text-gray-400 mt-1">${new Date(notification.timestamp).toLocaleString()}</div>
-        </div>`
-    ).join('');
+    const notificationsHTML = notifications.map(notification => {
+        if (!notification || typeof notification !== 'object') return '';
+        
+        const title = notification.title || 'Notification';
+        const message = notification.message || '';
+        const timestamp = notification.timestamp ? new Date(notification.timestamp).toLocaleString() : '';
+        
+        return `<div class="p-4 border-b border-gray-200">
+            <div class="font-medium">${escapeHtml(title)}</div>
+            <div class="text-sm text-gray-600">${escapeHtml(message)}</div>
+            <div class="text-xs text-gray-400 mt-1">${escapeHtml(timestamp)}</div>
+        </div>`;
+    }).filter(html => html !== '').join('');
 
-    container.innerHTML = notificationsHTML;
+    container.innerHTML = notificationsHTML || `<div class="p-4 text-center text-gray-500">${translations[currentLanguage].noNotifications}</div>`;
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    if (typeof text !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
     if (notificationInterval) {
         clearInterval(notificationInterval);
+        notificationInterval = null;
+    }
+    
+    if (tonConnectUI) {
+        try {
+            tonConnectUI.disconnect();
+        } catch (error) {
+            console.error('Error disconnecting wallet:', error);
+        }
     }
 });
- </script>    
+    </script>    
 
 </body>
 </html>
