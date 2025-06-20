@@ -1,34 +1,100 @@
 
 <!-- notification.html -->
-<div class="notification-dropdown" id="notificationDropdown">
-    <div class="notification-header">
-        <span data-lang="notifications">Notifications</span>
-        <button class="text-xs text-indigo-600" id="markAllRead">Mark all as read</button>
-    </div>
-    <div class="notification-list" id="notificationList">
-        <div class="notification-empty" data-lang="noNotifications">No new notifications</div>
+<div class="notification-container hidden" id="notificationContainer">
+    <div class="notification-dropdown">
+        <div class="notification-header flex justify-between items-center p-3 border-b border-gray-200">
+            <span class="font-semibold text-gray-800" data-lang="notifications">Notifications</span>
+            <button class="text-xs text-indigo-600 hover:text-indigo-800 font-medium" id="markAllRead">Mark all as read</button>
+        </div>
+        <div class="notification-list p-2 max-h-80 overflow-y-auto" id="notificationList">
+            <div class="text-center py-4 text-gray-500" data-lang="noNotifications">No new notifications</div>
+        </div>
     </div>
 </div>
+
+<style>
+.notification-container {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 320px;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    background: white;
+    transform: translateY(-10px);
+    opacity: 0;
+    transition: all 0.2s ease;
+}
+
+.notification-container.active {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.notification-dropdown {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.notification-item {
+    padding: 10px;
+    margin: 4px 0;
+    border-radius: 6px;
+    transition: background 0.2s ease;
+}
+
+.notification-item:hover {
+    background: #f3f4f6;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+}
+</style>
 
 <script>
 (function() {
     document.addEventListener('DOMContentLoaded', function() {
         const notificationButton = document.getElementById('notificationButton');
-        const dropdown = document.getElementById('notificationDropdown');
+        const notificationContainer = document.getElementById('notificationContainer');
+        const dropdown = notificationContainer.querySelector('.notification-dropdown');
         
-        if (notificationButton && dropdown) {
+        if (notificationButton && notificationContainer) {
+            // Add badge to notification button
+            const badge = document.createElement('div');
+            badge.className = 'notification-badge hidden';
+            badge.id = 'notificationBadge';
+            notificationButton.appendChild(badge);
+            
             notificationButton.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                dropdown.classList.toggle('active');
-                if (dropdown.classList.contains('active')) {
+                notificationContainer.classList.toggle('hidden');
+                notificationContainer.classList.toggle('active');
+                
+                if (notificationContainer.classList.contains('active')) {
                     fetchNotifications();
                 }
             });
             
             document.addEventListener('click', function(e) {
-                if (!dropdown.contains(e.target) && !notificationButton.contains(e.target)) {
-                    dropdown.classList.remove('active');
+                if (!notificationContainer.contains(e.target) && !notificationButton.contains(e.target)) {
+                    notificationContainer.classList.add('hidden');
+                    notificationContainer.classList.remove('active');
                 }
             });
         }
@@ -36,14 +102,37 @@
         function fetchNotifications() {
             const list = document.getElementById('notificationList');
             if (list) {
-                list.innerHTML = `
-                    <div class="notification-item">
-                        <div>Test notification</div>
-                        <div class="text-xs text-gray-500">Just now</div>
-                    </div>
-                `;
+                // Simulate loading
+                list.innerHTML = '<div class="text-center py-4 text-gray-500">Loading...</div>';
+                
+                // Simulate API call
+                setTimeout(() => {
+                    list.innerHTML = `
+                        <div class="notification-item">
+                            <div class="font-medium">Your purchase was successful</div>
+                            <div class="text-xs text-gray-500 mt-1">2 minutes ago</div>
+                        </div>
+                        <div class="notification-item">
+                            <div class="font-medium">New stars package available</div>
+                            <div class="text-xs text-gray-500 mt-1">1 hour ago</div>
+                        </div>
+                    `;
+                    
+                    // Update badge count
+                    document.getElementById('notificationBadge').textContent = '2';
+                    document.getElementById('notificationBadge').classList.remove('hidden');
+                }, 800);
             }
         }
+        
+        // Mark all as read functionality
+        document.getElementById('markAllRead')?.addEventListener('click', function() {
+            const list = document.getElementById('notificationList');
+            if (list) {
+                list.innerHTML = '<div class="text-center py-4 text-gray-500">No new notifications</div>';
+                document.getElementById('notificationBadge').classList.add('hidden');
+            }
+        });
     });
 })();
 </script>
