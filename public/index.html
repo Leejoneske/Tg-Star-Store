@@ -529,53 +529,35 @@ let notificationInterval = null;
 let currentUser = null;
 const isTelegramEnv = typeof Telegram !== 'undefined' && Telegram.WebApp;
 
-// Load notification component
 function loadNotificationComponent() {
     return fetch('notification.html')
         .then(response => {
-            if (!response.ok) {
-                throw new Error('Notification component not found (HTTP ' + response.status);
-            }
+            if (!response.ok) throw new Error('Notification component not found (HTTP ' + response.status);
             return response.text();
         })
         .then(html => {
-            // Create container for notification component
             const container = document.createElement('div');
             container.innerHTML = html;
-            
-            // Verify the container was created successfully
-            if (!container.querySelector('#notificationDropdown')) {
-                throw new Error('Notification dropdown element not found in loaded HTML');
-            }
-            
+            if (!container.querySelector('#notificationDropdown')) throw new Error('Notification dropdown element not found in loaded HTML');
             document.body.appendChild(container);
-            console.log('Notification component loaded and mounted successfully');
             return true;
         })
         .catch(error => {
             console.error('Failed to load notification component:', error);
-            
-            // Fallback: Make sure notification button is at least clickable
             const notificationButton = document.getElementById('notificationButton');
             if (notificationButton) {
                 notificationButton.addEventListener('click', () => {
                     alert('Notifications not available. Please try again later.');
                 });
             }
-            
-            // Return true to continue with app initialization
             return true;
         });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM fully loaded, starting initialization...');
-    
-    // Immediately show loading state
     document.getElementById('skeleton-loading').style.display = 'block';
     document.getElementById('content-container').style.display = 'none';
 
-    // Set a flag to track if content has been shown
     let contentShown = false;
     
     function safeShowContent() {
@@ -585,20 +567,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Set timeout as safety net (3 seconds max)
     const loadingTimeout = setTimeout(() => {
-        console.warn('Loading timeout reached, forcing content display');
         safeShowContent();
     }, 3000);
 
-    // Load notification component first
     loadNotificationComponent()
         .then((notificationLoaded) => {
-            if (!notificationLoaded) {
-                console.warn('Notification component failed to load, continuing with app');
-            }
-            
-            // Initialize core app functionality
+            if (!notificationLoaded) console.warn('Notification component failed to load, continuing with app');
             try {
                 initTelegramApp();
                 initWalletConnection();
@@ -606,23 +581,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateLanguage();
                 initBuyButtons();
                 initMenu();
-                
-                // Set up language change listener
                 window.addEventListener('storage', handleLanguageChange);
-                
-                console.log('All core components initialized successfully');
-                
-                // Clear the timeout since we loaded successfully
                 clearTimeout(loadingTimeout);
                 safeShowContent();
             } catch (error) {
-                console.error('Error during core initialization:', error);
-                throw error; // This will be caught by the outer catch
+                throw error;
             }
         })
         .catch(error => {
-            console.error('Initialization sequence failed:', error);
-            // Ensure we always show content even if initialization fails
             safeShowContent();
         });
 });
@@ -638,14 +604,10 @@ function handleLanguageChange(event) {
 }
 
 function showContent() {
-    console.log('Showing main content');
     const skeleton = document.getElementById('skeleton-loading');
     const content = document.getElementById('content-container');
-    
     if (skeleton) skeleton.style.display = 'none';
     if (content) content.style.display = 'block';
-    
-    // Dispatch custom event if other components need to know
     document.dispatchEvent(new CustomEvent('appContentShown'));
 }
 
