@@ -564,78 +564,65 @@ let walletConnected = false;
 let currentWalletAddress = '';
 let lastUserData = null;
 let currentUser = null;
-const isTelegramEnv = typeof Telegram !== 'undefined' && Telegram.WebApp;
 
 function loadNotificationComponent() {
-    return new Promise((resolve) => {
-        fetch('notification.html')
-            .then(response => response.text())
-            .then(html => {
-                const container = document.createElement('div');
-                container.id = 'notification-container';
-                container.innerHTML = html;
-                document.body.appendChild(container);
-                initNotification();
-                resolve(true);
-            })
-            .catch(error => {
-                console.error('Notification load error:', error);
-                resolve(true);
-            });
-    });
+    return fetch('notification.html')
+        .then(response => response.text())
+        .then(html => {
+            const container = document.createElement('div');
+            container.id = 'notification-container';
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            initNotification();
+        })
+        .catch(error => {
+            console.error('Notification load error:', error);
+        });
 }
 
 function initNotification() {
     const button = document.getElementById('notificationButton');
     const container = document.getElementById('notificationContainer');
     
-    if (!button || !container) return;
+    if (button && container) {
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            container.classList.toggle('hidden');
+        });
 
-    button.addEventListener('click', (e) => {
-        e.stopPropagation();
-        container.classList.toggle('hidden');
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!container.contains(e.target) {
-            container.classList.add('hidden');
-        }
-    });
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                container.classList.add('hidden');
+            }
+        });
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     const skeleton = document.getElementById('skeleton-loading');
     const content = document.getElementById('content-container');
+    
     if (skeleton) skeleton.style.display = 'block';
     if (content) content.style.display = 'none';
 
     initTelegramApp();
 
-    fetch('menubar.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('menubar-container').innerHTML = html;
-            initMenu();
-        })
-        .catch(error => {
-            console.error('Menu load error:', error);
-        });
+    const initPromises = [
+        fetch('menubar.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('menubar-container').innerHTML = html;
+                initMenu();
+            }),
+        loadNotificationComponent(),
+        initWalletConnection(),
+        initLanguageToggle(),
+        updateLanguage(),
+        initBuyButtons()
+    ];
 
-    const loadingTimeout = setTimeout(() => {
-        showContent();
-    }, 2000);
-
-    loadNotificationComponent()
+    Promise.all(initPromises)
         .then(() => {
-            return Promise.all([
-                initWalletConnection(),
-                initLanguageToggle(),
-                updateLanguage(),
-                initBuyButtons()
-            ]);
-        })
-        .then(() => {
-            clearTimeout(loadingTimeout);
             showContent();
         })
         .catch(error => {
@@ -644,35 +631,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 
-function initMenu() {
-    const menuButton = document.getElementById('menuButton');
-    const menuOverlay = document.querySelector('.menu-overlay');
-    const sideMenu = document.querySelector('.side-menu');
-    
-    if (!menuButton || !menuOverlay || !sideMenu) return;
-    
-    const toggleMenu = () => {
-        menuOverlay.classList.toggle('active');
-        sideMenu.classList.toggle('active');
-    };
-    
-    menuButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleMenu();
-    });
-    
-    menuOverlay.addEventListener('click', toggleMenu);
-    
-    document.querySelectorAll('.menu-item').forEach(item => {
-        item.addEventListener('click', toggleMenu);
-    });
-}
-
 function showContent() {
     const skeleton = document.getElementById('skeleton-loading');
     const content = document.getElementById('content-container');
     if (skeleton) skeleton.style.display = 'none';
     if (content) content.style.display = 'block';
+}
+
+function initMenu() {
+    const menuButton = document.getElementById('menuButton');
+    const menuOverlay = document.querySelector('.menu-overlay');
+    const sideMenu = document.querySelector('.side-menu');
+    
+    if (menuButton && menuOverlay && sideMenu) {
+        const toggleMenu = () => {
+            menuOverlay.classList.toggle('active');
+            sideMenu.classList.toggle('active');
+        };
+        
+        menuButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMenu();
+        });
+        
+        menuOverlay.addEventListener('click', toggleMenu);
+        
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', toggleMenu);
+        });
+    }
 }
 
 function initTelegramApp() {
