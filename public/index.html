@@ -519,7 +519,6 @@
         userNotFound: "Информация о пользователе не найдена. Пожалуйста, обновите страницу и попробуйте снова."
     }
 };
-
 let tonConnectUI;
 let currentLanguage = localStorage.getItem('appLanguage') || 'en';
 let walletConnected = false;
@@ -613,10 +612,9 @@ function initMenu() {
     }
 
     function handleDocumentClick(e) {
-        if (menuOpen && !sideMenu.contains(e.target) {
-            toggleMenu();
+        if (menuOpen && !sideMenu.contains(e.target)) {
+    toggleMenu();
         }
-    }
 
     menuButton.addEventListener('click', handleMenuClick);
     menuOverlay.addEventListener('click', handleMenuClick);
@@ -937,5 +935,6 @@ async function fetchCurrentRate() {
 }
         
  </script>    
+
 </body>
 </html>
