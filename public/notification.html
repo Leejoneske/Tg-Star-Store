@@ -51,234 +51,47 @@
     .notification-dropdown.active {
         display: block;
     }
-
-    .notification-header {
-        padding: 12px;
-        border-bottom: 1px solid #e5e7eb;
-        font-weight: 600;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .notification-list {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-
-    .notification-empty {
-        padding: 16px;
-        text-align: center;
-        color: #6b7280;
-        font-size: 14px;
-    }
-
-    .notification-item {
-        padding: 12px;
-        border-bottom: 1px solid #e5e7eb;
-        font-size: 14px;
-    }
-
-    .notification-item:last-child {
-        border-bottom: none;
-    }
-
-    .notification-item.unread {
-        background-color: #f8fafc;
-    }
-
-    .notification-loading {
-        padding: 16px;
-        text-align: center;
-        color: #6b7280;
-        font-size: 14px;
-    }
-
-    .notification-error {
-        padding: 16px;
-        text-align: center;
-        color: #ef4444;
-        font-size: 14px;
-    }
 </style>
 
 <script>
-// Wait for the DOM to be fully loaded
+// Wait for the component to be added to DOM
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize the notification system
-    initNotificationSystem();
-});
-
-function initNotificationSystem() {
-    // Initialize event listeners
-    setupNotificationButton();
-    setupMarkAllReadButton();
+    // Initialize notification button functionality
+    const notificationButton = document.getElementById('notificationButton');
+    const dropdown = document.getElementById('notificationDropdown');
     
-    // Load existing notifications if needed
-    // fetchNotifications();
-}
-
-function setupNotificationButton() {
-    // Use event delegation for the notification button
-    document.addEventListener('click', function(e) {
-        const notificationButton = e.target.closest('#notificationButton');
-        if (notificationButton) {
-            e.preventDefault();
+    if (notificationButton && dropdown) {
+        notificationButton.addEventListener('click', function(e) {
             e.stopPropagation();
+            dropdown.classList.toggle('active');
             
-            const dropdown = document.getElementById('notificationDropdown');
-            if (dropdown) {
-                dropdown.classList.toggle('active');
-                
-                if (dropdown.classList.contains('active')) {
-                    fetchNotifications();
-                }
+            if (dropdown.classList.contains('active')) {
+                // Load notifications when dropdown opens
+                fetchNotifications();
             }
-        }
-        
-        // Close dropdown when clicking outside
-        if (!e.target.closest('#notificationDropdown') && 
-            !e.target.closest('#notificationButton')) {
-            const dropdown = document.getElementById('notificationDropdown');
-            if (dropdown) dropdown.classList.remove('active');
-        }
-    });
-}
-
-function setupMarkAllReadButton() {
-    const markAllRead = document.getElementById('markAllRead');
-    if (markAllRead) {
-        markAllRead.addEventListener('click', function(e) {
-            e.stopPropagation();
-            markAllNotificationsAsRead();
         });
-    }
-}
-
-function markAllNotificationsAsRead() {
-    const notifications = document.querySelectorAll('.notification-item');
-    const readNotifications = [];
-    
-    notifications.forEach(item => {
-        const id = item.getAttribute('data-id');
-        if (id) {
-            readNotifications.push(id);
-            item.classList.remove('unread');
-        }
-    });
-    
-    if (readNotifications.length > 0) {
-        localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
-        updateNotificationBadge(0);
-    }
-}
-
-function updateNotificationBadge(count) {
-    const badge = document.getElementById('notificationBadge');
-    if (!badge) return;
-    
-    if (count > 0) {
-        badge.textContent = count > 99 ? '99+' : count.toString();
-        badge.classList.remove('hidden');
+        
+        // Close when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!dropdown.contains(e.target) && !notificationButton.contains(e.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
     } else {
-        badge.classList.add('hidden');
+        console.error('Notification elements not found');
     }
-}
 
-async function fetchNotifications() {
-    const notificationList = document.getElementById('notificationList');
-    if (!notificationList) return;
-
-    // Show loading state
-    notificationList.innerHTML = `
-        <div class="notification-loading">
-            <i class="fas fa-spinner fa-spin"></i> Loading notifications...
-        </div>
-    `;
-
-    try {
-        // Simulate API call (replace with actual API call)
-        const notifications = await mockFetchNotifications();
+    // Mock function - replace with real API call
+    function fetchNotifications() {
+        const list = document.getElementById('notificationList');
+        if (!list) return;
         
-        if (notifications.length > 0) {
-            renderNotifications(notifications);
-        } else {
-            notificationList.innerHTML = `
-                <div class="notification-empty">
-                    No new notifications
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error fetching notifications:', error);
-        notificationList.innerHTML = `
-            <div class="notification-error">
-                Failed to load notifications. Please try again later.
+        list.innerHTML = `
+            <div class="notification-item">
+                <div>Test notification</div>
+                <div class="text-xs text-gray-500">Just now</div>
             </div>
         `;
     }
-}
-
-function renderNotifications(notifications) {
-    const notificationList = document.getElementById('notificationList');
-    if (!notificationList) return;
-    
-    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
-    let unreadCount = 0;
-
-    notificationList.innerHTML = notifications.map(notification => {
-        const isRead = readNotifications.includes(notification.id);
-        if (!isRead) unreadCount++;
-        
-        return `
-            <div class="notification-item ${isRead ? '' : 'unread'}" 
-                 data-id="${notification.id}">
-                <div class="flex items-start gap-3">
-                    <div class="flex-1">
-                        <div class="${isRead ? 'text-gray-600' : 'text-gray-900 font-medium'}">
-                            ${notification.message}
-                        </div>
-                        <div class="text-xs text-gray-500 mt-1">
-                            ${new Date(notification.timestamp).toLocaleString()}
-                        </div>
-                    </div>
-                    ${!isRead ? '<div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>' : ''}
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    updateNotificationBadge(unreadCount);
-}
-
-// Mock function - replace with actual API call
-async function mockFetchNotifications() {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return [
-        {
-            id: '1',
-            message: 'Your purchase of 100 Stars was successful',
-            timestamp: Date.now() - 3600000 // 1 hour ago
-        },
-        {
-            id: '2',
-            message: 'New premium package available',
-            timestamp: Date.now() - 86400000 // 1 day ago
-        },
-        {
-            id: '3',
-            message: 'Welcome to StarStore! Start browsing our products',
-            timestamp: Date.now() - 172800000 // 2 days ago
-        }
-    ];
-}
-
-// Make functions available to the parent window if needed
-window.NotificationSystem = {
-    fetchNotifications,
-    markAllNotificationsAsRead,
-    updateNotificationBadge
-};
+});
 </script>
