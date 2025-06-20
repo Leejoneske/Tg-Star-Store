@@ -1,5 +1,4 @@
 
-<!-- notification.html -->
 <div class="notification-dropdown" id="notificationDropdown">
     <div class="notification-header">
         <span data-lang="notifications">Notifications</span>
@@ -11,14 +10,12 @@
 </div>
 
 <style>
-    /* Notification styles */
     .notification-icon {
         position: relative;
         padding: 6px;
         margin-right: 8px;
         cursor: pointer;
     }
-
     .notification-badge {
         position: absolute;
         top: -2px;
@@ -33,7 +30,6 @@
         align-items: center;
         justify-content: center;
     }
-
     .notification-dropdown {
         position: fixed;
         top: 60px;
@@ -47,16 +43,13 @@
         max-height: 400px;
         overflow-y: auto;
     }
-
     .notification-dropdown.active {
         display: block;
     }
 </style>
 
 <script>
-// Wait for the component to be added to DOM
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize notification button functionality
     const notificationButton = document.getElementById('notificationButton');
     const dropdown = document.getElementById('notificationDropdown');
     
@@ -64,34 +57,20 @@ document.addEventListener('DOMContentLoaded', function() {
         notificationButton.addEventListener('click', function(e) {
             e.stopPropagation();
             dropdown.classList.toggle('active');
-            
-            if (dropdown.classList.contains('active')) {
-                // Load notifications when dropdown opens
-                fetchNotifications();
-            }
+            if (dropdown.classList.contains('active')) fetchNotifications();
         });
         
-        // Close when clicking outside
         document.addEventListener('click', function(e) {
             if (!dropdown.contains(e.target) && !notificationButton.contains(e.target)) {
                 dropdown.classList.remove('active');
             }
         });
-    } else {
-        console.error('Notification elements not found');
     }
 
-    // Mock function - replace with real API call
     function fetchNotifications() {
         const list = document.getElementById('notificationList');
         if (!list) return;
-        
-        list.innerHTML = `
-            <div class="notification-item">
-                <div>Test notification</div>
-                <div class="text-xs text-gray-500">Just now</div>
-            </div>
-        `;
+        list.innerHTML = `<div class="notification-item"><div>Test notification</div><div class="text-xs text-gray-500">Just now</div></div>`;
     }
 });
 </script>
