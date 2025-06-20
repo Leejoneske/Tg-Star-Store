@@ -2015,7 +2015,7 @@ bot.onText(/\/broadcast/, async (msg) => {
 });
 
 // Get notifications for a user
-router.get('/api/notifications', async (req, res) => {
+app.get('/api/notifications', async (req, res) => {
     try {
         const { userId } = req.query;
         
@@ -2052,7 +2052,7 @@ router.get('/api/notifications', async (req, res) => {
 });
 
 // Mark notification as read
-router.post('/api/notifications/:id/read', async (req, res) => {
+app.post('/api/notifications/:id/read', async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -2066,7 +2066,7 @@ router.post('/api/notifications/:id/read', async (req, res) => {
 });
 
 // Mark all notifications as read for a user
-router.post('/api/notifications/mark-all-read', async (req, res) => {
+app.post('/api/notifications/mark-all-read', async (req, res) => {
     try {
         const { userId } = req.body;
         
@@ -2094,7 +2094,7 @@ router.post('/api/notifications/mark-all-read', async (req, res) => {
 });
 
 // Dismiss/delete a notification
-router.delete('/api/notifications/:id', async (req, res) => {
+app.delete('/api/notifications/:id', async (req, res) => {
     try {
         const { id } = req.params;
         
