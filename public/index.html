@@ -552,16 +552,45 @@ let notificationInterval = null;
 let currentUser = null;
 const isTelegramEnv = typeof Telegram !== 'undefined' && Telegram.WebApp;
 
+// Load notification component
+function loadNotificationComponent() {
+    return fetch('notification.html')
+        .then(response => {
+            if (!response.ok) throw new Error('Notification component not found');
+            return response.text();
+        })
+        .then(html => {
+            const container = document.createElement('div');
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            console.log('Notification component loaded successfully');
+        })
+        .catch(error => {
+            console.error('Failed to load notification component:', error);
+            // Fallback
+            document.getElementById('notificationButton')?.addEventListener('click', () => {
+                alert('Notifications not available. Please try again later.');
+            });
+        });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        initTelegramApp();
-        initWalletConnection();
-        initLanguageToggle();
-        updateLanguage();
-        initBuyButtons();
-        initNotifications();
-        initMenu();
-    }, 100);
+    // First load the notification component, then initialize everything else
+    loadNotificationComponent().then(() => {
+        setTimeout(() => {
+            initTelegramApp();
+            initWalletConnection();
+            initLanguageToggle();
+            updateLanguage();
+            initBuyButtons();
+            initMenu(); 
+            
+            // Show content after everything is initialized
+            document.getElementById('skeleton-loading').style.display = 'none';
+            document.getElementById('content-container').style.display = 'block';
+        }, 100);
+    });
+});
 
     window.addEventListener('storage', function(event) {
         if (event.key === 'appLanguage') {
@@ -885,22 +914,6 @@ async function fetchCurrentRate() {
     }
 }
 
-// Load notification component
-fetch('notification.html')
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to load notification.html');
-        return response.text();
-    })
-    .then(html => {
-        const container = document.createElement('div');
-        container.innerHTML = html;
-        document.body.appendChild(container);
-        console.log('Notification component loaded successfully'); // Debug log
-    })
-    .catch(error => {
-        console.error('Notification component load error:', error);
-        // Fallback: Show error to user if needed
-    });
 
 function initMenu() {
     const menuButton = document.getElementById('menuButton');
