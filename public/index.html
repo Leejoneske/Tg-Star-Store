@@ -1107,35 +1107,32 @@ function initNotification() {
         });
     }
 
-    // Start polling for notifications every 30 seconds if in Telegram
-    if (isTelegramEnv && currentUser) {
-        notificationInterval = setInterval(() => {
-            fetchNotifications();
-        }, 30000);
-        
-        // Initial fetch
+    // Start polling for notifications every 30 seconds for all users
+    notificationInterval = setInterval(() => {
         fetchNotifications();
-    }
+    }, 30000);
+    
+    // Initial fetch
+    fetchNotifications();
 }
 
 // Fetch notifications
 async function fetchNotifications() {
-    if (!isTelegramEnv || !currentUser) {
-        console.log('Notifications only available in Telegram with valid user');
-        return;
-    }
-
     try {
         if (!window.axios) {
             console.error('Axios library not loaded');
             return;
         }
         
+        const params = {};
+        // Only send userId if we have a currentUser
+        if (currentUser && currentUser.id) {
+            params.userId = currentUser.id;
+        }
+
         const response = await axios.get('/api/notifications', {
             timeout: 10000,
-            params: {
-                userId: currentUser.id
-            }
+            params: params
         });
         
         if (response.data?.notifications && Array.isArray(response.data.notifications)) {
