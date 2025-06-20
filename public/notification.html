@@ -1,7 +1,6 @@
 
 <div class="tg-notification-container hidden" id="notificationContainer">
     <div class="tg-notification-dropdown">
-        <!-- Header -->
         <div class="tg-notification-header">
             <div class="tg-notification-title">
                 <svg class="tg-notification-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -9,7 +8,7 @@
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 </svg>
                 <span>Notifications</span>
-                <span class="tg-notification-badge" id="notificationBadge">3</span>
+                <span class="tg-notification-badge hidden" id="notificationBadge">0</span>
             </div>
             <div class="tg-notification-actions">
                 <button class="tg-notification-action-btn" id="markAllRead" title="Mark all as read">
@@ -26,15 +25,12 @@
             </div>
         </div>
 
-        <!-- Loading state -->
         <div class="tg-notification-loading hidden" id="notificationLoading">
             <div class="tg-loading-spinner"></div>
             <span>Loading notifications...</span>
         </div>
 
-        <!-- Notification list -->
         <div class="tg-notification-list" id="notificationList">
-            <!-- Empty state -->
             <div class="tg-notification-empty" id="notificationEmpty">
                 <svg class="tg-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
@@ -42,28 +38,8 @@
                 <p>No new notifications</p>
                 <span>You're all caught up!</span>
             </div>
-            
-            <!-- Sample notification item template -->
-            <div class="tg-notification-item unread" data-id="sample-id" style="display: none;">
-                <div class="tg-notification-content">
-                    <div class="tg-notification-item-header">
-                        <span class="tg-notification-item-title">Order Confirmed</span>
-                        <span class="tg-notification-item-time">2m ago</span>
-                    </div>
-                    <div class="tg-notification-item-message">Your Telegram Premium order has been processed successfully.</div>
-                    <div class="tg-notification-item-actions">
-                        <button class="tg-notification-item-action-btn" data-action="dismiss">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
 
-        <!-- Footer -->
         <div class="tg-notification-footer">
             <button class="tg-notification-footer-btn" id="viewAllNotifications">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -77,7 +53,6 @@
 </div>
 
 <style>
-/* Base styles */
 .tg-notification-container {
     position: fixed;
     top: 60px;
@@ -107,7 +82,6 @@
     }
 }
 
-/* Dropdown container */
 .tg-notification-dropdown {
     background: #ffffff;
     border-radius: 12px;
@@ -119,7 +93,6 @@
     max-height: 80vh;
 }
 
-/* Header */
 .tg-notification-header {
     padding: 12px 16px;
     display: flex;
@@ -154,6 +127,10 @@
     margin-left: 6px;
 }
 
+.tg-notification-badge.hidden {
+    display: none;
+}
+
 .tg-notification-actions {
     display: flex;
     gap: 4px;
@@ -184,7 +161,6 @@
     stroke-width: 2;
 }
 
-/* Loading state */
 .tg-notification-loading {
     padding: 24px 16px;
     text-align: center;
@@ -209,7 +185,6 @@
     100% { transform: rotate(360deg); }
 }
 
-/* Notification list */
 .tg-notification-list {
     flex: 1;
     overflow-y: auto;
@@ -229,7 +204,6 @@
     border-radius: 2px;
 }
 
-/* Empty state */
 .tg-notification-empty {
     padding: 32px 16px;
     text-align: center;
@@ -257,7 +231,6 @@
     opacity: 0.8;
 }
 
-/* Notification items */
 .tg-notification-item {
     padding: 12px 16px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -357,7 +330,6 @@
     stroke-width: 2;
 }
 
-/* Footer */
 .tg-notification-footer {
     padding: 12px 16px;
     border-top: 1px solid rgba(0, 0, 0, 0.05);
@@ -391,7 +363,6 @@
     stroke-width: 2;
 }
 
-/* Responsive design */
 @media (max-width: 480px) {
     .tg-notification-container {
         top: 12px;
@@ -410,7 +381,6 @@
     }
 }
 
-/* Dark mode support */
 @media (prefers-color-scheme: dark) {
     .tg-notification-dropdown {
         background: #1f2937;
@@ -490,7 +460,6 @@ class TelegramNotification {
         this.loadingState = document.getElementById('notificationLoading');
         this.badgeElement = document.getElementById('notificationBadge');
         
-        // Default options
         this.options = {
             position: 'right',
             maxNotifications: 50,
@@ -498,16 +467,15 @@ class TelegramNotification {
             ...options
         };
         
+        this.notifications = [];
         this.init();
     }
     
     init() {
-        // Event listeners
         document.getElementById('notificationClose').addEventListener('click', () => this.hide());
         document.getElementById('markAllRead').addEventListener('click', () => this.markAllAsRead());
         document.getElementById('viewAllNotifications').addEventListener('click', () => this.viewAll());
         
-        // Close when clicking outside
         document.addEventListener('click', (e) => {
             if (!this.container.contains(e.target) && 
                 !document.getElementById('notificationButton')?.contains(e.target)) {
@@ -515,14 +483,12 @@ class TelegramNotification {
             }
         });
         
-        // Escape key to close
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !this.container.classList.contains('hidden')) {
                 this.hide();
             }
         });
         
-        // Start polling for notifications
         if (this.options.pollInterval > 0) {
             this.fetchNotifications();
             setInterval(() => this.fetchNotifications(), this.options.pollInterval);
@@ -533,15 +499,14 @@ class TelegramNotification {
         try {
             this.showLoading();
             
-            // Replace with your actual API endpoint
             const response = await fetch('/api/notifications');
             if (!response.ok) throw new Error('Failed to fetch notifications');
             
             const notifications = await response.json();
+            this.notifications = notifications;
             this.renderNotifications(notifications);
             this.updateBadge(notifications.filter(n => !n.read).length);
         } catch (error) {
-            console.error('Notification error:', error);
             this.showEmptyState('Failed to load notifications');
         } finally {
             this.hideLoading();
@@ -565,31 +530,36 @@ class TelegramNotification {
     }
     
     createNotificationItem(notification) {
-        const template = document.querySelector('.tg-notification-item[style="display: none;"]');
-        const item = template.cloneNode(true);
-        item.style.display = '';
+        const item = document.createElement('div');
+        item.className = `tg-notification-item ${notification.read ? '' : 'unread'}`;
         item.dataset.id = notification.id;
         
-        if (!notification.read) {
-            item.classList.add('unread');
-        } else {
-            item.classList.remove('unread');
-        }
+        item.innerHTML = `
+            <div class="tg-notification-content">
+                <div class="tg-notification-item-header">
+                    <span class="tg-notification-item-title">${notification.title || 'Notification'}</span>
+                    <span class="tg-notification-item-time">${this.formatTime(notification.timestamp)}</span>
+                </div>
+                <div class="tg-notification-item-message">${notification.message}</div>
+                <div class="tg-notification-item-actions">
+                    <button class="tg-notification-item-action-btn" data-action="dismiss">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
         
-        // Set notification content
-        item.querySelector('.tg-notification-item-title').textContent = notification.title || 'Notification';
-        item.querySelector('.tg-notification-item-message').textContent = notification.message;
-        item.querySelector('.tg-notification-item-time').textContent = this.formatTime(notification.timestamp);
-        
-        // Add click handler
         item.addEventListener('click', (e) => {
             if (!e.target.closest('.tg-notification-item-action-btn')) {
                 this.handleNotificationClick(notification);
             }
         });
         
-        // Add action button handlers
-        item.querySelector('[data-action="dismiss"]').addEventListener('click', () => {
+        item.querySelector('[data-action="dismiss"]').addEventListener('click', (e) => {
+            e.stopPropagation();
             this.dismissNotification(notification.id);
             item.remove();
         });
@@ -618,7 +588,6 @@ class TelegramNotification {
             this.updateBadge(this.getUnreadCount() - 1);
         }
         
-        // Handle notification click action
         if (notification.url) {
             window.open(notification.url, '_blank');
         }
@@ -640,10 +609,8 @@ class TelegramNotification {
                 method: 'POST'
             });
             
-            document.querySelectorAll('.tg-notification-item.unread').forEach(item => {
-                item.classList.remove('unread');
-            });
-            
+            this.notifications = this.notifications.map(n => ({ ...n, read: true }));
+            this.renderNotifications(this.notifications);
             this.updateBadge(0);
         } catch (error) {
             console.error('Error marking all notifications as read:', error);
@@ -656,14 +623,15 @@ class TelegramNotification {
                 method: 'DELETE'
             });
             
-            this.updateBadge(this.getUnreadCount());
+            this.notifications = this.notifications.filter(n => n.id !== notificationId);
+            this.updateBadge(this.notifications.filter(n => !n.read).length);
         } catch (error) {
             console.error('Error dismissing notification:', error);
         }
     }
     
     getUnreadCount() {
-        return document.querySelectorAll('.tg-notification-item.unread').length;
+        return this.notifications.filter(n => !n.read).length;
     }
     
     updateBadge(count) {
@@ -671,16 +639,14 @@ class TelegramNotification {
         
         if (count > 0) {
             this.badgeElement.textContent = count > 99 ? '99+' : count.toString();
-            this.badgeElement.style.display = '';
+            this.badgeElement.classList.remove('hidden');
         } else {
-            this.badgeElement.style.display = 'none';
+            this.badgeElement.classList.add('hidden');
         }
     }
     
     viewAll() {
-        // Implement view all notifications page
-        console.log('View all notifications');
-        this.hide();
+        window.location.href = '/notifications';
     }
     
     show() {
@@ -718,11 +684,9 @@ class TelegramNotification {
     }
 }
 
-// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.telegramNotifications = new TelegramNotification();
     
-    // If you have a notification button elsewhere in your app
     const notificationButton = document.getElementById('notificationButton');
     if (notificationButton) {
         notificationButton.addEventListener('click', (e) => {
