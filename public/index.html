@@ -554,37 +554,45 @@ function loadNotificationComponent() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Show loading state initially
+    // Show loading state immediately
     document.getElementById('skeleton-loading').style.display = 'block';
     document.getElementById('content-container').style.display = 'none';
 
-    // First load the notification component, then initialize everything else
-    loadNotificationComponent().then(() => {
-        initTelegramApp();
-        initWalletConnection();
-        initLanguageToggle();
-        updateLanguage();
-        initBuyButtons();
-        initMenu();
+    // Load notification component first
+    loadNotificationComponent()
+        .then(() => {
+            // Initialize core functionality
+            initTelegramApp();
+            initWalletConnection();
+            initLanguageToggle();
+            updateLanguage();
+            initBuyButtons();
+            initMenu();
 
-        // Set up language change listener
-        window.addEventListener('storage', function(event) {
-            if (event.key === 'appLanguage') {
-                currentLanguage = event.newValue || 'en';
-                updateLanguage();
-                if (tonConnectUI) {
-                    tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
-                }
-            }
+            // Set up language change listener
+            window.addEventListener('storage', handleLanguageChange);
+
+            // Show content when everything is ready
+            showContent();
+        })
+        .catch(error => {
+            console.error('Initialization failed:', error);
+            showContent(); // Still show content even if some parts failed
         });
 
-        // Show content after everything is initialized
-        showContent();
-    });
-
-    // Fallback in case something goes wrong - show content after 3 seconds max
+    // Safety net - never show loading for more than 3 seconds
     setTimeout(showContent, 3000);
 });
+
+function handleLanguageChange(event) {
+    if (event.key === 'appLanguage') {
+        currentLanguage = event.newValue || 'en';
+        updateLanguage();
+        if (tonConnectUI) {
+            tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
+        }
+    }
+}
 
 function showContent() {
     document.getElementById('skeleton-loading').style.display = 'none';
