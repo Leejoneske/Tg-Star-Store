@@ -564,6 +564,7 @@ function loadNotificationComponent() {
             container.innerHTML = html;
             document.body.appendChild(container);
             console.log('Notification component loaded successfully');
+            return true; // Indicate successful loading
         })
         .catch(error => {
             console.error('Failed to load notification component:', error);
@@ -571,42 +572,47 @@ function loadNotificationComponent() {
             document.getElementById('notificationButton')?.addEventListener('click', () => {
                 alert('Notifications not available. Please try again later.');
             });
+            return true; // Continue even if notifications failed to load
         });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // First load the notification component, then initialize everything else
-    loadNotificationComponent().then(() => {
-        setTimeout(() => {
-            initTelegramApp();
-            initWalletConnection();
-            initLanguageToggle();
-            updateLanguage();
-            initBuyButtons();
-            initMenu(); 
-            
-
-    window.addEventListener('storage', function(event) {
-        if (event.key === 'appLanguage') {
-            currentLanguage = event.newValue || 'en';
-            updateLanguage();
-            if (tonConnectUI) {
-                tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
-            }
-        }
-    });
-
+    // Show loading state initially
     document.getElementById('skeleton-loading').style.display = 'block';
     document.getElementById('content-container').style.display = 'none';
 
-    function showContent() {
-        document.getElementById('skeleton-loading').style.display = 'none';
-        document.getElementById('content-container').style.display = 'block';
-    }
+    // First load the notification component, then initialize everything else
+    loadNotificationComponent().then(() => {
+        initTelegramApp();
+        initWalletConnection();
+        initLanguageToggle();
+        updateLanguage();
+        initBuyButtons();
+        initMenu();
 
-    window.addEventListener('load', showContent);
-    setTimeout(showContent, 1000);
+        // Set up language change listener
+        window.addEventListener('storage', function(event) {
+            if (event.key === 'appLanguage') {
+                currentLanguage = event.newValue || 'en';
+                updateLanguage();
+                if (tonConnectUI) {
+                    tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
+                }
+            }
+        });
+
+        // Show content after everything is initialized
+        showContent();
+    });
+
+    // Fallback in case something goes wrong - show content after 3 seconds max
+    setTimeout(showContent, 3000);
 });
+
+function showContent() {
+    document.getElementById('skeleton-loading').style.display = 'none';
+    document.getElementById('content-container').style.display = 'block';
+}
 
 function initTelegramApp() {
     if (!isTelegramEnv) {
