@@ -467,7 +467,14 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-    const translations = {
+   
+        // Debugging tools
+if (typeof eruda !== 'undefined') {
+    eruda.init();
+    eruda.add(erudaNetwork);
+}
+
+const translations = {
     en: {
         appName: "StarStore",
         connectWallet: "Connect Wallet",
@@ -558,46 +565,26 @@
     }
 };
 
-let tonConnectUI;
+// Global variables
+let tonConnectUI = null;
 let currentLanguage = localStorage.getItem('appLanguage') || 'en';
 let walletConnected = false;
 let currentWalletAddress = '';
 let lastUserData = null;
 let currentUser = null;
+let notificationInterval = null;
+let isTelegramEnv = false;
 
-function loadNotificationComponent() {
-    return fetch('notification.html')
-        .then(response => response.text())
-        .then(html => {
-            const container = document.createElement('div');
-            container.id = 'notification-container';
-            container.innerHTML = html;
-            document.body.appendChild(container);
-            initNotification();
-        })
-        .catch(error => {
-            console.error('Notification load error:', error);
-        });
-}
-
-function initNotification() {
-    const button = document.getElementById('notificationButton');
-    const container = document.getElementById('notificationContainer');
-    
-    if (button && container) {
-        button.addEventListener('click', (e) => {
-            e.stopPropagation();
-            container.classList.toggle('hidden');
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!container.contains(e.target)) {
-                container.classList.add('hidden');
-            }
-        });
+// Check if we're in Telegram environment
+try {
+    if (window.Telegram && window.Telegram.WebApp) {
+        isTelegramEnv = true;
     }
+} catch (e) {
+    console.log('Not in Telegram environment');
 }
 
+// Initialize application
 document.addEventListener('DOMContentLoaded', function() {
     const skeleton = document.getElementById('skeleton-loading');
     const content = document.getElementById('content-container');
@@ -605,39 +592,75 @@ document.addEventListener('DOMContentLoaded', function() {
     skeleton.style.display = 'block';
     content.style.display = 'none';
 
-    // 1. Load menubar first (proven working)
-    fetch('menubar.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('menubar-container').innerHTML = html;
-            initMenu();
-            
-            // 2. THEN load notifications
-            return fetch('notification.html');
-        })
-        .then(response => response.text())
-        .then(html => {
-            const container = document.createElement('div');
-            container.id = 'notification-container';
-            container.innerHTML = html;
-            document.body.appendChild(container);
-        })
-        .catch(error => {
-            console.error('Load error:', error);
-        })
-        .finally(() => {
-            // 3. ALWAYS hide skeleton when done (even if errors occur)
-            skeleton.style.display = 'none';
-            content.style.display = 'block';
-            
-            // Initialize everything else
-            initWalletConnection();
-            initLanguageToggle();
-            updateLanguage();
-            initBuyButtons();
-        });
+    // Initialize components in sequence
+    Promise.all([
+        loadMenuBar(),
+        loadNotificationComponent()
+    ])
+    .then(() => {
+        initTelegramApp();
+        initWalletConnection();
+        initLanguageToggle();
+        updateLanguage();
+        initBuyButtons();
+        initNotification();
+        showContent();
+    })
+    .catch(error => {
+        console.error('Initialization error:', error);
+        showContent();
+        showErrorMessage(translations[currentLanguage].initializationError);
+    });
 });
 
+// Load menubar component
+function loadMenuBar() {
+    return new Promise((resolve, reject) => {
+        const menubarContainer = document.getElementById('menubar-container');
+        if (!menubarContainer) {
+            return reject('Menubar container not found');
+        }
+
+        fetch('menubar.html')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.text();
+            })
+            .then(html => {
+                menubarContainer.innerHTML = html;
+                initMenu();
+                resolve();
+            })
+            .catch(error => {
+                console.error('Menubar load error:', error);
+                reject(error);
+            });
+    });
+}
+
+// Load notification component
+function loadNotificationComponent() {
+    return new Promise((resolve, reject) => {
+        fetch('notification.html')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.text();
+            })
+            .then(html => {
+                const container = document.createElement('div');
+                container.id = 'notification-container';
+                container.innerHTML = html;
+                document.body.appendChild(container);
+                resolve();
+            })
+            .catch(error => {
+                console.error('Notification load error:', error);
+                reject(error);
+            });
+    });
+}
+
+// Show main content
 function showContent() {
     const skeleton = document.getElementById('skeleton-loading');
     const content = document.getElementById('content-container');
@@ -645,6 +668,7 @@ function showContent() {
     if (content) content.style.display = 'block';
 }
 
+// Initialize menu functionality
 function initMenu() {
     const menuButton = document.getElementById('menuButton');
     const menuOverlay = document.querySelector('.menu-overlay');
@@ -669,6 +693,7 @@ function initMenu() {
     }
 }
 
+// Initialize Telegram WebApp
 function initTelegramApp() {
     if (!isTelegramEnv) {
         currentUser = {
@@ -708,22 +733,22 @@ function initTelegramApp() {
         }
     } catch (error) {
         console.error('Telegram init error:', error);
+        showErrorMessage(translations[currentLanguage].telegramInitError);
     }
 }
 
-window.addEventListener('beforeunload', () => {
-    if (notificationInterval) {
-        clearInterval(notificationInterval);
-    }
-});
-        
+// Update user interface with user data
 function updateUserInterface(user) {
-    if (!user) return;
+    if (!user) {
+        console.error('No user data provided');
+        return;
+    }
     
     const profilePic = document.getElementById('profilePicture');
     const usernameElement = document.getElementById('username');
     
     if (!profilePic || !usernameElement) {
+        console.error('User interface elements not found');
         setTimeout(() => updateUserInterface(user), 200);
         return;
     }
@@ -748,14 +773,22 @@ function updateUserInterface(user) {
     lastUserData = {...user};
 }
 
+// Initialize wallet connection
 function initWalletConnection() {
     try {
+        if (typeof TON_CONNECT_UI === 'undefined') {
+            throw new Error('TON Connect UI not loaded');
+        }
+
         tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
             manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json',
             language: currentLanguage === 'ru' ? 'ru' : 'en'
         });
         
         const connectWalletButton = document.getElementById('connectWallet');
+        if (!connectWalletButton) {
+            throw new Error('Connect wallet button not found');
+        }
         
         tonConnectUI.onStatusChange(wallet => {
             if (wallet) {
@@ -804,9 +837,13 @@ function initWalletConnection() {
     }
 }
 
+// Initialize language toggle
 function initLanguageToggle() {
     const languageToggle = document.getElementById('languageToggle');
-    if (!languageToggle) return;
+    if (!languageToggle) {
+        console.error('Language toggle button not found');
+        return;
+    }
     
     languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
     
@@ -814,13 +851,8 @@ function initLanguageToggle() {
         currentLanguage = currentLanguage === 'en' ? 'ru' : 'en';
         updateLanguage();
         localStorage.setItem('appLanguage', currentLanguage);
-        window.dispatchEvent(new StorageEvent('storage', {
-            key: 'appLanguage',
-            newValue: currentLanguage
-        }));
-        if (tonConnectUI) {
-            tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
-        }
+        
+        // Update wallet connection UI if needed
         const connectWalletButton = document.getElementById('connectWallet');
         if (walletConnected && currentWalletAddress) {
             const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
@@ -832,6 +864,7 @@ function initLanguageToggle() {
     });
 }
 
+// Update language across the UI
 function updateLanguage() {
     const languageToggle = document.getElementById('languageToggle');
     if (languageToggle) {
@@ -840,12 +873,13 @@ function updateLanguage() {
     
     document.querySelectorAll('[data-translate]').forEach(element => {
         const key = element.getAttribute('data-translate');
-        if (translations[currentLanguage][key] && !element.classList.contains('wallet-address')) {
+        if (translations[currentLanguage] && translations[currentLanguage][key] && !element.classList.contains('wallet-address')) {
             element.textContent = translations[currentLanguage][key];
         }
     });
 }
 
+// Initialize buy buttons
 function initBuyButtons() {
     document.querySelectorAll('.buy-button').forEach(button => {
         button.addEventListener('click', function() {
@@ -863,6 +897,7 @@ function initBuyButtons() {
     });
 }
 
+// Handle purchase process
 async function handlePurchase(item) {
     if (!tonConnectUI || !walletConnected) {
         showErrorMessage(translations[currentLanguage].walletNotConnected);
@@ -946,6 +981,7 @@ async function handlePurchase(item) {
     }
 }
 
+// Show success message
 function showSuccessMessage(message) {
     Swal.fire({
         title: translations[currentLanguage].success,
@@ -955,6 +991,7 @@ function showSuccessMessage(message) {
     });
 }
 
+// Show error message
 function showErrorMessage(message) {
     Swal.fire({
         title: translations[currentLanguage].error,
@@ -963,17 +1000,101 @@ function showErrorMessage(message) {
         confirmButtonText: translations[currentLanguage].ok
     });
 }
-        
+
+// Fetch current TON to USDT rate
 async function fetchCurrentRate() {
     try {
         const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
-        return response.data['the-open-network'].usd;
+        return response.data['the-open-network']?.usd || null;
     } catch (error) {
         console.error('Rate fetch error:', error);
         return null;
     }
 }
-        
+
+// Initialize notification system
+function initNotification() {
+    const button = document.getElementById('notificationButton');
+    const container = document.getElementById('notificationContainer');
+    
+    if (button && container) {
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            container.classList.toggle('hidden');
+            fetchNotifications();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target) {
+                container.classList.add('hidden');
+            }
+        });
+    }
+
+    // Start polling for notifications every 30 seconds if in Telegram
+    if (isTelegramEnv) {
+        notificationInterval = setInterval(fetchNotifications, 30000);
+    }
+}
+
+// Fetch notifications
+async function fetchNotifications() {
+    if (!isTelegramEnv) {
+        console.log('Notifications only available in Telegram');
+        return;
+    }
+
+    try {
+        const response = await axios.get('/api/notifications');
+        if (response.data?.notifications) {
+            updateNotificationBadge(response.data.notifications.length);
+            renderNotifications(response.data.notifications);
+        }
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+    }
+}
+
+// Update notification badge
+function updateNotificationBadge(count) {
+    const badge = document.getElementById('notificationBadge');
+    if (!badge) return;
+
+    if (count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+// Render notifications in the UI
+function renderNotifications(notifications) {
+    const container = document.getElementById('notificationContainer');
+    if (!container) return;
+
+    if (notifications.length === 0) {
+        container.innerHTML = `<div class="p-4 text-center text-gray-500">${translations[currentLanguage].noNotifications}</div>`;
+        return;
+    }
+
+    const notificationsHTML = notifications.map(notification => 
+        `<div class="p-4 border-b border-gray-200">
+            <div class="font-medium">${notification.title}</div>
+            <div class="text-sm text-gray-600">${notification.message}</div>
+            <div class="text-xs text-gray-400 mt-1">${new Date(notification.timestamp).toLocaleString()}</div>
+        </div>`
+    ).join('');
+
+    container.innerHTML = notificationsHTML;
+}
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    if (notificationInterval) {
+        clearInterval(notificationInterval);
+    }
+});
  </script>    
 
 </body>
