@@ -525,73 +525,87 @@ let currentLanguage = localStorage.getItem('appLanguage') || 'en';
 let walletConnected = false;
 let currentWalletAddress = '';
 let lastUserData = null;
-let notificationInterval = null;
 let currentUser = null;
 const isTelegramEnv = typeof Telegram !== 'undefined' && Telegram.WebApp;
 
 function loadNotificationComponent() {
     return fetch('notification.html')
         .then(response => {
-            if (!response.ok) throw new Error('Notification component not found (HTTP ' + response.status);
+            if (!response.ok) throw new Error('Notification load failed');
             return response.text();
         })
         .then(html => {
             const container = document.createElement('div');
             container.innerHTML = html;
-            if (!container.querySelector('#notificationDropdown')) throw new Error('Notification dropdown element not found in loaded HTML');
             document.body.appendChild(container);
             return true;
         })
         .catch(error => {
-            console.error('Failed to load notification component:', error);
-            const notificationButton = document.getElementById('notificationButton');
-            if (notificationButton) {
-                notificationButton.addEventListener('click', () => {
-                    alert('Notifications not available. Please try again later.');
-                });
-            }
-            return true;
+            console.error('Notification system error:', error);
+            const btn = document.getElementById('notificationButton');
+            if (btn) btn.onclick = () => alert('Notifications unavailable');
+            return false;
         });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('skeleton-loading').style.display = 'block';
-    document.getElementById('content-container').style.display = 'none';
+    const skeleton = document.getElementById('skeleton-loading');
+    const content = document.getElementById('content-container');
+    if (skeleton) skeleton.style.display = 'block';
+    if (content) content.style.display = 'none';
 
     let contentShown = false;
-    
-    function safeShowContent() {
-        if (!contentShown) {
-            contentShown = true;
-            showContent();
-        }
-    }
-
     const loadingTimeout = setTimeout(() => {
-        safeShowContent();
+        if (!contentShown) showContent();
     }, 3000);
 
-    loadNotificationComponent()
-        .then((notificationLoaded) => {
-            if (!notificationLoaded) console.warn('Notification component failed to load, continuing with app');
-            try {
-                initTelegramApp();
-                initWalletConnection();
-                initLanguageToggle();
-                updateLanguage();
-                initBuyButtons();
-                initMenu();
-                window.addEventListener('storage', handleLanguageChange);
-                clearTimeout(loadingTimeout);
-                safeShowContent();
-            } catch (error) {
-                throw error;
-            }
-        })
-        .catch(error => {
-            safeShowContent();
-        });
+    function showContent() {
+        contentShown = true;
+        if (skeleton) skeleton.style.display = 'none';
+        if (content) content.style.display = 'block';
+        clearTimeout(loadingTimeout);
+    }
+
+    loadNotificationComponent().then(() => {
+        initTelegramApp();
+        initWalletConnection();
+        initLanguageToggle();
+        updateLanguage();
+        initBuyButtons();
+        initMenu();
+        showContent();
+    }).catch(() => showContent());
 });
+
+function initMenu() {
+    const menuButton = document.getElementById('menuButton');
+    const menuOverlay = document.querySelector('.menu-overlay');
+    const sideMenu = document.querySelector('.side-menu');
+    
+    if (!menuButton || !menuOverlay || !sideMenu) return;
+
+    let menuOpen = false;
+    
+    function toggleMenu() {
+        menuOpen = !menuOpen;
+        menuOverlay.classList.toggle('active');
+        sideMenu.classList.toggle('active');
+    }
+
+    menuButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleMenu();
+    });
+
+    menuOverlay.addEventListener('click', toggleMenu);
+
+    document.addEventListener('click', function(e) {
+        if (menuOpen && !sideMenu.contains(e.target) {
+            toggleMenu();
+        }
+    });
+}
 
 function handleLanguageChange(event) {
     if (event.key === 'appLanguage') {
@@ -608,7 +622,6 @@ function showContent() {
     const content = document.getElementById('content-container');
     if (skeleton) skeleton.style.display = 'none';
     if (content) content.style.display = 'block';
-    document.dispatchEvent(new CustomEvent('appContentShown'));
 }
 
 function initTelegramApp() {
