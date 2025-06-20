@@ -16,7 +16,6 @@
         position: relative;
         padding: 6px;
         margin-right: 8px;
-        margin-right: 19px;
         cursor: pointer;
     }
 
@@ -36,14 +35,14 @@
     }
 
     .notification-dropdown {
-        position: absolute;
-        top: 50px;
-        right: 80px;
+        position: fixed;
+        top: 60px;
+        right: 20px;
         width: 280px;
         background: white;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        z-index: 30;
+        z-index: 1000;
         display: none;
         max-height: 400px;
         overflow-y: auto;
@@ -75,169 +74,211 @@
     }
 
     .notification-item {
-        padding: 8px;
+        padding: 12px;
         border-bottom: 1px solid #e5e7eb;
-        font-size: 12px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 14px;
     }
 
     .notification-item:last-child {
         border-bottom: none;
     }
+
+    .notification-item.unread {
+        background-color: #f8fafc;
+    }
+
+    .notification-loading {
+        padding: 16px;
+        text-align: center;
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .notification-error {
+        padding: 16px;
+        text-align: center;
+        color: #ef4444;
+        font-size: 14px;
+    }
 </style>
 
 <script>
-function initNotifications() {
-    const notificationButton = document.getElementById('notificationButton');
-    const notificationDropdown = document.getElementById('notificationDropdown');
+// Wait for the DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the notification system
+    initNotificationSystem();
+});
+
+function initNotificationSystem() {
+    // Initialize event listeners
+    setupNotificationButton();
+    setupMarkAllReadButton();
     
-    if (notificationButton && notificationDropdown) {
-        notificationButton.addEventListener('click', function(e) {
+    // Load existing notifications if needed
+    // fetchNotifications();
+}
+
+function setupNotificationButton() {
+    // Use event delegation for the notification button
+    document.addEventListener('click', function(e) {
+        const notificationButton = e.target.closest('#notificationButton');
+        if (notificationButton) {
+            e.preventDefault();
             e.stopPropagation();
-            notificationDropdown.classList.toggle('active');
             
-            // Load notifications when dropdown opens
-            if (notificationDropdown.classList.contains('active')) {
-                fetchNotifications();
+            const dropdown = document.getElementById('notificationDropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('active');
+                
+                if (dropdown.classList.contains('active')) {
+                    fetchNotifications();
+                }
             }
-        });
+        }
         
         // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!notificationDropdown.contains(e.target) && 
-                !notificationButton.contains(e.target)) {
-                notificationDropdown.classList.remove('active');
-            }
-        });
-    }
-    
-    // Initialize mark all as read button
+        if (!e.target.closest('#notificationDropdown') && 
+            !e.target.closest('#notificationButton')) {
+            const dropdown = document.getElementById('notificationDropdown');
+            if (dropdown) dropdown.classList.remove('active');
+        }
+    });
+}
+
+function setupMarkAllReadButton() {
     const markAllRead = document.getElementById('markAllRead');
     if (markAllRead) {
-        markAllRead.addEventListener('click', function() {
-            const notifications = document.querySelectorAll('.notification-item');
-            const readNotifications = [];
-            
-            notifications.forEach(item => {
-                const id = item.getAttribute('data-id');
-                if (id) {
-                    readNotifications.push(id);
-                    item.classList.remove('unread');
-                    const dot = item.querySelector('.notification-dot');
-                    if (dot) dot.remove();
-                }
-            });
-            
-            localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
-            document.getElementById('notificationBadge').classList.add('hidden');
+        markAllRead.addEventListener('click', function(e) {
+            e.stopPropagation();
+            markAllNotificationsAsRead();
         });
     }
 }
-        
-async function fetchNotifications() {
-    const notificationBadge = document.getElementById('notificationBadge');
-    const notificationList = document.getElementById('notificationList');
+
+function markAllNotificationsAsRead() {
+    const notifications = document.querySelectorAll('.notification-item');
+    const readNotifications = [];
     
-    if (!notificationBadge || !notificationList) return;
+    notifications.forEach(item => {
+        const id = item.getAttribute('data-id');
+        if (id) {
+            readNotifications.push(id);
+            item.classList.remove('unread');
+        }
+    });
+    
+    if (readNotifications.length > 0) {
+        localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+        updateNotificationBadge(0);
+    }
+}
+
+function updateNotificationBadge(count) {
+    const badge = document.getElementById('notificationBadge');
+    if (!badge) return;
+    
+    if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count.toString();
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+async function fetchNotifications() {
+    const notificationList = document.getElementById('notificationList');
+    if (!notificationList) return;
+
+    // Show loading state
+    notificationList.innerHTML = `
+        <div class="notification-loading">
+            <i class="fas fa-spinner fa-spin"></i> Loading notifications...
+        </div>
+    `;
 
     try {
-        // Show loading state
-        notificationList.innerHTML = `<div class="notification-loading">${translations[currentLanguage].loadingNotifications}</div>`;
-
-        // Get user ID (Telegram or guest)
-        let userId;
-        if (isTelegramEnv && Telegram.WebApp.initDataUnsafe?.user?.id) {
-            userId = Telegram.WebApp.initDataUnsafe.user.id.toString();
+        // Simulate API call (replace with actual API call)
+        const notifications = await mockFetchNotifications();
+        
+        if (notifications.length > 0) {
+            renderNotifications(notifications);
         } else {
-            userId = localStorage.getItem('guestUserId') || 'guest_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('guestUserId', userId);
-        }
-
-        const response = await axios.get(`/api/notifications`, {
-            params: { userId },
-            timeout: 5000
-        });
-
-        // Handle response
-        if (!response.data) {
-            throw new Error('Empty response from server');
-        }
-
-        const notifications = Array.isArray(response.data) ? 
-            response.data : 
-            (response.data.notifications || []);
-
-        updateNotificationUI(notifications);
-
-    } catch (error) {
-        console.error('Notifications error:', error);
-        notificationList.innerHTML = `
-            <div class="notification-error">
-                ${translations[currentLanguage].notificationsError}
-                <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-                    ${error.message || ''}
-                </div>
-            </div>
-        `;
-        notificationBadge.classList.add('hidden');
-    }
-}
-
-function updateNotificationUI(notifications) {
-    const notificationBadge = document.getElementById('notificationBadge');
-    const notificationList = document.getElementById('notificationList');
-    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || []);
-
-    // Filter and count unread notifications
-    const unreadNotifications = notifications.filter(
-        n => !readNotifications.includes(n._id || n.id)
-    );
-
-    // Update badge
-    if (notificationBadge) {
-        if (unreadNotifications.length > 0) {
-            notificationBadge.textContent = 
-                unreadNotifications.length > 99 ? '99+' : unreadNotifications.length.toString();
-            notificationBadge.classList.remove('hidden');
-        } else {
-            notificationBadge.classList.add('hidden');
-        }
-    }
-
-    // Update notification list
-    if (notifications.length > 0) {
-        notificationList.innerHTML = notifications.map(notification => {
-            const isRead = readNotifications.includes(notification._id || notification.id);
-            return `
-                <div class="notification-item ${isRead ? '' : 'unread'}" 
-                     data-id="${notification._id || notification.id}">
-                    <div class="flex items-start gap-3">
-                        <div class="flex-1">
-                            <div class="${isRead ? 'text-gray-600' : 'text-gray-900 font-medium'}">
-                                ${notification.message}
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">
-                                ${new Date(notification.timestamp).toLocaleString()}
-                            </div>
-                        </div>
-                        ${!isRead ? '<div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>' : ''}
-                    </div>
+            notificationList.innerHTML = `
+                <div class="notification-empty">
+                    No new notifications
                 </div>
             `;
-        }).join('');
-    } else {
+        }
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
         notificationList.innerHTML = `
-            <div class="notification-empty">
-                ${translations[currentLanguage].noNotifications}
+            <div class="notification-error">
+                Failed to load notifications. Please try again later.
             </div>
         `;
     }
 }
 
-// Initialize notifications when loaded
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(initNotifications, 500);
-});
+function renderNotifications(notifications) {
+    const notificationList = document.getElementById('notificationList');
+    if (!notificationList) return;
+    
+    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+    let unreadCount = 0;
+
+    notificationList.innerHTML = notifications.map(notification => {
+        const isRead = readNotifications.includes(notification.id);
+        if (!isRead) unreadCount++;
+        
+        return `
+            <div class="notification-item ${isRead ? '' : 'unread'}" 
+                 data-id="${notification.id}">
+                <div class="flex items-start gap-3">
+                    <div class="flex-1">
+                        <div class="${isRead ? 'text-gray-600' : 'text-gray-900 font-medium'}">
+                            ${notification.message}
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            ${new Date(notification.timestamp).toLocaleString()}
+                        </div>
+                    </div>
+                    ${!isRead ? '<div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>' : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    updateNotificationBadge(unreadCount);
+}
+
+// Mock function - replace with actual API call
+async function mockFetchNotifications() {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return [
+        {
+            id: '1',
+            message: 'Your purchase of 100 Stars was successful',
+            timestamp: Date.now() - 3600000 // 1 hour ago
+        },
+        {
+            id: '2',
+            message: 'New premium package available',
+            timestamp: Date.now() - 86400000 // 1 day ago
+        },
+        {
+            id: '3',
+            message: 'Welcome to StarStore! Start browsing our products',
+            timestamp: Date.now() - 172800000 // 2 days ago
+        }
+    ];
+}
+
+// Make functions available to the parent window if needed
+window.NotificationSystem = {
+    fetchNotifications,
+    markAllNotificationsAsRead,
+    updateNotificationBadge
+};
 </script>
