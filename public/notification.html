@@ -1,568 +1,734 @@
 
-<div class="notification-container hidden" id="notificationContainer">
-    <div class="notification-dropdown">
-        <!-- Header with close button -->
-        <div class="notification-header">
-            <div class="notification-title">
-                <svg class="notification-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+<div class="tg-notification-container hidden" id="notificationContainer">
+    <div class="tg-notification-dropdown">
+        <!-- Header -->
+        <div class="tg-notification-header">
+            <div class="tg-notification-title">
+                <svg class="tg-notification-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 </svg>
                 <span>Notifications</span>
+                <span class="tg-notification-badge" id="notificationBadge">3</span>
             </div>
-            <button class="notification-close" id="notificationClose">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
+            <div class="tg-notification-actions">
+                <button class="tg-notification-action-btn" id="markAllRead" title="Mark all as read">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M20 6L9 17l-5-5"></path>
+                    </svg>
+                </button>
+                <button class="tg-notification-action-btn" id="notificationClose" title="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
         </div>
 
         <!-- Loading state -->
-        <div class="notification-loading hidden" id="notificationLoading">
-            <div class="loading-spinner"></div>
+        <div class="tg-notification-loading hidden" id="notificationLoading">
+            <div class="tg-loading-spinner"></div>
             <span>Loading notifications...</span>
         </div>
 
         <!-- Notification list -->
-        <div class="notification-list" id="notificationList">
+        <div class="tg-notification-list" id="notificationList">
             <!-- Empty state -->
-            <div class="notification-empty" id="notificationEmpty">
-                <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M12 6v6l4 2"></path>
+            <div class="tg-notification-empty" id="notificationEmpty">
+                <svg class="tg-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                 </svg>
                 <p>No new notifications</p>
                 <span>You're all caught up!</span>
             </div>
             
-            <!-- Sample notification items for demo -->
-            <div class="notification-item unread" style="display: none;">
-                <div class="notification-dot"></div>
-                <div class="notification-content">
-                    <div class="notification-item-title">Order Confirmed</div>
-                    <div class="notification-item-message">Your Telegram Premium order has been processed successfully.</div>
-                    <div class="notification-item-time">2 minutes ago</div>
-                </div>
-                <div class="notification-actions">
-                    <button class="notification-action-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <polyline points="20,6 9,17 4,12"></polyline>
-                        </svg>
-                    </button>
+            <!-- Sample notification item template -->
+            <div class="tg-notification-item unread" data-id="sample-id" style="display: none;">
+                <div class="tg-notification-content">
+                    <div class="tg-notification-item-header">
+                        <span class="tg-notification-item-title">Order Confirmed</span>
+                        <span class="tg-notification-item-time">2m ago</span>
+                    </div>
+                    <div class="tg-notification-item-message">Your Telegram Premium order has been processed successfully.</div>
+                    <div class="tg-notification-item-actions">
+                        <button class="tg-notification-item-action-btn" data-action="dismiss">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Footer -->
-        <div class="notification-footer">
-            <button class="notification-footer-btn" id="markAllRead">
+        <div class="tg-notification-footer">
+            <button class="tg-notification-footer-btn" id="viewAllNotifications">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M20 6L9 17l-5-5"></path>
+                    <path d="M5 12h14"></path>
+                    <path d="M12 5l7 7-7 7"></path>
                 </svg>
-                Mark all as read
-            </button>
-            <button class="notification-footer-btn" id="clearAll">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polyline points="3,6 5,6 21,6"></polyline>
-                    <path d="M19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1 2-2h4a2,2 0 0,1 2,2v2"></path>
-                </svg>
-                Clear all
+                View all notifications
             </button>
         </div>
     </div>
 </div>
 
 <style>
-/* Main notification container */
-.notification-container {
+/* Base styles */
+.tg-notification-container {
     position: fixed;
-    top: 70px;
+    top: 60px;
     right: 20px;
-    width: 380px;
+    width: 360px;
     max-width: calc(100vw - 40px);
     z-index: 1000;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #212121;
+    animation: tgSlideIn 0.2s ease-out;
 }
 
-.notification-container.hidden {
+.tg-notification-container.hidden {
     display: none;
 }
 
-/* Dropdown with modern design */
-.notification-dropdown {
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    overflow: hidden;
-    animation: slideDown 0.2s ease-out;
-}
-
-@keyframes slideDown {
+@keyframes tgSlideIn {
     from {
         opacity: 0;
-        transform: translateY(-10px) scale(0.95);
+        transform: translateY(-8px);
     }
     to {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateY(0);
     }
 }
 
-/* Header */
-.notification-header {
-    padding: 16px 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+/* Dropdown container */
+.tg-notification-dropdown {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    overflow: hidden;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    max-height: 80vh;
 }
 
-.notification-title {
+/* Header */
+.tg-notification-header {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.tg-notification-title {
     display: flex;
     align-items: center;
     gap: 8px;
     font-weight: 600;
-    font-size: 16px;
+    font-size: 15px;
+    color: #212121;
 }
 
-.notification-icon {
+.tg-notification-icon {
     width: 20px;
     height: 20px;
+    stroke-width: 1.8;
 }
 
-.notification-close {
+.tg-notification-badge {
+    background: #3390ec;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+}
+
+.tg-notification-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.tg-notification-action-btn {
     background: none;
     border: none;
-    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    padding: 4px;
-    border-radius: 6px;
-    transition: background-color 0.2s;
+    color: #707579;
+    transition: all 0.15s ease;
 }
 
-.notification-close:hover {
-    background: rgba(255, 255, 255, 0.1);
+.tg-notification-action-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #212121;
 }
 
-.notification-close svg {
+.tg-notification-action-btn svg {
     width: 16px;
     height: 16px;
+    stroke-width: 2;
 }
 
 /* Loading state */
-.notification-loading {
-    padding: 40px 20px;
+.tg-notification-loading {
+    padding: 24px 16px;
     text-align: center;
-    color: #6b7280;
+    color: #707579;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 12px;
 }
 
-.loading-spinner {
+.tg-loading-spinner {
     width: 24px;
     height: 24px;
-    border: 2px solid #e5e7eb;
-    border-top: 2px solid #667eea;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-top: 2px solid #3390ec;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: tgSpin 1s linear infinite;
 }
 
-@keyframes spin {
+@keyframes tgSpin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
 /* Notification list */
-.notification-list {
-    max-height: 400px;
+.tg-notification-list {
+    flex: 1;
     overflow-y: auto;
+    max-height: 400px;
 }
 
-.notification-list::-webkit-scrollbar {
-    width: 6px;
+.tg-notification-list::-webkit-scrollbar {
+    width: 4px;
 }
 
-.notification-list::-webkit-scrollbar-track {
-    background: #f1f5f9;
+.tg-notification-list::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-.notification-list::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-
-.notification-list::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+.tg-notification-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
 }
 
 /* Empty state */
-.notification-empty {
-    padding: 40px 20px;
+.tg-notification-empty {
+    padding: 32px 16px;
     text-align: center;
-    color: #6b7280;
+    color: #707579;
 }
 
-.empty-icon {
+.tg-empty-icon {
     width: 48px;
     height: 48px;
-    margin: 0 auto 16px;
-    opacity: 0.5;
+    margin: 0 auto 12px;
+    stroke-width: 1.5;
+    color: #3390ec;
+    opacity: 0.6;
 }
 
-.notification-empty p {
+.tg-notification-empty p {
     font-weight: 500;
     margin: 0 0 4px 0;
-    font-size: 16px;
+    font-size: 15px;
+    color: #212121;
 }
 
-.notification-empty span {
-    font-size: 14px;
-    opacity: 0.7;
+.tg-notification-empty span {
+    font-size: 13px;
+    opacity: 0.8;
 }
 
 /* Notification items */
-.notification-item {
-    padding: 16px 20px;
-    border-bottom: 1px solid #f1f5f9;
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    transition: background-color 0.2s;
+.tg-notification-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    transition: background-color 0.15s ease;
     position: relative;
 }
 
-.notification-item:hover {
-    background: #f8fafc;
+.tg-notification-item:hover {
+    background: rgba(0, 0, 0, 0.02);
 }
 
-.notification-item:last-child {
+.tg-notification-item:last-child {
     border-bottom: none;
 }
 
-.notification-item.unread {
-    background: #fef7ff;
-    border-left: 3px solid #667eea;
+.tg-notification-item.unread {
+    background: rgba(51, 144, 236, 0.03);
 }
 
-.notification-dot {
-    width: 8px;
-    height: 8px;
-    background: #667eea;
-    border-radius: 50%;
-    margin-top: 6px;
-    flex-shrink: 0;
+.tg-notification-item.unread::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #3390ec;
+    border-radius: 0 2px 2px 0;
 }
 
-.notification-item:not(.unread) .notification-dot {
-    background: #cbd5e1;
+.tg-notification-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
-.notification-content {
-    flex: 1;
-    min-width: 0;
+.tg-notification-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
 }
 
-.notification-item-title {
-    font-weight: 600;
-    color: #1f2937;
-    margin-bottom: 4px;
+.tg-notification-item-title {
+    font-weight: 500;
+    color: #212121;
     font-size: 14px;
 }
 
-.notification-item-message {
-    color: #6b7280;
+.tg-notification-item-time {
+    font-size: 12px;
+    color: #707579;
+    white-space: nowrap;
+    margin-left: 8px;
+}
+
+.tg-notification-item-message {
+    color: #707579;
     font-size: 13px;
     line-height: 1.4;
-    margin-bottom: 6px;
 }
 
-.notification-item-time {
-    color: #9ca3af;
-    font-size: 12px;
-}
-
-.notification-actions {
-    display: flex;
-    align-items: center;
+.tg-notification-item-actions {
+    position: absolute;
+    right: 12px;
+    top: 12px;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.15s ease;
 }
 
-.notification-item:hover .notification-actions {
+.tg-notification-item:hover .tg-notification-item-actions {
     opacity: 1;
 }
 
-.notification-action-btn {
-    background: none;
+.tg-notification-item-action-btn {
+    background: rgba(0, 0, 0, 0.05);
     border: none;
-    padding: 6px;
+    width: 24px;
+    height: 24px;
     border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    color: #6b7280;
-    transition: all 0.2s;
+    color: #707579;
+    transition: all 0.15s ease;
 }
 
-.notification-action-btn:hover {
-    background: #e5e7eb;
-    color: #374151;
+.tg-notification-item-action-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: #212121;
 }
 
-.notification-action-btn svg {
+.tg-notification-item-action-btn svg {
     width: 14px;
     height: 14px;
+    stroke-width: 2;
 }
 
 /* Footer */
-.notification-footer {
-    padding: 12px 20px;
-    background: #f8fafc;
-    border-top: 1px solid #e5e7eb;
-    display: flex;
-    gap: 8px;
+.tg-notification-footer {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.notification-footer-btn {
-    flex: 1;
+.tg-notification-footer-btn {
+    width: 100%;
     background: none;
-    border: 1px solid #e5e7eb;
+    border: 1px solid rgba(0, 0, 0, 0.1);
     padding: 8px 12px;
     border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #3390ec;
     cursor: pointer;
-    color: #6b7280;
-    font-size: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    transition: all 0.2s;
+    transition: all 0.15s ease;
 }
 
-.notification-footer-btn:hover {
-    background: white;
-    border-color: #667eea;
-    color: #667eea;
+.tg-notification-footer-btn:hover {
+    background: rgba(51, 144, 236, 0.05);
+    border-color: rgba(51, 144, 236, 0.2);
 }
 
-.notification-footer-btn svg {
-    width: 12px;
-    height: 12px;
+.tg-notification-footer-btn svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2;
 }
 
 /* Responsive design */
-@media (max-width: 640px) {
-    .notification-container {
-        right: 10px;
-        left: 10px;
+@media (max-width: 480px) {
+    .tg-notification-container {
+        top: 12px;
+        right: 12px;
+        left: 12px;
         width: auto;
         max-width: none;
-        top: 60px;
     }
     
-    .notification-dropdown {
-        border-radius: 12px;
+    .tg-notification-dropdown {
+        border-radius: 10px;
     }
     
-    .notification-item {
-        padding: 12px 16px;
-    }
-    
-    .notification-header {
-        padding: 12px 16px;
-    }
-    
-    .notification-footer {
-        padding: 8px 16px;
-        flex-direction: column;
-        gap: 6px;
-    }
-    
-    .notification-footer-btn {
-        font-size: 13px;
-        padding: 10px 12px;
+    .tg-notification-list {
+        max-height: 60vh;
     }
 }
 
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
-    .notification-dropdown {
+    .tg-notification-dropdown {
         background: #1f2937;
-        border-color: #374151;
+        border-color: rgba(255, 255, 255, 0.1);
     }
     
-    .notification-item {
-        border-color: #374151;
+    .tg-notification-header {
+        background: #1f2937;
+        border-color: rgba(255, 255, 255, 0.1);
     }
     
-    .notification-item:hover {
-        background: #374151;
-    }
-    
-    .notification-item.unread {
-        background: #312e81;
-    }
-    
-    .notification-item-title {
+    .tg-notification-title,
+    .tg-notification-item-title {
         color: #f9fafb;
     }
     
-    .notification-item-message {
-        color: #d1d5db;
-    }
-    
-    .notification-item-time {
+    .tg-notification-action-btn {
         color: #9ca3af;
     }
     
-    .notification-footer {
-        background: #374151;
-        border-color: #4b5563;
+    .tg-notification-action-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #f9fafb;
     }
     
-    .notification-footer-btn {
-        border-color: #4b5563;
-        color: #d1d5db;
+    .tg-notification-item {
+        border-color: rgba(255, 255, 255, 0.05);
     }
     
-    .notification-footer-btn:hover {
-        background: #4b5563;
-        border-color: #667eea;
-        color: #667eea;
+    .tg-notification-item:hover {
+        background: rgba(255, 255, 255, 0.03);
     }
     
-    .notification-empty {
-        color: #d1d5db;
+    .tg-notification-item.unread {
+        background: rgba(51, 144, 236, 0.08);
     }
     
-    .notification-loading {
-        color: #d1d5db;
+    .tg-notification-item-message,
+    .tg-notification-item-time {
+        color: #9ca3af;
+    }
+    
+    .tg-notification-empty {
+        color: #9ca3af;
+    }
+    
+    .tg-notification-empty p {
+        color: #f9fafb;
+    }
+    
+    .tg-notification-footer {
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .tg-notification-footer-btn {
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #3390ec;
+    }
+    
+    .tg-notification-footer-btn:hover {
+        background: rgba(51, 144, 236, 0.1);
+    }
+    
+    .tg-loading-spinner {
+        border-color: rgba(255, 255, 255, 0.1);
+        border-top-color: #3390ec;
     }
 }
 </style>
 
 <script>
-// Enhanced notification functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const notificationButton = document.getElementById('notificationButton');
-    const notificationContainer = document.getElementById('notificationContainer');
-    const notificationClose = document.getElementById('notificationClose');
-    const markAllReadBtn = document.getElementById('markAllRead');
-    const clearAllBtn = document.getElementById('clearAll');
-
-    // Toggle notification dropdown
-    if (notificationButton && notificationContainer) {
-        notificationButton.addEventListener('click', function(e) {
-            e.stopPropagation();
-            notificationContainer.classList.toggle('hidden');
-        });
+class TelegramNotification {
+    constructor(options = {}) {
+        this.container = document.getElementById('notificationContainer');
+        this.listElement = document.getElementById('notificationList');
+        this.emptyState = document.getElementById('notificationEmpty');
+        this.loadingState = document.getElementById('notificationLoading');
+        this.badgeElement = document.getElementById('notificationBadge');
+        
+        // Default options
+        this.options = {
+            position: 'right',
+            maxNotifications: 50,
+            pollInterval: 30000,
+            ...options
+        };
+        
+        this.init();
     }
-
-    // Close button functionality
-    if (notificationClose) {
-        notificationClose.addEventListener('click', function() {
-            notificationContainer.classList.add('hidden');
+    
+    init() {
+        // Event listeners
+        document.getElementById('notificationClose').addEventListener('click', () => this.hide());
+        document.getElementById('markAllRead').addEventListener('click', () => this.markAllAsRead());
+        document.getElementById('viewAllNotifications').addEventListener('click', () => this.viewAll());
+        
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!this.container.contains(e.target) && 
+                !document.getElementById('notificationButton')?.contains(e.target)) {
+                this.hide();
+            }
         });
-    }
-
-    // Close when clicking outside
-    document.addEventListener('click', function(e) {
-        if (notificationContainer && 
-            !notificationContainer.contains(e.target) && 
-            !notificationButton.contains(e.target)) {
-            notificationContainer.classList.add('hidden');
+        
+        // Escape key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !this.container.classList.contains('hidden')) {
+                this.hide();
+            }
+        });
+        
+        // Start polling for notifications
+        if (this.options.pollInterval > 0) {
+            this.fetchNotifications();
+            setInterval(() => this.fetchNotifications(), this.options.pollInterval);
         }
-    });
-
-    // Mark all as read functionality
-    if (markAllReadBtn) {
-        markAllReadBtn.addEventListener('click', function() {
-            const unreadItems = document.querySelectorAll('.notification-item.unread');
-            unreadItems.forEach(item => {
+    }
+    
+    async fetchNotifications() {
+        try {
+            this.showLoading();
+            
+            // Replace with your actual API endpoint
+            const response = await fetch('/api/notifications');
+            if (!response.ok) throw new Error('Failed to fetch notifications');
+            
+            const notifications = await response.json();
+            this.renderNotifications(notifications);
+            this.updateBadge(notifications.filter(n => !n.read).length);
+        } catch (error) {
+            console.error('Notification error:', error);
+            this.showEmptyState('Failed to load notifications');
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    renderNotifications(notifications) {
+        this.listElement.innerHTML = '';
+        
+        if (!notifications || notifications.length === 0) {
+            this.showEmptyState();
+            return;
+        }
+        
+        this.emptyState.classList.add('hidden');
+        
+        notifications.slice(0, this.options.maxNotifications).forEach(notification => {
+            const item = this.createNotificationItem(notification);
+            this.listElement.appendChild(item);
+        });
+    }
+    
+    createNotificationItem(notification) {
+        const template = document.querySelector('.tg-notification-item[style="display: none;"]');
+        const item = template.cloneNode(true);
+        item.style.display = '';
+        item.dataset.id = notification.id;
+        
+        if (!notification.read) {
+            item.classList.add('unread');
+        } else {
+            item.classList.remove('unread');
+        }
+        
+        // Set notification content
+        item.querySelector('.tg-notification-item-title').textContent = notification.title || 'Notification';
+        item.querySelector('.tg-notification-item-message').textContent = notification.message;
+        item.querySelector('.tg-notification-item-time').textContent = this.formatTime(notification.timestamp);
+        
+        // Add click handler
+        item.addEventListener('click', (e) => {
+            if (!e.target.closest('.tg-notification-item-action-btn')) {
+                this.handleNotificationClick(notification);
+            }
+        });
+        
+        // Add action button handlers
+        item.querySelector('[data-action="dismiss"]').addEventListener('click', () => {
+            this.dismissNotification(notification.id);
+            item.remove();
+        });
+        
+        return item;
+    }
+    
+    formatTime(timestamp) {
+        if (!timestamp) return '';
+        
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+        
+        if (diffInMinutes < 1) return 'Just now';
+        if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+        if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    
+    async handleNotificationClick(notification) {
+        if (!notification.read) {
+            await this.markAsRead(notification.id);
+            const item = this.listElement.querySelector(`[data-id="${notification.id}"]`);
+            if (item) item.classList.remove('unread');
+            this.updateBadge(this.getUnreadCount() - 1);
+        }
+        
+        // Handle notification click action
+        if (notification.url) {
+            window.open(notification.url, '_blank');
+        }
+    }
+    
+    async markAsRead(notificationId) {
+        try {
+            await fetch(`/api/notifications/${notificationId}/read`, {
+                method: 'POST'
+            });
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+        }
+    }
+    
+    async markAllAsRead() {
+        try {
+            await fetch('/api/notifications/mark-all-read', {
+                method: 'POST'
+            });
+            
+            document.querySelectorAll('.tg-notification-item.unread').forEach(item => {
                 item.classList.remove('unread');
             });
             
-            // Update badge (assuming there's a badge element)
-            const badge = document.getElementById('notificationBadge');
-            if (badge) {
-                badge.classList.add('hidden');
-            }
+            this.updateBadge(0);
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+        }
+    }
+    
+    async dismissNotification(notificationId) {
+        try {
+            await fetch(`/api/notifications/${notificationId}`, {
+                method: 'DELETE'
+            });
+            
+            this.updateBadge(this.getUnreadCount());
+        } catch (error) {
+            console.error('Error dismissing notification:', error);
+        }
+    }
+    
+    getUnreadCount() {
+        return document.querySelectorAll('.tg-notification-item.unread').length;
+    }
+    
+    updateBadge(count) {
+        if (!this.badgeElement) return;
+        
+        if (count > 0) {
+            this.badgeElement.textContent = count > 99 ? '99+' : count.toString();
+            this.badgeElement.style.display = '';
+        } else {
+            this.badgeElement.style.display = 'none';
+        }
+    }
+    
+    viewAll() {
+        // Implement view all notifications page
+        console.log('View all notifications');
+        this.hide();
+    }
+    
+    show() {
+        this.container.classList.remove('hidden');
+        this.fetchNotifications();
+    }
+    
+    hide() {
+        this.container.classList.add('hidden');
+    }
+    
+    toggle() {
+        if (this.container.classList.contains('hidden')) {
+            this.show();
+        } else {
+            this.hide();
+        }
+    }
+    
+    showLoading() {
+        this.loadingState.classList.remove('hidden');
+        this.listElement.classList.add('hidden');
+        this.emptyState.classList.add('hidden');
+    }
+    
+    hideLoading() {
+        this.loadingState.classList.add('hidden');
+        this.listElement.classList.remove('hidden');
+    }
+    
+    showEmptyState(message = 'No new notifications') {
+        this.emptyState.querySelector('p').textContent = message;
+        this.emptyState.classList.remove('hidden');
+        this.listElement.classList.add('hidden');
+    }
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.telegramNotifications = new TelegramNotification();
+    
+    // If you have a notification button elsewhere in your app
+    const notificationButton = document.getElementById('notificationButton');
+    if (notificationButton) {
+        notificationButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.telegramNotifications.toggle();
         });
     }
-
-    // Clear all functionality
-    if (clearAllBtn) {
-        clearAllBtn.addEventListener('click', function() {
-            const notificationList = document.getElementById('notificationList');
-            const emptyState = document.getElementById('notificationEmpty');
-            
-            // Remove all notification items
-            const items = document.querySelectorAll('.notification-item');
-            items.forEach(item => item.remove());
-            
-            // Show empty state
-            if (emptyState) {
-                emptyState.style.display = 'block';
-            }
-            
-            // Update badge
-            const badge = document.getElementById('notificationBadge');
-            if (badge) {
-                badge.classList.add('hidden');
-            }
-        });
-    }
-
-    // Individual notification item actions
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.notification-action-btn')) {
-            const notificationItem = e.target.closest('.notification-item');
-            if (notificationItem) {
-                notificationItem.classList.remove('unread');
-                
-                // Update badge count
-                const unreadCount = document.querySelectorAll('.notification-item.unread').length;
-                const badge = document.getElementById('notificationBadge');
-                if (badge) {
-                    if (unreadCount > 0) {
-                        badge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
-                        badge.classList.remove('hidden');
-                    } else {
-                        badge.classList.add('hidden');
-                    }
-                }
-            }
-        }
-    });
-
-    // Escape key to close
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && !notificationContainer.classList.contains('hidden')) {
-            notificationContainer.classList.add('hidden');
-        }
-    });
 });
-
-// Helper function to show loading state
-function showNotificationLoading() {
-    const loading = document.getElementById('notificationLoading');
-    const list = document.getElementById('notificationList');
-    if (loading && list) {
-        loading.classList.remove('hidden');
-        list.style.display = 'none';
-    }
-}
-
-// Helper function to hide loading state
-function hideNotificationLoading() {
-    const loading = document.getElementById('notificationLoading');
-    const list = document.getElementById('notificationList');
-    if (loading && list) {
-        loading.classList.add('hidden');
-        list.style.display = 'block';
-    }
-}
 </script>
