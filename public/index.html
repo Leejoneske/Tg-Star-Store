@@ -573,7 +573,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .then((success) => {
             if (!success) console.warn('Notification system failed to load');
             return Promise.all([
-                Promise.resolve().then(initTelegramApp),
                 Promise.resolve().then(initWalletConnection),
                 Promise.resolve().then(initLanguageToggle),
                 Promise.resolve().then(updateLanguage),
