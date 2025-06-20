@@ -452,7 +452,7 @@
 </style>
 
 <script>
-class TelegramNotification {
+class NotificationSystem {
     constructor(options = {}) {
         this.container = document.getElementById('notificationContainer');
         this.listElement = document.getElementById('notificationList');
@@ -491,7 +491,7 @@ class TelegramNotification {
         
         if (this.options.pollInterval > 0) {
             this.fetchNotifications();
-            setInterval(() => this.fetchNotifications(), this.options.pollInterval);
+            this.pollingInterval = setInterval(() => this.fetchNotifications(), this.options.pollInterval);
         }
     }
     
@@ -499,7 +499,19 @@ class TelegramNotification {
         try {
             this.showLoading();
             
-            const response = await fetch('/api/notifications');
+            const params = {};
+            
+            // Add user identifier if available
+            if (window.currentUser?.id) {
+                params.userId = window.currentUser.id;
+            } else if (window.currentWalletAddress) {
+                params.userId = window.currentWalletAddress;
+            } else {
+                // For anonymous users, we'll still fetch global notifications
+                params.userId = 'anonymous';
+            }
+            
+            const response = await fetch('/api/notifications?' + new URLSearchParams(params));
             if (!response.ok) throw new Error('Failed to fetch notifications');
             
             const notifications = await response.json();
@@ -507,6 +519,7 @@ class TelegramNotification {
             this.renderNotifications(notifications);
             this.updateBadge(notifications.filter(n => !n.read).length);
         } catch (error) {
+            console.error('Notification fetch error:', error);
             this.showEmptyState('Failed to load notifications');
         } finally {
             this.hideLoading();
@@ -537,10 +550,10 @@ class TelegramNotification {
         item.innerHTML = `
             <div class="tg-notification-content">
                 <div class="tg-notification-item-header">
-                    <span class="tg-notification-item-title">${notification.title || 'Notification'}</span>
+                    <span class="tg-notification-item-title">${this.escapeHtml(notification.title || 'Notification')}</span>
                     <span class="tg-notification-item-time">${this.formatTime(notification.timestamp)}</span>
                 </div>
-                <div class="tg-notification-item-message">${notification.message}</div>
+                <div class="tg-notification-item-message">${this.escapeHtml(notification.message)}</div>
                 <div class="tg-notification-item-actions">
                     <button class="tg-notification-item-action-btn" data-action="dismiss">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -580,6 +593,13 @@ class TelegramNotification {
         return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
     
+    escapeHtml(text) {
+        if (typeof text !== 'string') return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     async handleNotificationClick(notification) {
         if (!notification.read) {
             await this.markAsRead(notification.id);
@@ -605,8 +625,20 @@ class TelegramNotification {
     
     async markAllAsRead() {
         try {
+            const params = {};
+            
+            if (window.currentUser?.id) {
+                params.userId = window.currentUser.id;
+            } else if (window.currentWalletAddress) {
+                params.userId = window.currentWalletAddress;
+            }
+            
             await fetch('/api/notifications/mark-all-read', {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
             });
             
             this.notifications = this.notifications.map(n => ({ ...n, read: true }));
@@ -682,17 +714,30 @@ class TelegramNotification {
         this.emptyState.classList.remove('hidden');
         this.listElement.classList.add('hidden');
     }
+    
+    cleanup() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.telegramNotifications = new TelegramNotification();
+    window.notificationSystem = new NotificationSystem();
     
     const notificationButton = document.getElementById('notificationButton');
     if (notificationButton) {
         notificationButton.addEventListener('click', (e) => {
             e.stopPropagation();
-            window.telegramNotifications.toggle();
+            window.notificationSystem.toggle();
         });
+    }
+});
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    if (window.notificationSystem) {
+        window.notificationSystem.cleanup();
     }
 });
 </script>
