@@ -152,22 +152,6 @@ const bannedUserSchema = new mongoose.Schema({
     users: Array
 });
 
-const notificationSchema = new mongoose.Schema({
-    userId: {
-        type: String,
-        default: 'all' 
-    },
-    message: String,
-    timestamp: {
-        type: Date,
-        default: Date.now
-    },
-    isGlobal: {
-        type: Boolean,
-        default: false
-    }
-});
-
 const cacheSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     username: { type: String, required: true },
@@ -258,6 +242,32 @@ const warningSchema = new mongoose.Schema({
     autoRemove: { type: Boolean, default: false }
 });
 
+const notificationSchema = new mongoose.Schema({
+    userId: {
+        type: String,
+        default: 'all'
+    },
+    title: {
+        type: String,
+        default: 'Notification'
+    },
+    message: String,
+    url: String,
+    timestamp: {
+        type: Date,
+        default: Date.now
+    },
+    isGlobal: {
+        type: Boolean,
+        default: false
+    },
+    read: {
+        type: Boolean,
+        default: false
+    }
+});
+
+const Notification = mongoose.model('Notification', notificationSchema);
 const Warning = mongoose.model('Warning', warningSchema);
 const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
@@ -267,7 +277,6 @@ const Cache = mongoose.model('Cache', cacheSchema);
 const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
 const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
 const User = mongoose.model('User', userSchema);
-const Notification = mongoose.model('Notification', notificationSchema);
 const Referral = mongoose.model('Referral', referralSchema);
 const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
 
@@ -2005,7 +2014,100 @@ bot.onText(/\/broadcast/, async (msg) => {
     });
 });
 
+// Get notifications for a user
+router.get('/api/notifications', async (req, res) => {
+    try {
+        const { userId } = req.query;
+        
+        if (!userId) {
+            return res.status(400).json({ error: "User ID is required" });
+        }
 
+        const notifications = await Notification.find({
+            $or: [
+                { userId: 'all' },
+                { userId },
+                { isGlobal: true }
+            ]
+        })
+        .sort({ timestamp: -1 })
+        .limit(50)
+        .lean();
+
+        // Format for frontend
+        const formattedNotifications = notifications.map(notification => ({
+            id: notification._id.toString(),
+            title: notification.title,
+            message: notification.message,
+            url: notification.url,
+            timestamp: notification.timestamp,
+            read: notification.read
+        }));
+
+        res.json(formattedNotifications);
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+});
+
+// Mark notification as read
+router.post('/api/notifications/:id/read', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        await Notification.findByIdAndUpdate(id, { read: true });
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+});
+
+// Mark all notifications as read for a user
+router.post('/api/notifications/mark-all-read', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ error: "User ID is required" });
+        }
+
+        await Notification.updateMany(
+            {
+                $or: [
+                    { userId: 'all' },
+                    { userId },
+                    { isGlobal: true }
+                ],
+                read: false
+            },
+            { $set: { read: true } }
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        res.status(500).json({ error: "Failed to mark all notifications as read" });
+    }
+});
+
+// Dismiss/delete a notification
+router.delete('/api/notifications/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        await Notification.findByIdAndDelete(id);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error dismissing notification:', error);
+        res.status(500).json({ error: "Failed to dismiss notification" });
+    }
+});
+
+// Telegram bot command handler (updated to match frontend structure)
 bot.onText(/\/notify(?:\s+(all|@\w+))?\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) {
@@ -2017,8 +2119,8 @@ bot.onText(/\/notify(?:\s+(all|@\w+))?\s+(.+)/, async (msg, match) => {
 
     try {
         if (target === 'all') {
-            // Global notification
             await Notification.create({
+                title: 'Global Notification',
                 message: notificationMessage,
                 isGlobal: true
             });
@@ -2027,9 +2129,9 @@ bot.onText(/\/notify(?:\s+(all|@\w+))?\s+(.+)/, async (msg, match) => {
             );
         } 
         else if (target && target.startsWith('@')) {
-            // User-specific notification (by username)
             const username = target.substring(1);
             await Notification.create({
+                title: 'Personal Notification',
                 userId: username,
                 message: notificationMessage
             });
@@ -2038,9 +2140,8 @@ bot.onText(/\/notify(?:\s+(all|@\w+))?\s+(.+)/, async (msg, match) => {
             );
         } 
         else {
-            // Default behavior
-            await Notification.deleteMany({ isGlobal: true });
             await Notification.create({
+                title: 'Notification',
                 message: notificationMessage,
                 isGlobal: true
             });
@@ -2053,32 +2154,6 @@ bot.onText(/\/notify(?:\s+(all|@\w+))?\s+(.+)/, async (msg, match) => {
         bot.sendMessage(chatId, '❌ Failed to send notification.');
     }
 });
-
-//fetch and display notifications 
-app.get('/api/notifications', async (req, res) => {
-    try {
-        const { userId } = req.query;
-        
-        if (!userId) {
-            return res.status(400).json({ error: "User ID is required" });
-        }
-
-        const notifications = await Notification.find({
-            $or: [
-                { userId: 'all' }, 
-                { userId }, 
-                { isGlobal: true } 
-            ]
-        })
-        .sort({ timestamp: -1 })
-        .limit(50);
-
-        res.json(notifications);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to fetch notifications" });
-    }
-});
-
 
 // Get transaction history and should NOT TOUCH THIS CODE
 app.get('/api/transactions/:userId', async (req, res) => {
