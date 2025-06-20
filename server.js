@@ -264,6 +264,10 @@ const notificationSchema = new mongoose.Schema({
     read: {
         type: Boolean,
         default: false
+    },
+    createdBy: {
+        type: String,
+        default: 'system'
     }
 });
 
@@ -2019,20 +2023,23 @@ app.get('/api/notifications', async (req, res) => {
     try {
         const { userId } = req.query;
         
-        if (!userId) {
-            return res.status(400).json({ error: "User ID is required" });
-        }
-
-        const notifications = await Notification.find({
+        // Base query for global notifications
+        const query = {
             $or: [
                 { userId: 'all' },
-                { userId },
                 { isGlobal: true }
             ]
-        })
-        .sort({ timestamp: -1 })
-        .limit(50)
-        .lean();
+        };
+
+        // Add user-specific notifications if userId is provided
+        if (userId && userId !== 'anonymous') {
+            query.$or.push({ userId });
+        }
+
+        const notifications = await Notification.find(query)
+            .sort({ timestamp: -1 })
+            .limit(50)
+            .lean();
 
         // Format for frontend
         const formattedNotifications = notifications.map(notification => ({
@@ -2041,13 +2048,44 @@ app.get('/api/notifications', async (req, res) => {
             message: notification.message,
             url: notification.url,
             timestamp: notification.timestamp,
-            read: notification.read
+            read: notification.read,
+            isPersonal: !notification.isGlobal && notification.userId !== 'all'
         }));
 
         res.json(formattedNotifications);
     } catch (error) {
         console.error('Error fetching notifications:', error);
         res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+});
+
+// Create a new notification (for admin use)
+app.post('/api/notifications', async (req, res) => {
+    try {
+        const { userId, title, message, url, isGlobal } = req.body;
+        
+        // Basic validation
+        if (!message) {
+            return res.status(400).json({ error: "Message is required" });
+        }
+
+        // Admin check (you should implement your actual admin verification)
+        if (!req.user || !req.user.isAdmin) {
+            return res.status(403).json({ error: "Only admins can create notifications" });
+        }
+
+        const newNotification = await Notification.create({
+            userId: isGlobal ? 'all' : userId,
+            title: title || 'Notification',
+            message,
+            url,
+            isGlobal: !!isGlobal
+        });
+
+        res.status(201).json(newNotification);
+    } catch (error) {
+        console.error('Error creating notification:', error);
+        res.status(500).json({ error: "Failed to create notification" });
     }
 });
 
@@ -2074,15 +2112,21 @@ app.post('/api/notifications/mark-all-read', async (req, res) => {
             return res.status(400).json({ error: "User ID is required" });
         }
 
+        const query = {
+            read: false,
+            $or: [
+                { userId: 'all' },
+                { isGlobal: true }
+            ]
+        };
+
+        // Add user-specific notifications if userId is not 'anonymous'
+        if (userId !== 'anonymous') {
+            query.$or.push({ userId });
+        }
+
         await Notification.updateMany(
-            {
-                $or: [
-                    { userId: 'all' },
-                    { userId },
-                    { isGlobal: true }
-                ],
-                read: false
-            },
+            query,
             { $set: { read: true } }
         );
         
@@ -2107,8 +2151,8 @@ app.delete('/api/notifications/:id', async (req, res) => {
     }
 });
 
-// Telegram bot command handler (updated to match frontend structure)
-bot.onText(/\/notify(?:\s+(all|@\w+))?\s+(.+)/, async (msg, match) => {
+// Telegram bot command handler (updated with individual user support)
+bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) {
         return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
@@ -2128,15 +2172,17 @@ bot.onText(/\/notify(?:\s+(all|@\w+))?\s+(.+)/, async (msg, match) => {
                 `🌍 Global notification sent at ${timestamp.toLocaleTimeString()}:\n\n${notificationMessage}`
             );
         } 
-        else if (target && target.startsWith('@')) {
-            const username = target.substring(1);
+        else if (target && (target.startsWith('@') || !isNaN(target))) {
+            // Handle both @username and numeric user IDs
+            const userId = target.startsWith('@') ? target.substring(1) : target;
             await Notification.create({
                 title: 'Personal Notification',
-                userId: username,
-                message: notificationMessage
+                userId: userId,
+                message: notificationMessage,
+                isGlobal: false
             });
             await bot.sendMessage(chatId,
-                `👤 Notification sent to @${username} at ${timestamp.toLocaleTimeString()}:\n\n${notificationMessage}`
+                `👤 Notification sent to ${target} at ${timestamp.toLocaleTimeString()}:\n\n${notificationMessage}`
             );
         } 
         else {
