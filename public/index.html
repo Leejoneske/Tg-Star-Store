@@ -219,12 +219,6 @@
             min-width: 0;
         }
 
-        .notifications-container {
-            max-width: 180px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
 
         .skeleton {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -265,69 +259,6 @@
             padding: 16px;
             border-radius: 12px;
             margin-bottom: 12px;
-        }
-
-        /* Notification styles */
-        .notification-icon {
-            position: relative;
-            padding: 6px;
-            margin-right: 8px;
-            margin-right: 19px;
-            cursor: pointer;
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: -2px;
-            right: -2px;
-            background-color: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 16px;
-            height: 16px;
-            font-size: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .notification-dropdown {
-            position: absolute;
-            top: 50px;
-            right: 80px;
-            width: 280px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            z-index: 30;
-            display: none;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .notification-dropdown.active {
-            display: block;
-        }
-
-        .notification-header {
-            padding: 12px;
-            border-bottom: 1px solid #e5e7eb;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .notification-list {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .notification-empty {
-            padding: 16px;
-            text-align: center;
-            color: #6b7280;
-            font-size: 14px;
         }
 
         @keyframes shimmer {
@@ -954,153 +885,18 @@ async function fetchCurrentRate() {
     }
 }
 
+// Load notification component
+fetch('notification.html')
+    .then(response => response.text())
+    .then(html => {
+        const container = document.createElement('div');
+        container.innerHTML = html;
+        document.body.appendChild(container);
+    })
+    .catch(error => {
+        console.error('Notification component load error:', error);
+    });        
 
-function initNotifications() {
-    const notificationButton = document.getElementById('notificationButton');
-    const notificationDropdown = document.getElementById('notificationDropdown');
-    
-    if (notificationButton && notificationDropdown) {
-        notificationButton.addEventListener('click', function(e) {
-            e.stopPropagation();
-            notificationDropdown.classList.toggle('active');
-            
-            // Load notifications when dropdown opens
-            if (notificationDropdown.classList.contains('active')) {
-                fetchNotifications();
-            }
-        });
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!notificationDropdown.contains(e.target) && 
-                !notificationButton.contains(e.target)) {
-                notificationDropdown.classList.remove('active');
-            }
-        });
-    }
-    
-    // Initialize mark all as read button
-    const markAllRead = document.getElementById('markAllRead');
-    if (markAllRead) {
-        markAllRead.addEventListener('click', function() {
-            const notifications = document.querySelectorAll('.notification-item');
-            const readNotifications = [];
-            
-            notifications.forEach(item => {
-                const id = item.getAttribute('data-id');
-                if (id) {
-                    readNotifications.push(id);
-                    item.classList.remove('unread');
-                    const dot = item.querySelector('.notification-dot');
-                    if (dot) dot.remove();
-                }
-            });
-            
-            localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
-            document.getElementById('notificationBadge').classList.add('hidden');
-        });
-    }
-}
-        
-async function fetchNotifications() {
-    const notificationBadge = document.getElementById('notificationBadge');
-    const notificationList = document.getElementById('notificationList');
-    
-    if (!notificationBadge || !notificationList) return;
-
-    try {
-        // Show loading state
-        notificationList.innerHTML = `<div class="notification-loading">${translations[currentLanguage].loadingNotifications}</div>`;
-
-        // Get user ID (Telegram or guest)
-        let userId;
-        if (isTelegramEnv && Telegram.WebApp.initDataUnsafe?.user?.id) {
-            userId = Telegram.WebApp.initDataUnsafe.user.id.toString();
-        } else {
-            userId = localStorage.getItem('guestUserId') || 'guest_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('guestUserId', userId);
-        }
-
-        const response = await axios.get(`/api/notifications`, {
-            params: { userId },
-            timeout: 5000
-        });
-
-        // Handle response
-        if (!response.data) {
-            throw new Error('Empty response from server');
-        }
-
-        const notifications = Array.isArray(response.data) ? 
-            response.data : 
-            (response.data.notifications || []);
-
-        updateNotificationUI(notifications);
-
-    } catch (error) {
-        console.error('Notifications error:', error);
-        notificationList.innerHTML = `
-            <div class="notification-error">
-                ${translations[currentLanguage].notificationsError}
-                <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-                    ${error.message || ''}
-                </div>
-            </div>
-        `;
-        notificationBadge.classList.add('hidden');
-    }
-}
-
-function updateNotificationUI(notifications) {
-    const notificationBadge = document.getElementById('notificationBadge');
-    const notificationList = document.getElementById('notificationList');
-    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || []);
-
-    // Filter and count unread notifications
-    const unreadNotifications = notifications.filter(
-        n => !readNotifications.includes(n._id || n.id)
-    );
-
-    // Update badge
-    if (notificationBadge) {
-        if (unreadNotifications.length > 0) {
-            notificationBadge.textContent = 
-                unreadNotifications.length > 99 ? '99+' : unreadNotifications.length.toString();
-            notificationBadge.classList.remove('hidden');
-        } else {
-            notificationBadge.classList.add('hidden');
-        }
-    }
-
-    // Update notification list
-    if (notifications.length > 0) {
-        notificationList.innerHTML = notifications.map(notification => {
-            const isRead = readNotifications.includes(notification._id || notification.id);
-            return `
-                <div class="notification-item ${isRead ? '' : 'unread'}" 
-                     data-id="${notification._id || notification.id}">
-                    <div class="flex items-start gap-3">
-                        <div class="flex-1">
-                            <div class="${isRead ? 'text-gray-600' : 'text-gray-900 font-medium'}">
-                                ${notification.message}
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">
-                                ${new Date(notification.timestamp).toLocaleString()}
-                            </div>
-                        </div>
-                        ${!isRead ? '<div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>' : ''}
-                    </div>
-                </div>
-            `;
-        }).join('');
-    } else {
-        notificationList.innerHTML = `
-            <div class="notification-empty">
-                ${translations[currentLanguage].noNotifications}
-            </div>
-        `;
-    }
-}
 
 function initMenu() {
     const menuButton = document.getElementById('menuButton');
