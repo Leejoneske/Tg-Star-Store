@@ -602,32 +602,39 @@ document.addEventListener('DOMContentLoaded', function() {
     const skeleton = document.getElementById('skeleton-loading');
     const content = document.getElementById('content-container');
     
-    if (skeleton) skeleton.style.display = 'block';
-    if (content) content.style.display = 'none';
+    skeleton.style.display = 'block';
+    content.style.display = 'none';
 
-    initTelegramApp();
-
-    const initPromises = [
-        fetch('menubar.html')
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById('menubar-container').innerHTML = html;
-                initMenu();
-            }),
-        loadNotificationComponent(),
-        initWalletConnection(),
-        initLanguageToggle(),
-        updateLanguage(),
-        initBuyButtons()
-    ];
-
-    Promise.all(initPromises)
-        .then(() => {
-            showContent();
+    // 1. Load menubar first (proven working)
+    fetch('menubar.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('menubar-container').innerHTML = html;
+            initMenu();
+            
+            // 2. THEN load notifications
+            return fetch('notification.html');
+        })
+        .then(response => response.text())
+        .then(html => {
+            const container = document.createElement('div');
+            container.id = 'notification-container';
+            container.innerHTML = html;
+            document.body.appendChild(container);
         })
         .catch(error => {
-            console.error('Initialization error:', error);
-            showContent();
+            console.error('Load error:', error);
+        })
+        .finally(() => {
+            // 3. ALWAYS hide skeleton when done (even if errors occur)
+            skeleton.style.display = 'none';
+            content.style.display = 'block';
+            
+            // Initialize everything else
+            initWalletConnection();
+            initLanguageToggle();
+            updateLanguage();
+            initBuyButtons();
         });
 });
 
