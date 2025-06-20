@@ -1,44 +1,568 @@
 
 <div class="notification-container hidden" id="notificationContainer">
     <div class="notification-dropdown">
+        <!-- Header with close button -->
         <div class="notification-header">
-            <span>Notifications</span>
+            <div class="notification-title">
+                <svg class="notification-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                <span>Notifications</span>
+            </div>
+            <button class="notification-close" id="notificationClose">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
         </div>
+
+        <!-- Loading state -->
+        <div class="notification-loading hidden" id="notificationLoading">
+            <div class="loading-spinner"></div>
+            <span>Loading notifications...</span>
+        </div>
+
+        <!-- Notification list -->
         <div class="notification-list" id="notificationList">
-            <div class="text-center py-4 text-gray-500">No new notifications</div>
+            <!-- Empty state -->
+            <div class="notification-empty" id="notificationEmpty">
+                <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6l4 2"></path>
+                </svg>
+                <p>No new notifications</p>
+                <span>You're all caught up!</span>
+            </div>
+            
+            <!-- Sample notification items for demo -->
+            <div class="notification-item unread" style="display: none;">
+                <div class="notification-dot"></div>
+                <div class="notification-content">
+                    <div class="notification-item-title">Order Confirmed</div>
+                    <div class="notification-item-message">Your Telegram Premium order has been processed successfully.</div>
+                    <div class="notification-item-time">2 minutes ago</div>
+                </div>
+                <div class="notification-actions">
+                    <button class="notification-action-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="20,6 9,17 4,12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="notification-footer">
+            <button class="notification-footer-btn" id="markAllRead">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M20 6L9 17l-5-5"></path>
+                </svg>
+                Mark all as read
+            </button>
+            <button class="notification-footer-btn" id="clearAll">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="3,6 5,6 21,6"></polyline>
+                    <path d="M19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1 2-2h4a2,2 0 0,1 2,2v2"></path>
+                </svg>
+                Clear all
+            </button>
         </div>
     </div>
 </div>
 
 <style>
+/* Main notification container */
 .notification-container {
     position: fixed;
-    top: 60px;
+    top: 70px;
     right: 20px;
-    width: 320px;
+    width: 380px;
+    max-width: calc(100vw - 40px);
     z-index: 1000;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    background: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .notification-container.hidden {
     display: none;
 }
 
+/* Dropdown with modern design */
 .notification-dropdown {
-    padding: 10px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    animation: slideDown 0.2s ease-out;
 }
 
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Header */
 .notification-header {
-    padding: 8px 12px;
-    border-bottom: 1px solid #eee;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notification-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-weight: 600;
+    font-size: 16px;
+}
+
+.notification-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.notification-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.notification-close svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Loading state */
+.notification-loading {
+    padding: 40px 20px;
+    text-align: center;
+    color: #6b7280;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #e5e7eb;
+    border-top: 2px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Notification list */
+.notification-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notification-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.notification-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.notification-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Empty state */
+.notification-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 16px;
+    opacity: 0.5;
+}
+
+.notification-empty p {
+    font-weight: 500;
+    margin: 0 0 4px 0;
+    font-size: 16px;
+}
+
+.notification-empty span {
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+/* Notification items */
+.notification-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    transition: background-color 0.2s;
+    position: relative;
+}
+
+.notification-item:hover {
+    background: #f8fafc;
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-item.unread {
+    background: #fef7ff;
+    border-left: 3px solid #667eea;
+}
+
+.notification-dot {
+    width: 8px;
+    height: 8px;
+    background: #667eea;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.notification-item:not(.unread) .notification-dot {
+    background: #cbd5e1;
+}
+
+.notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-item-title {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.notification-item-message {
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+
+.notification-item-time {
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+.notification-actions {
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.notification-item:hover .notification-actions {
+    opacity: 1;
+}
+
+.notification-action-btn {
+    background: none;
+    border: none;
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+
+.notification-action-btn:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.notification-action-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Footer */
+.notification-footer {
+    padding: 12px 20px;
+    background: #f8fafc;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 8px;
+}
+
+.notification-footer-btn {
+    flex: 1;
+    background: none;
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #6b7280;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.notification-footer-btn:hover {
+    background: white;
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.notification-footer-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+    .notification-container {
+        right: 10px;
+        left: 10px;
+        width: auto;
+        max-width: none;
+        top: 60px;
+    }
+    
+    .notification-dropdown {
+        border-radius: 12px;
+    }
+    
+    .notification-item {
+        padding: 12px 16px;
+    }
+    
+    .notification-header {
+        padding: 12px 16px;
+    }
+    
+    .notification-footer {
+        padding: 8px 16px;
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .notification-footer-btn {
+        font-size: 13px;
+        padding: 10px 12px;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .notification-dropdown {
+        background: #1f2937;
+        border-color: #374151;
+    }
+    
+    .notification-item {
+        border-color: #374151;
+    }
+    
+    .notification-item:hover {
+        background: #374151;
+    }
+    
+    .notification-item.unread {
+        background: #312e81;
+    }
+    
+    .notification-item-title {
+        color: #f9fafb;
+    }
+    
+    .notification-item-message {
+        color: #d1d5db;
+    }
+    
+    .notification-item-time {
+        color: #9ca3af;
+    }
+    
+    .notification-footer {
+        background: #374151;
+        border-color: #4b5563;
+    }
+    
+    .notification-footer-btn {
+        border-color: #4b5563;
+        color: #d1d5db;
+    }
+    
+    .notification-footer-btn:hover {
+        background: #4b5563;
+        border-color: #667eea;
+        color: #667eea;
+    }
+    
+    .notification-empty {
+        color: #d1d5db;
+    }
+    
+    .notification-loading {
+        color: #d1d5db;
+    }
 }
 </style>
 
 <script>
-document.getElementById('notificationButton').addEventListener('click', function() {
-    document.getElementById('notificationContainer').classList.toggle('hidden');
+// Enhanced notification functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const notificationButton = document.getElementById('notificationButton');
+    const notificationContainer = document.getElementById('notificationContainer');
+    const notificationClose = document.getElementById('notificationClose');
+    const markAllReadBtn = document.getElementById('markAllRead');
+    const clearAllBtn = document.getElementById('clearAll');
+
+    // Toggle notification dropdown
+    if (notificationButton && notificationContainer) {
+        notificationButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            notificationContainer.classList.toggle('hidden');
+        });
+    }
+
+    // Close button functionality
+    if (notificationClose) {
+        notificationClose.addEventListener('click', function() {
+            notificationContainer.classList.add('hidden');
+        });
+    }
+
+    // Close when clicking outside
+    document.addEventListener('click', function(e) {
+        if (notificationContainer && 
+            !notificationContainer.contains(e.target) && 
+            !notificationButton.contains(e.target)) {
+            notificationContainer.classList.add('hidden');
+        }
+    });
+
+    // Mark all as read functionality
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', function() {
+            const unreadItems = document.querySelectorAll('.notification-item.unread');
+            unreadItems.forEach(item => {
+                item.classList.remove('unread');
+            });
+            
+            // Update badge (assuming there's a badge element)
+            const badge = document.getElementById('notificationBadge');
+            if (badge) {
+                badge.classList.add('hidden');
+            }
+        });
+    }
+
+    // Clear all functionality
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', function() {
+            const notificationList = document.getElementById('notificationList');
+            const emptyState = document.getElementById('notificationEmpty');
+            
+            // Remove all notification items
+            const items = document.querySelectorAll('.notification-item');
+            items.forEach(item => item.remove());
+            
+            // Show empty state
+            if (emptyState) {
+                emptyState.style.display = 'block';
+            }
+            
+            // Update badge
+            const badge = document.getElementById('notificationBadge');
+            if (badge) {
+                badge.classList.add('hidden');
+            }
+        });
+    }
+
+    // Individual notification item actions
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.notification-action-btn')) {
+            const notificationItem = e.target.closest('.notification-item');
+            if (notificationItem) {
+                notificationItem.classList.remove('unread');
+                
+                // Update badge count
+                const unreadCount = document.querySelectorAll('.notification-item.unread').length;
+                const badge = document.getElementById('notificationBadge');
+                if (badge) {
+                    if (unreadCount > 0) {
+                        badge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            }
+        }
+    });
+
+    // Escape key to close
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !notificationContainer.classList.contains('hidden')) {
+            notificationContainer.classList.add('hidden');
+        }
+    });
 });
+
+// Helper function to show loading state
+function showNotificationLoading() {
+    const loading = document.getElementById('notificationLoading');
+    const list = document.getElementById('notificationList');
+    if (loading && list) {
+        loading.classList.remove('hidden');
+        list.style.display = 'none';
+    }
+}
+
+// Helper function to hide loading state
+function hideNotificationLoading() {
+    const loading = document.getElementById('notificationLoading');
+    const list = document.getElementById('notificationList');
+    if (loading && list) {
+        loading.classList.add('hidden');
+        list.style.display = 'block';
+    }
+}
 </script>
