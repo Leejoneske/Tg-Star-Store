@@ -565,62 +565,43 @@ let currentWalletAddress = '';
 let lastUserData = null;
 let currentUser = null;
 const isTelegramEnv = typeof Telegram !== 'undefined' && Telegram.WebApp;
-let notificationInterval;
 
 function loadNotificationComponent() {
     return new Promise((resolve) => {
-        // Create container div
-        const notificationContainer = document.createElement('div');
-        notificationContainer.id = 'notificationContainer';
-        notificationContainer.className = 'notification-container hidden';
-        document.body.appendChild(notificationContainer);
-
-        // Load content if in Telegram environment
-        if (!isTelegramEnv) {
-            initializeBasicNotifications();
-            return resolve(true);
-        }
-        
         fetch('notification.html')
-            .then(response => {
-                if (!response.ok) throw new Error('Notification load failed');
-                return response.text();
-            })
+            .then(response => response.text())
             .then(html => {
-                notificationContainer.innerHTML = html;
-                initializeNotificationSystem();
+                const container = document.createElement('div');
+                container.id = 'notification-container';
+                container.innerHTML = html;
+                document.body.appendChild(container);
+                initNotification();
                 resolve(true);
             })
             .catch(error => {
-                console.error('Notification system error:', error);
-                initializeBasicNotifications();
+                console.error('Notification load error:', error);
                 resolve(true);
             });
     });
 }
 
-function initializeBasicNotifications() {
-    const notificationButton = document.getElementById('notificationButton');
-    const notificationContainer = document.getElementById('notificationContainer');
+function initNotification() {
+    const button = document.getElementById('notificationButton');
+    const container = document.getElementById('notificationContainer');
     
-    if (!notificationButton || !notificationContainer) return;
+    if (!button || !container) return;
 
-    notificationButton.addEventListener('click', function(e) {
+    button.addEventListener('click', (e) => {
         e.stopPropagation();
-        notificationContainer.classList.toggle('hidden');
-        
-        if (!notificationContainer.classList.contains('hidden')) {
-            fetchBasicNotifications();
-        }
+        container.classList.toggle('hidden');
     });
 
-    document.addEventListener('click', function(e) {
-        if (!notificationContainer.contains(e.target) {
-            notificationContainer.classList.add('hidden');
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target) {
+            container.classList.add('hidden');
         }
     });
 }
-
 
 document.addEventListener('DOMContentLoaded', function() {
     const skeleton = document.getElementById('skeleton-loading');
