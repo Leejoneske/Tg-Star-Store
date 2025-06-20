@@ -887,16 +887,20 @@ async function fetchCurrentRate() {
 
 // Load notification component
 fetch('notification.html')
-    .then(response => response.text())
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to load notification.html');
+        return response.text();
+    })
     .then(html => {
         const container = document.createElement('div');
         container.innerHTML = html;
         document.body.appendChild(container);
+        console.log('Notification component loaded successfully'); // Debug log
     })
     .catch(error => {
         console.error('Notification component load error:', error);
-    });        
-
+        // Fallback: Show error to user if needed
+    });
 
 function initMenu() {
     const menuButton = document.getElementById('menuButton');
