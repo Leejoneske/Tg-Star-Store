@@ -519,6 +519,7 @@
         userNotFound: "Информация о пользователе не найдена. Пожалуйста, обновите страницу и попробуйте снова."
     }
 };
+
 let tonConnectUI;
 let currentLanguage = localStorage.getItem('appLanguage') || 'en';
 let walletConnected = false;
@@ -528,23 +529,27 @@ let currentUser = null;
 const isTelegramEnv = typeof Telegram !== 'undefined' && Telegram.WebApp;
 
 function loadNotificationComponent() {
-    return fetch('notification.html')
-        .then(response => {
-            if (!response.ok) throw new Error('Notification load failed');
-            return response.text();
-        })
-        .then(html => {
-            const container = document.createElement('div');
-            container.innerHTML = html;
-            document.body.appendChild(container);
-            return true;
-        })
-        .catch(error => {
-            console.error('Notification system error:', error);
-            const btn = document.getElementById('notificationButton');
-            if (btn) btn.onclick = () => alert('Notifications unavailable');
-            return true; // Changed from false to true to continue loading
-        });
+    return new Promise((resolve) => {
+        if (!isTelegramEnv) return resolve(true);
+        
+        fetch('notification.html')
+            .then(response => {
+                if (!response.ok) throw new Error('Notification load failed');
+                return response.text();
+            })
+            .then(html => {
+                const container = document.createElement('div');
+                container.innerHTML = html;
+                document.body.appendChild(container);
+                resolve(true);
+            })
+            .catch(error => {
+                console.error('Notification system error:', error);
+                const btn = document.getElementById('notificationButton');
+                if (btn) btn.onclick = () => alert('Notifications unavailable');
+                resolve(true);
+            });
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -553,34 +558,24 @@ document.addEventListener('DOMContentLoaded', function() {
     if (skeleton) skeleton.style.display = 'block';
     if (content) content.style.display = 'none';
 
-    let contentShown = false;
-    const loadingTimeout = setTimeout(() => {
-        if (!contentShown) {
-            console.warn('Loading timeout reached, forcing content display');
-            showContent();
-        }
-    }, 40);
+    initTelegramApp();
 
-    function showContent() {
-        if (contentShown) return;
-        contentShown = true;
-        clearTimeout(loadingTimeout);
-        if (skeleton) skeleton.style.display = 'none';
-        if (content) content.style.display = 'block';
-    }
+    const loadingTimeout = setTimeout(() => {
+        showContent();
+    }, 2000);
 
     loadNotificationComponent()
-        .then((success) => {
-            if (!success) console.warn('Notification system failed to load');
+        .then(() => {
             return Promise.all([
-                Promise.resolve().then(initWalletConnection),
-                Promise.resolve().then(initLanguageToggle),
-                Promise.resolve().then(updateLanguage),
-                Promise.resolve().then(initBuyButtons),
-                Promise.resolve().then(initMenu)
+                initWalletConnection(),
+                initLanguageToggle(),
+                updateLanguage(),
+                initBuyButtons(),
+                initMenu()
             ]);
         })
         .then(() => {
+            clearTimeout(loadingTimeout);
             showContent();
         })
         .catch(error => {
@@ -612,8 +607,9 @@ function initMenu() {
 
     function handleDocumentClick(e) {
         if (menuOpen && !sideMenu.contains(e.target)) {
-    toggleMenu();
+            toggleMenu();
         }
+    }
 
     menuButton.addEventListener('click', handleMenuClick);
     menuOverlay.addEventListener('click', handleMenuClick);
@@ -625,7 +621,7 @@ function initMenu() {
         document.removeEventListener('click', handleDocumentClick);
     };
 }
-        
+
 function showContent() {
     const skeleton = document.getElementById('skeleton-loading');
     const content = document.getElementById('content-container');
@@ -636,9 +632,9 @@ function showContent() {
 function initTelegramApp() {
     if (!isTelegramEnv) {
         currentUser = {
-            id: 'guest_' + Math.random().toString(36).substr(2, 9),
-            first_name: 'Guest',
-            username: 'guest' + Math.floor(Math.random() * 1000)
+            id: 'local_user_' + Math.random().toString(36).substr(2, 9),
+            first_name: 'Local User',
+            username: 'localuser' + Math.floor(Math.random() * 1000)
         };
         updateUserInterface(currentUser);
         return;
@@ -648,7 +644,6 @@ function initTelegramApp() {
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         
-        // Correct Telegram user data extraction
         let user = null;
         if (Telegram.WebApp.initDataUnsafe?.user) {
             user = Telegram.WebApp.initDataUnsafe.user;
@@ -675,7 +670,7 @@ function initTelegramApp() {
         console.error('Telegram init error:', error);
     }
 }
-
+        
 function updateUserInterface(user) {
     if (!user) return;
     
