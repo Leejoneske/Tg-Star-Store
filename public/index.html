@@ -585,12 +585,6 @@ document.addEventListener('DOMContentLoaded', function() {
             initBuyButtons();
             initMenu(); 
             
-            // Show content after everything is initialized
-            document.getElementById('skeleton-loading').style.display = 'none';
-            document.getElementById('content-container').style.display = 'block';
-        }, 100);
-    });
-});
 
     window.addEventListener('storage', function(event) {
         if (event.key === 'appLanguage') {
