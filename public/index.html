@@ -248,7 +248,7 @@
             border-radius: 12px;
             margin-bottom: 12px;
         }
-        .notification-button {
+      .notification-button {
     position: relative;
     outline: none;
 }
@@ -269,22 +269,6 @@
     font-weight: bold;
     pointer-events: none;
 }
-
-.notification-container {
-    position: fixed;
-    top: 60px;
-    right: 20px;
-    width: 350px;
-    z-index: 1000;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    border-radius: 12px;
-    background: white;
-}
-
-.notification-container.hidden {
-    display: none;
-}
- 
         @keyframes shimmer {
             0% {
                 background-position: 200% 0;
@@ -646,13 +630,9 @@ function loadMenuBar() {
 function loadNotificationComponent() {
     return new Promise((resolve, reject) => {
         fetch('notification.html')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.text();
-            })
+            .then(response => response.text())
             .then(html => {
                 const container = document.createElement('div');
-                container.id = 'notification-container';
                 container.innerHTML = html;
                 document.body.appendChild(container);
                 resolve();
