@@ -1,25 +1,29 @@
 
 <div class="notification-container hidden" id="notificationContainer">
   <div class="notification-header">
-    <h3>Notifications</h3>
+    <h3 data-translate="notifications">Notifications</h3>
     <div class="notification-actions">
-      <button id="markAllRead">Mark All Read</button>
+      <button id="markAllRead" data-translate="markAllRead">Mark All Read</button>
       <button id="notificationClose">×</button>
     </div>
   </div>
   
   <div class="notification-loading hidden" id="notificationLoading">
-    Loading...
+    <div class="loading-spinner"></div>
+    <span data-translate="loadingNotifications">Loading notifications...</span>
   </div>
   
   <div class="notification-list" id="notificationList">
     <div class="notification-empty" id="notificationEmpty">
-      No new notifications
+      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+      </svg>
+      <p data-translate="noNotifications">No new notifications</p>
     </div>
   </div>
   
   <div class="notification-footer">
-    <button id="viewAllNotifications">View All</button>
+    <button id="viewAllNotifications" data-translate="viewAll">View All</button>
   </div>
 </div>
 
@@ -28,13 +32,16 @@
     position: fixed;
     top: 60px;
     right: 20px;
-    width: 300px;
+    width: 360px;
+    max-height: 70vh;
     background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
     z-index: 1000;
-    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
   }
   
   .notification-container.hidden {
@@ -42,58 +49,143 @@
   }
   
   .notification-header {
-    padding: 12px;
-    border-bottom: 1px solid #eee;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
   
-  .notification-list {
-    max-height: 400px;
-    overflow-y: auto;
-    padding: 8px;
+  .notification-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
   }
   
-  .notification-item {
-    padding: 10px;
-    border-bottom: 1px solid #f5f5f5;
-    cursor: pointer;
-  }
-  
-  .notification-item.unread {
-    background-color: #f8f9fa;
-  }
-  
-  .notification-empty {
-    padding: 20px;
-    text-align: center;
-    color: #666;
+  .notification-actions {
+    display: flex;
+    gap: 8px;
   }
   
   .notification-loading {
-    padding: 20px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-top-color: #4f46e5;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  .notification-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+  
+  .notification-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .notification-item:hover {
+    background-color: #f9fafb;
+  }
+  
+  .notification-item.unread {
+    background-color: #f3f4ff;
+    position: relative;
+  }
+  
+  .notification-item.unread::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: #4f46e5;
+  }
+  
+  .notification-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  
+  .notification-message {
+    font-size: 14px;
+    color: #4b5563;
+  }
+  
+  .notification-time {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 4px;
+  }
+  
+  .notification-empty {
+    padding: 32px 16px;
     text-align: center;
+    color: #6b7280;
+  }
+  
+  .empty-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    stroke-width: 1.5;
+    color: #4f46e5;
+    opacity: 0.6;
   }
   
   .notification-footer {
-    padding: 10px;
-    border-top: 1px solid #eee;
+    padding: 12px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
     text-align: center;
   }
   
-  button {
+  #notificationClose {
     background: none;
     border: none;
+    font-size: 20px;
     cursor: pointer;
-    padding: 4px 8px;
+    padding: 4px;
+  }
+  
+  #markAllRead, #viewAllNotifications {
+    background: none;
+    border: none;
+    color: #4f46e5;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+  
+  #markAllRead:hover, #viewAllNotifications:hover {
+    background-color: #f3f4ff;
   }
 </style>
 
 <script>
 class NotificationSystem {
   constructor() {
-    this.apiBaseUrl = window.location.origin;
+    this.apiBaseUrl = window.location.origin.includes('starstore.site') 
+      ? 'https://tg-star-store-production.up.railway.app'
+      : window.location.origin;
+      
     this.container = document.getElementById('notificationContainer');
     this.listElement = document.getElementById('notificationList');
     this.emptyState = document.getElementById('notificationEmpty');
@@ -101,16 +193,28 @@ class NotificationSystem {
     this.badgeElement = document.getElementById('notificationBadge');
     
     this.notifications = [];
+    this.pollingInterval = null;
+    
     this.init();
   }
   
   init() {
-    document.getElementById('notificationClose').addEventListener('click', () => this.hide());
-    document.getElementById('markAllRead').addEventListener('click', () => this.markAllAsRead());
-    document.getElementById('viewAllNotifications').addEventListener('click', () => this.viewAll());
+    // Setup event listeners
+    document.getElementById('notificationClose')?.addEventListener('click', () => this.hide());
+    document.getElementById('markAllRead')?.addEventListener('click', () => this.markAllAsRead());
+    document.getElementById('viewAllNotifications')?.addEventListener('click', () => this.viewAll());
     
+    // Start polling
     this.fetchNotifications();
-    setInterval(() => this.fetchNotifications(), 30000);
+    this.pollingInterval = setInterval(() => this.fetchNotifications(), 30000);
+    
+    // Handle clicks outside
+    document.addEventListener('click', (e) => {
+      if (!this.container.contains(e.target) && 
+          !document.getElementById('notificationButton')?.contains(e.target)) {
+        this.hide();
+      }
+    });
   }
 
   async fetchNotifications() {
@@ -127,36 +231,38 @@ class NotificationSystem {
       }
       
       const response = await fetch(`${this.apiBaseUrl}/api/notifications?${params.toString()}`, {
-        headers: {
-          'Accept': 'application/json'
-        }
+        headers: { 'Accept': 'application/json' }
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
       const notifications = await response.json();
       
-      this.notifications = notifications.map(n => ({
-        id: n.id,
-        title: n.title || 'Notification',
-        message: n.message,
-        timestamp: n.timestamp,
-        read: n.read || false
-      }));
+      this.notifications = Array.isArray(notifications) 
+        ? notifications.map(n => ({
+            id: n.id,
+            title: n.title || 'Notification',
+            message: n.message || '',
+            timestamp: n.timestamp,
+            read: n.read || false,
+            url: n.url
+          }))
+        : [];
       
       this.renderNotifications();
       this.updateBadge();
+      
     } catch (error) {
       console.error('Fetch error:', error);
-      this.showEmptyState('Failed to load notifications');
+      this.showEmptyState(translations[currentLanguage].notificationsError || 'Failed to load');
     } finally {
       this.hideLoading();
     }
   }
   
   renderNotifications() {
+    if (!this.listElement) return;
+    
     this.listElement.innerHTML = '';
     
     if (this.notifications.length === 0) {
@@ -164,14 +270,23 @@ class NotificationSystem {
       return;
     }
     
+    this.emptyState.classList.add('hidden');
+    
     this.notifications.forEach(notification => {
       const item = document.createElement('div');
       item.className = `notification-item ${notification.read ? '' : 'unread'}`;
+      item.dataset.id = notification.id;
+      
+      const timeString = notification.timestamp 
+        ? new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
+      
       item.innerHTML = `
-        <div><strong>${notification.title}</strong></div>
-        <div>${notification.message}</div>
-        <small>${new Date(notification.timestamp).toLocaleTimeString()}</small>
+        <div class="notification-title">${this.escapeHtml(notification.title)}</div>
+        <div class="notification-message">${this.escapeHtml(notification.message)}</div>
+        <div class="notification-time">${timeString}</div>
       `;
+      
       item.addEventListener('click', () => this.handleNotificationClick(notification));
       this.listElement.appendChild(item);
     });
@@ -179,78 +294,119 @@ class NotificationSystem {
   
   async handleNotificationClick(notification) {
     if (!notification.read) {
-      await fetch(`${this.apiBaseUrl}/api/notifications/${notification.id}/read`, { 
-        method: 'POST' 
-      });
+      await this.markAsRead(notification.id);
       notification.read = true;
       this.renderNotifications();
       this.updateBadge();
     }
+    
+    if (notification.url) {
+      window.open(notification.url, '_blank');
+    }
+  }
+  
+  async markAsRead(notificationId) {
+    try {
+      await fetch(`${this.apiBaseUrl}/api/notifications/${notificationId}/read`, {
+        method: 'POST'
+      });
+    } catch (error) {
+      console.error('Mark as read error:', error);
+    }
   }
   
   async markAllAsRead() {
-    const body = {};
-    if (window.currentUser?.id) body.userId = window.currentUser.id;
-    else if (window.currentWalletAddress) body.userId = window.currentWalletAddress;
-    
-    await fetch(`${this.apiBaseUrl}/api/notifications/mark-all-read`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    
-    this.notifications.forEach(n => n.read = true);
-    this.renderNotifications();
-    this.updateBadge();
+    try {
+      const body = {};
+      if (window.currentUser?.id) body.userId = window.currentUser.id;
+      else if (window.currentWalletAddress) body.userId = window.currentWalletAddress;
+      
+      await fetch(`${this.apiBaseUrl}/api/notifications/mark-all-read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      
+      this.notifications.forEach(n => n.read = true);
+      this.renderNotifications();
+      this.updateBadge();
+    } catch (error) {
+      console.error('Mark all as read error:', error);
+    }
   }
   
   updateBadge() {
     if (!this.badgeElement) return;
-    const unread = this.notifications.filter(n => !n.read).length;
-    this.badgeElement.textContent = unread > 0 ? unread : '';
-    this.badgeElement.style.display = unread > 0 ? 'block' : 'none';
+    const unreadCount = this.notifications.filter(n => !n.read).length;
+    
+    if (unreadCount > 0) {
+      this.badgeElement.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+      this.badgeElement.classList.remove('hidden');
+    } else {
+      this.badgeElement.classList.add('hidden');
+    }
   }
   
   showLoading() {
-    this.loadingState.classList.remove('hidden');
-    this.listElement.classList.add('hidden');
+    this.loadingState?.classList.remove('hidden');
+    this.listElement?.classList.add('hidden');
+    this.emptyState?.classList.add('hidden');
   }
   
   hideLoading() {
-    this.loadingState.classList.add('hidden');
-    this.listElement.classList.remove('hidden');
+    this.loadingState?.classList.add('hidden');
+    this.listElement?.classList.remove('hidden');
   }
   
-  showEmptyState(message = 'No notifications') {
-    this.emptyState.textContent = message;
-    this.emptyState.classList.remove('hidden');
-    this.listElement.classList.add('hidden');
+  showEmptyState(message) {
+    if (this.emptyState) {
+      const msgElement = this.emptyState.querySelector('p');
+      if (msgElement) msgElement.textContent = message;
+      this.emptyState.classList.remove('hidden');
+      this.listElement.classList.add('hidden');
+    }
   }
   
   show() {
-    this.container.classList.remove('hidden');
+    this.container?.classList.remove('hidden');
     this.fetchNotifications();
   }
   
   hide() {
-    this.container.classList.add('hidden');
+    this.container?.classList.add('hidden');
   }
   
   toggle() {
-    this.container.classList.contains('hidden') ? this.show() : this.hide();
+    this.container?.classList.contains('hidden') ? this.show() : this.hide();
   }
   
   viewAll() {
     window.location.href = '/notifications';
   }
+  
+  escapeHtml(text) {
+    if (typeof text !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  cleanup() {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+  }
 }
 
+// Initialize when loaded
 document.addEventListener('DOMContentLoaded', () => {
   window.notificationSystem = new NotificationSystem();
-  
-  document.getElementById('notificationButton').addEventListener('click', (e) => {
-    e.stopPropagation();
-    window.notificationSystem.toggle();
-  });
+});
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  if (window.notificationSystem) {
+    window.notificationSystem.cleanup();
+  }
 });
 </script>
