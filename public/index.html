@@ -555,7 +555,6 @@ let walletConnected = false;
 let currentWalletAddress = '';
 let lastUserData = null;
 let currentUser = null;
-let notificationInterval = null;
 let isTelegramEnv = false;
 let updateUserInterfaceRetryCount = 0;
 let isInitialized = false;
@@ -591,7 +590,16 @@ document.addEventListener('DOMContentLoaded', function() {
         initLanguageToggle();
         updateLanguage();
         initBuyButtons();
-        initNotification();
+        
+        // Initialize notification system after component is loaded
+        window.notificationSystem = new NotificationSystem();
+        
+        // Set up notification button handler
+        document.getElementById('notificationButton')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.notificationSystem?.toggle();
+        });
+        
         showContent();
     })
     .catch(error => {
@@ -630,7 +638,10 @@ function loadMenuBar() {
 function loadNotificationComponent() {
     return new Promise((resolve, reject) => {
         fetch('notification.html')
-            .then(response => response.text())
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.text();
+            })
             .then(html => {
                 const container = document.createElement('div');
                 container.innerHTML = html;
@@ -989,7 +1000,10 @@ async function handlePurchase(item) {
             if (response.data && response.data.success) {
                 Swal.close();
                 showSuccessMessage(translations[currentLanguage].orderCreated);
-                setTimeout(() => fetchNotifications(), 1000);
+                // Notify the notification system to refresh
+                if (window.notificationSystem) {
+                    window.notificationSystem.fetchNotifications();
+                }
             } else {
                 Swal.close();
                 showErrorMessage(response.data?.error || translations[currentLanguage].orderFailed);
@@ -1066,124 +1080,8 @@ async function fetchCurrentRate() {
     }
 }
 
-// Initialize notification system
-function initNotification() {
-    const button = document.getElementById('notificationButton');
-    const container = document.getElementById('notificationContainer');
-    
-    if (button && container) {
-        button.addEventListener('click', (e) => {
-            e.stopPropagation();
-            container.classList.toggle('hidden');
-            if (!container.classList.contains('hidden')) {
-                fetchNotifications();
-            }
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!container.contains(e.target) && !button.contains(e.target)) {
-                container.classList.add('hidden');
-            }
-        });
-    }
-
-    // Start polling for notifications every 30 seconds for all users
-    notificationInterval = setInterval(() => {
-        fetchNotifications();
-    }, 30000);
-    
-    // Initial fetch
-    fetchNotifications();
-}
-
-// Fetch notifications
-async function fetchNotifications() {
-    try {
-        if (!window.axios) {
-            console.error('Axios library not loaded');
-            return;
-        }
-        
-        const params = {};
-        // Only send userId if we have a currentUser
-        if (currentUser && currentUser.id) {
-            params.userId = currentUser.id;
-        }
-
-        const response = await axios.get('/api/notifications', {
-            timeout: 10000,
-            params: params
-        });
-        
-        if (response.data?.notifications && Array.isArray(response.data.notifications)) {
-            updateNotificationBadge(response.data.notifications.length);
-            renderNotifications(response.data.notifications);
-        } else {
-            updateNotificationBadge(0);
-            renderNotifications([]);
-        }
-    } catch (error) {
-        console.error('Error fetching notifications:', error);
-        updateNotificationBadge(0);
-        renderNotifications([]);
-    }
-}
-
-// Update notification badge
-function updateNotificationBadge(count) {
-    const badge = document.getElementById('notificationBadge');
-    if (!badge) return;
-
-    if (count > 0) {
-        badge.textContent = count > 99 ? '99+' : count.toString();
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
-    }
-}
-
-// Render notifications in the UI
-function renderNotifications(notifications) {
-    const container = document.getElementById('notificationContainer');
-    if (!container) return;
-
-    if (!Array.isArray(notifications) || notifications.length === 0) {
-        container.innerHTML = `<div class="p-4 text-center text-gray-500">${translations[currentLanguage].noNotifications}</div>`;
-        return;
-    }
-
-    const notificationsHTML = notifications.map(notification => {
-        if (!notification || typeof notification !== 'object') return '';
-        
-        const title = notification.title || 'Notification';
-        const message = notification.message || '';
-        const timestamp = notification.timestamp ? new Date(notification.timestamp).toLocaleString() : '';
-        
-        return `<div class="p-4 border-b border-gray-200">
-            <div class="font-medium">${escapeHtml(title)}</div>
-            <div class="text-sm text-gray-600">${escapeHtml(message)}</div>
-            <div class="text-xs text-gray-400 mt-1">${escapeHtml(timestamp)}</div>
-        </div>`;
-    }).filter(html => html !== '').join('');
-
-    container.innerHTML = notificationsHTML || `<div class="p-4 text-center text-gray-500">${translations[currentLanguage].noNotifications}</div>`;
-}
-
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-    if (typeof text !== 'string') return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
-    if (notificationInterval) {
-        clearInterval(notificationInterval);
-        notificationInterval = null;
-    }
-    
     if (tonConnectUI) {
         try {
             tonConnectUI.disconnect();
@@ -1192,7 +1090,6 @@ window.addEventListener('beforeunload', () => {
         }
     }
 });
-    </script>    
 
 </body>
 </html>
