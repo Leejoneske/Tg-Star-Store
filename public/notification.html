@@ -1,739 +1,241 @@
 
-<div class="tg-notification-container hidden" id="notificationContainer">
-    <div class="tg-notification-dropdown">
-        <div class="tg-notification-header">
-            <div class="tg-notification-title">
-                <svg class="tg-notification-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                <span>Notifications</span>
-                <span class="tg-notification-badge hidden" id="notificationBadge">0</span>
-            </div>
-            <div class="tg-notification-actions">
-                <button class="tg-notification-action-btn" id="markAllRead" title="Mark all as read">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M20 6L9 17l-5-5"></path>
-                    </svg>
-                </button>
-                <button class="tg-notification-action-btn" id="notificationClose" title="Close">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <div class="tg-notification-loading hidden" id="notificationLoading">
-            <div class="tg-loading-spinner"></div>
-            <span>Loading notifications...</span>
-        </div>
-
-        <div class="tg-notification-list" id="notificationList">
-            <div class="tg-notification-empty" id="notificationEmpty">
-                <svg class="tg-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                </svg>
-                <p>No new notifications</p>
-                <span>You're all caught up!</span>
-            </div>
-        </div>
-
-        <div class="tg-notification-footer">
-            <button class="tg-notification-footer-btn" id="viewAllNotifications">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M5 12h14"></path>
-                    <path d="M12 5l7 7-7 7"></path>
-                </svg>
-                View all notifications
-            </button>
-        </div>
+<div class="notification-container hidden" id="notificationContainer">
+  <div class="notification-header">
+    <h3>Notifications</h3>
+    <div class="notification-actions">
+      <button id="markAllRead">Mark All Read</button>
+      <button id="notificationClose">×</button>
     </div>
+  </div>
+  
+  <div class="notification-loading hidden" id="notificationLoading">
+    Loading...
+  </div>
+  
+  <div class="notification-list" id="notificationList">
+    <div class="notification-empty" id="notificationEmpty">
+      No new notifications
+    </div>
+  </div>
+  
+  <div class="notification-footer">
+    <button id="viewAllNotifications">View All</button>
+  </div>
 </div>
 
 <style>
-.tg-notification-container {
+  .notification-container {
     position: fixed;
     top: 60px;
     right: 20px;
-    width: 360px;
-    max-width: calc(100vw - 40px);
+    width: 300px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     z-index: 1000;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.4;
-    color: #212121;
-    animation: tgSlideIn 0.2s ease-out;
-}
-
-.tg-notification-container.hidden {
+    font-family: sans-serif;
+  }
+  
+  .notification-container.hidden {
     display: none;
-}
-
-@keyframes tgSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.tg-notification-dropdown {
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    overflow: hidden;
+  }
+  
+  .notification-header {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
     display: flex;
-    flex-direction: column;
-    max-height: 80vh;
-}
-
-.tg-notification-header {
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
     justify-content: space-between;
-    background: #ffffff;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.tg-notification-title {
-    display: flex;
     align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    font-size: 15px;
-    color: #212121;
-}
-
-.tg-notification-icon {
-    width: 20px;
-    height: 20px;
-    stroke-width: 1.8;
-}
-
-.tg-notification-badge {
-    background: #3390ec;
-    color: white;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 2px 6px;
-    border-radius: 10px;
-    margin-left: 6px;
-}
-
-.tg-notification-badge.hidden {
-    display: none;
-}
-
-.tg-notification-actions {
-    display: flex;
-    gap: 4px;
-}
-
-.tg-notification-action-btn {
-    background: none;
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: #707579;
-    transition: all 0.15s ease;
-}
-
-.tg-notification-action-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: #212121;
-}
-
-.tg-notification-action-btn svg {
-    width: 16px;
-    height: 16px;
-    stroke-width: 2;
-}
-
-.tg-notification-loading {
-    padding: 24px 16px;
-    text-align: center;
-    color: #707579;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-}
-
-.tg-loading-spinner {
-    width: 24px;
-    height: 24px;
-    border: 2px solid rgba(0, 0, 0, 0.1);
-    border-top: 2px solid #3390ec;
-    border-radius: 50%;
-    animation: tgSpin 1s linear infinite;
-}
-
-@keyframes tgSpin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.tg-notification-list {
-    flex: 1;
-    overflow-y: auto;
+  }
+  
+  .notification-list {
     max-height: 400px;
-}
-
-.tg-notification-list::-webkit-scrollbar {
-    width: 4px;
-}
-
-.tg-notification-list::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.tg-notification-list::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 2px;
-}
-
-.tg-notification-empty {
-    padding: 32px 16px;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  
+  .notification-item {
+    padding: 10px;
+    border-bottom: 1px solid #f5f5f5;
+    cursor: pointer;
+  }
+  
+  .notification-item.unread {
+    background-color: #f8f9fa;
+  }
+  
+  .notification-empty {
+    padding: 20px;
     text-align: center;
-    color: #707579;
-}
-
-.tg-empty-icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 12px;
-    stroke-width: 1.5;
-    color: #3390ec;
-    opacity: 0.6;
-}
-
-.tg-notification-empty p {
-    font-weight: 500;
-    margin: 0 0 4px 0;
-    font-size: 15px;
-    color: #212121;
-}
-
-.tg-notification-empty span {
-    font-size: 13px;
-    opacity: 0.8;
-}
-
-.tg-notification-item {
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    transition: background-color 0.15s ease;
-    position: relative;
-}
-
-.tg-notification-item:hover {
-    background: rgba(0, 0, 0, 0.02);
-}
-
-.tg-notification-item:last-child {
-    border-bottom: none;
-}
-
-.tg-notification-item.unread {
-    background: rgba(51, 144, 236, 0.03);
-}
-
-.tg-notification-item.unread::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: #3390ec;
-    border-radius: 0 2px 2px 0;
-}
-
-.tg-notification-content {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.tg-notification-item-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2px;
-}
-
-.tg-notification-item-title {
-    font-weight: 500;
-    color: #212121;
-    font-size: 14px;
-}
-
-.tg-notification-item-time {
-    font-size: 12px;
-    color: #707579;
-    white-space: nowrap;
-    margin-left: 8px;
-}
-
-.tg-notification-item-message {
-    color: #707579;
-    font-size: 13px;
-    line-height: 1.4;
-}
-
-.tg-notification-item-actions {
-    position: absolute;
-    right: 12px;
-    top: 12px;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-}
-
-.tg-notification-item:hover .tg-notification-item-actions {
-    opacity: 1;
-}
-
-.tg-notification-item-action-btn {
-    background: rgba(0, 0, 0, 0.05);
-    border: none;
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: #707579;
-    transition: all 0.15s ease;
-}
-
-.tg-notification-item-action-btn:hover {
-    background: rgba(0, 0, 0, 0.1);
-    color: #212121;
-}
-
-.tg-notification-item-action-btn svg {
-    width: 14px;
-    height: 14px;
-    stroke-width: 2;
-}
-
-.tg-notification-footer {
-    padding: 12px 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.tg-notification-footer-btn {
-    width: 100%;
+    color: #666;
+  }
+  
+  .notification-loading {
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .notification-footer {
+    padding: 10px;
+    border-top: 1px solid #eee;
+    text-align: center;
+  }
+  
+  button {
     background: none;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    color: #3390ec;
+    border: none;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    transition: all 0.15s ease;
-}
-
-.tg-notification-footer-btn:hover {
-    background: rgba(51, 144, 236, 0.05);
-    border-color: rgba(51, 144, 236, 0.2);
-}
-
-.tg-notification-footer-btn svg {
-    width: 14px;
-    height: 14px;
-    stroke-width: 2;
-}
-
-@media (max-width: 480px) {
-    .tg-notification-container {
-        top: 12px;
-        right: 12px;
-        left: 12px;
-        width: auto;
-        max-width: none;
-    }
-    
-    .tg-notification-dropdown {
-        border-radius: 10px;
-    }
-    
-    .tg-notification-list {
-        max-height: 60vh;
-    }
-}
-
-@media (prefers-color-scheme: dark) {
-    .tg-notification-dropdown {
-        background: #1f2937;
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-    
-    .tg-notification-header {
-        background: #1f2937;
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-    
-    .tg-notification-title,
-    .tg-notification-item-title {
-        color: #f9fafb;
-    }
-    
-    .tg-notification-action-btn {
-        color: #9ca3af;
-    }
-    
-    .tg-notification-action-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #f9fafb;
-    }
-    
-    .tg-notification-item {
-        border-color: rgba(255, 255, 255, 0.05);
-    }
-    
-    .tg-notification-item:hover {
-        background: rgba(255, 255, 255, 0.03);
-    }
-    
-    .tg-notification-item.unread {
-        background: rgba(51, 144, 236, 0.08);
-    }
-    
-    .tg-notification-item-message,
-    .tg-notification-item-time {
-        color: #9ca3af;
-    }
-    
-    .tg-notification-empty {
-        color: #9ca3af;
-    }
-    
-    .tg-notification-empty p {
-        color: #f9fafb;
-    }
-    
-    .tg-notification-footer {
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-    
-    .tg-notification-footer-btn {
-        border-color: rgba(255, 255, 255, 0.1);
-        color: #3390ec;
-    }
-    
-    .tg-notification-footer-btn:hover {
-        background: rgba(51, 144, 236, 0.1);
-    }
-    
-    .tg-loading-spinner {
-        border-color: rgba(255, 255, 255, 0.1);
-        border-top-color: #3390ec;
-    }
-}
+    padding: 4px 8px;
+  }
 </style>
-
 
 <script>
 class NotificationSystem {
-    constructor(options = {}) {
-        this.container = document.getElementById('tg-notification-container');
-        this.listElement = document.getElementById('notificationList');
-        this.emptyState = document.getElementById('notificationEmpty');
-        this.loadingState = document.getElementById('notificationLoading');
-        this.badgeElement = document.getElementById('notificationBadge');
-        
-        this.options = {
-            apiBaseUrl: 'https://starstore.site', // Your domain
-            pollInterval: 30000,
-            ...options
-        };
-        
-        this.notifications = [];
-        this.init();
-    }
+  constructor() {
+    this.container = document.getElementById('notificationContainer');
+    this.listElement = document.getElementById('notificationList');
+    this.emptyState = document.getElementById('notificationEmpty');
+    this.loadingState = document.getElementById('notificationLoading');
+    this.badgeElement = document.getElementById('notificationBadge');
     
-    init() {
-        // Event listeners
-        document.getElementById('notificationClose')?.addEventListener('click', () => this.hide());
-        document.getElementById('markAllRead')?.addEventListener('click', () => this.markAllAsRead());
-        document.getElementById('viewAllNotifications')?.addEventListener('click', () => this.viewAll());
-        
-        // Start polling
-        this.fetchNotifications();
-        if (this.options.pollInterval > 0) {
-            this.pollingInterval = setInterval(() => this.fetchNotifications(), this.options.pollInterval);
-        }
-    }
+    this.notifications = [];
+    this.init();
+  }
+  
+  init() {
+    document.getElementById('notificationClose').addEventListener('click', () => this.hide());
+    document.getElementById('markAllRead').addEventListener('click', () => this.markAllAsRead());
+    document.getElementById('viewAllNotifications').addEventListener('click', () => this.viewAll());
+    
+    this.fetchNotifications();
+    setInterval(() => this.fetchNotifications(), 30000);
+  }
 
-    async fetchNotifications() {
-        try {
-            this.showLoading();
-            
-            const params = new URLSearchParams();
-            
-            // Add user identifier
-            if (window.currentUser?.id) {
-                params.append('userId', window.currentUser.id);
-            } else if (window.currentWalletAddress) {
-                params.append('userId', window.currentWalletAddress);
-            } else {
-                params.append('userId', 'anonymous');
-            }
-            
-            const response = await fetch(`${this.options.apiBaseUrl}/api/notifications?${params.toString()}`, {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const notifications = await response.json();
-            console.log('Received notifications:', notifications);
-            
-            this.notifications = notifications;
-            this.renderNotifications(notifications);
-            this.updateBadge(notifications.filter(n => !n.read).length);
-            
-        } catch (error) {
-            console.error('Notification fetch error:', {
-                error: error.message,
-                stack: error.stack
-            });
-            this.showEmptyState('Failed to load notifications');
-        } finally {
-            this.hideLoading();
-        }
+  async fetchNotifications() {
+    try {
+      this.showLoading();
+      
+      const params = new URLSearchParams();
+      if (window.currentUser?.id) params.append('userId', window.currentUser.id);
+      else if (window.currentWalletAddress) params.append('userId', window.currentWalletAddress);
+      else params.append('userId', 'anonymous');
+      
+      const response = await fetch(`/api/notifications?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch');
+      
+      const notifications = await response.json();
+      this.notifications = notifications.map(n => ({
+        id: n.id,
+        title: n.title || 'Notification',
+        message: n.message,
+        timestamp: n.timestamp,
+        read: n.read || false
+      }));
+      
+      this.renderNotifications();
+      this.updateBadge();
+    } catch (error) {
+      console.error('Fetch error:', error);
+      this.showEmptyState('Failed to load');
+    } finally {
+      this.hideLoading();
+    }
+  }
+  
+  renderNotifications() {
+    this.listElement.innerHTML = '';
+    
+    if (this.notifications.length === 0) {
+      this.showEmptyState();
+      return;
     }
     
-    renderNotifications(notifications) {
-        if (!this.listElement) return;
-        this.listElement.innerHTML = '';
-        
-        if (!notifications || notifications.length === 0) {
-            this.showEmptyState();
-            return;
-        }
-        
-        notifications.forEach(notification => {
-            const item = this.createNotificationItem(notification);
-            this.listElement.appendChild(item);
-        });
+    this.notifications.forEach(notification => {
+      const item = document.createElement('div');
+      item.className = `notification-item ${notification.read ? '' : 'unread'}`;
+      item.innerHTML = `
+        <div><strong>${notification.title}</strong></div>
+        <div>${notification.message}</div>
+        <small>${new Date(notification.timestamp).toLocaleTimeString()}</small>
+      `;
+      item.addEventListener('click', () => this.handleNotificationClick(notification));
+      this.listElement.appendChild(item);
+    });
+  }
+  
+  async handleNotificationClick(notification) {
+    if (!notification.read) {
+      await fetch(`/api/notifications/${notification.id}/read`, { method: 'POST' });
+      notification.read = true;
+      this.renderNotifications();
+      this.updateBadge();
     }
+  }
+  
+  async markAllAsRead() {
+    const body = {};
+    if (window.currentUser?.id) body.userId = window.currentUser.id;
+    else if (window.currentWalletAddress) body.userId = window.currentWalletAddress;
     
-    createNotificationItem(notification) {
-        const item = document.createElement('div');
-        item.className = `tg-notification-item ${notification.read ? '' : 'unread'}`;
-        item.dataset.id = notification.id;
-        
-        // Format timestamp
-        const date = new Date(notification.timestamp);
-        const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
-        item.innerHTML = `
-            <div class="tg-notification-content">
-                <div class="tg-notification-item-header">
-                    <span class="tg-notification-item-title">${this.escapeHtml(notification.title || 'Notification')}</span>
-                    <span class="tg-notification-item-time">${timeString}</span>
-                </div>
-                <div class="tg-notification-item-message">${this.escapeHtml(notification.message)}</div>
-                <div class="tg-notification-item-actions">
-                    <button class="tg-notification-item-action-btn" data-action="dismiss">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        item.addEventListener('click', (e) => {
-            if (!e.target.closest('[data-action="dismiss"]')) {
-                this.handleNotificationClick(notification);
-            }
-        });
-        
-        item.querySelector('[data-action="dismiss"]')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.dismissNotification(notification.id);
-        });
-        
-        return item;
-    }
+    await fetch('/api/notifications/mark-all-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
     
-    async handleNotificationClick(notification) {
-        if (!notification.read) {
-            await this.markAsRead(notification.id);
-            const item = this.listElement?.querySelector(`[data-id="${notification.id}"]`);
-            if (item) item.classList.remove('unread');
-            this.updateBadge(this.getUnreadCount() - 1);
-        }
-        
-        if (notification.url) {
-            window.open(notification.url, '_blank');
-        }
-    }
-    
-    async markAsRead(notificationId) {
-        try {
-            await fetch(`${this.options.apiBaseUrl}/api/notifications/${notificationId}/read`, {
-                method: 'POST'
-            });
-        } catch (error) {
-            console.error('Mark as read error:', error);
-        }
-    }
-    
-    async markAllAsRead() {
-        try {
-            const body = {};
-            
-            if (window.currentUser?.id) {
-                body.userId = window.currentUser.id;
-            } else if (window.currentWalletAddress) {
-                body.userId = window.currentWalletAddress;
-            }
-            
-            await fetch(`${this.options.apiBaseUrl}/api/notifications/mark-all-read`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(body)
-            });
-            
-            this.notifications = this.notifications.map(n => ({ ...n, read: true }));
-            this.renderNotifications(this.notifications);
-            this.updateBadge(0);
-        } catch (error) {
-            console.error('Mark all as read error:', error);
-        }
-    }
-    
-    async dismissNotification(notificationId) {
-        try {
-            await fetch(`${this.options.apiBaseUrl}/api/notifications/${notificationId}`, {
-                method: 'DELETE'
-            });
-            
-            this.notifications = this.notifications.filter(n => n.id !== notificationId);
-            this.updateBadge(this.notifications.filter(n => !n.read).length);
-        } catch (error) {
-            console.error('Dismiss notification error:', error);
-        }
-    }
-    
-    // Helper methods
-    escapeHtml(text) {
-        if (typeof text !== 'string') return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    getUnreadCount() {
-        return this.notifications.filter(n => !n.read).length;
-    }
-    
-    updateBadge(count) {
-        if (!this.badgeElement) return;
-        
-        if (count > 0) {
-            this.badgeElement.textContent = count > 99 ? '99+' : count.toString();
-            this.badgeElement.classList.remove('hidden');
-        } else {
-            this.badgeElement.classList.add('hidden');
-        }
-    }
-    
-    showLoading() {
-        this.loadingState?.classList.remove('hidden');
-        this.listElement?.classList.add('hidden');
-        this.emptyState?.classList.add('hidden');
-    }
-    
-    hideLoading() {
-        this.loadingState?.classList.add('hidden');
-        this.listElement?.classList.remove('hidden');
-    }
-    
-    showEmptyState(message = 'No new notifications') {
-        if (this.emptyState) {
-            const p = this.emptyState.querySelector('p');
-            if (p) p.textContent = message;
-            this.emptyState.classList.remove('hidden');
-        }
-        this.listElement?.classList.add('hidden');
-    }
-    
-    show() {
-        this.container?.classList.remove('hidden');
-    }
-    
-    hide() {
-        this.container?.classList.add('hidden');
-    }
-    
-    toggle() {
-        if (this.container?.classList.contains('hidden')) {
-            this.show();
-            this.fetchNotifications();
-        } else {
-            this.hide();
-        }
-    }
-    
-    viewAll() {
-        window.location.href = '/notifications';
-    }
-    
-    cleanup() {
-        if (this.pollingInterval) {
-            clearInterval(this.pollingInterval);
-        }
-    }
+    this.notifications.forEach(n => n.read = true);
+    this.renderNotifications();
+    this.updateBadge();
+  }
+  
+  updateBadge() {
+    if (!this.badgeElement) return;
+    const unread = this.notifications.filter(n => !n.read).length;
+    this.badgeElement.textContent = unread > 0 ? unread : '';
+    this.badgeElement.style.display = unread > 0 ? 'block' : 'none';
+  }
+  
+  showLoading() {
+    this.loadingState.classList.remove('hidden');
+    this.listElement.classList.add('hidden');
+  }
+  
+  hideLoading() {
+    this.loadingState.classList.add('hidden');
+    this.listElement.classList.remove('hidden');
+  }
+  
+  showEmptyState(message = 'No notifications') {
+    this.emptyState.textContent = message;
+    this.emptyState.classList.remove('hidden');
+    this.listElement.classList.add('hidden');
+  }
+  
+  show() {
+    this.container.classList.remove('hidden');
+    this.fetchNotifications();
+  }
+  
+  hide() {
+    this.container.classList.add('hidden');
+  }
+  
+  toggle() {
+    this.container.classList.contains('hidden') ? this.show() : this.hide();
+  }
+  
+  viewAll() {
+    window.location.href = '/notifications';
+  }
 }
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    window.notificationSystem = new NotificationSystem();
-    
-    // Connect the notification button if it exists
-    const notificationButton = document.getElementById('notificationButton');
-    if (notificationButton) {
-        notificationButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            window.notificationSystem.toggle();
-        });
-    }
-});
-
-// Clean up on page unload
-window.addEventListener('beforeunload', () => {
-    if (window.notificationSystem) {
-        window.notificationSystem.cleanup();
-    }
+  window.notificationSystem = new NotificationSystem();
+  
+  document.getElementById('notificationButton').addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.notificationSystem.toggle();
+  });
 });
 </script>
