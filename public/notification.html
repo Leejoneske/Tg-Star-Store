@@ -93,6 +93,7 @@
 <script>
 class NotificationSystem {
   constructor() {
+    this.apiBaseUrl = window.location.origin;
     this.container = document.getElementById('notificationContainer');
     this.listElement = document.getElementById('notificationList');
     this.emptyState = document.getElementById('notificationEmpty');
@@ -117,14 +118,26 @@ class NotificationSystem {
       this.showLoading();
       
       const params = new URLSearchParams();
-      if (window.currentUser?.id) params.append('userId', window.currentUser.id);
-      else if (window.currentWalletAddress) params.append('userId', window.currentWalletAddress);
-      else params.append('userId', 'anonymous');
+      if (window.currentUser?.id) {
+        params.append('userId', window.currentUser.id);
+      } else if (window.currentWalletAddress) {
+        params.append('userId', window.currentWalletAddress);
+      } else {
+        params.append('userId', 'anonymous');
+      }
       
-      const response = await fetch(`/api/notifications?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch');
+      const response = await fetch(`${this.apiBaseUrl}/api/notifications?${params.toString()}`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
       
       const notifications = await response.json();
+      
       this.notifications = notifications.map(n => ({
         id: n.id,
         title: n.title || 'Notification',
@@ -137,7 +150,7 @@ class NotificationSystem {
       this.updateBadge();
     } catch (error) {
       console.error('Fetch error:', error);
-      this.showEmptyState('Failed to load');
+      this.showEmptyState('Failed to load notifications');
     } finally {
       this.hideLoading();
     }
@@ -166,7 +179,9 @@ class NotificationSystem {
   
   async handleNotificationClick(notification) {
     if (!notification.read) {
-      await fetch(`/api/notifications/${notification.id}/read`, { method: 'POST' });
+      await fetch(`${this.apiBaseUrl}/api/notifications/${notification.id}/read`, { 
+        method: 'POST' 
+      });
       notification.read = true;
       this.renderNotifications();
       this.updateBadge();
@@ -178,7 +193,7 @@ class NotificationSystem {
     if (window.currentUser?.id) body.userId = window.currentUser.id;
     else if (window.currentWalletAddress) body.userId = window.currentWalletAddress;
     
-    await fetch('/api/notifications/mark-all-read', {
+    await fetch(`${this.apiBaseUrl}/api/notifications/mark-all-read`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
