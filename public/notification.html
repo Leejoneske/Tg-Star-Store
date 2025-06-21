@@ -450,6 +450,8 @@
     }
 }
 </style>
+
+
 <script>
 class NotificationSystem {
     constructor(options = {}) {
@@ -460,7 +462,8 @@ class NotificationSystem {
         this.badgeElement = document.getElementById('notificationBadge');
         
         this.options = {
-            pollInterval: 30000, // 30 seconds
+            apiBaseUrl: 'https://starstore.site', // Your domain
+            pollInterval: 30000,
             ...options
         };
         
@@ -470,13 +473,13 @@ class NotificationSystem {
     
     init() {
         // Event listeners
-        document.getElementById('notificationClose').addEventListener('click', () => this.hide());
-        document.getElementById('markAllRead').addEventListener('click', () => this.markAllAsRead());
-        document.getElementById('viewAllNotifications').addEventListener('click', () => this.viewAll());
+        document.getElementById('notificationClose')?.addEventListener('click', () => this.hide());
+        document.getElementById('markAllRead')?.addEventListener('click', () => this.markAllAsRead());
+        document.getElementById('viewAllNotifications')?.addEventListener('click', () => this.viewAll());
         
-        // Start polling if interval set
+        // Start polling
+        this.fetchNotifications();
         if (this.options.pollInterval > 0) {
-            this.fetchNotifications();
             this.pollingInterval = setInterval(() => this.fetchNotifications(), this.options.pollInterval);
         }
     }
@@ -485,29 +488,39 @@ class NotificationSystem {
         try {
             this.showLoading();
             
-            const params = {};
+            const params = new URLSearchParams();
             
-            // Add user identifier if available
+            // Add user identifier
             if (window.currentUser?.id) {
-                params.userId = window.currentUser.id;
+                params.append('userId', window.currentUser.id);
             } else if (window.currentWalletAddress) {
-                params.userId = window.currentWalletAddress;
+                params.append('userId', window.currentWalletAddress);
             } else {
-                params.userId = 'anonymous';
+                params.append('userId', 'anonymous');
             }
             
-            const response = await fetch(`/api/notifications?${new URLSearchParams(params)}`);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const response = await fetch(`${this.options.apiBaseUrl}/api/notifications?${params.toString()}`, {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
             
-            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             
-            // Transform data to match expected format
-            this.notifications = Array.isArray(data) ? data : [];
-            this.renderNotifications(this.notifications);
-            this.updateBadge(this.notifications.filter(n => !n.read).length);
+            const notifications = await response.json();
+            console.log('Received notifications:', notifications);
+            
+            this.notifications = notifications;
+            this.renderNotifications(notifications);
+            this.updateBadge(notifications.filter(n => !n.read).length);
             
         } catch (error) {
-            console.error('Notification fetch error:', error);
+            console.error('Notification fetch error:', {
+                error: error.message,
+                stack: error.stack
+            });
             this.showEmptyState('Failed to load notifications');
         } finally {
             this.hideLoading();
@@ -515,14 +528,13 @@ class NotificationSystem {
     }
     
     renderNotifications(notifications) {
+        if (!this.listElement) return;
         this.listElement.innerHTML = '';
         
         if (!notifications || notifications.length === 0) {
             this.showEmptyState();
             return;
         }
-        
-        this.emptyState.classList.add('hidden');
         
         notifications.forEach(notification => {
             const item = this.createNotificationItem(notification);
@@ -535,11 +547,15 @@ class NotificationSystem {
         item.className = `tg-notification-item ${notification.read ? '' : 'unread'}`;
         item.dataset.id = notification.id;
         
+        // Format timestamp
+        const date = new Date(notification.timestamp);
+        const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
         item.innerHTML = `
             <div class="tg-notification-content">
                 <div class="tg-notification-item-header">
-                    <span class="tg-notification-item-title">${this.escapeHtml(notification.title)}</span>
-                    <span class="tg-notification-item-time">${this.formatTime(notification.timestamp)}</span>
+                    <span class="tg-notification-item-title">${this.escapeHtml(notification.title || 'Notification')}</span>
+                    <span class="tg-notification-item-time">${timeString}</span>
                 </div>
                 <div class="tg-notification-item-message">${this.escapeHtml(notification.message)}</div>
                 <div class="tg-notification-item-actions">
@@ -554,12 +570,12 @@ class NotificationSystem {
         `;
         
         item.addEventListener('click', (e) => {
-            if (!e.target.closest('.tg-notification-item-action-btn')) {
+            if (!e.target.closest('[data-action="dismiss"]')) {
                 this.handleNotificationClick(notification);
             }
         });
         
-        item.querySelector('[data-action="dismiss"]').addEventListener('click', (e) => {
+        item.querySelector('[data-action="dismiss"]')?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.dismissNotification(notification.id);
         });
@@ -570,7 +586,7 @@ class NotificationSystem {
     async handleNotificationClick(notification) {
         if (!notification.read) {
             await this.markAsRead(notification.id);
-            const item = this.listElement.querySelector(`[data-id="${notification.id}"]`);
+            const item = this.listElement?.querySelector(`[data-id="${notification.id}"]`);
             if (item) item.classList.remove('unread');
             this.updateBadge(this.getUnreadCount() - 1);
         }
@@ -582,11 +598,11 @@ class NotificationSystem {
     
     async markAsRead(notificationId) {
         try {
-            await fetch(`/api/notifications/${notificationId}/read`, {
+            await fetch(`${this.options.apiBaseUrl}/api/notifications/${notificationId}/read`, {
                 method: 'POST'
             });
         } catch (error) {
-            console.error('Error marking notification as read:', error);
+            console.error('Mark as read error:', error);
         }
     }
     
@@ -600,7 +616,7 @@ class NotificationSystem {
                 body.userId = window.currentWalletAddress;
             }
             
-            await fetch('/api/notifications/mark-all-read', {
+            await fetch(`${this.options.apiBaseUrl}/api/notifications/mark-all-read`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -612,30 +628,24 @@ class NotificationSystem {
             this.renderNotifications(this.notifications);
             this.updateBadge(0);
         } catch (error) {
-            console.error('Error marking all as read:', error);
+            console.error('Mark all as read error:', error);
         }
     }
     
     async dismissNotification(notificationId) {
         try {
-            await fetch(`/api/notifications/${notificationId}`, {
+            await fetch(`${this.options.apiBaseUrl}/api/notifications/${notificationId}`, {
                 method: 'DELETE'
             });
             
             this.notifications = this.notifications.filter(n => n.id !== notificationId);
             this.updateBadge(this.notifications.filter(n => !n.read).length);
         } catch (error) {
-            console.error('Error dismissing notification:', error);
+            console.error('Dismiss notification error:', error);
         }
     }
     
     // Helper methods
-    formatTime(timestamp) {
-        if (!timestamp) return '';
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    
     escapeHtml(text) {
         if (typeof text !== 'string') return '';
         const div = document.createElement('div');
@@ -659,34 +669,37 @@ class NotificationSystem {
     }
     
     showLoading() {
-        this.loadingState.classList.remove('hidden');
-        this.listElement.classList.add('hidden');
-        this.emptyState.classList.add('hidden');
+        this.loadingState?.classList.remove('hidden');
+        this.listElement?.classList.add('hidden');
+        this.emptyState?.classList.add('hidden');
     }
     
     hideLoading() {
-        this.loadingState.classList.add('hidden');
-        this.listElement.classList.remove('hidden');
+        this.loadingState?.classList.add('hidden');
+        this.listElement?.classList.remove('hidden');
     }
     
     showEmptyState(message = 'No new notifications') {
-        this.emptyState.querySelector('p').textContent = message;
-        this.emptyState.classList.remove('hidden');
-        this.listElement.classList.add('hidden');
+        if (this.emptyState) {
+            const p = this.emptyState.querySelector('p');
+            if (p) p.textContent = message;
+            this.emptyState.classList.remove('hidden');
+        }
+        this.listElement?.classList.add('hidden');
     }
     
     show() {
-        this.container.classList.remove('hidden');
-        this.fetchNotifications();
+        this.container?.classList.remove('hidden');
     }
     
     hide() {
-        this.container.classList.add('hidden');
+        this.container?.classList.add('hidden');
     }
     
     toggle() {
-        if (this.container.classList.contains('hidden')) {
+        if (this.container?.classList.contains('hidden')) {
             this.show();
+            this.fetchNotifications();
         } else {
             this.hide();
         }
@@ -707,7 +720,7 @@ class NotificationSystem {
 document.addEventListener('DOMContentLoaded', () => {
     window.notificationSystem = new NotificationSystem();
     
-    // Connect the notification button
+    // Connect the notification button if it exists
     const notificationButton = document.getElementById('notificationButton');
     if (notificationButton) {
         notificationButton.addEventListener('click', (e) => {
@@ -724,4 +737,3 @@ window.addEventListener('beforeunload', () => {
     }
 });
 </script>
-
