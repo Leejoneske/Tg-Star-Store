@@ -450,20 +450,17 @@
     }
 }
 </style>
-
 <script>
 class NotificationSystem {
     constructor(options = {}) {
-        this.container = document.getElementById('notificationContainer');
+        this.container = document.getElementById('tg-notification-container');
         this.listElement = document.getElementById('notificationList');
         this.emptyState = document.getElementById('notificationEmpty');
         this.loadingState = document.getElementById('notificationLoading');
         this.badgeElement = document.getElementById('notificationBadge');
         
         this.options = {
-            position: 'right',
-            maxNotifications: 50,
-            pollInterval: 30000,
+            pollInterval: 30000, // 30 seconds
             ...options
         };
         
@@ -472,29 +469,18 @@ class NotificationSystem {
     }
     
     init() {
+        // Event listeners
         document.getElementById('notificationClose').addEventListener('click', () => this.hide());
         document.getElementById('markAllRead').addEventListener('click', () => this.markAllAsRead());
         document.getElementById('viewAllNotifications').addEventListener('click', () => this.viewAll());
         
-        document.addEventListener('click', (e) => {
-            if (!this.container.contains(e.target) && 
-                !document.getElementById('notificationButton')?.contains(e.target)) {
-                this.hide();
-            }
-        });
-        
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !this.container.classList.contains('hidden')) {
-                this.hide();
-            }
-        });
-        
+        // Start polling if interval set
         if (this.options.pollInterval > 0) {
             this.fetchNotifications();
             this.pollingInterval = setInterval(() => this.fetchNotifications(), this.options.pollInterval);
         }
     }
-    
+
     async fetchNotifications() {
         try {
             this.showLoading();
@@ -507,17 +493,19 @@ class NotificationSystem {
             } else if (window.currentWalletAddress) {
                 params.userId = window.currentWalletAddress;
             } else {
-                // For anonymous users, we'll still fetch global notifications
                 params.userId = 'anonymous';
             }
             
-            const response = await fetch('/api/notifications?' + new URLSearchParams(params));
-            if (!response.ok) throw new Error('Failed to fetch notifications');
+            const response = await fetch(`/api/notifications?${new URLSearchParams(params)}`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
-            const notifications = await response.json();
-            this.notifications = notifications;
-            this.renderNotifications(notifications);
-            this.updateBadge(notifications.filter(n => !n.read).length);
+            const data = await response.json();
+            
+            // Transform data to match expected format
+            this.notifications = Array.isArray(data) ? data : [];
+            this.renderNotifications(this.notifications);
+            this.updateBadge(this.notifications.filter(n => !n.read).length);
+            
         } catch (error) {
             console.error('Notification fetch error:', error);
             this.showEmptyState('Failed to load notifications');
@@ -536,7 +524,7 @@ class NotificationSystem {
         
         this.emptyState.classList.add('hidden');
         
-        notifications.slice(0, this.options.maxNotifications).forEach(notification => {
+        notifications.forEach(notification => {
             const item = this.createNotificationItem(notification);
             this.listElement.appendChild(item);
         });
@@ -550,7 +538,7 @@ class NotificationSystem {
         item.innerHTML = `
             <div class="tg-notification-content">
                 <div class="tg-notification-item-header">
-                    <span class="tg-notification-item-title">${this.escapeHtml(notification.title || 'Notification')}</span>
+                    <span class="tg-notification-item-title">${this.escapeHtml(notification.title)}</span>
                     <span class="tg-notification-item-time">${this.formatTime(notification.timestamp)}</span>
                 </div>
                 <div class="tg-notification-item-message">${this.escapeHtml(notification.message)}</div>
@@ -574,30 +562,9 @@ class NotificationSystem {
         item.querySelector('[data-action="dismiss"]').addEventListener('click', (e) => {
             e.stopPropagation();
             this.dismissNotification(notification.id);
-            item.remove();
         });
         
         return item;
-    }
-    
-    formatTime(timestamp) {
-        if (!timestamp) return '';
-        
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diffInMinutes = Math.floor((now - date) / (1000 * 60));
-        
-        if (diffInMinutes < 1) return 'Just now';
-        if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-        if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    }
-    
-    escapeHtml(text) {
-        if (typeof text !== 'string') return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
     
     async handleNotificationClick(notification) {
@@ -625,12 +592,12 @@ class NotificationSystem {
     
     async markAllAsRead() {
         try {
-            const params = {};
+            const body = {};
             
             if (window.currentUser?.id) {
-                params.userId = window.currentUser.id;
+                body.userId = window.currentUser.id;
             } else if (window.currentWalletAddress) {
-                params.userId = window.currentWalletAddress;
+                body.userId = window.currentWalletAddress;
             }
             
             await fetch('/api/notifications/mark-all-read', {
@@ -638,14 +605,14 @@ class NotificationSystem {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(params)
+                body: JSON.stringify(body)
             });
             
             this.notifications = this.notifications.map(n => ({ ...n, read: true }));
             this.renderNotifications(this.notifications);
             this.updateBadge(0);
         } catch (error) {
-            console.error('Error marking all notifications as read:', error);
+            console.error('Error marking all as read:', error);
         }
     }
     
@@ -662,6 +629,20 @@ class NotificationSystem {
         }
     }
     
+    // Helper methods
+    formatTime(timestamp) {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    escapeHtml(text) {
+        if (typeof text !== 'string') return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     getUnreadCount() {
         return this.notifications.filter(n => !n.read).length;
     }
@@ -674,27 +655,6 @@ class NotificationSystem {
             this.badgeElement.classList.remove('hidden');
         } else {
             this.badgeElement.classList.add('hidden');
-        }
-    }
-    
-    viewAll() {
-        window.location.href = '/notifications';
-    }
-    
-    show() {
-        this.container.classList.remove('hidden');
-        this.fetchNotifications();
-    }
-    
-    hide() {
-        this.container.classList.add('hidden');
-    }
-    
-    toggle() {
-        if (this.container.classList.contains('hidden')) {
-            this.show();
-        } else {
-            this.hide();
         }
     }
     
@@ -715,6 +675,27 @@ class NotificationSystem {
         this.listElement.classList.add('hidden');
     }
     
+    show() {
+        this.container.classList.remove('hidden');
+        this.fetchNotifications();
+    }
+    
+    hide() {
+        this.container.classList.add('hidden');
+    }
+    
+    toggle() {
+        if (this.container.classList.contains('hidden')) {
+            this.show();
+        } else {
+            this.hide();
+        }
+    }
+    
+    viewAll() {
+        window.location.href = '/notifications';
+    }
+    
     cleanup() {
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
@@ -722,9 +703,11 @@ class NotificationSystem {
     }
 }
 
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.notificationSystem = new NotificationSystem();
     
+    // Connect the notification button
     const notificationButton = document.getElementById('notificationButton');
     if (notificationButton) {
         notificationButton.addEventListener('click', (e) => {
@@ -741,3 +724,4 @@ window.addEventListener('beforeunload', () => {
     }
 });
 </script>
+
