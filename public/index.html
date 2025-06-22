@@ -652,9 +652,29 @@ document.addEventListener('DOMContentLoaded', function() {
     if (skeleton) skeleton.style.display = 'block';
     if (content) content.style.display = 'none';
 
-    loadNotificationComponent()
-        .then(() => {
+    // Load notification component first
+    fetch('notification.html')
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.text();
+        })
+        .then(html => {
+            const container = document.createElement('div');
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            
+            // Initialize notification system immediately after injecting HTML
             window.notificationSystem = new NotificationSystem();
+            
+            // Set up button listener directly
+            const notificationButton = document.getElementById('notificationButton');
+            if (notificationButton) {
+                notificationButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    window.notificationSystem.toggle();
+                });
+            }
+            
             return loadMenuBar();
         })
         .then(() => {
@@ -663,16 +683,6 @@ document.addEventListener('DOMContentLoaded', function() {
             initLanguageToggle();
             updateLanguage();
             initBuyButtons();
-            
-            const notificationButton = document.getElementById('notificationButton');
-            if (notificationButton) {
-                notificationButton.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (window.notificationSystem) {
-                        window.notificationSystem.toggle();
-                    }
-                });
-            }
             
             window.currentUser = currentUser;
             window.currentWalletAddress = currentWalletAddress;
@@ -684,7 +694,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Initialization error:', error);
             showContent();
-            // Don't show initialization errors to user, only log them
         });
 });
 
