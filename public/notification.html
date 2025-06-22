@@ -249,6 +249,17 @@ class NotificationSystem {
   }
 
   initEventListeners() {
+    const waitForButton = setInterval(() => {
+    const button = document.getElementById('notificationButton');
+    if (button) {
+      clearInterval(waitForButton);
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.toggle();
+      });
+    }
+  }, 100);
     // Notification button click handler
     document.getElementById('notificationButton').addEventListener('click', (e) => {
       e.preventDefault();
