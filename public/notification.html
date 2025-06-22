@@ -27,7 +27,7 @@
   </div>
 </div>
 
-  <style>
+<style>
   .notification-container {
     position: fixed;
     top: 60px;
@@ -227,8 +227,8 @@
   #viewAllNotifications:hover {
     background-color: rgba(79, 70, 229, 0.1);
   }
-
 </style>
+
 <script>
 class NotificationSystem {
   constructor() {
@@ -241,31 +241,37 @@ class NotificationSystem {
     this.isOpen = false;
     this.isInitialized = false;
 
-    // Initialize with container hidden
-    this.container.classList.remove('visible');
+    // Ensure container starts in correct state
     this.container.classList.add('hidden');
+    this.container.classList.remove('visible');
 
     this.initEventListeners();
   }
 
   initEventListeners() {
-    const waitForButton = setInterval(() => {
-    const button = document.getElementById('notificationButton');
-    if (button) {
-      clearInterval(waitForButton);
-      button.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.toggle();
-      });
+    // More robust button detection with fallback
+    const setupButtonListener = () => {
+      const button = document.getElementById('notificationButton');
+      if (button) {
+        button.addEventListener('click', (e) => {
+          console.log('Notification button clicked');
+          e.preventDefault();
+          e.stopPropagation();
+          this.toggle();
+        });
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately, then fallback to interval if needed
+    if (!setupButtonListener()) {
+      const buttonCheckInterval = setInterval(() => {
+        if (setupButtonListener()) {
+          clearInterval(buttonCheckInterval);
+        }
+      }, 100);
     }
-  }, 100);
-    // Notification button click handler
-    document.getElementById('notificationButton').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.toggle();
-    });
 
     // Close button handler
     document.getElementById('notificationClose').addEventListener('click', (e) => {
@@ -293,7 +299,7 @@ class NotificationSystem {
       const notificationButton = document.getElementById('notificationButton');
       if (this.isOpen && 
           !this.container.contains(e.target) && 
-          !notificationButton.contains(e.target)) {
+          notificationButton && !notificationButton.contains(e.target)) {
         this.toggle(false);
       }
     });
@@ -306,41 +312,38 @@ class NotificationSystem {
     }, { passive: true });
   }
 
- toggle(forceState) {
-  // Determine new state
-  const shouldOpen = typeof forceState === 'boolean' ? forceState : !this.isOpen;
-  
-  // If state isn't changing, do nothing
-  if (shouldOpen === this.isOpen) return;
-  
-  // Update state
-  this.isOpen = shouldOpen;
-  
-  // Toggle visibility with animation
-  if (shouldOpen) {
-    // Remove hidden class first
-    this.container.classList.remove('hidden');
-    // Force reflow to enable transition
-    void this.container.offsetWidth;
-    // Add visible class
-    this.container.classList.add('visible');
+  toggle(forceState) {
+    const shouldOpen = typeof forceState === 'boolean' ? forceState : !this.isOpen;
     
-    // Only fetch notifications if not already initialized
-    if (!this.isInitialized) {
-      this.fetchNotifications();
-      this.isInitialized = true;
-    }
-  } else {
-    // Remove visible class
-    this.container.classList.remove('visible');
-    // Wait for animation to complete before adding hidden class
-    this.container.addEventListener('transitionend', () => {
-      if (!this.isOpen) { // Check current state in case it changed
-        this.container.classList.add('hidden');
+    if (shouldOpen === this.isOpen) return;
+    
+    this.isOpen = shouldOpen;
+    
+    if (shouldOpen) {
+      // Remove hidden first to ensure element is in DOM flow
+      this.container.classList.remove('hidden');
+      // Force reflow to enable transition
+      void this.container.offsetWidth;
+      // Then add visible class to trigger animation
+      this.container.classList.add('visible');
+      
+      if (!this.isInitialized) {
+        this.fetchNotifications();
+        this.isInitialized = true;
       }
-    }, { once: true });
+    } else {
+      // Remove visible class to trigger fade-out
+      this.container.classList.remove('visible');
+      // After animation completes, add hidden class
+      const onTransitionEnd = () => {
+        if (!this.isOpen) {
+          this.container.classList.add('hidden');
+        }
+        this.container.removeEventListener('transitionend', onTransitionEnd);
+      };
+      this.container.addEventListener('transitionend', onTransitionEnd);
+    }
   }
-}
 
   async fetchNotifications() {
     try {
@@ -351,11 +354,12 @@ class NotificationSystem {
         throw new Error('No user identifier available');
       }
 
+      console.log('Fetching notifications for user:', userIdentifier);
       const response = await axios.get('/api/notifications', {
-        params: {
-          userId: userIdentifier
-        }
+        params: { userId: userIdentifier }
       });
+      
+      console.log('Notifications API response:', response.data);
       
       if (response.data) {
         this.notifications = response.data.notifications || [];
@@ -369,7 +373,6 @@ class NotificationSystem {
       this.unreadCount = 0;
       this.renderNotifications();
       
-      // Show error state if needed
       if (this.isOpen) {
         this.emptyElement.innerHTML = `
           <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444">
@@ -395,7 +398,6 @@ class NotificationSystem {
     
     this.emptyElement.style.display = 'none';
     
-    // Sort by timestamp (newest first)
     const sortedNotifications = [...this.notifications].sort((a, b) => 
       new Date(b.createdAt) - new Date(a.createdAt)
     );
@@ -404,8 +406,7 @@ class NotificationSystem {
       const notificationElement = document.createElement('div');
       notificationElement.className = `notification-item ${notification.read ? '' : 'unread'}`;
       
-      // Get appropriate icon based on notification type
-      let icon = '🔔'; // default
+      let icon = '🔔';
       if (notification.icon === 'warning') icon = '⚠️';
       if (notification.icon === 'success') icon = '✅';
       if (notification.icon === 'error') icon = '❌';
@@ -430,17 +431,14 @@ class NotificationSystem {
   }
 
   async handleNotificationClick(notification) {
-    // Mark as read if unread
     if (!notification.read) {
       await this.markAsRead(notification.id);
     }
     
-    // Handle notification action
     if (notification.actionUrl) {
       window.open(notification.actionUrl, '_blank');
     }
     
-    // Close the notification dropdown
     this.toggle(false);
   }
 
@@ -450,7 +448,6 @@ class NotificationSystem {
         userId: window.getUserIdentifier()
       });
       
-      // Update local state
       const notification = this.notifications.find(n => n.id === notificationId);
       if (notification && !notification.read) {
         notification.read = true;
@@ -469,7 +466,6 @@ class NotificationSystem {
         userId: window.getUserIdentifier()
       });
       
-      // Update all notifications to read
       this.notifications.forEach(notification => {
         notification.read = true;
       });
@@ -508,7 +504,6 @@ class NotificationSystem {
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${translations[currentLanguage]?.minutesAgo || 'minutes ago'}`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${translations[currentLanguage]?.hoursAgo || 'hours ago'}`;
     
-    // More than 1 day ago
     return date.toLocaleDateString(currentLanguage, {
       month: 'short',
       day: 'numeric',
@@ -527,10 +522,11 @@ class NotificationSystem {
   }
 }
 
-// Initialize when DOM is loaded
+// Initialize notification system
 document.addEventListener('DOMContentLoaded', () => {
   if (!window.notificationSystem) {
     window.notificationSystem = new NotificationSystem();
+    console.log('Notification system initialized');
   }
 });
 </script>
