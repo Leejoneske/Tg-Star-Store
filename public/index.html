@@ -547,7 +547,6 @@ const translations = {
         userNotFound: "Информация о пользователе не найдена. Пожалуйста, обновите страницу и попробуйте снова."
     }
 };
-
 // Global variables
 let tonConnectUI = null;
 let currentLanguage = sessionStorage.getItem('appLanguage') || 'en';
@@ -559,68 +558,52 @@ let isTelegramEnv = false;
 let updateUserInterfaceRetryCount = 0;
 let isInitialized = false;
 
-// Global user identification for notification system
 window.getUserIdentifier = function() {
     if (currentUser?.id) return currentUser.id.toString();
     if (currentWalletAddress) return currentWalletAddress;
     return 'anonymous_' + (sessionStorage.getItem('anonymousId') || generateAnonymousId());
 };
 
-// Generate anonymous ID for non-Telegram users
 function generateAnonymousId() {
     const id = 'anon_' + Math.random().toString(36).substr(2, 12) + '_' + Date.now();
     sessionStorage.setItem('anonymousId', id);
     return id;
 }
 
-// Enhanced Telegram environment detection
 function detectTelegramEnvironment() {
     try {
-        // Check for Telegram WebApp
         if (window.Telegram?.WebApp) {
-            // Additional checks for valid Telegram environment
             const webApp = window.Telegram.WebApp;
-            
-            // Check if we have valid init data or user data
             if (webApp.initData || webApp.initDataUnsafe?.user) {
                 isTelegramEnv = true;
                 return true;
             }
-            
-            // Check for Telegram-specific properties
             if (webApp.version && webApp.platform) {
                 isTelegramEnv = true;
                 return true;
             }
         }
-        
-        // Check user agent for Telegram
         const userAgent = navigator.userAgent.toLowerCase();
         if (userAgent.includes('telegram')) {
             isTelegramEnv = true;
             return true;
         }
-        
-        // Check for Telegram-specific URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('tgWebAppData') || urlParams.has('tgWebAppVersion')) {
             isTelegramEnv = true;
             return true;
         }
-        
         return false;
     } catch (e) {
-        console.log('Telegram detection error:', e);
+        console.error('Telegram detection error:', e);
         return false;
     }
 }
 
-// Initialize application
 document.addEventListener('DOMContentLoaded', function() {
     if (isInitialized) return;
     isInitialized = true;
     
-    // Detect Telegram environment first
     detectTelegramEnvironment();
     
     const skeleton = document.getElementById('skeleton-loading');
@@ -629,11 +612,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (skeleton) skeleton.style.display = 'block';
     if (content) content.style.display = 'none';
 
-    // Initialize components in sequence
-    Promise.all([
-        loadMenuBar(),
-        loadNotificationComponent()
-    ])
+    loadNotificationComponent().then(() => {
+        window.notificationSystem = new NotificationSystem();
+        return loadMenuBar();
+    })
     .then(() => {
         initTelegramApp();
         initWalletConnection();
@@ -641,12 +623,6 @@ document.addEventListener('DOMContentLoaded', function() {
         updateLanguage();
         initBuyButtons();
         
-        // Initialize notification system after component is loaded
-        if (!window.notificationSystem) {
-            window.notificationSystem = new NotificationSystem();
-        }
-        
-        // Set up notification button handler
         const notificationButton = document.getElementById('notificationButton');
         if (notificationButton) {
             notificationButton.addEventListener('click', (e) => {
@@ -655,7 +631,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // Expose current user data globally for notification system
         window.currentUser = currentUser;
         window.currentWalletAddress = currentWalletAddress;
         window.isTelegramEnv = isTelegramEnv;
@@ -669,13 +644,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Load menubar component
 function loadMenuBar() {
     return new Promise((resolve, reject) => {
         const menubarContainer = document.getElementById('menubar-container');
-        if (!menubarContainer) {
-            return reject(new Error('Menubar container not found'));
-        }
+        if (!menubarContainer) return reject(new Error('Menubar container not found'));
 
         fetch('menubar.html')
             .then(response => {
@@ -694,7 +666,6 @@ function loadMenuBar() {
     });
 }
 
-// Load notification component
 function loadNotificationComponent() {
     return new Promise((resolve, reject) => {
         fetch('notification.html')
@@ -715,7 +686,6 @@ function loadNotificationComponent() {
     });
 }
 
-// Show main content
 function showContent() {
     const skeleton = document.getElementById('skeleton-loading');
     const content = document.getElementById('content-container');
@@ -723,7 +693,6 @@ function showContent() {
     if (content) content.style.display = 'block';
 }
 
-// Initialize menu functionality
 function initMenu() {
     const menuButton = document.getElementById('menuButton');
     const menuOverlay = document.querySelector('.menu-overlay');
@@ -748,20 +717,15 @@ function initMenu() {
     }
 }
 
-// Enhanced Telegram WebApp initialization
 function initTelegramApp() {
     if (!isTelegramEnv) {
-        // Create local user for non-Telegram environment
         currentUser = {
             id: 'local_user_' + Math.random().toString(36).substr(2, 9),
             first_name: 'Guest User',
             username: 'guest' + Math.floor(Math.random() * 1000),
             is_local: true
         };
-        
-        // Store in session for consistency
         sessionStorage.setItem('localUser', JSON.stringify(currentUser));
-        
         updateUserInterface(currentUser);
         updateGlobalUserData();
         return;
@@ -773,12 +737,9 @@ function initTelegramApp() {
         }
         
         const webApp = window.Telegram.WebApp;
-        
-        // Initialize Telegram WebApp
         webApp.ready();
         webApp.expand();
         
-        // Set theme
         if (webApp.themeParams) {
             document.documentElement.style.setProperty('--tg-bg-color', webApp.themeParams.bg_color || '#ffffff');
             document.documentElement.style.setProperty('--tg-text-color', webApp.themeParams.text_color || '#000000');
@@ -786,11 +747,9 @@ function initTelegramApp() {
         
         let user = null;
         
-        // Try to get user from initDataUnsafe first
         if (webApp.initDataUnsafe?.user) {
             user = webApp.initDataUnsafe.user;
         } 
-        // Then try parsing initData
         else if (webApp.initData) {
             try {
                 const initData = new URLSearchParams(webApp.initData);
@@ -804,7 +763,6 @@ function initTelegramApp() {
         if (user) {
             currentUser = user;
             
-            // Auto-set language based on Telegram user language
             if (user.language_code === 'ru' && currentLanguage !== 'ru') {
                 currentLanguage = 'ru';
                 sessionStorage.setItem('appLanguage', 'ru');
@@ -815,7 +773,6 @@ function initTelegramApp() {
             updateGlobalUserData();
         } else {
             console.warn('No user data available from Telegram');
-            // Create fallback user for Telegram environment without user data
             currentUser = {
                 id: 'tg_user_' + Math.random().toString(36).substr(2, 9),
                 first_name: 'Telegram User',
@@ -831,19 +788,16 @@ function initTelegramApp() {
     }
 }
 
-// Update global user data for other components
 function updateGlobalUserData() {
     window.currentUser = currentUser;
     window.currentWalletAddress = currentWalletAddress;
     window.isTelegramEnv = isTelegramEnv;
     
-    // Notify notification system of user change
     if (window.notificationSystem && typeof window.notificationSystem.onUserChange === 'function') {
         window.notificationSystem.onUserChange();
     }
 }
 
-// Update user interface with user data
 function updateUserInterface(user) {
     if (!user) {
         console.error('No user data provided');
@@ -888,7 +842,6 @@ function updateUserInterface(user) {
         usernameElement.textContent = 'User';
     }
     
-    // Add environment indicator for non-Telegram users
     if (!isTelegramEnv) {
         const envIndicator = document.createElement('span');
         envIndicator.textContent = ' (Web)';
@@ -900,7 +853,6 @@ function updateUserInterface(user) {
     lastUserData = {...user};
 }
 
-// Enhanced wallet connection with better error handling
 function initWalletConnection() {
     try {
         if (typeof TON_CONNECT_UI === 'undefined') {
@@ -926,8 +878,6 @@ function initWalletConnection() {
                 walletConnected = true;
                 sessionStorage.setItem('walletConnected', 'true');
                 sessionStorage.setItem('walletAddress', currentWalletAddress);
-                
-                // Update global data and notify notification system
                 updateGlobalUserData();
             } else {
                 connectWalletButton.textContent = translations[currentLanguage].connectWallet;
@@ -936,13 +886,10 @@ function initWalletConnection() {
                 currentWalletAddress = '';
                 sessionStorage.removeItem('walletConnected');
                 sessionStorage.removeItem('walletAddress');
-                
-                // Update global data
                 updateGlobalUserData();
             }
         });
         
-        // Check for saved wallet connection
         const savedWalletConnected = sessionStorage.getItem('walletConnected') === 'true';
         const savedWalletAddress = sessionStorage.getItem('walletAddress');
         
@@ -977,7 +924,6 @@ function initWalletConnection() {
     }
 }
 
-// Initialize language toggle
 function initLanguageToggle() {
     const languageToggle = document.getElementById('languageToggle');
     if (!languageToggle) {
@@ -992,7 +938,6 @@ function initLanguageToggle() {
         updateLanguage();
         sessionStorage.setItem('appLanguage', currentLanguage);
         
-        // Update wallet connection UI if needed
         const connectWalletButton = document.getElementById('connectWallet');
         if (connectWalletButton) {
             if (walletConnected && currentWalletAddress) {
@@ -1004,19 +949,16 @@ function initLanguageToggle() {
             }
         }
         
-        // Update TON Connect UI language if available
         if (tonConnectUI && typeof tonConnectUI.setLanguage === 'function') {
             tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
         }
         
-        // Update notification system language
         if (window.notificationSystem && typeof window.notificationSystem.updateLanguage === 'function') {
             window.notificationSystem.updateLanguage();
         }
     });
 }
 
-// Update language across the UI
 function updateLanguage() {
     const languageToggle = document.getElementById('languageToggle');
     if (languageToggle) {
@@ -1031,7 +973,6 @@ function updateLanguage() {
     });
 }
 
-// Initialize buy buttons
 function initBuyButtons() {
     document.querySelectorAll('.buy-button').forEach(button => {
         button.addEventListener('click', function(e) {
@@ -1050,26 +991,22 @@ function initBuyButtons() {
     });
 }
 
-// Enhanced purchase handling with better user validation
 async function handlePurchase(item) {
-    // Check wallet connection
     if (!tonConnectUI || !walletConnected) {
         showErrorMessage(translations[currentLanguage].walletNotConnected);
         return;
     }
     
-    // Enhanced user validation
     const user = currentUser;
     if (!user || !user.id) {
         showErrorMessage(translations[currentLanguage].userNotFound);
         return;
     }
     
-    // Warn non-Telegram users about limitations
     if (!isTelegramEnv) {
         const confirmed = await Swal.fire({
             title: translations[currentLanguage].warning || 'Warning',
-            text: 'You are using the web version. Some features may be limited compared to the Telegram app.',
+            text: translations[currentLanguage].tryInTelegram || 'You are using the web version. Some features may be limited compared to the Telegram app.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: translations[currentLanguage].continue || 'Continue',
@@ -1144,7 +1081,6 @@ async function handlePurchase(item) {
                 Swal.close();
                 showSuccessMessage(translations[currentLanguage].orderCreated);
                 
-                // Notify the notification system to refresh
                 if (window.notificationSystem && typeof window.notificationSystem.fetchNotifications === 'function') {
                     setTimeout(() => window.notificationSystem.fetchNotifications(), 2000);
                 }
@@ -1171,7 +1107,6 @@ async function handlePurchase(item) {
     }
 }
 
-// Show success message
 function showSuccessMessage(message) {
     if (typeof Swal !== 'undefined') {
         Swal.fire({
@@ -1185,26 +1120,24 @@ function showSuccessMessage(message) {
     }
 }
 
-// Show error message
 function showErrorMessage(message) {
     if (typeof Swal !== 'undefined') {
         Swal.fire({
             title: translations[currentLanguage].error,
-            text: message,
+            text: typeof message === 'string' ? message : translations[currentLanguage].error,
             icon: 'error',
             confirmButtonText: translations[currentLanguage].ok
         });
     } else {
-        alert(message);
+        alert(typeof message === 'string' ? message : 'An error occurred');
     }
 }
 
-// Fetch current TON to USDT rate
 async function fetchCurrentRate() {
     try {
         if (!window.axios) {
             console.error('Axios library not loaded');
-            return 3.64; // fallback rate
+            return 3.64;
         }
         
         const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd', {
@@ -1217,14 +1150,13 @@ async function fetchCurrentRate() {
         }
         
         console.warn('Invalid rate received, using fallback');
-        return 3.64; // fallback rate
+        return 3.64;
     } catch (error) {
         console.error('Rate fetch error:', error);
-        return 3.64; // fallback rate
+        return 3.64;
     }
 }
 
-// Clean up on page unload
 window.addEventListener('beforeunload', () => {
     if (tonConnectUI) {
         try {
@@ -1238,6 +1170,7 @@ window.addEventListener('beforeunload', () => {
         window.notificationSystem.cleanup();
     }
 });
+
     </script>
 </body>
 </html>
