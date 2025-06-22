@@ -443,7 +443,6 @@
             </div>
         </div>
     </div>
-
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -452,7 +451,9 @@
 // Debugging tools
 if (typeof eruda !== 'undefined') {
     eruda.init();
-    eruda.add(erudaNetwork);
+    if (typeof erudaNetwork !== 'undefined') {
+        eruda.add(erudaNetwork);
+    }
 }
 
 const translations = {
@@ -471,6 +472,9 @@ const translations = {
         error: "Error",
         success: "Success",
         ok: "OK",
+        warning: "Warning",
+        continue: "Continue",
+        cancel: "Cancel",
         menu: "Menu",
         home: "Home",
         sell: "Sell",
@@ -497,7 +501,6 @@ const translations = {
         notificationsNotAvailable: 'Notifications service not available',
         telegramRequiredForNotifications: 'Please open in Telegram to view notifications',
         tryInTelegram: 'Try opening in Telegram for full functionality',
-        noNotifications: 'No notifications yet',
         userNotFound: "User information not found. Please refresh the page and try again."
     },
     ru: {
@@ -515,6 +518,9 @@ const translations = {
         error: "Ошибка",
         success: "Успешно",
         ok: "ОК",
+        warning: "Предупреждение",
+        continue: "Продолжить",
+        cancel: "Отмена",
         menu: "Меню",
         home: "Главная",
         sell: "Продажа",
@@ -541,10 +547,10 @@ const translations = {
         notificationsNotAvailable: 'Сервис уведомлений недоступен',
         telegramRequiredForNotifications: 'Откройте в Telegram для просмотра уведомлений',
         tryInTelegram: 'Попробуйте открыть в Telegram для полного функционала',
-        noNotifications: 'Пока нет уведомлений',
         userNotFound: "Информация о пользователе не найдена. Пожалуйста, обновите страницу и попробуйте снова."
     }
 };
+
 // Global variables
 let tonConnectUI = null;
 let currentLanguage = sessionStorage.getItem('appLanguage') || 'en';
@@ -555,6 +561,28 @@ let currentUser = null;
 let isTelegramEnv = false;
 let updateUserInterfaceRetryCount = 0;
 let isInitialized = false;
+
+// Notification system placeholder
+window.NotificationSystem = window.NotificationSystem || class {
+    constructor() {
+        console.log('NotificationSystem initialized');
+    }
+    toggle() {
+        console.log('Notification toggle called');
+    }
+    onUserChange() {
+        console.log('User changed in notification system');
+    }
+    updateLanguage() {
+        console.log('Language updated in notification system');
+    }
+    fetchNotifications() {
+        console.log('Fetching notifications');
+    }
+    cleanup() {
+        console.log('Notification system cleanup');
+    }
+};
 
 window.getUserIdentifier = function() {
     if (currentUser?.id) return currentUser.id.toString();
@@ -598,6 +626,20 @@ function detectTelegramEnvironment() {
     }
 }
 
+function showErrorToUser(message) {
+    // Only show user-facing errors, not initialization errors
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: translations[currentLanguage].error,
+            text: message,
+            icon: 'error',
+            confirmButtonText: translations[currentLanguage].ok
+        });
+    } else {
+        alert(message);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     if (isInitialized) return;
     isInitialized = true;
@@ -610,42 +652,49 @@ document.addEventListener('DOMContentLoaded', function() {
     if (skeleton) skeleton.style.display = 'block';
     if (content) content.style.display = 'none';
 
-    loadNotificationComponent().then(() => {
-        window.notificationSystem = new NotificationSystem();
-        return loadMenuBar();
-    })
-    .then(() => {
-        initTelegramApp();
-        initWalletConnection();
-        initLanguageToggle();
-        updateLanguage();
-        initBuyButtons();
-        
-        const notificationButton = document.getElementById('notificationButton');
-        if (notificationButton) {
-            notificationButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                window.notificationSystem?.toggle();
-            });
-        }
-        
-        window.currentUser = currentUser;
-        window.currentWalletAddress = currentWalletAddress;
-        window.isTelegramEnv = isTelegramEnv;
-        
-        showContent();
-    })
-    .catch(error => {
-        console.error('Initialization error:', error);
-        showContent();
-        showErrorMessage(translations[currentLanguage].initializationError);
-    });
+    loadNotificationComponent()
+        .then(() => {
+            window.notificationSystem = new NotificationSystem();
+            return loadMenuBar();
+        })
+        .then(() => {
+            initTelegramApp();
+            initWalletConnection();
+            initLanguageToggle();
+            updateLanguage();
+            initBuyButtons();
+            
+            const notificationButton = document.getElementById('notificationButton');
+            if (notificationButton) {
+                notificationButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (window.notificationSystem) {
+                        window.notificationSystem.toggle();
+                    }
+                });
+            }
+            
+            window.currentUser = currentUser;
+            window.currentWalletAddress = currentWalletAddress;
+            window.isTelegramEnv = isTelegramEnv;
+            
+            showContent();
+            console.log('Application initialized successfully');
+        })
+        .catch(error => {
+            console.error('Initialization error:', error);
+            showContent();
+            // Don't show initialization errors to user, only log them
+        });
 });
 
 function loadMenuBar() {
     return new Promise((resolve, reject) => {
         const menubarContainer = document.getElementById('menubar-container');
-        if (!menubarContainer) return reject(new Error('Menubar container not found'));
+        if (!menubarContainer) {
+            console.warn('Menubar container not found, continuing without menubar');
+            return resolve(); // Don't reject, just continue
+        }
 
         fetch('menubar.html')
             .then(response => {
@@ -659,7 +708,8 @@ function loadMenuBar() {
             })
             .catch(error => {
                 console.error('Menubar load error:', error);
-                reject(error);
+                // Don't reject, just continue without menubar
+                resolve();
             });
     });
 }
@@ -678,8 +728,9 @@ function loadNotificationComponent() {
                 resolve();
             })
             .catch(error => {
-                console.error('Notification load error:', error);
-                reject(error);
+                console.error('Notification component load error:', error);
+                // Don't reject, just continue without notification component
+                resolve();
             });
     });
 }
@@ -712,6 +763,8 @@ function initMenu() {
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', toggleMenu);
         });
+    } else {
+        console.warn('Menu elements not found, menu functionality disabled');
     }
 }
 
@@ -782,7 +835,15 @@ function initTelegramApp() {
         }
     } catch (error) {
         console.error('Telegram init error:', error);
-        showErrorMessage(translations[currentLanguage].telegramInitError);
+        // Create fallback user instead of showing error to user
+        currentUser = {
+            id: 'fallback_user_' + Math.random().toString(36).substr(2, 9),
+            first_name: 'User',
+            username: 'user' + Math.floor(Math.random() * 1000),
+            is_fallback: true
+        };
+        updateUserInterface(currentUser);
+        updateGlobalUserData();
     }
 }
 
@@ -806,7 +867,7 @@ function updateUserInterface(user) {
     const usernameElement = document.getElementById('username');
     
     if (!profilePic || !usernameElement) {
-        console.error('User interface elements not found');
+        console.warn('User interface elements not found');
         updateUserInterfaceRetryCount++;
         if (updateUserInterfaceRetryCount < 10) {
             setTimeout(() => updateUserInterface(user), 500);
@@ -854,7 +915,13 @@ function updateUserInterface(user) {
 function initWalletConnection() {
     try {
         if (typeof TON_CONNECT_UI === 'undefined') {
-            throw new Error('TON Connect UI not loaded');
+            console.error('TON Connect UI not loaded');
+            const connectWalletButton = document.getElementById('connectWallet');
+            if (connectWalletButton) {
+                connectWalletButton.textContent = translations[currentLanguage].error;
+                connectWalletButton.disabled = true;
+            }
+            return;
         }
 
         tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
@@ -864,7 +931,8 @@ function initWalletConnection() {
         
         const connectWalletButton = document.getElementById('connectWallet');
         if (!connectWalletButton) {
-            throw new Error('Connect wallet button not found');
+            console.error('Connect wallet button not found');
+            return;
         }
         
         tonConnectUI.onStatusChange(wallet => {
@@ -909,7 +977,7 @@ function initWalletConnection() {
                 }
             } catch (error) {
                 console.error('Wallet connection error:', error);
-                showErrorMessage(translations[currentLanguage].error);
+                showErrorToUser(translations[currentLanguage].error);
             }
         });
     } catch (error) {
@@ -925,7 +993,7 @@ function initWalletConnection() {
 function initLanguageToggle() {
     const languageToggle = document.getElementById('languageToggle');
     if (!languageToggle) {
-        console.error('Language toggle button not found');
+        console.warn('Language toggle button not found');
         return;
     }
     
@@ -982,7 +1050,7 @@ function initBuyButtons() {
                     handlePurchase(item);
                 } catch (error) {
                     console.error('Purchase parse error:', error);
-                    showErrorMessage(translations[currentLanguage].error);
+                    showErrorToUser(translations[currentLanguage].error);
                 }
             }
         });
@@ -991,46 +1059,56 @@ function initBuyButtons() {
 
 async function handlePurchase(item) {
     if (!tonConnectUI || !walletConnected) {
-        showErrorMessage(translations[currentLanguage].walletNotConnected);
+        showErrorToUser(translations[currentLanguage].walletNotConnected);
         return;
     }
     
     const user = currentUser;
     if (!user || !user.id) {
-        showErrorMessage(translations[currentLanguage].userNotFound);
+        showErrorToUser(translations[currentLanguage].userNotFound);
         return;
     }
     
     if (!isTelegramEnv) {
-        const confirmed = await Swal.fire({
-            title: translations[currentLanguage].warning || 'Warning',
-            text: translations[currentLanguage].tryInTelegram || 'You are using the web version. Some features may be limited compared to the Telegram app.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: translations[currentLanguage].continue || 'Continue',
-            cancelButtonText: translations[currentLanguage].cancel || 'Cancel'
-        });
-        
-        if (!confirmed.isConfirmed) return;
+        try {
+            const confirmed = await Swal.fire({
+                title: translations[currentLanguage].warning || 'Warning',
+                text: translations[currentLanguage].tryInTelegram || 'You are using the web version. Some features may be limited compared to the Telegram app.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: translations[currentLanguage].continue || 'Continue',
+                cancelButtonText: translations[currentLanguage].cancel || 'Cancel'
+            });
+            
+            if (!confirmed.isConfirmed) return;
+        } catch (error) {
+            console.error('SweetAlert2 error:', error);
+            // Continue without warning if SweetAlert2 fails
+        }
     }
     
     let loadingMessage;
     try {
         const parsedAmount = parseFloat(item.amount);
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
-            showErrorMessage(translations[currentLanguage].invalidAmount);
+            showErrorToUser(translations[currentLanguage].invalidAmount);
             return;
         }
 
-        loadingMessage = Swal.fire({
-            title: translations[currentLanguage].processing,
-            text: translations[currentLanguage].preparingTransaction,
-            allowOutsideClick: false,
-            showConfirmButton: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
+        try {
+            loadingMessage = Swal.fire({
+                title: translations[currentLanguage].processing,
+                text: translations[currentLanguage].preparingTransaction,
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+        } catch (error) {
+            console.error('SweetAlert2 loading error:', error);
+            // Continue without loading message if SweetAlert2 fails
+        }
 
         const tonToUsdtRate = await fetchCurrentRate();
         if (!tonToUsdtRate || tonToUsdtRate <= 0) {
@@ -1076,19 +1154,19 @@ async function handlePurchase(item) {
             const response = await axios.post('/api/orders/create', orderData);
             
             if (response.data && response.data.success) {
-                Swal.close();
+                if (loadingMessage) Swal.close();
                 showSuccessMessage(translations[currentLanguage].orderCreated);
                 
                 if (window.notificationSystem && typeof window.notificationSystem.fetchNotifications === 'function') {
                     setTimeout(() => window.notificationSystem.fetchNotifications(), 2000);
                 }
             } else {
-                Swal.close();
-                showErrorMessage(response.data?.error || translations[currentLanguage].orderFailed);
+                if (loadingMessage) Swal.close();
+                showErrorToUser(response.data?.error || translations[currentLanguage].orderFailed);
             }
         } else {
-            Swal.close();
-            showErrorMessage(translations[currentLanguage].transactionFailed);
+            if (loadingMessage) Swal.close();
+            showErrorToUser(translations[currentLanguage].transactionFailed);
         }
     } catch (error) {
         console.error('Payment error:', error);
@@ -1101,34 +1179,31 @@ async function handlePurchase(item) {
             errorMessage = error.message;
         }
         
-        showErrorMessage(errorMessage);
+        showErrorToUser(errorMessage);
     }
 }
 
 function showSuccessMessage(message) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: translations[currentLanguage].success,
-            text: message,
-            icon: 'success',
-            confirmButtonText: translations[currentLanguage].ok
-        });
-    } else {
+    try {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: translations[currentLanguage].success,
+                text: message,
+                icon: 'success',
+                confirmButtonText: translations[currentLanguage].ok
+            });
+        } else {
+            alert(message);
+        }
+    } catch (error) {
+        console.error('Success message error:', error);
         alert(message);
     }
 }
 
 function showErrorMessage(message) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: translations[currentLanguage].error,
-            text: typeof message === 'string' ? message : translations[currentLanguage].error,
-            icon: 'error',
-            confirmButtonText: translations[currentLanguage].ok
-        });
-    } else {
-        alert(typeof message === 'string' ? message : 'An error occurred');
-    }
+    // Deprecated function, use showErrorToUser instead
+    showErrorToUser(message);
 }
 
 async function fetchCurrentRate() {
@@ -1168,7 +1243,6 @@ window.addEventListener('beforeunload', () => {
         window.notificationSystem.cleanup();
     }
 });
-
     </script>
 </body>
 </html>
