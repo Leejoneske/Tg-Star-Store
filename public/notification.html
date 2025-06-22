@@ -232,7 +232,13 @@
 <script>
 class NotificationSystem {
   constructor() {
+    // Check if container exists
     this.container = document.getElementById('notificationContainer');
+    if (!this.container) {
+      console.error('Notification container not found');
+      return;
+    }
+
     this.listElement = document.getElementById('notificationList');
     this.emptyElement = document.getElementById('notificationEmpty');
     this.loadingElement = document.getElementById('notificationLoading');
@@ -241,15 +247,16 @@ class NotificationSystem {
     this.isOpen = false;
     this.isInitialized = false;
 
-    // Ensure container starts in correct state
+    // Set initial state
     this.container.classList.add('hidden');
     this.container.classList.remove('visible');
 
     this.initEventListeners();
+    console.log('Notification system initialized');
   }
 
   initEventListeners() {
-    // More robust button detection with fallback
+    // More reliable button detection
     const setupButtonListener = () => {
       const button = document.getElementById('notificationButton');
       if (button) {
@@ -264,35 +271,44 @@ class NotificationSystem {
       return false;
     };
 
-    // Try immediately, then fallback to interval if needed
+    // Try immediately, then fallback to interval
     if (!setupButtonListener()) {
-      const buttonCheckInterval = setInterval(() => {
+      const buttonCheck = setInterval(() => {
         if (setupButtonListener()) {
-          clearInterval(buttonCheckInterval);
+          clearInterval(buttonCheck);
         }
       }, 100);
     }
 
-    // Close button handler
-    document.getElementById('notificationClose').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.toggle(false);
-    });
+    // Close button
+    const closeButton = document.getElementById('notificationClose');
+    if (closeButton) {
+      closeButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.toggle(false);
+      });
+    }
 
-    // Mark all as read handler
-    document.getElementById('markAllRead').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.markAllAsRead();
-    });
+    // Mark all as read
+    const markAllButton = document.getElementById('markAllRead');
+    if (markAllButton) {
+      markAllButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.markAllAsRead();
+      });
+    }
 
-    // View all notifications handler
-    document.getElementById('viewAllNotifications').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      window.location.href = '/notifications';
-    });
+    // View all notifications
+    const viewAllButton = document.getElementById('viewAllNotifications');
+    if (viewAllButton) {
+      viewAllButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.href = '/notifications';
+      });
+    }
 
     // Click outside handler
     document.addEventListener('click', (e) => {
@@ -304,7 +320,7 @@ class NotificationSystem {
       }
     });
 
-    // Close when scrolling (optional)
+    // Close on scroll
     window.addEventListener('scroll', () => {
       if (this.isOpen) {
         this.toggle(false);
@@ -313,6 +329,7 @@ class NotificationSystem {
   }
 
   toggle(forceState) {
+    console.log('Toggling notifications. Current state:', this.isOpen);
     const shouldOpen = typeof forceState === 'boolean' ? forceState : !this.isOpen;
     
     if (shouldOpen === this.isOpen) return;
@@ -320,11 +337,9 @@ class NotificationSystem {
     this.isOpen = shouldOpen;
     
     if (shouldOpen) {
-      // Remove hidden first to ensure element is in DOM flow
       this.container.classList.remove('hidden');
       // Force reflow to enable transition
       void this.container.offsetWidth;
-      // Then add visible class to trigger animation
       this.container.classList.add('visible');
       
       if (!this.isInitialized) {
@@ -332,16 +347,12 @@ class NotificationSystem {
         this.isInitialized = true;
       }
     } else {
-      // Remove visible class to trigger fade-out
       this.container.classList.remove('visible');
-      // After animation completes, add hidden class
-      const onTransitionEnd = () => {
+      this.container.addEventListener('transitionend', () => {
         if (!this.isOpen) {
           this.container.classList.add('hidden');
         }
-        this.container.removeEventListener('transitionend', onTransitionEnd);
-      };
-      this.container.addEventListener('transitionend', onTransitionEnd);
+      }, { once: true });
     }
   }
 
@@ -349,17 +360,15 @@ class NotificationSystem {
     try {
       this.showLoading(true);
       
-      const userIdentifier = window.getUserIdentifier();
+      const userIdentifier = window.getUserIdentifier?.();
       if (!userIdentifier) {
         throw new Error('No user identifier available');
       }
 
-      console.log('Fetching notifications for user:', userIdentifier);
+      console.log('Fetching notifications for:', userIdentifier);
       const response = await axios.get('/api/notifications', {
         params: { userId: userIdentifier }
       });
-      
-      console.log('Notifications API response:', response.data);
       
       if (response.data) {
         this.notifications = response.data.notifications || [];
@@ -368,7 +377,7 @@ class NotificationSystem {
         this.updateBadge();
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('Notification fetch error:', error);
       this.notifications = [];
       this.unreadCount = 0;
       this.renderNotifications();
@@ -378,7 +387,7 @@ class NotificationSystem {
           <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
           </svg>
-          <p>${translations[currentLanguage].notificationsError || 'Failed to load notifications'}</p>
+          <p>${window.translations?.[window.currentLanguage]?.notificationsError || 'Failed to load notifications'}</p>
         `;
         this.emptyElement.style.display = 'flex';
       }
@@ -388,6 +397,8 @@ class NotificationSystem {
   }
 
   renderNotifications() {
+    if (!this.listElement) return;
+    
     this.listElement.innerHTML = '';
     
     if (this.notifications.length === 0) {
@@ -444,8 +455,11 @@ class NotificationSystem {
 
   async markAsRead(notificationId) {
     try {
+      const userIdentifier = window.getUserIdentifier?.();
+      if (!userIdentifier) return;
+
       await axios.post(`/api/notifications/${notificationId}/read`, {
-        userId: window.getUserIdentifier()
+        userId: userIdentifier
       });
       
       const notification = this.notifications.find(n => n.id === notificationId);
@@ -456,14 +470,17 @@ class NotificationSystem {
         this.renderNotifications();
       }
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error('Mark as read error:', error);
     }
   }
 
   async markAllAsRead() {
     try {
+      const userIdentifier = window.getUserIdentifier?.();
+      if (!userIdentifier) return;
+
       await axios.post('/api/notifications/mark-all-read', {
-        userId: window.getUserIdentifier()
+        userId: userIdentifier
       });
       
       this.notifications.forEach(notification => {
@@ -474,7 +491,7 @@ class NotificationSystem {
       this.updateBadge();
       this.renderNotifications();
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      console.error('Mark all as read error:', error);
     }
   }
 
@@ -491,6 +508,7 @@ class NotificationSystem {
   }
 
   showLoading(show) {
+    if (!this.loadingElement || !this.listElement) return;
     this.loadingElement.classList.toggle('hidden', !show);
     this.listElement.style.display = show ? 'none' : 'block';
   }
@@ -500,11 +518,13 @@ class NotificationSystem {
     const now = new Date();
     const diffInSeconds = Math.floor((now - date) / 1000);
     
-    if (diffInSeconds < 60) return translations[currentLanguage]?.justNow || 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${translations[currentLanguage]?.minutesAgo || 'minutes ago'}`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${translations[currentLanguage]?.hoursAgo || 'hours ago'}`;
+    const translations = window.translations?.[window.currentLanguage] || {};
     
-    return date.toLocaleDateString(currentLanguage, {
+    if (diffInSeconds < 60) return translations.justNow || 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${translations.minutesAgo || 'minutes ago'}`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${translations.hoursAgo || 'hours ago'}`;
+    
+    return date.toLocaleDateString(window.currentLanguage || 'en', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -513,7 +533,8 @@ class NotificationSystem {
   }
 
   escapeHtml(unsafe) {
-    return unsafe
+    if (!unsafe) return '';
+    return unsafe.toString()
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
@@ -522,11 +543,6 @@ class NotificationSystem {
   }
 }
 
-// Initialize notification system
-document.addEventListener('DOMContentLoaded', () => {
-  if (!window.notificationSystem) {
-    window.notificationSystem = new NotificationSystem();
-    console.log('Notification system initialized');
-  }
-});
+// Don't auto-initialize - let the main app handle initialization
+// window.notificationSystem = new NotificationSystem();
 </script>
