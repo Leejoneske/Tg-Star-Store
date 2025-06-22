@@ -245,17 +245,27 @@ const warningSchema = new mongoose.Schema({
 const notificationSchema = new mongoose.Schema({
     userId: {
         type: String,
-        default: 'all'
+        default: 'all',
+        index: true // Add index for better performance
     },
     title: {
         type: String,
+        required: true,
         default: 'Notification'
     },
-    message: String,
-    url: String,
+    message: {
+        type: String,
+        required: true
+    },
+    actionUrl: String, // Renamed from 'url' for clarity
+    icon: {
+        type: String,
+        default: 'bell' // Can be 'bell', 'warning', 'success', etc.
+    },
     timestamp: {
         type: Date,
-        default: Date.now
+        default: Date.now,
+        index: true // Index for sorting
     },
     isGlobal: {
         type: Boolean,
@@ -263,13 +273,23 @@ const notificationSchema = new mongoose.Schema({
     },
     read: {
         type: Boolean,
-        default: false
+        default: false,
+        index: true
     },
     createdBy: {
         type: String,
         default: 'system'
+    },
+    priority: {
+        type: Number,
+        default: 0, // 0 = normal, 1 = important, 2 = urgent
+        min: 0,
+        max: 2
     }
 });
+
+// Add compound index for better query performance
+notificationSchema.index({ userId: 1, read: 1, timestamp: -1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 const Warning = mongoose.model('Warning', warningSchema);
@@ -2018,12 +2038,13 @@ bot.onText(/\/broadcast/, async (msg) => {
     });
 });
 
-// Get notifications for a user
+
+// Enhanced notification fetching with pagination and unread count
 app.get('/api/notifications', async (req, res) => {
     try {
-        const { userId } = req.query;
+        const { userId, limit = 20, skip = 0 } = req.query;
         
-        // Base query for global notifications
+        // Base query for notifications visible to this user
         const query = {
             $or: [
                 { userId: 'all' },
@@ -2031,69 +2052,105 @@ app.get('/api/notifications', async (req, res) => {
             ]
         };
 
-        // Add user-specific notifications if userId is provided
+        // Add user-specific notifications if userId is provided and not anonymous
         if (userId && userId !== 'anonymous') {
             query.$or.push({ userId });
         }
 
+        // Get notifications with pagination
         const notifications = await Notification.find(query)
-            .sort({ timestamp: -1 })
-            .limit(50)
+            .sort({ priority: -1, timestamp: -1 }) // Sort by priority then time
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
             .lean();
+
+        // Get unread count for this user
+        const unreadCount = await Notification.countDocuments({
+            ...query,
+            read: false
+        });
 
         // Format for frontend
         const formattedNotifications = notifications.map(notification => ({
             id: notification._id.toString(),
             title: notification.title,
             message: notification.message,
-            url: notification.url,
-            timestamp: notification.timestamp,
+            actionUrl: notification.actionUrl,
+            icon: notification.icon,
+            createdAt: notification.timestamp,
             read: notification.read,
-            isPersonal: !notification.isGlobal && notification.userId !== 'all'
+            isGlobal: notification.isGlobal,
+            priority: notification.priority
         }));
 
-        res.json(formattedNotifications);
+        res.json({
+            notifications: formattedNotifications,
+            unreadCount,
+            totalCount: await Notification.countDocuments(query)
+        });
     } catch (error) {
         console.error('Error fetching notifications:', error);
         res.status(500).json({ error: "Failed to fetch notifications" });
     }
 });
 
-// Create a new notification (for admin use)
+// Create notification with enhanced validation
 app.post('/api/notifications', async (req, res) => {
     try {
-        const { userId, title, message, url, isGlobal } = req.body;
+        const { userId, title, message, actionUrl, isGlobal, priority = 0 } = req.body;
         
-        // Basic validation
-        if (!message) {
-            return res.status(400).json({ error: "Message is required" });
+        // Enhanced validation
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ error: "Valid message is required" });
         }
 
-        // Admin check (you should implement your actual admin verification)
+        // Admin check (implement your actual admin verification)
         if (!req.user || !req.user.isAdmin) {
-            return res.status(403).json({ error: "Only admins can create notifications" });
+            return res.status(403).json({ error: "Unauthorized: Admin access required" });
         }
 
         const newNotification = await Notification.create({
             userId: isGlobal ? 'all' : userId,
             title: title || 'Notification',
-            message,
-            url,
-            isGlobal: !!isGlobal
+            message: message.trim(),
+            actionUrl,
+            isGlobal: !!isGlobal,
+            priority: Math.min(2, Math.max(0, parseInt(priority) || 0)
         });
 
-        res.status(201).json(newNotification);
+        // Real-time notification would go here (WebSocket, push, etc.)
+        // notifyClients(newNotification);
+
+        res.status(201).json({
+            id: newNotification._id,
+            success: true,
+            message: "Notification created successfully"
+        });
     } catch (error) {
         console.error('Error creating notification:', error);
         res.status(500).json({ error: "Failed to create notification" });
     }
 });
 
-// Mark notification as read
+// Enhanced mark as read endpoint
 app.post('/api/notifications/:id/read', async (req, res) => {
     try {
         const { id } = req.params;
+        const { userId } = req.body; // Needed to verify ownership
         
+        const notification = await Notification.findById(id);
+        
+        if (!notification) {
+            return res.status(404).json({ error: "Notification not found" });
+        }
+
+        // Verify user can mark this notification as read
+        if (notification.userId !== 'all' && 
+            !notification.isGlobal && 
+            notification.userId !== userId) {
+            return res.status(403).json({ error: "Unauthorized to modify this notification" });
+        }
+
         await Notification.findByIdAndUpdate(id, { read: true });
         
         res.json({ success: true });
@@ -2103,7 +2160,7 @@ app.post('/api/notifications/:id/read', async (req, res) => {
     }
 });
 
-// Mark all notifications as read for a user
+// Optimized mark all as read
 app.post('/api/notifications/mark-all-read', async (req, res) => {
     try {
         const { userId } = req.body;
@@ -2125,23 +2182,39 @@ app.post('/api/notifications/mark-all-read', async (req, res) => {
             query.$or.push({ userId });
         }
 
-        await Notification.updateMany(
+        const result = await Notification.updateMany(
             query,
             { $set: { read: true } }
         );
         
-        res.json({ success: true });
+        res.json({
+            success: true,
+            markedCount: result.modifiedCount
+        });
     } catch (error) {
         console.error('Error marking all notifications as read:', error);
         res.status(500).json({ error: "Failed to mark all notifications as read" });
     }
 });
 
-// Dismiss/delete a notification
+// Enhanced notification deletion with ownership check
 app.delete('/api/notifications/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        const { userId } = req.body; // For ownership verification
         
+        const notification = await Notification.findById(id);
+        
+        if (!notification) {
+            return res.status(404).json({ error: "Notification not found" });
+        }
+
+        // Only allow deletion by admins or the recipient (for personal notifications)
+        if (!req.user?.isAdmin && 
+            (notification.isGlobal || notification.userId === 'all')) {
+            return res.status(403).json({ error: "Unauthorized to delete this notification" });
+        }
+
         await Notification.findByIdAndDelete(id);
         
         res.json({ success: true });
@@ -2151,7 +2224,7 @@ app.delete('/api/notifications/:id', async (req, res) => {
     }
 });
 
-// Telegram bot command handler (updated with individual user support)
+// Enhanced Telegram bot command handler with more options
 bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) {
@@ -2162,45 +2235,49 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
     const timestamp = new Date();
 
     try {
+        let notification;
+        let responseMessage;
+
         if (target === 'all') {
-            await Notification.create({
-                title: 'Global Notification',
+            notification = await Notification.create({
+                title: 'Global Announcement',
                 message: notificationMessage,
-                isGlobal: true
+                isGlobal: true,
+                priority: 1 // Higher priority for admin announcements
             });
-            await bot.sendMessage(chatId, 
-                `🌍 Global notification sent at ${timestamp.toLocaleTimeString()}:\n\n${notificationMessage}`
-            );
+            responseMessage = `🌍 Global notification sent at ${timestamp.toLocaleTimeString()}`;
         } 
         else if (target && (target.startsWith('@') || !isNaN(target))) {
-            // Handle both @username and numeric user IDs
             const userId = target.startsWith('@') ? target.substring(1) : target;
-            await Notification.create({
-                title: 'Personal Notification',
+            notification = await Notification.create({
+                title: 'Personal Message',
                 userId: userId,
                 message: notificationMessage,
-                isGlobal: false
+                isGlobal: false,
+                priority: 2 // Highest priority for personal admin messages
             });
-            await bot.sendMessage(chatId,
-                `👤 Notification sent to ${target} at ${timestamp.toLocaleTimeString()}:\n\n${notificationMessage}`
-            );
+            responseMessage = `👤 Notification sent to ${target}`;
         } 
         else {
-            await Notification.create({
-                title: 'Notification',
+            notification = await Notification.create({
+                title: 'System Notification',
                 message: notificationMessage,
                 isGlobal: true
             });
-            await bot.sendMessage(chatId,
-                `✅ Notification sent at ${timestamp.toLocaleTimeString()}:\n\n${notificationMessage}`
-            );
+            responseMessage = `✅ Notification sent`;
         }
+
+        // Format the response with timestamp and preview
+        await bot.sendMessage(chatId,
+            `${responseMessage} at ${timestamp.toLocaleTimeString()}:\n\n` +
+            `${notificationMessage.substring(0, 100)}${notificationMessage.length > 100 ? '...' : ''}`
+        );
+
     } catch (err) {
         console.error('Notification error:', err);
-        bot.sendMessage(chatId, '❌ Failed to send notification.');
+        bot.sendMessage(chatId, '❌ Failed to send notification: ' + err.message);
     }
 });
-
 // Get transaction history and should NOT TOUCH THIS CODE
 app.get('/api/transactions/:userId', async (req, res) => {
     try {
