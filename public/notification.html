@@ -27,7 +27,7 @@
   </div>
 </div>
 
-<style>
+  <style>
   .notification-container {
     position: fixed;
     top: 60px;
@@ -43,67 +43,194 @@
     font-family: 'Inter', sans-serif;
     overflow: hidden;
     border: 1px solid rgba(0, 0, 0, 0.1);
-}
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+  }
 
-.notification-header {
+  .notification-container.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .notification-header {
     padding: 12px 16px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: #f8fafc;
-}
+  }
 
-.notification-actions button {
+  .notification-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .notification-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .notification-actions button {
     background: none;
     border: none;
     cursor: pointer;
-    color: #4f46e5;
     font-size: 13px;
+    color: #4f46e5;
     padding: 4px 8px;
     border-radius: 4px;
-}
+    transition: background-color 0.2s;
+  }
 
-.notification-loading {
+  .notification-actions button:hover {
+    background-color: rgba(79, 70, 229, 0.1);
+  }
+
+  #notificationClose {
+    font-size: 18px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+  }
+
+  .notification-loading {
     padding: 24px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 12px;
     color: #6b7280;
-}
+  }
 
-.notification-list {
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-top-color: #4f46e5;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .notification-list {
     flex: 1;
     overflow-y: auto;
     max-height: calc(70vh - 120px);
-}
+    scrollbar-width: thin;
+    scrollbar-color: #e5e7eb #f9fafb;
+  }
 
-.notification-item {
+  .notification-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .notification-list::-webkit-scrollbar-track {
+    background: #f9fafb;
+  }
+
+  .notification-list::-webkit-scrollbar-thumb {
+    background-color: #e5e7eb;
+    border-radius: 3px;
+  }
+
+  .notification-item {
     padding: 12px 16px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     cursor: pointer;
-}
+    transition: all 0.2s ease;
+    position: relative;
+  }
 
-.notification-item.unread {
+  .notification-item:hover {
+    background-color: #f9fafb;
+  }
+
+  .notification-item.unread {
     background-color: #f3f4ff;
     border-left: 3px solid #4f46e5;
-}
+  }
 
-.notification-empty {
+  .notification-item.unread .notification-title {
+    font-weight: 600;
+  }
+
+  .notification-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: #1f2937;
+    font-size: 14px;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .notification-message {
+    font-size: 13px;
+    color: #4b5563;
+    line-height: 1.4;
+    margin-bottom: 4px;
+  }
+
+  .notification-time {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 4px;
+  }
+
+  .notification-empty {
     padding: 32px 16px;
     text-align: center;
     color: #6b7280;
-}
+  }
 
-.notification-footer {
+  .empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+    stroke-width: 1.5;
+    color: #4f46e5;
+    opacity: 0.6;
+  }
+
+  .notification-footer {
     padding: 12px;
     border-top: 1px solid rgba(0, 0, 0, 0.05);
-    text-align: center;
-}
-  </style>
+    display: flex;
+    justify-content: center;
+  }
+
+  #viewAllNotifications {
+    background: none;
+    border: none;
+    color: #4f46e5;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 12px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  #viewAllNotifications:hover {
+    background-color: rgba(79, 70, 229, 0.1);
+  }
+
+</style>
 <script>
-  class NotificationSystem {
+class NotificationSystem {
   constructor() {
     this.container = document.getElementById('notificationContainer');
     this.listElement = document.getElementById('notificationList');
@@ -112,50 +239,107 @@
     this.notifications = [];
     this.unreadCount = 0;
     this.isOpen = false;
+    this.isInitialized = false;
+
+    // Initialize with container hidden
+    this.container.classList.remove('visible');
+    this.container.classList.add('hidden');
 
     this.initEventListeners();
-    this.fetchNotifications();
   }
 
   initEventListeners() {
-    // Toggle notification dropdown
+    // Notification button click handler
     document.getElementById('notificationButton').addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       this.toggle();
     });
 
-    // Close button
-    document.getElementById('notificationClose').addEventListener('click', () => {
+    // Close button handler
+    document.getElementById('notificationClose').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       this.toggle(false);
     });
 
-    // Mark all as read
-    document.getElementById('markAllRead').addEventListener('click', () => {
+    // Mark all as read handler
+    document.getElementById('markAllRead').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       this.markAllAsRead();
     });
 
-    // View all notifications
-    document.getElementById('viewAllNotifications').addEventListener('click', () => {
+    // View all notifications handler
+    document.getElementById('viewAllNotifications').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       window.location.href = '/notifications';
     });
 
-    // Close when clicking outside
+    // Click outside handler
     document.addEventListener('click', (e) => {
-      if (this.isOpen && !this.container.contains(e.target) && 
-          e.target.id !== 'notificationButton') {
+      const notificationButton = document.getElementById('notificationButton');
+      if (this.isOpen && 
+          !this.container.contains(e.target) && 
+          !notificationButton.contains(e.target)) {
         this.toggle(false);
       }
     });
+
+    // Close when scrolling (optional)
+    window.addEventListener('scroll', () => {
+      if (this.isOpen) {
+        this.toggle(false);
+      }
+    }, { passive: true });
+  }
+
+  async toggle(forceState) {
+    // Determine new state
+    const shouldOpen = typeof forceState === 'boolean' ? forceState : !this.isOpen;
+    
+    // If state isn't changing, do nothing
+    if (shouldOpen === this.isOpen) return;
+    
+    // Update state
+    this.isOpen = shouldOpen;
+    
+    // Toggle visibility with animation
+    if (shouldOpen) {
+      this.container.classList.remove('hidden');
+      // Force reflow to enable transition
+      void this.container.offsetWidth;
+      this.container.classList.add('visible');
+      
+      // Only fetch notifications if not already initialized
+      if (!this.isInitialized) {
+        await this.fetchNotifications();
+        this.isInitialized = true;
+      }
+    } else {
+      this.container.classList.remove('visible');
+      // Wait for animation to complete before hiding
+      this.container.addEventListener('transitionend', () => {
+        if (!this.isOpen) {
+          this.container.classList.add('hidden');
+        }
+      }, { once: true });
+    }
   }
 
   async fetchNotifications() {
     try {
       this.showLoading(true);
       
-      // Replace with your actual API endpoint
+      const userIdentifier = window.getUserIdentifier();
+      if (!userIdentifier) {
+        throw new Error('No user identifier available');
+      }
+
       const response = await axios.get('/api/notifications', {
         params: {
-          userId: window.getUserIdentifier()
+          userId: userIdentifier
         }
       });
       
@@ -170,6 +354,17 @@
       this.notifications = [];
       this.unreadCount = 0;
       this.renderNotifications();
+      
+      // Show error state if needed
+      if (this.isOpen) {
+        this.emptyElement.innerHTML = `
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <p>${translations[currentLanguage].notificationsError || 'Failed to load notifications'}</p>
+        `;
+        this.emptyElement.style.display = 'flex';
+      }
     } finally {
       this.showLoading(false);
     }
@@ -186,17 +381,33 @@
     
     this.emptyElement.style.display = 'none';
     
-    this.notifications.forEach(notification => {
+    // Sort by timestamp (newest first)
+    const sortedNotifications = [...this.notifications].sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    
+    sortedNotifications.forEach(notification => {
       const notificationElement = document.createElement('div');
       notificationElement.className = `notification-item ${notification.read ? '' : 'unread'}`;
       
+      // Get appropriate icon based on notification type
+      let icon = '🔔'; // default
+      if (notification.icon === 'warning') icon = '⚠️';
+      if (notification.icon === 'success') icon = '✅';
+      if (notification.icon === 'error') icon = '❌';
+      
       notificationElement.innerHTML = `
-        <div class="notification-title">${notification.title}</div>
-        <div class="notification-message">${notification.message}</div>
+        <div class="notification-title">
+          <span class="notification-icon">${icon}</span>
+          ${this.escapeHtml(notification.title)}
+        </div>
+        <div class="notification-message">${this.escapeHtml(notification.message)}</div>
         <div class="notification-time">${this.formatTime(notification.createdAt)}</div>
       `;
       
-      notificationElement.addEventListener('click', () => {
+      notificationElement.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         this.handleNotificationClick(notification);
       });
       
@@ -205,14 +416,17 @@
   }
 
   async handleNotificationClick(notification) {
+    // Mark as read if unread
     if (!notification.read) {
       await this.markAsRead(notification.id);
     }
     
+    // Handle notification action
     if (notification.actionUrl) {
       window.open(notification.actionUrl, '_blank');
     }
     
+    // Close the notification dropdown
     this.toggle(false);
   }
 
@@ -222,6 +436,7 @@
         userId: window.getUserIdentifier()
       });
       
+      // Update local state
       const notification = this.notifications.find(n => n.id === notificationId);
       if (notification && !notification.read) {
         notification.read = true;
@@ -240,6 +455,7 @@
         userId: window.getUserIdentifier()
       });
       
+      // Update all notifications to read
       this.notifications.forEach(notification => {
         notification.read = true;
       });
@@ -269,25 +485,38 @@
     this.listElement.style.display = show ? 'none' : 'block';
   }
 
-  toggle(forceState) {
-    this.isOpen = typeof forceState === 'boolean' ? forceState : !this.isOpen;
-    
-    if (this.isOpen) {
-      this.container.classList.remove('hidden');
-      this.fetchNotifications();
-    } else {
-      this.container.classList.add('hidden');
-    }
-  }
-
   formatTime(dateString) {
     const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) return translations[currentLanguage]?.justNow || 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${translations[currentLanguage]?.minutesAgo || 'minutes ago'}`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${translations[currentLanguage]?.hoursAgo || 'hours ago'}`;
+    
+    // More than 1 day ago
+    return date.toLocaleDateString(currentLanguage, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  escapeHtml(unsafe) {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 }
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-  window.notificationSystem = new NotificationSystem();
+  if (!window.notificationSystem) {
+    window.notificationSystem = new NotificationSystem();
+  }
 });
 </script>
