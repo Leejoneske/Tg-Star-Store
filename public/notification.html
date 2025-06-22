@@ -306,38 +306,41 @@ class NotificationSystem {
     }, { passive: true });
   }
 
-  async toggle(forceState) {
-    // Determine new state
-    const shouldOpen = typeof forceState === 'boolean' ? forceState : !this.isOpen;
+ toggle(forceState) {
+  // Determine new state
+  const shouldOpen = typeof forceState === 'boolean' ? forceState : !this.isOpen;
+  
+  // If state isn't changing, do nothing
+  if (shouldOpen === this.isOpen) return;
+  
+  // Update state
+  this.isOpen = shouldOpen;
+  
+  // Toggle visibility with animation
+  if (shouldOpen) {
+    // Remove hidden class first
+    this.container.classList.remove('hidden');
+    // Force reflow to enable transition
+    void this.container.offsetWidth;
+    // Add visible class
+    this.container.classList.add('visible');
     
-    // If state isn't changing, do nothing
-    if (shouldOpen === this.isOpen) return;
-    
-    // Update state
-    this.isOpen = shouldOpen;
-    
-    // Toggle visibility with animation
-    if (shouldOpen) {
-      this.container.classList.remove('hidden');
-      // Force reflow to enable transition
-      void this.container.offsetWidth;
-      this.container.classList.add('visible');
-      
-      // Only fetch notifications if not already initialized
-      if (!this.isInitialized) {
-        await this.fetchNotifications();
-        this.isInitialized = true;
-      }
-    } else {
-      this.container.classList.remove('visible');
-      // Wait for animation to complete before hiding
-      this.container.addEventListener('transitionend', () => {
-        if (!this.isOpen) {
-          this.container.classList.add('hidden');
-        }
-      }, { once: true });
+    // Only fetch notifications if not already initialized
+    if (!this.isInitialized) {
+      this.fetchNotifications();
+      this.isInitialized = true;
     }
+  } else {
+    // Remove visible class
+    this.container.classList.remove('visible');
+    // Wait for animation to complete before adding hidden class
+    this.container.addEventListener('transitionend', () => {
+      if (!this.isOpen) { // Check current state in case it changed
+        this.container.classList.add('hidden');
+      }
+    }, { once: true });
   }
+}
 
   async fetchNotifications() {
     try {
