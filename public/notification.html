@@ -28,385 +28,496 @@
 </div>
 
 <style>
-  .notification-container {
-    position: fixed;
-    top: 60px;
-    right: 20px;
-    width: 360px;
-    max-height: 70vh;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    font-family: 'Inter', sans-serif;
-    overflow: hidden;
-  }
-  
-  .notification-container.hidden {
-    display: none;
-  }
-  
-  .notification-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .notification-header h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-  }
-  
-  .notification-actions {
-    display: flex;
-    gap: 8px;
-  }
-  
-  .notification-loading {
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  .loading-spinner {
-    width: 24px;
-    height: 24px;
-    border: 3px solid rgba(0, 0, 0, 0.1);
-    border-top-color: #4f46e5;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-  
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  
-  .notification-list {
-    flex: 1;
-    overflow-y: auto;
-  }
-  
-  .notification-item {
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-  
-  .notification-item:hover {
-    background-color: #f9fafb;
-  }
-  
-  .notification-item.unread {
-    background-color: #f3f4ff;
-    position: relative;
-  }
-  
-  .notification-item.unread::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background-color: #4f46e5;
-  }
-  
-  .notification-title {
-    font-weight: 500;
-    margin-bottom: 4px;
-  }
-  
-  .notification-message {
-    font-size: 14px;
-    color: #4b5563;
-  }
-  
-  .notification-time {
-    font-size: 12px;
-    color: #9ca3af;
-    margin-top: 4px;
-  }
-  
-  .notification-empty {
-    padding: 32px 16px;
-    text-align: center;
-    color: #6b7280;
-  }
-  
-  .empty-icon {
-    width: 48px;
-    height: 48px;
-    margin-bottom: 12px;
-    stroke-width: 1.5;
-    color: #4f46e5;
-    opacity: 0.6;
-  }
-  
-  .notification-footer {
-    padding: 12px;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-    text-align: center;
-  }
-  
-  #notificationClose {
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    padding: 4px;
-  }
-  
-  #markAllRead, #viewAllNotifications {
-    background: none;
-    border: none;
-    color: #4f46e5;
-    font-weight: 500;
-    cursor: pointer;
-    padding: 6px 12px;
-    border-radius: 6px;
-  }
-  
-  #markAllRead:hover, #viewAllNotifications:hover {
-    background-color: #f3f4ff;
-  }
-</style>
+.notification-container {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  width: 360px;
+  max-height: 70vh;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
 
+@media (max-width: 480px) {
+  .notification-container {
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-height: 60vh;
+  }
+}
+
+.notification-container.hidden {
+  display: none;
+}
+
+.notification-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+}
+
+.notification-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.notification-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.notification-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: #4f46e5;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.notification-actions button:hover {
+  background-color: rgba(79, 70, 229, 0.1);
+}
+
+#notificationClose {
+  font-size: 18px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+}
+
+.notification-loading {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.notification-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: calc(70vh - 120px);
+  scrollbar-width: thin;
+  scrollbar-color: #e5e7eb #f9fafb;
+}
+
+.notification-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notification-list::-webkit-scrollbar-track {
+  background: #f9fafb;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+  background-color: #e5e7eb;
+  border-radius: 3px;
+}
+
+.notification-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.notification-item:hover {
+  background-color: #f9fafb;
+}
+
+.notification-item.unread {
+  background-color: #f3f4ff;
+  border-left: 3px solid #4f46e5;
+}
+
+.notification-item.unread .notification-title {
+  font-weight: 600;
+}
+
+.notification-title {
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-message {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.notification-time {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+.notification-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  stroke-width: 1.5;
+  color: #4f46e5;
+  opacity: 0.6;
+}
+
+.notification-footer {
+  padding: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: center;
+}
+
+#viewAllNotifications {
+  background: none;
+  border: none;
+  color: #4f46e5;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+#viewAllNotifications:hover {
+  background-color: rgba(79, 70, 229, 0.1);
+}
+
+/* Notification badge styles */
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+</style>
 <script>
-class NotificationSystem {
+  class NotificationSystem {
   constructor() {
-    this.apiBaseUrl = window.location.origin.includes('starstore.site') 
-      ? 'https://tg-star-store-production.up.railway.app'
-      : window.location.origin;
-      
     this.container = document.getElementById('notificationContainer');
     this.listElement = document.getElementById('notificationList');
-    this.emptyState = document.getElementById('notificationEmpty');
-    this.loadingState = document.getElementById('notificationLoading');
-    this.badgeElement = document.getElementById('notificationBadge');
-    
+    this.emptyElement = document.getElementById('notificationEmpty');
+    this.loadingElement = document.getElementById('notificationLoading');
     this.notifications = [];
+    this.unreadCount = 0;
+    this.isOpen = false;
     this.pollingInterval = null;
-    
-    this.init();
+    this.pollingFrequency = 30000; // 30 seconds
+    this.currentLanguage = sessionStorage.getItem('appLanguage') || 'en';
+
+    this.initElements();
+    this.initEventListeners();
+    this.onUserChange();
   }
-  
-  init() {
-    // Setup event listeners
-    document.getElementById('notificationClose')?.addEventListener('click', () => this.hide());
-    document.getElementById('markAllRead')?.addEventListener('click', () => this.markAllAsRead());
-    document.getElementById('viewAllNotifications')?.addEventListener('click', () => this.viewAll());
+
+  initElements() {
+    // Create notification button if it doesn't exist
+    if (!document.getElementById('notificationButton')) {
+      const button = document.createElement('button');
+      button.id = 'notificationButton';
+      button.innerHTML = `
+        <span class="icon">🔔</span>
+        <span class="notification-badge hidden" id="notificationBadge"></span>
+      `;
+      button.style.position = 'relative';
+      button.style.border = 'none';
+      button.style.background = 'none';
+      button.style.cursor = 'pointer';
+      button.style.fontSize = '20px';
+      document.body.appendChild(button);
+      
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggle();
+      });
+    }
+  }
+
+  initEventListeners() {
+    // Close button
+    document.getElementById('notificationClose').addEventListener('click', () => this.toggle(false));
     
-    // Start polling
-    this.fetchNotifications();
-    this.pollingInterval = setInterval(() => this.fetchNotifications(), 30000);
+    // Mark all as read
+    document.getElementById('markAllRead').addEventListener('click', () => this.markAllAsRead());
     
-    // Handle clicks outside
+    // View all notifications
+    document.getElementById('viewAllNotifications').addEventListener('click', () => {
+      window.location.href = '/notifications';
+    });
+    
+    // Click outside to close
     document.addEventListener('click', (e) => {
-      if (!this.container.contains(e.target) && 
-          !document.getElementById('notificationButton')?.contains(e.target)) {
-        this.hide();
+      if (this.isOpen && !this.container.contains(e.target) {
+        const notificationButton = document.getElementById('notificationButton');
+        if (!notificationButton || !notificationButton.contains(e.target)) {
+          this.toggle(false);
+        }
       }
     });
   }
 
   async fetchNotifications() {
+    const userIdentifier = window.getUserIdentifier();
+    if (!userIdentifier) return;
+
     try {
-      this.showLoading();
+      this.showLoading(true);
       
-      const params = new URLSearchParams();
-      if (window.currentUser?.id) {
-        params.append('userId', window.currentUser.id);
-      } else if (window.currentWalletAddress) {
-        params.append('userId', window.currentWalletAddress);
-      } else {
-        params.append('userId', 'anonymous');
-      }
-      
-      const response = await fetch(`${this.apiBaseUrl}/api/notifications?${params.toString()}`, {
-        headers: { 'Accept': 'application/json' }
+      const response = await axios.get('/api/notifications', {
+        params: { userId: userIdentifier }
       });
       
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
-      const notifications = await response.json();
-      
-      this.notifications = Array.isArray(notifications) 
-        ? notifications.map(n => ({
-            id: n.id,
-            title: n.title || 'Notification',
-            message: n.message || '',
-            timestamp: n.timestamp,
-            read: n.read || false,
-            url: n.url
-          }))
-        : [];
-      
-      this.renderNotifications();
-      this.updateBadge();
-      
+      if (response.data) {
+        this.notifications = response.data.notifications || [];
+        this.unreadCount = response.data.unreadCount || 0;
+        this.renderNotifications();
+        this.updateBadge();
+      }
     } catch (error) {
-      console.error('Fetch error:', error);
-      this.showEmptyState(translations[currentLanguage].notificationsError || 'Failed to load');
+      console.error('Error fetching notifications:', error);
+      this.notifications = [];
+      this.unreadCount = 0;
+      this.renderNotifications();
     } finally {
-      this.hideLoading();
+      this.showLoading(false);
     }
   }
-  
+
   renderNotifications() {
-    if (!this.listElement) return;
-    
     this.listElement.innerHTML = '';
     
     if (this.notifications.length === 0) {
-      this.showEmptyState();
+      this.emptyElement.style.display = 'flex';
+      this.listElement.appendChild(this.emptyElement);
       return;
     }
     
-    this.emptyState.classList.add('hidden');
+    this.emptyElement.style.display = 'none';
     
-    this.notifications.forEach(notification => {
-      const item = document.createElement('div');
-      item.className = `notification-item ${notification.read ? '' : 'unread'}`;
-      item.dataset.id = notification.id;
+    // Sort by priority then timestamp (newest first)
+    const sortedNotifications = [...this.notifications].sort((a, b) => {
+      if (a.priority !== b.priority) return b.priority - a.priority;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    
+    sortedNotifications.forEach(notification => {
+      const notificationElement = document.createElement('div');
+      notificationElement.className = `notification-item ${notification.read ? '' : 'unread'}`;
       
-      const timeString = notification.timestamp 
-        ? new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : '';
+      // Get appropriate icon
+      let icon = '🔔';
+      if (notification.icon === 'warning') icon = '⚠️';
+      if (notification.icon === 'success') icon = '✅';
+      if (notification.icon === 'error') icon = '❌';
       
-      item.innerHTML = `
-        <div class="notification-title">${this.escapeHtml(notification.title)}</div>
+      notificationElement.innerHTML = `
+        <div class="notification-title">
+          <span class="notification-icon">${icon}</span>
+          ${this.escapeHtml(notification.title)}
+        </div>
         <div class="notification-message">${this.escapeHtml(notification.message)}</div>
-        <div class="notification-time">${timeString}</div>
+        <div class="notification-time">${this.formatTime(notification.createdAt)}</div>
       `;
       
-      item.addEventListener('click', () => this.handleNotificationClick(notification));
-      this.listElement.appendChild(item);
+      notificationElement.addEventListener('click', () => {
+        this.handleNotificationClick(notification);
+      });
+      
+      this.listElement.appendChild(notificationElement);
     });
   }
-  
+
   async handleNotificationClick(notification) {
+    // Mark as read if unread
     if (!notification.read) {
       await this.markAsRead(notification.id);
-      notification.read = true;
-      this.renderNotifications();
-      this.updateBadge();
     }
     
-    if (notification.url) {
-      window.open(notification.url, '_blank');
+    // Handle notification action
+    if (notification.actionUrl) {
+      window.open(notification.actionUrl, '_blank');
     }
+    
+    this.toggle(false);
   }
-  
+
   async markAsRead(notificationId) {
     try {
-      await fetch(`${this.apiBaseUrl}/api/notifications/${notificationId}/read`, {
-        method: 'POST'
+      await axios.post(`/api/notifications/${notificationId}/read`, {
+        userId: window.getUserIdentifier()
       });
+      
+      // Update local state
+      const notification = this.notifications.find(n => n.id === notificationId);
+      if (notification && !notification.read) {
+        notification.read = true;
+        this.unreadCount--;
+        this.updateBadge();
+        this.renderNotifications();
+      }
     } catch (error) {
-      console.error('Mark as read error:', error);
+      console.error('Error marking notification as read:', error);
     }
   }
-  
+
   async markAllAsRead() {
     try {
-      const body = {};
-      if (window.currentUser?.id) body.userId = window.currentUser.id;
-      else if (window.currentWalletAddress) body.userId = window.currentWalletAddress;
-      
-      await fetch(`${this.apiBaseUrl}/api/notifications/mark-all-read`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+      const response = await axios.post('/api/notifications/mark-all-read', {
+        userId: window.getUserIdentifier()
       });
       
-      this.notifications.forEach(n => n.read = true);
-      this.renderNotifications();
-      this.updateBadge();
+      if (response.data.success) {
+        // Update all notifications to read
+        this.notifications.forEach(notification => {
+          notification.read = true;
+        });
+        
+        this.unreadCount = 0;
+        this.updateBadge();
+        this.renderNotifications();
+      }
     } catch (error) {
-      console.error('Mark all as read error:', error);
+      console.error('Error marking all notifications as read:', error);
     }
   }
-  
+
   updateBadge() {
-    if (!this.badgeElement) return;
-    const unreadCount = this.notifications.filter(n => !n.read).length;
+    const badge = document.getElementById('notificationBadge');
+    if (!badge) return;
     
-    if (unreadCount > 0) {
-      this.badgeElement.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
-      this.badgeElement.classList.remove('hidden');
+    if (this.unreadCount > 0) {
+      badge.textContent = this.unreadCount > 9 ? '9+' : this.unreadCount.toString();
+      badge.classList.remove('hidden');
     } else {
-      this.badgeElement.classList.add('hidden');
+      badge.classList.add('hidden');
     }
   }
-  
-  showLoading() {
-    this.loadingState?.classList.remove('hidden');
-    this.listElement?.classList.add('hidden');
-    this.emptyState?.classList.add('hidden');
+
+  showLoading(show) {
+    this.loadingElement.classList.toggle('hidden', !show);
+    this.listElement.style.display = show ? 'none' : 'block';
   }
-  
-  hideLoading() {
-    this.loadingState?.classList.add('hidden');
-    this.listElement?.classList.remove('hidden');
-  }
-  
-  showEmptyState(message) {
-    if (this.emptyState) {
-      const msgElement = this.emptyState.querySelector('p');
-      if (msgElement) msgElement.textContent = message;
-      this.emptyState.classList.remove('hidden');
-      this.listElement.classList.add('hidden');
+
+  toggle(forceState) {
+    this.isOpen = typeof forceState === 'boolean' ? forceState : !this.isOpen;
+    
+    if (this.isOpen) {
+      this.container.classList.remove('hidden');
+      this.fetchNotifications();
+    } else {
+      this.container.classList.add('hidden');
     }
   }
-  
-  show() {
-    this.container?.classList.remove('hidden');
-    this.fetchNotifications();
-  }
-  
-  hide() {
-    this.container?.classList.add('hidden');
-  }
-  
-  toggle() {
-    this.container?.classList.contains('hidden') ? this.show() : this.hide();
-  }
-  
-  viewAll() {
-    window.location.href = '/notifications';
-  }
-  
-  escapeHtml(text) {
-    if (typeof text !== 'string') return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-  
-  cleanup() {
+
+  onUserChange() {
+    // Start polling for notifications
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
     }
+    
+    this.pollingInterval = setInterval(() => {
+      if (this.isOpen) {
+        this.fetchNotifications();
+      }
+    }, this.pollingFrequency);
+    
+    // Initial fetch
+    this.fetchNotifications();
+  }
+
+  updateLanguage() {
+    // This will be handled by your main app's translation system
+    // Elements with data-translate attributes will be updated automatically
+  }
+
+  // Utility functions
+  formatTime(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) return translations[this.currentLanguage]?.justNow || 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${translations[this.currentLanguage]?.minutesAgo || 'minutes ago'}`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${translations[this.currentLanguage]?.hoursAgo || 'hours ago'}`;
+    
+    // More than 1 day ago
+    return date.toLocaleDateString(this.currentLanguage, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  escapeHtml(unsafe) {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 }
 
-// Initialize when loaded
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   window.notificationSystem = new NotificationSystem();
-});
-
-// Clean up on page unload
-window.addEventListener('beforeunload', () => {
-  if (window.notificationSystem) {
-    window.notificationSystem.cleanup();
-  }
 });
 </script>
