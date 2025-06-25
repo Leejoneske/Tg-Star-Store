@@ -722,6 +722,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateLanguage();
             initBuyButtons();
             initNotificationButton();
+            initNotificationSystem();
             
             window.currentUser = currentUser;
             window.currentWalletAddress = currentWalletAddress;
@@ -783,6 +784,92 @@ function initNotificationButton() {
         }
     });
 }
+
+// Add this to your main app's JavaScript
+function initNotificationSystem() {
+    const notificationButton = document.getElementById('notificationButton');
+    if (!notificationButton) return;
+
+    let notificationWindow = null;
+
+    notificationButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!isTelegramEnv) {
+            showErrorToUser(translations[currentLanguage].telegramRequiredForNotifications);
+            return;
+        }
+
+        // If window exists and is open, close it
+        if (notificationWindow && document.body.contains(notificationWindow)) {
+            closeNotificationWindow();
+            return;
+        }
+
+        // Create container for notification window
+        notificationWindow = document.createElement('div');
+        notificationWindow.id = 'notificationWindowContainer';
+        notificationWindow.style.position = 'fixed';
+        notificationWindow.style.top = '0';
+        notificationWindow.style.left = '0';
+        notificationWindow.style.width = '100%';
+        notificationWindow.style.height = '100%';
+        notificationWindow.style.zIndex = '1000';
+        notificationWindow.style.display = 'flex';
+        notificationWindow.style.justifyContent = 'center';
+        notificationWindow.style.alignItems = 'center';
+        notificationWindow.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        notificationWindow.style.backdropFilter = 'blur(5px)';
+        notificationWindow.style.opacity = '0';
+        notificationWindow.style.transition = 'opacity 0.2s ease';
+
+        try {
+            // Load notification content
+            const response = await fetch('notification.html');
+            if (!response.ok) throw new Error('Failed to load notifications');
+            
+            notificationWindow.innerHTML = await response.text();
+            document.body.appendChild(notificationWindow);
+            
+            // Fade in
+            setTimeout(() => {
+                notificationWindow.style.opacity = '1';
+            }, 10);
+
+            // Close when clicking outside
+            notificationWindow.addEventListener('click', (e) => {
+                if (e.target === notificationWindow) {
+                    closeNotificationWindow();
+                }
+            });
+
+            // Hide badge after viewing
+            const badge = document.getElementById('notificationBadge');
+            if (badge) badge.classList.add('hidden');
+
+        } catch (error) {
+            console.error('Notification error:', error);
+            showErrorToUser(translations[currentLanguage].notificationsError);
+            if (notificationWindow && document.body.contains(notificationWindow)) {
+                document.body.removeChild(notificationWindow);
+            }
+        }
+    });
+
+    function closeNotificationWindow() {
+        if (!notificationWindow) return;
+        
+        notificationWindow.style.opacity = '0';
+        notificationWindow.addEventListener('transitionend', () => {
+            if (notificationWindow && document.body.contains(notificationWindow)) {
+                document.body.removeChild(notificationWindow);
+                notificationWindow = null;
+            }
+        }, { once: true });
+    }
+}
+
 
         
 function loadMenuBar() {
