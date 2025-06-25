@@ -2162,7 +2162,7 @@ app.post('/api/notifications', async (req, res) => {
             message: message.trim(),
             actionUrl,
             isGlobal: !!isGlobal,
-            priority: Math.min(2, Math.max(0, parseInt(priority) || 0)
+            priority: Math.min(2, Math.max(0, parseInt(priority) || 0))
         });
 
         // Real-time notification would go here (WebSocket, push, etc.)
