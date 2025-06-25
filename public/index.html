@@ -1,5 +1,4 @@
 
-
     
 <!DOCTYPE html>
 <html lang="en">
@@ -271,20 +270,22 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            width: 100%;
-            gap: 16px;
+            padding: 12px 16px;
             background: white;
-            padding: 16px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
-
+        
         .user-details {
-            flex: 1;
-            min-width: 0;
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
+        }
+
+        .username {
+            font-weight: 600;
+            font-size: 16px;
+            color: #1f2937;
         }
 
         .skeleton {
@@ -447,13 +448,28 @@
         }
 
         /* Enhanced package option styling */
+
         .stars-package {
+            padding: 16px;
+            border-radius: 12px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+        }
+
+        .stars-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .sticker-container {
+            margin: 8px auto;
+            height: 72px;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
-            padding: 20px 16px;
-            position: relative;
-            overflow: hidden;
         }
 
         .stars-amount {
@@ -586,81 +602,100 @@
                 </div>
             </div>
 
-            <div class="px-6 pt-6 pb-2">
-                <div class="user-info-container">
-                    <div class="user-details">
-                        <div class="profile-image">
-                            <img id="profilePicture" src="https://via.placeholder.com/64" alt="User Profile" class="w-full h-full object-cover">
-                        </div>
-                        <div class="text-lg font-semibold text-gray-800" id="username">@username</div>
+                   <div class="px-4 pt-4 pb-2">
+            <div class="user-info-container">
+                <div class="user-details">
+                    <div class="profile-image">
+                        <img id="profilePicture" src="https://via.placeholder.com/48" alt="User Profile" class="w-full h-full object-cover">
                     </div>
-                    <button id="connectWallet" data-translate="connectWallet">
-                        <i class="fas fa-wallet mr-2"></i>Connect Wallet
-                    </button>
+                    <div>
+                        <div class="username" id="username">@guest273</div>
+                        <div class="text-xs text-gray-500">(Web)</div>
+                    </div>
                 </div>
+                <button id="connectWallet" class="connect-button">
+                    <i class="fas fa-wallet mr-2"></i>Connect Wallet
+                </button>
+            </div>
+        </div>
+
+        <div class="p-4">
+            <div class="section-toggle">
+                <button class="toggle-button active" id="starsToggle">Buy Stars</button>
+                <button class="toggle-button" id="premiumToggle">Telegram Premium</button>
             </div>
 
-            <div class="p-6 pt-2">
-                <div class="section-toggle">
-                    <button class="toggle-button active" id="starsToggle" data-translate="buyStars">Buy Stars</button>
-                    <button class="toggle-button" id="premiumToggle" data-translate="telegramPremium">Telegram Premium</button>
-                </div>
-
-                <div class="section-content active" id="starsSection">
-                    <div class="stars-card rounded-xl mb-8">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Choose a Stars Package</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="package-option stars-package">
-                                <div class="stars-amount">15 Stars</div>
-                                <div class="usdt-price">0.35 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
-                                <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
-                                </div>
+            <div class="section-content active" id="starsSection">
+                <div class="stars-card">
+                    <h3 class="text-lg font-bold mb-4">Choose a Stars Package</h3>
+                    
+                    <div class="stars-grid">
+                        <!-- 15 Stars -->
+                        <div class="stars-package">
+                            <div class="stars-amount">15 Stars</div>
+                            <div class="usdt-price">0.35 USDT</div>
+                            <div class="sticker-container">
+                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE" width="72" height="72" frameBorder="0"></iframe>
                             </div>
-                            <div class="package-option stars-package">
-                                <div class="stars-amount">25 Stars</div>
-                                <div class="usdt-price">0.60 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
-                                <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
-                                </div>
+                            <button class="buy-button">Buy Gift</button>
+                        </div>
+                        
+                        <!-- 25 Stars -->
+                        <div class="stars-package">
+                            <div class="stars-amount">25 Stars</div>
+                            <div class="usdt-price">0.60 USDT</div>
+                            <div class="sticker-container">
+                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE" width="72" height="72" frameBorder="0"></iframe>
                             </div>
-                            <div class="package-option stars-package">
-                                <div class="stars-amount">50 Stars</div>
-                                <div class="usdt-price">1.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy-gift" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
-                                <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
-                                </div>
+                            <button class="buy-button">Buy Gift</button>
+                        </div>
+                    </div>
+                    
+                    <div class="stars-grid">
+                        <!-- 50 Stars -->
+                        <div class="stars-package">
+                            <div class="stars-amount">50 Stars</div>
+                            <div class="usdt-price">1.00 USDT</div>
+                            <div class="sticker-container">
+                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0"></iframe>
                             </div>
-                            <div class="package-option stars-package">
-                                <div class="stars-amount">100 Stars</div>
-                                <div class="usdt-price">2.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy Now</button>
-                                <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
-                                </div>
+                            <button class="buy-button">Buy Now</button>
+                        </div>
+                        
+                        <!-- 100 Stars -->
+                        <div class="stars-package">
+                            <div class="stars-amount">100 Stars</div>
+                            <div class="usdt-price">2.00 USDT</div>
+                            <div class="sticker-container">
+                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0"></iframe>
                             </div>
-                            <div class="package-option stars-package">
-                                <div class="stars-amount">500 Stars</div>
-                                <div class="usdt-price">10.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy Now</button>
-                                <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
-                                </div>
+                            <button class="buy-button">Buy Now</button>
+                        </div>
+                    </div>
+                    
+                    <div class="stars-grid">
+                        <!-- 500 Stars -->
+                        <div class="stars-package">
+                            <div class="stars-amount">500 Stars</div>
+                            <div class="usdt-price">10.00 USDT</div>
+                            <div class="sticker-container">
+                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0"></iframe>
                             </div>
-                            <div class="package-option stars-package">
-                                <div class="stars-amount">1000 Stars</div>
-                                <div class="usdt-price">20.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy Now</button>
-                                <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
-                                </div>
+                            <button class="buy-button">Buy Now</button>
+                        </div>
+                        
+                        <!-- 1000 Stars -->
+                        <div class="stars-package">
+                            <div class="stars-amount">1000 Stars</div>
+                            <div class="usdt-price">20.00 USDT</div>
+                            <div class="sticker-container">
+                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0"></iframe>
                             </div>
+                            <button class="buy-button">Buy Now</button>
                         </div>
                     </div>
                 </div>
+            </div>
 
                 <div class="section-content" id="premiumSection">
                     <div class="premium-card rounded-xl mb-6">
