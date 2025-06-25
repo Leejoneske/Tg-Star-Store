@@ -752,9 +752,6 @@ function initNotificationSystem() {
             case 'UPDATE_BADGE':
                 updateNotificationBadge(event.data.count);
                 break;
-            case 'VIEW_ALL_NOTIFICATIONS':
-                window.open('/notifications', '_blank');
-                break;
         }
     });
 
@@ -801,21 +798,8 @@ function initNotificationSystem() {
         contentContainer.style.maxWidth = '400px';
         contentContainer.style.maxHeight = '80vh';
         contentContainer.style.overflow = 'hidden';
-        
-        // Add loading state
-        contentContainer.innerHTML = `
-            <div style="
-                width: 100%;
-                height: 200px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                background: white;
-                border-radius: 12px;
-            ">
-                <div class="loading-spinner"></div>
-            </div>
-        `;
+        contentContainer.style.borderRadius = '12px';
+        contentContainer.style.background = 'white';
         
         notificationWindow.appendChild(contentContainer);
         document.body.appendChild(notificationWindow);
@@ -833,20 +817,10 @@ function initNotificationSystem() {
             
             contentContainer.innerHTML = await response.text();
             
-            // Hide badge after viewing
-            updateNotificationBadge(0);
-
         } catch (error) {
             console.error('Notification error:', error);
             contentContainer.innerHTML = `
-                <div style="
-                    width: 100%;
-                    padding: 20px;
-                    background: white;
-                    border-radius: 12px;
-                    color: #ef4444;
-                    text-align: center;
-                ">
+                <div style="padding: 20px; color: #ef4444; text-align: center;">
                     Failed to load notifications
                 </div>
             `;
