@@ -1446,6 +1446,7 @@ function initBuyButtons() {
         });
     });
 }
+
 async function handlePurchase(item) {
     if (!tonConnectUI || !walletConnected) {
         showErrorToUser(translations[currentLanguage].walletNotConnected);
@@ -1460,26 +1461,21 @@ async function handlePurchase(item) {
     
     if (!isTelegramEnv) {
         try {
-            const result = await Swal.fire({
+            await Swal.fire({
                 title: translations[currentLanguage].warning || 'Warning',
-                text: translations[currentLanguage].tryInTelegram || 'For the best experience, please use our Telegram bot',
+                text: translations[currentLanguage].tryInTelegram || 'This feature is only available in our Telegram bot. Please use the Telegram app to make purchases.',
                 icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: translations[currentLanguage].continue || 'Open in Telegram',
-                cancelButtonText: translations[currentLanguage].cancel || 'Cancel',
+                showCancelButton: false,
+                confirmButtonText: translations[currentLanguage].openTelegram || 'Open in Telegram',
+                allowOutsideClick: false,
                 customClass: {
                     confirmButton: 'telegram-confirm-btn'
                 }
             });
             
-            if (result.isConfirmed) {
-                // Redirect to Telegram bot when Continue is clicked
-                window.location.href = 'https://t.me/TgStarStore_bot';
-                return;
-            } else {
-                // User clicked Cancel or closed the dialog
-                return;
-            }
+            // Always redirect to Telegram - no option to continue
+            window.location.href = 'https://t.me/TgStarStore_bot';
+            return;
         } catch (error) {
             console.error('Error showing Telegram warning:', error);
             // Fallback to direct Telegram link if Swal fails
@@ -1519,7 +1515,7 @@ async function handlePurchase(item) {
         const nanoTonAmount = Math.round(tonAmount * 1e9);
         
         // Get payment address
-        const walletResponse = await axios.get('/api/get-wallet-address');
+        const walletResponse = await axios.get('https://starstore.site/api/get-wallet-address');
         if (!walletResponse.data?.walletAddress) {
             throw new Error('Failed to get payment address');
         }
@@ -1581,20 +1577,19 @@ async function handlePurchase(item) {
             loadingShown = false;
         }
         
-        let errorMessage;
+        let errorMessage = translations[currentLanguage].paymentFailed || 'Payment failed';
         
-        // Handle specific error types
-        if (typeof error === 'string') {
-            errorMessage = error;
+        // Show actual error details for debugging
+        if (error?.response?.data?.error) {
+            errorMessage = error.response.data.error;
+        } else if (error?.response?.status) {
+            errorMessage = `Request failed with status ${error.response.status}: ${error.response.statusText || 'Unknown error'}`;
         } else if (error?.message && typeof error.message === 'string') {
             errorMessage = error.message;
-        } else if (error?.response?.data?.error) {
-            errorMessage = error.response.data.error;
+        } else if (typeof error === 'string') {
+            errorMessage = error;
         } else if (error?.name === 'UserRejectsError') {
             errorMessage = translations[currentLanguage].transactionCancelled || 'Transaction was cancelled';
-        } else {
-            // Default fallback
-            errorMessage = translations[currentLanguage].paymentFailed || 'Payment failed';
         }
         
         await Swal.fire({
@@ -1628,7 +1623,7 @@ window.addEventListener('beforeunload', () => {
     if (tonConnectUI?.disconnect) {
         tonConnectUI.disconnect().catch(console.error);
     }
-});
+});        
 
     </script>
 </body>
