@@ -1446,7 +1446,6 @@ function initBuyButtons() {
         });
     });
 }
-
 async function handlePurchase(item) {
     if (!tonConnectUI || !walletConnected) {
         showErrorToUser(translations[currentLanguage].walletNotConnected);
@@ -1582,15 +1581,20 @@ async function handlePurchase(item) {
             loadingShown = false;
         }
         
-        let errorMessage = translations[currentLanguage].paymentFailed;
-        if (error.response?.data?.error) {
-            errorMessage = error.response.data.error;
-        } else if (error.message) {
-            errorMessage = error.message;
-        } else if (typeof error === 'string') {
+        let errorMessage;
+        
+        // Handle specific error types
+        if (typeof error === 'string') {
             errorMessage = error;
-        } else if (error && typeof error === 'object') {
-            errorMessage = JSON.stringify(error);
+        } else if (error?.message && typeof error.message === 'string') {
+            errorMessage = error.message;
+        } else if (error?.response?.data?.error) {
+            errorMessage = error.response.data.error;
+        } else if (error?.name === 'UserRejectsError') {
+            errorMessage = translations[currentLanguage].transactionCancelled || 'Transaction was cancelled';
+        } else {
+            // Default fallback
+            errorMessage = translations[currentLanguage].paymentFailed || 'Payment failed';
         }
         
         await Swal.fire({
@@ -1625,6 +1629,7 @@ window.addEventListener('beforeunload', () => {
         tonConnectUI.disconnect().catch(console.error);
     }
 });
+
     </script>
 </body>
 </html>
