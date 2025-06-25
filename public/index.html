@@ -1,4 +1,6 @@
 
+
+    
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -182,23 +184,25 @@
         }
 
         .buy-button {
-            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
             color: white;
             border-radius: 10px;
             transition: all 0.2s ease;
             font-weight: 600;
             letter-spacing: 0.5px;
             box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+            padding: 8px 12px;
+            font-size: 14px;
         }
 
         .buy-button:hover {
-            background: linear-gradient(135deg, #3f3aaf, #5054c0);
+            background: linear-gradient(135deg, #5054c0, #3f3aaf);
             transform: translateY(-1px);
             box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
         }
 
         #connectWallet {
-            padding: 10px 18px;
+            padding: 8px 16px;
             font-size: 14px;
             border: 1px solid #4f46e5;
             border-radius: 10px;
@@ -278,6 +282,9 @@
         .user-details {
             flex: 1;
             min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 16px;
         }
 
         .skeleton {
@@ -456,28 +463,11 @@
             margin-bottom: 4px;
         }
 
-        .stars-icon {
-            color: #f59e0b;
-            margin-right: 4px;
-        }
-
         .usdt-price {
             font-size: 16px;
             font-weight: 600;
             color: #4f46e5;
             margin-bottom: 12px;
-        }
-
-        .best-value {
-            position: absolute;
-            top: 0;
-            right: 0;
-            background: #4f46e5;
-            color: white;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-bottom-left-radius: 8px;
         }
 
         /* Premium package enhancements */
@@ -598,14 +588,11 @@
 
             <div class="px-6 pt-6 pb-2">
                 <div class="user-info-container">
-                    <div class="flex items-center space-x-4">
+                    <div class="user-details">
                         <div class="profile-image">
                             <img id="profilePicture" src="https://via.placeholder.com/64" alt="User Profile" class="w-full h-full object-cover">
                         </div>
-                        <div class="user-details">
-                            <div class="text-lg font-semibold text-gray-800" id="username">@username</div>
-                            <div class="text-sm text-gray-500">Welcome back!</div>
-                        </div>
+                        <div class="text-lg font-semibold text-gray-800" id="username">@username</div>
                     </div>
                     <button id="connectWallet" data-translate="connectWallet">
                         <i class="fas fa-wallet mr-2"></i>Connect Wallet
@@ -624,36 +611,52 @@
                         <h3 class="text-lg font-bold text-gray-800 mb-4">Choose a Stars Package</h3>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="package-option stars-package">
-                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>15 Stars</div>
+                                <div class="stars-amount">15 Stars</div>
                                 <div class="usdt-price">0.35 USDT</div>
-                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
+                                <div class="mt-2">
+                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                </div>
                             </div>
                             <div class="package-option stars-package">
-                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>25 Stars</div>
+                                <div class="stars-amount">25 Stars</div>
                                 <div class="usdt-price">0.60 USDT</div>
-                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
+                                <div class="mt-2">
+                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                </div>
                             </div>
                             <div class="package-option stars-package">
-                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>50 Stars</div>
+                                <div class="stars-amount">50 Stars</div>
                                 <div class="usdt-price">1.00 USDT</div>
-                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buy-gift" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy-gift" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                </div>
                             </div>
                             <div class="package-option stars-package">
-                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>100 Stars</div>
+                                <div class="stars-amount">100 Stars</div>
                                 <div class="usdt-price">2.00 USDT</div>
-                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy Now</button>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                </div>
                             </div>
                             <div class="package-option stars-package">
-                                <span class="best-value">BEST VALUE</span>
-                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>500 Stars</div>
+                                <div class="stars-amount">500 Stars</div>
                                 <div class="usdt-price">10.00 USDT</div>
-                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy Now</button>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                </div>
                             </div>
                             <div class="package-option stars-package">
-                                <span class="best-value">BEST VALUE</span>
-                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>1000 Stars</div>
+                                <div class="stars-amount">1000 Stars</div>
                                 <div class="usdt-price">20.00 USDT</div>
-                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy Now</button>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -677,7 +680,7 @@
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
                                     </div>
-                                    <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Subscribe Now</button>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Subscribe Now</button>
                                 </div>
                             </div>
                             <div class="package-option premium-package">
@@ -695,7 +698,7 @@
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Voice-to-Text</div>
                                     </div>
-                                    <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Subscribe Now</button>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Subscribe Now</button>
                                 </div>
                             </div>
                             <div class="package-option premium-package">
@@ -715,7 +718,7 @@
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Animated Profile Pic</div>
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Reactions</div>
                                     </div>
-                                    <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Subscribe Now</button>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Subscribe Now</button>
                                 </div>
                             </div>
                         </div>
@@ -724,7 +727,7 @@
             </div>
         </div>
     </div>
-    
+
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
