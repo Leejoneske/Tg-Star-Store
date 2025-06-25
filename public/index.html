@@ -721,7 +721,7 @@ document.addEventListener('DOMContentLoaded', function() {
             initSectionToggle();
             updateLanguage();
             initBuyButtons();
-            initNotificationSystem(); // Only this is needed
+            initNotificationSystem(); 
             
             window.currentUser = currentUser;
             window.currentWalletAddress = currentWalletAddress;
@@ -735,7 +735,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 
-// Only this function is needed (remove initNotificationButton)
 function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
     if (!notificationButton) return;
@@ -760,44 +759,75 @@ function initNotificationSystem() {
         // Create overlay container
         notificationWindow = document.createElement('div');
         notificationWindow.id = 'notificationWindowContainer';
-        notificationWindow.style.position = 'fixed';
-        notificationWindow.style.top = '0';
-        notificationWindow.style.left = '0';
-        notificationWindow.style.width = '100%';
-        notificationWindow.style.height = '100%';
-        notificationWindow.style.zIndex = '1000';
-        notificationWindow.style.display = 'flex';
-        notificationWindow.style.justifyContent = 'center';
-        notificationWindow.style.alignItems = 'center';
-        notificationWindow.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        notificationWindow.style.backdropFilter = 'blur(5px)';
-        notificationWindow.style.opacity = '0';
-        notificationWindow.style.transition = 'opacity 0.2s ease';
+        Object.assign(notificationWindow.style, {
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            zIndex: '1000',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(5px)',
+            opacity: '0',
+            transition: 'opacity 0.2s ease'
+        });
 
         try {
+            // Show loading state immediately
+            notificationWindow.innerHTML = `
+                <div style="color: white; font-size: 1.2rem">
+                    Loading notifications...
+                </div>
+            `;
+            document.body.appendChild(notificationWindow);
+            setTimeout(() => notificationWindow.style.opacity = '1', 10);
+
             // Load notification.html content
             const response = await fetch('notification.html');
             if (!response.ok) throw new Error('Failed to load notifications');
             
-            notificationWindow.innerHTML = await response.text();
-            document.body.appendChild(notificationWindow);
+            const html = await response.text();
             
-            // Fade in
-            setTimeout(() => notificationWindow.style.opacity = '1', 10);
-
-            // Close when clicking outside
-            notificationWindow.addEventListener('click', (e) => {
-                if (e.target === notificationWindow) closeNotificationWindow();
-            });
+            // Create a container for the notification content
+            const contentContainer = document.createElement('div');
+            contentContainer.style.position = 'relative';
+            contentContainer.style.width = '90%';
+            contentContainer.style.maxWidth = '400px';
+            contentContainer.style.maxHeight = '80vh';
+            contentContainer.style.overflow = 'auto';
+            contentContainer.style.borderRadius = '12px';
+            contentContainer.innerHTML = html;
+            
+            // Replace loading indicator with actual content
+            notificationWindow.innerHTML = '';
+            notificationWindow.appendChild(contentContainer);
+            
+            // Initialize the notification system after content loads
+            if (window.NotificationSystem) {
+                new window.NotificationSystem();
+            }
 
             // Hide badge
             const badge = document.getElementById('notificationBadge');
             if (badge) badge.classList.add('hidden');
 
+            // Close when clicking outside
+            contentContainer.addEventListener('click', (e) => e.stopPropagation());
+            notificationWindow.addEventListener('click', closeNotificationWindow);
+
         } catch (error) {
             console.error('Notification error:', error);
             showErrorToUser(translations[currentLanguage].notificationsError);
-            if (notificationWindow) closeNotificationWindow();
+            if (notificationWindow) {
+                notificationWindow.innerHTML = `
+                    <div style="color: white; background: #ef4444; padding: 20px; border-radius: 8px">
+                        Failed to load notifications
+                    </div>
+                `;
+            }
         }
     });
 
