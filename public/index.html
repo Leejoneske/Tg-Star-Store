@@ -721,8 +721,7 @@ document.addEventListener('DOMContentLoaded', function() {
             initSectionToggle();
             updateLanguage();
             initBuyButtons();
-            initNotificationButton();
-            initNotificationSystem();
+            initNotificationSystem(); // Only this is needed
             
             window.currentUser = currentUser;
             window.currentWalletAddress = currentWalletAddress;
@@ -736,56 +735,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 
-
-function initNotificationButton() {
-    const notificationButton = document.getElementById('notificationButton');
-    if (!notificationButton) return;
-
-    notificationButton.addEventListener('click', async () => {
-        if (!isTelegramEnv) {
-            showErrorToUser(translations[currentLanguage].telegramRequiredForNotifications);
-            return;
-        }
-
-        try {
-            // Create container for notification window
-            const notificationWindow = document.createElement('div');
-            notificationWindow.id = 'notificationWindow';
-            notificationWindow.style.position = 'fixed';
-            notificationWindow.style.top = '0';
-            notificationWindow.style.left = '0';
-            notificationWindow.style.width = '100%';
-            notificationWindow.style.height = '100%';
-            notificationWindow.style.zIndex = '1000';
-            notificationWindow.style.display = 'flex';
-            notificationWindow.style.justifyContent = 'center';
-            notificationWindow.style.alignItems = 'center';
-            notificationWindow.style.backgroundColor = 'rgba(0,0,0,0.5)';
-            
-            // Load notification content
-            const response = await fetch('notification.html');
-            if (!response.ok) throw new Error('Failed to load notifications');
-            notificationWindow.innerHTML = await response.text();
-            
-            // Add close button functionality
-            notificationWindow.addEventListener('click', (e) => {
-                if (e.target === notificationWindow) {
-                    document.body.removeChild(notificationWindow);
-                    // Hide badge after viewing notifications
-                    const badge = document.getElementById('notificationBadge');
-                    if (badge) badge.classList.add('hidden');
-                }
-            });
-
-            document.body.appendChild(notificationWindow);
-        } catch (error) {
-            console.error('Notification error:', error);
-            showErrorToUser(translations[currentLanguage].notificationsError);
-        }
-    });
-}
-
-// Add this to your main app's JavaScript
+// Only this function is needed (remove initNotificationButton)
 function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
     if (!notificationButton) return;
@@ -801,13 +751,13 @@ function initNotificationSystem() {
             return;
         }
 
-        // If window exists and is open, close it
+        // Close if already open
         if (notificationWindow && document.body.contains(notificationWindow)) {
             closeNotificationWindow();
             return;
         }
 
-        // Create container for notification window
+        // Create overlay container
         notificationWindow = document.createElement('div');
         notificationWindow.id = 'notificationWindowContainer';
         notificationWindow.style.position = 'fixed';
@@ -825,7 +775,7 @@ function initNotificationSystem() {
         notificationWindow.style.transition = 'opacity 0.2s ease';
 
         try {
-            // Load notification content
+            // Load notification.html content
             const response = await fetch('notification.html');
             if (!response.ok) throw new Error('Failed to load notifications');
             
@@ -833,27 +783,21 @@ function initNotificationSystem() {
             document.body.appendChild(notificationWindow);
             
             // Fade in
-            setTimeout(() => {
-                notificationWindow.style.opacity = '1';
-            }, 10);
+            setTimeout(() => notificationWindow.style.opacity = '1', 10);
 
             // Close when clicking outside
             notificationWindow.addEventListener('click', (e) => {
-                if (e.target === notificationWindow) {
-                    closeNotificationWindow();
-                }
+                if (e.target === notificationWindow) closeNotificationWindow();
             });
 
-            // Hide badge after viewing
+            // Hide badge
             const badge = document.getElementById('notificationBadge');
             if (badge) badge.classList.add('hidden');
 
         } catch (error) {
             console.error('Notification error:', error);
             showErrorToUser(translations[currentLanguage].notificationsError);
-            if (notificationWindow && document.body.contains(notificationWindow)) {
-                document.body.removeChild(notificationWindow);
-            }
+            if (notificationWindow) closeNotificationWindow();
         }
     });
 
@@ -869,9 +813,7 @@ function initNotificationSystem() {
         }, { once: true });
     }
 }
-
-
-        
+       
 function loadMenuBar() {
     return new Promise((resolve, reject) => {
         const menubarContainer = document.getElementById('menubar-container');
