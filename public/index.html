@@ -4,18 +4,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StarStore | Buy.Sell.Stars</title>
+    <meta name="description" content="Buy and sell Telegram Stars with USDT. Convert stars to crypto easily with packages starting from just 15 stars. Get Telegram Premium subscriptions at competitive rates.">
+    <meta name="keywords" content="Telegram Stars, Buy Telegram Stars, Sell Telegram Stars, Telegram Premium, USDT, Crypto payments">
+    <meta name="author" content="StarStore">
+    <meta property="og:title" content="StarStore | Buy & Sell Telegram Stars with USDT">
+    <meta property="og:description" content="The easiest way to buy and sell Telegram Stars. Convert stars to crypto with packages starting from just 15 stars.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://starstore.app">
+    <meta property="og:image" content="https://starstore.app/images/og-image.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="canonical" href="https://starstore.app">
+    
+    <title>StarStore | Buy & Sell Telegram Stars with USDT</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
     <link rel="apple-touch-icon" href="/favicon.png">
 
     <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #3f3aaf;
+            --primary-light: #6366f1;
+            --secondary: #f9fafb;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+        
         body {
             font-family: 'Inter', sans-serif;
-            background: #f3f4f6;
+            background: #f8fafc;
+            color: var(--text-primary);
+            line-height: 1.6;
         }
 
         .app-container {
@@ -24,11 +51,13 @@
             min-height: 100vh;
             margin: 0 auto;
             background: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
             position: relative;
             overflow: hidden;
+            max-width: 600px;
         }
 
+        /* Menu styles (unchanged as requested) */
         .menu-overlay {
             position: fixed;
             top: 0;
@@ -75,13 +104,13 @@
         .menu-item {
             padding: 12px 16px;
             font-size: 16px;
-            color: #4f46e5;
+            color: var(--primary);
             transition: all 0.2s ease;
             position: relative;
             display: flex;
             align-items: center;
             gap: 8px;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--border);
         }
 
         .menu-item:last-child {
@@ -95,119 +124,301 @@
 
         .menu-footer {
             padding: 1rem;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid var(--border);
             background-color: #f9f9f9;
             flex-shrink: 0;
         }
 
-        .profile-image {
-            width: 64px;
-            height: 64px;
-            border: 3px solid #4f46e5;
-            border-radius: 50%;
-            overflow: hidden;
-            transition: transform 0.3s ease;
-        }
-
-        .profile-image:hover {
-            transform: scale(1.05);
-        }
-
-        .package-option {
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            transition: all 0.2s ease;
-        }
-
-        .package-option:hover {
-            border-color: #4f46e5;
-            transform: translateY(-4px);
-            box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
-        }
-
-        .buy-button {
-            background: #3f3aaf;
-            color: white;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-        }
-
-        .buy-button:hover {
-            background: #5054c0;
-            transform: scale(1.02);
-        }
-
-        #connectWallet {
-            padding: 8px 16px;
-            font-size: 14px;
-            border: 1px solid #4f46e5;
-            border-radius: 8px;
-            color: #4f46e5;
-            background-color: white;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            min-width: 120px;
-            white-space: nowrap;
-        }
-
-        #connectWallet.wallet-connected {
-            background-color: white;
-            color: #4f46e5;
-        }
-
-        .wallet-address {
-            font-size: 12px;
-            color: #6b7280;
-            font-family: monospace;
+        /* Header styles */
+        .main-header {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 1rem;
         }
 
         .logo-header {
-            font-size: 24px;
-            font-weight: bold;
-            color: #4f46e5;
-            text-align: center;
-            padding: 16px;
-            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            width: fit-content;
+            white-space: nowrap;
         }
 
-        .language-toggle {
-            padding: 6px 12px;
-            font-size: 14px;
-            border: 1px solid #4f46e5;
-            border-radius: 8px;
-            color: #4f46e5;
+        /* User profile section */
+        .user-card {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(79, 70, 229, 0.1);
+        }
+
+        .profile-image {
+            width: 72px;
+            height: 72px;
+            border: 3px solid var(--primary);
+            border-radius: 50%;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+        }
+
+        .profile-image:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .username {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        /* Wallet button */
+        #connectWallet {
+            padding: 0.75rem 1.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            color: var(--primary);
             background-color: white;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(79, 70, 229, 0.1);
+        }
+
+        #connectWallet:hover {
+            background-color: rgba(79, 70, 229, 0.05);
+            transform: translateY(-1px);
+        }
+
+        #connectWallet.wallet-connected {
+            background-color: white;
+            color: var(--primary);
+        }
+
+        /* Package cards */
+        .packages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            padding: 0 1rem;
+        }
+
+        .package-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .package-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.15);
+            border-color: var(--primary-light);
+        }
+
+        .stars-count {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+
+        .stars-count i {
+            font-size: 1rem;
+            color: var(--warning);
+        }
+
+        .price-tag {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+
+        .price-tag i {
+            font-size: 0.75rem;
+        }
+
+        .buy-button {
+            background: var(--primary);
+            color: white;
+            border-radius: 12px;
+            padding: 0.75rem;
+            width: 100%;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .buy-button:hover {
+            background: var(--primary-dark);
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        /* Premium section */
+        .premium-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(79, 70, 229, 0.1);
+        }
+
+        .premium-option {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border);
+        }
+
+        .premium-option:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.1);
+            border-color: var(--primary-light);
+        }
+
+        .premium-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .premium-desc {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .premium-price {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Tabs */
+        .tab-container {
+            display: flex;
+            justify-content: center;
+            margin: 1.5rem 1rem;
+            background: #f3f4f6;
+            border-radius: 12px;
+            padding: 0.25rem;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 0.75rem;
+            text-align: center;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: transparent;
+        }
+
+        .tab-button.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            font-weight: 600;
+        }
+
+        /* Notification button */
+        .notification-button {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .notification-button:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: var(--error);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.625rem;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        /* Language toggle */
+        .language-toggle {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: transparent;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
         }
 
         .language-toggle:hover {
-            background-color: #f3f4f6;
+            background: rgba(0, 0, 0, 0.05);
+            border-color: var(--primary-light);
         }
 
-        .user-info-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            gap: 16px;
-        }
-
-        .user-details {
-            flex: 1;
-            min-width: 0;
-        }
-
+        /* Skeleton loading */
         .skeleton {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
             background-size: 200% 100%;
@@ -217,8 +428,8 @@
         }
 
         .skeleton-img {
-            width: 64px;
-            height: 64px;
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
         }
 
@@ -233,73 +444,26 @@
 
         .skeleton-button {
             width: 120px;
-            height: 36px;
-            border-radius: 8px;
+            height: 40px;
+            border-radius: 12px;
         }
 
         .skeleton-card {
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 16px;
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin: 1rem;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .skeleton-item {
-            padding: 16px;
+            padding: 1rem;
             border-radius: 12px;
-            margin-bottom: 12px;
+            margin-bottom: 1rem;
+            background: #f9fafb;
         }
 
-        .notification-button {
-            position: relative;
-            outline: none;
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: -2px;
-            right: -2px;
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            font-weight: bold;
-            pointer-events: none;
-        }
-
-        .section-toggle {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-            gap: 10px;
-        }
-
-        .toggle-button {
-            padding: 8px 16px;
-            border-radius: 8px;
-            background: #f3f4f6;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .toggle-button.active {
-            background: #4f46e5;
-            color: white;
-        }
-
-        .section-content {
-            display: none;
-        }
-
-        .section-content.active {
-            display: block;
-        }
-
+        /* Animations */
         @keyframes shimmer {
             0% {
                 background-position: 200% 0;
@@ -309,13 +473,35 @@
             }
         }
 
-        #content-container {
-            display: none;
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 400px) {
+            .packages-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .profile-image {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .user-card {
+                padding: 1rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="app-container">
+        <!-- Skeleton Loading Screen -->
         <div id="skeleton-loading">
             <div class="p-4 flex justify-between items-center bg-white shadow-sm">
                 <div class="p-2">
@@ -356,134 +542,242 @@
                     </div>
                 </div>
             </div>
-            
-            <div class="footer">
-                <div class="skeleton" style="width: 100%; height: 16px;"></div>
-            </div>
         </div>
 
-        <div id="content-container">
-            <div id="menubar-container"></div>
-            <div class="p-4 flex justify-between items-center bg-white shadow-sm relative">
-                <button id="menuButton" class="p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                    </svg>
-                </button>
-                <div class="logo-header" data-translate="appName">StarStore</div>
-                <div class="flex items-center space-x-4">
-                    <button class="notification-button relative p-2 rounded-full hover:bg-gray-100 transition-colors" id="notificationButton">
-                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                        </svg>
-                        <div class="notification-badge hidden" id="notificationBadge">0</div>
-                    </button>
-                    <button id="languageToggle" class="language-toggle">🇬🇧</button>
+        <!-- Main Content -->
+        <div id="content-container" class="hidden">
+            <!-- Menu Overlay -->
+            <div class="menu-overlay" id="menuOverlay"></div>
+            
+            <!-- Side Menu -->
+            <div class="side-menu" id="sideMenu">
+                <div class="menu-content">
+                    <div class="menu-item">
+                        <i class="fas fa-home"></i>
+                        <span data-translate="home">Home</span>
+                    </div>
+                    <div class="menu-item">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span data-translate="buyStars">Buy Stars</span>
+                    </div>
+                                        <div class="menu-item">
+                        <i class="fas fa-coins"></i>
+                        <span data-translate="sellStars">Sell Stars</span>
+                    </div>
+                    <div class="menu-item">
+                        <i class="fas fa-history"></i>
+                        <span data-translate="transactionHistory">Transaction History</span>
+                    </div>
+                    <div class="menu-item">
+                        <i class="fas fa-user"></i>
+                        <span data-translate="profile">Profile</span>
+                    </div>
+                    <div class="menu-item">
+                        <i class="fas fa-cog"></i>
+                        <span data-translate="settings">Settings</span>
+                    </div>
+                    <div class="menu-item">
+                        <i class="fas fa-question-circle"></i>
+                        <span data-translate="help">Help & Support</span>
+                    </div>
+                </div>
+                <div class="menu-footer">
+                    <div class="text-sm text-center text-gray-500">
+                        <span data-translate="version">Version 1.0.0</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="p-6">
+            <!-- Main Header -->
+            <div class="main-header">
+                <div class="flex justify-between items-center relative">
+                    <button id="menuButton" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+                    <div class="logo-header" data-translate="appName">StarStore</div>
+                    <div class="flex items-center space-x-2">
+                        <button class="notification-button" id="notificationButton">
+                            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                            <div class="notification-badge hidden" id="notificationBadge">0</div>
+                        </button>
+                        <button id="languageToggle" class="language-toggle">🇬🇧</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Profile Section -->
+            <div class="user-card fade-in">
                 <div class="user-info-container">
                     <div class="flex items-center space-x-4">
                         <div class="profile-image">
-                            <img id="profilePicture" src="https://via.placeholder.com/64" alt="User Profile" class="w-full h-full object-cover">
+                            <img id="profilePicture" src="https://via.placeholder.com/72" alt="User Profile" class="w-full h-full object-cover">
                         </div>
                         <div class="user-details">
-                            <div class="text-lg font-semibold" id="username">@username</div>
+                            <div class="username" id="username">@username</div>
+                            <div class="wallet-address text-sm text-gray-500" id="walletAddress">Not connected</div>
                         </div>
                     </div>
-                    <button id="connectWallet" data-translate="connectWallet">Connect Wallet</button>
+                    <button id="connectWallet" data-translate="connectWallet">
+                        <i class="fas fa-wallet mr-2"></i>
+                        <span>Connect Wallet</span>
+                    </button>
                 </div>
             </div>
 
-            <div class="p-6">
-                <div class="section-toggle">
-                    <button class="toggle-button active" id="starsToggle" data-translate="buyStars">Buy Stars</button>
-                    <button class="toggle-button" id="premiumToggle" data-translate="telegramPremium">Telegram Premium</button>
-                </div>
+            <!-- Tabs Navigation -->
+            <div class="tab-container">
+                <button class="tab-button active" id="starsToggle" data-translate="buyStars">Buy Stars</button>
+                <button class="tab-button" id="premiumToggle" data-translate="telegramPremium">Telegram Premium</button>
+            </div>
 
-                <div class="section-content active" id="starsSection">
-                    <div class="stars-card rounded-xl p-6 mb-8">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">15 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2"><i class="fas fa-gift text-xs mr-1"></i>0.35 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
-                            </div>
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">25 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2"><i class="fas fa-gift text-xs mr-1"></i>0.60 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
-                            </div>
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">50 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2">1.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy-gift" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy</button>
-                            </div>
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">100 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2">2.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy</button>
-                            </div>
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">500 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2">10.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy</button>
-                            </div>
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">1000 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2">20.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy</button>
-                            </div>
+            <!-- Stars Packages Section -->
+            <div class="section-content active fade-in" id="starsSection">
+                <div class="packages-grid">
+                    <!-- 15 Stars -->
+                    <div class="package-card">
+                        <div class="stars-count">
+                            <i class="fas fa-star"></i>
+                            <span>15</span>
                         </div>
+                        <div class="price-tag">
+                            <i class="fab fa-ethereum"></i>
+                            <span>0.35 USDT</span>
+                        </div>
+                        <button class="buy-button" data-translate="buy" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>
+                            <span>Buy Now</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 25 Stars -->
+                    <div class="package-card">
+                        <div class="stars-count">
+                            <i class="fas fa-star"></i>
+                            <span>25</span>
+                        </div>
+                        <div class="price-tag">
+                            <i class="fab fa-ethereum"></i>
+                            <span>0.60 USDT</span>
+                        </div>
+                        <button class="buy-button" data-translate="buy" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>
+                            <span>Buy Now</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 50 Stars -->
+                    <div class="package-card">
+                        <div class="stars-count">
+                            <i class="fas fa-star"></i>
+                            <span>50</span>
+                        </div>
+                        <div class="price-tag">
+                            <i class="fab fa-ethereum"></i>
+                            <span>1.00 USDT</span>
+                        </div>
+                        <button class="buy-button" data-translate="buy" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>
+                            <span>Buy Now</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 100 Stars -->
+                    <div class="package-card">
+                        <div class="stars-count">
+                            <i class="fas fa-star"></i>
+                            <span>100</span>
+                        </div>
+                        <div class="price-tag">
+                            <i class="fab fa-ethereum"></i>
+                            <span>2.00 USDT</span>
+                        </div>
+                        <button class="buy-button" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>
+                            <span>Buy Now</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 500 Stars -->
+                    <div class="package-card">
+                        <div class="stars-count">
+                            <i class="fas fa-star"></i>
+                            <span>500</span>
+                        </div>
+                        <div class="price-tag">
+                            <i class="fab fa-ethereum"></i>
+                            <span>10.00 USDT</span>
+                        </div>
+                        <button class="buy-button" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>
+                            <span>Buy Now</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 1000 Stars -->
+                    <div class="package-card">
+                        <div class="stars-count">
+                            <i class="fas fa-star"></i>
+                            <span>1000</span>
+                        </div>
+                        <div class="price-tag">
+                            <i class="fab fa-ethereum"></i>
+                            <span>20.00 USDT</span>
+                        </div>
+                        <button class="buy-button" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>
+                            <span>Buy Now</span>
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                <div class="section-content" id="premiumSection">
-                    <div class="premium-card rounded-xl p-6 mb-6">
-                        <div class="space-y-4">
-                            <div class="package-option p-4">
-                                <div class="flex flex-col space-y-3">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <div class="text-lg font-bold" data-translate="3monthsPremium">3 Months Premium</div>
-                                            <div class="text-sm text-gray-600" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
-                                        </div>
-                                        <div class="text-lg font-bold">19.31 USDT</div>
-                                    </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Buy Now</button>
-                                </div>
+            <!-- Telegram Premium Section -->
+            <div class="section-content fade-in" id="premiumSection">
+                <div class="premium-card">
+                    <!-- 3 Months Premium -->
+                    <div class="premium-option">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <div class="premium-title" data-translate="3monthsPremium">3 Months Premium</div>
+                                <div class="premium-desc" data-translate="3monthsDesc">Premium features for 3 months</div>
                             </div>
-                            <div class="package-option p-4">
-                                <div class="flex flex-col space-y-3">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <div class="text-lg font-bold" data-translate="6monthsPremium">6 Months Premium</div>
-                                            <div class="text-sm text-gray-600" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
-                                        </div>
-                                        <div class="text-lg font-bold">26.25 USDT</div>
-                                    </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Buy Now</button>
-                                </div>
-                            </div>
-                            <div class="package-option p-4">
-                                <div class="flex flex-col space-y-3">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <div class="text-lg font-bold" data-translate="12monthsPremium">12 Months Premium</div>
-                                            <div class="text-sm text-gray-600" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
-                                        </div>
-                                        <div class="text-lg font-bold">44.79 USDT</div>
-                                    </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Buy Now</button>
-                                </div>
-                            </div>
+                            <div class="premium-price">19.31 USDT</div>
                         </div>
+                        <button class="buy-button" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>
+                            <span>Buy Now</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 6 Months Premium -->
+                    <div class="premium-option">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <div class="premium-title" data-translate="6monthsPremium">6 Months Premium</div>
+                                <div class="premium-desc" data-translate="6monthsDesc">Premium features for 6 months</div>
+                            </div>
+                            <div class="premium-price">26.25 USDT</div>
+                        </div>
+                        <button class="buy-button" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>
+                            <span>Buy Now</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 12 Months Premium -->
+                    <div class="premium-option">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <div class="premium-title" data-translate="12monthsPremium">12 Months Premium</div>
+                                <div class="premium-desc" data-translate="12monthsDesc">Premium features for 12 months</div>
+                            </div>
+                            <div class="premium-price">44.79 USDT</div>
+                        </div>
+                        <button class="buy-button" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>
+                            <span>Buy Now</span>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+                    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -741,27 +1035,25 @@ function initMenu() {
 }
 
 function initSectionToggle() {
-    const starsToggle = document.getElementById('starsToggle');
-    const premiumToggle = document.getElementById('premiumToggle');
-    const starsSection = document.getElementById('starsSection');
-    const premiumSection = document.getElementById('premiumSection');
+    
+            const starsToggle = document.getElementById('starsToggle');
+            const premiumToggle = document.getElementById('premiumToggle');
+            const starsSection = document.getElementById('starsSection');
+            const premiumSection = document.getElementById('premiumSection');
 
-    if (starsToggle && premiumToggle && starsSection && premiumSection) {
-        starsToggle.addEventListener('click', () => {
-            starsToggle.classList.add('active');
-            premiumToggle.classList.remove('active');
-            starsSection.classList.add('active');
-            premiumSection.classList.remove('active');
-        });
+            starsToggle.addEventListener('click', () => {
+                starsToggle.classList.add('active');
+                premiumToggle.classList.remove('active');
+                starsSection.classList.add('active');
+                premiumSection.classList.remove('active');
+            });
 
-        premiumToggle.addEventListener('click', () => {
-            premiumToggle.classList.add('active');
-            starsToggle.classList.remove('active');
-            premiumSection.classList.add('active');
-            starsSection.classList.remove('active');
-        });
-    }
-}
+            premiumToggle.addEventListener('click', () => {
+                premiumToggle.classList.add('active');
+                starsToggle.classList.remove('active');
+                premiumSection.classList.add('active');
+                starsSection.classList.remove('active');
+            });
 
 function initTelegramApp() {
     if (!isTelegramEnv) {
