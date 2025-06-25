@@ -1489,7 +1489,7 @@ async function handlePurchase(item) {
         }
     }
     
-    let loadingMessage;
+    let loadingShown = false;
     try {
         const parsedAmount = parseFloat(item.amount);
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -1498,7 +1498,7 @@ async function handlePurchase(item) {
         }
 
         // Show loading indicator
-        loadingMessage = await Swal.fire({
+        Swal.fire({
             title: translations[currentLanguage].processing,
             text: translations[currentLanguage].preparingTransaction,
             allowOutsideClick: false,
@@ -1507,6 +1507,7 @@ async function handlePurchase(item) {
                 Swal.showLoading();
             }
         });
+        loadingShown = true;
 
         // Get current exchange rate
         const tonToUsdtRate = await fetchCurrentRate();
@@ -1554,6 +1555,12 @@ async function handlePurchase(item) {
             const response = await axios.post('/api/orders/create', orderData);
             
             if (response.data && response.data.success) {
+                // Close loading before showing success
+                if (loadingShown) {
+                    Swal.close();
+                    loadingShown = false;
+                }
+                
                 await Swal.fire({
                     title: translations[currentLanguage].success,
                     text: translations[currentLanguage].orderCreated,
@@ -1569,6 +1576,12 @@ async function handlePurchase(item) {
     } catch (error) {
         console.error('Payment error:', error);
         
+        // Close loading before showing error
+        if (loadingShown) {
+            Swal.close();
+            loadingShown = false;
+        }
+        
         let errorMessage = translations[currentLanguage].paymentFailed;
         if (error.response?.data?.error) {
             errorMessage = error.response.data.error;
@@ -1583,8 +1596,9 @@ async function handlePurchase(item) {
             confirmButtonText: translations[currentLanguage].ok
         });
     } finally {
-        if (loadingMessage && loadingMessage.close) {
-            loadingMessage.close();
+        // Ensure loading is closed
+        if (loadingShown) {
+            Swal.close();
         }
     }
 }
@@ -1603,7 +1617,9 @@ async function fetchCurrentRate() {
 }
 
 window.addEventListener('beforeunload', () => {
-    tonConnectUI?.disconnect()?.catch(console.error);
+    if (tonConnectUI?.disconnect) {
+        tonConnectUI.disconnect().catch(console.error);
+    }
 });
     </script>
 </body>
