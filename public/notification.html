@@ -1,16 +1,16 @@
 
 <div id="notificationPopup" class="notification-popup">
   <div class="notification-header">
-    <h3 data-translate="notifications">Notifications</h3>
+    <h3>Notifications</h3>
     <div class="notification-actions">
-      <button id="markAllRead" data-translate="markAllRead">Mark All Read</button>
-      <button id="notificationCloseBtn" class="close-btn">×</button>
+      <button id="markAllRead">Mark All Read</button>
+      <button id="notificationCloseBtn">×</button>
     </div>
   </div>
   
   <div class="notification-loading" id="notificationLoading">
     <div class="loading-spinner"></div>
-    <span data-translate="loadingNotifications">Loading notifications...</span>
+    <span>Loading notifications...</span>
   </div>
   
   <div class="notification-list" id="notificationList">
@@ -18,32 +18,108 @@
       <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
       </svg>
-      <p data-translate="noNotifications">No new notifications</p>
+      <p>No new notifications</p>
     </div>
   </div>
   
   <div class="notification-footer">
-    <button id="viewAllNotifications" data-translate="viewAll">View All</button>
+    <button id="viewAllNotifications">View All</button>
   </div>
 </div>
-
-<style>
-  /* Keep all your original styles here */
-  /* ... */
-</style>
 
 <script>
 class NotificationSystem {
   constructor() {
-    this.container = document.getElementById('notificationPopup');
     this.listElement = document.getElementById('notificationList');
     this.emptyElement = document.getElementById('notificationEmpty');
     this.loadingElement = document.getElementById('notificationLoading');
-    this.notifications = [];
-    this.unreadCount = 0;
     
     this.initEventListeners();
-    this.fetchNotifications();
+    this.loadNotifications();
+  }
+
+  async loadNotifications() {
+    try {
+      this.showLoading(true);
+      
+      // Get user ID from parent window
+      const userId = window.parent.getUserIdentifier?.() || 'anonymous';
+      
+      const response = await fetch(`/api/notifications?userId=${encodeURIComponent(userId)}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.notifications?.length > 0) {
+        this.renderNotifications(data.notifications);
+        window.parent.postMessage({
+          type: 'UPDATE_BADGE',
+          count: data.unreadCount || 0
+        }, '*');
+      } else {
+        this.showEmptyState();
+      }
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+      this.showErrorState();
+    } finally {
+      this.showLoading(false);
+    }
+  }
+
+  renderNotifications(notifications) {
+    this.listElement.innerHTML = '';
+    
+    notifications.forEach(notification => {
+      const item = document.createElement('div');
+      item.className = `notification-item ${notification.read ? '' : 'unread'}`;
+      item.innerHTML = `
+        <div class="notification-title">
+          ${this.getNotificationIcon(notification.icon)} ${notification.title}
+        </div>
+        <div class="notification-message">${notification.message}</div>
+        <div class="notification-time">${this.formatTime(notification.createdAt)}</div>
+      `;
+      this.listElement.appendChild(item);
+    });
+  }
+
+  // Helper methods
+  getNotificationIcon(iconType) {
+    const icons = {
+      warning: '⚠️',
+      success: '✅',
+      error: '❌',
+      default: '🔔'
+    };
+    return icons[iconType] || icons.default;
+  }
+
+  formatTime(timestamp) {
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  showLoading(show) {
+    this.loadingElement.style.display = show ? 'flex' : 'none';
+    if (show) this.emptyElement.style.display = 'none';
+  }
+
+  showEmptyState() {
+    this.emptyElement.style.display = 'flex';
+    this.loadingElement.style.display = 'none';
+  }
+
+  showErrorState() {
+    this.emptyElement.innerHTML = `
+      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <p>Failed to load notifications</p>
+    `;
+    this.emptyElement.style.display = 'flex';
   }
 
   initEventListeners() {
@@ -54,120 +130,23 @@ class NotificationSystem {
 
     // Mark all as read
     document.getElementById('markAllRead')?.addEventListener('click', async () => {
-      await this.markAllAsRead();
+      const userId = window.parent.getUserIdentifier?.() || 'anonymous';
+      await fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      this.loadNotifications(); // Refresh the list
     });
 
     // View all notifications
     document.getElementById('viewAllNotifications')?.addEventListener('click', () => {
-      window.parent.postMessage({ type: 'VIEW_ALL_NOTIFICATIONS' }, '*');
+      window.location.href = '/notifications';
     });
-  }
-
-  async fetchNotifications() {
-    try {
-      this.showLoading(true);
-      
-      const userIdentifier = window.parent.getUserIdentifier?.() || 'anonymous';
-      const response = await fetch(`/api/notifications?userId=${encodeURIComponent(userIdentifier)}`);
-      
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      
-      const data = await response.json();
-      this.notifications = data.notifications || [];
-      this.unreadCount = data.unreadCount || 0;
-      
-      this.renderNotifications();
-      this.updateBadge();
-    } catch (error) {
-      console.error('Notification fetch error:', error);
-      this.showError();
-    } finally {
-      this.showLoading(false);
-    }
-  }
-
-  renderNotifications() {
-    this.listElement.innerHTML = '';
-    
-    if (this.notifications.length === 0) {
-      this.emptyElement.style.display = 'flex';
-      this.listElement.appendChild(this.emptyElement);
-      return;
-    }
-    
-    this.emptyElement.style.display = 'none';
-    
-    this.notifications.forEach(notification => {
-      const item = document.createElement('div');
-      item.className = `notification-item ${notification.read ? '' : 'unread'}`;
-      item.innerHTML = `
-        <div class="notification-title">
-          ${this.getIcon(notification.icon)} ${notification.title}
-        </div>
-        <div class="notification-message">${notification.message}</div>
-        <div class="notification-time">${this.formatTime(notification.createdAt)}</div>
-      `;
-      
-      item.addEventListener('click', () => this.handleNotificationClick(notification));
-      this.listElement.appendChild(item);
-    });
-  }
-
-  async markAllAsRead() {
-    try {
-      const userIdentifier = window.parent.getUserIdentifier?.() || 'anonymous';
-      await fetch('/api/notifications/mark-all-read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userIdentifier })
-      });
-      
-      this.notifications.forEach(n => n.read = true);
-      this.unreadCount = 0;
-      this.renderNotifications();
-      this.updateBadge();
-    } catch (error) {
-      console.error('Mark all as read error:', error);
-    }
-  }
-
-  // Helper methods
-  getIcon(iconType) {
-    const icons = {
-      bell: '🔔',
-      warning: '⚠️',
-      success: '✅',
-      error: '❌'
-    };
-    return icons[iconType] || '🔔';
-  }
-
-  formatTime(timestamp) {
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-
-  showLoading(show) {
-    this.loadingElement.style.display = show ? 'flex' : 'none';
-  }
-
-  showError() {
-    this.emptyElement.innerHTML = `
-      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-      </svg>
-      <p>${window.parent.translations?.[window.parent.currentLanguage]?.notificationsError || 'Failed to load notifications'}</p>
-    `;
-  }
-
-  updateBadge() {
-    window.parent.postMessage({ 
-      type: 'UPDATE_BADGE', 
-      count: this.unreadCount 
-    }, '*');
   }
 }
 
-// Initialize when content loads
+// Initialize when DOM loads
 document.addEventListener('DOMContentLoaded', () => {
   new NotificationSystem();
 });
