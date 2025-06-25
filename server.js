@@ -1236,25 +1236,25 @@ setInterval(() => {
 
 bot.on('sticker', async (ctx) => {
   try {
-    const sticker = ctx.message.sticker;
+    const sticker = ctx.message.sticker; // No need for null checks in sticker-specific handler
     const fileInfo = await ctx.telegram.getFile(sticker.file_id);
-    const webUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileInfo.file_path}`;
-
+    
     await Sticker.findOneAndUpdate(
       { file_unique_id: sticker.file_unique_id },
       {
         file_id: sticker.file_id,
         file_path: fileInfo.file_path,
-        web_url: web_url,
-        created_at: new Date()
+        web_url: `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileInfo.file_path}`,
+        updated_at: new Date()
       },
       { upsert: true, new: true }
     );
+    
+    console.log(`Sticker saved: ${sticker.file_unique_id}`);
   } catch (error) {
-    console.error(`Sticker save error: ${error.message}`);
+    console.error(`Sticker save failed: ${error.message}`);
   }
 });
-
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
