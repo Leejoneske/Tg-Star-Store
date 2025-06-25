@@ -964,11 +964,17 @@ function loadStickers() {
         img.height = 72;
         img.alt = 'Telegram Sticker';
         img.loading = 'lazy';
+        img.style.objectFit = 'contain';
         
-        // Try WebP first, fallback to PNG
-        img.src = `https://cdn.tlgrm.app/stickers/${stickerId}/webp/72.webp`;
+        // New sticker URL format
+        img.src = `https://cdn.telesco.pe/stickers/${stickerId}/72.webp`;
         img.onerror = function() {
-            this.src = `https://cdn.tlgrm.app/stickers/${stickerId}/png/72.png`;
+            // Fallback to PNG if WebP fails
+            this.src = `https://cdn.telesco.pe/stickers/${stickerId}/72.png`;
+            this.onerror = () => {
+                // Final fallback to placeholder if both fail
+                this.src = 'https://via.placeholder.com/72';
+            };
         };
         
         container.innerHTML = '';
@@ -1334,9 +1340,11 @@ function initWalletConnection() {
             return;
         }
 
+        // Initialize with restore connection
         tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
             manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json',
-            language: currentLanguage === 'ru' ? 'ru' : 'en'
+            language: currentLanguage === 'ru' ? 'ru' : 'en',
+            restoreConnection: true  // This is the key change
         });
         
         const connectWalletButton = document.getElementById('connectWallet');
@@ -1349,14 +1357,14 @@ function initWalletConnection() {
             if (wallet && wallet.account && wallet.account.address) {
                 currentWalletAddress = wallet.account.address;
                 const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
-                connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
+                connectWalletButton.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
                 connectWalletButton.classList.add('wallet-connected');
                 walletConnected = true;
                 sessionStorage.setItem('walletConnected', 'true');
                 sessionStorage.setItem('walletAddress', currentWalletAddress);
                 updateGlobalUserData();
             } else {
-                connectWalletButton.textContent = translations[currentLanguage].connectWallet;
+                connectWalletButton.innerHTML = `<i class="fas fa-wallet mr-2"></i>${translations[currentLanguage].connectWallet}`;
                 connectWalletButton.classList.remove('wallet-connected');
                 walletConnected = false;
                 currentWalletAddress = '';
@@ -1366,17 +1374,6 @@ function initWalletConnection() {
             }
         });
         
-        const savedWalletConnected = sessionStorage.getItem('walletConnected') === 'true';
-        const savedWalletAddress = sessionStorage.getItem('walletAddress');
-        
-        if (savedWalletConnected && savedWalletAddress) {
-            currentWalletAddress = savedWalletAddress;
-            const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
-            connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
-            connectWalletButton.classList.add('wallet-connected');
-            walletConnected = true;
-            updateGlobalUserData();
-        }
         
         connectWalletButton.addEventListener('click', () => {
             try {
