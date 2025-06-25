@@ -721,6 +721,7 @@ document.addEventListener('DOMContentLoaded', function() {
             initSectionToggle();
             updateLanguage();
             initBuyButtons();
+            initNotificationButton();
             
             window.currentUser = currentUser;
             window.currentWalletAddress = currentWalletAddress;
@@ -734,6 +735,56 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 
+
+function initNotificationButton() {
+    const notificationButton = document.getElementById('notificationButton');
+    if (!notificationButton) return;
+
+    notificationButton.addEventListener('click', async () => {
+        if (!isTelegramEnv) {
+            showErrorToUser(translations[currentLanguage].telegramRequiredForNotifications);
+            return;
+        }
+
+        try {
+            // Create container for notification window
+            const notificationWindow = document.createElement('div');
+            notificationWindow.id = 'notificationWindow';
+            notificationWindow.style.position = 'fixed';
+            notificationWindow.style.top = '0';
+            notificationWindow.style.left = '0';
+            notificationWindow.style.width = '100%';
+            notificationWindow.style.height = '100%';
+            notificationWindow.style.zIndex = '1000';
+            notificationWindow.style.display = 'flex';
+            notificationWindow.style.justifyContent = 'center';
+            notificationWindow.style.alignItems = 'center';
+            notificationWindow.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            
+            // Load notification content
+            const response = await fetch('notification.html');
+            if (!response.ok) throw new Error('Failed to load notifications');
+            notificationWindow.innerHTML = await response.text();
+            
+            // Add close button functionality
+            notificationWindow.addEventListener('click', (e) => {
+                if (e.target === notificationWindow) {
+                    document.body.removeChild(notificationWindow);
+                    // Hide badge after viewing notifications
+                    const badge = document.getElementById('notificationBadge');
+                    if (badge) badge.classList.add('hidden');
+                }
+            });
+
+            document.body.appendChild(notificationWindow);
+        } catch (error) {
+            console.error('Notification error:', error);
+            showErrorToUser(translations[currentLanguage].notificationsError);
+        }
+    });
+}
+
+        
 function loadMenuBar() {
     return new Promise((resolve, reject) => {
         const menubarContainer = document.getElementById('menubar-container');
