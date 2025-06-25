@@ -936,29 +936,37 @@ document.addEventListener('DOMContentLoaded', function() {
             showContent();
         });
 });
-
+        
 function loadStickers() {
     document.querySelectorAll('.sticker-container').forEach(container => {
         const stickerId = container.getAttribute('data-sticker-id');
-        const img = document.createElement('img');
+        if (!stickerId) return;
+        
+        const img = new Image();
         img.width = 72;
         img.height = 72;
         img.alt = 'Telegram Sticker';
         img.loading = 'lazy';
         img.style.objectFit = 'contain';
-
-        // Use absolute URL to ensure it hits your backend
-        img.src = `https://starstore.site/api/sticker/${stickerId}`;
-        img.onerror = function() {
-            console.error('Failed to load sticker:', stickerId);
-            this.src = 'https://via.placeholder.com/72x72/cccccc/666666?text=Sticker';
+        img.src = `/api/sticker/${stickerId}`;  // Changed to relative path
+        
+        img.onerror = () => {
+            img.src = 'https://via.placeholder.com/72x72/cccccc/666666?text=Sticker';
         };
-
-        container.innerHTML = '';
-        container.appendChild(img);
+        
+        container.replaceChildren(img);  // More modern than innerHTML=''
     });
 }
 
+app.get('/api/sticker/:sticker_id', async (req, res) => {
+  try {
+    const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
+    if (!sticker) return res.status(404).send('Sticker not found');
+    res.redirect(sticker.web_url);
+  } catch (error) {
+    res.redirect('https://via.placeholder.com/72.webp');
+  }
+});  
         
 function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
