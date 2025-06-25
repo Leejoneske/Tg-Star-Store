@@ -1228,27 +1228,37 @@ setInterval(() => {
     });
 }, 60000);
 
-app.get('/api/sticker/:fileId', async (req, res) => {
-  const { fileId } = req.params;
-
-  try {
-    // Get file info from Telegram
-    const fileResp = await axios.get(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
-    const filePath = fileResp.data.result.file_path;
-
-    // Download sticker file (usually webp format)
-    const stickerResp = await axios.get(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`, {
-      responseType: 'arraybuffer'
-    });
-
-    // Set correct content type for sticker (webp is default for Telegram stickers)
-    res.set('Content-Type', 'image/webp');
-    res.set('Access-Control-Allow-Origin', '*'); // CORS header for frontend requests
-    res.send(stickerResp.data);
-  } catch (e) {
-    console.error('Sticker fetch error:', e?.response?.data || e.message);
-    res.status(404).send('Sticker not found');
-  }
+// Add this to your server routes
+app.get('/api/sticker/:stickerId', async (req, res) => {
+    try {
+        const stickerId = req.params.stickerId;
+        
+        // Get sticker file info from Telegram
+        const fileInfo = await bot.getFile(stickerId);
+        const filePath = fileInfo.file_path;
+        
+        // Construct the direct URL to the sticker
+        const stickerUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${filePath}`;
+        
+        // Fetch the sticker and proxy it
+        const response = await axios.get(stickerUrl, {
+            responseType: 'stream',
+            timeout: 10000
+        });
+        
+        // Set appropriate headers
+        res.set({
+            'Content-Type': response.headers['content-type'] || 'image/webp',
+            'Cache-Control': 'public, max-age=86400' // Cache for 24 hours
+        });
+        
+        // Pipe the image data to the response
+        response.data.pipe(res);
+        
+    } catch (error) {
+        console.error('Error fetching sticker:', error);
+        res.status(404).json({ error: 'Sticker not found' });
+    }
 });
 
 // quarry database to get sell order for sell page
