@@ -962,6 +962,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 
+// Load Telegram stickers
+        document.querySelectorAll('.sticker-container').forEach(container => {
+            const stickerId = container.getAttribute('data-sticker-id');
+            const img = document.createElement('img');
+            img.width = 72;
+            img.height = 72;
+            img.alt = 'Telegram Sticker';
+            img.src = `https://cdn.tlgrm.app/stickers/${stickerId}/webp/72.webp`;
+            img.onerror = function() {
+                this.src = `https://cdn.tlgrm.app/stickers/${stickerId}/png/72.png`;
+            };
+            container.appendChild(img);
+        });
+        
 function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
     if (!notificationButton) return;
