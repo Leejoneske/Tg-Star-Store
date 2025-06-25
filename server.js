@@ -313,9 +313,15 @@ const notificationSchema = new mongoose.Schema({
     }
 });
 
-// Add compound index for better query performance
-notificationSchema.index({ userId: 1, read: 1, timestamp: -1 });
+const stickerSchema = new mongoose.Schema({
+  file_id: { type: String, required: true },
+  file_unique_id: { type: String, required: true, unique: true },
+  file_path: { type: String },
+  web_url: { type: String },
+  created_at: { type: Date, default: Date.now }
+});
 
+const Sticker = mongoose.model('Sticker', stickerSchema);
 const Notification = mongoose.model('Notification', notificationSchema);
 const Warning = mongoose.model('Warning', warningSchema);
 const Reversal = mongoose.model('Reversal', reversalSchema);
@@ -1229,44 +1235,26 @@ setInterval(() => {
 }, 60000);
 
 bot.on('sticker', async (ctx) => {
+  try {
     const sticker = ctx.message.sticker;
-    console.log("✅ file_id:", sticker.file_id);
+    const fileInfo = await ctx.telegram.getFile(sticker.file_id);
+    const webUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileInfo.file_path}`;
+
+    await Sticker.findOneAndUpdate(
+      { file_unique_id: sticker.file_unique_id },
+      {
+        file_id: sticker.file_id,
+        file_path: fileInfo.file_path,
+        web_url: web_url,
+        created_at: new Date()
+      },
+      { upsert: true, new: true }
+    );
+  } catch (error) {
+    console.error(`Sticker save error: ${error.message}`);
+  }
 });
 
-
-app.get('/api/sticker/:stickerId', async (req, res) => {
-    try {
-        const stickerId = req.params.stickerId;
-        
-        // Get sticker file info from Telegram
-        const fileInfo = await bot.getFile(stickerId);
-        const filePath = fileInfo.file_path;
-        
-        // Construct the direct URL to the sticker
-        const stickerUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${filePath}`;
-        
-        // Fetch the sticker
-        const response = await axios.get(stickerUrl, {
-            responseType: 'arraybuffer', // Changed to arraybuffer
-            timeout: 10000
-        });
-        
-        // Set proper headers
-        res.set({
-            'Content-Type': 'image/webp', // Force WebP type
-            'Content-Disposition': 'inline', // Display in browser
-            'Cache-Control': 'public, max-age=86400' // Cache for 24 hours
-        });
-        
-        // Send the image data
-        res.send(Buffer.from(response.data, 'binary'));
-        
-    } catch (error) {
-        console.error('Error fetching sticker:', error);
-        // Redirect to placeholder if error occurs
-        res.redirect('https://via.placeholder.com/72x72/cccccc/666666?text=Sticker');
-    }
-});
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
