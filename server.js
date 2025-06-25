@@ -1236,23 +1236,61 @@ setInterval(() => {
 
 bot.on('sticker', async (ctx) => {
   try {
-    const sticker = ctx.message.sticker; // No need for null checks in sticker-specific handler
-    const fileInfo = await ctx.telegram.getFile(sticker.file_id);
-    
-    await Sticker.findOneAndUpdate(
-      { file_unique_id: sticker.file_unique_id },
+    // 1. Triple-layer protection
+    if (!ctx?.message?.sticker) {
+      console.error('Malformed sticker message:', ctx);
+      return;
+    }
+
+    // 2. Destructure with fallbacks
+    const { 
+      file_id = null, 
+      file_unique_id = null 
+    } = ctx.message.sticker || {};
+
+    if (!file_id || !file_unique_id) {
+      console.error('Invalid sticker data:', ctx.message.sticker);
+      return;
+    }
+
+    // 3. Get file info with timeout
+    const fileInfo = await Promise.race([
+      ctx.telegram.getFile(file_id),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('File request timeout')), 5000)
+      )
+    ]);
+
+    // 4. Validate file path
+    if (!fileInfo?.file_path) {
+      throw new Error('Telegram returned invalid file path');
+    }
+
+    // 5. Database upsert with atomic operation
+    const result = await Sticker.updateOne(
+      { file_unique_id },
       {
-        file_id: sticker.file_id,
-        file_path: fileInfo.file_path,
-        web_url: `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileInfo.file_path}`,
-        updated_at: new Date()
+        $set: {
+          file_id,
+          file_path: fileInfo.file_path,
+          web_url: `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileInfo.file_path}`,
+          updated_at: new Date()
+        },
+        $setOnInsert: {
+          created_at: new Date()
+        }
       },
-      { upsert: true, new: true }
+      { upsert: true }
     );
+
+    console.log(`Sticker ${file_unique_id} processed:`, result.upsertedId ? 'Created' : 'Updated');
     
-    console.log(`Sticker saved: ${sticker.file_unique_id}`);
   } catch (error) {
-    console.error(`Sticker save failed: ${error.message}`);
+    console.error('Sticker processing failed:', {
+      error: error.message,
+      update: ctx?.update,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
