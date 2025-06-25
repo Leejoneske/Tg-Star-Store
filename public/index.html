@@ -937,32 +937,27 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 
-
 function loadStickers() {
-    document.querySelectorAll('.sticker-container').forEach(container => {
-        const stickerId = container.getAttribute('data-sticker-id');
-        const img = document.createElement('img');
-        img.width = 72;
-        img.height = 72;
-        img.alt = 'Telegram Sticker';
-        img.loading = 'lazy';
-        img.style.objectFit = 'contain';
-        
-        // New sticker URL format
-        img.src = `https://cdn.telesco.pe/stickers/${stickerId}/72.webp`;
-        img.onerror = function() {
-            // Fallback to PNG if WebP fails
-            this.src = `https://cdn.telesco.pe/stickers/${stickerId}/72.png`;
-            this.onerror = () => {
-                // Final fallback to placeholder if both fail
-                this.src = 'https://via.placeholder.com/72';
-            };
-        };
-        
-        container.innerHTML = '';
-        container.appendChild(img);
-    });
+  document.querySelectorAll('.sticker-container').forEach(container => {
+    const stickerId = container.getAttribute('data-sticker-id');
+    const img = document.createElement('img');
+    img.width = 72;
+    img.height = 72;
+    img.alt = 'Telegram Sticker';
+    img.loading = 'lazy';
+    img.style.objectFit = 'contain';
+
+    // Use your backend's proxy endpoint
+    img.src = `/api/sticker/${stickerId}`;
+    img.onerror = function() {
+      this.src = 'https://via.placeholder.com/72';
+    };
+
+    container.innerHTML = '';
+    container.appendChild(img);
+  });
 }
+
         
 function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
