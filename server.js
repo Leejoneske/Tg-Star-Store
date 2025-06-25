@@ -1203,6 +1203,28 @@ setInterval(() => {
     });
 }, 60000);
 
+app.get('/api/sticker/:fileId', async (req, res) => {
+  const { fileId } = req.params;
+
+  try {
+    // Get file info from Telegram
+    const fileResp = await axios.get(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+    const filePath = fileResp.data.result.file_path;
+
+    // Download sticker file (usually webp format)
+    const stickerResp = await axios.get(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`, {
+      responseType: 'arraybuffer'
+    });
+
+    // Set correct content type for sticker (webp is default for Telegram stickers)
+    res.set('Content-Type', 'image/webp');
+    res.set('Access-Control-Allow-Origin', '*'); // CORS header for frontend requests
+    res.send(stickerResp.data);
+  } catch (e) {
+    console.error('Sticker fetch error:', e?.response?.data || e.message);
+    res.status(404).send('Sticker not found');
+  }
+});
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
