@@ -582,35 +582,27 @@
             </div>
         </div>
 
-        <div id="content-container">
-            <div id="menubar-container"></div>
-            <div class="p-4 flex justify-between items-center bg-white shadow-sm relative">
-                <button id="menuButton" class="p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                    </svg>
-                </button>
-                <div class="logo-header" data-translate="appName">StarStore</div>
-                <div class="flex items-center space-x-4">
-                    <button class="notification-button relative p-2 rounded-full hover:bg-gray-100 transition-colors" id="notificationButton">
-                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                        </svg>
-                        <div class="notification-badge hidden" id="notificationBadge">0</div>
-                    </button>
-                    <button id="languageToggle" class="language-toggle">🇬🇧</button>
-                </div>
+            <div class="app-container">
+        <div class="p-4 flex justify-between items-center bg-white shadow-sm relative">
+            <button id="menuButton" class="p-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <div class="logo-header">StarStore</div>
+            <div class="flex items-center space-x-2">
+                <button id="languageToggle" class="language-toggle">🇬🇧</button>
             </div>
+        </div>
 
-                   <div class="px-4 pt-4 pb-2">
+        <div class="px-4 pt-4 pb-2">
             <div class="user-info-container">
-                <div class="user-details">
+                <div class="flex items-center space-x-3">
                     <div class="profile-image">
-                        <img id="profilePicture" src="https://via.placeholder.com/48" alt="User Profile" class="w-full h-full object-cover">
+                        <img id="profilePicture" src="https://via.placeholder.com/48" alt="Profile" class="w-full h-full object-cover">
                     </div>
                     <div>
-                        <div class="username" id="username">@guest273</div>
-                        <div class="text-xs text-gray-500">(Web)</div>
+                        <div class="font-semibold">@username</div>
                     </div>
                 </div>
                 <button id="connectWallet" class="connect-button">
@@ -625,74 +617,57 @@
                 <button class="toggle-button" id="premiumToggle">Telegram Premium</button>
             </div>
 
-            <div class="section-content active" id="starsSection">
-                <div class="stars-card">
-                    <h3 class="text-lg font-bold mb-4">Choose a Stars Package</h3>
-                    
-                    <div class="stars-grid">
-                        <!-- 15 Stars -->
-                        <div class="stars-package">
-                            <div class="stars-amount">15 Stars</div>
-                            <div class="usdt-price">0.35 USDT</div>
-                            <div class="sticker-container">
-                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE" width="72" height="72" frameBorder="0"></iframe>
-                            </div>
-                            <button class="buy-button">Buy Gift</button>
-                        </div>
-                        
-                        <!-- 25 Stars -->
-                        <div class="stars-package">
-                            <div class="stars-amount">25 Stars</div>
-                            <div class="usdt-price">0.60 USDT</div>
-                            <div class="sticker-container">
-                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE" width="72" height="72" frameBorder="0"></iframe>
-                            </div>
-                            <button class="buy-button">Buy Gift</button>
-                        </div>
+            <!-- Buy Stars Section -->
+            <div id="starsSection">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Choose a Stars Package</h3>
+                
+                <div class="stars-grid">
+                    <!-- 15 Stars -->
+                    <div class="stars-package">
+                        <div class="stars-amount">15 Stars</div>
+                        <div class="usdt-price">0.35 USDT</div>
+                        <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE"></div>
+                        <button class="buy-button" data-stars="15" data-price="0.35">Buy Gift</button>
                     </div>
                     
-                    <div class="stars-grid">
-                        <!-- 50 Stars -->
-                        <div class="stars-package">
-                            <div class="stars-amount">50 Stars</div>
-                            <div class="usdt-price">1.00 USDT</div>
-                            <div class="sticker-container">
-                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0"></iframe>
-                            </div>
-                            <button class="buy-button">Buy Now</button>
-                        </div>
-                        
-                        <!-- 100 Stars -->
-                        <div class="stars-package">
-                            <div class="stars-amount">100 Stars</div>
-                            <div class="usdt-price">2.00 USDT</div>
-                            <div class="sticker-container">
-                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0"></iframe>
-                            </div>
-                            <button class="buy-button">Buy Now</button>
-                        </div>
+                    <!-- 25 Stars -->
+                    <div class="stars-package">
+                        <div class="stars-amount">25 Stars</div>
+                        <div class="usdt-price">0.60 USDT</div>
+                        <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE"></div>
+                        <button class="buy-button" data-stars="25" data-price="0.60">Buy Gift</button>
                     </div>
                     
-                    <div class="stars-grid">
-                        <!-- 500 Stars -->
-                        <div class="stars-package">
-                            <div class="stars-amount">500 Stars</div>
-                            <div class="usdt-price">10.00 USDT</div>
-                            <div class="sticker-container">
-                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0"></iframe>
-                            </div>
-                            <button class="buy-button">Buy Now</button>
-                        </div>
-                        
-                        <!-- 1000 Stars -->
-                        <div class="stars-package">
-                            <div class="stars-amount">1000 Stars</div>
-                            <div class="usdt-price">20.00 USDT</div>
-                            <div class="sticker-container">
-                                <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0"></iframe>
-                            </div>
-                            <button class="buy-button">Buy Now</button>
-                        </div>
+                    <!-- 50 Stars -->
+                    <div class="stars-package">
+                        <div class="stars-amount">50 Stars</div>
+                        <div class="usdt-price">1.00 USDT</div>
+                        <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ"></div>
+                        <button class="buy-button" data-stars="50" data-price="1.00">Buy Now</button>
+                    </div>
+                    
+                    <!-- 100 Stars -->
+                    <div class="stars-package">
+                        <div class="stars-amount">100 Stars</div>
+                        <div class="usdt-price">2.00 USDT</div>
+                        <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ"></div>
+                        <button class="buy-button" data-stars="100" data-price="2.00">Buy Now</button>
+                    </div>
+                    
+                    <!-- 500 Stars -->
+                    <div class="stars-package">
+                        <div class="stars-amount">500 Stars</div>
+                        <div class="usdt-price">10.00 USDT</div>
+                        <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ"></div>
+                        <button class="buy-button" data-stars="500" data-price="10.00">Buy Now</button>
+                    </div>
+                    
+                    <!-- 1000 Stars -->
+                    <div class="stars-package">
+                        <div class="stars-amount">1000 Stars</div>
+                        <div class="usdt-price">20.00 USDT</div>
+                        <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ"></div>
+                        <button class="buy-button" data-stars="1000" data-price="20.00">Buy Now</button>
                     </div>
                 </div>
             </div>
