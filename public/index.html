@@ -385,16 +385,37 @@
             color: #4f46e5;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
-        
-        .section-content {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
 
-        .section-content.active {
-            display: block;
-        }
+        .section-toggle {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    background: #f3f4f6;
+    padding: 6px;
+    border-radius: 12px;
+    gap: 4px;
+}
 
+.toggle-button {
+    padding: 12px 0;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 600;
+    color: #6b7280;
+    flex: 1;
+    text-align: center;
+    font-size: 15px;
+}
+
+.toggle-button.active {
+    background: white;
+    color: #4f46e5;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+    
         .stars-card, .premium-card {
             background: white;
             border-radius: 16px;
@@ -613,7 +634,8 @@
                                 <div class="usdt-price">0.35 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
                                 <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                        
+                                    <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE"></div>
                                 </div>
                             </div>
                             <div class="package-option stars-package">
@@ -621,7 +643,7 @@
                                 <div class="usdt-price">0.60 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
                                 <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                    <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE"></div>
                                 </div>
                             </div>
                             <div class="package-option stars-package">
@@ -629,7 +651,7 @@
                                 <div class="usdt-price">1.00 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy-gift" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
                                 <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE"></div>
                                 </div>
                             </div>
                             <div class="package-option stars-package">
@@ -637,7 +659,7 @@
                                 <div class="usdt-price">2.00 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy Now</button>
                                 <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                    <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE"></div>
                                 </div>
                             </div>
                             <div class="package-option stars-package">
@@ -645,7 +667,7 @@
                                 <div class="usdt-price">10.00 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy Now</button>
                                 <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                    <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE"></div>
                                 </div>
                             </div>
                             <div class="package-option stars-package">
@@ -653,7 +675,7 @@
                                 <div class="usdt-price">20.00 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy Now</button>
                                 <div class="mt-2">
-                                    <iframe src="https://t.me/sticker/CAACAgIAAxkBAAEOyLdoW-I-uDa-28fqWfJH-tfWakk0WQAClwADr8ZRGvSIdDD3EA8ENgQ" width="72" height="72" frameBorder="0" class="mx-auto"></iframe>
+                                    <div class="sticker-container" data-sticker-id="CAACAgIAAxkBAAEOyLNoW-Bezlt4G7ryO9ApuPEgq3thSAACHQMAAladvQrFMjBk7XkPEzYE"></div>
                                 </div>
                             </div>
                         </div>
@@ -911,6 +933,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateLanguage();
             initBuyButtons();
             initNotificationSystem(); 
+            loadStickersWithToken();
             
             window.currentUser = currentUser;
             window.currentWalletAddress = currentWalletAddress;
@@ -924,19 +947,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 
-// Load Telegram stickers
-        document.querySelectorAll('.sticker-container').forEach(container => {
-            const stickerId = container.getAttribute('data-sticker-id');
-            const img = document.createElement('img');
-            img.width = 72;
-            img.height = 72;
-            img.alt = 'Telegram Sticker';
-            img.src = `https://cdn.tlgrm.app/stickers/${stickerId}/webp/72.webp`;
-            img.onerror = function() {
-                this.src = `https://cdn.tlgrm.app/stickers/${stickerId}/png/72.png`;
-            };
-            container.appendChild(img);
-        });
+
+function loadStickersWithToken() {
+    const BOT_TOKEN = 'YOUR_BOT_TOKEN'; // Replace with your actual bot token
+    document.querySelectorAll('.sticker-container').forEach(container => {
+        const stickerId = container.getAttribute('data-sticker-id');
+        const img = document.createElement('img');
+        img.width = 72;
+        img.height = 72;
+        img.alt = 'Telegram Sticker';
+        img.src = `https://api.telegram.org/file/bot${BOT_TOKEN}/stickers/${stickerId}.webp`;
+        img.onerror = function() {
+            this.src = `https://api.telegram.org/file/bot${BOT_TOKEN}/stickers/${stickerId}.png`;
+        };
+        container.appendChild(img);
+    });
+}
         
 function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
@@ -1445,7 +1471,8 @@ async function handlePurchase(item) {
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonText: translations[currentLanguage].continue || 'Continue',
-                cancelButtonText: translations[currentLanguage].cancel || 'Cancel'
+                cancelButtonText: translations[currentLanguage].cancel || 'Cancel',
+                footer: '<a href="https://t.me/TgStarStore_bot" target="_blank" style="color: #4f46e5; text-decoration: underline;">Open in Telegram</a>'
             });
             
             if (!confirmed.isConfirmed) return;
@@ -1453,6 +1480,7 @@ async function handlePurchase(item) {
             console.error('SweetAlert2 error:', error);
         }
     }
+    
     
     let loadingMessage;
     try {
