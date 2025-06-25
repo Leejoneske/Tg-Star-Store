@@ -933,7 +933,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateLanguage();
             initBuyButtons();
             initNotificationSystem(); 
-            loadStickersWithToken();
+            loadStickers();
             
             window.currentUser = currentUser;
             window.currentWalletAddress = currentWalletAddress;
@@ -948,18 +948,22 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-function loadStickersWithToken() {
-    const BOT_TOKEN = 'YOUR_BOT_TOKEN'; // Replace with your actual bot token
+function loadStickers() {
     document.querySelectorAll('.sticker-container').forEach(container => {
         const stickerId = container.getAttribute('data-sticker-id');
         const img = document.createElement('img');
         img.width = 72;
         img.height = 72;
         img.alt = 'Telegram Sticker';
-        img.src = `https://api.telegram.org/file/bot${BOT_TOKEN}/stickers/${stickerId}.webp`;
+        img.loading = 'lazy';
+        
+        // Try WebP first, fallback to PNG
+        img.src = `https://cdn.tlgrm.app/stickers/${stickerId}/webp/72.webp`;
         img.onerror = function() {
-            this.src = `https://api.telegram.org/file/bot${BOT_TOKEN}/stickers/${stickerId}.png`;
+            this.src = `https://cdn.tlgrm.app/stickers/${stickerId}/png/72.png`;
         };
+        
+        container.innerHTML = '';
         container.appendChild(img);
     });
 }
