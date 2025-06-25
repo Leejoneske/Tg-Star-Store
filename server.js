@@ -20,7 +20,32 @@ const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./m
 const reversalRequests = new Map();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, etc.)
+        if (!origin) return callback(null, true);
+        
+        // Allow localhost and your main domains
+        const allowedPatterns = [
+            /^https?:\/\/localhost(:\d+)?$/,
+            /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+            /^https:\/\/.*\.vercel\.app$/,
+            /^https:\/\/(www\.)?starstore\.site$/
+        ];
+        
+        const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
+        
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            console.log('CORS blocked origin:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
