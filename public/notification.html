@@ -1,548 +1,65 @@
 
-<div class="notification-container hidden" id="notificationContainer">
-  <div class="notification-header">
-    <h3 data-translate="notifications">Notifications</h3>
-    <div class="notification-actions">
-      <button id="markAllRead" data-translate="markAllRead">Mark All Read</button>
-      <button id="notificationClose">×</button>
+<div class="notification-popup">
+  <div class="notification-content">
+    <h3>Notifications</h3>
+    <div class="notification-list">
+      <div class="notification-item">
+        <div class="notification-title">Test Notification</div>
+        <div class="notification-message">This is a test notification message</div>
+        <div class="notification-time">Just now</div>
+      </div>
     </div>
-  </div>
-  
-  <div class="notification-loading hidden" id="notificationLoading">
-    <div class="loading-spinner"></div>
-    <span data-translate="loadingNotifications">Loading notifications...</span>
-  </div>
-  
-  <div class="notification-list" id="notificationList">
-    <div class="notification-empty" id="notificationEmpty">
-      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-      </svg>
-      <p data-translate="noNotifications">No new notifications</p>
-    </div>
-  </div>
-  
-  <div class="notification-footer">
-    <button id="viewAllNotifications" data-translate="viewAll">View All</button>
   </div>
 </div>
 
 <style>
-  .notification-container {
-    position: fixed;
-    top: 60px;
-    right: 20px;
-    width: 360px;
-    max-height: 70vh;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    font-family: 'Inter', sans-serif;
-    overflow: hidden;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-    pointer-events: none;
-  }
+.notification-popup {
+  position: relative;
+  width: 360px;
+  max-height: 70vh;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
 
-  .notification-container.visible {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-  }
+.notification-content {
+  padding: 16px;
+}
 
-  .notification-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #f8fafc;
-  }
+.notification-content h3 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  color: #333;
+}
 
-  .notification-header h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: #1f2937;
-  }
+.notification-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
 
-  .notification-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
+.notification-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
 
-  .notification-actions button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 13px;
-    color: #4f46e5;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-  }
+.notification-title {
+  font-weight: 500;
+  color: #333;
+}
 
-  .notification-actions button:hover {
-    background-color: rgba(79, 70, 229, 0.1);
-  }
+.notification-message {
+  font-size: 14px;
+  color: #666;
+  margin: 4px 0;
+}
 
-  #notificationClose {
-    font-size: 18px;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #6b7280;
-  }
-
-  .notification-loading {
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    color: #6b7280;
-  }
-
-  .loading-spinner {
-    width: 24px;
-    height: 24px;
-    border: 3px solid rgba(0, 0, 0, 0.1);
-    border-top-color: #4f46e5;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-  .notification-list {
-    flex: 1;
-    overflow-y: auto;
-    max-height: calc(70vh - 120px);
-    scrollbar-width: thin;
-    scrollbar-color: #e5e7eb #f9fafb;
-  }
-
-  .notification-list::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .notification-list::-webkit-scrollbar-track {
-    background: #f9fafb;
-  }
-
-  .notification-list::-webkit-scrollbar-thumb {
-    background-color: #e5e7eb;
-    border-radius: 3px;
-  }
-
-  .notification-item {
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-  }
-
-  .notification-item:hover {
-    background-color: #f9fafb;
-  }
-
-  .notification-item.unread {
-    background-color: #f3f4ff;
-    border-left: 3px solid #4f46e5;
-  }
-
-  .notification-item.unread .notification-title {
-    font-weight: 600;
-  }
-
-  .notification-title {
-    font-weight: 500;
-    margin-bottom: 4px;
-    color: #1f2937;
-    font-size: 14px;
-    line-height: 1.4;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .notification-message {
-    font-size: 13px;
-    color: #4b5563;
-    line-height: 1.4;
-    margin-bottom: 4px;
-  }
-
-  .notification-time {
-    font-size: 11px;
-    color: #9ca3af;
-    margin-top: 4px;
-  }
-
-  .notification-empty {
-    padding: 32px 16px;
-    text-align: center;
-    color: #6b7280;
-  }
-
-  .empty-icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 12px;
-    stroke-width: 1.5;
-    color: #4f46e5;
-    opacity: 0.6;
-  }
-
-  .notification-footer {
-    padding: 12px;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-    display: flex;
-    justify-content: center;
-  }
-
-  #viewAllNotifications {
-    background: none;
-    border: none;
-    color: #4f46e5;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    padding: 4px 12px;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-  }
-
-  #viewAllNotifications:hover {
-    background-color: rgba(79, 70, 229, 0.1);
-  }
+.notification-time {
+  font-size: 12px;
+  color: #999;
+}
 </style>
 
 <script>
-class NotificationSystem {
-  constructor() {
-    // Check if container exists
-    this.container = document.getElementById('notificationContainer');
-    if (!this.container) {
-      console.error('Notification container not found');
-      return;
-    }
-
-    this.listElement = document.getElementById('notificationList');
-    this.emptyElement = document.getElementById('notificationEmpty');
-    this.loadingElement = document.getElementById('notificationLoading');
-    this.notifications = [];
-    this.unreadCount = 0;
-    this.isOpen = false;
-    this.isInitialized = false;
-
-    // Set initial state
-    this.container.classList.add('hidden');
-    this.container.classList.remove('visible');
-
-    this.initEventListeners();
-    console.log('Notification system initialized');
-  }
-
-  initEventListeners() {
-    // More reliable button detection
-    const setupButtonListener = () => {
-      const button = document.getElementById('notificationButton');
-      if (button) {
-        button.addEventListener('click', (e) => {
-          console.log('Notification button clicked');
-          e.preventDefault();
-          e.stopPropagation();
-          this.toggle();
-        });
-        return true;
-      }
-      return false;
-    };
-
-    // Try immediately, then fallback to interval
-    if (!setupButtonListener()) {
-      const buttonCheck = setInterval(() => {
-        if (setupButtonListener()) {
-          clearInterval(buttonCheck);
-        }
-      }, 100);
-    }
-
-    // Close button
-    const closeButton = document.getElementById('notificationClose');
-    if (closeButton) {
-      closeButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.toggle(false);
-      });
-    }
-
-    // Mark all as read
-    const markAllButton = document.getElementById('markAllRead');
-    if (markAllButton) {
-      markAllButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.markAllAsRead();
-      });
-    }
-
-    // View all notifications
-    const viewAllButton = document.getElementById('viewAllNotifications');
-    if (viewAllButton) {
-      viewAllButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        window.location.href = '/notifications';
-      });
-    }
-
-    // Click outside handler
-    document.addEventListener('click', (e) => {
-      const notificationButton = document.getElementById('notificationButton');
-      if (this.isOpen && 
-          !this.container.contains(e.target) && 
-          notificationButton && !notificationButton.contains(e.target)) {
-        this.toggle(false);
-      }
-    });
-
-    // Close on scroll
-    window.addEventListener('scroll', () => {
-      if (this.isOpen) {
-        this.toggle(false);
-      }
-    }, { passive: true });
-  }
-
-  toggle(forceState) {
-    console.log('Toggling notifications. Current state:', this.isOpen);
-    const shouldOpen = typeof forceState === 'boolean' ? forceState : !this.isOpen;
-    
-    if (shouldOpen === this.isOpen) return;
-    
-    this.isOpen = shouldOpen;
-    
-    if (shouldOpen) {
-      this.container.classList.remove('hidden');
-      // Force reflow to enable transition
-      void this.container.offsetWidth;
-      this.container.classList.add('visible');
-      
-      if (!this.isInitialized) {
-        this.fetchNotifications();
-        this.isInitialized = true;
-      }
-    } else {
-      this.container.classList.remove('visible');
-      this.container.addEventListener('transitionend', () => {
-        if (!this.isOpen) {
-          this.container.classList.add('hidden');
-        }
-      }, { once: true });
-    }
-  }
-
-  async fetchNotifications() {
-    try {
-      this.showLoading(true);
-      
-      const userIdentifier = window.getUserIdentifier?.();
-      if (!userIdentifier) {
-        throw new Error('No user identifier available');
-      }
-
-      console.log('Fetching notifications for:', userIdentifier);
-      const response = await axios.get('/api/notifications', {
-        params: { userId: userIdentifier }
-      });
-      
-      if (response.data) {
-        this.notifications = response.data.notifications || [];
-        this.unreadCount = response.data.unreadCount || 0;
-        this.renderNotifications();
-        this.updateBadge();
-      }
-    } catch (error) {
-      console.error('Notification fetch error:', error);
-      this.notifications = [];
-      this.unreadCount = 0;
-      this.renderNotifications();
-      
-      if (this.isOpen) {
-        this.emptyElement.innerHTML = `
-          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-          </svg>
-          <p>${window.translations?.[window.currentLanguage]?.notificationsError || 'Failed to load notifications'}</p>
-        `;
-        this.emptyElement.style.display = 'flex';
-      }
-    } finally {
-      this.showLoading(false);
-    }
-  }
-
-  renderNotifications() {
-    if (!this.listElement) return;
-    
-    this.listElement.innerHTML = '';
-    
-    if (this.notifications.length === 0) {
-      this.emptyElement.style.display = 'flex';
-      this.listElement.appendChild(this.emptyElement);
-      return;
-    }
-    
-    this.emptyElement.style.display = 'none';
-    
-    const sortedNotifications = [...this.notifications].sort((a, b) => 
-      new Date(b.createdAt) - new Date(a.createdAt)
-    );
-    
-    sortedNotifications.forEach(notification => {
-      const notificationElement = document.createElement('div');
-      notificationElement.className = `notification-item ${notification.read ? '' : 'unread'}`;
-      
-      let icon = '🔔';
-      if (notification.icon === 'warning') icon = '⚠️';
-      if (notification.icon === 'success') icon = '✅';
-      if (notification.icon === 'error') icon = '❌';
-      
-      notificationElement.innerHTML = `
-        <div class="notification-title">
-          <span class="notification-icon">${icon}</span>
-          ${this.escapeHtml(notification.title)}
-        </div>
-        <div class="notification-message">${this.escapeHtml(notification.message)}</div>
-        <div class="notification-time">${this.formatTime(notification.createdAt)}</div>
-      `;
-      
-      notificationElement.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.handleNotificationClick(notification);
-      });
-      
-      this.listElement.appendChild(notificationElement);
-    });
-  }
-
-  async handleNotificationClick(notification) {
-    if (!notification.read) {
-      await this.markAsRead(notification.id);
-    }
-    
-    if (notification.actionUrl) {
-      window.open(notification.actionUrl, '_blank');
-    }
-    
-    this.toggle(false);
-  }
-
-  async markAsRead(notificationId) {
-    try {
-      const userIdentifier = window.getUserIdentifier?.();
-      if (!userIdentifier) return;
-
-      await axios.post(`/api/notifications/${notificationId}/read`, {
-        userId: userIdentifier
-      });
-      
-      const notification = this.notifications.find(n => n.id === notificationId);
-      if (notification && !notification.read) {
-        notification.read = true;
-        this.unreadCount--;
-        this.updateBadge();
-        this.renderNotifications();
-      }
-    } catch (error) {
-      console.error('Mark as read error:', error);
-    }
-  }
-
-  async markAllAsRead() {
-    try {
-      const userIdentifier = window.getUserIdentifier?.();
-      if (!userIdentifier) return;
-
-      await axios.post('/api/notifications/mark-all-read', {
-        userId: userIdentifier
-      });
-      
-      this.notifications.forEach(notification => {
-        notification.read = true;
-      });
-      
-      this.unreadCount = 0;
-      this.updateBadge();
-      this.renderNotifications();
-    } catch (error) {
-      console.error('Mark all as read error:', error);
-    }
-  }
-
-  updateBadge() {
-    const badge = document.getElementById('notificationBadge');
-    if (!badge) return;
-    
-    if (this.unreadCount > 0) {
-      badge.textContent = this.unreadCount > 9 ? '9+' : this.unreadCount.toString();
-      badge.classList.remove('hidden');
-    } else {
-      badge.classList.add('hidden');
-    }
-  }
-
-  showLoading(show) {
-    if (!this.loadingElement || !this.listElement) return;
-    this.loadingElement.classList.toggle('hidden', !show);
-    this.listElement.style.display = show ? 'none' : 'block';
-  }
-
-  formatTime(dateString) {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
-    
-    const translations = window.translations?.[window.currentLanguage] || {};
-    
-    if (diffInSeconds < 60) return translations.justNow || 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${translations.minutesAgo || 'minutes ago'}`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${translations.hoursAgo || 'hours ago'}`;
-    
-    return date.toLocaleDateString(window.currentLanguage || 'en', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
-
-  escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return unsafe.toString()
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
-}
-
-// Don't auto-initialize - let the main app handle initialization
-// window.notificationSystem = new NotificationSystem();
+console.log("Notification content loaded successfully");
 </script>
