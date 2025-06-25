@@ -1448,30 +1448,53 @@ function initBuyButtons() {
 }
 
 async function handlePurchase(item) {
-    // Validate wallet connection
     if (!tonConnectUI || !walletConnected) {
         showErrorToUser(translations[currentLanguage].walletNotConnected);
         return;
     }
-
-    // Validate user
-    if (!currentUser?.id) {
+    
+    const user = currentUser;
+    if (!user || !user.id) {
         showErrorToUser(translations[currentLanguage].userNotFound);
         return;
     }
-
-    // Redirect web users to Telegram
+    
     if (!isTelegramEnv) {
-        await redirectToTelegram();
-        return;
+        try {
+            const result = await Swal.fire({
+                title: translations[currentLanguage].warning || 'Warning',
+                text: translations[currentLanguage].tryInTelegram || 'For the best experience, please use our Telegram bot',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: translations[currentLanguage].continue || 'Open in Telegram',
+                cancelButtonText: translations[currentLanguage].cancel || 'Cancel',
+                customClass: {
+                    confirmButton: 'telegram-confirm-btn'
+                }
+            });
+            
+            if (result.isConfirmed) {
+                // Redirect to Telegram bot when Continue is clicked
+                window.location.href = 'https://t.me/TgStarStore_bot';
+                return;
+            } else {
+                // User clicked Cancel or closed the dialog
+                return;
+            }
+        } catch (error) {
+            console.error('Error showing Telegram warning:', error);
+            // Fallback to direct Telegram link if Swal fails
+            window.location.href = 'https://t.me/TgStarStore_bot';
+            return;
+        }
     }
-
+    
     let loadingMessage;
     try {
-        // Validate amount
         const parsedAmount = parseFloat(item.amount);
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
-            throw new Error(translations[currentLanguage].invalidAmount);
+            showErrorToUser(translations[currentLanguage].invalidAmount);
+            return;
         }
 
         // Show loading indicator
@@ -1480,144 +1503,90 @@ async function handlePurchase(item) {
             text: translations[currentLanguage].preparingTransaction,
             allowOutsideClick: false,
             showConfirmButton: false,
-            didOpen: () => Swal.showLoading()
+            didOpen: () => {
+                Swal.showLoading();
+            }
         });
 
-        // Get wallet address with better error handling
-        const walletAddress = await getWalletAddress();
-        if (!walletAddress) {
-            throw new Error('Could not retrieve payment address');
-        }
-
-        // Get exchange rate
+        // Get current exchange rate
         const tonToUsdtRate = await fetchCurrentRate();
-        if (!tonToUsdtRate) {
-            throw new Error('Could not determine exchange rate');
+        if (!tonToUsdtRate || tonToUsdtRate <= 0) {
+            throw new Error('Failed to fetch current exchange rate');
+        }
+        
+        // Calculate amount in TON
+        const tonAmount = parsedAmount / tonToUsdtRate;
+        const nanoTonAmount = Math.round(tonAmount * 1e9);
+        
+        // Get payment address
+        const walletResponse = await axios.get('/api/get-wallet-address');
+        if (!walletResponse.data?.walletAddress) {
+            throw new Error('Failed to get payment address');
         }
 
         // Prepare transaction
-        const nanoTonAmount = Math.round((parsedAmount / tonToUsdtRate) * 1e9);
         const transaction = {
             validUntil: Math.floor(Date.now() / 1000) + 300,
-            messages: [{
-                address: walletAddress,
-                amount: nanoTonAmount.toString()
-            }]
+            messages: [
+                {
+                    address: walletResponse.data.walletAddress,
+                    amount: nanoTonAmount.toString(),
+                }
+            ]
         };
-
+        
         // Send transaction
-        const txResult = await tonConnectUI.sendTransaction(transaction);
-        if (!txResult) {
+        const result = await tonConnectUI.sendTransaction(transaction);
+        
+        if (result) {
+            // Create order record
+            const orderData = {
+                telegramId: user.id,
+                username: user.username || user.first_name || 'Unknown',
+                stars: item.stars || null,
+                isPremium: item.isPremium || false,
+                premiumDuration: item.premiumDuration || null,
+                walletAddress: currentWalletAddress,
+                transactionHash: result,
+                isTelegramUser: isTelegramEnv
+            };
+            
+            const response = await axios.post('/api/orders/create', orderData);
+            
+            if (response.data && response.data.success) {
+                await Swal.fire({
+                    title: translations[currentLanguage].success,
+                    text: translations[currentLanguage].orderCreated,
+                    icon: 'success',
+                    confirmButtonText: translations[currentLanguage].ok
+                });
+            } else {
+                throw new Error(response.data?.error || translations[currentLanguage].orderFailed);
+            }
+        } else {
             throw new Error(translations[currentLanguage].transactionFailed);
         }
-
-        // Create order
-        await createOrder(item, txResult);
-
-        // Show success
+    } catch (error) {
+        console.error('Payment error:', error);
+        
+        let errorMessage = translations[currentLanguage].paymentFailed;
+        if (error.response?.data?.error) {
+            errorMessage = error.response.data.error;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
         await Swal.fire({
-            title: translations[currentLanguage].success,
-            text: translations[currentLanguage].orderCreated,
-            icon: 'success',
+            title: translations[currentLanguage].error,
+            text: errorMessage,
+            icon: 'error',
             confirmButtonText: translations[currentLanguage].ok
         });
-
-    } catch (error) {
-        console.error('Purchase error:', error);
-        await showPurchaseError(error);
     } finally {
-        loadingMessage?.close();
-    }
-}
-
-// Helper functions
-async function redirectToTelegram() {
-    try {
-        const result = await Swal.fire({
-            title: translations[currentLanguage].warning,
-            text: translations[currentLanguage].tryInTelegram,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: translations[currentLanguage].continue,
-            cancelButtonText: translations[currentLanguage].cancel,
-            customClass: { confirmButton: 'telegram-confirm-btn' }
-        });
-        
-        if (result.isConfirmed) {
-            window.open('https://t.me/TgStarStore_bot', '_blank');
+        if (loadingMessage && loadingMessage.close) {
+            loadingMessage.close();
         }
-    } catch (error) {
-        console.error('Redirect error:', error);
-        window.open('https://t.me/TgStarStore_bot', '_blank');
     }
-}
-
-async function getWalletAddress() {
-    try {
-        const response = await axios.get('/api/get-wallet-address', {
-            timeout: 10000,
-            validateStatus: (status) => status < 500
-        });
-        
-        if (response.status === 404) {
-            throw new Error('Payment system is currently unavailable');
-        }
-        
-        if (!response.data?.walletAddress) {
-            throw new Error('Invalid wallet address received');
-        }
-        
-        return response.data.walletAddress;
-    } catch (error) {
-        console.error('Wallet address error:', error);
-        throw new Error(translations[currentLanguage].paymentSystemError || 'Payment system error');
-    }
-}
-
-async function createOrder(item, txHash) {
-    try {
-        const response = await axios.post('/api/orders/create', {
-            telegramId: currentUser.id,
-            username: currentUser.username || currentUser.first_name,
-            stars: item.stars,
-            isPremium: item.isPremium,
-            premiumDuration: item.premiumDuration,
-            walletAddress: currentWalletAddress,
-            transactionHash: txHash,
-            isTelegramUser: isTelegramEnv
-        }, {
-            timeout: 15000
-        });
-
-        if (!response.data?.success) {
-            throw new Error(response.data?.error || translations[currentLanguage].orderFailed);
-        }
-    } catch (error) {
-        console.error('Order creation error:', error);
-        throw error;
-    }
-}
-
-async function showPurchaseError(error) {
-    let errorMessage = translations[currentLanguage].paymentFailed;
-    
-    if (error.response) {
-        // Axios response error
-        if (error.response.status === 404) {
-            errorMessage = 'Payment system is currently unavailable';
-        } else if (error.response.data?.message) {
-            errorMessage = error.response.data.message;
-        }
-    } else if (error.message) {
-        errorMessage = error.message;
-    }
-
-    await Swal.fire({
-        title: translations[currentLanguage].error,
-        text: errorMessage,
-        icon: 'error',
-        confirmButtonText: translations[currentLanguage].ok
-    });
 }
 
 async function fetchCurrentRate() {
