@@ -741,6 +741,23 @@ function initNotificationSystem() {
 
     let notificationWindow = null;
 
+    // Handle messages from notification iframe
+    window.addEventListener('message', (event) => {
+        if (!event.data?.type) return;
+        
+        switch(event.data.type) {
+            case 'CLOSE_NOTIFICATIONS':
+                closeNotificationWindow();
+                break;
+            case 'UPDATE_BADGE':
+                updateNotificationBadge(event.data.count);
+                break;
+            case 'VIEW_ALL_NOTIFICATIONS':
+                window.open('/notifications', '_blank');
+                break;
+        }
+    });
+
     notificationButton.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -750,7 +767,7 @@ function initNotificationSystem() {
             return;
         }
 
-        // Close if already open
+        // Toggle if already exists
         if (notificationWindow) {
             closeNotificationWindow();
             return;
@@ -772,43 +789,64 @@ function initNotificationSystem() {
             backgroundColor: 'rgba(0,0,0,0.5)',
             backdropFilter: 'blur(5px)',
             opacity: '0',
+            pointerEvents: 'none',
             transition: 'opacity 0.2s ease'
         });
 
-        // Add temporary loading content
-        notificationWindow.innerHTML = `
-            <div style="color: white; font-size: 1.2rem">
-                Loading notifications...
+        // Create content container
+        const contentContainer = document.createElement('div');
+        contentContainer.style.position = 'relative';
+        contentContainer.style.pointerEvents = 'auto';
+        contentContainer.style.width = '90%';
+        contentContainer.style.maxWidth = '400px';
+        contentContainer.style.maxHeight = '80vh';
+        contentContainer.style.overflow = 'hidden';
+        
+        // Add loading state
+        contentContainer.innerHTML = `
+            <div style="
+                width: 100%;
+                height: 200px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background: white;
+                border-radius: 12px;
+            ">
+                <div class="loading-spinner"></div>
             </div>
         `;
         
+        notificationWindow.appendChild(contentContainer);
         document.body.appendChild(notificationWindow);
-        setTimeout(() => notificationWindow.style.opacity = '1', 10);
+        
+        // Fade in
+        setTimeout(() => {
+            notificationWindow.style.opacity = '1';
+            notificationWindow.style.pointerEvents = 'auto';
+        }, 10);
 
         try {
             // Load notification.html
             const response = await fetch('notification.html');
-            if (!response.ok) throw new Error('Failed to load');
-            const html = await response.text();
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
-            // Replace with actual content
-            notificationWindow.innerHTML = html;
+            contentContainer.innerHTML = await response.text();
             
-            // Hide badge
-            const badge = document.getElementById('notificationBadge');
-            if (badge) badge.classList.add('hidden');
-            
-            // Close when clicking outside
-            notificationWindow.addEventListener('click', (e) => {
-                if (e.target === notificationWindow) {
-                    closeNotificationWindow();
-                }
-            });
+            // Hide badge after viewing
+            updateNotificationBadge(0);
 
         } catch (error) {
             console.error('Notification error:', error);
-            notificationWindow.innerHTML = `
-                <div style="color: white; background: #ef4444; padding: 20px; border-radius: 8px">
+            contentContainer.innerHTML = `
+                <div style="
+                    width: 100%;
+                    padding: 20px;
+                    background: white;
+                    border-radius: 12px;
+                    color: #ef4444;
+                    text-align: center;
+                ">
                     Failed to load notifications
                 </div>
             `;
@@ -817,13 +855,28 @@ function initNotificationSystem() {
 
     function closeNotificationWindow() {
         if (!notificationWindow) return;
+        
         notificationWindow.style.opacity = '0';
+        notificationWindow.style.pointerEvents = 'none';
+        
         notificationWindow.addEventListener('transitionend', () => {
             if (notificationWindow && document.body.contains(notificationWindow)) {
                 document.body.removeChild(notificationWindow);
                 notificationWindow = null;
             }
         }, { once: true });
+    }
+
+    function updateNotificationBadge(count) {
+        const badge = document.getElementById('notificationBadge');
+        if (!badge) return;
+        
+        if (count > 0) {
+            badge.textContent = count > 9 ? '9+' : count.toString();
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
     }
 }
        
