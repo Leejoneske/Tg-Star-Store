@@ -751,14 +751,14 @@ function initNotificationSystem() {
         }
 
         // Close if already open
-        if (notificationWindow && document.body.contains(notificationWindow)) {
+        if (notificationWindow) {
             closeNotificationWindow();
             return;
         }
 
         // Create overlay container
         notificationWindow = document.createElement('div');
-        notificationWindow.id = 'notificationWindowContainer';
+        notificationWindow.id = 'notificationOverlay';
         Object.assign(notificationWindow.style, {
             position: 'fixed',
             top: '0',
@@ -775,65 +775,48 @@ function initNotificationSystem() {
             transition: 'opacity 0.2s ease'
         });
 
-        try {
-            // Show loading state immediately
-            notificationWindow.innerHTML = `
-                <div style="color: white; font-size: 1.2rem">
-                    Loading notifications...
-                </div>
-            `;
-            document.body.appendChild(notificationWindow);
-            setTimeout(() => notificationWindow.style.opacity = '1', 10);
+        // Add temporary loading content
+        notificationWindow.innerHTML = `
+            <div style="color: white; font-size: 1.2rem">
+                Loading notifications...
+            </div>
+        `;
+        
+        document.body.appendChild(notificationWindow);
+        setTimeout(() => notificationWindow.style.opacity = '1', 10);
 
-            // Load notification.html content
+        try {
+            // Load notification.html
             const response = await fetch('notification.html');
-            if (!response.ok) throw new Error('Failed to load notifications');
-            
+            if (!response.ok) throw new Error('Failed to load');
             const html = await response.text();
             
-            // Create a container for the notification content
-            const contentContainer = document.createElement('div');
-            contentContainer.style.position = 'relative';
-            contentContainer.style.width = '90%';
-            contentContainer.style.maxWidth = '400px';
-            contentContainer.style.maxHeight = '80vh';
-            contentContainer.style.overflow = 'auto';
-            contentContainer.style.borderRadius = '12px';
-            contentContainer.innerHTML = html;
+            // Replace with actual content
+            notificationWindow.innerHTML = html;
             
-            // Replace loading indicator with actual content
-            notificationWindow.innerHTML = '';
-            notificationWindow.appendChild(contentContainer);
-            
-            // Initialize the notification system after content loads
-            if (window.NotificationSystem) {
-                new window.NotificationSystem();
-            }
-
             // Hide badge
             const badge = document.getElementById('notificationBadge');
             if (badge) badge.classList.add('hidden');
-
+            
             // Close when clicking outside
-            contentContainer.addEventListener('click', (e) => e.stopPropagation());
-            notificationWindow.addEventListener('click', closeNotificationWindow);
+            notificationWindow.addEventListener('click', (e) => {
+                if (e.target === notificationWindow) {
+                    closeNotificationWindow();
+                }
+            });
 
         } catch (error) {
             console.error('Notification error:', error);
-            showErrorToUser(translations[currentLanguage].notificationsError);
-            if (notificationWindow) {
-                notificationWindow.innerHTML = `
-                    <div style="color: white; background: #ef4444; padding: 20px; border-radius: 8px">
-                        Failed to load notifications
-                    </div>
-                `;
-            }
+            notificationWindow.innerHTML = `
+                <div style="color: white; background: #ef4444; padding: 20px; border-radius: 8px">
+                    Failed to load notifications
+                </div>
+            `;
         }
     });
 
     function closeNotificationWindow() {
         if (!notificationWindow) return;
-        
         notificationWindow.style.opacity = '0';
         notificationWindow.addEventListener('transitionend', () => {
             if (notificationWindow && document.body.contains(notificationWindow)) {
