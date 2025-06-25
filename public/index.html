@@ -63,11 +63,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
 
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: #f3f4f6;
+            background: #f8fafc;
         }
 
         .app-container {
@@ -79,6 +80,7 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             position: relative;
             overflow: hidden;
+            max-width: 600px;
         }
 
         .menu-overlay {
@@ -169,31 +171,37 @@
             border: 1px solid #e5e7eb;
             border-radius: 12px;
             transition: all 0.2s ease;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .package-option:hover {
             border-color: #4f46e5;
             transform: translateY(-4px);
-            box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
         }
 
         .buy-button {
-            background: #3f3aaf;
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
             color: white;
-            border-radius: 8px;
+            border-radius: 10px;
             transition: all 0.2s ease;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
         }
 
         .buy-button:hover {
-            background: #5054c0;
-            transform: scale(1.02);
+            background: linear-gradient(135deg, #3f3aaf, #5054c0);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
         }
 
         #connectWallet {
-            padding: 8px 16px;
+            padding: 10px 18px;
             font-size: 14px;
             border: 1px solid #4f46e5;
-            border-radius: 8px;
+            border-radius: 10px;
             color: #4f46e5;
             background-color: white;
             cursor: pointer;
@@ -202,8 +210,14 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            min-width: 120px;
+            min-width: 140px;
             white-space: nowrap;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        #connectWallet:hover {
+            background-color: #f3f4f6;
         }
 
         #connectWallet.wallet-connected {
@@ -233,14 +247,16 @@
         }
 
         .language-toggle {
-            padding: 6px 12px;
+            padding: 8px 14px;
             font-size: 14px;
             border: 1px solid #4f46e5;
-            border-radius: 8px;
+            border-radius: 10px;
             color: #4f46e5;
             background-color: white;
             cursor: pointer;
             transition: all 0.2s ease;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .language-toggle:hover {
@@ -253,6 +269,10 @@
             justify-content: space-between;
             width: 100%;
             gap: 16px;
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
 
         .user-details {
@@ -304,6 +324,17 @@
         .notification-button {
             position: relative;
             outline: none;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .notification-button:hover {
+            background-color: #f3f4f6;
         }
 
         .notification-badge {
@@ -326,31 +357,68 @@
         .section-toggle {
             display: flex;
             justify-content: center;
-            margin-bottom: 20px;
-            gap: 10px;
+            margin-bottom: 24px;
+            gap: 12px;
+            background: #f3f4f6;
+            padding: 6px;
+            border-radius: 12px;
         }
 
         .toggle-button {
-            padding: 8px 16px;
+            padding: 10px 20px;
             border-radius: 8px;
-            background: #f3f4f6;
+            background: transparent;
             border: none;
             cursor: pointer;
             transition: all 0.2s ease;
+            font-weight: 600;
+            color: #6b7280;
         }
 
         .toggle-button.active {
-            background: #4f46e5;
-            color: white;
+            background: white;
+            color: #4f46e5;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
-        
         
         .section-content {
             display: none;
+            animation: fadeIn 0.3s ease;
         }
 
         .section-content.active {
             display: block;
+        }
+
+        .stars-card, .premium-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .price-tag {
+            display: inline-flex;
+            align-items: center;
+            background: #f3f4f6;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #4f46e5;
+        }
+
+        .premium-feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #4b5563;
+        }
+
+        .premium-feature i {
+            margin-right: 8px;
+            color: #4f46e5;
         }
 
         @keyframes shimmer {
@@ -362,8 +430,101 @@
             }
         }
 
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         #content-container {
             display: none;
+        }
+
+        /* Enhanced package option styling */
+        .stars-package {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stars-amount {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .stars-icon {
+            color: #f59e0b;
+            margin-right: 4px;
+        }
+
+        .usdt-price {
+            font-size: 16px;
+            font-weight: 600;
+            color: #4f46e5;
+            margin-bottom: 12px;
+        }
+
+        .best-value {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #4f46e5;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-bottom-left-radius: 8px;
+        }
+
+        /* Premium package enhancements */
+        .premium-package {
+            padding: 20px;
+            position: relative;
+        }
+
+        .premium-duration {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 6px;
+        }
+
+        .premium-description {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+
+        .premium-price {
+            font-size: 18px;
+            font-weight: 700;
+            color: #4f46e5;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .section-toggle {
+                gap: 6px;
+            }
+            
+            .toggle-button {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            
+            .user-info-container {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            
+            #connectWallet {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -435,100 +596,126 @@
                 </div>
             </div>
 
-            <div class="p-6">
+            <div class="px-6 pt-6 pb-2">
                 <div class="user-info-container">
                     <div class="flex items-center space-x-4">
                         <div class="profile-image">
                             <img id="profilePicture" src="https://via.placeholder.com/64" alt="User Profile" class="w-full h-full object-cover">
                         </div>
                         <div class="user-details">
-                            <div class="text-lg font-semibold" id="username">@username</div>
+                            <div class="text-lg font-semibold text-gray-800" id="username">@username</div>
+                            <div class="text-sm text-gray-500">Welcome back!</div>
                         </div>
                     </div>
-                    <button id="connectWallet" data-translate="connectWallet">Connect Wallet</button>
+                    <button id="connectWallet" data-translate="connectWallet">
+                        <i class="fas fa-wallet mr-2"></i>Connect Wallet
+                    </button>
                 </div>
             </div>
 
-            <div class="p-6">
+            <div class="p-6 pt-2">
                 <div class="section-toggle">
                     <button class="toggle-button active" id="starsToggle" data-translate="buyStars">Buy Stars</button>
                     <button class="toggle-button" id="premiumToggle" data-translate="telegramPremium">Telegram Premium</button>
                 </div>
 
                 <div class="section-content active" id="starsSection">
-                    <div class="stars-card rounded-xl p-6 mb-8">
+                    <div class="stars-card rounded-xl mb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Choose a Stars Package</h3>
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">15 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2"><i class="fas fa-gift text-xs mr-1"></i>0.35 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>15 Stars</div>
+                                <div class="usdt-price">0.35 USDT</div>
+                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
                             </div>
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">25 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2"><i class="fas fa-gift text-xs mr-1"></i>0.60 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>25 Stars</div>
+                                <div class="usdt-price">0.60 USDT</div>
+                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
                             </div>
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">50 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2">1.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy-gift" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy</button>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>50 Stars</div>
+                                <div class="usdt-price">1.00 USDT</div>
+                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buy-gift" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
                             </div>
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">100 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2">2.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy</button>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>100 Stars</div>
+                                <div class="usdt-price">2.00 USDT</div>
+                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy Now</button>
                             </div>
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">500 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2">10.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy</button>
+                            <div class="package-option stars-package">
+                                <span class="best-value">BEST VALUE</span>
+                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>500 Stars</div>
+                                <div class="usdt-price">10.00 USDT</div>
+                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy Now</button>
                             </div>
-                            <div class="package-option p-4 text-center">
-                                <div class="text-lg font-bold">1000 Stars</div>
-                                <div class="text-sm text-gray-600 mb-2">20.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy</button>
+                            <div class="package-option stars-package">
+                                <span class="best-value">BEST VALUE</span>
+                                <div class="stars-amount"><i class="fas fa-star stars-icon"></i>1000 Stars</div>
+                                <div class="usdt-price">20.00 USDT</div>
+                                <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy Now</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="section-content" id="premiumSection">
-                    <div class="premium-card rounded-xl p-6 mb-6">
+                    <div class="premium-card rounded-xl mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Telegram Premium Subscriptions</h3>
                         <div class="space-y-4">
-                            <div class="package-option p-4">
-                                <div class="flex flex-col space-y-3">
+                            <div class="package-option premium-package">
+                                <div class="flex flex-col space-y-4">
                                     <div class="flex justify-between items-start">
                                         <div>
-                                            <div class="text-lg font-bold" data-translate="3monthsPremium">3 Months Premium</div>
-                                            <div class="text-sm text-gray-600" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
+                                            <div class="premium-duration" data-translate="3monthsPremium">3 Months Premium</div>
+                                            <div class="premium-description" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
                                         </div>
-                                        <div class="text-lg font-bold">19.31 USDT</div>
+                                        <div class="premium-price">19.31 USDT</div>
                                     </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Buy Now</button>
+                                    <div class="premium-features">
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
+                                    </div>
+                                    <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Subscribe Now</button>
                                 </div>
                             </div>
-                            <div class="package-option p-4">
-                                <div class="flex flex-col space-y-3">
+                            <div class="package-option premium-package">
+                                <div class="flex flex-col space-y-4">
                                     <div class="flex justify-between items-start">
                                         <div>
-                                            <div class="text-lg font-bold" data-translate="6monthsPremium">6 Months Premium</div>
-                                            <div class="text-sm text-gray-600" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
+                                            <div class="premium-duration" data-translate="6monthsPremium">6 Months Premium</div>
+                                            <div class="premium-description" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
                                         </div>
-                                        <div class="text-lg font-bold">26.25 USDT</div>
+                                        <div class="premium-price">26.25 USDT</div>
                                     </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Buy Now</button>
+                                    <div class="premium-features">
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Voice-to-Text</div>
+                                    </div>
+                                    <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Subscribe Now</button>
                                 </div>
                             </div>
-                            <div class="package-option p-4">
-                                <div class="flex flex-col space-y-3">
+                            <div class="package-option premium-package">
+                                <div class="flex flex-col space-y-4">
                                     <div class="flex justify-between items-start">
                                         <div>
-                                            <div class="text-lg font-bold" data-translate="12monthsPremium">12 Months Premium</div>
-                                            <div class="text-sm text-gray-600" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
+                                            <div class="premium-duration" data-translate="12monthsPremium">12 Months Premium</div>
+                                            <div class="premium-description" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
                                         </div>
-                                        <div class="text-lg font-bold">44.79 USDT</div>
+                                        <div class="premium-price">44.79 USDT</div>
                                     </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Buy Now</button>
+                                    <div class="premium-features">
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Voice-to-Text</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Animated Profile Pic</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Reactions</div>
+                                    </div>
+                                    <button class="buy-button w-full py-3 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Subscribe Now</button>
                                 </div>
                             </div>
                         </div>
@@ -537,6 +724,7 @@
             </div>
         </div>
     </div>
+    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
