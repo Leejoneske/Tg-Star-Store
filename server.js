@@ -1236,64 +1236,74 @@ setInterval(() => {
 
 bot.on('sticker', async (ctx) => {
   try {
-    // 1. Triple-layer protection
+    // 1. Verify we have a valid sticker message
     if (!ctx?.message?.sticker) {
-      console.error('Malformed sticker message:', ctx);
+      console.error('Invalid message structure:', ctx?.update);
       return;
     }
 
-    // 2. Destructure with fallbacks
-    const { 
-      file_id = null, 
-      file_unique_id = null 
-    } = ctx.message.sticker || {};
-
-    if (!file_id || !file_unique_id) {
-      console.error('Invalid sticker data:', ctx.message.sticker);
+    const sticker = ctx.message.sticker;
+    
+    // 2. Validate required sticker fields
+    if (!sticker.file_id || !sticker.file_unique_id) {
+      console.error('Missing required sticker fields:', sticker);
       return;
     }
 
-    // 3. Get file info with timeout
-    const fileInfo = await Promise.race([
-      ctx.telegram.getFile(file_id),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('File request timeout')), 5000)
-      )
-    ]);
-
-    // 4. Validate file path
-    if (!fileInfo?.file_path) {
-      throw new Error('Telegram returned invalid file path');
+    // 3. Get file info with error handling
+    let fileInfo;
+    try {
+      fileInfo = await ctx.telegram.getFile(sticker.file_id);
+      if (!fileInfo?.file_path) {
+        throw new Error('Telegram API returned invalid file info');
+      }
+    } catch (fileError) {
+      console.error('File info fetch failed:', {
+        error: fileError.message,
+        sticker_id: sticker.file_unique_id,
+        file_id: sticker.file_id
+      });
+      return;
     }
 
-    // 5. Database upsert with atomic operation
+    // 4. Prepare database update
+    const updateData = {
+      file_id: sticker.file_id,
+      file_path: fileInfo.file_path,
+      web_url: `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileInfo.file_path}`,
+      updated_at: new Date(),
+      metadata: {
+        is_animated: sticker.is_animated || false,
+        is_video: sticker.is_video || false,
+        emoji: sticker.emoji || '',
+        set_name: sticker.set_name || ''
+      }
+    };
+
+    // 5. Execute database operation
     const result = await Sticker.updateOne(
-      { file_unique_id },
-      {
-        $set: {
-          file_id,
-          file_path: fileInfo.file_path,
-          web_url: `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${fileInfo.file_path}`,
-          updated_at: new Date()
-        },
-        $setOnInsert: {
-          created_at: new Date()
-        }
+      { file_unique_id: sticker.file_unique_id },
+      { 
+        $set: updateData,
+        $setOnInsert: { created_at: new Date() } 
       },
       { upsert: true }
     );
 
-    console.log(`Sticker ${file_unique_id} processed:`, result.upsertedId ? 'Created' : 'Updated');
-    
+    console.log(`Sticker processed: ${sticker.file_unique_id}`, {
+      action: result.upsertedId ? 'created' : 'updated',
+      animated: sticker.is_animated,
+      set: sticker.set_name
+    });
+
   } catch (error) {
     console.error('Sticker processing failed:', {
       error: error.message,
-      update: ctx?.update,
-      timestamp: new Date().toISOString()
+      stack: error.stack,
+      update: ctx?.update
     });
   }
 });
-
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
     try {
