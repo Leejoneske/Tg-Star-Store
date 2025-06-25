@@ -1228,6 +1228,12 @@ setInterval(() => {
     });
 }, 60000);
 
+bot.on('sticker', async (ctx) => {
+    const sticker = ctx.message.sticker;
+    console.log("✅ file_id:", sticker.file_id);
+});
+
+
 app.get('/api/sticker/:stickerId', async (req, res) => {
     try {
         const stickerId = req.params.stickerId;
