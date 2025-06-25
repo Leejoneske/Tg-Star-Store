@@ -1459,7 +1459,10 @@ async function handlePurchase(item) {
         return;
     }
     
-    if (!isTelegramEnv) {
+    // Check if running in Telegram environment
+    const isInTelegram = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData;
+    
+    if (!isInTelegram) {
         try {
             await Swal.fire({
                 title: translations[currentLanguage].warning || 'Warning',
@@ -1623,7 +1626,7 @@ window.addEventListener('beforeunload', () => {
     if (tonConnectUI?.disconnect) {
         tonConnectUI.disconnect().catch(console.error);
     }
-});        
+});
 
     </script>
 </body>
