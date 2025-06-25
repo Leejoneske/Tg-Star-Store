@@ -740,6 +740,7 @@ function initNotificationSystem() {
     if (!notificationButton) return;
 
     let notificationWindow = null;
+    let contentContainer = null;
 
     // Handle messages from notification iframe
     window.addEventListener('message', (event) => {
@@ -786,12 +787,12 @@ function initNotificationSystem() {
             backgroundColor: 'rgba(0,0,0,0.5)',
             backdropFilter: 'blur(5px)',
             opacity: '0',
-            pointerEvents: 'none',
+            pointerEvents: 'auto', // Changed to 'auto'
             transition: 'opacity 0.2s ease'
         });
 
         // Create content container
-        const contentContainer = document.createElement('div');
+        contentContainer = document.createElement('div');
         contentContainer.style.position = 'relative';
         contentContainer.style.pointerEvents = 'auto';
         contentContainer.style.width = '90%';
@@ -807,8 +808,14 @@ function initNotificationSystem() {
         // Fade in
         setTimeout(() => {
             notificationWindow.style.opacity = '1';
-            notificationWindow.style.pointerEvents = 'auto';
         }, 10);
+
+        // Add click handler to overlay (not content)
+        notificationWindow.addEventListener('click', (e) => {
+            if (e.target === notificationWindow) {
+                closeNotificationWindow();
+            }
+        });
 
         try {
             // Load notification.html
@@ -831,12 +838,12 @@ function initNotificationSystem() {
         if (!notificationWindow) return;
         
         notificationWindow.style.opacity = '0';
-        notificationWindow.style.pointerEvents = 'none';
         
         notificationWindow.addEventListener('transitionend', () => {
             if (notificationWindow && document.body.contains(notificationWindow)) {
                 document.body.removeChild(notificationWindow);
                 notificationWindow = null;
+                contentContainer = null;
             }
         }, { once: true });
     }
