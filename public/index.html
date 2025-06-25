@@ -386,6 +386,14 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
+        .section-content {
+    display: none;  /* This line hides sections by default */
+}
+.section-content.active {
+    display: block; /* This shows the active section */
+}
+
+        
         .section-toggle {
     display: flex;
     justify-content: space-between;
