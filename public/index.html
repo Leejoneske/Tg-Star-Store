@@ -1587,6 +1587,10 @@ async function handlePurchase(item) {
             errorMessage = error.response.data.error;
         } else if (error.message) {
             errorMessage = error.message;
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        } else if (error && typeof error === 'object') {
+            errorMessage = JSON.stringify(error);
         }
         
         await Swal.fire({
