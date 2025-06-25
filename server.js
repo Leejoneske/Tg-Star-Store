@@ -1228,7 +1228,6 @@ setInterval(() => {
     });
 }, 60000);
 
-// Add this to your server routes
 app.get('/api/sticker/:stickerId', async (req, res) => {
     try {
         const stickerId = req.params.stickerId;
@@ -1240,24 +1239,26 @@ app.get('/api/sticker/:stickerId', async (req, res) => {
         // Construct the direct URL to the sticker
         const stickerUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${filePath}`;
         
-        // Fetch the sticker and proxy it
+        // Fetch the sticker
         const response = await axios.get(stickerUrl, {
-            responseType: 'stream',
+            responseType: 'arraybuffer', // Changed to arraybuffer
             timeout: 10000
         });
         
-        // Set appropriate headers
+        // Set proper headers
         res.set({
-            'Content-Type': response.headers['content-type'] || 'image/webp',
+            'Content-Type': 'image/webp', // Force WebP type
+            'Content-Disposition': 'inline', // Display in browser
             'Cache-Control': 'public, max-age=86400' // Cache for 24 hours
         });
         
-        // Pipe the image data to the response
-        response.data.pipe(res);
+        // Send the image data
+        res.send(Buffer.from(response.data, 'binary'));
         
     } catch (error) {
         console.error('Error fetching sticker:', error);
-        res.status(404).json({ error: 'Sticker not found' });
+        // Redirect to placeholder if error occurs
+        res.redirect('https://via.placeholder.com/72x72/cccccc/666666?text=Sticker');
     }
 });
 
