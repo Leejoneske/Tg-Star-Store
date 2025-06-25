@@ -553,10 +553,7 @@
                 gap: 12px;
             }
             
-            #connectWallet {
-                width: 100%;
-            }
-        }
+        
     </style>
 </head>
 <body>
@@ -1354,41 +1351,43 @@ function initWalletConnection() {
             return;
         }
 
-        // Initialize with restore connection
+        // Initialize with connection restoration
         tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
             manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json',
             language: currentLanguage === 'ru' ? 'ru' : 'en',
-            restoreConnection: true  // This is the key change
+            restoreConnection: true, // This enables automatic reconnection
+            connectEventBridge: true // This helps with persistence
         });
-        
+
         const connectWalletButton = document.getElementById('connectWallet');
-        if (!connectWalletButton) {
-            console.error('Connect wallet button not found');
-            return;
-        }
-        
+        if (!connectWalletButton) return;
+
+        // Handle wallet connection changes
         tonConnectUI.onStatusChange(wallet => {
-            if (wallet && wallet.account && wallet.account.address) {
+            if (wallet && wallet.account) {
                 currentWalletAddress = wallet.account.address;
                 const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
                 connectWalletButton.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
                 connectWalletButton.classList.add('wallet-connected');
                 walletConnected = true;
-                sessionStorage.setItem('walletConnected', 'true');
-                sessionStorage.setItem('walletAddress', currentWalletAddress);
-                updateGlobalUserData();
+                
+                // Store connection info in localStorage instead of sessionStorage
+                localStorage.setItem('walletConnected', 'true');
+                localStorage.setItem('walletAddress', currentWalletAddress);
             } else {
                 connectWalletButton.innerHTML = `<i class="fas fa-wallet mr-2"></i>${translations[currentLanguage].connectWallet}`;
                 connectWalletButton.classList.remove('wallet-connected');
                 walletConnected = false;
                 currentWalletAddress = '';
-                sessionStorage.removeItem('walletConnected');
-                sessionStorage.removeItem('walletAddress');
-                updateGlobalUserData();
+                
+                // Clear localStorage when disconnected
+                localStorage.removeItem('walletConnected');
+                localStorage.removeItem('walletAddress');
             }
+            updateGlobalUserData();
         });
-        
-        
+
+        // Connect button click handler
         connectWalletButton.addEventListener('click', () => {
             try {
                 if (walletConnected) {
@@ -1401,6 +1400,14 @@ function initWalletConnection() {
                 showErrorToUser(translations[currentLanguage].error);
             }
         });
+
+        // Check for existing connection
+        const savedConnection = localStorage.getItem('walletConnected');
+        if (savedConnection === 'true') {
+            // TonConnectUI will automatically restore the connection
+            // due to restoreConnection: true above
+        }
+
     } catch (error) {
         console.error('Wallet init error:', error);
         const connectWalletButton = document.getElementById('connectWallet');
