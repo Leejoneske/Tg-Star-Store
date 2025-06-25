@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -28,7 +29,6 @@
             overflow: hidden;
         }
 
-        /* Menu Styles */
         .menu-overlay {
             position: fixed;
             top: 0;
@@ -100,7 +100,6 @@
             flex-shrink: 0;
         }
 
-        /* App Styles */
         .profile-image {
             width: 64px;
             height: 64px;
@@ -175,6 +174,10 @@
             background: linear-gradient(90deg, #4f46e5, #6366f1);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: fit-content;
         }
 
         .language-toggle {
@@ -204,7 +207,6 @@
             flex: 1;
             min-width: 0;
         }
-
 
         .skeleton {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -246,27 +248,58 @@
             border-radius: 12px;
             margin-bottom: 12px;
         }
-      .notification-button {
-    position: relative;
-    outline: none;
-}
 
-.notification-badge {
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    background: #ef4444;
-    color: white;
-    border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: bold;
-    pointer-events: none;
-}
+        .notification-button {
+            position: relative;
+            outline: none;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        .section-toggle {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+
+        .toggle-button {
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: #f3f4f6;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-button.active {
+            background: #4f46e5;
+            color: white;
+        }
+
+        .section-content {
+            display: none;
+        }
+
+        .section-content.active {
+            display: block;
+        }
+
         @keyframes shimmer {
             0% {
                 background-position: 200% 0;
@@ -331,7 +364,7 @@
 
         <div id="content-container">
             <div id="menubar-container"></div>
-            <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+            <div class="p-4 flex justify-between items-center bg-white shadow-sm relative">
                 <button id="menuButton" class="p-2">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
@@ -340,11 +373,11 @@
                 <div class="logo-header" data-translate="appName">StarStore</div>
                 <div class="flex items-center space-x-4">
                     <button class="notification-button relative p-2 rounded-full hover:bg-gray-100 transition-colors" id="notificationButton">
-                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                </svg>
-                   <div class="notification-badge hidden" id="notificationBadge">0</div>
-                       </button>
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        <div class="notification-badge hidden" id="notificationBadge">0</div>
+                    </button>
                     <button id="languageToggle" class="language-toggle">🇬🇧</button>
                 </div>
             </div>
@@ -364,79 +397,87 @@
             </div>
 
             <div class="p-6">
-                <div class="premium-card rounded-xl p-6 mb-6">
-                    <h2 class="text-xl font-bold mb-4" data-translate="telegramPremium">Telegram Premium</h2>
-                    <div class="space-y-4">
-                        <div class="package-option p-4">
-                            <div class="flex flex-col space-y-3">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <div class="text-lg font-bold" data-translate="3monthsPremium">3 Months Premium</div>
-                                        <div class="text-sm text-gray-600" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
-                                    </div>
-                                    <div class="text-lg font-bold">19.31 USDT</div>
-                                </div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Buy Now</button>
+                <div class="section-toggle">
+                    <button class="toggle-button active" id="starsToggle" data-translate="buyStars">Buy Stars</button>
+                    <button class="toggle-button" id="premiumToggle" data-translate="telegramPremium">Telegram Premium</button>
+                </div>
+
+                <div class="section-content active" id="starsSection">
+                    <div class="stars-card rounded-xl p-6 mb-8">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="package-option p-4 text-center">
+                                <div class="text-lg font-bold">15 Stars</div>
+                                <div class="text-sm text-gray-600 mb-2"><i class="fas fa-gift text-xs mr-1"></i>0.35 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
                             </div>
-                        </div>
-                        <div class="package-option p-4">
-                            <div class="flex flex-col space-y-3">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <div class="text-lg font-bold" data-translate="6monthsPremium">6 Months Premium</div>
-                                        <div class="text-sm text-gray-600" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
-                                    </div>
-                                    <div class="text-lg font-bold">26.25 USDT</div>
-                                </div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Buy Now</button>
+                            <div class="package-option p-4 text-center">
+                                <div class="text-lg font-bold">25 Stars</div>
+                                <div class="text-sm text-gray-600 mb-2"><i class="fas fa-gift text-xs mr-1"></i>0.60 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
                             </div>
-                        </div>
-                        <div class="package-option p-4">
-                            <div class="flex flex-col space-y-3">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <div class="text-lg font-bold" data-translate="12monthsPremium">12 Months Premium</div>
-                                        <div class="text-sm text-gray-600" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
-                                    </div>
-                                    <div class="text-lg font-bold">44.79 USDT</div>
-                                </div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Buy Now</button>
+                            <div class="package-option p-4 text-center">
+                                <div class="text-lg font-bold">50 Stars</div>
+                                <div class="text-sm text-gray-600 mb-2">1.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy-gift" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy</button>
+                            </div>
+                            <div class="package-option p-4 text-center">
+                                <div class="text-lg font-bold">100 Stars</div>
+                                <div class="text-sm text-gray-600 mb-2">2.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy</button>
+                            </div>
+                            <div class="package-option p-4 text-center">
+                                <div class="text-lg font-bold">500 Stars</div>
+                                <div class="text-sm text-gray-600 mb-2">10.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy</button>
+                            </div>
+                            <div class="package-option p-4 text-center">
+                                <div class="text-lg font-bold">1000 Stars</div>
+                                <div class="text-sm text-gray-600 mb-2">20.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy</button>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="stars-card rounded-xl p-6 mb-8">
-                    <h2 class="text-xl font-bold mb-4" data-translate="buyStars">Buy Stars</h2>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="package-option p-4 text-center">
-                            <div class="text-lg font-bold">15 Stars</div>
-                            <div class="text-sm text-gray-600 mb-2"><i class="fas fa-gift text-xs mr-1"></i>0.35 USDT</div>
-                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
-                        </div>
-                        <div class="package-option p-4 text-center">
-                            <div class="text-lg font-bold">25 Stars</div>
-                            <div class="text-sm text-gray-600 mb-2"><i class="fas fa-gift text-xs mr-1"></i>0.60 USDT</div>
-                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
-                        </div>
-                        <div class="package-option p-4 text-center">
-                            <div class="text-lg font-bold">50 Stars</div>
-                            <div class="text-sm text-gray-600 mb-2">1.00 USDT</div>
-                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy-gift" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy</button>
-                        </div>
-                        <div class="package-option p-4 text-center">
-                            <div class="text-lg font-bold">100 Stars</div>
-                            <div class="text-sm text-gray-600 mb-2">2.00 USDT</div>
-                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy</button>
-                        </div>
-                        <div class="package-option p-4 text-center">
-                            <div class="text-lg font-bold">500 Stars</div>
-                            <div class="text-sm text-gray-600 mb-2">10.00 USDT</div>
-                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy</button>
-                        </div>
-                        <div class="package-option p-4 text-center">
-                            <div class="text-lg font-bold">1000 Stars</div>
-                            <div class="text-sm text-gray-600 mb-2">20.00 USDT</div>
-                            <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy</button>
+
+                <div class="section-content" id="premiumSection">
+                    <div class="premium-card rounded-xl p-6 mb-6">
+                        <div class="space-y-4">
+                            <div class="package-option p-4">
+                                <div class="flex flex-col space-y-3">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="text-lg font-bold" data-translate="3monthsPremium">3 Months Premium</div>
+                                            <div class="text-sm text-gray-600" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
+                                        </div>
+                                        <div class="text-lg font-bold">19.31 USDT</div>
+                                    </div>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Buy Now</button>
+                                </div>
+                            </div>
+                            <div class="package-option p-4">
+                                <div class="flex flex-col space-y-3">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="text-lg font-bold" data-translate="6monthsPremium">6 Months Premium</div>
+                                            <div class="text-sm text-gray-600" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
+                                        </div>
+                                        <div class="text-lg font-bold">26.25 USDT</div>
+                                    </div>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Buy Now</button>
+                                </div>
+                            </div>
+                            <div class="package-option p-4">
+                                <div class="flex flex-col space-y-3">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="text-lg font-bold" data-translate="12monthsPremium">12 Months Premium</div>
+                                            <div class="text-sm text-gray-600" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
+                                        </div>
+                                        <div class="text-lg font-bold">44.79 USDT</div>
+                                    </div>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Buy Now</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -448,14 +489,6 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-// Debugging tools
-if (typeof eruda !== 'undefined') {
-    eruda.init();
-    if (typeof erudaNetwork !== 'undefined') {
-        eruda.add(erudaNetwork);
-    }
-}
-
 const translations = {
     en: {
         appName: "StarStore",
@@ -551,7 +584,6 @@ const translations = {
     }
 };
 
-// Global variables
 let tonConnectUI = null;
 let currentLanguage = sessionStorage.getItem('appLanguage') || 'en';
 let walletConnected = false;
@@ -561,28 +593,6 @@ let currentUser = null;
 let isTelegramEnv = false;
 let updateUserInterfaceRetryCount = 0;
 let isInitialized = false;
-
-// Notification system placeholder
-window.NotificationSystem = window.NotificationSystem || class {
-    constructor() {
-        console.log('NotificationSystem initialized');
-    }
-    toggle() {
-        console.log('Notification toggle called');
-    }
-    onUserChange() {
-        console.log('User changed in notification system');
-    }
-    updateLanguage() {
-        console.log('Language updated in notification system');
-    }
-    fetchNotifications() {
-        console.log('Fetching notifications');
-    }
-    cleanup() {
-        console.log('Notification system cleanup');
-    }
-};
 
 window.getUserIdentifier = function() {
     if (currentUser?.id) return currentUser.id.toString();
@@ -627,7 +637,6 @@ function detectTelegramEnvironment() {
 }
 
 function showErrorToUser(message) {
-    // Only show user-facing errors, not initialization errors
     if (typeof Swal !== 'undefined') {
         Swal.fire({
             title: translations[currentLanguage].error,
@@ -652,35 +661,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (skeleton) skeleton.style.display = 'block';
     if (content) content.style.display = 'none';
 
-    // Load notification component first
-    fetch('notification.html')
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return response.text();
-        })
-        .then(html => {
-            const container = document.createElement('div');
-            container.innerHTML = html;
-            document.body.appendChild(container);
-            
-            // Initialize notification system immediately after injecting HTML
-            window.notificationSystem = new NotificationSystem();
-            
-            // Set up button listener directly
-            const notificationButton = document.getElementById('notificationButton');
-            if (notificationButton) {
-                notificationButton.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    window.notificationSystem.toggle();
-                });
-            }
-            
-            return loadMenuBar();
-        })
+    loadMenuBar()
         .then(() => {
             initTelegramApp();
             initWalletConnection();
             initLanguageToggle();
+            initSectionToggle();
             updateLanguage();
             initBuyButtons();
             
@@ -689,7 +675,6 @@ document.addEventListener('DOMContentLoaded', function() {
             window.isTelegramEnv = isTelegramEnv;
             
             showContent();
-            console.log('Application initialized successfully');
         })
         .catch(error => {
             console.error('Initialization error:', error);
@@ -702,7 +687,7 @@ function loadMenuBar() {
         const menubarContainer = document.getElementById('menubar-container');
         if (!menubarContainer) {
             console.warn('Menubar container not found, continuing without menubar');
-            return resolve(); // Don't reject, just continue
+            return resolve();
         }
 
         fetch('menubar.html')
@@ -717,28 +702,6 @@ function loadMenuBar() {
             })
             .catch(error => {
                 console.error('Menubar load error:', error);
-                // Don't reject, just continue without menubar
-                resolve();
-            });
-    });
-}
-
-function loadNotificationComponent() {
-    return new Promise((resolve, reject) => {
-        fetch('notification.html')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.text();
-            })
-            .then(html => {
-                const container = document.createElement('div');
-                container.innerHTML = html;
-                document.body.appendChild(container);
-                resolve();
-            })
-            .catch(error => {
-                console.error('Notification component load error:', error);
-                // Don't reject, just continue without notification component
                 resolve();
             });
     });
@@ -774,6 +737,29 @@ function initMenu() {
         });
     } else {
         console.warn('Menu elements not found, menu functionality disabled');
+    }
+}
+
+function initSectionToggle() {
+    const starsToggle = document.getElementById('starsToggle');
+    const premiumToggle = document.getElementById('premiumToggle');
+    const starsSection = document.getElementById('starsSection');
+    const premiumSection = document.getElementById('premiumSection');
+
+    if (starsToggle && premiumToggle && starsSection && premiumSection) {
+        starsToggle.addEventListener('click', () => {
+            starsToggle.classList.add('active');
+            premiumToggle.classList.remove('active');
+            starsSection.classList.add('active');
+            premiumSection.classList.remove('active');
+        });
+
+        premiumToggle.addEventListener('click', () => {
+            premiumToggle.classList.add('active');
+            starsToggle.classList.remove('active');
+            premiumSection.classList.add('active');
+            starsSection.classList.remove('active');
+        });
     }
 }
 
@@ -844,7 +830,6 @@ function initTelegramApp() {
         }
     } catch (error) {
         console.error('Telegram init error:', error);
-        // Create fallback user instead of showing error to user
         currentUser = {
             id: 'fallback_user_' + Math.random().toString(36).substr(2, 9),
             first_name: 'User',
@@ -860,10 +845,6 @@ function updateGlobalUserData() {
     window.currentUser = currentUser;
     window.currentWalletAddress = currentWalletAddress;
     window.isTelegramEnv = isTelegramEnv;
-    
-    if (window.notificationSystem && typeof window.notificationSystem.onUserChange === 'function') {
-        window.notificationSystem.onUserChange();
-    }
 }
 
 function updateUserInterface(user) {
@@ -1027,10 +1008,6 @@ function initLanguageToggle() {
         if (tonConnectUI && typeof tonConnectUI.setLanguage === 'function') {
             tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
         }
-        
-        if (window.notificationSystem && typeof window.notificationSystem.updateLanguage === 'function') {
-            window.notificationSystem.updateLanguage();
-        }
     });
 }
 
@@ -1092,7 +1069,6 @@ async function handlePurchase(item) {
             if (!confirmed.isConfirmed) return;
         } catch (error) {
             console.error('SweetAlert2 error:', error);
-            // Continue without warning if SweetAlert2 fails
         }
     }
     
@@ -1116,7 +1092,6 @@ async function handlePurchase(item) {
             });
         } catch (error) {
             console.error('SweetAlert2 loading error:', error);
-            // Continue without loading message if SweetAlert2 fails
         }
 
         const tonToUsdtRate = await fetchCurrentRate();
@@ -1165,10 +1140,6 @@ async function handlePurchase(item) {
             if (response.data && response.data.success) {
                 if (loadingMessage) Swal.close();
                 showSuccessMessage(translations[currentLanguage].orderCreated);
-                
-                if (window.notificationSystem && typeof window.notificationSystem.fetchNotifications === 'function') {
-                    setTimeout(() => window.notificationSystem.fetchNotifications(), 2000);
-                }
             } else {
                 if (loadingMessage) Swal.close();
                 showErrorToUser(response.data?.error || translations[currentLanguage].orderFailed);
@@ -1210,11 +1181,6 @@ function showSuccessMessage(message) {
     }
 }
 
-function showErrorMessage(message) {
-    // Deprecated function, use showErrorToUser instead
-    showErrorToUser(message);
-}
-
 async function fetchCurrentRate() {
     try {
         if (!window.axios) {
@@ -1246,10 +1212,6 @@ window.addEventListener('beforeunload', () => {
         } catch (error) {
             console.error('Error disconnecting wallet:', error);
         }
-    }
-    
-    if (window.notificationSystem && typeof window.notificationSystem.cleanup === 'function') {
-        window.notificationSystem.cleanup();
     }
 });
     </script>
