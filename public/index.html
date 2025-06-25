@@ -1461,22 +1461,33 @@ async function handlePurchase(item) {
     
     if (!isTelegramEnv) {
         try {
-            const confirmed = await Swal.fire({
+            const result = await Swal.fire({
                 title: translations[currentLanguage].warning || 'Warning',
-                text: translations[currentLanguage].tryInTelegram || 'You are using the web version. Some features may be limited compared to the Telegram app.',
+                text: translations[currentLanguage].tryInTelegram || 'For the best experience, please use our Telegram bot',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: translations[currentLanguage].continue || 'Continue',
+                confirmButtonText: translations[currentLanguage].continue || 'Open in Telegram',
                 cancelButtonText: translations[currentLanguage].cancel || 'Cancel',
-                footer: '<a href="https://t.me/TgStarStore_bot" target="_blank" style="color: #4f46e5; text-decoration: underline;">Open in Telegram</a>'
+                customClass: {
+                    confirmButton: 'telegram-confirm-btn'
+                }
             });
             
-            if (!confirmed.isConfirmed) return;
+            if (result.isConfirmed) {
+                // Redirect to Telegram bot when Continue is clicked
+                window.location.href = 'https://t.me/TgStarStore_bot';
+                return;
+            } else {
+                // User clicked Cancel or closed the dialog
+                return;
+            }
         } catch (error) {
-            console.error('SweetAlert2 error:', error);
+            console.error('Error showing Telegram warning:', error);
+            // Fallback to direct Telegram link if Swal fails
+            window.location.href = 'https://t.me/TgStarStore_bot';
+            return;
         }
     }
-    
     
     let loadingMessage;
     try {
@@ -1486,37 +1497,34 @@ async function handlePurchase(item) {
             return;
         }
 
-        try {
-            loadingMessage = Swal.fire({
-                title: translations[currentLanguage].processing,
-                text: translations[currentLanguage].preparingTransaction,
-                allowOutsideClick: false,
-                showConfirmButton: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-        } catch (error) {
-            console.error('SweetAlert2 loading error:', error);
-        }
+        // Show loading indicator
+        loadingMessage = await Swal.fire({
+            title: translations[currentLanguage].processing,
+            text: translations[currentLanguage].preparingTransaction,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
 
+        // Get current exchange rate
         const tonToUsdtRate = await fetchCurrentRate();
         if (!tonToUsdtRate || tonToUsdtRate <= 0) {
             throw new Error('Failed to fetch current exchange rate');
         }
         
+        // Calculate amount in TON
         const tonAmount = parsedAmount / tonToUsdtRate;
         const nanoTonAmount = Math.round(tonAmount * 1e9);
         
-        if (!window.axios) {
-            throw new Error('Axios library not loaded');
-        }
-        
+        // Get payment address
         const walletResponse = await axios.get('/api/get-wallet-address');
         if (!walletResponse.data?.walletAddress) {
             throw new Error('Failed to get payment address');
         }
 
+        // Prepare transaction
         const transaction = {
             validUntil: Math.floor(Date.now() / 1000) + 300,
             messages: [
@@ -1527,9 +1535,11 @@ async function handlePurchase(item) {
             ]
         };
         
+        // Send transaction
         const result = await tonConnectUI.sendTransaction(transaction);
         
         if (result) {
+            // Create order record
             const orderData = {
                 telegramId: user.id,
                 username: user.username || user.first_name || 'Unknown',
@@ -1544,19 +1554,20 @@ async function handlePurchase(item) {
             const response = await axios.post('/api/orders/create', orderData);
             
             if (response.data && response.data.success) {
-                if (loadingMessage) Swal.close();
-                showSuccessMessage(translations[currentLanguage].orderCreated);
+                await Swal.fire({
+                    title: translations[currentLanguage].success,
+                    text: translations[currentLanguage].orderCreated,
+                    icon: 'success',
+                    confirmButtonText: translations[currentLanguage].ok
+                });
             } else {
-                if (loadingMessage) Swal.close();
-                showErrorToUser(response.data?.error || translations[currentLanguage].orderFailed);
+                throw new Error(response.data?.error || translations[currentLanguage].orderFailed);
             }
         } else {
-            if (loadingMessage) Swal.close();
-            showErrorToUser(translations[currentLanguage].transactionFailed);
+            throw new Error(translations[currentLanguage].transactionFailed);
         }
     } catch (error) {
         console.error('Payment error:', error);
-        if (loadingMessage) Swal.close();
         
         let errorMessage = translations[currentLanguage].paymentFailed;
         if (error.response?.data?.error) {
@@ -1565,25 +1576,16 @@ async function handlePurchase(item) {
             errorMessage = error.message;
         }
         
-        showErrorToUser(errorMessage);
-    }
-}
-
-function showSuccessMessage(message) {
-    try {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: translations[currentLanguage].success,
-                text: message,
-                icon: 'success',
-                confirmButtonText: translations[currentLanguage].ok
-            });
-        } else {
-            alert(message);
+        await Swal.fire({
+            title: translations[currentLanguage].error,
+            text: errorMessage,
+            icon: 'error',
+            confirmButtonText: translations[currentLanguage].ok
+        });
+    } finally {
+        if (loadingMessage && loadingMessage.close) {
+            loadingMessage.close();
         }
-    } catch (error) {
-        console.error('Success message error:', error);
-        alert(message);
     }
 }
 
