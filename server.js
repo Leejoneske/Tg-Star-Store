@@ -1352,13 +1352,6 @@ app.get('/api/stickers', async (req, res) => {
   }
 });
 
-// Local caching for stickers
-const CACHE_DIR = './sticker_cache';
-if (!fs.existsSync(CACHE_DIR)) {
-  fs.mkdirSync(CACHE_DIR);
-}
-
-
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
     try {
