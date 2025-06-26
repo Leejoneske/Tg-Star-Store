@@ -8,6 +8,7 @@ const cors = require('cors');
 const axios = require('axios');
 const app = express();
 const path = require('path');  
+const zlib = require('zlib');
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
@@ -1276,33 +1277,34 @@ bot.on('sticker', async (msg) => {
 });
 
 // API ENDPOINTS
-app.get('/api/sticker/:sticker_id', async (req, res) => {
+app.get('/api/sticker/:sticker_id/json', async (req, res) => {
   try {
     const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
-    if (!sticker || !sticker.file_path) {
-      return res.status(404).json({ error: 'Sticker not found' });
+    if (!sticker || !sticker.file_path.endsWith('.tgs')) {
+      return res.status(404).json({ error: 'Sticker not found or not animated' });
     }
 
     const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.file_path}`;
-    const response = await fetch(telegramUrl);
-    
-    if (!response.ok) {
-      return res.status(404).json({ error: 'Telegram file not found' });
-    }
+    const tgRes = await fetch(telegramUrl);
+    const buffer = await tgRes.arrayBuffer();
 
-    const ext = path.extname(sticker.file_path).toLowerCase();
-    const contentType = {
-      '.tgs': 'application/json',
-      '.webm': 'video/webm',
-      '.webp': 'image/webp'
-    }[ext] || 'application/octet-stream';
+    zlib.unzip(Buffer.from(buffer), (err, jsonBuffer) => {
+      if (err) {
+        console.error('Decompression error:', err);
+        return res.status(500).json({ error: 'Failed to decode sticker' });
+      }
 
-    res.set('Content-Type', contentType);
-    response.body.pipe(res);
+      try {
+        const json = JSON.parse(jsonBuffer.toString());
+        res.json(json);
+      } catch (e) {
+        res.status(500).json({ error: 'Invalid JSON' });
+      }
+    });
 
-  } catch (error) {
-    console.error('Sticker serve error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
