@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
 const app = express();
+const path = require('path');  
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
