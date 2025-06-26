@@ -1241,35 +1241,36 @@ setInterval(() => {
 
 
 // Bot handler - DON'T store web_url with token
-bot.on('sticker', async (ctx) => {
+// Debug: Log all incoming updates to check their structure
+bot.use((ctx, next) => {
+  console.log('📥 Raw Update:', JSON.stringify(ctx.update, null, 2));
+  return next();
+});
+
+// Handle stickers in all possible update types
+bot.on(['message:sticker', 'edited_message:sticker', 'channel_post:sticker'], async (ctx) => {
   try {
-    console.log('🔍 Incoming update:', JSON.stringify(ctx.update, null, 2)); // Debug: Log full update
-
-    if (!ctx.message || !ctx.message.sticker) {
-      console.log('❌ No sticker found in ctx.message:', ctx.message);
+    const message = ctx.message || ctx.editedMessage || ctx.channelPost;
+    if (!message?.sticker) {
+      console.log('❌ Sticker not found in message:', message);
       return;
     }
 
-    const sticker = ctx.message.sticker;
-    console.log('🛠️ Raw sticker data:', sticker); // Debug: Log full sticker object
-
-    if (!sticker.file_id || !sticker.file_unique_id) {
-      console.log('❌ Sticker missing required fields:', {
-        file_id: sticker.file_id,
-        file_unique_id: sticker.file_unique_id,
-      });
-      return;
-    }
-
-    console.log(`📌 Processing sticker: ${sticker.file_unique_id} (${sticker.emoji || 'No emoji'})`);
+    const sticker = message.sticker;
+    console.log('🛠️ Sticker Data:', {
+      file_id: sticker.file_id,
+      file_unique_id: sticker.file_unique_id,
+      emoji: sticker.emoji,
+      set_name: sticker.set_name,
+    });
 
     const fileInfo = await ctx.telegram.getFile(sticker.file_id);
     if (!fileInfo?.file_path) {
-      console.log(`❌ No file_path for ${sticker.file_unique_id}`);
+      console.log('❌ Failed to get file path for sticker:', sticker.file_unique_id);
       return;
     }
 
-    // Database operation
+    // Save to DB (same as before)
     const updateData = {
       file_id: sticker.file_id,
       file_path: fileInfo.file_path,
@@ -1288,16 +1289,15 @@ bot.on('sticker', async (ctx) => {
 
     if (result.upsertedId) {
       console.log(`✅ Sticker saved! DB ID: ${result.upsertedId._id}`);
-    } else if (result.modifiedCount > 0) {
-      console.log(`🔄 Sticker updated: ${sticker.file_unique_id}`);
     } else {
-      console.log(`ℹ️ No changes: ${sticker.file_unique_id}`);
+      console.log(`ℹ️ Sticker already exists: ${sticker.file_unique_id}`);
     }
 
   } catch (error) {
-    console.error('💥 Critical error:', error.message, error.stack);
+    console.error('💥 Error:', error.message, error.stack);
   }
 });
+
 // API endpoint - proxy the file to avoid CORS and token exposure
 app.get('/api/sticker/:sticker_id', async (req, res) => {
   try {
