@@ -1660,6 +1660,7 @@ function updateUserInterface(user) {
     lastUserData = {...user};
 }
 
+
 function initWalletConnection() {
     if (typeof TON_CONNECT_UI === 'undefined') {
         console.error('TON Connect UI not loaded');
@@ -1729,40 +1730,6 @@ function initWalletConnection() {
         updateWalletButton();
     }
 }
-
-function updateWalletButton() {
-  const btn = document.getElementById('connectWallet');
-  if (!btn) return;
-  
-  if (walletConnected && currentWalletAddress) {
-    const shortAddr = `${currentWalletAddress.slice(0,4)}...${currentWalletAddress.slice(-4)}`;
-    btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddr}</span>`;
-    btn.classList.add('wallet-connected');
-  } else {
-    btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${translations[currentLanguage].connectWallet}`;
-    btn.classList.remove('wallet-connected');
-  }
-}
-
-  btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    try {
-      walletConnected
-        ? await tonConnectUI.disconnect()
-        : await tonConnectUI.openModal();   // ← fixed
-    } catch (e) {
-      console.error(e);
-      Swal.fire({
-        title: translations[currentLanguage].error,
-        text: 'Wallet connection failed',
-        icon: 'error'
-      });
-    } finally {
-      btn.disabled = false;
-    }
-  });
-}
-
 
 function initLanguageToggle() {
     const languageToggle = document.getElementById('languageToggle');
