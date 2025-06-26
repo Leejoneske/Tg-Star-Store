@@ -1496,7 +1496,7 @@ function initWalletConnection() {
     return;
   }
 
-  const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+  tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ 
     manifestUrl: 'https://starstore.site/tonconnect-manifest.json',
     language: currentLanguage === 'ru' ? 'ru' : 'en',
     restoreConnection: true,
@@ -1508,24 +1508,36 @@ function initWalletConnection() {
   const btn = document.getElementById('connectWallet');
   if (!btn) return;
 
-  tonConnectUI.onStatusChange(wallet => {
+  
+tonConnectUI.onStatusChange(wallet => {
     if (wallet?.account) {
       currentWalletAddress = wallet.account.address;
-      const shortAddr = `${currentWalletAddress.slice(0,4)}...${currentWalletAddress.slice(-4)}`;
-      btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddr}</span>`;
-      btn.classList.add('wallet-connected');
       walletConnected = true;
       localStorage.setItem('walletConnected', 'true');
       localStorage.setItem('walletAddress', currentWalletAddress);
+      updateWalletButton(); 
     } else {
-      btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${translations[currentLanguage].connectWallet}`;
-      btn.classList.remove('wallet-connected');
-      walletConnected = false;
       currentWalletAddress = '';
+      walletConnected = false;
       localStorage.removeItem('walletConnected');
       localStorage.removeItem('walletAddress');
+      updateWalletButton();
     }
-  });
+});
+
+function updateWalletButton() {
+  const btn = document.getElementById('connectWallet');
+  if (!btn) return;
+  
+  if (walletConnected && currentWalletAddress) {
+    const shortAddr = `${currentWalletAddress.slice(0,4)}...${currentWalletAddress.slice(-4)}`;
+    btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddr}</span>`;
+    btn.classList.add('wallet-connected');
+  } else {
+    btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${translations[currentLanguage].connectWallet}`;
+    btn.classList.remove('wallet-connected');
+  }
+}
 
   btn.addEventListener('click', async () => {
     btn.disabled = true;
