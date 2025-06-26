@@ -352,38 +352,75 @@
         margin-bottom: 12px;
     }
 
-    .notification-button {
-        position: relative;
-        outline: none;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        transition: background-color 0.2s ease;
-    }
+    /* Notification Button Styles (keep your existing ones) */
+.notification-button {
+    position: relative;
+    outline: none;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
 
-    .notification-button:hover {
-        background-color: #f3f4f6;
-    }
+.notification-button:hover {
+    background-color: #f3f4f6;
+}
 
-    .notification-badge {
-        position: absolute;
-        top: -2px;
-        right: -2px;
-        background: #ef4444;
-        color: white;
-        border-radius: 50%;
-        width: 18px;
-        height: 18px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: bold;
-        pointer-events: none;
-    }
+.notification-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    pointer-events: none;
+}
+
+
+.notification-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
+}
+
+.notification-overlay.active {
+    opacity: 1;
+}
+
+.notification-content-container {
+    position: relative;
+    pointer-events: auto;
+    width: 90%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow: hidden;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+
 
     .section-toggle {
         display: flex;
@@ -1317,11 +1354,11 @@ function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
     if (!notificationButton) return;
 
-    let notificationWindow = null;
+    let notificationOverlay = null;
     let contentContainer = null;
 
     // Handle messages from notification iframe
-    window.addEventListener('message', (event) => {
+    const handleMessage = (event) => {
         if (!event.data?.type) return;
         
         switch(event.data.type) {
@@ -1332,7 +1369,9 @@ function initNotificationSystem() {
                 updateNotificationBadge(event.data.count);
                 break;
         }
-    });
+    };
+
+    window.addEventListener('message', handleMessage);
 
     notificationButton.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -1344,83 +1383,68 @@ function initNotificationSystem() {
         }
 
         // Toggle if already exists
-        if (notificationWindow) {
+        if (notificationOverlay) {
             closeNotificationWindow();
             return;
         }
 
-        // Create overlay container
-        notificationWindow = document.createElement('div');
-        notificationWindow.id = 'notificationOverlay';
-        Object.assign(notificationWindow.style, {
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            width: '100%',
-            height: '100%',
-            zIndex: '1000',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(5px)',
-            opacity: '0',
-            pointerEvents: 'auto', // Changed to 'auto'
-            transition: 'opacity 0.2s ease'
-        });
-
+        // Create overlay
+        notificationOverlay = document.createElement('div');
+        notificationOverlay.className = 'notification-overlay';
+        
         // Create content container
         contentContainer = document.createElement('div');
-        contentContainer.style.position = 'relative';
-        contentContainer.style.pointerEvents = 'auto';
-        contentContainer.style.width = '90%';
-        contentContainer.style.maxWidth = '400px';
-        contentContainer.style.maxHeight = '80vh';
-        contentContainer.style.overflow = 'hidden';
-        contentContainer.style.borderRadius = '12px';
-        contentContainer.style.background = 'white';
+        contentContainer.className = 'notification-content-container';
         
-        notificationWindow.appendChild(contentContainer);
-        document.body.appendChild(notificationWindow);
+        notificationOverlay.appendChild(contentContainer);
+        document.body.appendChild(notificationOverlay);
         
-        // Fade in
-        setTimeout(() => {
-            notificationWindow.style.opacity = '1';
-        }, 10);
+        // Trigger reflow and animate in
+        void notificationOverlay.offsetWidth; // Force reflow
+        notificationOverlay.classList.add('active');
 
-        // Add click handler to overlay (not content)
-        notificationWindow.addEventListener('click', (e) => {
-            if (e.target === notificationWindow) {
+        // Add click handler
+        notificationOverlay.addEventListener('click', (e) => {
+            if (e.target === notificationOverlay) {
                 closeNotificationWindow();
             }
         });
 
         try {
-            // Load notification.html
             const response = await fetch('notification.html');
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
             contentContainer.innerHTML = await response.text();
             
+            // Initialize the notification system inside the loaded content
+            const script = contentContainer.querySelector('script');
+            if (script) {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                contentContainer.appendChild(newScript);
+                script.remove();
+            }
+            
         } catch (error) {
             console.error('Notification error:', error);
             contentContainer.innerHTML = `
-                <div style="padding: 20px; color: #ef4444; text-align: center;">
-                    Failed to load notifications
+                <div class="notification-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>${translations[currentLanguage].failedToLoadNotifications || 'Failed to load notifications'}</p>
                 </div>
             `;
         }
     });
 
     function closeNotificationWindow() {
-        if (!notificationWindow) return;
+        if (!notificationOverlay) return;
         
-        notificationWindow.style.opacity = '0';
+        notificationOverlay.classList.remove('active');
         
-        notificationWindow.addEventListener('transitionend', () => {
-            if (notificationWindow && document.body.contains(notificationWindow)) {
-                document.body.removeChild(notificationWindow);
-                notificationWindow = null;
+        notificationOverlay.addEventListener('transitionend', () => {
+            if (notificationOverlay && document.body.contains(notificationOverlay)) {
+                document.body.removeChild(notificationOverlay);
+                notificationOverlay = null;
                 contentContainer = null;
             }
         }, { once: true });
@@ -1433,10 +1457,20 @@ function initNotificationSystem() {
         if (count > 0) {
             badge.textContent = count > 9 ? '9+' : count.toString();
             badge.classList.remove('hidden');
+            badge.style.display = 'flex'; // Ensure it's visible
         } else {
             badge.classList.add('hidden');
+            badge.style.display = 'none';
         }
     }
+
+    // Cleanup
+    return () => {
+        window.removeEventListener('message', handleMessage);
+        if (notificationOverlay) {
+            closeNotificationWindow();
+        }
+    };
 }
     
        
