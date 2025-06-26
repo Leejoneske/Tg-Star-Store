@@ -1242,12 +1242,12 @@ setInterval(() => {
 
 // Bot handler - DON'T store web_url with token
 // Debug: Log all incoming updates to check their structure
-bot.use((ctx, next) => {
+// Debug: Log all incoming updates (compatible with all Telegraf versions)
+bot.on('message', (ctx) => {
   console.log('📥 Raw Update:', JSON.stringify(ctx.update, null, 2));
-  return next();
 });
 
-// Handle stickers in all possible update types
+// Handle stickers in messages, edited messages, and channel posts
 bot.on(['message:sticker', 'edited_message:sticker', 'channel_post:sticker'], async (ctx) => {
   try {
     const message = ctx.message || ctx.editedMessage || ctx.channelPost;
@@ -1270,7 +1270,7 @@ bot.on(['message:sticker', 'edited_message:sticker', 'channel_post:sticker'], as
       return;
     }
 
-    // Save to DB (same as before)
+    // Database operation
     const updateData = {
       file_id: sticker.file_id,
       file_path: fileInfo.file_path,
@@ -1297,7 +1297,6 @@ bot.on(['message:sticker', 'edited_message:sticker', 'channel_post:sticker'], as
     console.error('💥 Error:', error.message, error.stack);
   }
 });
-
 // API endpoint - proxy the file to avoid CORS and token exposure
 app.get('/api/sticker/:sticker_id', async (req, res) => {
   try {
