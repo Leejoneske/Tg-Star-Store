@@ -939,6 +939,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
         
+const stickerCache = new Map();
+        
 async function loadStickers() {
   const containers = document.querySelectorAll('.sticker-container');
   
@@ -946,26 +948,26 @@ async function loadStickers() {
     const stickerId = container.getAttribute('data-sticker-id');
     if (!stickerId) continue;
 
+    if (stickerCache.has(stickerId)) {
+      renderSticker(container, stickerCache.get(stickerId));
+      continue;
+    }
+
     try {
-      // Get sticker info first to determine type
       const infoResponse = await fetch(`/api/sticker/${stickerId}/info`);
-      if (!infoResponse.ok) {
-        throw new Error('Sticker info not found');
-      }
+      if (!infoResponse.ok) throw new Error('Sticker info not found');
       
       const info = await infoResponse.json();
+      stickerCache.set(stickerId, info);
       
-      // Load based on sticker type
-      if (info.is_animated && info.file_type === 'tgs') {
+      if (info.is_animated) {
         await loadAnimatedSticker(container, stickerId);
       } else if (info.is_video) {
         loadVideoSticker(container, stickerId);
       } else {
         loadStaticSticker(container, stickerId);
       }
-      
     } catch (error) {
-      console.error('Failed to load sticker:', stickerId, error);
       loadPlaceholder(container);
     }
   }
@@ -979,7 +981,6 @@ function loadStaticSticker(container, stickerId) {
   img.loading = 'lazy';
   img.style.objectFit = 'contain';
   img.src = `/api/sticker/${stickerId}`;
-  
   img.onerror = () => loadPlaceholder(container);
   container.replaceChildren(img);
 }
@@ -991,17 +992,15 @@ function loadVideoSticker(container, stickerId) {
   video.autoplay = true;
   video.loop = true;
   video.muted = true;
+  video.playsInline = true;
   video.style.objectFit = 'contain';
   video.src = `/api/sticker/${stickerId}`;
-  
   video.onerror = () => loadPlaceholder(container);
   container.replaceChildren(video);
 }
 
 async function loadAnimatedSticker(container, stickerId) {
-
   if (typeof lottie === 'undefined') {
-    console.warn('Lottie not loaded, showing static fallback');
     loadStaticSticker(container, stickerId);
     return;
   }
@@ -1011,13 +1010,11 @@ async function loadAnimatedSticker(container, stickerId) {
     if (!response.ok) throw new Error('Failed to fetch animation');
     
     const animationData = await response.json();
-    
-    // Clear container and create animation
     container.innerHTML = '';
     container.style.width = '72px';
     container.style.height = '72px';
     
-    lottie.loadAnimation({
+    const animation = lottie.loadAnimation({
       container: container,
       renderer: 'svg',
       loop: true,
@@ -1025,9 +1022,9 @@ async function loadAnimatedSticker(container, stickerId) {
       animationData: animationData
     });
     
+    container._lottieAnimation = animation;
   } catch (error) {
-    console.error('Animation load failed:', error);
-    loadPlaceholder(container);
+    loadStaticSticker(container, stickerId);
   }
 }
 
@@ -1045,7 +1042,6 @@ function loadPlaceholder(container) {
   container.replaceChildren(placeholder);
 }
 
-        
 function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
     if (!notificationButton) return;
