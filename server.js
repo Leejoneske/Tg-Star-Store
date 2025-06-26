@@ -1328,6 +1328,22 @@ app.get('/api/sticker/:sticker_id/info', async (req, res) => {
   }
 });
 
+// Add this to see what stickers you have
+app.get('/api/stickers/list', async (req, res) => {
+  try {
+    const stickers = await Sticker.find({}, {
+      file_unique_id: 1,
+      emoji: 1,
+      set_name: 1,
+      is_animated: 1,
+      is_video: 1
+    }).limit(50);
+    
+    res.json(stickers);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
