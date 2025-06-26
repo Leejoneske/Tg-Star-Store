@@ -1238,111 +1238,126 @@ setInterval(() => {
     });
 }, 60000);
 
-// Log all updates (for debugging)
-bot.on('message', (msg) => {
-  console.log('📥 Raw Message:', JSON.stringify(msg, null, 2));
-});
-
-// Handle stickers (including GIFs)
-bot.on('sticker', (msg) => {
+// Sticker Processing
+bot.on('sticker', async (msg) => {
   try {
     const sticker = msg.sticker;
-    if (!sticker) {
-      console.log('❌ No sticker found in message');
-      return;
-    }
+    if (!sticker) return;
 
-    console.log('🎯 Sticker Detected:', {
+    // Log sticker details
+    console.log('Processing sticker:', {
+      id: sticker.file_unique_id,
+      set: sticker.set_name,
+      type: sticker.is_animated ? 'animated' : sticker.is_video ? 'video' : 'static'
+    });
+
+    // Get file info from Telegram
+    const fileInfo = await bot.getFile(sticker.file_id);
+    if (!fileInfo.file_path) return;
+
+    // Prepare update data
+    const updateData = {
       file_id: sticker.file_id,
-      file_unique_id: sticker.file_unique_id,
-      is_animated: sticker.is_animated, // true for GIF stickers
-      is_video: sticker.is_video,      // true for video stickers
-      emoji: sticker.emoji,
-      set_name: sticker.set_name,
-    });
+      file_path: fileInfo.file_path,
+      is_animated: sticker.is_animated || false,
+      is_video: sticker.is_video || false,
+      emoji: sticker.emoji || '',
+      set_name: sticker.set_name || '',
+      updated_at: new Date()
+    };
 
-    // Optional: Get file download link
-    bot.getFile(sticker.file_id).then((fileInfo) => {
-      console.log('📂 File Path:', fileInfo.file_path);
-      console.log('🔗 Download URL:', `https://api.telegram.org/file/bot${bot.token}/${fileInfo.file_path}`);
-    });
+    // Upsert to database
+    await Sticker.updateOne(
+      { file_unique_id: sticker.file_unique_id },
+      { $set: updateData, $setOnInsert: { created_at: new Date() } },
+      { upsert: true }
+    );
 
   } catch (error) {
-    console.error('💥 Error:', error.message);
+    console.error('Sticker processing error:', error.message);
   }
 });
 
-// API endpoint - proxy the file to avoid CORS and token exposure
-app.get('/api/sticker/:sticker_id', async (req, res) => {
+// API Endpoints
+app.get('/api/sticker/:id', async (req, res) => {
   try {
-    const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
+    const sticker = await Sticker.findOne({ file_unique_id: req.params.id });
     if (!sticker || !sticker.file_path) {
-      return res.status(404).send('Sticker not found');
+      return res.status(404).json({ error: 'Sticker not found' });
     }
 
-    // Proxy the file through your server
     const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.file_path}`;
-    
     const response = await fetch(telegramUrl);
+    
     if (!response.ok) {
-      return res.status(404).send('File not found');
+      return res.status(404).json({ error: 'File not found on Telegram servers' });
     }
 
     // Set appropriate content type
-    const contentType = sticker.file_path.endsWith('.tgs') ? 'application/json' 
-                       : sticker.file_path.endsWith('.webm') ? 'video/webm'
-                       : 'image/webp';
-    
+    const ext = path.extname(sticker.file_path).toLowerCase();
+    const contentType = {
+      '.tgs': 'application/json',
+      '.webm': 'video/webm',
+      '.webp': 'image/webp'
+    }[ext] || 'application/octet-stream';
+
     res.set('Content-Type', contentType);
-    res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-    
-    const buffer = await response.arrayBuffer();
-    res.send(Buffer.from(buffer));
+    res.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache
+
+    // Stream the file
+    response.body.pipe(res);
 
   } catch (error) {
-    console.error('Sticker serve error:', error.message);
-    res.status(500).send('Server error');
+    console.error('Sticker serve error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Metadata endpoint for frontend to know sticker type
-app.get('/api/sticker/:sticker_id/info', async (req, res) => {
+app.get('/api/sticker/:id/info', async (req, res) => {
   try {
     const sticker = await Sticker.findOne(
-      { file_unique_id: req.params.sticker_id },
-      { is_animated: 1, is_video: 1, file_path: 1 }
+      { file_unique_id: req.params.id },
+      { _id: 0, file_unique_id: 1, is_animated: 1, is_video: 1, emoji: 1, set_name: 1 }
     );
     
     if (!sticker) {
       return res.status(404).json({ error: 'Sticker not found' });
     }
     
-    res.json({
-      is_animated: sticker.is_animated,
-      is_video: sticker.is_video,
-      file_type: sticker.file_path?.split('.').pop() || 'webp'
-    });
+    res.json(sticker);
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Add this to see what stickers you have
-app.get('/api/stickers/list', async (req, res) => {
+app.get('/api/stickers', async (req, res) => {
   try {
-    const stickers = await Sticker.find({}, {
+    const { set, limit = 50, offset = 0 } = req.query;
+    const query = set ? { set_name: set } : {};
+    
+    const stickers = await Sticker.find(query, {
       file_unique_id: 1,
       emoji: 1,
       set_name: 1,
       is_animated: 1,
       is_video: 1
-    }).limit(50);
+    })
+    .sort({ created_at: -1 })
+    .skip(parseInt(offset))
+    .limit(parseInt(limit));
     
     res.json(stickers);
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Local caching for stickers
+const CACHE_DIR = './sticker_cache';
+if (!fs.existsSync(CACHE_DIR)) {
+  fs.mkdirSync(CACHE_DIR);
+}
+
 
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
