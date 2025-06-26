@@ -1006,7 +1006,8 @@ async function loadAnimatedSticker(container, stickerId) {
   }
 
   try {
-    const response = await fetch(`/api/sticker/${stickerId}`);
+    const response = await fetch(`/api/sticker/${stickerId}/json`);
+      
     if (!response.ok) throw new Error('Failed to fetch animation');
     
     const animationData = await response.json();
