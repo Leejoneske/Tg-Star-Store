@@ -692,7 +692,7 @@
                             <div class="package-option stars-package">
                                 <div class="stars-amount">50 Stars</div>
                                 <div class="usdt-price">1.00 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy-gift" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buy" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
                                 <div class="mt-2">
                                 <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
                                 </div>
@@ -1485,98 +1485,73 @@ function updateUserInterface(user) {
 }
 
 function initWalletConnection() {
-    try {
-        if (typeof TON_CONNECT_UI === 'undefined') {
-            console.error('TON Connect UI not loaded');
-            const connectWalletButton = document.getElementById('connectWallet');
-            if (connectWalletButton) {
-                connectWalletButton.textContent = translations[currentLanguage].error;
-                connectWalletButton.disabled = true;
-            }
-            return;
-        }
-
-        // Initialize with connection restoration
-        tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-            manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json',
-            language: currentLanguage === 'ru' ? 'ru' : 'en',
-            restoreConnection: true,
-            connectEventBridge: true
-        });
-
-        // Add connection state debounce
-        let connectionDebounce;
+    if (typeof TON_CONNECT_UI === 'undefined') {
+        console.error('TON Connect UI not loaded');
         const connectWalletButton = document.getElementById('connectWallet');
-        
-        tonConnectUI.onStatusChange(wallet => {
-            clearTimeout(connectionDebounce);
-            connectionDebounce = setTimeout(() => {
-                if (wallet?.account) {
-                    currentWalletAddress = wallet.account.address;
-                    const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
-                    connectWalletButton.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
-                    connectWalletButton.classList.add('wallet-connected');
-                    walletConnected = true;
-                    
-                    // Use both localStorage and sessionStorage for redundancy
-                    localStorage.setItem('walletConnected', 'true');
-                    localStorage.setItem('walletAddress', currentWalletAddress);
-                    sessionStorage.setItem('walletConnected', 'true');
-                } else {
-                    handleDisconnection();
-                }
-                updateGlobalUserData();
-            }, 300);
-        });
+        if (connectWalletButton) {
+            connectWalletButton.textContent = 'Wallet Error';
+            connectWalletButton.disabled = true;
+        }
+        return;
+    }
 
-        function handleDisconnection() {
+    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: 'https://yourdomain.com/tonconnect-manifest.json',
+        language: currentLanguage === 'ru' ? 'ru' : 'en',
+        restoreConnection: true
+    });
+
+    const connectWalletButton = document.getElementById('connectWallet');
+    if (!connectWalletButton) return;
+
+    tonConnectUI.onStatusChange(wallet => {
+        if (wallet?.account) {
+            currentWalletAddress = wallet.account.address;
+            const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
+            connectWalletButton.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
+            connectWalletButton.classList.add('wallet-connected');
+            walletConnected = true;
+            localStorage.setItem('walletConnected', 'true');
+            localStorage.setItem('walletAddress', currentWalletAddress);
+        } else {
             connectWalletButton.innerHTML = `<i class="fas fa-wallet mr-2"></i>${translations[currentLanguage].connectWallet}`;
             connectWalletButton.classList.remove('wallet-connected');
             walletConnected = false;
             currentWalletAddress = '';
-            
             localStorage.removeItem('walletConnected');
             localStorage.removeItem('walletAddress');
-            sessionStorage.removeItem('walletConnected');
         }
+    });
 
-        connectWalletButton.addEventListener('click', async () => {
-            try {
-                connectWalletButton.disabled = true;
-                if (walletConnected) {
-                    await tonConnectUI.disconnect();
-                    handleDisconnection();
-                } else {
-                    await tonConnectUI.connectWallet();
-                }
-            } catch (error) {
-                console.error('Wallet connection error:', error);
-                showErrorToUser(translations[currentLanguage].error);
-            } finally {
-                connectWalletButton.disabled = false;
-            }
-        });
-
-        // Initial connection check with timeout
-        setTimeout(() => {
-            if (!walletConnected && localStorage.getItem('walletConnected') === 'true') {
-                const savedAddress = localStorage.getItem('walletAddress');
-                if (savedAddress) {
-                    currentWalletAddress = savedAddress;
-                    const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
-                    connectWalletButton.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
-                    connectWalletButton.classList.add('wallet-connected');
-                    walletConnected = true;
-                }
-            }
-        }, 1000);
-
-    } catch (error) {
-        console.error('Wallet init error:', error);
-        const connectWalletButton = document.getElementById('connectWallet');
-        if (connectWalletButton) {
-            connectWalletButton.textContent = translations[currentLanguage].error;
+    connectWalletButton.addEventListener('click', async () => {
+        try {
             connectWalletButton.disabled = true;
+            if (walletConnected) {
+                await tonConnectUI.disconnect();
+            } else {
+                await tonConnectUI.connectWallet();
+            }
+        } catch (error) {
+            console.error('Wallet error:', error);
+            Swal.fire({
+                title: translations[currentLanguage].error,
+                text: 'Wallet connection failed',
+                icon: 'error'
+            });
+        } finally {
+            connectWalletButton.disabled = false;
+        }
+    });
+
+    // Restore connection if previously connected
+    if (localStorage.getItem('walletConnected') === 'true') {
+        const savedAddress = localStorage.getItem('walletAddress');
+        if (savedAddress) {
+            currentWalletAddress = savedAddress;
+            const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
+            connectWalletButton.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
+            connectWalletButton.classList.add('wallet-connected');
+            walletConnected = true;
         }
     }
 }
