@@ -1238,65 +1238,40 @@ setInterval(() => {
     });
 }, 60000);
 
-
-
-// Bot handler - DON'T store web_url with token
-// Debug: Log all incoming updates to check their structure
-// Debug: Log all incoming updates (compatible with all Telegraf versions)
-bot.on('message', (ctx) => {
-  console.log('📥 Raw Update:', JSON.stringify(ctx.update, null, 2));
+// Log all updates (for debugging)
+bot.on('message', (msg) => {
+  console.log('📥 Raw Message:', JSON.stringify(msg, null, 2));
 });
 
-// Handle stickers in messages, edited messages, and channel posts
-bot.on(['message:sticker', 'edited_message:sticker', 'channel_post:sticker'], async (ctx) => {
+// Handle stickers (including GIFs)
+bot.on('sticker', (msg) => {
   try {
-    const message = ctx.message || ctx.editedMessage || ctx.channelPost;
-    if (!message?.sticker) {
-      console.log('❌ Sticker not found in message:', message);
+    const sticker = msg.sticker;
+    if (!sticker) {
+      console.log('❌ No sticker found in message');
       return;
     }
 
-    const sticker = message.sticker;
-    console.log('🛠️ Sticker Data:', {
+    console.log('🎯 Sticker Detected:', {
       file_id: sticker.file_id,
       file_unique_id: sticker.file_unique_id,
+      is_animated: sticker.is_animated, // true for GIF stickers
+      is_video: sticker.is_video,      // true for video stickers
       emoji: sticker.emoji,
       set_name: sticker.set_name,
     });
 
-    const fileInfo = await ctx.telegram.getFile(sticker.file_id);
-    if (!fileInfo?.file_path) {
-      console.log('❌ Failed to get file path for sticker:', sticker.file_unique_id);
-      return;
-    }
-
-    // Database operation
-    const updateData = {
-      file_id: sticker.file_id,
-      file_path: fileInfo.file_path,
-      is_animated: sticker.is_animated || false,
-      is_video: sticker.is_video || false,
-      emoji: sticker.emoji || '',
-      set_name: sticker.set_name || '',
-      updated_at: new Date(),
-    };
-
-    const result = await Sticker.updateOne(
-      { file_unique_id: sticker.file_unique_id },
-      { $set: updateData, $setOnInsert: { created_at: new Date() } },
-      { upsert: true }
-    );
-
-    if (result.upsertedId) {
-      console.log(`✅ Sticker saved! DB ID: ${result.upsertedId._id}`);
-    } else {
-      console.log(`ℹ️ Sticker already exists: ${sticker.file_unique_id}`);
-    }
+    // Optional: Get file download link
+    bot.getFile(sticker.file_id).then((fileInfo) => {
+      console.log('📂 File Path:', fileInfo.file_path);
+      console.log('🔗 Download URL:', `https://api.telegram.org/file/bot${bot.token}/${fileInfo.file_path}`);
+    });
 
   } catch (error) {
-    console.error('💥 Error:', error.message, error.stack);
+    console.error('💥 Error:', error.message);
   }
 });
+
 // API endpoint - proxy the file to avoid CORS and token exposure
 app.get('/api/sticker/:sticker_id', async (req, res) => {
   try {
