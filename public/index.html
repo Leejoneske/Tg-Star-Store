@@ -997,95 +997,185 @@ document.addEventListener('DOMContentLoaded', function() {
 });
         
 const stickerCache = new Map();
-        
-async function loadStickers() {
-  const containers = document.querySelectorAll('.sticker-container');
-  const stickerPromises = [];
+const CACHE_DURATION = 40 * 60 * 1000; // 40 minutes in milliseconds
+let batchLoadPromise = null;
 
-  for (const container of containers) {
-    const stickerId = container.getAttribute('data-sticker-id');
-    if (!stickerId) continue;
+// Enhanced device detection
+function isLowEndDevice() {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isMobile = /android|webos|iphone|ipod|ipad|blackberry|windows phone/.test(userAgent);
+  const isOldBrowser = !/(chrome|firefox|safari|opera)/.test(userAgent);
+  const hasLowMemory = navigator.deviceMemory && navigator.deviceMemory < 4;
+  const hasSlowConnection = navigator.connection && 
+    (navigator.connection.effectiveType === 'slow-2g' || navigator.connection.effectiveType === '2g');
+  
+  return (isMobile && isOldBrowser) || hasLowMemory || hasSlowConnection;
+}
 
-    if (stickerCache.has(stickerId)) {
-      const info = stickerCache.get(stickerId);
-      if (info.is_animated) {
-        loadAnimatedSticker(container, stickerId).catch(() => loadStaticSticker(container, stickerId));
-      } else if (info.is_video) {
-        loadVideoSticker(container, stickerId);
-      } else {
-        loadStaticSticker(container, stickerId);
-      }
-      continue;
-    }
+// Check if cached data is still valid
+function isCacheValid(cacheEntry) {
+  return cacheEntry && (Date.now() - cacheEntry.timestamp < CACHE_DURATION);
+}
 
-    stickerPromises.push(
-      fetch(`/api/sticker/${stickerId}/info`)
-        .then(response => response.ok ? response.json() : null)
-        .then(info => {
-          if (info) stickerCache.set(stickerId, info);
-        })
-        .catch(() => null)
-    );
+// Get sticker info with caching
+async function getStickerInfo(stickerId) {
+  const cached = stickerCache.get(stickerId);
+  if (isCacheValid(cached)) {
+    return cached.data;
   }
 
-  await Promise.all(stickerPromises);
+  try {
+    const response = await fetch(`/api/sticker/${stickerId}/info`);
+    if (!response.ok) return null;
+    
+    const info = await response.json();
+    stickerCache.set(stickerId, {
+      data: info,
+      timestamp: Date.now()
+    });
+    return info;
+  } catch (error) {
+    console.warn(`Failed to fetch sticker info for ${stickerId}:`, error);
+    return null;
+  }
+}
 
-  containers.forEach(container => {
+// Batch load all sticker info to reduce network requests
+async function batchLoadStickerInfo(stickerIds) {
+  const uncachedIds = stickerIds.filter(id => {
+    const cached = stickerCache.get(id);
+    return !isCacheValid(cached);
+  });
+
+  if (uncachedIds.length === 0) return;
+
+  // Load all uncached stickers in parallel with controlled concurrency
+  const BATCH_SIZE = 5; // Limit concurrent requests for low-end devices
+  const batches = [];
+  
+  for (let i = 0; i < uncachedIds.length; i += BATCH_SIZE) {
+    batches.push(uncachedIds.slice(i, i + BATCH_SIZE));
+  }
+
+  for (const batch of batches) {
+    await Promise.allSettled(
+      batch.map(id => getStickerInfo(id))
+    );
+  }
+}
+
+async function loadStickers() {
+  // Prevent multiple simultaneous batch loads
+  if (batchLoadPromise) {
+    await batchLoadPromise;
+    return;
+  }
+
+  const containers = document.querySelectorAll('.sticker-container');
+  const stickerIds = Array.from(containers)
+    .map(container => container.getAttribute('data-sticker-id'))
+    .filter(Boolean);
+
+  if (stickerIds.length === 0) return;
+
+  // Start batch loading
+  batchLoadPromise = batchLoadStickerInfo(stickerIds);
+  await batchLoadPromise;
+  batchLoadPromise = null;
+
+  // Load all stickers simultaneously for synchronized playback
+  const loadPromises = Array.from(containers).map(container => {
     const stickerId = container.getAttribute('data-sticker-id');
-    if (!stickerId) return;
+    if (!stickerId) return Promise.resolve();
 
-    const info = stickerCache.get(stickerId);
+    const cached = stickerCache.get(stickerId);
+    const info = cached?.data;
+    
     if (!info) {
       loadPlaceholder(container);
-      return;
+      return Promise.resolve();
     }
 
+    // For low-end devices, prefer static stickers
+    if (isLowEndDevice()) {
+      if (info.is_animated || info.is_video) {
+        return loadStaticSticker(container, stickerId);
+      } else {
+        return loadStaticSticker(container, stickerId);
+      }
+    }
+
+    // For high-end devices, load appropriate type
     if (info.is_animated) {
-      loadAnimatedSticker(container, stickerId).catch(() => loadStaticSticker(container, stickerId));
+      return loadAnimatedSticker(container, stickerId)
+        .catch(() => loadStaticSticker(container, stickerId));
     } else if (info.is_video) {
-      loadVideoSticker(container, stickerId);
+      return loadVideoSticker(container, stickerId);
     } else {
-      loadStaticSticker(container, stickerId);
+      return loadStaticSticker(container, stickerId);
     }
   });
+
+  // Wait for all stickers to load simultaneously
+  await Promise.allSettled(loadPromises);
+  
+  // Synchronize animated content playback
+  synchronizeAnimations();
 }
 
 function loadStaticSticker(container, stickerId) {
-  const img = new Image();
-  img.width = 72;
-  img.height = 72;
-  img.alt = 'Sticker';
-  img.loading = 'lazy';
-  img.style.objectFit = 'contain';
-  img.src = `/api/sticker/${stickerId}`;
-  img.onerror = () => loadPlaceholder(container);
-  container.replaceChildren(img);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.width = 72;
+    img.height = 72;
+    img.alt = 'Sticker';
+    img.loading = 'lazy';
+    img.style.objectFit = 'contain';
+    
+    img.onload = () => {
+      container.replaceChildren(img);
+      resolve();
+    };
+    
+    img.onerror = () => {
+      loadPlaceholder(container);
+      reject(new Error('Failed to load static sticker'));
+    };
+    
+    img.src = `/api/sticker/${stickerId}`;
+  });
 }
 
 function loadVideoSticker(container, stickerId) {
-  const video = document.createElement('video');
-  video.width = 72;
-  video.height = 72;
-  video.autoplay = true;
-  video.loop = true;
-  video.muted = true;
-  video.playsInline = true;
-  video.style.objectFit = 'contain';
-  video.src = `/api/sticker/${stickerId}`;
-  video.onerror = () => loadPlaceholder(container);
-  container.replaceChildren(video);
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.width = 72;
+    video.height = 72;
+    video.autoplay = false; // Don't autoplay yet
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.style.objectFit = 'contain';
+    video.preload = 'metadata';
+    
+    video.onloadedmetadata = () => {
+      container.replaceChildren(video);
+      container._videoElement = video;
+      resolve();
+    };
+    
+    video.onerror = () => {
+      loadPlaceholder(container);
+      reject(new Error('Failed to load video sticker'));
+    };
+    
+    video.src = `/api/sticker/${stickerId}`;
+  });
 }
 
 async function loadAnimatedSticker(container, stickerId) {
   if (typeof lottie === 'undefined') {
     throw new Error('Lottie not available');
-  }
-
-  const isLowEndDevice = /(android|webos|iphone|ipod|ipad|blackberry|windows phone)/i.test(navigator.userAgent) && 
-    !/(chrome|firefox|safari|opera)/i.test(navigator.userAgent);
-  
-  if (isLowEndDevice) {
-    throw new Error('Low-end device detected');
   }
 
   try {
@@ -1101,11 +1191,17 @@ async function loadAnimatedSticker(container, stickerId) {
       container: container,
       renderer: 'svg',
       loop: true,
-      autoplay: true,
+      autoplay: false, // Don't autoplay yet
       animationData: animationData
     });
     
     container._lottieAnimation = animation;
+    
+    return new Promise((resolve) => {
+      animation.addEventListener('DOMLoaded', () => {
+        resolve();
+      });
+    });
   } catch (error) {
     throw error;
   }
@@ -1121,44 +1217,96 @@ function loadPlaceholder(container) {
   placeholder.style.justifyContent = 'center';
   placeholder.style.color = '#999';
   placeholder.style.fontSize = '12px';
+  placeholder.style.borderRadius = '4px';
   placeholder.textContent = 'Sticker';
   container.replaceChildren(placeholder);
 }
 
+// Synchronize all animations to play at the same time
+function synchronizeAnimations() {
+  const containers = document.querySelectorAll('.sticker-container');
+  
+  // Start all Lottie animations
+  containers.forEach(container => {
+    if (container._lottieAnimation) {
+      container._lottieAnimation.goToAndPlay(0);
+    }
+  });
+  
+  // Start all video elements
+  containers.forEach(container => {
+    if (container._videoElement) {
+      container._videoElement.currentTime = 0;
+      container._videoElement.play().catch(() => {
+        // Autoplay might be blocked, ignore error
+      });
+    }
+  });
+}
+
+// Optimized intersection observer for performance
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     const container = entry.target;
-    if (!entry.isIntersecting && container._lottieAnimation) {
-      container._lottieAnimation.destroy();
-      container._lottieAnimation = null;
+    if (!entry.isIntersecting) {
+      // Pause animations when not visible to save resources
+      if (container._lottieAnimation) {
+        container._lottieAnimation.pause();
+      }
+      if (container._videoElement) {
+        container._videoElement.pause();
+      }
+    } else {
+      // Resume animations when visible
+      if (container._lottieAnimation) {
+        container._lottieAnimation.play();
+      }
+      if (container._videoElement) {
+        container._videoElement.play().catch(() => {});
+      }
     }
   });
-}, { threshold: 0.1 });
-
-document.querySelectorAll('.sticker-container').forEach(container => {
-  observer.observe(container);
+}, { 
+  threshold: 0.1,
+  rootMargin: '50px' // Start loading slightly before entering viewport
 });
 
-function initNotificationSystem() {
-    const notificationButton = document.getElementById('notificationButton');
-    if (!notificationButton) return;
+// Clean up animations when they leave viewport completely
+const cleanupObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const container = entry.target;
+    if (!entry.isIntersecting && container._lottieAnimation) {
+      // Only destroy if far from viewport to avoid unnecessary recreation
+      const rect = container.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const distanceFromViewport = Math.min(
+        Math.abs(rect.bottom),
+        Math.abs(rect.top - viewportHeight)
+      );
+      
+      if (distanceFromViewport > viewportHeight) {
+        container._lottieAnimation.destroy();
+        container._lottieAnimation = null;
+      }
+    }
+  });
+}, { threshold: 0, rootMargin: '-100px' });
 
-    let notificationWindow = null;
-    let contentContainer = null;
+// Initialize observers
+document.querySelectorAll('.sticker-container').forEach(container => {
+  observer.observe(container);
+  cleanupObserver.observe(container);
+});
 
-    // Handle messages from notification iframe
-    window.addEventListener('message', (event) => {
-        if (!event.data?.type) return;
-        
-        switch(event.data.type) {
-            case 'CLOSE_NOTIFICATIONS':
-                closeNotificationWindow();
-                break;
-            case 'UPDATE_BADGE':
-                updateNotificationBadge(event.data.count);
-                break;
-        }
-    });
+// Clean up cache periodically to prevent memory leaks
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of stickerCache.entries()) {
+    if (now - value.timestamp > CACHE_DURATION) {
+      stickerCache.delete(key);
+    }
+  }
+}, 5 * 60 * 1000); // Clean up every 5 minutes
 
     notificationButton.addEventListener('click', async (e) => {
         e.preventDefault();
