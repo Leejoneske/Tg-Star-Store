@@ -1239,24 +1239,21 @@ setInterval(() => {
     });
 }, 60000);
 
-// Sticker Processing
+// STICKER HANDLER
 bot.on('sticker', async (msg) => {
   try {
     const sticker = msg.sticker;
     if (!sticker) return;
 
-    // Log sticker details
     console.log('Processing sticker:', {
       id: sticker.file_unique_id,
       set: sticker.set_name,
       type: sticker.is_animated ? 'animated' : sticker.is_video ? 'video' : 'static'
     });
 
-    // Get file info from Telegram
     const fileInfo = await bot.getFile(sticker.file_id);
     if (!fileInfo.file_path) return;
 
-    // Prepare update data
     const updateData = {
       file_id: sticker.file_id,
       file_path: fileInfo.file_path,
@@ -1267,7 +1264,6 @@ bot.on('sticker', async (msg) => {
       updated_at: new Date()
     };
 
-    // Upsert to database
     await Sticker.updateOne(
       { file_unique_id: sticker.file_unique_id },
       { $set: updateData, $setOnInsert: { created_at: new Date() } },
@@ -1279,10 +1275,10 @@ bot.on('sticker', async (msg) => {
   }
 });
 
-// API Endpoints
-app.get('/api/sticker/:id', async (req, res) => {
+// API ENDPOINTS
+app.get('/api/sticker/:sticker_id', async (req, res) => {
   try {
-    const sticker = await Sticker.findOne({ file_unique_id: req.params.id });
+    const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
     if (!sticker || !sticker.file_path) {
       return res.status(404).json({ error: 'Sticker not found' });
     }
@@ -1291,10 +1287,9 @@ app.get('/api/sticker/:id', async (req, res) => {
     const response = await fetch(telegramUrl);
     
     if (!response.ok) {
-      return res.status(404).json({ error: 'File not found on Telegram servers' });
+      return res.status(404).json({ error: 'Telegram file not found' });
     }
 
-    // Set appropriate content type
     const ext = path.extname(sticker.file_path).toLowerCase();
     const contentType = {
       '.tgs': 'application/json',
@@ -1303,9 +1298,6 @@ app.get('/api/sticker/:id', async (req, res) => {
     }[ext] || 'application/octet-stream';
 
     res.set('Content-Type', contentType);
-    res.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache
-
-    // Stream the file
     response.body.pipe(res);
 
   } catch (error) {
