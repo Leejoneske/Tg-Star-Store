@@ -1243,14 +1243,25 @@ setInterval(() => {
 // Bot handler - DON'T store web_url with token
 bot.on('sticker', async (ctx) => {
   try {
-    if (!ctx?.message?.sticker) return;
+    if (!ctx?.message?.sticker) {
+      console.log('No sticker found in message');
+      return;
+    }
     
     const sticker = ctx.message.sticker;
-    if (!sticker.file_id || !sticker.file_unique_id) return;
-
+    if (!sticker.file_id || !sticker.file_unique_id) {
+      console.log('Sticker is missing file_id or file_unique_id');
+      return;
+    }
+    
+    console.log(`Processing sticker with file_unique_id: ${sticker.file_unique_id}`);
+    
     const fileInfo = await ctx.telegram.getFile(sticker.file_id);
-    if (!fileInfo?.file_path) return;
-
+    if (!fileInfo?.file_path) {
+      console.log(`Could not get file path for sticker: ${sticker.file_unique_id}`);
+      return;
+    }
+    
     // Store without token in URL
     const updateData = {
       file_id: sticker.file_id,
@@ -1261,15 +1272,30 @@ bot.on('sticker', async (ctx) => {
       set_name: sticker.set_name || '',
       updated_at: new Date()
     };
-
-    await Sticker.updateOne(
+    
+    const result = await Sticker.updateOne(
       { file_unique_id: sticker.file_unique_id },
       { $set: updateData, $setOnInsert: { created_at: new Date() } },
       { upsert: true }
     );
-
+    
+    // Log the operation result and the IDs
+    if (result.upsertedId) {
+      console.log(`✅ New sticker saved!`);
+      console.log(`- Database ID: ${result.upsertedId._id}`);
+      console.log(`- File unique ID: ${sticker.file_unique_id}`);
+      console.log(`- File ID: ${sticker.file_id}`);
+    } else if (result.modifiedCount > 0) {
+      console.log(`🔄 Sticker updated in database`);
+      console.log(`- File unique ID: ${sticker.file_unique_id}`);
+      console.log(`- File ID: ${sticker.file_id}`);
+    } else {
+      console.log(`ℹ️ No changes made to sticker: ${sticker.file_unique_id}`);
+    }
+    
   } catch (error) {
-    console.error('Sticker processing failed:', error.message);
+    console.error('❌ Sticker processing failed:', error.message);
+    console.error(error.stack);
   }
 });
 
