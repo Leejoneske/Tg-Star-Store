@@ -937,36 +937,112 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
         
-function loadStickers() {
-    document.querySelectorAll('.sticker-container').forEach(container => {
-        const stickerId = container.getAttribute('data-sticker-id');
-        if (!stickerId) return;
-        
-        const img = new Image();
-        img.width = 72;
-        img.height = 72;
-        img.alt = 'Telegram Sticker';
-        img.loading = 'lazy';
-        img.style.objectFit = 'contain';
-        img.src = `/api/sticker/${stickerId}`;  // Changed to relative path
-        
-        img.onerror = () => {
-            img.src = 'https://via.placeholder.com/72x72/cccccc/666666?text=Sticker';
-        };
-        
-        container.replaceChildren(img);  // More modern than innerHTML=''
-    });
+async function loadStickers() {
+  const containers = document.querySelectorAll('.sticker-container');
+  
+  for (const container of containers) {
+    const stickerId = container.getAttribute('data-sticker-id');
+    if (!stickerId) continue;
+
+    try {
+      // Get sticker info first to determine type
+      const infoResponse = await fetch(`/api/sticker/${stickerId}/info`);
+      if (!infoResponse.ok) {
+        throw new Error('Sticker info not found');
+      }
+      
+      const info = await infoResponse.json();
+      
+      // Load based on sticker type
+      if (info.is_animated && info.file_type === 'tgs') {
+        await loadAnimatedSticker(container, stickerId);
+      } else if (info.is_video) {
+        loadVideoSticker(container, stickerId);
+      } else {
+        loadStaticSticker(container, stickerId);
+      }
+      
+    } catch (error) {
+      console.error('Failed to load sticker:', stickerId, error);
+      loadPlaceholder(container);
+    }
+  }
 }
 
-app.get('/api/sticker/:sticker_id', async (req, res) => {
-  try {
-    const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
-    if (!sticker) return res.status(404).send('Sticker not found');
-    res.redirect(sticker.web_url);
-  } catch (error) {
-    res.redirect('https://via.placeholder.com/72.webp');
+function loadStaticSticker(container, stickerId) {
+  const img = new Image();
+  img.width = 72;
+  img.height = 72;
+  img.alt = 'Sticker';
+  img.loading = 'lazy';
+  img.style.objectFit = 'contain';
+  img.src = `/api/sticker/${stickerId}`;
+  
+  img.onerror = () => loadPlaceholder(container);
+  container.replaceChildren(img);
+}
+
+function loadVideoSticker(container, stickerId) {
+  const video = document.createElement('video');
+  video.width = 72;
+  video.height = 72;
+  video.autoplay = true;
+  video.loop = true;
+  video.muted = true;
+  video.style.objectFit = 'contain';
+  video.src = `/api/sticker/${stickerId}`;
+  
+  video.onerror = () => loadPlaceholder(container);
+  container.replaceChildren(video);
+}
+
+async function loadAnimatedSticker(container, stickerId) {
+
+  if (typeof lottie === 'undefined') {
+    console.warn('Lottie not loaded, showing static fallback');
+    loadStaticSticker(container, stickerId);
+    return;
   }
-});  
+
+  try {
+    const response = await fetch(`/api/sticker/${stickerId}`);
+    if (!response.ok) throw new Error('Failed to fetch animation');
+    
+    const animationData = await response.json();
+    
+    // Clear container and create animation
+    container.innerHTML = '';
+    container.style.width = '72px';
+    container.style.height = '72px';
+    
+    lottie.loadAnimation({
+      container: container,
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      animationData: animationData
+    });
+    
+  } catch (error) {
+    console.error('Animation load failed:', error);
+    loadPlaceholder(container);
+  }
+}
+
+function loadPlaceholder(container) {
+  const placeholder = document.createElement('div');
+  placeholder.style.width = '72px';
+  placeholder.style.height = '72px';
+  placeholder.style.backgroundColor = '#f0f0f0';
+  placeholder.style.display = 'flex';
+  placeholder.style.alignItems = 'center';
+  placeholder.style.justifyContent = 'center';
+  placeholder.style.color = '#999';
+  placeholder.style.fontSize = '12px';
+  placeholder.textContent = 'Sticker';
+  container.replaceChildren(placeholder);
+}
+
         
 function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
