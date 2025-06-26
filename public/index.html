@@ -949,9 +949,17 @@ async function loadStickers() {
     if (!stickerId) continue;
 
     if (stickerCache.has(stickerId)) {
-      renderSticker(container, stickerCache.get(stickerId));
-      continue;
-    }
+  const info = stickerCache.get(stickerId);
+  if (info.is_animated) {
+    await loadAnimatedSticker(container, stickerId);
+  } else if (info.is_video) {
+    loadVideoSticker(container, stickerId);
+  } else {
+    loadStaticSticker(container, stickerId);
+  }
+  continue;
+}
+
 
     try {
       const infoResponse = await fetch(`/api/sticker/${stickerId}/info`);
