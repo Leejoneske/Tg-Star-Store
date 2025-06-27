@@ -309,7 +309,7 @@
             </div>
         </div>
         
-        <div class="modern-spinner"></div>
+        <div class="modern-spinner" id="spinner"></div>
         
         <div class="progress-container">
             <div class="progress-bar" id="progressBar"></div>
@@ -434,6 +434,7 @@
             const errorMessage = document.getElementById('errorMessage');
             const retryButton = document.getElementById('retryButton');
             const statusText = document.getElementById('statusText');
+            const spinner = document.getElementById('spinner');
             
             errorMessage.style.display = 'none';
             retryButton.style.display = 'none';
@@ -445,18 +446,23 @@
                 await performCheck(establishConnection, 3);
                 await performCheck(finalizeSetup, 4);
                 
-                statusText.textContent = "Ready! Redirecting...";
+                statusText.textContent = "Ready! Redirecting to @TgStarStore_bot...";
                 statusText.style.color = "#4f46e5";
                 statusText.style.fontWeight = "600";
                 
                 // Add celebration effect
-                document.querySelector('.modern-spinner').style.animation = "none";
-                document.querySelector('.modern-spinner').style.borderTopColor = "#10b981";
-                document.querySelector('.modern-spinner::before').style.borderTopColor = "#10b981";
-                document.querySelector('.modern-spinner::after').style.borderTopColor = "#34d399";
+                if (spinner) {
+                    spinner.style.animation = "none";
+                    spinner.style.borderTopColor = "#10b981";
+                }
                 
                 setTimeout(() => {
-                    window.location.href = 'about.html';
+                    // Redirect to your Telegram bot
+                    if (window.Telegram && window.Telegram.WebApp) {
+                        window.Telegram.WebApp.close();
+                    } else {
+                        window.location.href = 'https://t.me/TgStarStore_bot';
+                    }
                 }, 600);
                 
             } catch (error) {
@@ -474,10 +480,10 @@
                     retryCount = 0; // Reset for manual retry
                     
                     // Error state visual feedback
-                    document.querySelector('.modern-spinner').style.animation = "none";
-                    document.querySelector('.modern-spinner').style.borderTopColor = "#ef4444";
-                    document.querySelector('.modern-spinner::before').style.borderTopColor = "#ef4444";
-                    document.querySelector('.modern-spinner::after').style.borderTopColor = "#f87171";
+                    if (spinner) {
+                        spinner.style.animation = "none";
+                        spinner.style.borderTopColor = "#ef4444";
+                    }
                 }
             }
         }
@@ -486,9 +492,26 @@
             setTimeout(startLoading, 300);
         });
 
+        // Telegram WebApp integration
         if (window.Telegram && window.Telegram.WebApp) {
             window.Telegram.WebApp.ready();
             window.Telegram.WebApp.expand();
+            
+            // Set theme colors based on Telegram theme
+            const setTheme = () => {
+                const themeParams = window.Telegram.WebApp.themeParams;
+                if (themeParams) {
+                    document.documentElement.style.setProperty('--tg-bg-color', themeParams.bg_color || '#f8fafc');
+                    document.documentElement.style.setProperty('--tg-text-color', themeParams.text_color || '#4b5563');
+                    document.documentElement.style.setProperty('--tg-hint-color', themeParams.hint_color || '#6b7280');
+                    document.documentElement.style.setProperty('--tg-link-color', themeParams.link_color || '#4f46e5');
+                    document.documentElement.style.setProperty('--tg-button-color', themeParams.button_color || '#4f46e5');
+                    document.documentElement.style.setProperty('--tg-button-text-color', themeParams.button_text_color || '#ffffff');
+                }
+            };
+            
+            window.Telegram.WebApp.onEvent('themeChanged', setTheme);
+            setTheme();
         }
     </script>
 </body>
