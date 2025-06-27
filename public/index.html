@@ -210,53 +210,59 @@
     }
 
     #connectWallet {
-        padding: 8px 16px;
-        font-size: 14px;
-        border: 1px solid #4f46e5;
-        border-radius: 10px;
-        color: #4f46e5;
-        background-color: white;
-        cursor: pointer;
-        transition: background-color 0.2s ease, transform 0.1s ease;
-        display: flex;
-        width: 100%;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        min-width: 140px;
-        white-space: nowrap;
-        font-weight: 600;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        will-change: transform;
-    }
+    padding: 8px 16px;
+    font-size: 14px;
+    border: 1px solid #4f46e5;
+    border-radius: 10px;
+    color: #4f46e5;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s ease; /* Combined transitions for efficiency */
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 140px;
+    white-space: nowrap;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    will-change: transform;
+}
 
-    #connectWallet:hover {
-        background-color: #f3f4f6;
-    }
+#connectWallet:hover {
+    background-color: #f3f4f6;
+    transform: translateY(-1px); /* Added subtle hover effect */
+}
 
-    #connectWallet:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-        transform: none;
-    }
+#connectWallet:active {
+    transform: translateY(0); /* Reset on click */
+}
 
-    #connectWallet.wallet-connected {
-        background-color: white;
-        transition: all 0.3s ease;
-        color: #4f46e5;
-    }
+#connectWallet:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
 
-    #connectWallet.wallet-connected:hover {
-        background-color: #f3f4f6;
-    }
+#connectWallet.wallet-connected {
+    background-color: #f0f9ff; /* Slightly different background when connected */
+    border-color: #0ea5e9; /* Different border color when connected */
+    color: #0ea5e9;
+}
 
-    .wallet-address {
-        font-size: 12px;
-        color: #6b7280;
-        font-family: monospace;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+#connectWallet.wallet-connected:hover {
+    background-color: #e0f2fe;
+}
+
+.wallet-address {
+    font-size: 12px;
+    color: #6b7280;
+    font-family: 'Courier New', Consolas, monospace; /* Better monospace stack */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px; /* Prevent address from making button too wide */
+}
 
     .logo-header {
         font-size: 24px;
@@ -1694,6 +1700,20 @@ function updateUserInterface(user) {
     lastUserData = {...user};
 }
 
+//Connect Ton wallet function
+function restoreWalletState() {
+    const savedWalletConnected = localStorage.getItem('walletConnected');
+    const savedWalletAddress = localStorage.getItem('walletAddress');
+    
+    if (savedWalletConnected === 'true' && savedWalletAddress) {
+        walletConnected = true;
+        currentWalletAddress = savedWalletAddress;
+        console.log('Restored wallet state:', savedWalletAddress);
+    } else {
+        walletConnected = false;
+        currentWalletAddress = '';
+    }
+}
 
 function initWalletConnection() {
     if (typeof TON_CONNECT_UI === 'undefined') {
@@ -1705,11 +1725,12 @@ function initWalletConnection() {
         }
         return;
     }
-
+    restoreWalletState();
+    
     tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ 
         manifestUrl: 'https://starstore.site/tonconnect-manifest.json',
         language: currentLanguage === 'ru' ? 'ru' : 'en',
-        restoreConnection: true,
+        restoreConnection: true, 
         uiOptions: {
             twaReturnUrl: 'https://t.me/TgStarStore_bot?startApp'
         }
@@ -1729,17 +1750,20 @@ function initWalletConnection() {
         }
     };
 
+    // Check if TON Connect has a restored connection
     tonConnectUI.onStatusChange(wallet => {
         if (wallet?.account) {
             currentWalletAddress = wallet.account.address;
             walletConnected = true;
             localStorage.setItem('walletConnected', 'true');
             localStorage.setItem('walletAddress', currentWalletAddress);
+            console.log('Wallet connected:', currentWalletAddress);
         } else {
             currentWalletAddress = '';
             walletConnected = false;
             localStorage.removeItem('walletConnected');
             localStorage.removeItem('walletAddress');
+            console.log('Wallet disconnected');
         }
         updateWalletButton();
     });
@@ -1761,9 +1785,25 @@ function initWalletConnection() {
                 btn.disabled = false;
             }
         });
+        
+        // Update button immediately with restored state
         updateWalletButton();
     }
+
+    // Also check current wallet status after a brief delay
+    // This handles cases where TON Connect restores connection but onStatusChange doesn't fire immediately
+    setTimeout(() => {
+        const currentWallet = tonConnectUI.wallet;
+        if (currentWallet?.account && !walletConnected) {
+            currentWalletAddress = currentWallet.account.address;
+            walletConnected = true;
+            localStorage.setItem('walletConnected', 'true');
+            localStorage.setItem('walletAddress', currentWalletAddress);
+            updateWalletButton();
+        }
+    }, 1000);
 }
+//end of ton connect
 
 function initLanguageToggle() {
     const languageToggle = document.getElementById('languageToggle');
