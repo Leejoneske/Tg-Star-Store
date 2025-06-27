@@ -1,0 +1,495 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="StarStore - Loading your Telegram Premium & Stars experience">
+    <title>Loading StarStore...</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            overflow: hidden;
+        }
+        
+        .loader-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+            position: relative;
+        }
+        
+        /* Modern Spinner Animation with gradient */
+        .modern-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(229, 231, 235, 0.3);
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        
+        .modern-spinner::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            border-top: 3px solid #4f46e5;
+            animation: spin 1.5s linear infinite;
+            filter: blur(1px);
+        }
+        
+        .modern-spinner::after {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            border-top: 3px solid #6366f1;
+            animation: spin 2s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Elegant Logo with subtle gradient */
+        .logo-text {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.025em;
+            position: relative;
+        }
+        
+        .logo-text::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 3px;
+            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            border-radius: 3px;
+            opacity: 0.7;
+        }
+        
+        /* Subtle Pulse Animation */
+        .pulse-container {
+            animation: subtle-pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes subtle-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.02); opacity: 0.95; }
+        }
+        
+        /* Modern Progress Bar with glow effect */
+        .progress-container {
+            width: 280px;
+            height: 6px;
+            background: rgba(229, 231, 235, 0.5);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+            width: 0%;
+            position: relative;
+        }
+        
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0.3), transparent);
+            border-radius: 3px;
+        }
+        
+        /* Clean Status Text with transition */
+        .status-text {
+            color: #4b5563;
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            text-align: center;
+            min-height: 24px;
+            transition: all 0.3s ease;
+            max-width: 300px;
+        }
+        
+        /* Minimal Retry Button with transition */
+        .retry-button {
+            background: linear-gradient(90deg, #4f46e5, #6366f1);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 1rem;
+            display: none;
+            box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2);
+        }
+        
+        .retry-button:hover {
+            background: linear-gradient(90deg, #4338ca, #4f46e5);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+        
+        .retry-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2);
+        }
+        
+        /* Error Message with animation */
+        .error-message {
+            color: #ef4444;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 1rem;
+            display: none;
+            font-weight: 500;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Loading Dots with improved animation */
+        .loading-dots {
+            display: flex;
+            gap: 8px;
+            margin-top: 1rem;
+        }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: #4f46e5;
+            border-radius: 50%;
+            animation: bounce-dot 1.4s ease-in-out infinite both;
+            opacity: 0.6;
+        }
+        
+        .dot:nth-child(1) { 
+            animation-delay: -0.32s; 
+            background: #4f46e5;
+        }
+        .dot:nth-child(2) { 
+            animation-delay: -0.16s; 
+            background: #6366f1;
+        }
+        .dot:nth-child(3) { 
+            animation-delay: 0s; 
+            background: #818cf8;
+        }
+        
+        @keyframes bounce-dot {
+            0%, 80%, 100% { 
+                transform: translateY(0);
+                opacity: 0.6;
+            }
+            40% { 
+                transform: translateY(-8px);
+                opacity: 1;
+            }
+        }
+        
+        /* Subtle background elements */
+        .bg-element {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(40px);
+            opacity: 0.15;
+            z-index: -1;
+        }
+        
+        .bg-element-1 {
+            width: 200px;
+            height: 200px;
+            background: #4f46e5;
+            top: 10%;
+            left: 10%;
+            animation: float 8s ease-in-out infinite;
+        }
+        
+        .bg-element-2 {
+            width: 150px;
+            height: 150px;
+            background: #6366f1;
+            bottom: 15%;
+            right: 10%;
+            animation: float 10s ease-in-out infinite;
+        }
+        
+        .bg-element-3 {
+            width: 100px;
+            height: 100px;
+            background: #818cf8;
+            top: 60%;
+            left: 20%;
+            animation: float 12s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(20px, 20px); }
+            50% { transform: translate(0, 30px); }
+            75% { transform: translate(-20px, 10px); }
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .logo-text {
+                font-size: 2rem;
+            }
+            .progress-container {
+                width: 240px;
+            }
+            .bg-element {
+                filter: blur(30px);
+            }
+            .bg-element-1 {
+                width: 150px;
+                height: 150px;
+            }
+            .bg-element-2 {
+                width: 120px;
+                height: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loader-container">
+        <!-- Subtle background elements -->
+        <div class="bg-element bg-element-1"></div>
+        <div class="bg-element bg-element-2"></div>
+        <div class="bg-element bg-element-3"></div>
+        
+        <div class="pulse-container">
+            <div class="logo-text">
+                StarStore
+            </div>
+        </div>
+        
+        <div class="modern-spinner"></div>
+        
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="status-text" id="statusText">Initializing application...</div>
+        
+        <div class="loading-dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <button class="retry-button" id="retryButton" onclick="startLoading()">
+            Try Again
+        </button>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        const loadingSteps = [
+            { text: "Checking Telegram environment...", progress: 15 },
+            { text: "Verifying authentication...", progress: 35 },
+            { text: "Loading resources...", progress: 55 },
+            { text: "Establishing connection...", progress: 80 },
+            { text: "Almost ready...", progress: 100 }
+        ];
+
+        function updateProgress(step) {
+            const progressBar = document.getElementById('progressBar');
+            const statusText = document.getElementById('statusText');
+            
+            if (step < loadingSteps.length) {
+                progressBar.style.width = loadingSteps[step].progress + '%';
+                statusText.textContent = loadingSteps[step].text;
+                
+                // Add subtle text animation
+                statusText.style.opacity = 0;
+                setTimeout(() => {
+                    statusText.style.opacity = 1;
+                }, 100);
+            }
+        }
+
+        function checkTelegramEnvironment() {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    if (window.Telegram && window.Telegram.WebApp) {
+                        resolve(true);
+                    } else if (window.parent !== window) {
+                        resolve(true);
+                    } else {
+                        resolve(true); // Allow testing outside Telegram
+                    }
+                }, 600);
+            });
+        }
+
+        function verifyUserAuth() {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    const hasValidSession = Math.random() > 0.08;
+                    if (hasValidSession) {
+                        resolve(true);
+                    } else {
+                        reject(new Error("Authentication failed. Please check your credentials."));
+                    }
+                }, 800);
+            });
+        }
+
+        function loadAppResources() {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    const resourcesLoaded = Math.random() > 0.05;
+                    if (resourcesLoaded) {
+                        resolve(true);
+                    } else {
+                        reject(new Error("Failed to load required resources"));
+                    }
+                }, 900);
+            });
+        }
+
+        function establishConnection() {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    const connectionOk = Math.random() > 0.1;
+                    if (connectionOk) {
+                        resolve(true);
+                    } else {
+                        reject(new Error("Connection timeout. Please check your network."));
+                    }
+                }, 700);
+            });
+        }
+
+        function finalizeSetup() {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(true);
+                }, 500);
+            });
+        }
+
+        async function performCheck(checkFunction, stepIndex) {
+            updateProgress(stepIndex);
+            try {
+                await checkFunction();
+                return true;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        async function startLoading() {
+            const errorMessage = document.getElementById('errorMessage');
+            const retryButton = document.getElementById('retryButton');
+            const statusText = document.getElementById('statusText');
+            
+            errorMessage.style.display = 'none';
+            retryButton.style.display = 'none';
+            
+            try {
+                await performCheck(checkTelegramEnvironment, 0);
+                await performCheck(verifyUserAuth, 1);
+                await performCheck(loadAppResources, 2);
+                await performCheck(establishConnection, 3);
+                await performCheck(finalizeSetup, 4);
+                
+                statusText.textContent = "Ready! Redirecting...";
+                statusText.style.color = "#4f46e5";
+                statusText.style.fontWeight = "600";
+                
+                // Add celebration effect
+                document.querySelector('.modern-spinner').style.animation = "none";
+                document.querySelector('.modern-spinner').style.borderTopColor = "#10b981";
+                document.querySelector('.modern-spinner::before').style.borderTopColor = "#10b981";
+                document.querySelector('.modern-spinner::after').style.borderTopColor = "#34d399";
+                
+                setTimeout(() => {
+                    window.location.href = 'about.html';
+                }, 600);
+                
+            } catch (error) {
+                retryCount++;
+                console.error('Loading failed:', error.message);
+                
+                if (retryCount <= maxRetries) {
+                    statusText.textContent = `Retrying... (${retryCount}/${maxRetries})`;
+                    setTimeout(() => startLoading(), 1500);
+                } else {
+                    statusText.textContent = "Unable to load application";
+                    errorMessage.textContent = error.message || "Please check your connection and try again.";
+                    errorMessage.style.display = 'block';
+                    retryButton.style.display = 'block';
+                    retryCount = 0; // Reset for manual retry
+                    
+                    // Error state visual feedback
+                    document.querySelector('.modern-spinner').style.animation = "none";
+                    document.querySelector('.modern-spinner').style.borderTopColor = "#ef4444";
+                    document.querySelector('.modern-spinner::before').style.borderTopColor = "#ef4444";
+                    document.querySelector('.modern-spinner::after').style.borderTopColor = "#f87171";
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(startLoading, 300);
+        });
+
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+        }
+    </script>
+</body>
+</html>
