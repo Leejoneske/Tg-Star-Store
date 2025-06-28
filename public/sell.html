@@ -779,9 +779,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
     const menuOverlay = document.getElementById('menuOverlay');
     const sideMenu = document.getElementById('sideMenu');
-    const starsInput = document.getElementById('starsInput');
-    const tonAmountDisplay = document.getElementById('tonAmountDisplay');
+    const starsInput = document.getElementById('starsAmount'); 
+    const tonAmountDisplay = document.getElementById('tonAmount'); 
 
+    
     if (!skeletonLoading || !appContent || !noticeModal || !continueButton || !manualWalletAddress || !sellStarsBtn || !paymentModal || !cancelPaymentBtn || !confirmPaymentBtn || !menuOverlay || !sideMenu || !starsInput || !tonAmountDisplay) {
         console.error('Required DOM elements missing', {
             skeletonLoading: !!skeletonLoading,
@@ -994,6 +995,15 @@ function showAppContent() {
     });
 }
 
+function toggleMenu() {
+    const menuOverlay = document.getElementById('menuOverlay');
+    const sideMenu = document.getElementById('sideMenu');
+    if (menuOverlay && sideMenu) {
+        menuOverlay.classList.toggle('active');
+        sideMenu.classList.toggle('active');
+    }
+}
+        
 function updateLanguageTexts() {
     const texts = translations[currentLanguage] || translations.en || {};
     const menuTitle = document.querySelector('#sideMenu .text-xl');
