@@ -779,10 +779,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
     const menuOverlay = document.getElementById('menuOverlay');
     const sideMenu = document.getElementById('sideMenu');
-    const starsInput = document.getElementById('starsAmount'); 
-    const tonAmountDisplay = document.getElementById('tonAmount'); 
+    const starsInput = document.getElementById('starsAmount');
+    const tonAmountDisplay = document.getElementById('tonAmount');
 
-    
     if (!skeletonLoading || !appContent || !noticeModal || !continueButton || !manualWalletAddress || !sellStarsBtn || !paymentModal || !cancelPaymentBtn || !confirmPaymentBtn || !menuOverlay || !sideMenu || !starsInput || !tonAmountDisplay) {
         console.error('Required DOM elements missing', {
             skeletonLoading: !!skeletonLoading,
@@ -995,15 +994,6 @@ function showAppContent() {
     });
 }
 
-function toggleMenu() {
-    const menuOverlay = document.getElementById('menuOverlay');
-    const sideMenu = document.getElementById('sideMenu');
-    if (menuOverlay && sideMenu) {
-        menuOverlay.classList.toggle('active');
-        sideMenu.classList.toggle('active');
-    }
-}
-        
 function updateLanguageTexts() {
     const texts = translations[currentLanguage] || translations.en || {};
     const menuTitle = document.querySelector('#sideMenu .text-xl');
@@ -1130,7 +1120,7 @@ function isValidWalletAddress(address) {
 }
 
 function incrementStars() {
-    const starsInput = document.getElementById('starsInput');
+    const starsInput = document.getElementById('starsAmount');
     if (!starsInput) return;
     const currentValue = parseInt(starsInput.value) || 0;
     starsInput.value = Math.min(currentValue + 5, 80000);
@@ -1138,7 +1128,7 @@ function incrementStars() {
 }
 
 function decrementStars() {
-    const starsInput = document.getElementById('starsInput');
+    const starsInput = document.getElementById('starsAmount');
     if (!starsInput) return;
     const currentValue = parseInt(starsInput.value) || 0;
     starsInput.value = Math.max(currentValue - 5, 50);
@@ -1146,8 +1136,8 @@ function decrementStars() {
 }
 
 function calculateTonAmount() {
-    const starsInput = document.getElementById('starsInput');
-    const tonAmountDisplay = document.getElementById('tonAmountDisplay');
+    const starsInput = document.getElementById('starsAmount');
+    const tonAmountDisplay = document.getElementById('tonAmount');
     if (!starsInput || !tonAmountDisplay) return '0.000';
     let stars = parseInt(starsInput.value) || 0;
     if (stars < 50) {
