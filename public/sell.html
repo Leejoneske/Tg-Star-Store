@@ -786,54 +786,59 @@ document.addEventListener('DOMContentLoaded', () => {
 
     
 
-    if (!skeletonLoading || !appContent || !noticeModal || !continueButton || !manualWalletAddress || !sellStarsBtn || !paymentModal || !cancelPaymentBtn || !confirmPaymentBtn || !menuOverlay || !sideMenu || !starsInput || !tonAmountDisplay) {
-        console.error('Required DOM elements missing', {
-            skeletonLoading: !!skeletonLoading,
-            appContent: !!appContent,
-            noticeModal: !!noticeModal,
-            continueButton: !!continueButton,
-            manualWalletAddress: !!manualWalletAddress,
-            sellStarsBtn: !!sellStarsBtn,
-            paymentModal: !!paymentModal,
-            cancelPaymentBtn: !!cancelPaymentBtn,
-            confirmPaymentBtn: !!confirmPaymentBtn,
-            menuOverlay: !!menuOverlay,
-            sideMenu: !!sideMenu,
-            starsInput: !!starsInput,
-            tonAmountDisplay: !!tonAmountDisplay
-        });
-        if (!skeletonLoading) {
+if (!skeletonLoading || !appContent || !noticeModal || !continueButton || !manualWalletAddress || !sellStarsBtn || !paymentModal || !cancelPaymentBtn || !confirmPaymentBtn || !menuOverlay || !sideMenu || !starsInput || !tonAmountDisplay) {
+    console.error('Required DOM elements missing', {
+        skeletonLoading: !!skeletonLoading,
+        appContent: !!appContent,
+        noticeModal: !!noticeModal,
+        continueButton: !!continueButton,
+        manualWalletAddress: !!manualWalletAddress,
+        sellStarsBtn: !!sellStarsBtn,
+        paymentModal: !!paymentModal,
+        cancelPaymentBtn: !!cancelPaymentBtn,
+        confirmPaymentBtn: !!confirmPaymentBtn,
+        menuOverlay: !!menuOverlay,
+        sideMenu: !!sideMenu,
+        starsInput: !!starsInput,
+        tonAmountDisplay: !!tonAmountDisplay
+    });
+    
+    // Show app content if possible, even with missing elements
     if (appContent) appContent.style.display = 'block';
-    return;
-        }
+    if (skeletonLoading) skeletonLoading.style.display = 'none';
+    
+    // Don't return here - let the rest of initialization continue
+}
 
-    if (!window.axios || !window.Swal) {
-        console.error('Required dependencies missing', {
-            translations: !!window.translations,
-            axios: !!window.axios,
-            Swal: !!window.Swal
-        });
-        if (skeletonLoading) skeletonLoading.style.display = 'none';
-        if (appContent) appContent.style.display = 'block';
-        return;
-    }
+// Check dependencies separately
+if (!window.axios || !window.Swal) {
+    console.error('Required dependencies missing', {
+        translations: !!window.translations,
+        axios: !!window.axios,
+        Swal: !!window.Swal
+    });
+    // Still don't return - try to continue in degraded mode
+}
 
+// Only try to add event listeners if elements exist
+if (continueButton) {
     continueButton.addEventListener('click', () => {
         localStorage.setItem('noticeAccepted', 'true');
-        noticeModal.style.display = 'none';
+        if (noticeModal) noticeModal.style.display = 'none';
         showAppContent();
     });
+}
 
-    try {
-        currentLanguage = localStorage.getItem('appLanguage') || 'en';
-    } catch (error) {
-        console.error('Error accessing localStorage for language', error);
-    }
+try {
+    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+} catch (error) {
+    console.error('Error accessing localStorage for language', error);
+}
 
-    if (!translations[currentLanguage]) {
-        console.warn('Language not found, falling back to English');
-        currentLanguage = 'en';
-    }
+if (!translations[currentLanguage]) {
+    console.warn('Language not found, falling back to English');
+    currentLanguage = 'en';
+}
 
     setupWalletAddressMemory();
     updateLanguageTexts();
