@@ -886,7 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let telegramId = null;
             let username = null;
             if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-                telegramId = window.Telegram.WebApp.initDataUnsafe.user.id;
+                telegramId = getTelegramUserId();
                 username = window.Telegram.WebApp.initDataUnsafe.user.username;
             } else {
                 throw new Error('Telegram user data not available');
@@ -1044,6 +1044,13 @@ window.addEventListener('storage', e => {
     }
 });
 
+function getTelegramUserId() {
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+        return window.Telegram.WebApp.initDataUnsafe.user.id;
+    }
+    return null; 
+}
+        
 function setupWalletAddressMemory() {
     const manualWalletContainer = document.getElementById('manualWalletInput');
     const manualWalletAddress = document.getElementById('manualWalletAddress');
@@ -1151,7 +1158,7 @@ function calculateTonAmount() {
 }
 
 function createTransactionDetailsPanel() {
-    const panel = document.createElement('div');
+if (document.getElementById('transactionDetailsOverlay')) return;
     panel.id = 'transactionDetailsOverlay';
     panel.className = 'transaction-details-overlay';
     panel.innerHTML = `
@@ -1392,7 +1399,7 @@ async function fetchTransactions() {
         transactionsList.innerHTML = `<div class="text-gray-500 text-center py-4 text-sm">${translations[currentLanguage]?.loading || 'Loading...'}</div>`;
         let telegramId = null;
         if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-            telegramId = window.Telegram.WebApp.initDataUnsafe.user.id;
+            telegramId = getTelegramUserId();
         }
         if (!telegramId) {
             console.warn('Telegram user ID not available, skipping transaction fetch');
