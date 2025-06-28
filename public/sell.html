@@ -1,4 +1,5 @@
-  <!DOCTYPE html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,11 +8,11 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
-
+    <link href="https://cdn.jsdelivr.net/npm/@heroicons/react/24/outline/index.css" rel="stylesheet">
 <style>
     body {
         font-family: 'Inter', sans-serif;
-        background: #f3f4f6;
+        background: #f4f5f7;
         margin: 0;
         padding: 0;
     }
@@ -19,36 +20,42 @@
         max-width: 480px;
         margin: 0 auto;
         background: white;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         min-height: 100vh;
         position: relative;
         overflow: hidden;
     }
     .sell-option {
-        border: 1px solid #e5e7eb;
+        border: 1px solid #e2e8f0;
         border-radius: 12px;
-        transition: all 0.2s ease;
-        padding: 16px;
-        margin-bottom: 16px;
+        transition: all 0.3s ease;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: #ffffff;
     }
     .sell-option:hover {
         border-color: #4f46e5;
-        transform: translateY(-4px);
-        box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+        box-shadow: 0 6px 12px rgba(79, 70, 229, 0.15);
+        transform: translateY(-2px);
     }
     .sell-button {
-        background: #4f46e5;
+        background: linear-gradient(90deg, #4f46e5, #6366f1);
         color: white;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-        padding: 12px;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        padding: 14px;
         width: 100%;
         font-size: 16px;
         font-weight: 600;
+        text-align: center;
     }
     .sell-button:hover {
-        background: #6366f1;
-        transform: scale(1.02);
+        background: linear-gradient(90deg, #6366f1, #7e8ce0);
+        transform: scale(1.03);
+    }
+    .sell-button:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3);
     }
     .menu-overlay {
         position: fixed;
@@ -99,7 +106,6 @@
         background: #f3f4f6;
         transform: translateX(5px);
     }
-    
     .logo-header {
         font-size: 24px;
         font-weight: bold;
@@ -114,127 +120,138 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        margin-bottom: 16px;
+        gap: 12px;
+        margin-bottom: 20px;
     }
     .stars-input {
-        width: 80px;
+        width: 100px;
         text-align: center;
-        padding: 8px;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        font-weight: bold;
+        padding: 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 16px;
+        transition: border-color 0.2s ease;
+    }
+    .stars-input:focus {
+        outline: none;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
     }
     .counter-button {
-        width: 32px;
-        height: 32px;
+        width: 40px;
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: 50%;
-        background: #f3f4f6;
-        font-weight: bold;
+        background: #f1f5f9;
+        font-size: 20px;
+        font-weight: 600;
+        color: #4b5563;
         cursor: pointer;
         transition: all 0.2s ease;
     }
     .counter-button:hover {
-        background: #e5e7eb;
+        background: #e2e8f0;
+        color: #4f46e5;
     }
-    
+    .counter-button:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3);
+    }
     .transaction-history {
         margin-top: 24px;
     }
-   .rate-info {
-    display: flex;
-    flex-direction: column;
-    padding: 16px;
-    background: #f9fafb;
-    border-radius: 8px;
-    margin-bottom: 16px;
-}
-
-.info-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    background: rgba(79, 70, 229, 0.1);
-    color: #4f46e5;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 500;
-    margin: 0 auto; 
-}
-  
+    .rate-info {
+        display: flex;
+        flex-direction: column;
+        padding: 16px;
+        background: #f8fafc;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+    }
+    .info-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        background: rgba(79, 70, 229, 0.1);
+        color: #4f46e5;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        margin: 8px auto 0;
+    }
     .transaction-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px;
-        border-bottom: 1px solid #e5e7eb;
+        padding: 16px;
+        border-bottom: 1px solid #e2e8f0;
+        transition: background 0.2s ease;
+    }
+    .transaction-item:hover {
+        background: #f8fafc;
     }
     .transaction-info {
         display: flex;
         flex-direction: column;
     }
     .transaction-status {
-        font-size: 12px;
-        padding: 2px 6px;
-        border-radius: 4px;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: 500;
     }
-    .status-pending {
-        background: #fff7ed;
-        color: #ea580c;
+    .status-pending, .status-processing {
+        background: #fef3c7;
+        color: #d97706;
     }
-     .status-processing {
-        background: #fff7ed;
-        color: #ea580c;
-     }
     .status-completed {
-        background: #f0fdf4;
-        color: #16a34a;
+        background: #d1fae5;
+        color: #059669;
     }
     .status-declined {
-        background: #fef2f2;
+        background: #fee2e2;
         color: #dc2626;
     }
     .wallet-status {
-        padding: 16px;
-        background: #f9fafb;
-        border-radius: 8px;
-        margin-bottom: 16px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: 12px;
+        margin-bottom: 20px;
         text-align: center;
+        border: 1px solid #e2e8f0;
     }
     .wallet-status p {
         font-size: 14px;
         color: #6b7280;
         margin-top: 8px;
     }
-     .progress-container {
+    .progress-container {
         width: 100%;
-        background-color: #f3f4f6;
+        background: #e2e8f0;
         border-radius: 8px;
         margin: 16px 0;
         overflow: hidden;
     }
-
     .progress-bar {
         height: 12px;
         background: linear-gradient(90deg, #4f46e5, #6366f1);
         border-radius: 8px;
         transition: width 0.5s ease;
     }
-
     .transaction-details-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(5px);
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(6px);
         z-index: 100;
         display: none;
     }
-
     .transaction-details-panel {
         position: fixed;
         bottom: -100%;
@@ -243,98 +260,89 @@
         max-height: 80vh;
         background: white;
         z-index: 110;
-        border-top-left-radius: 16px;
-        border-top-right-radius: 16px;
-        transition: bottom 0.3s ease;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        transition: bottom 0.4s ease;
         overflow-y: auto;
     }
-
     .transaction-details-panel.active {
         bottom: 0;
     }
-
     .transaction-step {
         display: flex;
         align-items: flex-start;
-        padding: 12px 0;
+        padding: 16px 0;
         position: relative;
     }
-
     .step-number {
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
-        background: #e5e7eb;
+        background: #e2e8f0;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
-        font-weight: bold;
-        margin-right: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        margin-right: 16px;
         z-index: 10;
         position: relative;
     }
-
     .step-number.active {
         background: #4f46e5;
         color: white;
     }
-
     .step-number.completed {
         background: #10b981;
         color: white;
     }
-
     .step-line {
         position: absolute;
-        top: 24px;
-        left: 12px;
+        top: 28px;
+        left: 14px;
         width: 2px;
-        height: calc(100% - 24px);
-        background: #e5e7eb;
+        height: calc(100% - 28px);
+        background: #e2e8f0;
         z-index: 5;
     }
-
     .step-line.active {
         background: #4f46e5;
     }
-
     .step-line.completed {
         background: #10b981;
     }
-
     .step-content {
         flex: 1;
     }
-
     .step-date {
-        font-size: 12px;
+        font-size: 13px;
         color: #6b7280;
-        margin-top: 4px;
+        margin-top: 6px;
     }
-
     .close-details {
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         position: absolute;
-        top: 12px;
-        right: 12px;
-        background: #f3f4f6;
+        top: 16px;
+        right: 16px;
+        background: #f1f5f9;
         cursor: pointer;
+        transition: background 0.2s ease;
     }
-
+    .close-details:hover {
+        background: #e2e8f0;
+    }
     /* Skeleton Loading Styles */
     .skeleton {
-        background-color: #e5e7eb;
-        border-radius: 4px;
+        background: #e2e8f0;
+        border-radius: 8px;
         position: relative;
         overflow: hidden;
     }
-
     .skeleton::after {
         content: '';
         position: absolute;
@@ -342,10 +350,9 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
         animation: shimmer 1.5s infinite;
     }
-
     @keyframes shimmer {
         0% {
             transform: translateX(-100%);
@@ -354,7 +361,6 @@
             transform: translateX(100%);
         }
     }
-
     /* Notice Modal Styles */
     .notice-modal {
         position: fixed;
@@ -362,51 +368,46 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.6);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 1000;
     }
-
     .notice-content {
-        background-color: white;
-        border-radius: 12px;
+        background: white;
+        border-radius: 16px;
         padding: 24px;
-        max-width: 90%;
+        max-width: scoping:local;
         width: 400px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     }
-
     .notice-title {
         font-size: 20px;
         font-weight: 600;
         margin-bottom: 16px;
         color: #1f2937;
     }
-
     .notice-text {
         font-size: 15px;
         color: #4b5563;
         margin-bottom: 24px;
         line-height: 1.5;
     }
-
     .notice-button {
-        background-color: #4f46e5;
+        background: #4f46e5;
         color: white;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         padding: 12px 24px;
         font-size: 16px;
         font-weight: 500;
         cursor: pointer;
         width: 100%;
-        transition: background-color 0.2s;
+        transition: background 0.2s ease;
     }
-
     .notice-button:hover {
-        background-color: #6366f1;
+        background: #6366f1;
     }
 </style>
 </head>
@@ -430,30 +431,22 @@
         <div class="skeleton w-32 h-8"></div>
         <div class="w-6"></div>
     </div>
-    
     <div class="p-4">
         <div class="skeleton w-full h-24 rounded-lg mb-4"></div>
-        
         <div class="bg-white rounded-xl p-6 mb-6">
             <div class="skeleton w-32 h-6 mb-6"></div>
-            
             <div class="skeleton w-full h-20 rounded-lg mb-4"></div>
-            
             <div class="flex justify-between mb-4">
-                <div class="skeleton w-24 h-4"></div>
+                <div class="skeleton w-24 h-4"></ divination>
                 <div class="skeleton w-16 h-4"></div>
             </div>
-            
             <div class="skeleton w-full h-12 rounded-lg mb-4"></div>
-            
             <div class="flex items-center justify-center gap-4 mb-6">
                 <div class="skeleton w-8 h-8 rounded-full"></div>
                 <div class="skeleton w-20 h-8 rounded-lg"></div>
                 <div class="skeleton w-8 h-8 rounded-full"></div>
             </div>
-            
             <div class="skeleton w-full h-12 rounded-lg mb-6"></div>
-            
             <div class="skeleton w-full h-32 rounded-lg"></div>
         </div>
     </div>
@@ -498,63 +491,64 @@
         <div class="logo-header">StarStore</div>
         <div class="w-6"></div>
     </div>
-    <div class="wallet-status">
-        <div id="manualWalletInput" class="mt-3">
-            <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
-                   class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-        </div>
-        <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
-    </div>
     <div class="p-6">
-        <div class="bg-white rounded-xl p-6 mb-6">
-            <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
-            <div class="rate-info mb-4">        
-              <div class="flex justify-between items-center">
-                 <div>
-               <span class="text-sm text-gray-600">Current Rate</span>
-                  <div class="font-bold">1 Star = 0.009 USDT</div>
-               </div>
-            </div>
-               <div class="text-center mt-2">
-               <span class="info-badge">Minimum sell: 50 Stars</span>
-             </div>
-           </div> 
- 
-            <div class="sell-option p-4 mb-6">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
-                    <div class="stars-counter">
-                        <button class="counter-button" onclick="decrementStars()">-</button>
-                        <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
-                        <button class="counter-button" onclick="incrementStars()">+</button>
+        <div class="wallet-status">
+            Ascending
+            <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
+                   class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 mb-6 shadow-sm">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900">Sell Stars</h2>
+            <div class="rate-info mb-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-sm text-gray-600">Current Rate</span>
+                        <div class="font-bold text-lg text-gray-900">1 Star = 0.009 USDT</div>
                     </div>
                 </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
-                    <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
+                <div class="text-center mt-2">
+                    <span class="info-badge">Minimum sell: 50 Stars</span>
                 </div>
-                <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">Sell Now</button>
             </div>
-            <div class="bg-blue-50 rounded-lg p-4 text-sm">
-    <div class="flex items-start space-x-2">
-        <svg class="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        <div>
-            <p class="font-medium text-blue-800">How it works:</p>
-            <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
-                <li>Enter the amount of stars you want to sell</li>
-                <li>Click "Sell Now" to initiate the transaction</li>
-                <li>Send the stars via Telegram payment</li>
-                <li>Once verified, USDT will be sent to your wallet within 21 days</li>
-            </ol>
-        </div>
-    </div>
-</div>
+            <div class="sell-option">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
+                <div class="stars-counter">
+                    <button class="counter-button" onclick="decrementStars()" aria-label="Decrease stars">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                        </svg>
+                    </button>
+                    <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()" aria-label="Number of stars to sell">
+                    <button class="counter-button" onclick="incrementStars()" aria-label="Increase stars">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16M4 12h16"/>
+                        </svg>
+                    </button>
+                </div>
+                <label class="block text-sm font-medium text-gray-700 mt-4 mb-2">You'll Receive (USDT)</label>
+                <div class="p-3 bg-gray-50 rounded-lg font-bold text-center text-gray-900" id="tonAmount">0.438 USDT</div>
+                <button id="sellStarsBtn" class="sell-button mt-4">Sell Now</button>
+            </div>
+            <div class="bg-indigo-50 rounded-lg p-4 text-sm text-indigo-900">
+                <div class="flex items-start space-x-3">
+                    <svg class="w-6 h-6 text-indigo-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div>
+                        <p class="font-medium">How it works:</p>
+                        <ol class="list-decimal list-inside mt-2 space-y-2">
+                            <li>Enter the amount of Stars you want to sell</li>
+                            <li>Click "Sell Now" to initiate the transaction</li>
+                            <li>Send the Stars via Telegram payment</li>
+                            <li>Once verified, USDT will be sent to your wallet within 21 days</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
             <div class="transaction-history">
-                <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
-                <div id="transactionsList">
-                    <!-- Transactions will be loaded dynamically -->
+                <h3 class="text-lg font-semibold mb-4 text-gray-900">Recent Transactions</h3>
+                <div id="transactionsList" class="space-y-2">
                     <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
                 </div>
             </div>
@@ -562,72 +556,71 @@
     </div>
 </div>
 
-<!-- Modal Template for Star Payment -->
-<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-        <div class="text-center mb-4">
-            <svg class="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+<!-- Payment Modal -->
+<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-lg">
+        <div class="text-center mb-6">
+            <svg class="w-12 h-12 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <h3 class="text-xl font-bold mt-2">Payment Confirmation</h3>
+            <h3 class="text-xl font-bold mt-3 text-gray-900">Payment Confirmation</h3>
         </div>
-        <div class="mb-6">
-            <p class="text-gray-700 mb-4">You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> stars for <span id="modalTonAmount" class="font-bold">0.438 TON</span>.</p>
-            <p class="text-gray-700">Please confirm this transaction via Telegram payment.</p>
+        <div class="mb-6 text-gray-700">
+            <p>You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> Stars for <span id="modalTonAmount" class="font-bold">0.438 USDT</span>.</p>
+            <p class="mt-2">Please confirm this transaction via Telegram payment.</p>
         </div>
         <div class="flex justify-between space-x-4">
-            <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
-            <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Confirm</button>
+            <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">Cancel</button>
+            <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">Confirm</button>
         </div>
     </div>
 </div>
 
+<!-- Transaction Details Modal -->
 <div id="transactionDetailsOverlay" class="transaction-details-overlay">
     <div id="transactionDetailsPanel" class="transaction-details-panel">
         <div class="p-6">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-bold">Transaction Details</h3>
+                <h3 class="text-xl font-bold text-gray-900">Transaction Details</h3>
                 <button class="close-details" id="closeTransactionDetails">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                 </button>
             </div>
-            <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
+            <div id="transactionId" class="text-sm font-mono text-gray-500 mb-4"></div>
             <div class="flex justify-between items-center mb-4">
                 <div>
                     <div class="text-sm text-gray-600">Amount</div>
-                    <div id="transactionAmount" class="font-bold text-xl"></div>
+                    <div id="transactionAmount" class="font-bold text-xl text-gray-900"></div>
                 </div>
                 <div class="text-right">
                     <div class="text-sm text-gray-600">To be received</div>
                     <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
                 </div>
             </div>
-            
             <div class="mb-4">
                 <div class="text-sm text-gray-600 mb-1">Current Status</div>
                 <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
             </div>
-            
             <div class="mb-4">
                 <div class="text-sm text-gray-600 mb-1">Estimated Completion</div>
-                <div id="transactionEstimatedCompletion" class="font-medium"></div>
+                <div id="transactionEstimatedCompletion" class="font-medium text-gray-900"></div>
             </div>
-            
             <div class="progress-container">
                 <div id="progressBar" class="progress-bar" style="width: 0%"></div>
             </div>
-            
             <div id="transactionTimeline" class="mt-6">
                 <!-- Timeline steps will be inserted here -->
             </div>
         </div>
     </div>
 </div>
-   
+</body>
+</html>
+  
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
- <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
