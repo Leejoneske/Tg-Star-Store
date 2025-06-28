@@ -6,8 +6,8 @@ const mongoose = require('mongoose');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
-const app = express();
 const path = require('path');
+const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
@@ -23,19 +23,14 @@ const reversalRequests = new Map();
 // Middleware
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, etc.)
         if (!origin) return callback(null, true);
-        
-        // Allow localhost and your main domains
         const allowedPatterns = [
             /^https?:\/\/localhost(:\d+)?$/,
             /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
             /^https:\/\/.*\.vercel\.app$/,
             /^https:\/\/(www\.)?starstore\.site$/
         ];
-        
         const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
-        
         if (isAllowed) {
             callback(null, true);
         } else {
@@ -53,7 +48,29 @@ app.use(rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per windowMs
 }));
-app.use(express.static('public'));
+
+// Debug middleware for logging requests
+app.use((req, res, next) => {
+    console.log(`Request: ${req.method} ${req.url} - Status: ${res.statusCode}`);
+    next();
+});
+
+// Serve static files with explicit index handling
+app.use(express.static(path.join(__dirname, 'public'), {
+    index: 'index.html',
+    redirect: false // Disable automatic redirects for trailing slashes
+}));
+
+// Handle trailing slashes for subdirectories
+app.get('*/', (req, res, next) => {
+    const filePath = path.join(__dirname, 'public', req.path, 'index.html');
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error(`Error serving file ${filePath}:`, err.message);
+            next(); // Pass to 404 handler
+        }
+    });
+});
 
 // Validate environment variables
 if (!process.env.BOT_TOKEN) {
@@ -124,6 +141,12 @@ app.post(WEBHOOK_PATH, (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
+});
+
+// Catch-all for 404 errors
+app.use((req, res) => {
+    console.error(`404: ${req.method} ${req.url}`);
+    res.status(404).send('Not Found');
 });
 
 const buyOrderSchema = new mongoose.Schema({
