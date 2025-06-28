@@ -1580,7 +1580,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupWalletAddressMemory();
     updateLanguageTexts();
     createTransactionDetailsPanel();
-    
+    lucide.createIcons();
     // Show skeleton loading initially
     skeletonLoading.style.display = 'block';
     appContent.style.display = 'none';
@@ -1592,7 +1592,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Set up refresh interval for transactions (every 10 seconds instead of 5)
     setInterval(fetchTransactions, 10000);
-    
+
+    function refreshIcons() {
+    lucide.createIcons();
+}
     // Set up Telegram WebApp
     Telegram.WebApp.onEvent('viewportChanged', () => {
         Telegram.WebApp.expand();
