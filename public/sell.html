@@ -1575,36 +1575,152 @@ const fetchTransactions = async () => {
     }
 };
 // Initialize the app
+     // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
-    // Check for language in localStorage first
-    currentLanguage = localStorage.getItem('appLanguage') || 'en';
-    setupWalletAddressMemory();
-    updateLanguageTexts();
-    createTransactionDetailsPanel();
-    lucide.createIcons();
-    // Show skeleton loading initially
-    skeletonLoading.style.display = 'block';
-    appContent.style.display = 'none';
-    
-    // Check notice status after a small delay (simulating loading)
-    setTimeout(() => {
-        checkNoticeStatus();
-    }, 800);
-    
-    // Set up refresh interval for transactions (every 10 seconds instead of 5)
-    setInterval(fetchTransactions, 10000);
+    try {
+        // Check for required DOM elements
+        const requiredElements = {
+            skeletonLoading: document.getElementById('skeletonLoading'),
+            appContent: document.getElementById('appContent'),
+            noticeModal: document.getElementById('noticeModal'),
+            continueButton: document.getElementById('continueButton'),
+            manualWalletAddress: document.getElementById('manualWalletAddress'),
+            sellStarsBtn: document.getElementById('sellStarsBtn'),
+            starsInput: document.getElementById('starsAmount'),
+            tonAmountDisplay: document.getElementById('tonAmount')
+        };
 
-    function refreshIcons() {
-    lucide.createIcons();
-}
-    // Set up Telegram WebApp
-    Telegram.WebApp.onEvent('viewportChanged', () => {
-        Telegram.WebApp.expand();
-    });
+        // Verify all required elements exist
+        for (const [name, element] of Object.entries(requiredElements)) {
+            if (!element) {
+                throw new Error(`Required element not found: ${name}`);
+            }
+        }
 
-    Telegram.WebApp.expand();
-});
+        // Check for required libraries
+        if (!window.axios || !window.Swal || !window.TON_CONNECT_UI) {
+            throw new Error('Required libraries not loaded');
+        }
+
+        // Initialize language
+        try {
+            currentLanguage = localStorage.getItem('appLanguage') || 'en';
+            if (!translations[currentLanguage]) {
+                console.warn('Language not found, falling back to English');
+                currentLanguage = 'en';
+            }
+        } catch (e) {
+            console.error('Error accessing localStorage:', e);
+            currentLanguage = 'en';
+        }
+
+        // Initialize components
+        setupWalletAddressMemory();
+        updateLanguageTexts();
+        createTransactionDetailsPanel();
+
+        // Initialize Lucide icons with error handling
+        try {
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                window.lucide.createIcons();
+            } else {
+                console.warn('Lucide icons not available');
+            }
+        } catch (e) {
+            console.error('Error initializing icons:', e);
+        }
+
+        // Set initial display states
+        requiredElements.skeletonLoading.style.display = 'block';
+        requiredElements.appContent.style.display = 'none';
+
+        // Check notice status after simulated loading
+        setTimeout(() => {
+            try {
+                checkNoticeStatus();
+            } catch (e) {
+                console.error('Error in checkNoticeStatus:', e);
+                fallbackToAppContent();
+            }
+        }, 800);
+
+        // Set up periodic transaction refresh
+        const transactionRefresh = setInterval(() => {
+            try {
+                fetchTransactions();
+            } catch (e) {
+                console.error('Error fetching transactions:', e);
+            }
+        }, 10000);
+
+        // Set up Telegram WebApp with fallbacks
+        try {
+            if (window.Telegram?.WebApp) {
+                Telegram.WebApp.onEvent('viewportChanged', () => {
+                    try {
+                        Telegram.WebApp.expand();
+                    } catch (e) {
+                        console.error('Error expanding WebApp:', e);
+                    }
+                });
+                Telegram.WebApp.expand();
+            } else {
+                console.warn('Telegram WebApp not detected, running in fallback mode');
+            }
+        } catch (e) {
+            console.error('Error initializing Telegram WebApp:', e);
+        }
+
+        // Cleanup on unmount (if needed)
+        return () => {
+            clearInterval(transactionRefresh);
+        };
+
+    } catch (error) {
+        console.error('Initialization error:', error);
+        fallbackToAppContent();
         
+        // Show error to user if in production
+        if (process.env.NODE_ENV === 'production') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Initialization Error',
+                text: 'The app failed to initialize properly. Please refresh the page.',
+                allowOutsideClick: false,
+                confirmButtonText: 'Refresh',
+            }).then(() => {
+                window.location.reload();
+            });
+        }
+    }
+});
+
+function fallbackToAppContent() {
+    const skeleton = document.getElementById('skeletonLoading');
+    const appContent = document.getElementById('appContent');
+    
+    if (skeleton) skeleton.style.display = 'none';
+    if (appContent) appContent.style.display = 'block';
+    
+    // Try basic functionality
+    try {
+        if (document.getElementById('starsAmount')) {
+            calculateTonAmount();
+        }
+    } catch (e) {
+        console.error('Fallback initialization failed:', e);
+    }
+}
+
+function refreshIcons() {
+    try {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            window.lucide.createIcons();
+        }
+    } catch (e) {
+        console.error('Error refreshing icons:', e);
+    }
+}   
     </script>
 </body>
 </html>
