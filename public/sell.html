@@ -762,36 +762,181 @@
             paymentSentDesc: "USDT был отправлен на ваш кошелек"
           }
         };
+
+// Initialize the app
+document.addEventListener('DOMContentLoaded', () => {
+    // Check for required DOM elements
+    const skeletonLoading = document.getElementById('skeletonLoading');
+    const appContent = document.getElementById('appContent');
+    const noticeModal = document.getElementById('noticeModal');
+    const continueButton = document.getElementById('continueButton');
+
+    if (!skeletonLoading || !appContent || !noticeModal || !continueButton) {
+        console.error('Required DOM elements missing:', {
+            skeletonLoading: !!skeletonLoading,
+            appContent: !!appContent,
+            noticeModal: !!noticeModal,
+            continueButton: !!continueButton
+        });
+        // Fallback: hide skeleton and show content to prevent infinite loading
+        if (skeletonLoading) skeletonLoading.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
+        return;
+    }
+
+    // Add continue button handler
+    continueButton.addEventListener('click', () => {
+        localStorage.setItem('noticeAccepted', 'true');
+        noticeModal.style.display = 'none';
+        showAppContent();
+    });
+
+    // Check for language in localStorage
+    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    setupWalletAddressMemory();
+    updateLanguageTexts();
+    createTransactionDetailsPanel();
+    
+    // Show skeleton loading initially
+    skeletonLoading.style.display = 'block';
+    appContent.style.display = 'none';
+    
+    // Check notice status immediately
+    checkNoticeStatus();
+    
+    // Set up refresh interval for transactions (every 10 seconds)
+    setInterval(fetchTransactions, 10000);
+    
+    // Set up Telegram WebApp safely
+    if (window.Telegram && window.Telegram.WebApp) {
+        Telegram.WebApp.onEvent('viewportChanged', () => {
+            Telegram.WebApp.expand();
+        });
+        Telegram.WebApp.expand();
+    } else {
+        console.warn('Telegram WebApp SDK not available');
+    }
+});
+
 // Check if the user has accepted the notice
 function checkNoticeStatus() {
-    const noticeAccepted = localStorage.getItem('noticeAccepted');
-    if (noticeAccepted === 'true') {
-        showAppContent(); 
-    } else {
-        noticeModal.style.display = 'flex'; 
+    const skeletonLoading = document.getElementById('skeletonLoading');
+    const appContent = document.getElementById('appContent');
+    const noticeModal = document.getElementById('noticeModal');
+
+    if (!skeletonLoading || !appContent || !noticeModal) {
+        console.error('Required DOM elements missing in checkNoticeStatus');
+        return;
+    }
+
+    try {
+        const noticeAccepted = localStorage.getItem('noticeAccepted');
+        if (noticeAccepted === 'true') {
+            showAppContent();
+        } else {
+            noticeModal.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error('Error checking notice status:', error);
+        // Fallback: show app content to prevent infinite loading
+        skeletonLoading.style.display = 'none';
+        appContent.style.display = 'block';
     }
 }
+
 // Show the main app content
 function showAppContent() {
+    const skeletonLoading = document.getElementById('skeletonLoading');
+    const appContent = document.getElementById('appContent');
+
+    if (!skeletonLoading || !appContent) {
+        console.error('Required DOM elements missing in showAppContent');
+        return;
+    }
+
     skeletonLoading.style.display = 'none';
     appContent.style.display = 'block';
-    // Fetch transactions when app content is shown
-    fetchTransactions();
+    
+    // Fetch transactions asynchronously without blocking UI
+    fetchTransactions().catch(error => {
+        console.error('Failed to fetch transactions in showAppContent:', error);
+        // Ensure UI remains visible even if fetch fails
+        skeletonLoading.style.display = 'none';
+        appContent.style.display = 'block';
+    });
 }
 
-// Continue button handler for notice modal
-continueButton.addEventListener('click', () => {
-    localStorage.setItem('noticeAccepted', 'true');
-    noticeModal.style.display = 'none';
-    showAppContent();
-});
+// Function to update all texts based on current language
+function updateLanguageTexts() {
+    const texts = translations[currentLanguage];
+    
+    // Update menu items
+    const menuTitle = document.querySelector('#sideMenu .text-xl');
+    if (menuTitle) menuTitle.textContent = texts.menuTitle;
+    
+    const menuItems = document.querySelectorAll('#sideMenu .menu-item');
+    if (menuItems.length >= 5) {
+        menuItems[0].querySelector('span:last-child')?.textContent = texts.home;
+        menuItems[1].querySelector('span:last-child')?.textContent = texts.sell;
+        menuItems[2].querySelector('span:last-child')?.textContent = texts.history;
+        menuItems[3].querySelector('span:last-child')?.textContent = texts.referral;
+        menuItems[4].querySelector('span:last-child')?.textContent = texts.about;
+    }
+    
+    // Update wallet section
+    const walletInfo = document.querySelector('#appContent .wallet-status p');
+    if (walletInfo) walletInfo.textContent = texts.paymentInfo;
+    
+    // Update edit button text if it exists
+    const editButton = document.getElementById('editWalletBtn');
+    if (editButton) {
+        editButton.textContent = texts.editAddress;
+    }
+    
+    // Update sell stars section
+    const sellStarsTitle = document.querySelector('#appContent h2.text-xl');
+    if (sellStarsTitle) sellStarsTitle.textContent = texts.sellStars;
+    
+    const rateLabel = document.querySelector('#appContent .rate-info .text-sm');
+    if (rateLabel) rateLabel.textContent = texts.currentRate;
+    
+    const amountLabel = document.querySelector('#appContent .sell-option label.block.text-sm');
+    if (amountLabel) amountLabel.textContent = texts.amountToSell;
+    
+    const receiveLabel = document.querySelectorAll('#appContent .sell-option label.block.text-sm')[1];
+    if (receiveLabel) receiveLabel.textContent = texts.youWillReceive;
+    
+    if (sellStarsBtn) sellStarsBtn.textContent = texts.sellNow;
+    
+    // Update how it works section
+    const howItWorks = document.querySelector('#appContent .font-medium.text-blue-800');
+    if (howItWorks) howItWorks.textContent = texts.howItWorks;
+    
+    const steps = document.querySelectorAll('#appContent .list-decimal li');
+    if (steps.length >= 4) {
+        steps[0].textContent = texts.step1;
+        steps[1].textContent = texts.step2;
+        steps[2].textContent = texts.step3;
+        steps[3].textContent = texts.step4;
+    }
+    
+    // Update transactions section
+    const transactionsTitle = document.querySelector('#appContent .transaction-history h3');
+    if (transactionsTitle) transactionsTitle.textContent = texts.recentTransactions;
+    
+    // Check if no transactions message exists and update it
+    const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
+    if (noTransactionsEl) {
+        noTransactionsEl.textContent = texts.noTransactions;
+    }
+}
 
 // Listen for language changes from index page
 window.addEventListener('storage', function(e) {
-  if (e.key === 'appLanguage') {
-    currentLanguage = e.newValue || 'en';
-    updateLanguageTexts();
-  }
+    if (e.key === 'appLanguage') {
+        currentLanguage = e.newValue || 'en';
+        updateLanguageTexts();
+    }
 });
 
 // Function to update all texts based on current language
@@ -1412,18 +1557,36 @@ function calculateStepDate(startDateStr, daysToAdd) {
 
 // Fetch and display transactions
 const fetchTransactions = async () => {
+    const transactionsList = document.getElementById('transactionsList');
+    if (!transactionsList) {
+        console.error('Transaction list element not found');
+        return;
+    }
+
     try {
-        // Add loading indicator
-        const transactionsList = document.getElementById('transactionsList');
-        if (!transactionsList) {
-            console.error('Transaction list element not found');
+        transactionsList.innerHTML = `
+            <div class="text-gray-500 text-center py-4 text-sm">
+                ${translations[currentLanguage].loading || 'Loading...'}
+            </div>
+        `;
+
+        let telegramId = null;
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+            telegramId = window.Telegram.WebApp.initDataUnsafe.user.id;
+        }
+
+        if (!telegramId) {
+            console.warn('Telegram user ID not available, skipping transaction fetch');
+            transactionsList.innerHTML = `
+                <div class="text-gray-500 text-center py-4 text-sm">
+                    ${translations[currentLanguage].noTransactions || 'No transactions yet'}
+                </div>
+            `;
             return;
         }
-        
+
         const response = await axios.get('/api/sell-orders', {
-            params: {
-                telegramId: Telegram.WebApp.initDataUnsafe.user.id
-            }
+            params: { telegramId }
         });
 
         transactionsList.innerHTML = '';
@@ -1462,25 +1625,22 @@ const fetchTransactions = async () => {
                 transactionsList.appendChild(transactionItem);
             });
         } else {
-            const noTransactions = document.createElement('div');
-            noTransactions.className = 'text-gray-500 text-center py-4 text-sm';
-            noTransactions.textContent = translations[currentLanguage].noTransactions;
-            transactionsList.appendChild(noTransactions);
-        }
-    } catch (error) {
-        console.error('Error fetching transactions:', error);
-        
-        // Show error message in the transactions list
-        const transactionsList = document.getElementById('transactionsList');
-        if (transactionsList) {
             transactionsList.innerHTML = `
-                <div class="text-red-500 text-center py-4 text-sm">
-                    ${currentLanguage === 'en' ? 'Error loading transactions' : 'Ошибка загрузки транзакций'}
+                <div class="text-gray-500 text-center py-4 text-sm">
+                    ${translations[currentLanguage].noTransactions || 'No transactions yet'}
                 </div>
             `;
         }
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+        transactionsList.innerHTML = `
+            <div class="text-red-500 text-center py-4 text-sm">
+                ${translations[currentLanguage].errorLoading || 'Error loading transactions'}
+            </div>
+        `;
     }
 };
+        
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
