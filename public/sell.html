@@ -650,7 +650,7 @@
         });
 
         // Translations object
-        const translations = {
+        window.translations = {
           en: {
             menuTitle: "Menu",
             home: "Home",
@@ -778,6 +778,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const starsInput = document.getElementById('starsAmount');
     const tonAmountDisplay = document.getElementById('tonAmount');
 
+    
+
     if (!skeletonLoading || !appContent || !noticeModal || !continueButton || !manualWalletAddress || !sellStarsBtn || !paymentModal || !cancelPaymentBtn || !confirmPaymentBtn || !menuOverlay || !sideMenu || !starsInput || !tonAmountDisplay) {
         console.error('Required DOM elements missing', {
             skeletonLoading: !!skeletonLoading,
@@ -794,12 +796,12 @@ document.addEventListener('DOMContentLoaded', () => {
             starsInput: !!starsInput,
             tonAmountDisplay: !!tonAmountDisplay
         });
-        if (skeletonLoading) skeletonLoading.style.display = 'none';
+        if (!skeletonLoading) {
         if (appContent) appContent.style.display = 'block';
         return;
     }
 
-    if (!window.translations || !window.axios || !window.Swal) {
+    if (!window.axios || !window.Swal) {
         console.error('Required dependencies missing', {
             translations: !!window.translations,
             axios: !!window.axios,
