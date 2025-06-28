@@ -437,7 +437,7 @@
             <div class="skeleton w-32 h-6 mb-6"></div>
             <div class="skeleton w-full h-20 rounded-lg mb-4"></div>
             <div class="flex justify-between mb-4">
-                <div class="skeleton w-24 h-4"></ divination>
+                <div class="skeleton w-24 h-4"></ div>
                 <div class="skeleton w-16 h-4"></div>
             </div>
             <div class="skeleton w-full h-12 rounded-lg mb-4"></div>
@@ -623,7 +623,13 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
         // Global variables
-       
+       window.Telegram = window.Telegram || {};
+window.Telegram.WebApp = window.Telegram.WebApp || {
+  onEvent: () => {},
+  expand: () => {},
+  initDataUnsafe: { user: { id: 123, username: "testuser" } },
+  openInvoice: (link, cb) => cb('paid')
+};
         let currentWalletAddress = '';
         let currentLanguage = localStorage.getItem('appLanguage') || 'en';
         let rate = 0.009;
