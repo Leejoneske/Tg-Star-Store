@@ -8,11 +8,11 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/@heroicons/react/24/outline/index.css" rel="stylesheet">
+
 <style>
     body {
         font-family: 'Inter', sans-serif;
-        background: #f4f5f7;
+        background: #f3f4f6;
         margin: 0;
         padding: 0;
     }
@@ -20,42 +20,36 @@
         max-width: 480px;
         margin: 0 auto;
         background: white;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         min-height: 100vh;
         position: relative;
         overflow: hidden;
     }
     .sell-option {
-        border: 1px solid #e2e8f0;
+        border: 1px solid #e5e7eb;
         border-radius: 12px;
-        transition: all 0.3s ease;
-        padding: 20px;
-        margin-bottom: 20px;
-        background: #ffffff;
+        transition: all 0.2s ease;
+        padding: 16px;
+        margin-bottom: 16px;
     }
     .sell-option:hover {
         border-color: #4f46e5;
-        box-shadow: 0 6px 12px rgba(79, 70, 229, 0.15);
-        transform: translateY(-2px);
+        transform: translateY(-4px);
+        box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
     }
     .sell-button {
-        background: linear-gradient(90deg, #4f46e5, #6366f1);
+        background: #4f46e5;
         color: white;
-        border-radius: 10px;
-        transition: all 0.3s ease;
-        padding: 14px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        padding: 12px;
         width: 100%;
         font-size: 16px;
         font-weight: 600;
-        text-align: center;
     }
     .sell-button:hover {
-        background: linear-gradient(90deg, #6366f1, #7e8ce0);
-        transform: scale(1.03);
-    }
-    .sell-button:focus {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3);
+        background: #6366f1;
+        transform: scale(1.02);
     }
     .menu-overlay {
         position: fixed;
@@ -106,6 +100,7 @@
         background: #f3f4f6;
         transform: translateX(5px);
     }
+    
     .logo-header {
         font-size: 24px;
         font-weight: bold;
@@ -120,138 +115,127 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 12px;
-        margin-bottom: 20px;
+        gap: 8px;
+        margin-bottom: 16px;
     }
     .stars-input {
-        width: 100px;
+        width: 80px;
         text-align: center;
-        padding: 10px;
-        border: 1px solid #d1d5db;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 16px;
-        transition: border-color 0.2s ease;
-    }
-    .stars-input:focus {
-        outline: none;
-        border-color: #4f46e5;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        padding: 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-weight: bold;
     }
     .counter-button {
-        width: 40px;
-        height: 40px;
+        width: 32px;
+        height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: 50%;
-        background: #f1f5f9;
-        font-size: 20px;
-        font-weight: 600;
-        color: #4b5563;
+        background: #f3f4f6;
+        font-weight: bold;
         cursor: pointer;
         transition: all 0.2s ease;
     }
     .counter-button:hover {
-        background: #e2e8f0;
-        color: #4f46e5;
+        background: #e5e7eb;
     }
-    .counter-button:focus {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3);
-    }
+    
     .transaction-history {
         margin-top: 24px;
     }
-    .rate-info {
-        display: flex;
-        flex-direction: column;
-        padding: 16px;
-        background: #f8fafc;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        border: 1px solid #e2e8f0;
-    }
-    .info-badge {
-        display: inline-block;
-        padding: 6px 12px;
-        background: rgba(79, 70, 229, 0.1);
-        color: #4f46e5;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 500;
-        margin: 8px auto 0;
-    }
+   .rate-info {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.info-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: rgba(79, 70, 229, 0.1);
+    color: #4f46e5;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    margin: 0 auto; 
+}
+  
     .transaction-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px;
-        border-bottom: 1px solid #e2e8f0;
-        transition: background 0.2s ease;
-    }
-    .transaction-item:hover {
-        background: #f8fafc;
+        padding: 12px;
+        border-bottom: 1px solid #e5e7eb;
     }
     .transaction-info {
         display: flex;
         flex-direction: column;
     }
     .transaction-status {
-        font-size: 13px;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-weight: 500;
+        font-size: 12px;
+        padding: 2px 6px;
+        border-radius: 4px;
     }
-    .status-pending, .status-processing {
-        background: #fef3c7;
-        color: #d97706;
+    .status-pending {
+        background: #fff7ed;
+        color: #ea580c;
     }
+     .status-processing {
+        background: #fff7ed;
+        color: #ea580c;
+     }
     .status-completed {
-        background: #d1fae5;
-        color: #059669;
+        background: #f0fdf4;
+        color: #16a34a;
     }
     .status-declined {
-        background: #fee2e2;
+        background: #fef2f2;
         color: #dc2626;
     }
     .wallet-status {
-        padding: 20px;
-        background: #f8fafc;
-        border-radius: 12px;
-        margin-bottom: 20px;
+        padding: 16px;
+        background: #f9fafb;
+        border-radius: 8px;
+        margin-bottom: 16px;
         text-align: center;
-        border: 1px solid #e2e8f0;
     }
     .wallet-status p {
         font-size: 14px;
         color: #6b7280;
         margin-top: 8px;
     }
-    .progress-container {
+     .progress-container {
         width: 100%;
-        background: #e2e8f0;
+        background-color: #f3f4f6;
         border-radius: 8px;
         margin: 16px 0;
         overflow: hidden;
     }
+
     .progress-bar {
         height: 12px;
         background: linear-gradient(90deg, #4f46e5, #6366f1);
         border-radius: 8px;
         transition: width 0.5s ease;
     }
+
     .transaction-details-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(6px);
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
         z-index: 100;
         display: none;
     }
+
     .transaction-details-panel {
         position: fixed;
         bottom: -100%;
@@ -260,89 +244,98 @@
         max-height: 80vh;
         background: white;
         z-index: 110;
-        border-top-left-radius: 20px;
-        border-top-right-radius: 20px;
-        transition: bottom 0.4s ease;
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        transition: bottom 0.3s ease;
         overflow-y: auto;
     }
+
     .transaction-details-panel.active {
         bottom: 0;
     }
+
     .transaction-step {
         display: flex;
         align-items: flex-start;
-        padding: 16px 0;
+        padding: 12px 0;
         position: relative;
     }
+
     .step-number {
-        width: 28px;
-        height: 28px;
+        width: 24px;
+        height: 24px;
         border-radius: 50%;
-        background: #e2e8f0;
+        background: #e5e7eb;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
-        font-weight: 600;
-        margin-right: 16px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-right: 12px;
         z-index: 10;
         position: relative;
     }
+
     .step-number.active {
         background: #4f46e5;
         color: white;
     }
+
     .step-number.completed {
         background: #10b981;
         color: white;
     }
+
     .step-line {
         position: absolute;
-        top: 28px;
-        left: 14px;
+        top: 24px;
+        left: 12px;
         width: 2px;
-        height: calc(100% - 28px);
-        background: #e2e8f0;
+        height: calc(100% - 24px);
+        background: #e5e7eb;
         z-index: 5;
     }
+
     .step-line.active {
         background: #4f46e5;
     }
+
     .step-line.completed {
         background: #10b981;
     }
+
     .step-content {
         flex: 1;
     }
+
     .step-date {
-        font-size: 13px;
+        font-size: 12px;
         color: #6b7280;
-        margin-top: 6px;
+        margin-top: 4px;
     }
+
     .close-details {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         position: absolute;
-        top: 16px;
-        right: 16px;
-        background: #f1f5f9;
+        top: 12px;
+        right: 12px;
+        background: #f3f4f6;
         cursor: pointer;
-        transition: background 0.2s ease;
     }
-    .close-details:hover {
-        background: #e2e8f0;
-    }
+
     /* Skeleton Loading Styles */
     .skeleton {
-        background: #e2e8f0;
-        border-radius: 8px;
+        background-color: #e5e7eb;
+        border-radius: 4px;
         position: relative;
         overflow: hidden;
     }
+
     .skeleton::after {
         content: '';
         position: absolute;
@@ -350,9 +343,10 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
         animation: shimmer 1.5s infinite;
     }
+
     @keyframes shimmer {
         0% {
             transform: translateX(-100%);
@@ -361,6 +355,7 @@
             transform: translateX(100%);
         }
     }
+
     /* Notice Modal Styles */
     .notice-modal {
         position: fixed;
@@ -368,46 +363,51 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.6);
+        background-color: rgba(0, 0, 0, 0.5);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 1000;
     }
+
     .notice-content {
-        background: white;
-        border-radius: 16px;
+        background-color: white;
+        border-radius: 12px;
         padding: 24px;
-        max-width: scoping:local;
+        max-width: 90%;
         width: 400px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     }
+
     .notice-title {
         font-size: 20px;
         font-weight: 600;
         margin-bottom: 16px;
         color: #1f2937;
     }
+
     .notice-text {
         font-size: 15px;
         color: #4b5563;
         margin-bottom: 24px;
         line-height: 1.5;
     }
+
     .notice-button {
-        background: #4f46e5;
+        background-color: #4f46e5;
         color: white;
         border: none;
-        border-radius: 10px;
+        border-radius: 8px;
         padding: 12px 24px;
         font-size: 16px;
         font-weight: 500;
         cursor: pointer;
         width: 100%;
-        transition: background 0.2s ease;
+        transition: background-color 0.2s;
     }
+
     .notice-button:hover {
-        background: #6366f1;
+        background-color: #6366f1;
     }
 </style>
 </head>
@@ -431,22 +431,30 @@
         <div class="skeleton w-32 h-8"></div>
         <div class="w-6"></div>
     </div>
+    
     <div class="p-4">
         <div class="skeleton w-full h-24 rounded-lg mb-4"></div>
+        
         <div class="bg-white rounded-xl p-6 mb-6">
             <div class="skeleton w-32 h-6 mb-6"></div>
+            
             <div class="skeleton w-full h-20 rounded-lg mb-4"></div>
+            
             <div class="flex justify-between mb-4">
-                <div class="skeleton w-24 h-4"></ div>
+                <div class="skeleton w-24 h-4"></div>
                 <div class="skeleton w-16 h-4"></div>
             </div>
+            
             <div class="skeleton w-full h-12 rounded-lg mb-4"></div>
+            
             <div class="flex items-center justify-center gap-4 mb-6">
                 <div class="skeleton w-8 h-8 rounded-full"></div>
                 <div class="skeleton w-20 h-8 rounded-lg"></div>
                 <div class="skeleton w-8 h-8 rounded-full"></div>
             </div>
+            
             <div class="skeleton w-full h-12 rounded-lg mb-6"></div>
+            
             <div class="skeleton w-full h-32 rounded-lg"></div>
         </div>
     </div>
@@ -491,64 +499,63 @@
         <div class="logo-header">StarStore</div>
         <div class="w-6"></div>
     </div>
-    <div class="p-6">
-        <div class="wallet-status">
-            Ascending
+    <div class="wallet-status">
+        <div id="manualWalletInput" class="mt-3">
             <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
-                   class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
+                   class="w-full p-2 border border-gray-300 rounded-lg text-sm">
         </div>
-        <div class="bg-white rounded-xl p-6 mb-6 shadow-sm">
-            <h2 class="text-2xl font-bold mb-4 text-gray-900">Sell Stars</h2>
-            <div class="rate-info mb-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <span class="text-sm text-gray-600">Current Rate</span>
-                        <div class="font-bold text-lg text-gray-900">1 Star = 0.009 USDT</div>
+        <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
+    </div>
+    <div class="p-6">
+        <div class="bg-white rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
+            <div class="rate-info mb-4">        
+              <div class="flex justify-between items-center">
+                 <div>
+               <span class="text-sm text-gray-600">Current Rate</span>
+                  <div class="font-bold">1 Star = 0.009 USDT</div>
+               </div>
+            </div>
+               <div class="text-center mt-2">
+               <span class="info-badge">Minimum sell: 50 Stars</span>
+             </div>
+           </div> 
+ 
+            <div class="sell-option p-4 mb-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
+                    <div class="stars-counter">
+                        <button class="counter-button" onclick="decrementStars()">-</button>
+                        <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
+                        <button class="counter-button" onclick="incrementStars()">+</button>
                     </div>
                 </div>
-                <div class="text-center mt-2">
-                    <span class="info-badge">Minimum sell: 50 Stars</span>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
+                    <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
                 </div>
+                <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">Sell Now</button>
             </div>
-            <div class="sell-option">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
-                <div class="stars-counter">
-                    <button class="counter-button" onclick="decrementStars()" aria-label="Decrease stars">
-                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-                        </svg>
-                    </button>
-                    <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()" aria-label="Number of stars to sell">
-                    <button class="counter-button" onclick="incrementStars()" aria-label="Increase stars">
-                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16M4 12h16"/>
-                        </svg>
-                    </button>
-                </div>
-                <label class="block text-sm font-medium text-gray-700 mt-4 mb-2">You'll Receive (USDT)</label>
-                <div class="p-3 bg-gray-50 rounded-lg font-bold text-center text-gray-900" id="tonAmount">0.438 USDT</div>
-                <button id="sellStarsBtn" class="sell-button mt-4">Sell Now</button>
-            </div>
-            <div class="bg-indigo-50 rounded-lg p-4 text-sm text-indigo-900">
-                <div class="flex items-start space-x-3">
-                    <svg class="w-6 h-6 text-indigo-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <div>
-                        <p class="font-medium">How it works:</p>
-                        <ol class="list-decimal list-inside mt-2 space-y-2">
-                            <li>Enter the amount of Stars you want to sell</li>
-                            <li>Click "Sell Now" to initiate the transaction</li>
-                            <li>Send the Stars via Telegram payment</li>
-                            <li>Once verified, USDT will be sent to your wallet within 21 days</li>
-                        </ol>
-                    </div>
-                </div>
-            </div>
+            <div class="bg-blue-50 rounded-lg p-4 text-sm">
+    <div class="flex items-start space-x-2">
+        <svg class="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div>
+            <p class="font-medium text-blue-800">How it works:</p>
+            <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
+                <li>Enter the amount of stars you want to sell</li>
+                <li>Click "Sell Now" to initiate the transaction</li>
+                <li>Send the stars via Telegram payment</li>
+                <li>Once verified, USDT will be sent to your wallet within 21 days</li>
+            </ol>
+        </div>
+    </div>
+</div>
             <div class="transaction-history">
-                <h3 class="text-lg font-semibold mb-4 text-gray-900">Recent Transactions</h3>
-                <div id="transactionsList" class="space-y-2">
+                <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
+                <div id="transactionsList">
+                    <!-- Transactions will be loaded dynamically -->
                     <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
                 </div>
             </div>
@@ -556,80 +563,77 @@
     </div>
 </div>
 
-<!-- Payment Modal -->
-<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-lg">
-        <div class="text-center mb-6">
-            <svg class="w-12 h-12 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+<!-- Modal Template for Star Payment -->
+<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+        <div class="text-center mb-4">
+            <svg class="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <h3 class="text-xl font-bold mt-3 text-gray-900">Payment Confirmation</h3>
+            <h3 class="text-xl font-bold mt-2">Payment Confirmation</h3>
         </div>
-        <div class="mb-6 text-gray-700">
-            <p>You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> Stars for <span id="modalTonAmount" class="font-bold">0.438 USDT</span>.</p>
-            <p class="mt-2">Please confirm this transaction via Telegram payment.</p>
+        <div class="mb-6">
+            <p class="text-gray-700 mb-4">You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> stars for <span id="modalTonAmount" class="font-bold">0.438 TON</span>.</p>
+            <p class="text-gray-700">Please confirm this transaction via Telegram payment.</p>
         </div>
         <div class="flex justify-between space-x-4">
-            <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">Cancel</button>
-            <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">Confirm</button>
+            <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
+            <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Confirm</button>
         </div>
     </div>
 </div>
 
-<!-- Transaction Details Modal -->
 <div id="transactionDetailsOverlay" class="transaction-details-overlay">
     <div id="transactionDetailsPanel" class="transaction-details-panel">
         <div class="p-6">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-bold text-gray-900">Transaction Details</h3>
+                <h3 class="text-xl font-bold">Transaction Details</h3>
                 <button class="close-details" id="closeTransactionDetails">
-                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                 </button>
             </div>
-            <div id="transactionId" class="text-sm font-mono text-gray-500 mb-4"></div>
+            <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
             <div class="flex justify-between items-center mb-4">
                 <div>
                     <div class="text-sm text-gray-600">Amount</div>
-                    <div id="transactionAmount" class="font-bold text-xl text-gray-900"></div>
+                    <div id="transactionAmount" class="font-bold text-xl"></div>
                 </div>
                 <div class="text-right">
                     <div class="text-sm text-gray-600">To be received</div>
                     <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
                 </div>
             </div>
+            
             <div class="mb-4">
                 <div class="text-sm text-gray-600 mb-1">Current Status</div>
                 <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
             </div>
+            
             <div class="mb-4">
                 <div class="text-sm text-gray-600 mb-1">Estimated Completion</div>
-                <div id="transactionEstimatedCompletion" class="font-medium text-gray-900"></div>
+                <div id="transactionEstimatedCompletion" class="font-medium"></div>
             </div>
+            
             <div class="progress-container">
                 <div id="progressBar" class="progress-bar" style="width: 0%"></div>
             </div>
+            
             <div id="transactionTimeline" class="mt-6">
                 <!-- Timeline steps will be inserted here -->
             </div>
         </div>
     </div>
 </div>
-
+   
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+ <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
         // Global variables
-       window.Telegram = window.Telegram || {};
-window.Telegram.WebApp = window.Telegram.WebApp || {
-  onEvent: () => {},
-  expand: () => {},
-  initDataUnsafe: { user: { id: 123, username: "testuser" } },
-  openInvoice: (link, cb) => cb('paid')
-};
+       
         let currentWalletAddress = '';
         let currentLanguage = localStorage.getItem('appLanguage') || 'en';
         let rate = 0.009;
@@ -656,7 +660,7 @@ window.Telegram.WebApp = window.Telegram.WebApp || {
         });
 
         // Translations object
-        window.translations = {
+        const translations = {
           en: {
             menuTitle: "Menu",
             home: "Home",
@@ -768,416 +772,315 @@ window.Telegram.WebApp = window.Telegram.WebApp || {
             paymentSentDesc: "USDT был отправлен на ваш кошелек"
           }
         };
-
-document.addEventListener('DOMContentLoaded', () => {
-    const skeletonLoading = document.getElementById('skeletonLoading');
-    const appContent = document.getElementById('appContent');
-    const noticeModal = document.getElementById('noticeModal');
-    const continueButton = document.getElementById('continueButton');
-    const manualWalletAddress = document.getElementById('manualWalletAddress');
-    const sellStarsBtn = document.getElementById('sellStarsBtn');
-    const paymentModal = document.getElementById('paymentModal');
-    const cancelPaymentBtn = document.getElementById('cancelPaymentBtn');
-    const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
-    const menuOverlay = document.getElementById('menuOverlay');
-    const sideMenu = document.getElementById('sideMenu');
-    const starsInput = document.getElementById('starsAmount');
-    const tonAmountDisplay = document.getElementById('tonAmount');
-
-    
-
-if (!skeletonLoading || !appContent || !noticeModal || !continueButton || !manualWalletAddress || !sellStarsBtn || !paymentModal || !cancelPaymentBtn || !confirmPaymentBtn || !menuOverlay || !sideMenu || !starsInput || !tonAmountDisplay) {
-    console.error('Required DOM elements missing', {
-        skeletonLoading: !!skeletonLoading,
-        appContent: !!appContent,
-        noticeModal: !!noticeModal,
-        continueButton: !!continueButton,
-        manualWalletAddress: !!manualWalletAddress,
-        sellStarsBtn: !!sellStarsBtn,
-        paymentModal: !!paymentModal,
-        cancelPaymentBtn: !!cancelPaymentBtn,
-        confirmPaymentBtn: !!confirmPaymentBtn,
-        menuOverlay: !!menuOverlay,
-        sideMenu: !!sideMenu,
-        starsInput: !!starsInput,
-        tonAmountDisplay: !!tonAmountDisplay
-    });
-    
-    // Show app content if possible, even with missing elements
-    if (appContent) appContent.style.display = 'block';
-    if (skeletonLoading) skeletonLoading.style.display = 'none';
-    
-    // Don't return here - let the rest of initialization continue
-}
-
-// Check dependencies separately
-if (!window.axios || !window.Swal) {
-    console.error('Required dependencies missing', {
-        translations: !!window.translations,
-        axios: !!window.axios,
-        Swal: !!window.Swal
-    });
-    // Still don't return - try to continue in degraded mode
-}
-
-// Only try to add event listeners if elements exist
-if (continueButton) {
-    continueButton.addEventListener('click', () => {
-        localStorage.setItem('noticeAccepted', 'true');
-        if (noticeModal) noticeModal.style.display = 'none';
-        showAppContent();
-    });
-}
-
-try {
-    currentLanguage = localStorage.getItem('appLanguage') || 'en';
-} catch (error) {
-    console.error('Error accessing localStorage for language', error);
-}
-
-if (!translations[currentLanguage]) {
-    console.warn('Language not found, falling back to English');
-    currentLanguage = 'en';
-}
-
-    setupWalletAddressMemory();
-    updateLanguageTexts();
-    createTransactionDetailsPanel();
-    skeletonLoading.style.display = 'block';
-    appContent.style.display = 'none';
-    checkNoticeStatus();
-    setInterval(fetchTransactions, 10000);
-
-    if (window.Telegram && window.Telegram.WebApp) {
-        Telegram.WebApp.onEvent('viewportChanged', () => {
-            Telegram.WebApp.expand();
-        });
-        Telegram.WebApp.expand();
-    } else {
-        console.warn('Telegram WebApp SDK not available');
-    }
-
-    manualWalletAddress.addEventListener('input', () => {
-        currentWalletAddress = manualWalletAddress.value.trim();
-    });
-
-    document.querySelectorAll('.menu-item').forEach(item => {
-        item.addEventListener('click', () => {
-            menuOverlay.classList.toggle('active');
-            sideMenu.classList.toggle('active');
-        });
-    });
-
-    sellStarsBtn.addEventListener('click', () => {
-        if (!manualWalletAddress.value.trim() || !isValidWalletAddress(manualWalletAddress.value.trim())) {
-            Swal.fire({
-                icon: 'error',
-                title: translations[currentLanguage].missingWalletAddress || 'Invalid Wallet Address',
-                text: currentLanguage === 'en' ? 'Please enter a valid wallet address (minimum 10 characters)' : 'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
-            });
-            return;
-        }
-        document.getElementById('modalStarsAmount').textContent = starsInput.value;
-        document.getElementById('modalTonAmount').textContent = calculateTonAmount();
-        paymentModal.classList.remove('hidden');
-        paymentModal.classList.add('flex');
-    });
-
-    cancelPaymentBtn.addEventListener('click', () => {
-        paymentModal.classList.add('hidden');
-        paymentModal.classList.remove('flex');
-    });
-
-    confirmPaymentBtn.addEventListener('click', async () => {
-        paymentModal.classList.add('hidden');
-        paymentModal.classList.remove('flex');
-        const stars = parseInt(starsInput.value);
-        const walletToUse = manualWalletAddress.value.trim();
-        try {
-            let telegramId = null;
-            let username = null;
-            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-                telegramId = getTelegramUserId();
-                username = window.Telegram.WebApp.initDataUnsafe.user.username;
-            } else {
-                throw new Error('Telegram user data not available');
-            }
-            const response = await axios.post('/api/sell-orders', {
-                telegramId,
-                username,
-                stars,
-                walletAddress: walletToUse
-            });
-            if (response.data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: translations[currentLanguage].paymentInitiated || 'Payment Initiated',
-                    text: translations[currentLanguage].completePayment || 'Please complete the payment'
-                });
-                if (response.data.paymentLink && window.Telegram && window.Telegram.WebApp) {
-                    Telegram.WebApp.openInvoice(response.data.paymentLink, function(status) {
-                        if (status === 'paid') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: translations[currentLanguage].paymentSuccessful || 'Payment Successful',
-                                text: translations[currentLanguage].paymentProcessed || 'Your payment has been processed'
-                            });
-                            fetchTransactions();
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: translations[currentLanguage].paymentFailed || 'Payment Failed',
-                                text: translations[currentLanguage].paymentNotSuccessful || 'Payment was not successful'
-                            });
-                        }
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: translations[currentLanguage].paymentLinkMissing || 'Payment Link Missing',
-                        text: translations[currentLanguage].paymentLinkNotGenerated || 'Payment link could not be generated'
-                    });
-                }
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: translations[currentLanguage].orderFailed || 'Order Failed',
-                    text: translations[currentLanguage].orderError || 'Error processing order'
-                });
-            }
-        } catch (error) {
-            console.error('Error placing order:', error);
-            Swal.fire({
-                icon: 'error',
-                title: translations[currentLanguage].orderFailed || 'Order Failed',
-                text: translations[currentLanguage].orderError || 'Error processing order'
-            });
-        }
-    });
-
-    starsInput.min = "50";
-    starsInput.max = "80000";
-    starsInput.value = "50";
-    calculateTonAmount();
-});
-
+// Check if the user has accepted the notice
 function checkNoticeStatus() {
-    const skeletonLoading = document.getElementById('skeletonLoading');
-    const appContent = document.getElementById('appContent');
-    const noticeModal = document.getElementById('noticeModal');
-    if (!skeletonLoading || !appContent || !noticeModal) {
-        console.error('Required DOM elements missing in checkNoticeStatus');
-        if (skeletonLoading) skeletonLoading.style.display = 'none';
-        if (appContent) appContent.style.display = 'block';
-        return;
-    }
-    try {
-        const noticeAccepted = localStorage.getItem('noticeAccepted');
-        if (noticeAccepted === 'true') {
-            showAppContent();
-        } else {
-            noticeModal.style.display = 'flex';
-        }
-    } catch (error) {
-        console.error('Error checking notice status:', error);
-        skeletonLoading.style.display = 'none';
-        appContent.style.display = 'block';
+    const noticeAccepted = localStorage.getItem('noticeAccepted');
+    if (noticeAccepted === 'true') {
+        showAppContent(); 
+    } else {
+        noticeModal.style.display = 'flex'; 
     }
 }
-
+// Show the main app content
 function showAppContent() {
-    const skeletonLoading = document.getElementById('skeletonLoading');
-    const appContent = document.getElementById('appContent');
-    if (!skeletonLoading || !appContent) {
-        console.error('Required DOM elements missing in showAppContent');
-        if (skeletonLoading) skeletonLoading.style.display = 'none';
-        if (appContent) appContent.style.display = 'block';
-        return;
-    }
     skeletonLoading.style.display = 'none';
     appContent.style.display = 'block';
-    fetchTransactions().catch(error => {
-        console.error('Failed to fetch transactions in showAppContent:', error);
-        skeletonLoading.style.display = 'none';
-        appContent.style.display = 'block';
-    });
+    // Fetch transactions when app content is shown
+    fetchTransactions();
 }
 
-function updateLanguageTexts() {
-    const texts = translations[currentLanguage] || translations.en || {};
-    const menuTitle = document.querySelector('#sideMenu .text-xl');
-    if (menuTitle) menuTitle.textContent = texts.menuTitle || 'Menu';
-    const menuItems = document.querySelectorAll('#sideMenu .menu-item');
-    if (menuItems.length >= 5) {
-        menuItems[0].querySelector('span:last-child')?.textContent = texts.home || 'Home';
-        menuItems[1].querySelector('span:last-child')?.textContent = texts.sell || 'Sell';
-        menuItems[2].querySelector('span:last-child')?.textContent = texts.history || 'History';
-        menuItems[3].querySelector('span:last-child')?.textContent = texts.referral || 'Referral';
-        menuItems[4].querySelector('span:last-child')?.textContent = texts.about || 'About';
-    }
-    const walletInfo = document.querySelector('#appContent .wallet-status p');
-    if (walletInfo) walletInfo.textContent = texts.paymentInfo || 'Payment Info';
-    const editButton = document.getElementById('editWalletBtn');
-    if (editButton) editButton.textContent = texts.editAddress || 'Edit Address';
-    const sellStarsTitle = document.querySelector('#appContent h2.text-xl');
-    if (sellStarsTitle) sellStarsTitle.textContent = texts.sellStars || 'Sell Stars';
-    const rateLabel = document.querySelector('#appContent .rate-info .text-sm');
-    if (rateLabel) rateLabel.textContent = texts.currentRate || 'Current Rate';
-    const amountLabel = document.querySelector('#appContent .sell-option label.block.text-sm');
-    if (amountLabel) amountLabel.textContent = texts.amountToSell || 'Amount to Sell';
-    const receiveLabel = document.querySelectorAll('#appContent .sell-option label.block.text-sm')[1];
-    if (receiveLabel) receiveLabel.textContent = texts.youWillReceive || 'You Will Receive';
-    const sellStarsBtn = document.getElementById('sellStarsBtn');
-    if (sellStarsBtn) sellStarsBtn.textContent = texts.sellNow || 'Sell Now';
-    const howItWorks = document.querySelector('#appContent .font-medium.text-blue-800');
-    if (howItWorks) howItWorks.textContent = texts.howItWorks || 'How It Works';
-    const steps = document.querySelectorAll('#appContent .list-decimal li');
-    if (steps.length >= 4) {
-        steps[0].textContent = texts.step1 || 'Step 1';
-        steps[1].textContent = texts.step2 || 'Step 2';
-        steps[2].textContent = texts.step3 || 'Step 3';
-        steps[3].textContent = texts.step4 || 'Step 4';
-    }
-    const transactionsTitle = document.querySelector('#appContent .transaction-history h3');
-    if (transactionsTitle) transactionsTitle.textContent = texts.recentTransactions || 'Recent Transactions';
-    const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
-    if (noTransactionsEl) noTransactionsEl.textContent = texts.noTransactions || 'No transactions yet';
-}
-
-window.addEventListener('storage', e => {
-    if (e.key === 'appLanguage') {
-        currentLanguage = e.newValue || 'en';
-        if (!translations[currentLanguage]) {
-            console.warn('Language not found, falling back to English');
-            currentLanguage = 'en';
-        }
-        updateLanguageTexts();
-    }
+// Continue button handler for notice modal
+continueButton.addEventListener('click', () => {
+    localStorage.setItem('noticeAccepted', 'true');
+    noticeModal.style.display = 'none';
+    showAppContent();
 });
 
-function getTelegramUserId() {
-    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-        return window.Telegram.WebApp.initDataUnsafe.user.id;
-    }
-    return null; 
-}
-        
-function setupWalletAddressMemory() {
-    const manualWalletContainer = document.getElementById('manualWalletInput');
-    const manualWalletAddress = document.getElementById('manualWalletAddress');
-    if (!manualWalletContainer || !manualWalletAddress) {
-        console.error('Required DOM elements missing in setupWalletAddressMemory');
-        return;
-    }
-    const editContainer = document.createElement('div');
-    editContainer.className = 'flex items-center justify-between mt-2';
-    const editButton = document.createElement('button');
-    editButton.id = 'editWalletBtn';
-    editButton.className = 'text-sm text-indigo-600 font-medium';
-    editButton.textContent = translations[currentLanguage]?.editAddress || 'Edit Address';
-    editButton.style.display = 'none';
-    const saveButton = document.createElement('button');
-    saveButton.id = 'saveWalletBtn';
-    saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
-    saveButton.textContent = translations[currentLanguage]?.saveAddress || 'Save Address';
-    editContainer.appendChild(editButton);
-    editContainer.appendChild(saveButton);
-    manualWalletContainer.appendChild(editContainer);
-    try {
-        const savedAddress = localStorage.getItem('userWalletAddress');
-        if (savedAddress) {
-            manualWalletAddress.value = savedAddress;
-            currentWalletAddress = savedAddress;
-            editButton.style.display = 'block';
-            manualWalletAddress.disabled = true;
-        }
-    } catch (error) {
-        console.error('Error accessing localStorage for wallet address', error);
-    }
-    saveButton.addEventListener('click', () => {
-        const address = manualWalletAddress.value.trim();
-        if (!isValidWalletAddress(address)) {
-            Swal.fire({
-                icon: 'error',
-                title: translations[currentLanguage]?.missingWalletAddress || 'Invalid Wallet Address',
-                text: currentLanguage === 'en' ? 'Please enter a valid wallet address (minimum 10 characters)' : 'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
-            });
-            return;
-        }
-        try {
-            localStorage.setItem('userWalletAddress', address);
-            currentWalletAddress = address;
-            manualWalletAddress.disabled = true;
-            editButton.style.display = 'block';
-            Swal.fire({
-                icon: 'success',
-                title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
-                text: currentLanguage === 'en' ? 'Your wallet address has been saved for future use.' : 'Ваш адрес кошелька был сохранен для будущего использования.',
-                timer: 2000,
-                showConfirmButton: false
-            });
-        } catch (error) {
-            console.error('Error saving wallet address', error);
-            Swal.fire({
-                icon: 'error',
-                title: currentLanguage === 'en' ? 'Error' : 'Ошибка',
-                text: currentLanguage === 'en' ? 'Failed to save wallet address.' : 'Не удалось сохранить адрес кошелька.'
-            });
-        }
-    });
-    editButton.addEventListener('click', () => {
-        manualWalletAddress.disabled = false;
-        manualWalletAddress.focus();
-    });
+// Listen for language changes from index page
+window.addEventListener('storage', function(e) {
+  if (e.key === 'appLanguage') {
+    currentLanguage = e.newValue || 'en';
+    updateLanguageTexts();
+  }
+});
+
+// Function to update all texts based on current language
+function updateLanguageTexts() {
+  const texts = translations[currentLanguage];
+  
+  // Update menu items
+  document.querySelector('.side-menu .text-xl').textContent = texts.menuTitle;
+  const menuItems = document.querySelectorAll('.menu-item');
+  menuItems[0].childNodes[2].textContent = texts.home;
+  menuItems[1].childNodes[2].textContent = texts.sell;
+  menuItems[2].childNodes[2].textContent = texts.history;
+  menuItems[3].childNodes[2].textContent = texts.referral;
+  menuItems[4].childNodes[2].textContent = texts.about;
+  
+  // Update wallet section
+  document.querySelector('.wallet-status p').textContent = texts.paymentInfo;
+  
+  // Update edit button text if it exists
+  const editButton = document.getElementById('editWalletBtn');
+  if (editButton) {
+    editButton.textContent = texts.editAddress;
+  }
+  
+  // Update sell stars section
+  document.querySelector('h2.text-xl').textContent = texts.sellStars;
+  document.querySelector('.rate-info .text-sm').textContent = texts.currentRate;
+  document.querySelector('label.block.text-sm').textContent = texts.amountToSell;
+  document.querySelectorAll('label.block.text-sm')[1].textContent = texts.youWillReceive;
+  sellStarsBtn.textContent = texts.sellNow;
+  
+  // Update how it works section
+  document.querySelector('.font-medium.text-blue-800').textContent = texts.howItWorks;
+  const steps = document.querySelectorAll('.list-decimal li');
+  steps[0].textContent = texts.step1;
+  steps[1].textContent = texts.step2;
+  steps[2].textContent = texts.step3;
+  steps[3].textContent = texts.step4;
+  
+  // Update transactions section
+  document.querySelector('.transaction-history h3').textContent = texts.recentTransactions;
+  
+  // Check if no transactions message exists and update it
+  const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
+  if (noTransactionsEl) {
+    noTransactionsEl.textContent = texts.noTransactions;
+  }
 }
 
+// Wallet address persistence
+function setupWalletAddressMemory() {
+  // Create edit button for manual wallet address
+  const manualWalletContainer = document.getElementById('manualWalletInput');
+  const editContainer = document.createElement('div');
+  editContainer.className = 'flex items-center justify-between mt-2';
+  
+  const editButton = document.createElement('button');
+  editButton.id = 'editWalletBtn';
+  editButton.className = 'text-sm text-indigo-600 font-medium';
+  editButton.textContent = translations[currentLanguage].editAddress;
+  editButton.style.display = 'none';
+  
+  // Save button
+  const saveButton = document.createElement('button');
+  saveButton.id = 'saveWalletBtn';
+  saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
+  saveButton.textContent = translations[currentLanguage].saveAddress;
+  
+  editContainer.appendChild(editButton);
+  editContainer.appendChild(saveButton);
+  manualWalletContainer.appendChild(editContainer);
+  
+  // Load saved address if it exists
+  const savedAddress = localStorage.getItem('userWalletAddress');
+  if (savedAddress) {
+    manualWalletAddress.value = savedAddress;
+    currentWalletAddress = savedAddress;
+    editButton.style.display = 'block';
+    manualWalletAddress.disabled = true;
+  }
+  
+  // Save button handler
+  saveButton.addEventListener('click', () => {
+    const address = manualWalletAddress.value.trim();
+    if (!isValidWalletAddress(address)) {
+        Swal.fire({
+            icon: 'error',
+            title: translations[currentLanguage].missingWalletAddress,
+            text: currentLanguage === 'en' ? 
+                'Please enter a valid wallet address (minimum 10 characters)' : 
+                'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
+        });
+        return;
+    }
+    
+    if (address) {
+        localStorage.setItem('userWalletAddress', address);
+        currentWalletAddress = address;
+        manualWalletAddress.disabled = true;
+        editButton.style.display = 'block';
+        Swal.fire({
+            icon: 'success',
+            title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
+            text: currentLanguage === 'en' ? 
+                'Your wallet address has been saved for future use.' : 
+                'Ваш адрес кошелька был сохранен для будущего использования.',
+            timer: 2000,
+            showConfirmButton: false
+        });
+    }
+});
+  
+  // Edit button handler
+  editButton.addEventListener('click', () => {
+    manualWalletAddress.disabled = false;
+    manualWalletAddress.focus();
+  });
+}
+
+// Update wallet address when manual input changes
+manualWalletAddress.addEventListener('input', () => {
+    currentWalletAddress = manualWalletAddress.value.trim();
+});
+
+// Side menu toggle
+const menuOverlay = document.getElementById('menuOverlay');
+const sideMenu = document.getElementById('sideMenu');
+
+function toggleMenu() {
+    menuOverlay.classList.toggle('active');
+    sideMenu.classList.toggle('active');
+}
+
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+        toggleMenu();
+    });
+});
+
+      //wallet validation
 function isValidWalletAddress(address) {
     return address && address.length >= 10 && /^[a-zA-Z0-9].*$/.test(address);
 }
-
+      
+// Stars amount handling
 function incrementStars() {
-    const starsInput = document.getElementById('starsAmount');
-    if (!starsInput) return;
-    const currentValue = parseInt(starsInput.value) || 0;
-    starsInput.value = Math.min(currentValue + 5, 80000);
-    calculateTonAmount();
+    const currentValue = parseInt(starsInput.value) || 0;
+    starsInput.value = Math.min(currentValue + 5, 80000);
+    calculateTonAmount();
 }
 
 function decrementStars() {
-    const starsInput = document.getElementById('starsAmount');
-    if (!starsInput) return;
-    const currentValue = parseInt(starsInput.value) || 0;
-    starsInput.value = Math.max(currentValue - 5, 50);
-    calculateTonAmount();
+    const currentValue = parseInt(starsInput.value) || 0;
+    starsInput.value = Math.max(currentValue - 5, 50);
+    calculateTonAmount();
 }
 
 function calculateTonAmount() {
-    const starsInput = document.getElementById('starsAmount');
-    const tonAmountDisplay = document.getElementById('tonAmount');
-    if (!starsInput || !tonAmountDisplay) return '0.000';
-    let stars = parseInt(starsInput.value) || 0;
-    if (stars < 50) {
-        stars = 50;
-        starsInput.value = 50;
-    } else if (stars > 80000) {
-        stars = 80000;
-        starsInput.value = 80000;
-    }
-    const tonAmount = (stars * rate).toFixed(3);
-    tonAmountDisplay.textContent = `${tonAmount} USDT`;
-    return tonAmount;
+    // Ensure value stays within bounds
+    let stars = parseInt(starsInput.value) || 0;
+    if (stars < 50) {
+        stars = 50;
+        starsInput.value = 50;
+    } else if (stars > 80000) {
+        stars = 80000;
+        starsInput.value = 80000;
+    }
+    
+    const tonAmount = (stars * rate).toFixed(3);
+    tonAmountDisplay.textContent = `${tonAmount} USDT`;
+    return tonAmount;
 }
 
+// Update the input field attributes to reflect new limits
+starsInput.min = "50";
+starsInput.max = "80000";
+starsInput.value = "50"; 
+
+calculateTonAmount();
+
+     
+// Payment modal handling
+sellStarsBtn.addEventListener('click', () => {
+    if (!manualWalletAddress.value.trim() || !isValidWalletAddress(manualWalletAddress.value.trim())) {
+        Swal.fire({
+            icon: 'error',
+            title: translations[currentLanguage].missingWalletAddress,
+            text: currentLanguage === 'en' ? 
+                'Please enter a valid wallet address (minimum 10 characters)' : 
+                'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
+        });
+        return;
+    }
+
+    document.getElementById('modalStarsAmount').textContent = starsInput.value;
+    document.getElementById('modalTonAmount').textContent = calculateTonAmount();
+    paymentModal.classList.remove('hidden');
+    paymentModal.classList.add('flex');
+});
+
+cancelPaymentBtn.addEventListener('click', () => {
+    paymentModal.classList.add('hidden');
+    paymentModal.classList.remove('flex');
+});
+
+confirmPaymentBtn.addEventListener('click', async () => {
+    paymentModal.classList.add('hidden');
+    paymentModal.classList.remove('flex');
+
+    const stars = parseInt(starsInput.value);
+    const walletToUse = manualWalletAddress.value.trim();
+
+    try {
+        const response = await axios.post('/api/sell-orders', {
+            telegramId: Telegram.WebApp.initDataUnsafe.user.id,
+            username: Telegram.WebApp.initDataUnsafe.user.username,
+            stars: stars,
+            walletAddress: walletToUse
+        });
+
+        if (response.data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: translations[currentLanguage].paymentInitiated,
+                text: translations[currentLanguage].completePayment
+            });
+
+            if (response.data.paymentLink) {
+                Telegram.WebApp.openInvoice(response.data.paymentLink, function(status) {
+                    if (status === 'paid') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: translations[currentLanguage].paymentSuccessful,
+                            text: translations[currentLanguage].paymentProcessed
+                        });
+                        fetchTransactions();
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: translations[currentLanguage].paymentFailed,
+                            text: translations[currentLanguage].paymentNotSuccessful
+                        });
+                    }
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].paymentLinkMissing,
+                    text: translations[currentLanguage].paymentLinkNotGenerated
+                });
+            }
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: translations[currentLanguage].orderFailed,
+                text: translations[currentLanguage].orderError
+            });
+        }
+    } catch (error) {
+        console.error('Error placing order:', error);
+        Swal.fire({
+            icon: 'error',
+            title: translations[currentLanguage].orderFailed,
+            text: translations[currentLanguage].orderError
+        });
+    }
+});
+
+// Create Transaction Details Panel
 function createTransactionDetailsPanel() {
-    if (document.getElementById('transactionDetailsOverlay')) return;
     const panel = document.createElement('div');
     panel.id = 'transactionDetailsOverlay';
     panel.className = 'transaction-details-overlay';
+    
     panel.innerHTML = `
         <div id="transactionDetailsPanel" class="transaction-details-panel">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold">${translations[currentLanguage]?.transactionDetails || 'Transaction Details'}</h3>
+                    <h3 class="text-xl font-bold">${translations[currentLanguage].transactionDetails}</h3>
                     <button class="close-details" id="closeTransactionDetails">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1187,65 +1090,71 @@ function createTransactionDetailsPanel() {
                 <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        <div class="text-sm text-gray-600">${translations[currentLanguage]?.amount || 'Amount'}</div>
+                        <div class="text-sm text-gray-600">${translations[currentLanguage].amount}</div>
                         <div id="transactionAmount" class="font-bold text-xl"></div>
                     </div>
                     <div class="text-right">
-                        <div class="text-sm text-gray-600">${translations[currentLanguage]?.toBeReceived || 'To Be Received'}</div>
+                        <div class="text-sm text-gray-600">${translations[currentLanguage].toBeReceived}</div>
                         <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
                     </div>
                 </div>
+                
                 <div class="mb-4">
-                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage]?.currentStatus || 'Current Status'}</div>
+                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].currentStatus}</div>
                     <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
                 </div>
+                
                 <div class="mb-4">
-                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage]?.estimatedCompletion || 'Estimated Completion'}</div>
+                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].estimatedCompletion}</div>
                     <div id="transactionEstimatedCompletion" class="font-medium"></div>
                 </div>
+                
                 <div class="progress-container">
                     <div id="progressBar" class="progress-bar" style="width: 0%"></div>
                 </div>
-                <div id="transactionTimeline" class="mt-6"></div>
+                
+                <div id="transactionTimeline" class="mt-6">
+                    <!-- Timeline steps will be inserted here -->
+                </div>
             </div>
         </div>
-        <style>
-            .transaction-details-content { opacity: 0; transform: translateY(20px); transition: opacity 0.3s ease, transform 0.3s ease; }
-            .transaction-details-content.active { opacity: 1; transform: translateY(0); }
-            .transaction-step { opacity: 0; transform: translateX(-10px); transition: opacity 0.2s ease, transform 0.2s ease; }
-            .transaction-step.active { opacity: 1; transform: translateX(0); }
-            .progress-bar { transition: width 0.5s ease; }
-        </style>
     `;
-    if (document.body) document.body.appendChild(panel);
-    const closeButton = document.getElementById('closeTransactionDetails');
-    const overlay = document.getElementById('transactionDetailsOverlay');
-    if (closeButton && overlay) {
-        closeButton.addEventListener('click', closeTransactionDetails);
-        overlay.addEventListener('click', e => {
-            if (e.target === overlay) closeTransactionDetails();
-        });
-    }
+    
+    document.body.appendChild(panel);
+    
+    document.getElementById('closeTransactionDetails').addEventListener('click', closeTransactionDetails);
+    document.getElementById('transactionDetailsOverlay').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('transactionDetailsOverlay')) {
+            closeTransactionDetails();
+        }
+    });
 }
 
+// Helper function to format dates with leading zeros
 function formatDateWithLeadingZeros(date) {
     if (!date) return 'N/A';
+    
     const d = new Date(date);
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
+    
     return `${day}/${month}/${year}`;
 }
 
+// Show loading state
 function showTransactionDetailsLoading() {
     const overlay = document.getElementById('transactionDetailsOverlay');
     const panel = document.getElementById('transactionDetailsPanel');
-    if (!overlay || !panel) return;
+    
+    // Show overlay immediately
     overlay.style.display = 'block';
+    
+    // Add loading content to panel
     panel.innerHTML = `
         <div class="loading-container" style="display: flex; justify-content: center; align-items: center; height: 400px; flex-direction: column;">
             <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid #f3f4f6; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;"></div>
-            <div style="color: #6b7280; font-size: 14px;">${translations[currentLanguage]?.loading || 'Loading transaction details...'}</div>
+            <div style="color: #6b7280; font-size: 14px;">Loading transaction details...</div>
         </div>
         <style>
             @keyframes spin {
@@ -1254,28 +1163,43 @@ function showTransactionDetailsLoading() {
             }
         </style>
     `;
-    panel.classList.add('active');
+    
+    // Start smooth opening animation
+    setTimeout(() => {
+        panel.classList.add('active');
+    }, 50);
 }
 
+// Open transaction details
 function openTransactionDetails(transaction) {
-    if (!transaction) return;
+    // Show loading state first
     showTransactionDetailsLoading();
+    
+    // Immediately populate details (no simulation delay)
     populateTransactionDetails(transaction);
 }
 
+// Populate transaction details
 function populateTransactionDetails(transaction) {
     const overlay = document.getElementById('transactionDetailsOverlay');
     const panel = document.getElementById('transactionDetailsPanel');
-    if (!overlay || !panel) return;
+    
+    // Calculate estimated completion date (21 days from creation)
     const creationDate = new Date(transaction.dateCreated);
     const completionDate = new Date(creationDate);
     completionDate.setDate(creationDate.getDate() + 21);
-    const displayDate = transaction.completedAt ? formatDateWithLeadingZeros(transaction.completedAt) : formatDateWithLeadingZeros(completionDate);
+
+    // For completed transactions, show estimated date instead of N/A if no actual completion date
+    const displayDate = transaction.completedAt ? 
+        formatDateWithLeadingZeros(transaction.completedAt) : 
+        formatDateWithLeadingZeros(completionDate);
+    
+    // Build the main content with improved mobile layout
     panel.innerHTML = `
-        <div class="transaction-details-content">
+        <div class="transaction-details-content" style="opacity: 0; transform: translateY(20px); transition: all 0.3s ease; padding: 16px;">
             <div class="flex justify-between items-start mb-4">
                 <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                    <div class="text-sm text-gray-500 mb-1">${translations[currentLanguage]?.transactionID || 'Transaction ID'}</div>
+                    <div class="text-sm text-gray-500 mb-1">${translations[currentLanguage].transactionID}</div>
                     <div class="font-mono text-sm text-gray-700 mb-2 truncate">${transaction.id || 'N/A'}</div>
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-xl font-bold">${transaction.stars} Stars</span>
@@ -1289,214 +1213,312 @@ function populateTransactionDetails(transaction) {
                     </svg>
                 </button>
             </div>
+            
             <div class="mb-4">
                 <div class="flex justify-between items-center mb-1 text-xs">
-                    <span class="text-gray-600">${translations[currentLanguage]?.progress || 'Progress'}</span>
-                    <span class="text-gray-600">${translations[currentLanguage]?.estimatedCompletion || 'Est. completion'}: <span id="transactionEstimatedCompletion">${displayDate}</span></span>
+                    <span class="text-gray-600">Progress</span>
+                    <span class="text-gray-600">Est. completion: <span id="transactionEstimatedCompletion">${displayDate}</span></span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-1.5">
-                    <div id="progressBar" class="bg-blue-600 h-1.5 rounded-full" style="width: 0%"></div>
+                    <div id="progressBar" class="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                 </div>
             </div>
+            
             <div class="mt-6">
-                <h4 class="font-medium mb-3 text-sm">${translations[currentLanguage]?.transactionTimeline || 'Transaction Timeline'}</h4>
+                <h4 class="font-medium mb-3 text-sm">${translations[currentLanguage].transactionTimeline}</h4>
                 <div id="transactionTimeline" class="space-y-3"></div>
             </div>
         </div>
     `;
+    
+    // Set status badge
     const statusBadge = document.getElementById('transactionStatusBadge');
-    if (statusBadge) {
-        statusBadge.textContent = transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1);
-        statusBadge.className = 'inline-block px-2 py-0.5 rounded-full text-xs font-medium';
-        if (transaction.status === 'pending') {
-            statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
-        } else if (transaction.status === 'completed') {
-            statusBadge.classList.add('bg-green-100', 'text-green-800');
-        } else if (transaction.status === 'processing') {
-            statusBadge.classList.add('bg-blue-100', 'text-blue-800');
-        } else {
-            statusBadge.classList.add('bg-red-100', 'text-red-800');
-        }
+    statusBadge.textContent = transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1);
+    statusBadge.className = 'inline-block px-2 py-0.5 rounded-full text-xs font-medium';
+    
+    if (transaction.status === 'pending') {
+        statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
+    } else if (transaction.status === 'completed') {
+        statusBadge.classList.add('bg-green-100', 'text-green-800');
+    } else if (transaction.status === 'processing') {
+        statusBadge.classList.add('bg-blue-100', 'text-blue-800');
+    } else {
+        statusBadge.classList.add('bg-red-100', 'text-red-800');
     }
+          
+    // Calculate progress percentage
     const now = new Date();
     let progressPercentage = 0;
+    
     if (transaction.status === 'completed') {
         progressPercentage = 100;
     } else if (transaction.status === 'declined') {
         progressPercentage = 0;
     } else if (transaction.status === 'processing') {
+        // Only start counting progress when status is processing
         const daysPassed = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
         progressPercentage = Math.min(Math.round((daysPassed / 21) * 100), 99);
     }
+    
+    // Build timeline
     const timeline = document.getElementById('transactionTimeline');
-    if (timeline) {
-        timeline.innerHTML = '';
-        let paymentStatus = 'pending';
-        let completionStatus = 'pending';
-        let processingStatus = 'pending';
-        if (transaction.status === 'processing' || transaction.status === 'completed') {
-            paymentStatus = 'completed';
-            processingStatus = 'active';
-        }
-        if (transaction.status === 'completed') {
-            completionStatus = 'completed';
-            processingStatus = 'completed';
-        }
-        addTimelineStep(timeline, 1, translations[currentLanguage]?.orderCreated || 'Order Created', translations[currentLanguage]?.orderCreatedDesc || 'Order created', formatDateWithLeadingZeros(transaction.dateCreated), 'completed');
-        addTimelineStep(timeline, 2, translations[currentLanguage]?.paymentVerification || 'Payment Verification', translations[currentLanguage]?.paymentVerificationDesc || 'Verifying payment', transaction.status === 'pending' ? formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 1)) : (transaction.datePaid ? formatDateWithLeadingZeros(transaction.datePaid) : ''), paymentStatus);
-        addTimelineStep(timeline, 3, translations[currentLanguage]?.processing || 'Processing', translations[currentLanguage]?.processingDesc || 'Processing payment', '', processingStatus);
-        addTimelineStep(timeline, 4, translations[currentLanguage]?.paymentSent || 'Payment Sent', translations[currentLanguage]?.paymentSentDesc || 'Payment sent to wallet', transaction.status === 'completed' ? (transaction.completedAt ? formatDateWithLeadingZeros(transaction.completedAt) : formatDateWithLeadingZeros(completionDate)) : formatDateWithLeadingZeros(completionDate), completionStatus);
+    timeline.innerHTML = '';
+    
+    // Define payment and completion status
+    let paymentStatus = 'pending';
+    let completionStatus = 'pending';
+    
+    if (transaction.status === 'processing' || transaction.status === 'completed') {
+        paymentStatus = 'completed';
     }
-    requestAnimationFrame(() => {
-        const content = panel.querySelector('.transaction-details-content');
-        if (content) content.classList.add('active');
-        const progressBar = document.getElementById('progressBar');
-        if (progressBar) progressBar.style.width = `${progressPercentage}%`;
-        const steps = timeline?.querySelectorAll('.transaction-step') || [];
+    if (transaction.status === 'completed') {
+        completionStatus = 'completed';
+    }
+    
+    // Define processing status for step 3
+    let processingStatus = 'pending';
+    if (transaction.status === 'processing' || transaction.status === 'completed') {
+        processingStatus = 'active';
+    }
+    if (transaction.status === 'completed') {
+        processingStatus = 'completed';
+    }
+    
+    // Step 1: Order Created
+    addTimelineStep(timeline, 1, translations[currentLanguage].orderCreated, translations[currentLanguage].orderCreatedDesc, 
+        formatDateWithLeadingZeros(transaction.dateCreated), 'completed');
+
+    // Step 2: Payment Verification
+    addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
+        transaction.status === 'pending' ? formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 1)) : 
+        (transaction.datePaid ? formatDateWithLeadingZeros(transaction.datePaid) : ''),
+        paymentStatus);
+
+    // Step 3: Processing Payment
+    addTimelineStep(timeline, 3, translations[currentLanguage].processing, 
+        translations[currentLanguage].processingDesc, 
+        '', 
+        processingStatus);
+
+    // Step 4: Payment Sent
+    addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
+        transaction.status === 'completed' ? 
+        (transaction.completedAt ? formatDateWithLeadingZeros(transaction.completedAt) : formatDateWithLeadingZeros(completionDate)) : 
+        formatDateWithLeadingZeros(completionDate), 
+        completionStatus);
+    
+    // Animate content in
+    setTimeout(() => {
+        const content = document.querySelector('.transaction-details-content');
+        if (content) {
+            content.style.opacity = '1';
+            content.style.transform = 'translateY(0)';
+        }
+        
+        // Animate progress bar
+        setTimeout(() => {
+            document.getElementById('progressBar').style.width = `${progressPercentage}%`;
+        }, 200);
+        
+        // Animate timeline steps
+        const steps = timeline.querySelectorAll('.transaction-step');
         steps.forEach((step, index) => {
-            setTimeout(() => step.classList.add('active'), index * 100);
+            setTimeout(() => {
+                step.style.opacity = '1';
+                step.style.transform = 'translateX(0)';
+            }, 100 * index);
         });
-    });
+    }, 100);
 }
 
+// Close transaction details
 function closeTransactionDetails() {
     const panel = document.getElementById('transactionDetailsPanel');
     const overlay = document.getElementById('transactionDetailsOverlay');
-    if (!panel || !overlay) return;
+    
+    // Animate content out
     const content = panel.querySelector('.transaction-details-content');
     if (content) {
         content.style.opacity = '0';
         content.style.transform = 'translateY(-20px)';
     }
+    
     panel.classList.remove('active');
-    setTimeout(() => overlay.style.display = 'none', 300);
+    setTimeout(() => {
+        overlay.style.display = 'none';
+    }, 300);
 }
 
+// Helper function to add timeline step
 function addTimelineStep(container, number, title, description, date, status) {
-    if (!container) return;
     const step = document.createElement('div');
     step.className = 'transaction-step';
+    step.style.opacity = '0';
+    step.style.transform = 'translateX(-10px)';
+    step.style.transition = 'all 0.2s ease';
     step.style.paddingLeft = '8px';
     step.style.marginBottom = '12px';
-    let statusClass = status === 'completed' ? 'completed' : status === 'active' ? 'active' : '';
+    
+    // Determine step status class
+    let statusClass = '';
+    if (status === 'completed') {
+        statusClass = 'completed';
+    } else if (status === 'active') {
+        statusClass = 'active';
+    }
+    
     step.innerHTML = `
         <div class="flex items-start gap-3">
-            <div class="step-number ${statusClass}" style="width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; flex-shrink: 0; margin-top: 2px; ${statusClass === 'completed' ? 'background: #10b981; color: white;' : statusClass === 'active' ? 'background: #3b82f6; color: white;' : 'background: #e5e7eb; color: #6b7280;'}">
-                ${status === 'completed' ? '✓' : number}
+            <div class="step-number ${statusClass}" style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: bold;
+                flex-shrink: 0;
+                margin-top: 2px;
+                ${statusClass === 'completed' ? 'background: #10b981; color: white;' : 
+                 statusClass === 'active' ? 'background: #3b82f6; color: white;' : 
+                 'background: #e5e7eb; color: #6b7280;'}
+            ">
+                ${status === 'completed' ? 
+                    '✓' : 
+                    number}
             </div>
             <div style="flex: 1; min-width: 0;">
-                <div class="font-medium text-sm" style="${statusClass === 'completed' ? 'color: #10b981;' : statusClass === 'active' ? 'color: #3b82f6;' : 'color: #6b7280;'}">${title}</div>
+                <div class="font-medium text-sm" style="
+                    ${statusClass === 'completed' ? 'color: #10b981;' : 
+                     statusClass === 'active' ? 'color: #3b82f6;' : 
+                     'color: #6b7280;'}
+                ">${title}</div>
                 <div class="text-xs text-gray-500 mt-0.5">${description}</div>
                 ${date ? `<div class="text-xs text-gray-400 mt-1">${date}</div>` : ''}
             </div>
         </div>
-        ${number < 4 ? `<div class="step-line ${statusClass}" style="position: absolute; left: 29px; top: 22px; bottom: -12px; width: 2px; ${statusClass === 'completed' ? 'background: #10b981;' : statusClass === 'active' ? 'background: #3b82f6;' : 'background: #e5e7eb;'}"></div>` : ''}
+        ${number < 4 ? `<div class="step-line ${statusClass}" style="
+            position: absolute;
+            left: 29px;
+            top: 22px;
+            bottom: -12px;
+            width: 2px;
+            ${statusClass === 'completed' ? 'background: #10b981;' : 
+             statusClass === 'active' ? 'background: #3b82f6;' : 
+             'background: #e5e7eb;'}
+        "></div>` : ''}
     `;
+    
     container.appendChild(step);
 }
 
+// Helper function to calculate step dates
 function calculateStepDate(startDateStr, daysToAdd) {
     const date = new Date(startDateStr);
     date.setDate(date.getDate() + daysToAdd);
     return date;
 }
 
-async function fetchTransactions() {
-    const transactionsList = document.getElementById('transactionsList');
-    if (!transactionsList) {
-        console.error('Transaction list element not found');
-        return;
-    }
-
-    // Show loading state
-    transactionsList.innerHTML = `
-        <div class="text-gray-500 text-center py-4 text-sm">
-            ${translations[currentLanguage]?.loading || 'Loading...'}
-        </div>
-    `;
-
+// Fetch and display transactions
+const fetchTransactions = async () => {
     try {
-        // Get Telegram user ID with optional chaining
-        const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-        
-        if (!telegramId) {
-            console.warn('Telegram user ID not available');
-            transactionsList.innerHTML = `
-                <div class="text-gray-500 text-center py-4 text-sm">
-                    ${translations[currentLanguage]?.noTransactions || 'No transactions yet'}
-                </div>
-            `;
+        // Add loading indicator
+        const transactionsList = document.getElementById('transactionsList');
+        if (!transactionsList) {
+            console.error('Transaction list element not found');
             return;
         }
-
-        // Fetch transactions
-        const response = await axios.get('/api/sell-orders', { 
-            params: { telegramId },
-            timeout: 10000 // 10 second timeout
+        
+        const response = await axios.get('/api/sell-orders', {
+            params: {
+                telegramId: Telegram.WebApp.initDataUnsafe.user.id
+            }
         });
 
-        // Check for valid response data
-        if (!response.data || !Array.isArray(response.data)) {
-            throw new Error('Invalid response format');
-        }
-
-        // Clear previous content
         transactionsList.innerHTML = '';
 
-        if (response.data.length === 0) {
-            transactionsList.innerHTML = `
-                <div class="text-gray-500 text-center py-4 text-sm">
-                    ${translations[currentLanguage]?.noTransactions || 'No transactions yet'}
-                </div>
-            `;
-            return;
+        if (response.data && response.data.length > 0) {
+            response.data.forEach(transaction => {
+                const transactionItem = document.createElement('div');
+                transactionItem.className = 'transaction-item cursor-pointer hover:bg-gray-50';
+                transactionItem.onclick = () => openTransactionDetails(transaction);
+
+                const transactionInfo = document.createElement('div');
+                transactionInfo.className = 'transaction-info';
+
+                const starsAmount = document.createElement('div');
+                starsAmount.className = 'font-bold';
+                starsAmount.textContent = `${transaction.stars} Stars`;
+
+                const dateCreated = document.createElement('div');
+                dateCreated.className = 'text-sm text-gray-500';
+                dateCreated.textContent = formatDateWithLeadingZeros(transaction.dateCreated);
+
+                transactionInfo.appendChild(starsAmount);
+                transactionInfo.appendChild(dateCreated);
+
+                const transactionStatus = document.createElement('div');
+                transactionStatus.className = `transaction-status ${
+                    transaction.status === 'pending' ? 'status-pending' : 
+                    transaction.status === 'processing' ? 'status-processing' :
+                    transaction.status === 'completed' ? 'status-completed' : 'status-declined'
+                }`;
+                transactionStatus.textContent = transaction.status;
+
+                transactionItem.appendChild(transactionInfo);
+                transactionItem.appendChild(transactionStatus);
+
+                transactionsList.appendChild(transactionItem);
+            });
+        } else {
+            const noTransactions = document.createElement('div');
+            noTransactions.className = 'text-gray-500 text-center py-4 text-sm';
+            noTransactions.textContent = translations[currentLanguage].noTransactions;
+            transactionsList.appendChild(noTransactions);
         }
-
-        // Create transaction items
-        response.data.forEach(transaction => {
-            const transactionItem = document.createElement('div');
-            transactionItem.className = 'transaction-item cursor-pointer hover:bg-gray-50';
-            transactionItem.onclick = () => openTransactionDetails(transaction);
-            
-            const transactionInfo = document.createElement('div');
-            transactionInfo.className = 'transaction-info';
-            
-            const starsAmount = document.createElement('div');
-            starsAmount.className = 'font-bold';
-            starsAmount.textContent = `${transaction.stars} Stars`;
-            
-            const dateCreated = document.createElement('div');
-            dateCreated.className = 'text-sm text-gray-500';
-            dateCreated.textContent = formatDateWithLeadingZeros(transaction.dateCreated);
-            
-            transactionInfo.append(starsAmount, dateCreated);
-            
-            const statusClass = `status-${transaction.status.toLowerCase()}`;
-            const transactionStatus = document.createElement('div');
-            transactionStatus.className = `transaction-status ${statusClass}`;
-            transactionStatus.textContent = 
-                transaction.status.charAt(0).toUpperCase() + 
-                transaction.status.slice(1).toLowerCase();
-            
-            transactionItem.append(transactionInfo, transactionStatus);
-            transactionsList.appendChild(transactionItem);
-        });
-
     } catch (error) {
         console.error('Error fetching transactions:', error);
         
-        const errorMessage = error.response?.data?.message || 
-                            translations[currentLanguage]?.errorLoading || 
-                            'Error loading transactions';
-        
-        transactionsList.innerHTML = `
-            <div class="text-red-500 text-center py-4 text-sm">
-                ${errorMessage}
-                ${error.response?.status ? ` (${error.response.status})` : ''}
-            </div>
-        `;
+        // Show error message in the transactions list
+        const transactionsList = document.getElementById('transactionsList');
+        if (transactionsList) {
+            transactionsList.innerHTML = `
+                <div class="text-red-500 text-center py-4 text-sm">
+                    ${currentLanguage === 'en' ? 'Error loading transactions' : 'Ошибка загрузки транзакций'}
+                </div>
+            `;
+        }
     }
-}
+};
+
+// Initialize the app
+document.addEventListener('DOMContentLoaded', () => {
+    // Check for language in localStorage first
+    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    setupWalletAddressMemory();
+    updateLanguageTexts();
+    createTransactionDetailsPanel();
+    
+    // Show skeleton loading initially
+    skeletonLoading.style.display = 'block';
+    appContent.style.display = 'none';
+    
+    // Check notice status after a small delay (simulating loading)
+    setTimeout(() => {
+        checkNoticeStatus();
+    }, 800);
+    
+    // Set up refresh interval for transactions (every 10 seconds instead of 5)
+    setInterval(fetchTransactions, 10000);
+    
+    // Set up Telegram WebApp
+    Telegram.WebApp.onEvent('viewportChanged', () => {
+        Telegram.WebApp.expand();
+    });
+
+    Telegram.WebApp.expand();
+});
 
     </script>
 </body>
