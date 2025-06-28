@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
@@ -16,7 +15,7 @@ const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 
 // Import Telegram auth middleware
-const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
+const { verifyTelegramWebAppData, requireTelegramAuth } = require('./middleware/telegramAuth');
 
 const reversalRequests = new Map();
 
@@ -70,6 +69,11 @@ app.get('*/', (req, res, next) => {
             next(); // Pass to 404 handler
         }
     });
+});
+
+// Example protected route
+app.get('/api/protected', requireTelegramAuth, (req, res) => {
+    res.json({ message: 'This is a protected route accessible only via Telegram Web App' });
 });
 
 // Validate environment variables
@@ -143,11 +147,18 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
 });
 
-// Catch-all for 404 errors
+// Custom 404 handler
 app.use((req, res) => {
+    const filePath = path.join(__dirname, 'public', '404.html');
     console.error(`404: ${req.method} ${req.url}`);
-    res.status(404).send('Not Found');
+    res.status(404).sendFile(filePath, (err) => {
+        if (err) {
+            console.error(`Error serving 404.html:`, err.message);
+            res.status(404).send('Not Found');
+        }
+    });
 });
+
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
