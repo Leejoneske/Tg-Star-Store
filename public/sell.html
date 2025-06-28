@@ -726,12 +726,13 @@
         </div>
     </div>
 </div>
- 
+    
+   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
    <script src="https://telegram.org/js/telegram-web-app.js"></script>
    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    
     <script>
         // Global variables
        
@@ -1042,6 +1043,27 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
+function initializeIcons() {
+    try {
+        if (window.lucide && typeof lucide.createIcons === 'function') {
+            lucide.createIcons();
+            console.log('Lucide icons initialized');
+        } else {
+            console.warn('Lucide not available, loading dynamically...');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/lucide@latest/dist/umd/lucide.js';
+            script.onload = () => {
+                if (window.lucide) {
+                    lucide.createIcons();
+                    console.log('Lucide icons loaded dynamically');
+                }
+            };
+            document.head.appendChild(script);
+        }
+    } catch (e) {
+        console.error('Error initializing Lucide icons:', e);
+    }
+}        
       //wallet validation
 function isValidWalletAddress(address) {
     return address && address.length >= 10 && /^[a-zA-Z0-9].*$/.test(address);
@@ -1593,9 +1615,31 @@ const fetchTransactions = async () => {
     }
 };
 // Initialize the app
-     // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
     try {
+        // Enhanced icon refresh function
+        function refreshIcons() {
+            try {
+                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                    window.lucide.createIcons();
+                    console.log('Lucide icons refreshed');
+                } else {
+                    console.warn('Lucide not available, attempting to load...');
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/lucide@latest/dist/umd/lucide.js';
+                    script.onload = () => {
+                        if (window.lucide) {
+                            window.lucide.createIcons();
+                            console.log('Lucide dynamically loaded and initialized');
+                        }
+                    };
+                    document.head.appendChild(script);
+                }
+            } catch (e) {
+                console.error('Error refreshing icons:', e);
+            }
+        }
+
         // Check for required DOM elements
         const requiredElements = {
             skeletonLoading: document.getElementById('skeletonLoading'),
@@ -1637,17 +1681,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLanguageTexts();
         createTransactionDetailsPanel();
 
-
-        // Initialize Lucide icons with error handling
-        try {
-            if (window.lucide && typeof window.lucide.createIcons === 'function') {
-                window.lucide.createIcons();
-            } else {
-                console.warn('Lucide icons not available');
-            }
-        } catch (e) {
-            console.error('Error initializing icons:', e);
-        }
+        // Initialize Lucide icons with enhanced handling
+        refreshIcons();
 
         // Set initial display states
         requiredElements.skeletonLoading.style.display = 'block';
@@ -1657,6 +1692,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             try {
                 checkNoticeStatus();
+                refreshIcons(); // Refresh after showing modal content
             } catch (e) {
                 console.error('Error in checkNoticeStatus:', e);
                 fallbackToAppContent();
@@ -1667,6 +1703,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const transactionRefresh = setInterval(() => {
             try {
                 fetchTransactions();
+                refreshIcons(); // Refresh after loading transactions
             } catch (e) {
                 console.error('Error fetching transactions:', e);
             }
@@ -1726,20 +1763,35 @@ function fallbackToAppContent() {
         if (document.getElementById('starsAmount')) {
             calculateTonAmount();
         }
+        refreshIcons(); // Ensure icons are refreshed in fallback mode
     } catch (e) {
         console.error('Fallback initialization failed:', e);
     }
 }
 
+// Enhanced global refreshIcons function
 function refreshIcons() {
     try {
         if (window.lucide && typeof window.lucide.createIcons === 'function') {
             window.lucide.createIcons();
+            console.log('Lucide icons refreshed');
+        } else if (!document.querySelector('script[src*="lucide"]')) {
+            // Only load if not already loading
+            console.warn('Lucide not available, attempting to load...');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/lucide@latest/dist/umd/lucide.js';
+            script.onload = () => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                    console.log('Lucide dynamically loaded and initialized');
+                }
+            };
+            document.head.appendChild(script);
         }
     } catch (e) {
         console.error('Error refreshing icons:', e);
     }
-}   
+}
     </script>
 </body>
 </html>
