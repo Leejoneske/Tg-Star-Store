@@ -442,7 +442,6 @@
     </div>
 </div>
 
-<!-- Skeleton Loading -->
 <div id="skeletonLoading" class="app-container">
     <div class="p-4 flex justify-between items-center bg-white shadow-sm">
         <div class="skeleton w-6 h-6"></div>
@@ -478,7 +477,6 @@
     </div>
 </div>
 
-<!-- Main App Content (hidden initially) -->
 <div id="appContent" class="app-container" style="display: none;">
     <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
     <div class="side-menu" id="sideMenu">
@@ -518,121 +516,125 @@
         <div class="w-6"></div>
     </div>
     <div class="wallet-status">
-    <div class="flex items-center justify-center gap-2 mb-2">
-        <i data-lucide="wallet" class="w-5 h-5 text-indigo-600"></i>
-        <span class="font-semibold text-gray-700">Wallet Address</span>
-    </div>
-    <div id="manualWalletInput" class="mt-3 relative">
-        <i data-lucide="copy" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer hover:text-indigo-600"></i>
-        <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
-               class="w-full p-2 pr-10 border border-gray-300 rounded-lg text-sm">
-    </div>
-    <div class="flex items-center justify-center gap-1 mt-2">
-        <i data-lucide="shield-check" class="w-4 h-4 text-green-500"></i>
-        <p class="text-sm text-gray-600">Payments will be made to the selected wallet.</p>
-    </div>
+        <div class="flex items-center justify-center gap-2 mb-2">
+            <i data-lucide="wallet" class="w-5 h-5 text-indigo-600"></i>
+            <span class="font-semibold text-gray-700">Wallet Address</span>
+        </div>
+        <div id="manualWalletInput" class="mt-3 relative">
+            <i data-lucide="copy" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer hover:text-indigo-600"></i>
+            <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
+                   class="w-full p-2 pr-10 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div class="flex items-center justify-center gap-1 mt-2">
+            <i data-lucide="shield-check" class="w-4 h-4 text-green-500"></i>
+            <p class="text-sm text-gray-600">Payments will be made to the selected wallet.</p>
+        </div>
     </div>
     <div class="p-6">
         <div class="bg-white rounded-xl p-6 mb-6">
             <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
             <div class="rate-info mb-4">        
-    <div class="flex justify-between items-center">
-        <div class="flex items-center gap-2">
-            <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
-            <div>
-                <span class="text-sm text-gray-600">Current Rate</span>
-                <div class="font-bold flex items-center gap-1">
-                    <i data-lucide="star" class="w-4 h-4 text-yellow-500"></i>
-                    1 Star = 0.009 USDT
-                    <i data-lucide="dollar-sign" class="w-4 h-4 text-green-500"></i>
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
+                        <div>
+                            <span class="text-sm text-gray-600">Current Rate</span>
+                            <div class="font-bold flex items-center gap-1">
+                                <i data-lucide="star" class="w-4 h-4 text-yellow-500"></i>
+                                1 Star = 0.009 USDT
+                                <i data-lucide="dollar-sign" class="w-4 h-4 text-green-500"></i>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
-    <div class="text-center mt-2">
-        <span class="info-badge flex items-center gap-1 justify-center">
-            <i data-lucide="info" class="w-3 h-3"></i>
-            Minimum sell: 50 Stars
-        </span>
-    </div>
+                <div class="text-center mt-2">
+                    <span class="info-badge flex items-center gap-1 justify-center">
+                        <i data-lucide="info" class="w-3 h-3"></i>
+                        Minimum sell: 50 Stars
+                    </span>
+                </div>
             </div>
  
             <div class="sell-option p-4 mb-6">
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
                     <div class="stars-counter">
-    <button class="counter-button" onclick="decrementStars()">
-        <i data-lucide="minus" class="w-4 h-4"></i>
-    </button>
-    <div class="relative">
-        <i data-lucide="star" class="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-yellow-500"></i>
-        <input type="number" id="starsAmount" class="stars-input pl-8" value="50" min="50" max="80000" onchange="calculateTonAmount()">
-    </div>
-    <button class="counter-button" onclick="incrementStars()">
-        <i data-lucide="plus" class="w-4 h-4"></i>
-    </button>
-</div>
+                        <button class="counter-button" onclick="decrementStars()">
+                            <i data-lucide="minus" class="w-4 h-4"></i>
+                        </button>
+                        <div class="relative">
+                            <i data-lucide="star" class="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-yellow-500"></i>
+                            <input type="number" id="starsAmount" class="stars-input pl-8" value="50" min="50" max="80000" onchange="calculateTonAmount()">
+                        </div>
+                        <button class="counter-button" onclick="incrementStars()">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
                 <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-        <i data-lucide="coins" class="w-4 h-4 text-green-500"></i>
-        You'll Receive (USDT)
-    </label>
-    <div class="p-3 bg-gray-50 rounded-lg font-bold text-center flex items-center justify-center gap-2" id="tonAmount">
-        <i data-lucide="dollar-sign" class="w-5 h-5 text-green-500"></i>
-        0.438 USDT
-        <i data-lucide="arrow-up-right" class="w-4 h-4 text-green-500"></i>
-    </div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <i data-lucide="coins" class="w-4 h-4 text-green-500"></i>
+                        You'll Receive (USDT)
+                    </label>
+                    <div class="p-3 bg-gray-50 rounded-lg font-bold text-center flex items-center justify-center gap-2" id="tonAmount">
+                        <i data-lucide="dollar-sign" class="w-5 h-5 text-green-500"></i>
+                        0.438 USDT
+                        <i data-lucide="arrow-up-right" class="w-4 h-4 text-green-500"></i>
+                    </div>
                 </div>
                 <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold flex items-center justify-center gap-2">
-    <i data-lucide="zap" class="w-5 h-5"></i>
-    Sell Now
-    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    <i data-lucide="zap" class="w-5 h-5"></i>
+                    Sell Now
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
                 </button>
             </div>
             <div class="bg-blue-50 rounded-lg p-4 text-sm">
-    <div class="flex items-start space-x-2">
-        <i data-lucide="lightbulb" class="w-5 h-5 text-blue-500 mt-0.5"></i>
-        <div>
-            <p class="font-medium text-blue-800 flex items-center gap-2">
-                <i data-lucide="help-circle" class="w-4 h-4"></i>
-                How it works:
-            </p>
-            <ol class="list-none mt-1 text-blue-700 space-y-2">
-                <li class="flex items-center gap-2">
-                    <i data-lucide="edit-3" class="w-4 h-4"></i>
-                    Enter the amount of stars you want to sell
-                </li>
-                <li class="flex items-center gap-2">
-                    <i data-lucide="mouse-pointer-click" class="w-4 h-4"></i>
-                    Click "Sell Now" to initiate the transaction
-                </li>
-                <li class="flex items-center gap-2">
-                    <i data-lucide="send" class="w-4 h-4"></i>
-                    Send the stars via Telegram payment
-                </li>
-                <li class="flex items-center gap-2">
-                    <i data-lucide="check-circle" class="w-4 h-4"></i>
-                    Once verified, USDT will be sent within 21 days
-                </li>
-            </ol>
-        </div>
-    </div>
-</div>
+                <div class="flex items-start space-x-2">
+                    <i data-lucide="lightbulb" class="w-5 h-5 text-blue-500 mt-0.5"></i>
+                    <div>
+                        <p class="font-medium text-blue-800 flex items-center gap-2">
+                            <i data-lucide="help-circle" class="w-4 h-4"></i>
+                            How it works:
+                        </p>
+                        <ol class="list-none mt-1 text-blue-700 space-y-2">
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                Enter the amount of stars you want to sell
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="mouse-pointer-click" class="w-4 h-4"></i>
+                                Click "Sell Now" to initiate the transaction
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                                Send the stars via Telegram payment
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                Once verified, USDT will be sent within 21 days
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
             <div class="transaction-history">
-    <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
-        <i data-lucide="history" class="w-5 h-5 text-indigo-600"></i>
-        Recent Transactions
-        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400"></i>
-    </h3>
-    <div id="transactionsList">
-        <div class="text-gray-500 text-center py-8 text-sm flex flex-col items-center gap-2">
-            <i data-lucide="inbox" class="w-8 h-8 text-gray-300"></i>
-            <span>No transactions yet</span>
-            <span class="text-xs text-gray-400">Your transactions will appear here</span>
+                <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="history" class="w-5 h-5 text-indigo-600"></i>
+                    Recent Transactions
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400"></i>
+                </h3>
+                <div id="transactionsList">
+                    <div class="text-gray-500 text-center py-8 text-sm flex flex-col items-center gap-2">
+                        <i data-lucide="inbox" class="w-8 h-8 text-gray-300"></i>
+                        <span>No transactions yet</span>
+                        <span class="text-xs text-gray-400">Your transactions will appear here</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-<!-- Modal Template for Star Payment -->
+
 <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
         <div class="text-center mb-4">
@@ -678,6 +680,7 @@
         </div>
     </div>
 </div>
+
 <div id="transactionDetailsOverlay" class="transaction-details-overlay">
     <div id="transactionDetailsPanel" class="transaction-details-panel">
         <div class="p-6">
@@ -716,14 +719,14 @@
             </div>
             
             <div id="transactionTimeline" class="mt-6">
-                <!-- Timeline steps will be inserted here -->
             </div>
         </div>
     </div>
 </div>
-   
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
- <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
