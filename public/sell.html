@@ -763,51 +763,82 @@
           }
         };
 
-// Initialize the app
+let currentLanguage = 'en';
+let currentWalletAddress = '';
+let rate = 0.01;
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Check for required DOM elements
     const skeletonLoading = document.getElementById('skeletonLoading');
     const appContent = document.getElementById('appContent');
     const noticeModal = document.getElementById('noticeModal');
     const continueButton = document.getElementById('continueButton');
+    const manualWalletAddress = document.getElementById('manualWalletAddress');
+    const sellStarsBtn = document.getElementById('sellStarsBtn');
+    const paymentModal = document.getElementById('paymentModal');
+    const cancelPaymentBtn = document.getElementById('cancelPaymentBtn');
+    const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
+    const menuOverlay = document.getElementById('menuOverlay');
+    const sideMenu = document.getElementById('sideMenu');
+    const starsInput = document.getElementById('starsInput');
+    const tonAmountDisplay = document.getElementById('tonAmountDisplay');
 
-    if (!skeletonLoading || !appContent || !noticeModal || !continueButton) {
-        console.error('Required DOM elements missing:', {
+    if (!skeletonLoading || !appContent || !noticeModal || !continueButton || !manualWalletAddress || !sellStarsBtn || !paymentModal || !cancelPaymentBtn || !confirmPaymentBtn || !menuOverlay || !sideMenu || !starsInput || !tonAmountDisplay) {
+        console.error('Required DOM elements missing', {
             skeletonLoading: !!skeletonLoading,
             appContent: !!appContent,
             noticeModal: !!noticeModal,
-            continueButton: !!continueButton
+            continueButton: !!continueButton,
+            manualWalletAddress: !!manualWalletAddress,
+            sellStarsBtn: !!sellStarsBtn,
+            paymentModal: !!paymentModal,
+            cancelPaymentBtn: !!cancelPaymentBtn,
+            confirmPaymentBtn: !!confirmPaymentBtn,
+            menuOverlay: !!menuOverlay,
+            sideMenu: !!sideMenu,
+            starsInput: !!starsInput,
+            tonAmountDisplay: !!tonAmountDisplay
         });
-        // Fallback: hide skeleton and show content to prevent infinite loading
         if (skeletonLoading) skeletonLoading.style.display = 'none';
         if (appContent) appContent.style.display = 'block';
         return;
     }
 
-    // Add continue button handler
+    if (!window.translations || !window.axios || !window.Swal) {
+        console.error('Required dependencies missing', {
+            translations: !!window.translations,
+            axios: !!window.axios,
+            Swal: !!window.Swal
+        });
+        if (skeletonLoading) skeletonLoading.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
+        return;
+    }
+
     continueButton.addEventListener('click', () => {
         localStorage.setItem('noticeAccepted', 'true');
         noticeModal.style.display = 'none';
         showAppContent();
     });
 
-    // Check for language in localStorage
-    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    try {
+        currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    } catch (error) {
+        console.error('Error accessing localStorage for language', error);
+    }
+
+    if (!translations[currentLanguage]) {
+        console.warn('Language not found, falling back to English');
+        currentLanguage = 'en';
+    }
+
     setupWalletAddressMemory();
     updateLanguageTexts();
     createTransactionDetailsPanel();
-    
-    // Show skeleton loading initially
     skeletonLoading.style.display = 'block';
     appContent.style.display = 'none';
-    
-    // Check notice status immediately
     checkNoticeStatus();
-    
-    // Set up refresh interval for transactions (every 10 seconds)
     setInterval(fetchTransactions, 10000);
-    
-    // Set up Telegram WebApp safely
+
     if (window.Telegram && window.Telegram.WebApp) {
         Telegram.WebApp.onEvent('viewportChanged', () => {
             Telegram.WebApp.expand();
@@ -816,19 +847,121 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.warn('Telegram WebApp SDK not available');
     }
+
+    manualWalletAddress.addEventListener('input', () => {
+        currentWalletAddress = manualWalletAddress.value.trim();
+    });
+
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            menuOverlay.classList.toggle('active');
+            sideMenu.classList.toggle('active');
+        });
+    });
+
+    sellStarsBtn.addEventListener('click', () => {
+        if (!manualWalletAddress.value.trim() || !isValidWalletAddress(manualWalletAddress.value.trim())) {
+            Swal.fire({
+                icon: 'error',
+                title: translations[currentLanguage].missingWalletAddress || 'Invalid Wallet Address',
+                text: currentLanguage === 'en' ? 'Please enter a valid wallet address (minimum 10 characters)' : 'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
+            });
+            return;
+        }
+        document.getElementById('modalStarsAmount').textContent = starsInput.value;
+        document.getElementById('modalTonAmount').textContent = calculateTonAmount();
+        paymentModal.classList.remove('hidden');
+        paymentModal.classList.add('flex');
+    });
+
+    cancelPaymentBtn.addEventListener('click', () => {
+        paymentModal.classList.add('hidden');
+        paymentModal.classList.remove('flex');
+    });
+
+    confirmPaymentBtn.addEventListener('click', async () => {
+        paymentModal.classList.add('hidden');
+        paymentModal.classList.remove('flex');
+        const stars = parseInt(starsInput.value);
+        const walletToUse = manualWalletAddress.value.trim();
+        try {
+            let telegramId = null;
+            let username = null;
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                telegramId = window.Telegram.WebApp.initDataUnsafe.user.id;
+                username = window.Telegram.WebApp.initDataUnsafe.user.username;
+            } else {
+                throw new Error('Telegram user data not available');
+            }
+            const response = await axios.post('/api/sell-orders', {
+                telegramId,
+                username,
+                stars,
+                walletAddress: walletToUse
+            });
+            if (response.data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: translations[currentLanguage].paymentInitiated || 'Payment Initiated',
+                    text: translations[currentLanguage].completePayment || 'Please complete the payment'
+                });
+                if (response.data.paymentLink && window.Telegram && window.Telegram.WebApp) {
+                    Telegram.WebApp.openInvoice(response.data.paymentLink, function(status) {
+                        if (status === 'paid') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: translations[currentLanguage].paymentSuccessful || 'Payment Successful',
+                                text: translations[currentLanguage].paymentProcessed || 'Your payment has been processed'
+                            });
+                            fetchTransactions();
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: translations[currentLanguage].paymentFailed || 'Payment Failed',
+                                text: translations[currentLanguage].paymentNotSuccessful || 'Payment was not successful'
+                            });
+                        }
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: translations[currentLanguage].paymentLinkMissing || 'Payment Link Missing',
+                        text: translations[currentLanguage].paymentLinkNotGenerated || 'Payment link could not be generated'
+                    });
+                }
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].orderFailed || 'Order Failed',
+                    text: translations[currentLanguage].orderError || 'Error processing order'
+                });
+            }
+        } catch (error) {
+            console.error('Error placing order:', error);
+            Swal.fire({
+                icon: 'error',
+                title: translations[currentLanguage].orderFailed || 'Order Failed',
+                text: translations[currentLanguage].orderError || 'Error processing order'
+            });
+        }
+    });
+
+    starsInput.min = "50";
+    starsInput.max = "80000";
+    starsInput.value = "50";
+    calculateTonAmount();
 });
 
-// Check if the user has accepted the notice
 function checkNoticeStatus() {
     const skeletonLoading = document.getElementById('skeletonLoading');
     const appContent = document.getElementById('appContent');
     const noticeModal = document.getElementById('noticeModal');
-
     if (!skeletonLoading || !appContent || !noticeModal) {
         console.error('Required DOM elements missing in checkNoticeStatus');
+        if (skeletonLoading) skeletonLoading.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
         return;
     }
-
     try {
         const noticeAccepted = localStorage.getItem('noticeAccepted');
         if (noticeAccepted === 'true') {
@@ -838,384 +971,196 @@ function checkNoticeStatus() {
         }
     } catch (error) {
         console.error('Error checking notice status:', error);
-        // Fallback: show app content to prevent infinite loading
         skeletonLoading.style.display = 'none';
         appContent.style.display = 'block';
     }
 }
 
-// Show the main app content
 function showAppContent() {
     const skeletonLoading = document.getElementById('skeletonLoading');
     const appContent = document.getElementById('appContent');
-
     if (!skeletonLoading || !appContent) {
         console.error('Required DOM elements missing in showAppContent');
+        if (skeletonLoading) skeletonLoading.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
         return;
     }
-
     skeletonLoading.style.display = 'none';
     appContent.style.display = 'block';
-    
-    // Fetch transactions asynchronously without blocking UI
     fetchTransactions().catch(error => {
         console.error('Failed to fetch transactions in showAppContent:', error);
-        // Ensure UI remains visible even if fetch fails
         skeletonLoading.style.display = 'none';
         appContent.style.display = 'block';
     });
 }
 
-// Function to update all texts based on current language
 function updateLanguageTexts() {
-    const texts = translations[currentLanguage];
-    
-    // Update menu items
+    const texts = translations[currentLanguage] || translations.en || {};
     const menuTitle = document.querySelector('#sideMenu .text-xl');
-    if (menuTitle) menuTitle.textContent = texts.menuTitle;
-    
+    if (menuTitle) menuTitle.textContent = texts.menuTitle || 'Menu';
     const menuItems = document.querySelectorAll('#sideMenu .menu-item');
     if (menuItems.length >= 5) {
-        menuItems[0].querySelector('span:last-child')?.textContent = texts.home;
-        menuItems[1].querySelector('span:last-child')?.textContent = texts.sell;
-        menuItems[2].querySelector('span:last-child')?.textContent = texts.history;
-        menuItems[3].querySelector('span:last-child')?.textContent = texts.referral;
-        menuItems[4].querySelector('span:last-child')?.textContent = texts.about;
+        menuItems[0].querySelector('span:last-child')?.textContent = texts.home || 'Home';
+        menuItems[1].querySelector('span:last-child')?.textContent = texts.sell || 'Sell';
+        menuItems[2].querySelector('span:last-child')?.textContent = texts.history || 'History';
+        menuItems[3].querySelector('span:last-child')?.textContent = texts.referral || 'Referral';
+        menuItems[4].querySelector('span:last-child')?.textContent = texts.about || 'About';
     }
-    
-    // Update wallet section
     const walletInfo = document.querySelector('#appContent .wallet-status p');
-    if (walletInfo) walletInfo.textContent = texts.paymentInfo;
-    
-    // Update edit button text if it exists
+    if (walletInfo) walletInfo.textContent = texts.paymentInfo || 'Payment Info';
     const editButton = document.getElementById('editWalletBtn');
-    if (editButton) {
-        editButton.textContent = texts.editAddress;
-    }
-    
-    // Update sell stars section
+    if (editButton) editButton.textContent = texts.editAddress || 'Edit Address';
     const sellStarsTitle = document.querySelector('#appContent h2.text-xl');
-    if (sellStarsTitle) sellStarsTitle.textContent = texts.sellStars;
-    
+    if (sellStarsTitle) sellStarsTitle.textContent = texts.sellStars || 'Sell Stars';
     const rateLabel = document.querySelector('#appContent .rate-info .text-sm');
-    if (rateLabel) rateLabel.textContent = texts.currentRate;
-    
+    if (rateLabel) rateLabel.textContent = texts.currentRate || 'Current Rate';
     const amountLabel = document.querySelector('#appContent .sell-option label.block.text-sm');
-    if (amountLabel) amountLabel.textContent = texts.amountToSell;
-    
+    if (amountLabel) amountLabel.textContent = texts.amountToSell || 'Amount to Sell';
     const receiveLabel = document.querySelectorAll('#appContent .sell-option label.block.text-sm')[1];
-    if (receiveLabel) receiveLabel.textContent = texts.youWillReceive;
-    
-    if (sellStarsBtn) sellStarsBtn.textContent = texts.sellNow;
-    
-    // Update how it works section
+    if (receiveLabel) receiveLabel.textContent = texts.youWillReceive || 'You Will Receive';
+    const sellStarsBtn = document.getElementById('sellStarsBtn');
+    if (sellStarsBtn) sellStarsBtn.textContent = texts.sellNow || 'Sell Now';
     const howItWorks = document.querySelector('#appContent .font-medium.text-blue-800');
-    if (howItWorks) howItWorks.textContent = texts.howItWorks;
-    
+    if (howItWorks) howItWorks.textContent = texts.howItWorks || 'How It Works';
     const steps = document.querySelectorAll('#appContent .list-decimal li');
     if (steps.length >= 4) {
-        steps[0].textContent = texts.step1;
-        steps[1].textContent = texts.step2;
-        steps[2].textContent = texts.step3;
-        steps[3].textContent = texts.step4;
+        steps[0].textContent = texts.step1 || 'Step 1';
+        steps[1].textContent = texts.step2 || 'Step 2';
+        steps[2].textContent = texts.step3 || 'Step 3';
+        steps[3].textContent = texts.step4 || 'Step 4';
     }
-    
-    // Update transactions section
     const transactionsTitle = document.querySelector('#appContent .transaction-history h3');
-    if (transactionsTitle) transactionsTitle.textContent = texts.recentTransactions;
-    
-    // Check if no transactions message exists and update it
+    if (transactionsTitle) transactionsTitle.textContent = texts.recentTransactions || 'Recent Transactions';
     const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
-    if (noTransactionsEl) {
-        noTransactionsEl.textContent = texts.noTransactions;
-    }
+    if (noTransactionsEl) noTransactionsEl.textContent = texts.noTransactions || 'No transactions yet';
 }
 
-// Listen for language changes from index page
-window.addEventListener('storage', function(e) {
+window.addEventListener('storage', e => {
     if (e.key === 'appLanguage') {
         currentLanguage = e.newValue || 'en';
+        if (!translations[currentLanguage]) {
+            console.warn('Language not found, falling back to English');
+            currentLanguage = 'en';
+        }
         updateLanguageTexts();
     }
 });
 
-// Function to update all texts based on current language
-function updateLanguageTexts() {
-  const texts = translations[currentLanguage];
-  
-  // Update menu items
-  document.querySelector('.side-menu .text-xl').textContent = texts.menuTitle;
-  const menuItems = document.querySelectorAll('.menu-item');
-  menuItems[0].childNodes[2].textContent = texts.home;
-  menuItems[1].childNodes[2].textContent = texts.sell;
-  menuItems[2].childNodes[2].textContent = texts.history;
-  menuItems[3].childNodes[2].textContent = texts.referral;
-  menuItems[4].childNodes[2].textContent = texts.about;
-  
-  // Update wallet section
-  document.querySelector('.wallet-status p').textContent = texts.paymentInfo;
-  
-  // Update edit button text if it exists
-  const editButton = document.getElementById('editWalletBtn');
-  if (editButton) {
-    editButton.textContent = texts.editAddress;
-  }
-  
-  // Update sell stars section
-  document.querySelector('h2.text-xl').textContent = texts.sellStars;
-  document.querySelector('.rate-info .text-sm').textContent = texts.currentRate;
-  document.querySelector('label.block.text-sm').textContent = texts.amountToSell;
-  document.querySelectorAll('label.block.text-sm')[1].textContent = texts.youWillReceive;
-  sellStarsBtn.textContent = texts.sellNow;
-  
-  // Update how it works section
-  document.querySelector('.font-medium.text-blue-800').textContent = texts.howItWorks;
-  const steps = document.querySelectorAll('.list-decimal li');
-  steps[0].textContent = texts.step1;
-  steps[1].textContent = texts.step2;
-  steps[2].textContent = texts.step3;
-  steps[3].textContent = texts.step4;
-  
-  // Update transactions section
-  document.querySelector('.transaction-history h3').textContent = texts.recentTransactions;
-  
-  // Check if no transactions message exists and update it
-  const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
-  if (noTransactionsEl) {
-    noTransactionsEl.textContent = texts.noTransactions;
-  }
-}
-
-// Wallet address persistence
 function setupWalletAddressMemory() {
-  // Create edit button for manual wallet address
-  const manualWalletContainer = document.getElementById('manualWalletInput');
-  const editContainer = document.createElement('div');
-  editContainer.className = 'flex items-center justify-between mt-2';
-  
-  const editButton = document.createElement('button');
-  editButton.id = 'editWalletBtn';
-  editButton.className = 'text-sm text-indigo-600 font-medium';
-  editButton.textContent = translations[currentLanguage].editAddress;
-  editButton.style.display = 'none';
-  
-  // Save button
-  const saveButton = document.createElement('button');
-  saveButton.id = 'saveWalletBtn';
-  saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
-  saveButton.textContent = translations[currentLanguage].saveAddress;
-  
-  editContainer.appendChild(editButton);
-  editContainer.appendChild(saveButton);
-  manualWalletContainer.appendChild(editContainer);
-  
-  // Load saved address if it exists
-  const savedAddress = localStorage.getItem('userWalletAddress');
-  if (savedAddress) {
-    manualWalletAddress.value = savedAddress;
-    currentWalletAddress = savedAddress;
-    editButton.style.display = 'block';
-    manualWalletAddress.disabled = true;
-  }
-  
-  // Save button handler
-  saveButton.addEventListener('click', () => {
-    const address = manualWalletAddress.value.trim();
-    if (!isValidWalletAddress(address)) {
-        Swal.fire({
-            icon: 'error',
-            title: translations[currentLanguage].missingWalletAddress,
-            text: currentLanguage === 'en' ? 
-                'Please enter a valid wallet address (minimum 10 characters)' : 
-                'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
-        });
+    const manualWalletContainer = document.getElementById('manualWalletInput');
+    const manualWalletAddress = document.getElementById('manualWalletAddress');
+    if (!manualWalletContainer || !manualWalletAddress) {
+        console.error('Required DOM elements missing in setupWalletAddressMemory');
         return;
     }
-    
-    if (address) {
-        localStorage.setItem('userWalletAddress', address);
-        currentWalletAddress = address;
-        manualWalletAddress.disabled = true;
-        editButton.style.display = 'block';
-        Swal.fire({
-            icon: 'success',
-            title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
-            text: currentLanguage === 'en' ? 
-                'Your wallet address has been saved for future use.' : 
-                'Ваш адрес кошелька был сохранен для будущего использования.',
-            timer: 2000,
-            showConfirmButton: false
-        });
+    const editContainer = document.createElement('div');
+    editContainer.className = 'flex items-center justify-between mt-2';
+    const editButton = document.createElement('button');
+    editButton.id = 'editWalletBtn';
+    editButton.className = 'text-sm text-indigo-600 font-medium';
+    editButton.textContent = translations[currentLanguage]?.editAddress || 'Edit Address';
+    editButton.style.display = 'none';
+    const saveButton = document.createElement('button');
+    saveButton.id = 'saveWalletBtn';
+    saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
+    saveButton.textContent = translations[currentLanguage]?.saveAddress || 'Save Address';
+    editContainer.appendChild(editButton);
+    editContainer.appendChild(saveButton);
+    manualWalletContainer.appendChild(editContainer);
+    try {
+        const savedAddress = localStorage.getItem('userWalletAddress');
+        if (savedAddress) {
+            manualWalletAddress.value = savedAddress;
+            currentWalletAddress = savedAddress;
+            editButton.style.display = 'block';
+            manualWalletAddress.disabled = true;
+        }
+    } catch (error) {
+        console.error('Error accessing localStorage for wallet address', error);
     }
-});
-  
-  // Edit button handler
-  editButton.addEventListener('click', () => {
-    manualWalletAddress.disabled = false;
-    manualWalletAddress.focus();
-  });
-}
-
-// Update wallet address when manual input changes
-manualWalletAddress.addEventListener('input', () => {
-    currentWalletAddress = manualWalletAddress.value.trim();
-});
-
-// Side menu toggle
-const menuOverlay = document.getElementById('menuOverlay');
-const sideMenu = document.getElementById('sideMenu');
-
-function toggleMenu() {
-    menuOverlay.classList.toggle('active');
-    sideMenu.classList.toggle('active');
-}
-
-document.querySelectorAll('.menu-item').forEach(item => {
-    item.addEventListener('click', () => {
-        toggleMenu();
+    saveButton.addEventListener('click', () => {
+        const address = manualWalletAddress.value.trim();
+        if (!isValidWalletAddress(address)) {
+            Swal.fire({
+                icon: 'error',
+                title: translations[currentLanguage]?.missingWalletAddress || 'Invalid Wallet Address',
+                text: currentLanguage === 'en' ? 'Please enter a valid wallet address (minimum 10 characters)' : 'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
+            });
+            return;
+        }
+        try {
+            localStorage.setItem('userWalletAddress', address);
+            currentWalletAddress = address;
+            manualWalletAddress.disabled = true;
+            editButton.style.display = 'block';
+            Swal.fire({
+                icon: 'success',
+                title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
+                text: currentLanguage === 'en' ? 'Your wallet address has been saved for future use.' : 'Ваш адрес кошелька был сохранен для будущего использования.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error('Error saving wallet address', error);
+            Swal.fire({
+                icon: 'error',
+                title: currentLanguage === 'en' ? 'Error' : 'Ошибка',
+                text: currentLanguage === 'en' ? 'Failed to save wallet address.' : 'Не удалось сохранить адрес кошелька.'
+            });
+        }
     });
-});
+    editButton.addEventListener('click', () => {
+        manualWalletAddress.disabled = false;
+        manualWalletAddress.focus();
+    });
+}
 
-      //wallet validation
 function isValidWalletAddress(address) {
     return address && address.length >= 10 && /^[a-zA-Z0-9].*$/.test(address);
 }
-      
-// Stars amount handling
+
 function incrementStars() {
-    const currentValue = parseInt(starsInput.value) || 0;
-    starsInput.value = Math.min(currentValue + 5, 80000);
-    calculateTonAmount();
+    const starsInput = document.getElementById('starsInput');
+    if (!starsInput) return;
+    const currentValue = parseInt(starsInput.value) || 0;
+    starsInput.value = Math.min(currentValue + 5, 80000);
+    calculateTonAmount();
 }
 
 function decrementStars() {
-    const currentValue = parseInt(starsInput.value) || 0;
-    starsInput.value = Math.max(currentValue - 5, 50);
-    calculateTonAmount();
+    const starsInput = document.getElementById('starsInput');
+    if (!starsInput) return;
+    const currentValue = parseInt(starsInput.value) || 0;
+    starsInput.value = Math.max(currentValue - 5, 50);
+    calculateTonAmount();
 }
 
 function calculateTonAmount() {
-    // Ensure value stays within bounds
-    let stars = parseInt(starsInput.value) || 0;
-    if (stars < 50) {
-        stars = 50;
-        starsInput.value = 50;
-    } else if (stars > 80000) {
-        stars = 80000;
-        starsInput.value = 80000;
-    }
-    
-    const tonAmount = (stars * rate).toFixed(3);
-    tonAmountDisplay.textContent = `${tonAmount} USDT`;
-    return tonAmount;
+    const starsInput = document.getElementById('starsInput');
+    const tonAmountDisplay = document.getElementById('tonAmountDisplay');
+    if (!starsInput || !tonAmountDisplay) return '0.000';
+    let stars = parseInt(starsInput.value) || 0;
+    if (stars < 50) {
+        stars = 50;
+        starsInput.value = 50;
+    } else if (stars > 80000) {
+        stars = 80000;
+        starsInput.value = 80000;
+    }
+    const tonAmount = (stars * rate).toFixed(3);
+    tonAmountDisplay.textContent = `${tonAmount} USDT`;
+    return tonAmount;
 }
 
-// Update the input field attributes to reflect new limits
-starsInput.min = "50";
-starsInput.max = "80000";
-starsInput.value = "50"; 
-
-calculateTonAmount();
-
-     
-// Payment modal handling
-sellStarsBtn.addEventListener('click', () => {
-    if (!manualWalletAddress.value.trim() || !isValidWalletAddress(manualWalletAddress.value.trim())) {
-        Swal.fire({
-            icon: 'error',
-            title: translations[currentLanguage].missingWalletAddress,
-            text: currentLanguage === 'en' ? 
-                'Please enter a valid wallet address (minimum 10 characters)' : 
-                'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
-        });
-        return;
-    }
-
-    document.getElementById('modalStarsAmount').textContent = starsInput.value;
-    document.getElementById('modalTonAmount').textContent = calculateTonAmount();
-    paymentModal.classList.remove('hidden');
-    paymentModal.classList.add('flex');
-});
-
-cancelPaymentBtn.addEventListener('click', () => {
-    paymentModal.classList.add('hidden');
-    paymentModal.classList.remove('flex');
-});
-
-confirmPaymentBtn.addEventListener('click', async () => {
-    paymentModal.classList.add('hidden');
-    paymentModal.classList.remove('flex');
-
-    const stars = parseInt(starsInput.value);
-    const walletToUse = manualWalletAddress.value.trim();
-
-    try {
-        const response = await axios.post('/api/sell-orders', {
-            telegramId: Telegram.WebApp.initDataUnsafe.user.id,
-            username: Telegram.WebApp.initDataUnsafe.user.username,
-            stars: stars,
-            walletAddress: walletToUse
-        });
-
-        if (response.data.success) {
-            Swal.fire({
-                icon: 'success',
-                title: translations[currentLanguage].paymentInitiated,
-                text: translations[currentLanguage].completePayment
-            });
-
-            if (response.data.paymentLink) {
-                Telegram.WebApp.openInvoice(response.data.paymentLink, function(status) {
-                    if (status === 'paid') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: translations[currentLanguage].paymentSuccessful,
-                            text: translations[currentLanguage].paymentProcessed
-                        });
-                        fetchTransactions();
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: translations[currentLanguage].paymentFailed,
-                            text: translations[currentLanguage].paymentNotSuccessful
-                        });
-                    }
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: translations[currentLanguage].paymentLinkMissing,
-                    text: translations[currentLanguage].paymentLinkNotGenerated
-                });
-            }
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: translations[currentLanguage].orderFailed,
-                text: translations[currentLanguage].orderError
-            });
-        }
-    } catch (error) {
-        console.error('Error placing order:', error);
-        Swal.fire({
-            icon: 'error',
-            title: translations[currentLanguage].orderFailed,
-            text: translations[currentLanguage].orderError
-        });
-    }
-});
-
-// Create Transaction Details Panel
 function createTransactionDetailsPanel() {
     const panel = document.createElement('div');
     panel.id = 'transactionDetailsOverlay';
     panel.className = 'transaction-details-overlay';
-    
     panel.innerHTML = `
         <div id="transactionDetailsPanel" class="transaction-details-panel">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold">${translations[currentLanguage].transactionDetails}</h3>
+                    <h3 class="text-xl font-bold">${translations[currentLanguage]?.transactionDetails || 'Transaction Details'}</h3>
                     <button class="close-details" id="closeTransactionDetails">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1225,71 +1170,65 @@ function createTransactionDetailsPanel() {
                 <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        <div class="text-sm text-gray-600">${translations[currentLanguage].amount}</div>
+                        <div class="text-sm text-gray-600">${translations[currentLanguage]?.amount || 'Amount'}</div>
                         <div id="transactionAmount" class="font-bold text-xl"></div>
                     </div>
                     <div class="text-right">
-                        <div class="text-sm text-gray-600">${translations[currentLanguage].toBeReceived}</div>
+                        <div class="text-sm text-gray-600">${translations[currentLanguage]?.toBeReceived || 'To Be Received'}</div>
                         <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
                     </div>
                 </div>
-                
                 <div class="mb-4">
-                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].currentStatus}</div>
+                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage]?.currentStatus || 'Current Status'}</div>
                     <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
                 </div>
-                
                 <div class="mb-4">
-                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage].estimatedCompletion}</div>
+                    <div class="text-sm text-gray-600 mb-1">${translations[currentLanguage]?.estimatedCompletion || 'Estimated Completion'}</div>
                     <div id="transactionEstimatedCompletion" class="font-medium"></div>
                 </div>
-                
                 <div class="progress-container">
                     <div id="progressBar" class="progress-bar" style="width: 0%"></div>
                 </div>
-                
-                <div id="transactionTimeline" class="mt-6">
-                    <!-- Timeline steps will be inserted here -->
-                </div>
+                <div id="transactionTimeline" class="mt-6"></div>
             </div>
         </div>
+        <style>
+            .transaction-details-content { opacity: 0; transform: translateY(20px); transition: opacity 0.3s ease, transform 0.3s ease; }
+            .transaction-details-content.active { opacity: 1; transform: translateY(0); }
+            .transaction-step { opacity: 0; transform: translateX(-10px); transition: opacity 0.2s ease, transform 0.2s ease; }
+            .transaction-step.active { opacity: 1; transform: translateX(0); }
+            .progress-bar { transition: width 0.5s ease; }
+        </style>
     `;
-    
-    document.body.appendChild(panel);
-    
-    document.getElementById('closeTransactionDetails').addEventListener('click', closeTransactionDetails);
-    document.getElementById('transactionDetailsOverlay').addEventListener('click', (e) => {
-        if (e.target === document.getElementById('transactionDetailsOverlay')) {
-            closeTransactionDetails();
-        }
-    });
+    if (document.body) document.body.appendChild(panel);
+    const closeButton = document.getElementById('closeTransactionDetails');
+    const overlay = document.getElementById('transactionDetailsOverlay');
+    if (closeButton && overlay) {
+        closeButton.addEventListener('click', closeTransactionDetails);
+        overlay.addEventListener('click', e => {
+            if (e.target === overlay) closeTransactionDetails();
+        });
+    }
 }
 
-// Helper function to format dates with leading zeros
 function formatDateWithLeadingZeros(date) {
     if (!date) return 'N/A';
-    
     const d = new Date(date);
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
-    
     return `${day}/${month}/${year}`;
 }
 
-// Show loading state
 function showTransactionDetailsLoading() {
     const overlay = document.getElementById('transactionDetailsOverlay');
     const panel = document.getElementById('transactionDetailsPanel');
-    
-    // Show overlay immediately
+    if (!overlay || !panel) return;
     overlay.style.display = 'block';
-    
-    // Add loading content to panel
     panel.innerHTML = `
         <div class="loading-container" style="display: flex; justify-content: center; align-items: center; height: 400px; flex-direction: column;">
             <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid #f3f4f6; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;"></div>
-            <div style="color: #6b7280; font-size: 14px;">Loading transaction details...</div>
+            <div style="color: #6b7280; font-size: 14px;">${translations[currentLanguage]?.loading || 'Loading transaction details...'}</div>
         </div>
         <style>
             @keyframes spin {
@@ -1298,43 +1237,28 @@ function showTransactionDetailsLoading() {
             }
         </style>
     `;
-    
-    // Start smooth opening animation
-    setTimeout(() => {
-        panel.classList.add('active');
-    }, 50);
+    panel.classList.add('active');
 }
 
-// Open transaction details
 function openTransactionDetails(transaction) {
-    // Show loading state first
+    if (!transaction) return;
     showTransactionDetailsLoading();
-    
-    // Immediately populate details (no simulation delay)
     populateTransactionDetails(transaction);
 }
 
-// Populate transaction details
 function populateTransactionDetails(transaction) {
     const overlay = document.getElementById('transactionDetailsOverlay');
     const panel = document.getElementById('transactionDetailsPanel');
-    
-    // Calculate estimated completion date (21 days from creation)
+    if (!overlay || !panel) return;
     const creationDate = new Date(transaction.dateCreated);
     const completionDate = new Date(creationDate);
     completionDate.setDate(creationDate.getDate() + 21);
-
-    // For completed transactions, show estimated date instead of N/A if no actual completion date
-    const displayDate = transaction.completedAt ? 
-        formatDateWithLeadingZeros(transaction.completedAt) : 
-        formatDateWithLeadingZeros(completionDate);
-    
-    // Build the main content with improved mobile layout
+    const displayDate = transaction.completedAt ? formatDateWithLeadingZeros(transaction.completedAt) : formatDateWithLeadingZeros(completionDate);
     panel.innerHTML = `
-        <div class="transaction-details-content" style="opacity: 0; transform: translateY(20px); transition: all 0.3s ease; padding: 16px;">
+        <div class="transaction-details-content">
             <div class="flex justify-between items-start mb-4">
                 <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                    <div class="text-sm text-gray-500 mb-1">${translations[currentLanguage].transactionID}</div>
+                    <div class="text-sm text-gray-500 mb-1">${translations[currentLanguage]?.transactionID || 'Transaction ID'}</div>
                     <div class="font-mono text-sm text-gray-700 mb-2 truncate">${transaction.id || 'N/A'}</div>
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-xl font-bold">${transaction.stars} Stars</span>
@@ -1348,327 +1272,167 @@ function populateTransactionDetails(transaction) {
                     </svg>
                 </button>
             </div>
-            
             <div class="mb-4">
                 <div class="flex justify-between items-center mb-1 text-xs">
-                    <span class="text-gray-600">Progress</span>
-                    <span class="text-gray-600">Est. completion: <span id="transactionEstimatedCompletion">${displayDate}</span></span>
+                    <span class="text-gray-600">${translations[currentLanguage]?.progress || 'Progress'}</span>
+                    <span class="text-gray-600">${translations[currentLanguage]?.estimatedCompletion || 'Est. completion'}: <span id="transactionEstimatedCompletion">${displayDate}</span></span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-1.5">
-                    <div id="progressBar" class="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    <div id="progressBar" class="bg-blue-600 h-1.5 rounded-full" style="width: 0%"></div>
                 </div>
             </div>
-            
             <div class="mt-6">
-                <h4 class="font-medium mb-3 text-sm">${translations[currentLanguage].transactionTimeline}</h4>
+                <h4 class="font-medium mb-3 text-sm">${translations[currentLanguage]?.transactionTimeline || 'Transaction Timeline'}</h4>
                 <div id="transactionTimeline" class="space-y-3"></div>
             </div>
         </div>
     `;
-    
-    // Set status badge
     const statusBadge = document.getElementById('transactionStatusBadge');
-    statusBadge.textContent = transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1);
-    statusBadge.className = 'inline-block px-2 py-0.5 rounded-full text-xs font-medium';
-    
-    if (transaction.status === 'pending') {
-        statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
-    } else if (transaction.status === 'completed') {
-        statusBadge.classList.add('bg-green-100', 'text-green-800');
-    } else if (transaction.status === 'processing') {
-        statusBadge.classList.add('bg-blue-100', 'text-blue-800');
-    } else {
-        statusBadge.classList.add('bg-red-100', 'text-red-800');
+    if (statusBadge) {
+        statusBadge.textContent = transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1);
+        statusBadge.className = 'inline-block px-2 py-0.5 rounded-full text-xs font-medium';
+        if (transaction.status === 'pending') {
+            statusBadge.classList.add('bg-yellow-100', 'text-yellow-800');
+        } else if (transaction.status === 'completed') {
+            statusBadge.classList.add('bg-green-100', 'text-green-800');
+        } else if (transaction.status === 'processing') {
+            statusBadge.classList.add('bg-blue-100', 'text-blue-800');
+        } else {
+            statusBadge.classList.add('bg-red-100', 'text-red-800');
+        }
     }
-          
-    // Calculate progress percentage
     const now = new Date();
     let progressPercentage = 0;
-    
     if (transaction.status === 'completed') {
         progressPercentage = 100;
     } else if (transaction.status === 'declined') {
         progressPercentage = 0;
     } else if (transaction.status === 'processing') {
-        // Only start counting progress when status is processing
         const daysPassed = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
         progressPercentage = Math.min(Math.round((daysPassed / 21) * 100), 99);
     }
-    
-    // Build timeline
     const timeline = document.getElementById('transactionTimeline');
-    timeline.innerHTML = '';
-    
-    // Define payment and completion status
-    let paymentStatus = 'pending';
-    let completionStatus = 'pending';
-    
-    if (transaction.status === 'processing' || transaction.status === 'completed') {
-        paymentStatus = 'completed';
-    }
-    if (transaction.status === 'completed') {
-        completionStatus = 'completed';
-    }
-    
-    // Define processing status for step 3
-    let processingStatus = 'pending';
-    if (transaction.status === 'processing' || transaction.status === 'completed') {
-        processingStatus = 'active';
-    }
-    if (transaction.status === 'completed') {
-        processingStatus = 'completed';
-    }
-    
-    // Step 1: Order Created
-    addTimelineStep(timeline, 1, translations[currentLanguage].orderCreated, translations[currentLanguage].orderCreatedDesc, 
-        formatDateWithLeadingZeros(transaction.dateCreated), 'completed');
-
-    // Step 2: Payment Verification
-    addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
-        transaction.status === 'pending' ? formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 1)) : 
-        (transaction.datePaid ? formatDateWithLeadingZeros(transaction.datePaid) : ''),
-        paymentStatus);
-
-    // Step 3: Processing Payment
-    addTimelineStep(timeline, 3, translations[currentLanguage].processing, 
-        translations[currentLanguage].processingDesc, 
-        '', 
-        processingStatus);
-
-    // Step 4: Payment Sent
-    addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
-        transaction.status === 'completed' ? 
-        (transaction.completedAt ? formatDateWithLeadingZeros(transaction.completedAt) : formatDateWithLeadingZeros(completionDate)) : 
-        formatDateWithLeadingZeros(completionDate), 
-        completionStatus);
-    
-    // Animate content in
-    setTimeout(() => {
-        const content = document.querySelector('.transaction-details-content');
-        if (content) {
-            content.style.opacity = '1';
-            content.style.transform = 'translateY(0)';
+    if (timeline) {
+        timeline.innerHTML = '';
+        let paymentStatus = 'pending';
+        let completionStatus = 'pending';
+        let processingStatus = 'pending';
+        if (transaction.status === 'processing' || transaction.status === 'completed') {
+            paymentStatus = 'completed';
+            processingStatus = 'active';
         }
-        
-        // Animate progress bar
-        setTimeout(() => {
-            document.getElementById('progressBar').style.width = `${progressPercentage}%`;
-        }, 200);
-        
-        // Animate timeline steps
-        const steps = timeline.querySelectorAll('.transaction-step');
+        if (transaction.status === 'completed') {
+            completionStatus = 'completed';
+            processingStatus = 'completed';
+        }
+        addTimelineStep(timeline, 1, translations[currentLanguage]?.orderCreated || 'Order Created', translations[currentLanguage]?.orderCreatedDesc || 'Order created', formatDateWithLeadingZeros(transaction.dateCreated), 'completed');
+        addTimelineStep(timeline, 2, translations[currentLanguage]?.paymentVerification || 'Payment Verification', translations[currentLanguage]?.paymentVerificationDesc || 'Verifying payment', transaction.status === 'pending' ? formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 1)) : (transaction.datePaid ? formatDateWithLeadingZeros(transaction.datePaid) : ''), paymentStatus);
+        addTimelineStep(timeline, 3, translations[currentLanguage]?.processing || 'Processing', translations[currentLanguage]?.processingDesc || 'Processing payment', '', processingStatus);
+        addTimelineStep(timeline, 4, translations[currentLanguage]?.paymentSent || 'Payment Sent', translations[currentLanguage]?.paymentSentDesc || 'Payment sent to wallet', transaction.status === 'completed' ? (transaction.completedAt ? formatDateWithLeadingZeros(transaction.completedAt) : formatDateWithLeadingZeros(completionDate)) : formatDateWithLeadingZeros(completionDate), completionStatus);
+    }
+    requestAnimationFrame(() => {
+        const content = panel.querySelector('.transaction-details-content');
+        if (content) content.classList.add('active');
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) progressBar.style.width = `${progressPercentage}%`;
+        const steps = timeline?.querySelectorAll('.transaction-step') || [];
         steps.forEach((step, index) => {
-            setTimeout(() => {
-                step.style.opacity = '1';
-                step.style.transform = 'translateX(0)';
-            }, 100 * index);
+            setTimeout(() => step.classList.add('active'), index * 100);
         });
-    }, 100);
+    });
 }
 
-// Close transaction details
 function closeTransactionDetails() {
     const panel = document.getElementById('transactionDetailsPanel');
     const overlay = document.getElementById('transactionDetailsOverlay');
-    
-    // Animate content out
+    if (!panel || !overlay) return;
     const content = panel.querySelector('.transaction-details-content');
     if (content) {
         content.style.opacity = '0';
         content.style.transform = 'translateY(-20px)';
     }
-    
     panel.classList.remove('active');
-    setTimeout(() => {
-        overlay.style.display = 'none';
-    }, 300);
+    setTimeout(() => overlay.style.display = 'none', 300);
 }
 
-// Helper function to add timeline step
 function addTimelineStep(container, number, title, description, date, status) {
+    if (!container) return;
     const step = document.createElement('div');
     step.className = 'transaction-step';
-    step.style.opacity = '0';
-    step.style.transform = 'translateX(-10px)';
-    step.style.transition = 'all 0.2s ease';
     step.style.paddingLeft = '8px';
     step.style.marginBottom = '12px';
-    
-    // Determine step status class
-    let statusClass = '';
-    if (status === 'completed') {
-        statusClass = 'completed';
-    } else if (status === 'active') {
-        statusClass = 'active';
-    }
-    
+    let statusClass = status === 'completed' ? 'completed' : status === 'active' ? 'active' : '';
     step.innerHTML = `
         <div class="flex items-start gap-3">
-            <div class="step-number ${statusClass}" style="
-                width: 20px;
-                height: 20px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 10px;
-                font-weight: bold;
-                flex-shrink: 0;
-                margin-top: 2px;
-                ${statusClass === 'completed' ? 'background: #10b981; color: white;' : 
-                 statusClass === 'active' ? 'background: #3b82f6; color: white;' : 
-                 'background: #e5e7eb; color: #6b7280;'}
-            ">
-                ${status === 'completed' ? 
-                    '✓' : 
-                    number}
+            <div class="step-number ${statusClass}" style="width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; flex-shrink: 0; margin-top: 2px; ${statusClass === 'completed' ? 'background: #10b981; color: white;' : statusClass === 'active' ? 'background: #3b82f6; color: white;' : 'background: #e5e7eb; color: #6b7280;'}">
+                ${status === 'completed' ? '✓' : number}
             </div>
             <div style="flex: 1; min-width: 0;">
-                <div class="font-medium text-sm" style="
-                    ${statusClass === 'completed' ? 'color: #10b981;' : 
-                     statusClass === 'active' ? 'color: #3b82f6;' : 
-                     'color: #6b7280;'}
-                ">${title}</div>
+                <div class="font-medium text-sm" style="${statusClass === 'completed' ? 'color: #10b981;' : statusClass === 'active' ? 'color: #3b82f6;' : 'color: #6b7280;'}">${title}</div>
                 <div class="text-xs text-gray-500 mt-0.5">${description}</div>
                 ${date ? `<div class="text-xs text-gray-400 mt-1">${date}</div>` : ''}
             </div>
         </div>
-        ${number < 4 ? `<div class="step-line ${statusClass}" style="
-            position: absolute;
-            left: 29px;
-            top: 22px;
-            bottom: -12px;
-            width: 2px;
-            ${statusClass === 'completed' ? 'background: #10b981;' : 
-             statusClass === 'active' ? 'background: #3b82f6;' : 
-             'background: #e5e7eb;'}
-        "></div>` : ''}
+        ${number < 4 ? `<div class="step-line ${statusClass}" style="position: absolute; left: 29px; top: 22px; bottom: -12px; width: 2px; ${statusClass === 'completed' ? 'background: #10b981;' : statusClass === 'active' ? 'background: #3b82f6;' : 'background: #e5e7eb;'}"></div>` : ''}
     `;
-    
     container.appendChild(step);
 }
 
-// Helper function to calculate step dates
 function calculateStepDate(startDateStr, daysToAdd) {
     const date = new Date(startDateStr);
     date.setDate(date.getDate() + daysToAdd);
     return date;
 }
 
-// Fetch and display transactions
-const fetchTransactions = async () => {
+async function fetchTransactions() {
     const transactionsList = document.getElementById('transactionsList');
     if (!transactionsList) {
         console.error('Transaction list element not found');
         return;
     }
-
     try {
-        transactionsList.innerHTML = `
-            <div class="text-gray-500 text-center py-4 text-sm">
-                ${translations[currentLanguage].loading || 'Loading...'}
-            </div>
-        `;
-
+        transactionsList.innerHTML = `<div class="text-gray-500 text-center py-4 text-sm">${translations[currentLanguage]?.loading || 'Loading...'}</div>`;
         let telegramId = null;
         if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
             telegramId = window.Telegram.WebApp.initDataUnsafe.user.id;
         }
-
         if (!telegramId) {
             console.warn('Telegram user ID not available, skipping transaction fetch');
-            transactionsList.innerHTML = `
-                <div class="text-gray-500 text-center py-4 text-sm">
-                    ${translations[currentLanguage].noTransactions || 'No transactions yet'}
-                </div>
-            `;
+            transactionsList.innerHTML = `<div class="text-gray-500 text-center py-4 text-sm">${translations[currentLanguage]?.noTransactions || 'No transactions yet'}</div>`;
             return;
         }
-
-        const response = await axios.get('/api/sell-orders', {
-            params: { telegramId }
-        });
-
+        const response = await axios.get('/api/sell-orders', { params: { telegramId } });
         transactionsList.innerHTML = '';
-
         if (response.data && response.data.length > 0) {
             response.data.forEach(transaction => {
                 const transactionItem = document.createElement('div');
                 transactionItem.className = 'transaction-item cursor-pointer hover:bg-gray-50';
                 transactionItem.onclick = () => openTransactionDetails(transaction);
-
                 const transactionInfo = document.createElement('div');
                 transactionInfo.className = 'transaction-info';
-
                 const starsAmount = document.createElement('div');
                 starsAmount.className = 'font-bold';
                 starsAmount.textContent = `${transaction.stars} Stars`;
-
                 const dateCreated = document.createElement('div');
                 dateCreated.className = 'text-sm text-gray-500';
                 dateCreated.textContent = formatDateWithLeadingZeros(transaction.dateCreated);
-
                 transactionInfo.appendChild(starsAmount);
                 transactionInfo.appendChild(dateCreated);
-
                 const transactionStatus = document.createElement('div');
-                transactionStatus.className = `transaction-status ${
-                    transaction.status === 'pending' ? 'status-pending' : 
-                    transaction.status === 'processing' ? 'status-processing' :
-                    transaction.status === 'completed' ? 'status-completed' : 'status-declined'
-                }`;
-                transactionStatus.textContent = transaction.status;
-
+                transactionStatus.className = `transaction-status ${transaction.status === 'pending' ? 'status-pending' : transaction.status === 'processing' ? 'status-processing' : transaction.status === 'completed' ? 'status-completed' : 'status-declined'}`;
+                transactionStatus.textContent = transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1);
                 transactionItem.appendChild(transactionInfo);
                 transactionItem.appendChild(transactionStatus);
-
                 transactionsList.appendChild(transactionItem);
             });
         } else {
-            transactionsList.innerHTML = `
-                <div class="text-gray-500 text-center py-4 text-sm">
-                    ${translations[currentLanguage].noTransactions || 'No transactions yet'}
-                </div>
-            `;
+            transactionsList.innerHTML = `<div class="text-gray-500 text-center py-4 text-sm">${translations[currentLanguage]?.noTransactions || 'No transactions yet'}</div>`;
         }
     } catch (error) {
         console.error('Error fetching transactions:', error);
-        transactionsList.innerHTML = `
-            <div class="text-red-500 text-center py-4 text-sm">
-                ${translations[currentLanguage].errorLoading || 'Error loading transactions'}
-            </div>
-        `;
+        transactionsList.innerHTML = `<div class="text-red-500 text-center py-4 text-sm">${translations[currentLanguage]?.errorLoading || 'Error loading transactions'}</div>`;
     }
-};
-        
-
-// Initialize the app
-document.addEventListener('DOMContentLoaded', () => {
-    // Check for language in localStorage first
-    currentLanguage = localStorage.getItem('appLanguage') || 'en';
-    setupWalletAddressMemory();
-    updateLanguageTexts();
-    createTransactionDetailsPanel();
-    
-    // Show skeleton loading initially
-    skeletonLoading.style.display = 'block';
-    appContent.style.display = 'none';
-    
-    // Check notice status after a small delay (simulating loading)
-    setTimeout(() => {
-        checkNoticeStatus();
-    }, 800);
-    
-    // Set up refresh interval for transactions (every 10 seconds instead of 5)
-    setInterval(fetchTransactions, 10000);
-    
-    // Set up Telegram WebApp
-    Telegram.WebApp.onEvent('viewportChanged', () => {
-        Telegram.WebApp.expand();
-    });
-
-    Telegram.WebApp.expand();
-});
+}
 
     </script>
 </body>
