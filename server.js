@@ -1,14 +1,13 @@
+
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const crypto = require('crypto');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const cors = require('cors');
-const axios = require('axios');
 const app = express();
-const path = require('path');  
-const zlib = require('zlib');
+const path = require('path');
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
@@ -16,7 +15,7 @@ const SERVER_URL = (process.env.RAILWAY_STATIC_URL ||
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 
-// Import Telegram auth middleware (single import only)
+// Import Telegram auth middleware
 const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
 
 const reversalRequests = new Map();
@@ -40,7 +39,7 @@ app.use(cors({
         if (isAllowed) {
             callback(null, true);
         } else {
-            console.log('CORS blocked origin:', origin);
+            console.error('CORS blocked origin:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -49,37 +48,82 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
-app.use(bodyParser.json());
+app.use(compression());
+app.use(rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+}));
 app.use(express.static('public'));
 
-// Webhook setup
-bot.setWebHook(WEBHOOK_URL)
-  .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
-  .catch(err => {
-    console.error('❌ Webhook setup failed:', err.message);
+// Validate environment variables
+if (!process.env.BOT_TOKEN) {
+    console.error('❌ BOT_TOKEN is not set');
     process.exit(1);
-  });
+}
+if (!process.env.WEBHOOK_SECRET) {
+    console.error('❌ WEBHOOK_SECRET is not set');
+    process.exit(1);
+}
+if (!process.env.MONGODB_URI) {
+    console.error('❌ MONGODB_URI is not set');
+    process.exit(1);
+}
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected successfully'))
-  .catch(err => {
+mongoose.connect(process.env.MONGODB_URI, {
+    retryWrites: true,
+    w: 'majority'
+}).then(() => {
+    console.log('✅ MongoDB connected successfully');
+}).catch(err => {
     console.error('❌ MongoDB connection error:', err.message);
     process.exit(1);
-  });
+});
+
+// MongoDB reconnection logic
+mongoose.connection.on('disconnected', () => {
+    console.log('MongoDB disconnected, attempting to reconnect...');
+    mongoose.connect(process.env.MONGODB_URI, {
+        retryWrites: true,
+        w: 'majority'
+    });
+});
+
+// Webhook setup
+bot.getWebHookInfo().then(info => {
+    if (info.url !== WEBHOOK_URL) {
+        bot.setWebHook(WEBHOOK_URL).then(() => {
+            console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`);
+        }).catch(err => {
+            console.error('❌ Webhook setup failed:', err.message);
+            process.exit(1);
+        });
+    } else {
+        console.log(`✅ Webhook already set at ${WEBHOOK_URL}`);
+    }
+}).catch(err => {
+    console.error('❌ Error checking webhook:', err.message);
+    process.exit(1);
+});
 
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
-  if (process.env.WEBHOOK_SECRET && 
-      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
-    return res.sendStatus(403);
-  }
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
+    try {
+        if (process.env.WEBHOOK_SECRET && 
+            req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+            return res.sendStatus(403);
+        }
+        bot.processUpdate(req.body);
+        res.sendStatus(200);
+    } catch (error) {
+        console.error('Webhook processing error:', error.message);
+        res.sendStatus(500);
+    }
 });
 
+// Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+    res.status(200).json({ status: 'ok' });
 });
 
 const buyOrderSchema = new mongoose.Schema({
