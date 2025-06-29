@@ -3,10 +3,14 @@ require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
-const compression = require('compression');
-const rateLimit = require('express-rate-limit');
+const bodyParser = require('body-parser');
+const crypto = require('crypto');
 const cors = require('cors');
-const path = require('path');
+const axios = require('axios');
+const path = require('path');  
+const zlib = require('zlib');
+const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
@@ -16,36 +20,10 @@ const SERVER_URL = (process.env.RAILWAY_STATIC_URL ||
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 
-const { verifyTelegramWebAppData, requireTelegramAuth } = require('./middleware/telegramAuth');
-
+const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
 const reversalRequests = new Map();
 
 app.set('trust proxy', 1);
-
-app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        const allowedPatterns = [
-            /^https?:\/\/localhost(:\d+)?$/,
-            /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-            /^https:\/\/.*\.vercel\.app$/,
-            /^https:\/\/(www\.)?starstore\.site$/
-        ];
-        const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
-        if (isAllowed) {
-            callback(null, true);
-        } else {
-            console.error('CORS blocked origin:', origin);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-app.use(express.json());
-app.use(compression());
 
 const botUserAgents = [
     'uptimerobot',
@@ -88,60 +66,35 @@ app.use(rateLimit({
     }
 }));
 
-app.use((req, res, next) => {
-    console.log(`Request: ${req.method} ${req.url} - IP: ${req.ip}`);
-    next();
-});
-
-app.post(WEBHOOK_PATH, (req, res) => {
-    try {
-        if (process.env.WEBHOOK_SECRET && 
-            req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
-            console.error('Invalid webhook secret token');
-            return res.sendStatus(403);
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        
+        const allowedPatterns = [
+            /^https?:\/\/localhost(:\d+)?$/,
+            /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+            /^https:\/\/.*\.vercel\.app$/,
+            /^https:\/\/(www\.)?starstore\.site$/
+        ];
+        
+        const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
+        
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            console.log('CORS blocked origin:', origin);
+            callback(new Error('Not allowed by CORS'));
         }
-        bot.processUpdate(req.body);
-        res.sendStatus(200);
-    } catch (error) {
-        console.error('Webhook processing error:', error.message);
-        res.sendStatus(500);
-    }
-});
-
-app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        webhook: WEBHOOK_URL
-    });
-});
-
-app.get('/api/protected', requireTelegramAuth, (req, res) => {
-    res.json({ message: 'This is a protected route accessible only via Telegram Web App' });
-});
-
-app.use(express.static(path.join(__dirname, 'public'), {
-    index: 'index.html',
-    redirect: false
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.get('/blog', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html'), (err) => {
-        if (err) {
-            console.error('Error serving blog index.html:', err.message);
-            res.status(404).send('Page not found');
-        }
-    });
-});
-
-app.get('/blog/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html'), (err) => {
-        if (err) {
-            console.error('Error serving blog index.html:', err.message);
-            res.status(404).send('Page not found');
-        }
-    });
-});
+app.use(express.json());
+app.use(bodyParser.json());
+app.use(compression());
+app.use(express.static('public'));
 
 if (!process.env.BOT_TOKEN) {
     console.error('❌ BOT_TOKEN is not set');
@@ -156,88 +109,33 @@ if (!process.env.MONGODB_URI) {
     process.exit(1);
 }
 
-mongoose.connect(process.env.MONGODB_URI, {
-    retryWrites: true,
-    w: 'majority'
-}).then(() => {
-    console.log('✅ MongoDB connected successfully');
-}).catch(err => {
+bot.setWebHook(WEBHOOK_URL)
+  .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
+  .catch(err => {
+    console.error('❌ Webhook setup failed:', err.message);
+    process.exit(1);
+  });
+
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('✅ MongoDB connected successfully'))
+  .catch(err => {
     console.error('❌ MongoDB connection error:', err.message);
     process.exit(1);
-});
-
-mongoose.connection.on('disconnected', () => {
-    console.log('MongoDB disconnected, attempting to reconnect...');
-    mongoose.connect(process.env.MONGODB_URI, {
-        retryWrites: true,
-        w: 'majority'
-    });
-});
-
-bot.getWebHookInfo().then(info => {
-    if (info.url !== WEBHOOK_URL) {
-        bot.setWebHook(WEBHOOK_URL, {
-            secret_token: process.env.WEBHOOK_SECRET
-        }).then(() => {
-            console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`);
-        }).catch(err => {
-            console.error('❌ Webhook setup failed:', err.message);
-            process.exit(1);
-        });
-    } else {
-        console.log(`✅ Webhook already set at ${WEBHOOK_URL}`);
-    }
-}).catch(err => {
-    console.error('❌ Error checking webhook:', err.message);
-    process.exit(1);
-});
+  });
 
 app.post(WEBHOOK_PATH, (req, res) => {
-    try {
-        if (process.env.WEBHOOK_SECRET && 
-            req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
-            console.error('Invalid webhook secret token');
-            return res.sendStatus(403);
-        }
-        bot.processUpdate(req.body);
-        res.sendStatus(200);
-    } catch (error) {
-        console.error('Webhook processing error:', error.message);
-        res.sendStatus(500);
-    }
+  if (process.env.WEBHOOK_SECRET && 
+      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+    return res.sendStatus(403);
+  }
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
 });
 
 app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        webhook: WEBHOOK_URL
-    });
+  res.status(200).json({ status: 'ok' });
 });
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
-        if (err) {
-            console.error('Error serving index.html:', err.message);
-            res.status(404).send('Page not found');
-        }
-    });
-});
-
-app.use((req, res) => {
-    if (req.url === '/favicon.ico') {
-        return res.status(204).end();
-    }
-    
-    const filePath = path.join(__dirname, 'public', '404.html');
-    console.error(`404: ${req.method} ${req.url} - IP: ${req.ip}`);
-    res.status(404).sendFile(filePath, (err) => {
-        if (err) {
-            console.error(`Error serving 404.html:`, err.message);
-            res.status(404).send('Not Found');
-        }
-    });
-});
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
