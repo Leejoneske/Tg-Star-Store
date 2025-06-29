@@ -93,23 +93,54 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(express.static(path.join(__dirname, 'public'), {
-    index: 'index.html',
-    redirect: false
-}));
-
-app.get('*/', (req, res, next) => {
-    const filePath = path.join(__dirname, 'public', req.path, 'index.html');
-    res.sendFile(filePath, (err) => {
-        if (err) {
-            console.error(`Error serving file ${filePath}:`, err.message);
-            next();
+app.post(WEBHOOK_PATH, (req, res) => {
+    try {
+        if (process.env.WEBHOOK_SECRET && 
+            req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+            console.error('Invalid webhook secret token');
+            return res.sendStatus(403);
         }
+        bot.processUpdate(req.body);
+        res.sendStatus(200);
+    } catch (error) {
+        console.error('Webhook processing error:', error.message);
+        res.sendStatus(500);
+    }
+});
+
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        webhook: WEBHOOK_URL
     });
 });
 
 app.get('/api/protected', requireTelegramAuth, (req, res) => {
     res.json({ message: 'This is a protected route accessible only via Telegram Web App' });
+});
+
+app.use(express.static(path.join(__dirname, 'public'), {
+    index: 'index.html',
+    redirect: false
+}));
+
+app.get('/blog', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html'), (err) => {
+        if (err) {
+            console.error('Error serving blog index.html:', err.message);
+            res.status(404).send('Page not found');
+        }
+    });
+});
+
+app.get('/blog/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html'), (err) => {
+        if (err) {
+            console.error('Error serving blog index.html:', err.message);
+            res.status(404).send('Page not found');
+        }
+    });
 });
 
 if (!process.env.BOT_TOKEN) {
@@ -194,6 +225,10 @@ app.get('/', (req, res) => {
 });
 
 app.use((req, res) => {
+    if (req.url === '/favicon.ico') {
+        return res.status(204).end();
+    }
+    
     const filePath = path.join(__dirname, 'public', '404.html');
     console.error(`404: ${req.method} ${req.url} - IP: ${req.ip}`);
     res.status(404).sendFile(filePath, (err) => {
