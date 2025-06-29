@@ -2,6 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
+require('dotenv').config();
+const express = require('express');
+const TelegramBot = require('node-telegram-bot-api');
+const mongoose = require('mongoose');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
@@ -18,6 +22,9 @@ const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 const { verifyTelegramWebAppData, requireTelegramAuth } = require('./middleware/telegramAuth');
 
 const reversalRequests = new Map();
+
+// Trust proxy - IMPORTANT: This must be set before rate limiting
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors({
@@ -41,16 +48,29 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 app.use(compression());
+
+// Updated rate limiting configuration for proxy environments
 app.use(rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    // Skip rate limiting for webhook endpoint
+    skip: (req) => {
+        return req.path === WEBHOOK_PATH;
+    },
+    // Custom key generator for better proxy support
+    keyGenerator: (req) => {
+        return req.ip || req.connection.remoteAddress || 'unknown';
+    }
 }));
 
 // Debug middleware for logging requests
 app.use((req, res, next) => {
-    console.log(`Request: ${req.method} ${req.url} - Status: ${res.statusCode}`);
+    console.log(`Request: ${req.method} ${req.url} - IP: ${req.ip}`);
     next();
 });
 
@@ -113,7 +133,9 @@ mongoose.connection.on('disconnected', () => {
 // Webhook setup
 bot.getWebHookInfo().then(info => {
     if (info.url !== WEBHOOK_URL) {
-        bot.setWebHook(WEBHOOK_URL).then(() => {
+        bot.setWebHook(WEBHOOK_URL, {
+            secret_token: process.env.WEBHOOK_SECRET
+        }).then(() => {
             console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`);
         }).catch(err => {
             console.error('❌ Webhook setup failed:', err.message);
@@ -132,6 +154,7 @@ app.post(WEBHOOK_PATH, (req, res) => {
     try {
         if (process.env.WEBHOOK_SECRET && 
             req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+            console.error('Invalid webhook secret token');
             return res.sendStatus(403);
         }
         bot.processUpdate(req.body);
@@ -144,13 +167,27 @@ app.post(WEBHOOK_PATH, (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok' });
+    res.status(200).json({ 
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        webhook: WEBHOOK_URL
+    });
+});
+
+// Handle root route properly
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
+        if (err) {
+            console.error('Error serving index.html:', err.message);
+            res.status(404).send('Page not found');
+        }
+    });
 });
 
 // Custom 404 handler
 app.use((req, res) => {
     const filePath = path.join(__dirname, 'public', '404.html');
-    console.error(`404: ${req.method} ${req.url}`);
+    console.error(`404: ${req.method} ${req.url} - IP: ${req.ip}`);
     res.status(404).sendFile(filePath, (err) => {
         if (err) {
             console.error(`Error serving 404.html:`, err.message);
