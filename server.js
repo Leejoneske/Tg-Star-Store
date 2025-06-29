@@ -1,7 +1,4 @@
-require('dotenv').config();
-const express = require('express');
-const TelegramBot = require('node-telegram-bot-api');
-const mongoose = require('mongoose');
+
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
@@ -10,6 +7,7 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const path = require('path');
+
 const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
@@ -18,15 +16,12 @@ const SERVER_URL = (process.env.RAILWAY_STATIC_URL ||
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 
-// Import Telegram auth middleware
 const { verifyTelegramWebAppData, requireTelegramAuth } = require('./middleware/telegramAuth');
 
 const reversalRequests = new Map();
 
-// Trust proxy - IMPORTANT: This must be set before rate limiting
 app.set('trust proxy', 1);
 
-// Middleware
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
@@ -52,51 +47,71 @@ app.use(cors({
 app.use(express.json());
 app.use(compression());
 
-// Updated rate limiting configuration for proxy environments
+const botUserAgents = [
+    'uptimerobot',
+    'googlebot',
+    'bingbot',
+    'slurp',
+    'duckduckbot',
+    'baiduspider',
+    'yandexbot',
+    'facebookexternalhit',
+    'twitterbot',
+    'linkedinbot',
+    'whatsapp',
+    'telegrambot',
+    'pingdom',
+    'monitor',
+    'uptime',
+    'site24x7',
+    'pingability',
+    'appdynamics'
+];
+
 app.use(rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    // Skip rate limiting for webhook endpoint
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
     skip: (req) => {
-        return req.path === WEBHOOK_PATH;
+        if (req.path === WEBHOOK_PATH) return true;
+        
+        const userAgent = req.get('User-Agent') || '';
+        const isBot = botUserAgents.some(bot => 
+            userAgent.toLowerCase().includes(bot.toLowerCase())
+        );
+        
+        return isBot;
     },
-    // Custom key generator for better proxy support
     keyGenerator: (req) => {
         return req.ip || req.connection.remoteAddress || 'unknown';
     }
 }));
 
-// Debug middleware for logging requests
 app.use((req, res, next) => {
     console.log(`Request: ${req.method} ${req.url} - IP: ${req.ip}`);
     next();
 });
 
-// Serve static files with explicit index handling
 app.use(express.static(path.join(__dirname, 'public'), {
     index: 'index.html',
-    redirect: false // Disable automatic redirects for trailing slashes
+    redirect: false
 }));
 
-// Handle trailing slashes for subdirectories
 app.get('*/', (req, res, next) => {
     const filePath = path.join(__dirname, 'public', req.path, 'index.html');
     res.sendFile(filePath, (err) => {
         if (err) {
             console.error(`Error serving file ${filePath}:`, err.message);
-            next(); // Pass to 404 handler
+            next();
         }
     });
 });
 
-// Example protected route
 app.get('/api/protected', requireTelegramAuth, (req, res) => {
     res.json({ message: 'This is a protected route accessible only via Telegram Web App' });
 });
 
-// Validate environment variables
 if (!process.env.BOT_TOKEN) {
     console.error('❌ BOT_TOKEN is not set');
     process.exit(1);
@@ -110,7 +125,6 @@ if (!process.env.MONGODB_URI) {
     process.exit(1);
 }
 
-// MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
     retryWrites: true,
     w: 'majority'
@@ -121,7 +135,6 @@ mongoose.connect(process.env.MONGODB_URI, {
     process.exit(1);
 });
 
-// MongoDB reconnection logic
 mongoose.connection.on('disconnected', () => {
     console.log('MongoDB disconnected, attempting to reconnect...');
     mongoose.connect(process.env.MONGODB_URI, {
@@ -130,7 +143,6 @@ mongoose.connection.on('disconnected', () => {
     });
 });
 
-// Webhook setup
 bot.getWebHookInfo().then(info => {
     if (info.url !== WEBHOOK_URL) {
         bot.setWebHook(WEBHOOK_URL, {
@@ -149,7 +161,6 @@ bot.getWebHookInfo().then(info => {
     process.exit(1);
 });
 
-// Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
     try {
         if (process.env.WEBHOOK_SECRET && 
@@ -165,7 +176,6 @@ app.post(WEBHOOK_PATH, (req, res) => {
     }
 });
 
-// Health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'ok',
@@ -174,7 +184,6 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Handle root route properly
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
         if (err) {
@@ -184,7 +193,6 @@ app.get('/', (req, res) => {
     });
 });
 
-// Custom 404 handler
 app.use((req, res) => {
     const filePath = path.join(__dirname, 'public', '404.html');
     console.error(`404: ${req.method} ${req.url} - IP: ${req.ip}`);
@@ -195,7 +203,6 @@ app.use((req, res) => {
         }
     });
 });
-
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
