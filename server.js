@@ -7,69 +7,25 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
+const app = express();
 const path = require('path');  
 const zlib = require('zlib');
-const rateLimit = require('express-rate-limit');
-const compression = require('compression');
-
-const app = express();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
                    'tg-star-store-production.up.railway.app');
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
-
+// Import Telegram auth middleware (single import only)
 const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
 const reversalRequests = new Map();
-
-app.set('trust proxy', 1);
-
-const botUserAgents = [
-    'uptimerobot',
-    'googlebot',
-    'bingbot',
-    'slurp',
-    'duckduckbot',
-    'baiduspider',
-    'yandexbot',
-    'facebookexternalhit',
-    'twitterbot',
-    'linkedinbot',
-    'whatsapp',
-    'telegrambot',
-    'pingdom',
-    'monitor',
-    'uptime',
-    'site24x7',
-    'pingability',
-    'appdynamics'
-];
-
-app.use(rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-    skip: (req) => {
-        if (req.path === WEBHOOK_PATH) return true;
-        
-        const userAgent = req.get('User-Agent') || '';
-        const isBot = botUserAgents.some(bot => 
-            userAgent.toLowerCase().includes(bot.toLowerCase())
-        );
-        
-        return isBot;
-    },
-    keyGenerator: (req) => {
-        return req.ip || req.connection.remoteAddress || 'unknown';
-    }
-}));
-
+// Middleware
 app.use(cors({
     origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, etc.)
         if (!origin) return callback(null, true);
         
+        // Allow localhost and your main domains
         const allowedPatterns = [
             /^https?:\/\/localhost(:\d+)?$/,
             /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
@@ -90,39 +46,24 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(compression());
 app.use(express.static('public'));
-
-if (!process.env.BOT_TOKEN) {
-    console.error('❌ BOT_TOKEN is not set');
-    process.exit(1);
-}
-if (!process.env.WEBHOOK_SECRET) {
-    console.error('❌ WEBHOOK_SECRET is not set');
-    process.exit(1);
-}
-if (!process.env.MONGODB_URI) {
-    console.error('❌ MONGODB_URI is not set');
-    process.exit(1);
-}
-
+// Webhook setup
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
   .catch(err => {
     console.error('❌ Webhook setup failed:', err.message);
     process.exit(1);
   });
-
+// MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected successfully'))
   .catch(err => {
     console.error('❌ MongoDB connection error:', err.message);
     process.exit(1);
   });
-
+// Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
   if (process.env.WEBHOOK_SECRET && 
       req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
@@ -131,12 +72,9 @@ app.post(WEBHOOK_PATH, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
-
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
-
-
 const buyOrderSchema = new mongoose.Schema({
     id: String,
     telegramId: String,
