@@ -1,5 +1,4 @@
-
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -8,6 +7,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
     body {
@@ -409,6 +409,66 @@
     .notice-button:hover {
         background-color: #6366f1;
     }
+
+    /* New UI Improvements */
+    .icon-highlight {
+        color: #4f46e5;
+        background: rgba(79, 70, 229, 0.1);
+        border-radius: 50%;
+        padding: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .section-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .input-group {
+        margin-bottom: 16px;
+    }
+    
+    .input-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #4b5563;
+        font-weight: 500;
+    }
+    
+    .value-display {
+        background: #f9fafb;
+        padding: 12px;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .divider {
+        height: 1px;
+        background: #e5e7eb;
+        margin: 20px 0;
+    }
+    
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+    }
+    
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
 </style>
 </head>
   
@@ -469,23 +529,23 @@
             <div class="text-xl font-bold mb-8">Menu</div>
             <nav class="space-y-2">
                 <a href="index.html" class="menu-item">
-                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                    <i class="fas fa-home w-5 h-5 text-indigo-600"></i>
                     Home
                 </a>
                 <a href="sell.html" class="menu-item">
-                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                    <i class="fas fa-coins w-5 h-5 text-indigo-600"></i>
                     Sell
                 </a>
                 <a href="history.html" class="menu-item">
-                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                    <i class="fas fa-history w-5 h-5 text-indigo-600"></i>
                     History
                 </a>
                 <a href="referral.html" class="menu-item">
-                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                    <i class="fas fa-user-plus w-5 h-5 text-indigo-600"></i>
                     Referral
                 </a>
                 <a href="about.html" class="menu-item">
-                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                    <i class="fas fa-info-circle w-5 h-5 text-indigo-600"></i>
                     About
                 </a>
             </nav>
@@ -500,79 +560,105 @@
         <div class="logo-header">StarStore</div>
         <div class="w-6"></div>
     </div>
-    <div class="wallet-status">
-        <div id="manualWalletInput" class="mt-3">
-            <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
-                   class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-        </div>
-        <p class="text-sm text-gray-600 mt-2">
-            <svg class="w-4 h-4 inline mr-1 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
-            </svg>
-            Payments will be made to the selected wallet.
-        </p>
-    </div>
-    <div class="p-6">
-        <div class="bg-white rounded-xl p-6 mb-6">
-            <h2 class="text-xl font-bold mb-4">
-                <svg class="w-6 h-6 inline mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2l3.09 6.26L22 9l-5 4.87 1.18 6.88L12 17.77l-6.18 2.98L7 14.87 2 9l6.91-1.26L12 2z"/>
-                </svg>
-                Sell Stars
-            </h2>
-            <div class="rate-info mb-4">        
-              <div class="flex justify-between items-center">
-                 <div>
-               <span class="text-sm text-gray-600">Current Rate</span>
-                  <div class="font-bold">1 Star = 0.009 USDT</div>
-               </div>
+    
+    <div class="p-4">
+        <!-- Wallet Address Section -->
+        <div class="section-card">
+            <div class="input-group">
+                <label class="input-label">USDT TON Wallet Address</label>
+                <input type="text" id="manualWalletAddress" placeholder="Enter your wallet address" 
+                       class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
-               <div class="text-center mt-2">
-               <span class="info-badge">Minimum sell: 50 Stars</span>
-             </div>
-           </div> 
- 
-            <div class="sell-option p-4 mb-6">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
-                    <div class="stars-counter">
-                        <button class="counter-button" onclick="decrementStars()">-</button>
-                        <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
-                        <button class="counter-button" onclick="incrementStars()">+</button>
+            <p class="text-sm text-gray-600 mt-2 flex items-center">
+                <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                Payments will be made to the selected wallet.
+            </p>
+        </div>
+        
+        <!-- Sell Stars Section -->
+        <div class="section-card">
+            <div class="flex items-center mb-4">
+                <div class="icon-highlight mr-3">
+                    <i class="fas fa-star text-yellow-500"></i>
+                </div>
+                <h2 class="text-xl font-bold">Sell Stars</h2>
+            </div>
+            
+            <div class="rate-info mb-4">        
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-sm text-gray-600">Current Rate</span>
+                        <div class="font-bold">1 Star = 0.009 USDT</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-sm text-gray-600">Your Balance</span>
+                        <div class="font-bold">0 Stars</div>
                     </div>
                 </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
-                    <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
+                <div class="text-center mt-2">
+                    <span class="info-badge">Minimum sell: 50 Stars</span>
                 </div>
-                <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">
-                    <svg class="w-5 h-5 inline mr-2" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
-                    </svg>
-                    Sell Now
-                </button>
             </div>
-            <div class="bg-blue-50 rounded-lg p-4 text-sm">
-    <div class="flex items-start space-x-2">
-        <svg class="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        <div>
-            <p class="font-medium text-blue-800">How it works:</p>
-            <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
-                <li>Enter the amount of stars you want to sell</li>
-                <li>Click "Sell Now" to initiate the transaction</li>
-                <li>Send the stars via Telegram payment</li>
-                <li>Once verified, USDT will be sent to your wallet within 21 days</li>
-            </ol>
+            
+            <!-- Stars Amount Input -->
+            <div class="input-group">
+                <label class="input-label">Amount of Stars to Sell</label>
+                <div class="stars-counter">
+                    <button class="counter-button" onclick="decrementStars()">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
+                    <button class="counter-button" onclick="incrementStars()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Amount to Receive -->
+            <div class="input-group">
+                <label class="input-label">You'll Receive (USDT)</label>
+                <div class="value-display" id="tonAmount">0.45 USDT</div>
+            </div>
+            
+            <!-- Sell Button -->
+            <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold flex items-center justify-center">
+                <i class="fas fa-exchange-alt mr-2"></i>
+                Sell Now
+            </button>
         </div>
-    </div>
-</div>
-            <div class="transaction-history">
-                <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
-                <div id="transactionsList">
-                    <!-- Transactions will be loaded dynamically -->
-                    <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
+        
+        <!-- How It Works Section -->
+        <div class="section-card bg-blue-50">
+            <div class="flex items-start">
+                <div class="icon-highlight mr-3 mt-1">
+                    <i class="fas fa-question-circle text-blue-500"></i>
+                </div>
+                <div>
+                    <h3 class="font-medium text-blue-800 mb-2">How it works:</h3>
+                    <ol class="list-decimal list-inside text-blue-700 space-y-2 text-sm">
+                        <li>Enter the amount of stars you want to sell</li>
+                        <li>Click "Sell Now" to initiate the transaction</li>
+                        <li>Send the stars via Telegram payment</li>
+                        <li>Once verified, USDT will be sent to your wallet within 21 days</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Transaction History -->
+        <div class="section-card">
+            <div class="flex items-center mb-4">
+                <div class="icon-highlight mr-3">
+                    <i class="fas fa-clock text-indigo-600"></i>
+                </div>
+                <h3 class="text-lg font-semibold">Recent Transactions</h3>
+            </div>
+            
+            <div id="transactionsList">
+                <!-- Transactions will be loaded dynamically -->
+                <div class="text-center py-8">
+                    <i class="fas fa-clock text-gray-300 text-4xl mb-3"></i>
+                    <p class="text-gray-500 text-sm">No transactions yet</p>
                 </div>
             </div>
         </div>
@@ -583,18 +669,21 @@
 <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
         <div class="text-center mb-4">
-            <svg class="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <h3 class="text-xl font-bold mt-2">Payment Confirmation</h3>
+            <div class="icon-highlight mx-auto" style="width: 64px; height: 64px;">
+                <i class="fas fa-coins text-indigo-600 text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold mt-4">Payment Confirmation</h3>
         </div>
         <div class="mb-6">
-            <p class="text-gray-700 mb-4">You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> stars for <span id="modalTonAmount" class="font-bold">0.438 TON</span>.</p>
+            <p class="text-gray-700 mb-4">You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> stars for <span id="modalTonAmount" class="font-bold">0.45 USDT</span>.</p>
             <p class="text-gray-700">Please confirm this transaction via Telegram payment.</p>
         </div>
         <div class="flex justify-between space-x-4">
             <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
-            <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Confirm</button>
+            <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center">
+                <i class="fas fa-check-circle mr-2"></i>
+                Confirm
+            </button>
         </div>
     </div>
 </div>
@@ -605,9 +694,7 @@
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-xl font-bold">Transaction Details</h3>
                 <button class="close-details" id="closeTransactionDetails">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
             <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
