@@ -1206,7 +1206,7 @@ function loadVideoSticker(container, stickerId) {
     const video = document.createElement('video');
     video.width = 72;
     video.height = 72;
-    video.autoplay = false; // Don't autoplay yet
+    video.autoplay = false; 
     video.loop = true;
     video.muted = true;
     video.playsInline = true;
@@ -1323,7 +1323,7 @@ const observer = new IntersectionObserver((entries) => {
   });
 }, { 
   threshold: 0.1,
-  rootMargin: '50px' // Start loading slightly before entering viewport
+  rootMargin: '50px' 
 });
 
 // Clean up animations when they leave viewport completely
@@ -1800,8 +1800,6 @@ function initWalletConnection() {
         updateWalletButton();
     }
 
-    // Also check current wallet status after a brief delay
-    // This handles cases where TON Connect restores connection but onStatusChange doesn't fire immediately
     setTimeout(() => {
         const currentWallet = tonConnectUI.wallet;
         if (currentWallet?.account && !walletConnected) {
@@ -1814,6 +1812,7 @@ function initWalletConnection() {
     }, 1000);
 }
 //end of ton connect
+
 function initLanguageToggle() {
     const languageToggle = document.getElementById('languageToggle');
     if (!languageToggle) {
@@ -1821,33 +1820,52 @@ function initLanguageToggle() {
         return;
     }
     
-    // Initialize from localStorage instead of sessionStorage
+    // Initialize
     currentLanguage = localStorage.getItem('appLanguage') || 'en';
-    languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
+    updateLanguage(); // Initial update
     
     languageToggle.addEventListener('click', () => {
+        // Toggle language
         currentLanguage = currentLanguage === 'en' ? 'ru' : 'en';
-        updateLanguage();
         
-        // Use localStorage instead of sessionStorage
+        // Persist and notify
         localStorage.setItem('appLanguage', currentLanguage);
-        
-        // Dispatch event to sync other open pages
         window.dispatchEvent(new CustomEvent('languageChanged'));
         
+        // Update UI
+        updateLanguage();
+        
+        // Update wallet button if exists
         const connectWalletButton = document.getElementById('connectWallet');
         if (connectWalletButton) {
             if (walletConnected && currentWalletAddress) {
                 const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
                 connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
-                connectWalletButton.classList.add('wallet-connected');
             } else {
                 connectWalletButton.textContent = translations[currentLanguage].connectWallet;
             }
         }
         
-        if (tonConnectUI && typeof tonConnectUI.setLanguage === 'function') {
+        // Update TON Connect UI if available
+        if (tonConnectUI?.setLanguage) {
             tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
+        }
+    });
+}
+
+// Make sure this exists!
+function updateLanguage() {
+    // Update toggle button
+    const languageToggle = document.getElementById('languageToggle');
+    if (languageToggle) {
+        languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
+    }
+    
+    // Update all translatable elements
+    document.querySelectorAll('[data-translate]').forEach(element => {
+        const key = element.getAttribute('data-translate');
+        if (translations[currentLanguage]?.[key]) {
+            element.textContent = translations[currentLanguage][key];
         }
     });
 }
