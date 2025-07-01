@@ -1814,7 +1814,6 @@ function initWalletConnection() {
     }, 1000);
 }
 //end of ton connect
-
 function initLanguageToggle() {
     const languageToggle = document.getElementById('languageToggle');
     if (!languageToggle) {
@@ -1822,12 +1821,19 @@ function initLanguageToggle() {
         return;
     }
     
+    // Initialize from localStorage instead of sessionStorage
+    currentLanguage = localStorage.getItem('appLanguage') || 'en';
     languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
     
     languageToggle.addEventListener('click', () => {
         currentLanguage = currentLanguage === 'en' ? 'ru' : 'en';
         updateLanguage();
-        sessionStorage.setItem('appLanguage', currentLanguage);
+        
+        // Use localStorage instead of sessionStorage
+        localStorage.setItem('appLanguage', currentLanguage);
+        
+        // Dispatch event to sync other open pages
+        window.dispatchEvent(new CustomEvent('languageChanged'));
         
         const connectWalletButton = document.getElementById('connectWallet');
         if (connectWalletButton) {
@@ -1846,19 +1852,6 @@ function initLanguageToggle() {
     });
 }
 
-function updateLanguage() {
-    const languageToggle = document.getElementById('languageToggle');
-    if (languageToggle) {
-        languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
-    }
-    
-    document.querySelectorAll('[data-translate]').forEach(element => {
-        const key = element.getAttribute('data-translate');
-        if (translations[currentLanguage] && translations[currentLanguage][key] && !element.classList.contains('wallet-address')) {
-            element.textContent = translations[currentLanguage][key];
-        }
-    });
-}
 
 function initBuyButtons() {
     document.querySelectorAll('.buy-button').forEach(button => {
