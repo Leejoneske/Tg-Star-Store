@@ -484,12 +484,14 @@ const state = {
 };
 
 // Listen for language changes from index page
-window.addEventListener('storage', function(e) {
-  if (e.key === 'appLanguage') {
-    state.language = e.newValue || 'en';
-    applyTranslations();
-  }
-});
+function changeLanguage(lang) {
+    localStorage.setItem('appLanguage', lang);
+    window.dispatchEvent(new Event('languageChanged'));
+    // Also update all open pages
+    if (window.opener) {
+        window.opener.dispatchEvent(new Event('languageChanged'));
+    }
+}
 
 function init() {
     setupEventListeners();
