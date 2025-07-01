@@ -482,24 +482,44 @@ const state = {
     referrals: [],
     withdrawals: []
 };
-
-// Listen for language changes from index page
-function changeLanguage(lang) {
-    localStorage.setItem('appLanguage', lang);
-    window.dispatchEvent(new Event('languageChanged'));
-    // Also update all open pages
-    if (window.opener) {
-        window.opener.dispatchEvent(new Event('languageChanged'));
+    
+// Initialize language
+function initLanguage() {
+    // Check URL parameter first
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    
+    if (urlLang && ['en', 'ru'].includes(urlLang)) {
+        currentLanguage = urlLang;
+        localStorage.setItem('appLanguage', currentLanguage);
+    } else {
+        currentLanguage = localStorage.getItem('appLanguage') || 'en';
     }
+    
+    applyTranslations();
 }
 
+// Listen for language changes from other pages
+window.addEventListener('storage', (e) => {
+    if (e.key === 'appLanguage') {
+        currentLanguage = e.newValue || 'en';
+        applyTranslations();
+    }
+});
+
+window.addEventListener('languageChanged', () => {
+    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    applyTranslations();
+});
+
 function init() {
+    initLanguage(); 
     setupEventListeners();
     loadReferralData();
     loadWithdrawalHistory();
     setupTelegramSharing();
     applyTranslations(); 
-}
+}    
  
 async function loadReferralData() {
     try {
