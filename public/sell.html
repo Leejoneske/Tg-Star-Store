@@ -796,13 +796,18 @@ continueButton.addEventListener('click', () => {
     noticeModal.style.display = 'none';
     showAppContent();
 });
-
+      
+window.addEventListener('storage', (e) => {
+    if (e.key === 'appLanguage') {
+        currentLanguage = e.newValue || 'en';
+        updateLanguageTexts();
+    }
+});
+      
 // Listen for language changes from index page
-window.addEventListener('storage', function(e) {
-  if (e.key === 'appLanguage') {
-    currentLanguage = e.newValue || 'en';
+window.addEventListener('languageChanged', () => {
+    currentLanguage = localStorage.getItem('appLanguage') || 'en';
     updateLanguageTexts();
-  }
 });
 
 // Function to update all texts based on current language
