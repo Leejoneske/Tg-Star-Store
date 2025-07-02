@@ -1,34 +1,39 @@
- {
+
+{
   "name": "starstore",
   "version": "1.0.0",
   "description": "StarStore - A Telegram Mini App for purchasing stars and premium subscriptions.",
-  "main": "server.js",
+  "main": "api/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node api/server.js",
+    "dev": "nodemon api/server.js",
+    "build": "echo 'Building...'",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint ."  
+    "lint": "eslint ."
   },
   "engines": {
-    "node": "18.x" 
+    "node": "18.x"
   },
   "dependencies": {
     "axios": "^1.8.1",
     "cors": "^2.8.5",
     "compression": "^1.7.4",
     "express-rate-limit": "^7.1.5",
-    "crypto-js": "^4.1.1",  
+    "crypto-js": "^4.1.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "mongoose": "^8.0.3",
     "node-telegram-bot-api": "^0.66.0",
     "sweetalert2": "^11.17.2",
-    "@tonconnect/ui": "^2.0.11"
+    "@tonconnect/ui": "^2.0.11",
+    "body-parser": "^1.20.2",
+    "zlib": "^1.0.5",
+    "path": "^0.12.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
-    "eslint": "^8.56.0",  
-    "eslint-config-airbnb-base": "^15.0.0",  
-    "eslint-plugin-import": "^2.29.1"  
+    "eslint": "^8.56.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.29.1"
   }
 }
