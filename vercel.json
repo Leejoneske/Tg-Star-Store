@@ -7,14 +7,21 @@
       "use": "@vercel/node",
       "config": {
         "maxLambdaSize": "50mb",
-        "memory": 3008
+        "memory": 1024
       }
     }
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "api/server.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "api/server.js"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
