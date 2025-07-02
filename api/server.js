@@ -3,160 +3,88 @@ require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const cors = require('cors');
+
 const app = express();
+const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: false });
+const WEBHOOK_URL = `https://${process.env.VERCEL_URL}/api/telegram-webhook`;
 
-let bot;
-let isWebhookSet = false;
-let isMongoConnected = false;
-
-if (!bot && process.env.BOT_TOKEN) {
-  bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: false });
-}
-
-const getServerUrl = () => {
-  if (process.env.VERCEL_URL) {
-    return process.env.VERCEL_URL.startsWith('https://') 
-      ? process.env.VERCEL_URL 
-      : `https://${process.env.VERCEL_URL}`;
-  }
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  }
-  return process.env.CUSTOM_DOMAIN || 'tg-star-store.vercel.app';
-};
-
-const SERVER_URL = getServerUrl();
-const WEBHOOK_PATH = '/api/telegram-webhook';
-const WEBHOOK_URL = `${SERVER_URL}${WEBHOOK_PATH}`;
-
-app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        const allowedPatterns = [
-            /^https?:\/\/localhost(:\d+)?$/,
-            /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-            /^https:\/\/.*\.vercel\.app$/,
-            /^https:\/\/(www\.)?starstore\.site$/
-        ];
-        const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
-        if (isAllowed) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
+// Middleware
 app.use(express.json());
-app.use(bodyParser.json());
 
-const connectMongoDB = async () => {
-  if (isMongoConnected || !process.env.MONGODB_URI) return;
-  
+// Database Connection
+const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
+      socketTimeoutMS: 30000
     });
-    isMongoConnected = true;
+    console.log('MongoDB connected');
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
   }
 };
 
-const setupWebhook = async () => {
-  if (isWebhookSet || !bot || !process.env.BOT_TOKEN) return;
-  
+// Webhook Endpoint (Single endpoint - removed duplicate)
+app.post('/api/telegram-webhook', async (req, res) => {
   try {
-    await bot.setWebHook(WEBHOOK_URL, {
-      secret_token: process.env.WEBHOOK_SECRET
-    });
-    isWebhookSet = true;
-  } catch (err) {
-    console.error('Webhook setup failed:', err.message);
-  }
-};
-
-if (process.env.VERCEL !== '1' || process.env.NODE_ENV !== 'production') {
-  connectMongoDB().catch(console.error);
-  setupWebhook().catch(console.error);
-}
-
-app.post(WEBHOOK_PATH, async (req, res) => {
-  try {
-    if (process.env.WEBHOOK_SECRET && 
-        req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+    // 1. Verify secret token
+    const authToken = req.headers['x-telegram-bot-api-secret-token'];
+    if (authToken !== process.env.WEBHOOK_SECRET) {
+      console.log('Invalid token received:', authToken);
       return res.sendStatus(403);
     }
 
-    await connectMongoDB();
-
-    if (bot) {
-      bot.processUpdate(req.body);
-      return res.sendStatus(200);
+    // 2. Validate update
+    if (!req.body || !req.body.update_id) {
+      console.log('Invalid update format:', req.body);
+      return res.status(400).json({ error: 'Invalid update format' });
     }
-    
-    return res.status(500).json({ error: 'Bot not initialized' });
+
+    // 3. Process update
+    console.log('Processing update:', req.body.update_id);
+    await bot.processUpdate(req.body);
+    res.sendStatus(200);
+
   } catch (error) {
-    console.error('Webhook processing error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Update processing failed:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
   }
 });
 
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    bot: !!bot,
-    mongodb: isMongoConnected,
-    webhook: isWebhookSet
-  });
-});
-
-app.get('/api/get-wallet-address', (req, res) => {
+// Webhook Setup Endpoint
+app.get('/setup-webhook', async (req, res) => {
   try {
-    if (!process.env.WALLET_ADDRESS) {
-      return res.status(500).json({
-        success: false,
-        error: 'Wallet address not configured'
-      });
-    }
-    res.json({
-      success: true,
-      walletAddress: process.env.WALLET_ADDRESS
+    await connectDB();
+    await bot.setWebHook(WEBHOOK_URL, {
+      secret_token: process.env.WEBHOOK_SECRET,
+      max_connections: 40,
+      allowed_updates: ["message", "callback_query"]
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
+    res.json({ success: true, url: WEBHOOK_URL });
+  } catch (err) {
+    console.error('Webhook setup failed:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/', (req, res) => {
+// Health Check
+app.get('/health', (req, res) => {
   res.json({ 
-    message: 'StarStore API is running',
-    timestamp: new Date().toISOString(),
-    webhookUrl: WEBHOOK_URL
+    status: 'ok',
+    timestamp: new Date().toISOString()
   });
-});
-
-app.use((error, req, res, next) => {
-  console.error('Unhandled error:', error);
-  res.status(500).json({ error: 'Internal server error' });
 });
 
 module.exports = app;
 
-if (process.env.VERCEL !== '1') {
-  const PORT = process.env.PORT || 8080;
+// Local server (for testing)
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Local server running on port ${PORT}`);
     console.log(`Webhook URL: ${WEBHOOK_URL}`);
   });
 }
