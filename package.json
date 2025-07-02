@@ -9,7 +9,11 @@
     "dev": "nodemon api/server.js",
     "build": "echo 'Building...'",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "set-webhook": "node api/setWebhook",
+    "verify-webhook": "node api/verifyWebhook",
+    "webhook:dev": "WEBHOOK_URL=http://localhost:3000/api/telegram npm run set-webhook",
+    "webhook:prod": "NODE_ENV=production npm run set-webhook"
   },
   "engines": {
     "node": "18.x"
