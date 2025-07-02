@@ -479,30 +479,6 @@ const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
-// Wallet Address Endpoint
-app.get('/api/get-wallet-address', (req, res) => {
-    try {
-        const walletAddress = process.env.WALLET_ADDRESS;
-        
-        if (!walletAddress) {
-            return res.status(500).json({
-                success: false,
-                error: 'Wallet address not configured'
-            });
-        }
-
-        res.json({
-            success: true,
-            walletAddress: walletAddress
-        });
-    } catch (error) {
-        console.error('Error getting wallet address:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
-    }
-});
 
 app.post('/api/orders/create', async (req, res) => {
     try {
