@@ -1,26 +1,20 @@
+
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const crypto = require('crypto');
 const cors = require('cors');
-const axios = require('axios');
 const app = express();
-const path = require('path');
-const { createGzip, createDeflate } = require('zlib');
 
-// Global variables to track initialization
 let bot;
 let isWebhookSet = false;
 let isMongoConnected = false;
 
-// Initialize bot only once
 if (!bot && process.env.BOT_TOKEN) {
   bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: false });
 }
 
-// Get the correct server URL
 const getServerUrl = () => {
   if (process.env.VERCEL_URL) {
     return process.env.VERCEL_URL.startsWith('https://') 
@@ -30,17 +24,13 @@ const getServerUrl = () => {
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   }
-  // Fallback - you should set this in your environment variables
-  return process.env.CUSTOM_DOMAIN || 'your-vercel-app-name.vercel.app';
+  return process.env.CUSTOM_DOMAIN || 'tg-star-store.vercel.app';
 };
 
 const SERVER_URL = getServerUrl();
 const WEBHOOK_PATH = '/api/telegram-webhook';
 const WEBHOOK_URL = `${SERVER_URL}${WEBHOOK_PATH}`;
 
-const reversalRequests = new Map();
-
-// CORS configuration
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
@@ -54,7 +44,6 @@ app.use(cors({
         if (isAllowed) {
             callback(null, true);
         } else {
-            console.log('CORS blocked origin:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -65,106 +54,73 @@ app.use(cors({
 
 app.use(express.json());
 app.use(bodyParser.json());
-// Static files are handled by Vercel's static build, not Express
-// app.use(express.static('public')); // Removed for Vercel compatibility
 
-// MongoDB connection with better error handling
 const connectMongoDB = async () => {
-  if (isMongoConnected || !process.env.MONGODB_URI) {
-    return;
-  }
+  if (isMongoConnected || !process.env.MONGODB_URI) return;
   
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-      socketTimeoutMS: 45000, // Close sockets after 45s
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
     isMongoConnected = true;
-    console.log('MongoDB connected');
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
-    // Don't exit the process in serverless environment
-    // throw err; // Uncomment if you want to fail fast
   }
 };
 
-// Webhook setup with better error handling
 const setupWebhook = async () => {
-  if (isWebhookSet || !bot || !process.env.BOT_TOKEN) {
-    return;
-  }
+  if (isWebhookSet || !bot || !process.env.BOT_TOKEN) return;
   
   try {
     await bot.setWebHook(WEBHOOK_URL, {
       secret_token: process.env.WEBHOOK_SECRET
     });
     isWebhookSet = true;
-    console.log(`Webhook set at ${WEBHOOK_URL}`);
   } catch (err) {
     console.error('Webhook setup failed:', err.message);
-    // Don't exit the process in serverless environment
-    // In production, you might want to set up webhook manually or through a separate script
   }
 };
 
-// Initialize connections (but don't await in serverless)
 if (process.env.VERCEL !== '1' || process.env.NODE_ENV !== 'production') {
-  // Only auto-setup in development or non-Vercel environments
   connectMongoDB().catch(console.error);
   setupWebhook().catch(console.error);
 }
 
-// Telegram webhook endpoint
 app.post(WEBHOOK_PATH, async (req, res) => {
   try {
-    // Verify webhook secret if provided
     if (process.env.WEBHOOK_SECRET && 
         req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
       return res.sendStatus(403);
     }
 
-    // Ensure MongoDB is connected
     await connectMongoDB();
 
-    // Process the update if bot is available
     if (bot) {
       bot.processUpdate(req.body);
-    } else {
-      console.error('Bot not initialized');
-      return res.status(500).json({ error: 'Bot not initialized' });
+      return res.sendStatus(200);
     }
-
-    res.sendStatus(200);
+    
+    return res.status(500).json({ error: 'Bot not initialized' });
   } catch (error) {
     console.error('Webhook processing error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Health check endpoint
 app.get('/health', (req, res) => {
-  const status = {
+  res.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     bot: !!bot,
     mongodb: isMongoConnected,
     webhook: isWebhookSet
-  };
-  res.status(200).json(status);
+  });
 });
 
-// Webhook setup endpoint (manual trigger)
-app.post('/api/telegram-webhook', (req, res) => {
-  console.log('Webhook received:', req.body);
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
-});
-
-// Get wallet address endpoint
 app.get('/api/get-wallet-address', (req, res) => {
   try {
-    const walletAddress = process.env.WALLET_ADDRESS;
-    if (!walletAddress) {
+    if (!process.env.WALLET_ADDRESS) {
       return res.status(500).json({
         success: false,
         error: 'Wallet address not configured'
@@ -172,10 +128,9 @@ app.get('/api/get-wallet-address', (req, res) => {
     }
     res.json({
       success: true,
-      walletAddress: walletAddress
+      walletAddress: process.env.WALLET_ADDRESS
     });
   } catch (error) {
-    console.error('Error getting wallet address:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error'
@@ -183,7 +138,6 @@ app.get('/api/get-wallet-address', (req, res) => {
   }
 });
 
-// Root endpoint for testing
 app.get('/', (req, res) => {
   res.json({ 
     message: 'StarStore API is running',
@@ -192,16 +146,13 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Export for Vercel
 module.exports = app;
 
-// Only start server in non-Vercel environment
 if (process.env.VERCEL !== '1') {
   const PORT = process.env.PORT || 8080;
   app.listen(PORT, () => {
