@@ -154,14 +154,10 @@ app.get('/health', (req, res) => {
 });
 
 // Webhook setup endpoint (manual trigger)
-app.post('/api/setup-webhook', async (req, res) => {
-  try {
-    await setupWebhook();
-    res.json({ success: true, webhookUrl: WEBHOOK_URL });
-  } catch (error) {
-    console.error('Manual webhook setup failed:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.post('/api/telegram-webhook', (req, res) => {
+  console.log('Webhook received:', req.body);
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
 });
 
 // Get wallet address endpoint
