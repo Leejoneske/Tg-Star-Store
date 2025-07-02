@@ -9,7 +9,7 @@ const cors = require('cors');
 const axios = require('axios');
 const app = express();
 const path = require('path');
-const zlib = require('zlib');
+const { createGzip, createDeflate } = require('zlib');
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = process.env.VERCEL_URL || 'your-vercel-app-name.vercel.app';
