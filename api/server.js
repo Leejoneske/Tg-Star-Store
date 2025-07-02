@@ -429,7 +429,7 @@ const Referral = mongoose.models.Referral || mongoose.model('Referral', referral
 const BannedUser = mongoose.models.BannedUser || mongoose.model('BannedUser', bannedUserSchema);
 
 
-const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
+const adminIds = process.env.ADMIN_TELEGRAM_IDS ? process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim()) : [];
 
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
