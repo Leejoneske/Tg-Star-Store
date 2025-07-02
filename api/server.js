@@ -97,8 +97,10 @@ setupWebhook().catch(console.error);
 
 app.post('/api/telegram-webhook', async (req, res) => {
   try {
+    
     if (process.env.WEBHOOK_SECRET && 
         req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+      console.log('Invalid secret token received');
       return res.sendStatus(403);
     }
 
