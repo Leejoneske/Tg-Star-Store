@@ -76,11 +76,18 @@ const setupWebhook = async () => {
   if (isWebhookSet || !bot || !process.env.BOT_TOKEN) return;
   
   try {
-    await bot.setWebHook(WEBHOOK_URL, {
+    const result = await bot.setWebHook(WEBHOOK_URL, {
       secret_token: process.env.WEBHOOK_SECRET
     });
     isWebhookSet = true;
+    console.log('Webhook setup successful:', result);
   } catch (err) {
+    if (err.response?.error_code === 429) {
+      const retryAfter = err.response.parameters?.retry_after || 1;
+      console.log(`Rate limited. Retrying after ${retryAfter} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+      return setupWebhook(); 
+    }
     console.error('Webhook setup failed:', err.message);
   }
 };
