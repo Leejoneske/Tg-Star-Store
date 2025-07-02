@@ -395,7 +395,7 @@ const notificationSchema = new mongoose.Schema({
     },
     priority: {
         type: Number,
-        default: 0, // 0 = normal, 1 = important, 2 = urgent
+        default: 0, 
         min: 0,
         max: 2
     }
@@ -430,6 +430,8 @@ const BannedUser = mongoose.models.BannedUser || mongoose.model('BannedUser', ba
 
 
 const adminIds = process.env.ADMIN_TELEGRAM_IDS ? process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim()) : [];
+const reversalRequests = new Map();
+
 
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
