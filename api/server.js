@@ -8,33 +8,26 @@ const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
 const app = express();
-const path = require('path');  
+const path = require('path');
 const zlib = require('zlib');
+
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
-const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
-                   process.env.RAILWAY_PUBLIC_DOMAIN || 
-                   'tg-star-store-production.up.railway.app');
-const WEBHOOK_PATH = '/telegram-webhook';
+const SERVER_URL = process.env.VERCEL_URL || 'your-vercel-app-name.vercel.app';
+const WEBHOOK_PATH = '/api/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
-// Import Telegram auth middleware (single import only)
-const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
+
 const reversalRequests = new Map();
-// Middleware
+
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, etc.)
         if (!origin) return callback(null, true);
-        
-        // Allow localhost and your main domains
         const allowedPatterns = [
             /^https?:\/\/localhost(:\d+)?$/,
             /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
             /^https:\/\/.*\.vercel\.app$/,
             /^https:\/\/(www\.)?starstore\.site$/
         ];
-        
         const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
-        
         if (isAllowed) {
             callback(null, true);
         } else {
@@ -46,24 +39,25 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
-// Webhook setup
+
 bot.setWebHook(WEBHOOK_URL)
-  .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
+  .then(() => console.log(`Webhook set at ${WEBHOOK_URL}`))
   .catch(err => {
-    console.error('❌ Webhook setup failed:', err.message);
+    console.error('Webhook setup failed:', err.message);
     process.exit(1);
   });
-// MongoDB connection
+
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected successfully'))
+  .then(() => console.log('MongoDB connected'))
   .catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
+    console.error('MongoDB connection error:', err.message);
     process.exit(1);
   });
-// Webhook handler
+
 app.post(WEBHOOK_PATH, (req, res) => {
   if (process.env.WEBHOOK_SECRET && 
       req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
@@ -72,9 +66,43 @@ app.post(WEBHOOK_PATH, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
+
+app.get('/api/get-wallet-address', (req, res) => {
+  try {
+    const walletAddress = process.env.WALLET_ADDRESS;
+    if (!walletAddress) {
+      return res.status(500).json({
+        success: false,
+        error: 'Wallet address not configured'
+      });
+    }
+    res.json({
+      success: true,
+      walletAddress: walletAddress
+    });
+  } catch (error) {
+    console.error('Error getting wallet address:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+module.exports = app;
+
+if (process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 8080;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Webhook set to: ${WEBHOOK_URL}`);
+  });
+}
+
 const buyOrderSchema = new mongoose.Schema({
     id: String,
     telegramId: String,
@@ -3323,10 +3351,4 @@ bot.onText(/\/users/, async (msg) => {
     }
 });
 
-
-
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Webhook set to: ${WEBHOOK_URL}`);
-});
+//modify at your own Risk
