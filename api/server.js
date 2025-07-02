@@ -11,13 +11,37 @@ const app = express();
 const path = require('path');
 const { createGzip, createDeflate } = require('zlib');
 
-const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
-const SERVER_URL = process.env.VERCEL_URL || 'your-vercel-app-name.vercel.app';
+// Global variables to track initialization
+let bot;
+let isWebhookSet = false;
+let isMongoConnected = false;
+
+// Initialize bot only once
+if (!bot && process.env.BOT_TOKEN) {
+  bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: false });
+}
+
+// Get the correct server URL
+const getServerUrl = () => {
+  if (process.env.VERCEL_URL) {
+    return process.env.VERCEL_URL.startsWith('https://') 
+      ? process.env.VERCEL_URL 
+      : `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  // Fallback - you should set this in your environment variables
+  return process.env.CUSTOM_DOMAIN || 'your-vercel-app-name.vercel.app';
+};
+
+const SERVER_URL = getServerUrl();
 const WEBHOOK_PATH = '/api/telegram-webhook';
-const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
+const WEBHOOK_URL = `${SERVER_URL}${WEBHOOK_PATH}`;
 
 const reversalRequests = new Map();
 
+// CORS configuration
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
@@ -44,33 +68,103 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-bot.setWebHook(WEBHOOK_URL)
-  .then(() => console.log(`Webhook set at ${WEBHOOK_URL}`))
-  .catch(err => {
-    console.error('Webhook setup failed:', err.message);
-    process.exit(1);
-  });
-
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => {
-    console.error('MongoDB connection error:', err.message);
-    process.exit(1);
-  });
-
-app.post(WEBHOOK_PATH, (req, res) => {
-  if (process.env.WEBHOOK_SECRET && 
-      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
-    return res.sendStatus(403);
+// MongoDB connection with better error handling
+const connectMongoDB = async () => {
+  if (isMongoConnected || !process.env.MONGODB_URI) {
+    return;
   }
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
+  
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      socketTimeoutMS: 45000, // Close sockets after 45s
+    });
+    isMongoConnected = true;
+    console.log('MongoDB connected');
+  } catch (err) {
+    console.error('MongoDB connection error:', err.message);
+    // Don't exit the process in serverless environment
+    // throw err; // Uncomment if you want to fail fast
+  }
+};
+
+// Webhook setup with better error handling
+const setupWebhook = async () => {
+  if (isWebhookSet || !bot || !process.env.BOT_TOKEN) {
+    return;
+  }
+  
+  try {
+    await bot.setWebHook(WEBHOOK_URL, {
+      secret_token: process.env.WEBHOOK_SECRET
+    });
+    isWebhookSet = true;
+    console.log(`Webhook set at ${WEBHOOK_URL}`);
+  } catch (err) {
+    console.error('Webhook setup failed:', err.message);
+    // Don't exit the process in serverless environment
+    // In production, you might want to set up webhook manually or through a separate script
+  }
+};
+
+// Initialize connections (but don't await in serverless)
+if (process.env.VERCEL !== '1' || process.env.NODE_ENV !== 'production') {
+  // Only auto-setup in development or non-Vercel environments
+  connectMongoDB().catch(console.error);
+  setupWebhook().catch(console.error);
+}
+
+// Telegram webhook endpoint
+app.post(WEBHOOK_PATH, async (req, res) => {
+  try {
+    // Verify webhook secret if provided
+    if (process.env.WEBHOOK_SECRET && 
+        req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+      return res.sendStatus(403);
+    }
+
+    // Ensure MongoDB is connected
+    await connectMongoDB();
+
+    // Process the update if bot is available
+    if (bot) {
+      bot.processUpdate(req.body);
+    } else {
+      console.error('Bot not initialized');
+      return res.status(500).json({ error: 'Bot not initialized' });
+    }
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
+// Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+  const status = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    bot: !!bot,
+    mongodb: isMongoConnected,
+    webhook: isWebhookSet
+  };
+  res.status(200).json(status);
 });
 
+// Webhook setup endpoint (manual trigger)
+app.post('/api/setup-webhook', async (req, res) => {
+  try {
+    await setupWebhook();
+    res.json({ success: true, webhookUrl: WEBHOOK_URL });
+  } catch (error) {
+    console.error('Manual webhook setup failed:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get wallet address endpoint
 app.get('/api/get-wallet-address', (req, res) => {
   try {
     const walletAddress = process.env.WALLET_ADDRESS;
@@ -93,13 +187,30 @@ app.get('/api/get-wallet-address', (req, res) => {
   }
 });
 
+// Root endpoint for testing
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'StarStore API is running',
+    timestamp: new Date().toISOString(),
+    webhookUrl: WEBHOOK_URL
+  });
+});
+
+// Error handling middleware
+app.use((error, req, res, next) => {
+  console.error('Unhandled error:', error);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Export for Vercel
 module.exports = app;
 
+// Only start server in non-Vercel environment
 if (process.env.VERCEL !== '1') {
   const PORT = process.env.PORT || 8080;
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Webhook set to: ${WEBHOOK_URL}`);
+    console.log(`Webhook URL: ${WEBHOOK_URL}`);
   });
 }
 
