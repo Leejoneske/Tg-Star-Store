@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
@@ -66,7 +65,8 @@ app.use(cors({
 
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(express.static('public'));
+// Static files are handled by Vercel's static build, not Express
+// app.use(express.static('public')); // Removed for Vercel compatibility
 
 // MongoDB connection with better error handling
 const connectMongoDB = async () => {
