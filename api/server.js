@@ -6,6 +6,9 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const app = express();
+const axios = require('axios');
+const zlib = require('zlib');
+const fetch = require('node-fetch');
 
 let bot;
 let isWebhookSet = false;
@@ -82,10 +85,8 @@ const setupWebhook = async () => {
   }
 };
 
-if (process.env.NODE_ENV !== 'production') {
-  connectMongoDB().catch(console.error);
-  setupWebhook().catch(console.error);
-}
+connectMongoDB().catch(console.error);
+setupWebhook().catch(console.error);
 
 app.post('/api/telegram-webhook', async (req, res) => {
   try {
