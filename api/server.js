@@ -1379,7 +1379,9 @@ bot.on('sticker', async (msg) => {
 });
 
 // API ENDPOINTS
-app.get('/api/sticker/:sticker_id/json', async (req, res) => {
+app.get('/api/sticker/:sticker_id/info', async (req, res) => {
+  res.redirect(`/api/sticker/${req.params.sticker_id}/json`);
+});
   try {
     const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
     if (!sticker || !sticker.file_path.endsWith('.tgs')) {
