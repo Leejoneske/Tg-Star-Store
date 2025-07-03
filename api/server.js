@@ -60,21 +60,30 @@ app.use(cors({
 app.use(express.json());
 app.use(bodyParser.json());
 
-const connectMongoDB = async () => {
+const connectMongoDB = async (retryCount = 0) => {
   if (isMongoConnected || !process.env.MONGODB_URI) return;
   
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 30000,
       socketTimeoutMS: 45000,
+      retryWrites: true,
+      retryReads: true,
     });
     isMongoConnected = true;
+    console.log('✅ MongoDB connected successfully');
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
+    if (retryCount < 3) {
+      const delay = Math.pow(2, retryCount) * 1000;
+      console.log(`Retrying MongoDB connection in ${delay/1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return connectMongoDB(retryCount + 1);
+    }
   }
 };
 
-const setupWebhook = async () => {
+const setupWebhook = async (retryCount = 0) => {
   if (isWebhookSet || !bot || !process.env.BOT_TOKEN) return;
 
   try {
@@ -85,12 +94,19 @@ const setupWebhook = async () => {
     console.log('✅ Webhook setup successful:', result);
   } catch (err) {
     if (err.response?.error_code === 429) { // Rate limited
-      const retryAfter = err.response.parameters?.retry_after || 5; // Default: 5 sec
+      const retryAfter = err.response.parameters?.retry_after || 5;
       console.log(`⚠️ Rate limited. Retrying in ${retryAfter} seconds...`);
       await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-      return setupWebhook(); // Retry
+      return setupWebhook(retryCount);
     }
+    
     console.error('❌ Webhook setup failed:', err.message);
+    if (retryCount < 3) {
+      const delay = Math.pow(2, retryCount) * 1000;
+      console.log(`Retrying webhook setup in ${delay/1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return setupWebhook(retryCount + 1);
+    }
   }
 };
 
@@ -125,6 +141,15 @@ app.post('/api/telegram-webhook', async (req, res) => {
       details: error.message 
     });
   }
+});
+
+app.get('/api/status', (req, res) => {
+  res.json({
+    status: 'ok',
+    mongodb: isMongoConnected,
+    webhook: isWebhookSet,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.get('/health', (req, res) => {
@@ -1354,37 +1379,6 @@ bot.on('sticker', async (msg) => {
 });
 
 // API ENDPOINTS
-app.get('/api/sticker/:sticker_id/json', async (req, res) => {
-  try {
-    const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
-    if (!sticker || !sticker.file_path.endsWith('.tgs')) {
-      return res.status(404).json({ error: 'Sticker not found or not animated' });
-    }
-
-    const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.file_path}`;
-    const tgRes = await fetch(telegramUrl);
-    const buffer = await tgRes.arrayBuffer();
-
-    zlib.unzip(Buffer.from(buffer), (err, jsonBuffer) => {
-      if (err) {
-        console.error('Decompression error:', err);
-        return res.status(500).json({ error: 'Failed to decode sticker' });
-      }
-
-      try {
-        const json = JSON.parse(jsonBuffer.toString());
-        res.json(json);
-      } catch (e) {
-        res.status(500).json({ error: 'Invalid JSON' });
-      }
-    });
-
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Internal error' });
-  }
-});
-
 app.get('/api/sticker/:sticker_id/json', async (req, res) => {
   try {
     const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
