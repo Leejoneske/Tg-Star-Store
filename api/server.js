@@ -74,15 +74,21 @@ const connectMongoDB = async () => {
 
 const setupWebhook = async () => {
   if (isWebhookSet || !bot || !process.env.BOT_TOKEN) return;
-  
+
   try {
     const result = await bot.setWebHook(WEBHOOK_URL, {
-      secret_token: process.env.WEBHOOK_SECRET 
+      secret_token: process.env.WEBHOOK_SECRET,
     });
     isWebhookSet = true;
-    console.log('Webhook setup successful:', result);
+    console.log('✅ Webhook setup successful:', result);
   } catch (err) {
-    console.error('Webhook setup failed:', err);
+    if (err.response?.error_code === 429) { // Rate limited
+      const retryAfter = err.response.parameters?.retry_after || 5; // Default: 5 sec
+      console.log(`⚠️ Rate limited. Retrying in ${retryAfter} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+      return setupWebhook(); // Retry
+    }
+    console.error('❌ Webhook setup failed:', err.message);
   }
 };
 
