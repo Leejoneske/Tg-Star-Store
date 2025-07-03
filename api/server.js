@@ -9,6 +9,7 @@ const app = express();
 const axios = require('axios');
 const path = require('path');  
 const zlib = require('zlib');
+const fetch = require('node-fetch');
 
 
 let bot;
