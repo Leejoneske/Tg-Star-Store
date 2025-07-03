@@ -1382,54 +1382,48 @@ bot.on('sticker', async (msg) => {
 app.get('/api/sticker/:sticker_id/info', async (req, res) => {
   res.redirect(`/api/sticker/${req.params.sticker_id}/json`);
 });
+
+app.get('/api/sticker/:sticker_id/json', async (req, res) => {
   try {
     const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
     if (!sticker || !sticker.file_path.endsWith('.tgs')) {
       return res.status(404).json({ error: 'Sticker not found or not animated' });
     }
-
     const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.file_path}`;
     const tgRes = await fetch(telegramUrl);
     
     if (!tgRes.ok) {
       return res.status(404).json({ error: 'Failed to fetch sticker from Telegram' });
     }
-
     const buffer = await tgRes.arrayBuffer();
     const uint8Buffer = Buffer.from(buffer);
-
-    // Try multiple decompression methods
+    
     const tryDecompress = (buffer) => {
       return new Promise((resolve, reject) => {
-        // First try: gzip decompression
         zlib.unzip(buffer, (err, result) => {
           if (!err) {
             resolve(result);
             return;
           }
           
-          // Second try: gunzip decompression
           zlib.gunzip(buffer, (err2, result2) => {
             if (!err2) {
               resolve(result2);
               return;
             }
             
-            // Third try: inflate decompression
             zlib.inflate(buffer, (err3, result3) => {
               if (!err3) {
                 resolve(result3);
                 return;
               }
               
-              // Fourth try: raw inflate
               zlib.inflateRaw(buffer, (err4, result4) => {
                 if (!err4) {
                   resolve(result4);
                   return;
                 }
                 
-                // Last try: assume it's already uncompressed
                 try {
                   JSON.parse(buffer.toString());
                   resolve(buffer);
@@ -1442,7 +1436,7 @@ app.get('/api/sticker/:sticker_id/info', async (req, res) => {
         });
       });
     };
-
+    
     try {
       const jsonBuffer = await tryDecompress(uint8Buffer);
       const json = JSON.parse(jsonBuffer.toString());
@@ -1454,7 +1448,6 @@ app.get('/api/sticker/:sticker_id/info', async (req, res) => {
         details: 'Unsupported compression format or corrupted file'
       });
     }
-
   } catch (error) {
     console.error('Sticker JSON endpoint error:', error);
     res.status(500).json({ error: 'Internal error' });
