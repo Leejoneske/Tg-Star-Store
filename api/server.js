@@ -1,4 +1,5 @@
 
+
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
@@ -10,7 +11,6 @@ const axios = require('axios');
 const path = require('path');  
 const zlib = require('zlib');
 const fetch = require('node-fetch');
-
 
 let bot;
 let isWebhookSet = false;
@@ -449,7 +449,6 @@ const stickerSchema = new mongoose.Schema({
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now }
 });
-
 
 const Sticker = mongoose.models.Sticker || mongoose.model('Sticker', stickerSchema);
 const Notification = mongoose.models.Notification || mongoose.model('Notification', notificationSchema);
@@ -1379,10 +1378,6 @@ bot.on('sticker', async (msg) => {
 });
 
 // API ENDPOINTS
-app.get('/api/sticker/:sticker_id/info', async (req, res) => {
-  res.redirect(`/api/sticker/${req.params.sticker_id}/json`);
-});
-
 app.get('/api/sticker/:sticker_id/json', async (req, res) => {
   try {
     const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
@@ -1471,6 +1466,23 @@ app.get('/api/stickers', async (req, res) => {
     .limit(parseInt(limit));
     
     res.json(stickers);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/sticker/:id/info', async (req, res) => {
+  try {
+    const sticker = await Sticker.findOne(
+      { file_unique_id: req.params.id },
+      { _id: 0, file_unique_id: 1, is_animated: 1, is_video: 1, emoji: 1, set_name: 1 }
+    );
+    
+    if (!sticker) {
+      return res.status(404).json({ error: 'Sticker not found' });
+    }
+    
+    res.json(sticker);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
