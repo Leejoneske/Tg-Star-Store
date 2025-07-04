@@ -1,12 +1,13 @@
+
 {
   "version": 2,
   "builds": [
     {
-      "src": "api/server.js",
+      "src": "api/**/*.js",
       "use": "@vercel/node",
       "config": {
         "maxLambdaSize": "50mb",
-        "memory": 1024
+        "memory": 3008
       }
     },
     {
@@ -17,18 +18,10 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "api/server.js"
+      "dest": "api/$1.js"
     },
     {
       "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot))",
-      "dest": "public/$1"
-    },
-    {
-      "src": "/blog/(.*)",
-      "dest": "public/blog/$1"
-    },
-    {
-      "src": "/(.*\\.html)$",
       "dest": "public/$1"
     },
     {
@@ -37,10 +30,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "api/server.js"
+      "dest": "public/index.html" 
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
