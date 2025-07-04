@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
@@ -10,22 +9,20 @@ const axios = require('axios');
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
+const fs = require('fs');
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
                    'tg-star-store-production.up.railway.app');
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
-// Import Telegram auth middleware (single import only)
 const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
 const reversalRequests = new Map();
-// Middleware
+
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, etc.)
         if (!origin) return callback(null, true);
         
-        // Allow localhost and your main domains
         const allowedPatterns = [
             /^https?:\/\/localhost(:\d+)?$/,
             /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
@@ -46,24 +43,90 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(express.static('public'));
-// Webhook setup
+
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.send(`User-agent: *
+Allow: /
+Allow: /blog/
+Allow: /blog/*
+Disallow: /telegram-webhook
+Disallow: /api/
+Disallow: /admin/
+
+Sitemap: https://${SERVER_URL}/sitemap.xml`);
+});
+
+app.get('/sitemap.xml', (req, res) => {
+    res.type('application/xml');
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://${SERVER_URL}/</loc>
+        <lastmod>${new Date().toISOString()}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>1.0</priority>
+    </url>
+    <url>
+        <loc>https://${SERVER_URL}/blog/</loc>
+        <lastmod>${new Date().toISOString()}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+</urlset>`;
+    res.send(sitemap);
+});
+
+app.get('/blog/*', (req, res) => {
+    const requestedPath = req.path;
+    let filePath;
+    
+    if (requestedPath.endsWith('/')) {
+        filePath = path.join(__dirname, 'public', requestedPath, 'index.html');
+    } else {
+        filePath = path.join(__dirname, 'public', requestedPath + '.html');
+        if (!fs.existsSync(filePath)) {
+            filePath = path.join(__dirname, 'public', requestedPath, 'index.html');
+        }
+    }
+    
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).sendFile(path.join(__dirname, 'public', 'index.html'));
+    }
+});
+
+app.use(express.static('public', {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true,
+    index: ['index.html'],
+    redirect: false,
+    setHeaders: (res, path, stat) => {
+        if (path.endsWith('.html')) {
+            res.set('Cache-Control', 'public, max-age=3600');
+        }
+    }
+}));
+
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
   .catch(err => {
     console.error('❌ Webhook setup failed:', err.message);
     process.exit(1);
   });
-// MongoDB connection
+
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected successfully'))
   .catch(err => {
     console.error('❌ MongoDB connection error:', err.message);
     process.exit(1);
   });
-// Webhook handler
+
 app.post(WEBHOOK_PATH, (req, res) => {
   if (process.env.WEBHOOK_SECRET && 
       req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
@@ -72,9 +135,15 @@ app.post(WEBHOOK_PATH, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 const buyOrderSchema = new mongoose.Schema({
     id: String,
     telegramId: String,
@@ -450,6 +519,11 @@ app.post('/api/orders/create', async (req, res) => {
     }
 });
 
+function sanitizeUsername(username) {
+    if (!username) return null;
+    return username.replace(/[^\w\d_]/g, '');
+}
+
 app.post("/api/sell-orders", async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress } = req.body;
@@ -465,7 +539,7 @@ app.post("/api/sell-orders", async (req, res) => {
         const order = new SellOrder({
             id: generateOrderId(),
             telegramId,
-            username,
+            username: sanitizeUsername(username),
             stars,
             walletAddress,
             status: "pending", 
@@ -525,7 +599,7 @@ A payout will be released after this period.`
      
     const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
-        `User: @${order.username} (ID: ${order.telegramId})\n` + 
+        `User: ${order.username ? `@${order.username}` : `User ID: ${order.telegramId}`} (ID: ${order.telegramId})\n` + 
         `Stars: ${order.stars}\n` +
         `Wallet: ${order.walletAddress}`;
 
@@ -561,7 +635,7 @@ A payout will be released after this period.`
 bot.on('callback_query', async (query) => {
     try {
         const data = query.data;
-        const adminUsername = query.from.username || `admin_${query.from.id}`;
+        const adminUsername = query.from.username ? query.from.username : `User_${query.from.id}`;
 
         let order, actionType, orderType;
 
@@ -721,6 +795,29 @@ bot.on('callback_query', async (query) => {
         });
     }
 });
+
+async function createTelegramInvoice(chatId, orderId, stars, description) {
+    try {
+        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/createInvoiceLink`, {
+            chat_id: chatId,
+            provider_token: process.env.PROVIDER_TOKEN,
+            title: `Purchase of ${stars} Telegram Stars`,
+            description: description,
+            payload: orderId,
+            currency: 'XTR',
+            prices: [
+                {
+                    label: `${stars} Telegram Stars`,  
+                    amount: stars * 1
+                }
+            ]
+        });
+        return response.data.result;
+    } catch (error) {
+        console.error('Error creating invoice:', error);
+        throw error;
+    }
+}
 
 async function createTelegramInvoice(chatId, orderId, stars, description) {
     try {
