@@ -61,17 +61,33 @@ app.use(express.json());
 app.use(bodyParser.json());
 
 const connectMongoDB = async (retryCount = 0) => {
-  if (isMongoConnected || !process.env.MONGODB_URI) return;
+  if (isMongoConnected) return;
   
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 30000,
+      serverSelectionTimeoutMS: 30000, 
       socketTimeoutMS: 45000,
       retryWrites: true,
       retryReads: true,
+      connectTimeoutMS: 30000, 
+      maxPoolSize: 10, 
+      minPoolSize: 2, 
     });
+    
     isMongoConnected = true;
     console.log('✅ MongoDB connected successfully');
+    
+    // Handle connection events
+    mongoose.connection.on('error', (err) => {
+      console.error('MongoDB connection error:', err);
+      isMongoConnected = false;
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.log('MongoDB disconnected');
+      isMongoConnected = false;
+    });
+    
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
     if (retryCount < 3) {
@@ -80,6 +96,7 @@ const connectMongoDB = async (retryCount = 0) => {
       await new Promise(resolve => setTimeout(resolve, delay));
       return connectMongoDB(retryCount + 1);
     }
+    throw err; // Re-throw after final retry
   }
 };
 
