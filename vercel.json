@@ -21,7 +21,7 @@
       "dest": "api/$1.js"
     },
     {
-      "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot))",
+      "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|html))",
       "dest": "public/$1"
     },
     {
@@ -30,7 +30,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "public/index.html" 
+      "dest": "public/$1"
     }
   ]
 }
