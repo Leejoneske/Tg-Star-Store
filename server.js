@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
@@ -19,6 +20,7 @@ const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
 const reversalRequests = new Map();
 
+// CORS Configuration
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
@@ -44,8 +46,25 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Body Parser Middleware
 app.use(express.json());
 app.use(bodyParser.json());
+
+// Database Connection
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('✅ MongoDB connected successfully'))
+  .catch(err => {
+    console.error('❌ MongoDB connection error:', err.message);
+    process.exit(1);
+  });
+
+// Set up Telegram Bot Webhook
+bot.setWebHook(WEBHOOK_URL)
+  .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
+  .catch(err => {
+    console.error('❌ Webhook setup failed:', err.message);
+    process.exit(1);
+  });
 
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain');
@@ -80,6 +99,20 @@ app.get('/sitemap.xml', (req, res) => {
     res.send(sitemap);
 });
 
+app.post(WEBHOOK_PATH, (req, res) => {
+  if (process.env.WEBHOOK_SECRET && 
+      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+    return res.sendStatus(403);
+  }
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+
 app.get('/blog/*', (req, res) => {
     const requestedPath = req.path;
     let filePath;
@@ -113,36 +146,10 @@ app.use(express.static('public', {
     }
 }));
 
-bot.setWebHook(WEBHOOK_URL)
-  .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
-  .catch(err => {
-    console.error('❌ Webhook setup failed:', err.message);
-    process.exit(1);
-  });
-
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected successfully'))
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
-    process.exit(1);
-  });
-
-app.post(WEBHOOK_PATH, (req, res) => {
-  if (process.env.WEBHOOK_SECRET && 
-      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
-    return res.sendStatus(403);
-  }
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
-});
-
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
