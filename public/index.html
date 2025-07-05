@@ -905,8 +905,8 @@ const translations = {
 // Configuration constants
 const CACHE_DURATION = 24 * 60 * 60 * 1000; 
 const LOW_BATTERY_THRESHOLD = 0.1; 
-const BATCH_SIZE = 5;
-
+const BATCH_SIZE = 6;
+        
 // App state variables
 let tonConnectUI = null;
 let currentLanguage = sessionStorage.getItem('appLanguage') || 'en';
@@ -1020,6 +1020,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         
 // Enhanced device detection
+
 function isLowEndDevice() {
   const userAgent = navigator.userAgent.toLowerCase();
   const isMobile = /android|webos|iphone|ipod|ipad|blackberry|windows phone/.test(userAgent);
@@ -1031,7 +1032,6 @@ function isLowEndDevice() {
   return (isMobile && isOldBrowser) || hasLowMemory || hasSlowConnection;
 }
 
-// Battery level detection
 async function checkBatteryLevel() {
   if (!navigator.getBattery) return false;
   
@@ -1041,7 +1041,6 @@ async function checkBatteryLevel() {
     const wasLowBattery = isLowBattery;
     isLowBattery = batteryLevel < LOW_BATTERY_THRESHOLD;
     
-    // If battery status changed, update sticker playback
     if (wasLowBattery !== isLowBattery) {
       updateStickerPlayback();
     }
@@ -1053,28 +1052,23 @@ async function checkBatteryLevel() {
   }
 }
 
-// Initialize battery monitoring
 async function initBatteryMonitoring() {
   if (!navigator.getBattery) return;
   
   try {
     const battery = await navigator.getBattery();
     
-    // Initial check
     await checkBatteryLevel();
     
-    // Listen for battery events
     battery.addEventListener('levelchange', checkBatteryLevel);
     battery.addEventListener('chargingchange', checkBatteryLevel);
     
-    // Periodic check as fallback
-    batteryCheckInterval = setInterval(checkBatteryLevel, 60000); // Check every minute
+    batteryCheckInterval = setInterval(checkBatteryLevel, 60000);
   } catch (error) {
     console.warn('Failed to initialize battery monitoring:', error);
   }
 }
 
-// Check if cached data is still valid
 function isCacheValid(cacheEntry) {
   if (!cacheEntry) return false;
   
@@ -1082,7 +1076,6 @@ function isCacheValid(cacheEntry) {
   return age < CACHE_DURATION;
 }
 
-// Get sticker info with persistent caching
 async function getStickerInfo(stickerId) {
   const cached = stickerCache.get(stickerId);
   if (isCacheValid(cached)) {
@@ -1095,7 +1088,6 @@ async function getStickerInfo(stickerId) {
     
     const info = await response.json();
     
-    // Cache with extended timestamp for persistence
     stickerCache.set(stickerId, {
       data: info,
       timestamp: Date.now()
@@ -1108,7 +1100,6 @@ async function getStickerInfo(stickerId) {
   }
 }
 
-// Batch load all sticker info to reduce network requests
 async function batchLoadStickerInfo(stickerIds) {
   const uncachedIds = stickerIds.filter(id => {
     const cached = stickerCache.get(id);
@@ -1117,7 +1108,6 @@ async function batchLoadStickerInfo(stickerIds) {
 
   if (uncachedIds.length === 0) return;
 
-  // Load all uncached stickers in parallel with controlled concurrency
   const batchSize = isLowEndDevice() ? 3 : BATCH_SIZE;
   const batches = [];
   
@@ -1133,7 +1123,6 @@ async function batchLoadStickerInfo(stickerIds) {
 }
 
 async function loadStickers() {
-  // Prevent multiple simultaneous batch loads
   if (batchLoadPromise) {
     await batchLoadPromise;
     return;
@@ -1146,12 +1135,10 @@ async function loadStickers() {
 
   if (stickerIds.length === 0) return;
 
-  // Start batch loading
   batchLoadPromise = batchLoadStickerInfo(stickerIds);
   await batchLoadPromise;
   batchLoadPromise = null;
 
-  // Load all stickers simultaneously for synchronized playback
   const loadPromises = Array.from(containers).map(container => {
     const stickerId = container.getAttribute('data-sticker-id');
     if (!stickerId) return Promise.resolve();
@@ -1160,16 +1147,13 @@ async function loadStickers() {
     const info = cached?.data;
     
     if (!info) {
-      loadPlaceholder(container);
-      return Promise.resolve();
+      return loadStaticSticker(container, stickerId);
     }
 
-    // For low-end devices or low battery, prefer static stickers
     if (isLowEndDevice() || isLowBattery) {
       return loadStaticSticker(container, stickerId);
     }
 
-    // For high-end devices with good battery, load appropriate type
     if (info.is_animated) {
       return loadAnimatedSticker(container, stickerId)
         .catch(() => loadStaticSticker(container, stickerId));
@@ -1180,10 +1164,8 @@ async function loadStickers() {
     }
   });
 
-  // Wait for all stickers to load simultaneously
   await Promise.allSettled(loadPromises);
   
-  // Synchronize animated content playback only if battery is good
   if (!isLowBattery) {
     synchronizeAnimations();
   }
@@ -1191,7 +1173,6 @@ async function loadStickers() {
 
 function loadStaticSticker(container, stickerId) {
   return new Promise((resolve, reject) => {
-    // Check if already loaded
     const existingImg = container.querySelector('img');
     if (existingImg && existingImg.src.includes(stickerId)) {
       resolve();
@@ -1221,7 +1202,6 @@ function loadStaticSticker(container, stickerId) {
 
 function loadVideoSticker(container, stickerId) {
   return new Promise((resolve, reject) => {
-    // Check if already loaded
     const existingVideo = container.querySelector('video');
     if (existingVideo && existingVideo.src.includes(stickerId)) {
       container._videoElement = existingVideo;
@@ -1259,8 +1239,7 @@ async function loadAnimatedSticker(container, stickerId) {
     throw new Error('Lottie not available');
   }
 
-  // Check if already loaded
-  if (container._lottieAnimation && !container._lottieAnimation.isLoaded === false) {
+  if (container._lottieAnimation && container._lottieAnimation.isLoaded !== false) {
     return Promise.resolve();
   }
 
@@ -1277,7 +1256,7 @@ async function loadAnimatedSticker(container, stickerId) {
       container: container,
       renderer: 'svg',
       loop: true,
-      autoplay: false, // Don't autoplay yet
+      autoplay: false,
       animationData: animationData
     });
     
@@ -1308,12 +1287,10 @@ function loadPlaceholder(container) {
   container.replaceChildren(placeholder);
 }
 
-// Update sticker playback based on battery level
 function updateStickerPlayback() {
   const containers = document.querySelectorAll('.sticker-container');
   
   if (isLowBattery) {
-    // Pause all animations when battery is low
     containers.forEach(container => {
       if (container._lottieAnimation) {
         container._lottieAnimation.pause();
@@ -1323,41 +1300,33 @@ function updateStickerPlayback() {
       }
     });
   } else {
-    // Resume animations when battery is sufficient
     synchronizeAnimations();
   }
 }
 
-// Synchronize all animations to play at the same time
 function synchronizeAnimations() {
-  if (isLowBattery) return; // Don't play if battery is low
+  if (isLowBattery) return;
   
   const containers = document.querySelectorAll('.sticker-container');
   
-  // Start all Lottie animations
   containers.forEach(container => {
     if (container._lottieAnimation) {
       container._lottieAnimation.goToAndPlay(0);
     }
   });
   
-  // Start all video elements
   containers.forEach(container => {
     if (container._videoElement) {
       container._videoElement.currentTime = 0;
-      container._videoElement.play().catch(() => {
-        // Autoplay might be blocked, ignore error
-      });
+      container._videoElement.play().catch(() => {});
     }
   });
 }
 
-// Optimized intersection observer for performance
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     const container = entry.target;
     if (!entry.isIntersecting) {
-      // Pause animations when not visible to save resources
       if (container._lottieAnimation) {
         container._lottieAnimation.pause();
       }
@@ -1365,7 +1334,6 @@ const observer = new IntersectionObserver((entries) => {
         container._videoElement.pause();
       }
     } else {
-      // Resume animations when visible (but only if battery is sufficient)
       if (!isLowBattery) {
         if (container._lottieAnimation) {
           container._lottieAnimation.play();
@@ -1381,12 +1349,10 @@ const observer = new IntersectionObserver((entries) => {
   rootMargin: '50px' 
 });
 
-// Clean up animations when they leave viewport completely
 const cleanupObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     const container = entry.target;
     if (!entry.isIntersecting && container._lottieAnimation) {
-      // Only destroy if far from viewport to avoid unnecessary recreation
       const rect = container.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
       const distanceFromViewport = Math.min(
@@ -1394,7 +1360,6 @@ const cleanupObserver = new IntersectionObserver((entries) => {
         Math.abs(rect.top - viewportHeight)
       );
       
-      // Increased threshold to avoid frequent recreation
       if (distanceFromViewport > viewportHeight * 2) {
         container._lottieAnimation.destroy();
         container._lottieAnimation = null;
@@ -1403,10 +1368,8 @@ const cleanupObserver = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0, rootMargin: '-200px' });
 
-// Page visibility handling
 function handleVisibilityChange() {
   if (document.hidden) {
-    // Pause all animations when page is hidden
     const containers = document.querySelectorAll('.sticker-container');
     containers.forEach(container => {
       if (container._lottieAnimation) {
@@ -1417,32 +1380,25 @@ function handleVisibilityChange() {
       }
     });
   } else {
-    // Resume animations when page is visible (if battery is sufficient)
     if (!isLowBattery) {
       synchronizeAnimations();
     }
   }
 }
 
-// Initialize the system
 async function initStickerSystem() {
-  // Initialize battery monitoring
   await initBatteryMonitoring();
   
-  // Set up page visibility listener
   document.addEventListener('visibilitychange', handleVisibilityChange);
   
-  // Initialize observers
   document.querySelectorAll('.sticker-container').forEach(container => {
     observer.observe(container);
     cleanupObserver.observe(container);
   });
   
-  // Load initial stickers
   await loadStickers();
 }
 
-// Clean up cache periodically but less aggressively
 setInterval(() => {
   const now = Date.now();
   let cleanedCount = 0;
@@ -1457,23 +1413,20 @@ setInterval(() => {
   if (cleanedCount > 0) {
     console.log(`Cleaned ${cleanedCount} expired cache entries`);
   }
-}, 10 * 60 * 1000); // Clean up every 10 minutes
+}, 10 * 60 * 1000);
 
-// Cleanup on page unload
 window.addEventListener('beforeunload', () => {
   if (batteryCheckInterval) {
     clearInterval(batteryCheckInterval);
   }
 });
 
-// Auto-initialize when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initStickerSystem);
 } else {
   initStickerSystem();
 }
-
-
+        
         
 //notification system
 function initNotificationSystem() {
@@ -1829,6 +1782,7 @@ function restoreWalletState() {
         walletConnected = true;
         currentWalletAddress = savedWalletAddress;
         console.log('Restored wallet state:', savedWalletAddress);
+        updateWalletButton(); 
     } else {
         walletConnected = false;
         currentWalletAddress = '';
@@ -1966,12 +1920,6 @@ function initWalletConnection() {
     }
 }
 
-// Make sure to clean up when page unloads
-window.addEventListener('beforeunload', () => {
-    if (walletConnectionCheckInterval) {
-        clearInterval(walletConnectionCheckInterval);
-    }
-});
 //end of ton connect
 
 function initLanguageToggle() {
