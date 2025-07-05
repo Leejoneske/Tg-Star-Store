@@ -1021,6 +1021,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
 // Enhanced device detection
 
+function debug(message, data = null) {
+  console.log(`[STICKER DEBUG] ${message}`, data || '');
+}
+
 function isLowEndDevice() {
   const userAgent = navigator.userAgent.toLowerCase();
   const isMobile = /android|webos|iphone|ipod|ipad|blackberry|windows phone/.test(userAgent);
@@ -1047,13 +1051,16 @@ async function checkBatteryLevel() {
     
     return isLowBattery;
   } catch (error) {
-    console.warn('Battery API not available:', error);
+    debug('Battery API not available:', error);
     return false;
   }
 }
 
 async function initBatteryMonitoring() {
-  if (!navigator.getBattery) return;
+  if (!navigator.getBattery) {
+    debug('Battery API not supported');
+    return;
+  }
   
   try {
     const battery = await navigator.getBattery();
@@ -1065,7 +1072,7 @@ async function initBatteryMonitoring() {
     
     batteryCheckInterval = setInterval(checkBatteryLevel, 60000);
   } catch (error) {
-    console.warn('Failed to initialize battery monitoring:', error);
+    debug('Failed to initialize battery monitoring:', error);
   }
 }
 
@@ -1084,7 +1091,10 @@ async function getStickerInfo(stickerId) {
 
   try {
     const response = await fetch(`/api/sticker/${stickerId}/info`);
-    if (!response.ok) return null;
+    if (!response.ok) {
+      debug(`API call failed for sticker ${stickerId}: ${response.status}`);
+      return { is_animated: false, is_video: false };
+    }
     
     const info = await response.json();
     
@@ -1095,8 +1105,8 @@ async function getStickerInfo(stickerId) {
     
     return info;
   } catch (error) {
-    console.warn(`Failed to fetch sticker info for ${stickerId}:`, error);
-    return null;
+    debug(`Failed to fetch sticker info for ${stickerId}:`, error);
+    return { is_animated: false, is_video: false };
   }
 }
 
@@ -1123,33 +1133,44 @@ async function batchLoadStickerInfo(stickerIds) {
 }
 
 async function loadStickers() {
+  debug('Starting to load stickers');
+  
   if (batchLoadPromise) {
     await batchLoadPromise;
     return;
   }
 
   const containers = document.querySelectorAll('.sticker-container');
+  debug(`Found ${containers.length} sticker containers`);
+  
   const stickerIds = Array.from(containers)
     .map(container => container.getAttribute('data-sticker-id'))
     .filter(Boolean);
 
-  if (stickerIds.length === 0) return;
+  debug('Sticker IDs found:', stickerIds);
+
+  if (stickerIds.length === 0) {
+    debug('No sticker IDs found, creating test stickers');
+    createTestStickers();
+    return;
+  }
 
   batchLoadPromise = batchLoadStickerInfo(stickerIds);
   await batchLoadPromise;
   batchLoadPromise = null;
 
-  const loadPromises = Array.from(containers).map(container => {
+  const loadPromises = Array.from(containers).map(async (container, index) => {
     const stickerId = container.getAttribute('data-sticker-id');
-    if (!stickerId) return Promise.resolve();
-
-    const cached = stickerCache.get(stickerId);
-    const info = cached?.data;
-    
-    if (!info) {
-      return loadStaticSticker(container, stickerId);
+    if (!stickerId) {
+      debug(`No sticker ID for container ${index}`);
+      return Promise.resolve();
     }
 
+    debug(`Loading sticker ${stickerId}`);
+
+    const cached = stickerCache.get(stickerId);
+    const info = cached?.data || { is_animated: false, is_video: false };
+    
     if (isLowEndDevice() || isLowBattery) {
       return loadStaticSticker(container, stickerId);
     }
@@ -1169,9 +1190,57 @@ async function loadStickers() {
   if (!isLowBattery) {
     synchronizeAnimations();
   }
+  
+  debug('Finished loading stickers');
+}
+
+function createTestStickers() {
+  debug('Creating test stickers');
+  
+  const testContainer = document.createElement('div');
+  testContainer.style.padding = '20px';
+  testContainer.innerHTML = `
+    <h3>Test Stickers (Demo)</h3>
+    <div class="sticker-container" data-sticker-id="test1" style="display: inline-block; margin: 10px;"></div>
+    <div class="sticker-container" data-sticker-id="test2" style="display: inline-block; margin: 10px;"></div>
+    <div class="sticker-container" data-sticker-id="test3" style="display: inline-block; margin: 10px;"></div>
+  `;
+  
+  document.body.appendChild(testContainer);
+  
+  const newContainers = testContainer.querySelectorAll('.sticker-container');
+  newContainers.forEach(container => {
+    const stickerId = container.getAttribute('data-sticker-id');
+    loadTestSticker(container, stickerId);
+    observer.observe(container);
+    cleanupObserver.observe(container);
+  });
+}
+
+function loadTestSticker(container, stickerId) {
+  const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57'];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  
+  const placeholder = document.createElement('div');
+  placeholder.style.width = '72px';
+  placeholder.style.height = '72px';
+  placeholder.style.backgroundColor = color;
+  placeholder.style.display = 'flex';
+  placeholder.style.alignItems = 'center';
+  placeholder.style.justifyContent = 'center';
+  placeholder.style.color = 'white';
+  placeholder.style.fontSize = '12px';
+  placeholder.style.borderRadius = '8px';
+  placeholder.style.fontWeight = 'bold';
+  placeholder.textContent = stickerId.toUpperCase();
+  container.replaceChildren(placeholder);
+  
+  debug(`Loaded test sticker ${stickerId}`);
 }
 
 function loadStaticSticker(container, stickerId) {
+  debug(`Loading static sticker ${stickerId}`);
+  
   return new Promise((resolve, reject) => {
     const existingImg = container.querySelector('img');
     if (existingImg && existingImg.src.includes(stickerId)) {
@@ -1188,12 +1257,14 @@ function loadStaticSticker(container, stickerId) {
     
     img.onload = () => {
       container.replaceChildren(img);
+      debug(`Successfully loaded static sticker ${stickerId}`);
       resolve();
     };
     
     img.onerror = () => {
-      loadPlaceholder(container);
-      reject(new Error('Failed to load static sticker'));
+      debug(`Failed to load static sticker ${stickerId}, using placeholder`);
+      loadPlaceholder(container, stickerId);
+      resolve();
     };
     
     img.src = `/api/sticker/${stickerId}`;
@@ -1201,6 +1272,8 @@ function loadStaticSticker(container, stickerId) {
 }
 
 function loadVideoSticker(container, stickerId) {
+  debug(`Loading video sticker ${stickerId}`);
+  
   return new Promise((resolve, reject) => {
     const existingVideo = container.querySelector('video');
     if (existingVideo && existingVideo.src.includes(stickerId)) {
@@ -1222,12 +1295,14 @@ function loadVideoSticker(container, stickerId) {
     video.onloadedmetadata = () => {
       container.replaceChildren(video);
       container._videoElement = video;
+      debug(`Successfully loaded video sticker ${stickerId}`);
       resolve();
     };
     
     video.onerror = () => {
-      loadPlaceholder(container);
-      reject(new Error('Failed to load video sticker'));
+      debug(`Failed to load video sticker ${stickerId}, using placeholder`);
+      loadPlaceholder(container, stickerId);
+      resolve();
     };
     
     video.src = `/api/sticker/${stickerId}`;
@@ -1235,7 +1310,10 @@ function loadVideoSticker(container, stickerId) {
 }
 
 async function loadAnimatedSticker(container, stickerId) {
+  debug(`Loading animated sticker ${stickerId}`);
+  
   if (typeof lottie === 'undefined') {
+    debug('Lottie library not available');
     throw new Error('Lottie not available');
   }
 
@@ -1264,15 +1342,17 @@ async function loadAnimatedSticker(container, stickerId) {
     
     return new Promise((resolve) => {
       animation.addEventListener('DOMLoaded', () => {
+        debug(`Successfully loaded animated sticker ${stickerId}`);
         resolve();
       });
     });
   } catch (error) {
+    debug(`Failed to load animated sticker ${stickerId}:`, error);
     throw error;
   }
 }
 
-function loadPlaceholder(container) {
+function loadPlaceholder(container, stickerId = 'Unknown') {
   const placeholder = document.createElement('div');
   placeholder.style.width = '72px';
   placeholder.style.height = '72px';
@@ -1281,9 +1361,11 @@ function loadPlaceholder(container) {
   placeholder.style.alignItems = 'center';
   placeholder.style.justifyContent = 'center';
   placeholder.style.color = '#999';
-  placeholder.style.fontSize = '12px';
+  placeholder.style.fontSize = '10px';
   placeholder.style.borderRadius = '4px';
-  placeholder.textContent = 'Sticker';
+  placeholder.style.border = '1px solid #ddd';
+  placeholder.style.flexDirection = 'column';
+  placeholder.innerHTML = `<div>📷</div><div>${stickerId}</div>`;
   container.replaceChildren(placeholder);
 }
 
@@ -1387,16 +1469,21 @@ function handleVisibilityChange() {
 }
 
 async function initStickerSystem() {
+  debug('Initializing sticker system');
+  
   await initBatteryMonitoring();
   
   document.addEventListener('visibilitychange', handleVisibilityChange);
   
-  document.querySelectorAll('.sticker-container').forEach(container => {
+  const existingContainers = document.querySelectorAll('.sticker-container');
+  existingContainers.forEach(container => {
     observer.observe(container);
     cleanupObserver.observe(container);
   });
   
   await loadStickers();
+  
+  debug('Sticker system initialized');
 }
 
 setInterval(() => {
@@ -1411,7 +1498,7 @@ setInterval(() => {
   }
   
   if (cleanedCount > 0) {
-    console.log(`Cleaned ${cleanedCount} expired cache entries`);
+    debug(`Cleaned ${cleanedCount} expired cache entries`);
   }
 }, 10 * 60 * 1000);
 
