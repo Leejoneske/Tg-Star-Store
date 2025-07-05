@@ -502,10 +502,29 @@
     </div>
     <div class="wallet-status">
         <div id="manualWalletInput" class="mt-3">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    <span>Enter USDT TON wallet address</span>
+                </div>
+            </label>
             <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
                    class="w-full p-2 border border-gray-300 rounded-lg text-sm">
         </div>
         <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
+        <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 mt-3">
+            <div class="flex items-start space-x-2">
+                <svg class="w-5 h-5 text-orange-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.864-.833-2.634 0L4.18 14.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+                <div>
+                    <p class="font-medium text-orange-800">Important:</p>
+                    <p class="text-sm text-orange-700">Please make sure your wallet address is correct. Once payments are processed, they cannot be undone.</p>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="p-6">
         <div class="bg-white rounded-xl p-6 mb-6">
@@ -563,7 +582,6 @@
         </div>
     </div>
 </div>
-
 <!-- Modal Template for Star Payment -->
 <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
