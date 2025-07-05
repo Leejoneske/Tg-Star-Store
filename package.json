@@ -1,8 +1,8 @@
 
 {
-  "name": "tg-star-store",
+  "name": "starstore",
   "version": "1.0.0",
-  "description": "Telegram Mini App for buying and selling telegram stars",
+  "description": "StarStore - A Telegram Mini App for purchasing stars and premium subscriptions.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,39 +10,19 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "16.x"
   },
   "dependencies": {
-    "axios": "^1.6.0",
-    "body-parser": "^1.20.2",
     "cors": "^2.8.5",
-    "crypto": "^1.0.1",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "mongoose": "^8.0.0",
-    "node-telegram-bot-api": "^0.64.0",
-    "zlib": "^1.0.5"
+    "@tonconnect/ui": "^2.0.11",
+    "mongoose": "^8.0.3",
+    "axios": "^1.8.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-telegram-bot-api": "^0.66.0",
+    "sweetalert2": "^11.17.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
-  },
-  "keywords": [
-    "telegram",
-    "bot",
-    "miniapp",
-    "stickers",
-    "wallet",
-    "express",
-    "mongodb"
-  ],
-  "author": "StarStore",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "starstore.site"
-  },
-  "bugs": {
-    "url": "repository-url/issues"
-  },
-  "homepage": "https://starstore.site"
+  }
 }
