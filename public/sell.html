@@ -539,44 +539,43 @@
            </div> 
  
             <div class="sell-option p-4 mb-6">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
-                    <div class="stars-counter">
-                        <button class="counter-button" onclick="decrementStars()">-</button>
-                        <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
-                        <button class="counter-button" onclick="incrementStars()">+</button>
-                    </div>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
-                    <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
-                </div>
-                <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">Sell Now</button>
-            </div>
-            <div class="bg-blue-50 rounded-lg p-4 text-sm">
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
+        <div class="stars-counter">
+            <button class="counter-button" onclick="decrementStars()">-</button>
+            <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
+            <button class="counter-button" onclick="incrementStars()">+</button>
+        </div>
+    </div>
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
+        <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
+    </div>
+    <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">Sell Now</button>
+</div>
+
+<div class="bg-blue-50 rounded-lg p-4 text-sm">
     <div class="flex items-start space-x-2">
         <svg class="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
         <div>
             <p class="font-medium text-blue-800">How it works:</p>
-<ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
-    <li>Enter the amount of stars you want to sell</li>
-    <li>Click "Sell Now" to initiate the transaction</li>
-    <li>Send the stars via Telegram payment</li>
-    <li>Once verified, USDT will be sent to your wallet within 21 days <a href="https://t.me/StarStore_app/82" class="underline hover:text-red-900 font-medium">Why 21 days?</a></li>
-</ol>
+            <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
+                <li>Enter the amount of stars you want to sell</li>
+                <li>Click "Sell Now" to initiate the transaction</li>
+                <li>Send the stars via Telegram payment</li>
+                <li>Once verified, USDT will be sent to your wallet within 21 days (<a href="https://t.me/StarStore_app/82" target="_blank" rel="noopener noreferrer" class="underline hover:text-red-900 font-medium">Why 21 days?</a>)</li>
+            </ol>
         </div>
     </div>
 </div>
-            <div class="transaction-history">
-                <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
-                <div id="transactionsList">
-                    <!-- Transactions will be loaded dynamically -->
-                    <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
-                </div>
-            </div>
-        </div>
+
+<div class="transaction-history">
+    <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
+    <div id="transactionsList">
+        <!-- Transactions will be loaded dynamically -->
+        <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
     </div>
 </div>
 
