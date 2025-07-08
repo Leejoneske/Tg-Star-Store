@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -204,13 +203,7 @@
 #connectWallet.wallet-connected:hover {
     background-color: #e0f2fe;
 }
-    
-#connectWallet i {
-    font-style: normal; 
-    min-width: 16px; 
-    display: inline-block; 
-}
-    
+
 .wallet-address {
     font-size: 12px;
     color: #6b7280;
@@ -902,16 +895,9 @@ const translations = {
     }
 };
 
-// Configuration constants
-const CACHE_DURATION = 24 * 60 * 60 * 1000; 
-const LOW_BATTERY_THRESHOLD = 0.1; 
-const BATCH_SIZE = 6;
-        
-// App state variables
 let tonConnectUI = null;
 let currentLanguage = sessionStorage.getItem('appLanguage') || 'en';
 let walletConnected = false;
-let walletConnectionCheckInterval = null;
 let currentWalletAddress = '';
 let lastUserData = null;
 let currentUser = null;
@@ -919,11 +905,9 @@ let isTelegramEnv = false;
 let updateUserInterfaceRetryCount = 0;
 let isInitialized = false;
 
-// Sticker system state
 const stickerCache = new Map();
-let batchLoadPromise = null;
-let isLowBattery = false;
-let batteryCheckInterval = null;
+const CACHE_DURATION = 40 * 60 * 1000; 
+let batchLoadPromise = null;        
       
 window.getUserIdentifier = function() {
     if (currentUser?.id) return currentUser.id.toString();
@@ -1017,6 +1001,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 300);
     });
 });
+
 
 
 // Enhanced device detection
@@ -1327,7 +1312,7 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000); // Clean up every 5 minutes        
 
-        
+
         
 //notification system
 function initNotificationSystem() {
@@ -1683,52 +1668,10 @@ function restoreWalletState() {
         walletConnected = true;
         currentWalletAddress = savedWalletAddress;
         console.log('Restored wallet state:', savedWalletAddress);
-        updateWalletButton(); 
     } else {
         walletConnected = false;
         currentWalletAddress = '';
     }
-}
-
-async function verifyWalletConnection() {
-    try {
-        if (!tonConnectUI) return false;
-        const accounts = await tonConnectUI.account;
-        return !!accounts;
-    } catch (e) {
-        console.error("Wallet verification failed:", e);
-        return false;
-    }
-}
-
-function updateWalletButton() {
-    const btn = document.getElementById('connectWallet');
-    if (!btn) return;
-    
-    // Show loading state first
-    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
-    btn.disabled = true;
-    
-    setTimeout(async () => {
-        const isActuallyConnected = walletConnected && await verifyWalletConnection();
-        
-        if (isActuallyConnected && currentWalletAddress) {
-            const shortAddr = `${currentWalletAddress.slice(0,4)}...${currentWalletAddress.slice(-4)}`;
-            btn.innerHTML = `<i class="fas fa-wallet"></i><span class="wallet-address">${shortAddr}</span>`;
-            btn.classList.add('wallet-connected');
-        } else {
-            // Update global state if there was a mismatch
-            if (walletConnected && !isActuallyConnected) {
-                walletConnected = false;
-                currentWalletAddress = '';
-                localStorage.removeItem('walletConnected');
-                localStorage.removeItem('walletAddress');
-            }
-            btn.innerHTML = `<i class="fas fa-wallet"></i>${translations[currentLanguage]?.connectWallet || 'Connect Wallet'}`;
-            btn.classList.remove('wallet-connected');
-        }
-        btn.disabled = false;
-    }, 300);
 }
 
 function initWalletConnection() {
@@ -1741,36 +1684,33 @@ function initWalletConnection() {
         }
         return;
     }
-    
     restoreWalletState();
     
     tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ 
         manifestUrl: 'https://starstore.site/tonconnect-manifest.json',
         language: currentLanguage === 'ru' ? 'ru' : 'en',
-        restoreConnection: true,
+        restoreConnection: true, 
         uiOptions: {
             twaReturnUrl: 'https://t.me/TgStarStore_bot?startApp'
         }
     });
 
-    // Setup periodic connection verification
-    if (walletConnectionCheckInterval) {
-        clearInterval(walletConnectionCheckInterval);
-    }
-    walletConnectionCheckInterval = setInterval(async () => {
-        if (walletConnected) {
-            const isStillConnected = await verifyWalletConnection();
-            if (!isStillConnected) {
-                walletConnected = false;
-                currentWalletAddress = '';
-                localStorage.removeItem('walletConnected');
-                localStorage.removeItem('walletAddress');
-                updateWalletButton();
-            }
+    const updateWalletButton = () => {
+        const btn = document.getElementById('connectWallet');
+        if (!btn) return;
+        
+        if (walletConnected && currentWalletAddress) {
+            const shortAddr = `${currentWalletAddress.slice(0,4)}...${currentWalletAddress.slice(-4)}`;
+            btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddr}</span>`;
+            btn.classList.add('wallet-connected');
+        } else {
+            btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${translations[currentLanguage]?.connectWallet || 'Connect Wallet'}`;
+            btn.classList.remove('wallet-connected');
         }
-    }, 10000); // Check every 10 seconds
+    };
 
-    tonConnectUI.onStatusChange(async (wallet) => {
+    // Check if TON Connect has a restored connection
+    tonConnectUI.onStatusChange(wallet => {
         if (wallet?.account) {
             currentWalletAddress = wallet.account.address;
             walletConnected = true;
@@ -1801,26 +1741,25 @@ function initWalletConnection() {
                 console.error('Wallet connection error:', e);
                 showErrorToUser(translations[currentLanguage]?.walletError || 'Wallet connection failed');
             } finally {
-                setTimeout(() => {
-                    btn.disabled = false;
-                }, 1000);
+                btn.disabled = false;
             }
         });
         
-        // Initial update with verification
-        setTimeout(async () => {
-            const currentWallet = tonConnectUI.wallet;
-            if (currentWallet?.account && !walletConnected) {
-                currentWalletAddress = currentWallet.account.address;
-                walletConnected = true;
-                localStorage.setItem('walletConnected', 'true');
-                localStorage.setItem('walletAddress', currentWalletAddress);
-            }
-            updateWalletButton();
-        }, 1500);
+        // Update button immediately with restored state
+        updateWalletButton();
     }
-}
 
+    setTimeout(() => {
+        const currentWallet = tonConnectUI.wallet;
+        if (currentWallet?.account && !walletConnected) {
+            currentWalletAddress = currentWallet.account.address;
+            walletConnected = true;
+            localStorage.setItem('walletConnected', 'true');
+            localStorage.setItem('walletAddress', currentWalletAddress);
+            updateWalletButton();
+        }
+    }, 1000);
+}
 //end of ton connect
 
 function initLanguageToggle() {
@@ -1863,7 +1802,7 @@ function initLanguageToggle() {
     });
 }
 
-
+// Make sure this exists!
 function updateLanguage() {
     // Update toggle button
     const languageToggle = document.getElementById('languageToggle');
@@ -2083,3 +2022,4 @@ window.addEventListener('beforeunload', () => {
     </script>
 </body>
 </html>
+
