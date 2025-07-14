@@ -25,7 +25,7 @@ app.use(cors({
         // Allow requests with no origin (mobile apps, etc.)
         if (!origin) return callback(null, true);
         
-        // Allow localhost and your main domains
+        // Allow localhost
         const allowedPatterns = [
             /^https?:\/\/localhost(:\d+)?$/,
             /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
@@ -335,7 +335,7 @@ const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
 const User = mongoose.model('User', userSchema);
 const Referral = mongoose.model('Referral', referralSchema);
 const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
-
+const { setupBroadcastHandlers, BroadcastStats } = require('./broadcast');
 
 const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
 
@@ -2149,60 +2149,7 @@ bot.onText(/\/reply (\d+)(?:\s+(.+))?/, async (msg, match) => {
 });
 
 //broadcast now supports rich media text including porn
-bot.onText(/\/broadcast/, async (msg) => {
-    const chatId = msg.chat.id;
 
-    
-    if (!adminIds.includes(chatId.toString())) {
-        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
-    }
-    await bot.sendMessage(chatId, 'Enter the broadcast message (text, photo, audio, etc.):');
-
-    // Listen for the admin's next message
-    bot.once('message', async (adminMsg) => {
-        const users = await User.find({});
-        let successCount = 0;
-        let failCount = 0;
-
-        // Extract media and metadata from the admin's message
-        const messageType = adminMsg.photo ? 'photo' :
-                           adminMsg.audio ? 'audio' :
-                           adminMsg.video ? 'video' :
-                           adminMsg.document ? 'document' :
-                           'text';
-
-        const caption = adminMsg.caption || '';
-        const mediaId = adminMsg.photo ? adminMsg.photo[0].file_id :
-                       adminMsg.audio ? adminMsg.audio.file_id :
-                       adminMsg.video ? adminMsg.video.file_id :
-                       adminMsg.document ? adminMsg.document.file_id :
-                       null;
-
-        // Broadcast the message to all kang'ethes
-        for (const user of users) {
-            try {
-                if (messageType === 'text') {
-                    // Broadcast text message
-                    await bot.sendMessage(user.id, adminMsg.text || caption);
-                } else {
-                    // Broadcast media message
-                    await bot.sendMediaGroup(user.id, [{
-                        type: messageType,
-                        media: mediaId,
-                        caption: caption
-                    }]);
-                }
-                successCount++;
-            } catch (err) {
-                console.error(`Failed to send broadcast to user ${user.id}:`, err);
-                failCount++;
-            }
-        }
-
-        // Notify the admin about the broadcast result
-        bot.sendMessage(chatId, `📢 Broadcast results:\n✅ ${successCount} messages sent successfully\n❌ ${failCount} messages failed to send.`);
-    });
-});
 
 
 // Enhanced notification fetching with pagination and unread count
