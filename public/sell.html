@@ -1134,7 +1134,7 @@ function openWallet(walletType) {
 // Update the setupWalletAddressMemory function to handle both address and memo
 function setupWalletAddressMemory() {
     // Load saved wallet info if it exists
-    const savedWallet = JSON.parse(localStorage.getItem('userWalletInfo')) || {};
+    const savedWallet = JSON.parse(localStorage.getItem('userWalletInfo') || {});
     
     if (savedWallet.address) {
         document.getElementById('manualWalletAddress').value = savedWallet.address;
@@ -1192,6 +1192,15 @@ function setupWalletAddressMemory() {
             showConfirmButton: false
         });
     });
+
+    // Edit button handler
+    const editButton = document.getElementById('editWalletBtn');
+    if (editButton) {
+        editButton.addEventListener('click', () => {
+            document.getElementById('manualWalletAddress').disabled = false;
+            document.getElementById('manualWalletAddress').focus();
+        });
+    }
 }
   
   // Edit button handler
