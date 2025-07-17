@@ -1127,82 +1127,6 @@ saveWalletSetupBtn.addEventListener('click', saveWalletSetup);
 // Initialize wallet display on load
 document.addEventListener('DOMContentLoaded', initWalletDisplay);
 
-        
-// Wallet address persistence
-function setupWalletAddressMemory() {
-  // Create edit button for manual wallet address
-  const manualWalletContainer = document.getElementById('manualWalletInput');
-  const editContainer = document.createElement('div');
-  editContainer.className = 'flex items-center justify-between mt-2';
-  
-  const editButton = document.createElement('button');
-  editButton.id = 'editWalletBtn';
-  editButton.className = 'text-sm text-indigo-600 font-medium';
-  editButton.textContent = translations[currentLanguage].editAddress;
-  editButton.style.display = 'none';
-  
-  // Save button
-  const saveButton = document.createElement('button');
-  saveButton.id = 'saveWalletBtn';
-  saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
-  saveButton.textContent = translations[currentLanguage].saveAddress;
-  
-  editContainer.appendChild(editButton);
-  editContainer.appendChild(saveButton);
-  manualWalletContainer.appendChild(editContainer);
-  
-  // Load saved address if it exists
-  const savedAddress = localStorage.getItem('userWalletAddress');
-  if (savedAddress) {
-    manualWalletAddress.value = savedAddress;
-    currentWalletAddress = savedAddress;
-    editButton.style.display = 'block';
-    manualWalletAddress.disabled = true;
-  }
-  
-  // Save button handler
-  saveButton.addEventListener('click', () => {
-    const address = manualWalletAddress.value.trim();
-    if (!isValidWalletAddress(address)) {
-        Swal.fire({
-            icon: 'error',
-            title: translations[currentLanguage].missingWalletAddress,
-            text: currentLanguage === 'en' ? 
-                'Please enter a valid wallet address (minimum 10 characters)' : 
-                'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
-        });
-        return;
-    }
-    
-    if (address) {
-        localStorage.setItem('userWalletAddress', address);
-        currentWalletAddress = address;
-        manualWalletAddress.disabled = true;
-        editButton.style.display = 'block';
-        Swal.fire({
-            icon: 'success',
-            title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
-            text: currentLanguage === 'en' ? 
-                'Your wallet address has been saved for future use.' : 
-                'Ваш адрес кошелька был сохранен для будущего использования.',
-            timer: 2000,
-            showConfirmButton: false
-        });
-    }
-});
-  
-  // Edit button handler
-  editButton.addEventListener('click', () => {
-    manualWalletAddress.disabled = false;
-    manualWalletAddress.focus();
-  });
-}
-
-// Update wallet address when manual input changes
-manualWalletAddress.addEventListener('input', () => {
-    currentWalletAddress = manualWalletAddress.value.trim();
-});
-
 // Side menu toggle
 const menuOverlay = document.getElementById('menuOverlay');
 const sideMenu = document.getElementById('sideMenu');
@@ -1262,13 +1186,14 @@ calculateTonAmount();
      
 // Payment modal handling
 sellStarsBtn.addEventListener('click', () => {
-    if (!manualWalletAddress.value.trim() || !isValidWalletAddress(manualWalletAddress.value.trim())) {
+    
+    if (!currentWalletData || !currentWalletData.address || !isValidWalletAddress(currentWalletData.address)) {
         Swal.fire({
             icon: 'error',
             title: translations[currentLanguage].missingWalletAddress,
             text: currentLanguage === 'en' ? 
-                'Please enter a valid wallet address (minimum 10 characters)' : 
-                'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
+                'Please select or enter a valid wallet address' : 
+                'Пожалуйста, выберите или введите действительный адрес кошелька'
         });
         return;
     }
@@ -1289,7 +1214,10 @@ confirmPaymentBtn.addEventListener('click', async () => {
     paymentModal.classList.remove('flex');
 
     const stars = parseInt(starsInput.value);
-    const walletToUse = manualWalletAddress.value.trim();
+    
+    // Use the current wallet data instead of manual input
+    const walletToUse = currentWalletData.address;
+    const memoTag = currentWalletData.memo || ''; // Get memo from current wallet data
 
     try {
         const response = await axios.post('/api/sell-orders', {
@@ -1297,7 +1225,7 @@ confirmPaymentBtn.addEventListener('click', async () => {
             username: Telegram.WebApp.initDataUnsafe.user.username,
             stars: stars,
             walletAddress: walletToUse,
-            memoTag: memoTag
+            memoTag: memoTag // Include memoTag in the request
         });
 
         if (response.data.success) {
@@ -1347,7 +1275,7 @@ confirmPaymentBtn.addEventListener('click', async () => {
         });
     }
 });
-
+        
 // Create Transaction Details Panel
 function createTransactionDetailsPanel() {
     const panel = document.createElement('div');
@@ -1774,15 +1702,15 @@ const fetchTransactions = async () => {
 document.addEventListener('DOMContentLoaded', () => {
     // Check for language in localStorage first
     currentLanguage = localStorage.getItem('appLanguage') || 'en';
-    setupWalletAddressMemory();
     updateLanguageTexts();
     createTransactionDetailsPanel();
+    initWalletDisplay(); 
     
     // Show skeleton loading initially
     skeletonLoading.style.display = 'block';
     appContent.style.display = 'none';
     
-    // Check notice status after a small delay (simulating loading)
+    // Check notice status after a small delay
     setTimeout(() => {
         checkNoticeStatus();
     }, 800);
@@ -1797,7 +1725,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Telegram.WebApp.expand();
 });
-
+        
     </script>
 </body>
 </html>
