@@ -527,15 +527,15 @@
                 <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
                        class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 
-<div class="relative mt-3">
-    <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
-        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-    </div>
-    <input type="text" id="walletMemo" placeholder="Memo Tag (if applicable)" 
-           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-</div>
+                <div class="relative mt-3">
+                    <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <input type="text" id="walletMemo" placeholder="Memo Tag (if applicable)" 
+                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
             </div>
         </div>
     </div>
@@ -562,7 +562,7 @@
                 <span class="text-sm font-medium">Telegram</span>
             </button>
 
-            <!-- TONKeeper (using generic TON icon) -->
+            <!-- TONKeeper -->
             <button onclick="openWallet('tonkeeper')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 <img src="https://cdn.simpleicons.org/ton/0098FF" class="w-5 h-5 mr-3" alt="TONKeeper">
                 <span class="text-sm font-medium">TONKeeper</span>
@@ -574,7 +574,7 @@
                 <span class="text-sm font-medium">Bybit</span>
             </button>
 
-            <!-- Cryptomus (using generic crypto icon) -->
+            <!-- Cryptomus -->
             <button onclick="openWallet('cryptomus')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 <img src="https://cdn.simpleicons.org/bitcoin/F7931A" class="w-5 h-5 mr-3" alt="Cryptomus">
                 <span class="text-sm font-medium">Cryptomus</span>
@@ -1020,93 +1020,106 @@ const walletProviders = {
 };
 
 function openWallet(walletType) {
+    // Check if wallet type exists
+    if (!walletProviders[walletType]) {
+        console.error('Invalid wallet type:', walletType);
+        return;
+    }
+
     const wallet = walletProviders[walletType];
     const modal = document.getElementById('walletInfoModal');
     
     if (!modal) {
-        console.error('Wallet info modal not found');
+        console.error('Wallet info modal not found in DOM');
         return;
     }
 
-    const iconElement = document.getElementById('walletModalIcon');
-    const titleElement = document.getElementById('walletModalTitle');
-    const subtitleElement = document.getElementById('walletModalSubtitle');
-    const instructionsElement = document.getElementById('walletModalInstructions');
-    const memoContainer = document.getElementById('memoFieldContainer');
-    const memoLabel = document.getElementById('memoLabel');
-    const memoInput = document.getElementById('walletModalMemo');
-    const addressInput = document.getElementById('walletModalAddress');
+    // Get all required elements
+    const elements = {
+        icon: document.getElementById('walletModalIcon'),
+        title: document.getElementById('walletModalTitle'),
+        subtitle: document.getElementById('walletModalSubtitle'),
+        instructions: document.getElementById('walletModalInstructions'),
+        memoContainer: document.getElementById('memoFieldContainer'),
+        memoLabel: document.getElementById('memoLabel'),
+        memoInput: document.getElementById('walletModalMemo'),
+        addressInput: document.getElementById('walletModalAddress'),
+        saveButton: document.getElementById('saveWalletInfoBtn')
+    };
 
-    if (!iconElement || !titleElement || !subtitleElement || !instructionsElement || 
-        !memoContainer || !memoLabel || !memoInput || !addressInput) {
-        console.error('One or more modal elements not found');
-        return;
+    // Verify all elements exist
+    for (const [key, element] of Object.entries(elements)) {
+        if (!element) {
+            console.error('Missing element:', key);
+            return;
+        }
     }
 
-    iconElement.src = wallet.icon;
-    titleElement.textContent = wallet.name;
-    subtitleElement.textContent = 'USDT (TON) Wallet';
-    instructionsElement.textContent = wallet.instructions;
+    // Set modal content
+    elements.icon.src = wallet.icon;
+    elements.title.textContent = wallet.name;
+    elements.subtitle.textContent = 'USDT (TON) Wallet';
+    elements.instructions.textContent = wallet.instructions;
 
+    // Configure memo field
     if (wallet.requiresMemo) {
-        memoContainer.style.display = 'block';
-        memoLabel.textContent = 'Memo Tag*';
-        memoInput.required = true;
-        memoInput.placeholder = 'Enter required memo tag';
+        elements.memoContainer.style.display = 'block';
+        elements.memoLabel.textContent = 'Memo Tag*';
+        elements.memoInput.required = true;
+        elements.memoInput.placeholder = 'Enter required memo tag';
     } else {
-        memoContainer.style.display = 'block';
-        memoLabel.textContent = 'Memo Tag';
-        memoInput.required = false;
-        memoInput.placeholder = 'Enter memo tag (if applicable)';
+        elements.memoContainer.style.display = 'block';
+        elements.memoLabel.textContent = 'Memo Tag';
+        elements.memoInput.required = false;
+        elements.memoInput.placeholder = 'Enter memo tag (if applicable)';
     }
 
-    addressInput.value = '';
-    memoInput.value = '';
+    // Clear previous values
+    elements.addressInput.value = '';
+    elements.memoInput.value = '';
     
+    // Show modal
     modal.style.display = 'flex';
-
-    const saveButton = document.getElementById('saveWalletInfoBtn');
-    if (saveButton) {
-        saveButton.onclick = function() {
-            const address = addressInput.value.trim();
-            const memo = memoInput.value.trim();
-            
-            if (!address) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid Address',
-                    text: 'Please enter a valid wallet address'
-                });
-                return;
-            }
-            
-            if (wallet.requiresMemo && !memo) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Memo Required',
-                    text: 'This wallet requires a memo tag for transactions'
-                });
-                return;
-            }
-            
-            document.getElementById('manualWalletAddress').value = address;
-            document.getElementById('walletMemo').value = memo;
-            
-            currentWalletProvider = walletType;
-            
-            modal.style.display = 'none';
-            
+    
+    // Set up save handler
+    elements.saveButton.onclick = function() {
+        const address = elements.addressInput.value.trim();
+        const memo = elements.memoInput.value.trim();
+        
+        if (!address) {
             Swal.fire({
-                icon: 'success',
-                title: 'Wallet Saved',
-                text: `${wallet.name} wallet details have been saved`,
-                timer: 2000,
-                showConfirmButton: false
+                icon: 'error',
+                title: 'Invalid Address',
+                text: 'Please enter a valid wallet address'
             });
-        };
-    }
-}        
-
+            return;
+        }
+        
+        if (wallet.requiresMemo && !memo) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Memo Required',
+                text: 'This wallet requires a memo tag for transactions'
+            });
+            return;
+        }
+        
+        document.getElementById('manualWalletAddress').value = address;
+        document.getElementById('walletMemo').value = memo;
+        
+        currentWalletProvider = walletType;
+        
+        modal.style.display = 'none';
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Wallet Saved',
+            text: `${wallet.name} wallet details have been saved`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+    };
+}
     
 // Wallet address persistence
 function setupWalletAddressMemory() {
