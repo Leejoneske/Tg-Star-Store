@@ -1030,6 +1030,19 @@ const currentWalletAddress = document.getElementById('currentWalletAddress');
 
 // Initialize wallet display
 function initWalletDisplay() {
+    // Check for old wallet address format and migrate if found
+    const oldWalletAddress = localStorage.getItem('userWalletAddress');
+    if (oldWalletAddress && !currentWalletData) {
+        currentWalletData = {
+            address: oldWalletAddress,
+            memo: null
+        };
+        currentWalletType = 'manual';
+        localStorage.setItem('currentWalletType', 'manual');
+        localStorage.setItem('currentWalletData', JSON.stringify(currentWalletData));
+        localStorage.removeItem('userWalletAddress'); // Clean up old format
+    }
+
     if (currentWalletData) {
         const config = walletConfigs[currentWalletType] || walletConfigs.manual;
         currentWalletIcon.src = config.icon;
@@ -1101,8 +1114,7 @@ function saveWalletSetup() {
     
     localStorage.setItem('currentWalletType', walletType);
     localStorage.setItem('currentWalletData', JSON.stringify(currentWalletData));
-    localStorage.setItem('userWalletAddress', address); // For backward compatibility
-    
+      
     initWalletDisplay();
     walletSetupModal.classList.add('hidden');
     walletSetupModal.classList.remove('flex');
