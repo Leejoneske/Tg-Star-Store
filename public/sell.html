@@ -620,7 +620,7 @@
         </div>
         <button id="saveWalletInfoBtn" class="notice-button">Save Wallet Details</button>
     </div>
-</div>
+</div>    
     
     <div class="p-6">
         <div class="bg-white rounded-xl p-6 mb-6">
@@ -1055,6 +1055,7 @@ function openWallet(walletType) {
         }
     }
 
+    // Rest of the function remains the same...
     // Set modal content
     elements.icon.src = wallet.icon;
     elements.title.textContent = wallet.name;
@@ -1119,7 +1120,7 @@ function openWallet(walletType) {
             showConfirmButton: false
         });
     };
-}
+}        
     
 // Wallet address persistence
 function setupWalletAddressMemory() {
