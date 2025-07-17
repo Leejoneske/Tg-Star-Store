@@ -595,14 +595,22 @@
     </div>
 </div>
     
+<!-- Update the wallet info modal to include close button and correct titles -->
 <div id="walletInfoModal" class="notice-modal" style="display: none;">
     <div class="notice-content">
-        <div class="flex items-center justify-center mb-4">
-            <img id="walletModalIcon" src="" class="w-12 h-12 mr-3" alt="Wallet Icon">
-            <div>
-                <div class="notice-title" id="walletModalTitle">Wallet Information</div>
-                <div class="text-sm text-gray-500" id="walletModalSubtitle">Details about this wallet</div>
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+                <img id="walletModalIcon" src="" class="w-12 h-12 mr-3" alt="Wallet Icon">
+                <div>
+                    <div class="notice-title" id="walletModalTitle">Wallet Information</div>
+                    <div class="text-sm text-gray-500" id="walletModalSubtitle">Enter your wallet details</div>
+                </div>
             </div>
+            <button id="closeWalletModal" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
         <div class="notice-text">
             <div class="mb-4">
@@ -770,7 +778,9 @@
         let currentLanguage = localStorage.getItem('appLanguage') || 'en';
         let rate = 0.009;
         let currentWalletProvider = '';
+        let currentWalletMemo = '';
 
+        
         // DOM elements
         const connectWalletButton = document.getElementById('connectWallet');
         const manualWalletToggle = document.getElementById('manualWalletToggle');
@@ -1030,155 +1040,148 @@ const walletProviders = {
     }
 };
 
+// Update the openWallet function to include close handler
 function openWallet(walletType) {
-    try {
-        // 1. Verify wallet type exists
-        if (!walletProviders[walletType]) {
-            console.error('Invalid wallet type:', walletType);
-            return;
-        }
-
-        // 2. Get modal with null check
-        const modal = document.getElementById('walletInfoModal');
-        if (!modal) {
-            console.error('Wallet modal not found');
-            return;
-        }
-
-        // 3. Get all elements with verification
-        const elements = {
-            icon: document.getElementById('walletModalIcon'),
-            title: document.getElementById('walletModalTitle'),
-            subtitle: document.getElementById('walletModalSubtitle'),
-            instructions: document.getElementById('walletModalInstructions'),
-            memoContainer: document.getElementById('memoFieldContainer'),
-            memoLabel: document.querySelector('#memoFieldContainer #memoLabel'),
-            memoInput: document.getElementById('walletModalMemo'),
-            addressInput: document.getElementById('walletModalAddress'),
-            saveButton: document.getElementById('saveWalletInfoBtn')
-        };
-
-        // 4. Verify all elements exist
-        for (const [key, element] of Object.entries(elements)) {
-            if (!element) {
-                console.error('Missing element:', key);
-                // Create a basic version if critical
-                if (key === 'memoLabel') {
-                    const label = document.createElement('span');
-                    label.id = 'memoLabel';
-                    label.textContent = 'Memo Tag';
-                    elements.memoContainer.insertBefore(label, elements.memoInput);
-                    elements.memoLabel = label;
-                } else {
-                    return;
-                }
-            }
-        }
-
-        // 5. Rest of your function logic...
-        const wallet = walletProviders[walletType];
-        
-        elements.icon.src = wallet.icon;
-        elements.title.textContent = wallet.name;
-        elements.subtitle.textContent = 'USDT (TON) Wallet';
-        elements.instructions.textContent = wallet.instructions;
-
-        // Configure memo field
-        if (wallet.requiresMemo) {
-            elements.memoLabel.textContent = 'Memo Tag*';
-            elements.memoInput.required = true;
-            elements.memoInput.placeholder = 'Enter required memo tag';
-        } else {
-            elements.memoLabel.textContent = 'Memo Tag';
-            elements.memoInput.required = false;
-            elements.memoInput.placeholder = 'Enter memo tag (if applicable)';
-        }
-
-        // Clear values
-        elements.addressInput.value = '';
-        elements.memoInput.value = '';
-        
-        // Show modal
-        modal.style.display = 'flex';
-        
-        // Save handler
-        elements.saveButton.onclick = function() {
-            const address = elements.addressInput.value.trim();
-            const memo = elements.memoInput.value.trim();
-            
-            if (!address) {
-                Swal.fire('Error', 'Please enter a wallet address', 'error');
-                return;
-            }
-            
-            if (wallet.requiresMemo && !memo) {
-                Swal.fire('Error', 'Memo tag is required for this wallet', 'error');
-                return;
-            }
-            
-            document.getElementById('manualWalletAddress').value = address;
-            document.getElementById('walletMemo').value = memo;
-            currentWalletProvider = walletType;
-            modal.style.display = 'none';
-        };
-
-    } catch (error) {
-        console.error('Error in openWallet:', error);
-        Swal.fire('Error', 'Could not open wallet settings', 'error');
-    }
-}
-    
-// Wallet address persistence
-function setupWalletAddressMemory() {
-  // Create edit button for manual wallet address
-  const manualWalletContainer = document.getElementById('manualWalletInput');
-  const editContainer = document.createElement('div');
-  editContainer.className = 'flex items-center justify-between mt-2';
-  
-  const editButton = document.createElement('button');
-  editButton.id = 'editWalletBtn';
-  editButton.className = 'text-sm text-indigo-600 font-medium';
-  editButton.textContent = translations[currentLanguage].editAddress;
-  editButton.style.display = 'none';
-  
-  // Save button
-  const saveButton = document.createElement('button');
-  saveButton.id = 'saveWalletBtn';
-  saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
-  saveButton.textContent = translations[currentLanguage].saveAddress;
-  
-  editContainer.appendChild(editButton);
-  editContainer.appendChild(saveButton);
-  manualWalletContainer.appendChild(editContainer);
-  
-  // Load saved address if it exists
-  const savedAddress = localStorage.getItem('userWalletAddress');
-  if (savedAddress) {
-    manualWalletAddress.value = savedAddress;
-    currentWalletAddress = savedAddress;
-    editButton.style.display = 'block';
-    manualWalletAddress.disabled = true;
-  }
-  
-  // Save button handler
-  saveButton.addEventListener('click', () => {
-    const address = manualWalletAddress.value.trim();
-    if (!isValidWalletAddress(address)) {
-        Swal.fire({
-            icon: 'error',
-            title: translations[currentLanguage].missingWalletAddress,
-            text: currentLanguage === 'en' ? 
-                'Please enter a valid wallet address (minimum 10 characters)' : 
-                'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
-        });
+    if (!walletProviders[walletType]) {
+        console.error('Invalid wallet type:', walletType);
         return;
     }
+
+    const wallet = walletProviders[walletType];
+    const modal = document.getElementById('walletInfoModal');
     
-    if (address) {
-        localStorage.setItem('userWalletAddress', address);
+    // Set modal content
+    document.getElementById('walletModalIcon').src = wallet.icon;
+    document.getElementById('walletModalTitle').textContent = wallet.name + ' Wallet';
+    document.getElementById('walletModalSubtitle').textContent = 'Enter your ' + wallet.name + ' details';
+    document.getElementById('walletModalInstructions').textContent = wallet.instructions;
+
+    // Configure memo field
+    if (wallet.requiresMemo) {
+        document.getElementById('memoFieldContainer').style.display = 'block';
+        document.getElementById('memoLabel').textContent = 'Memo Tag*';
+        document.getElementById('walletModalMemo').required = true;
+        document.getElementById('walletModalMemo').placeholder = 'Enter required memo tag';
+    } else {
+        document.getElementById('memoFieldContainer').style.display = 'block';
+        document.getElementById('memoLabel').textContent = 'Memo Tag';
+        document.getElementById('walletModalMemo').required = false;
+        document.getElementById('walletModalMemo').placeholder = 'Enter memo tag (if applicable)';
+    }
+
+    // Load saved values if they exist
+    const savedWallet = JSON.parse(localStorage.getItem('userWalletInfo') || {};
+    document.getElementById('walletModalAddress').value = savedWallet.address || '';
+    document.getElementById('walletModalMemo').value = savedWallet.memo || '';
+    
+    // Show modal
+    modal.style.display = 'flex';
+    
+    // Close modal handler
+    document.getElementById('closeWalletModal').onclick = function() {
+        modal.style.display = 'none';
+    };
+    
+    // Save handler
+    document.getElementById('saveWalletInfoBtn').onclick = function() {
+        const address = document.getElementById('walletModalAddress').value.trim();
+        const memo = document.getElementById('walletModalMemo').value.trim();
+        
+        if (!address) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Address',
+                text: 'Please enter a valid wallet address'
+            });
+            return;
+        }
+        
+        if (wallet.requiresMemo && !memo) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Memo Required',
+                text: 'This wallet requires a memo tag for transactions'
+            });
+            return;
+        }
+        
+        // Save to both manual inputs and localStorage
+        document.getElementById('manualWalletAddress').value = address;
+        document.getElementById('walletMemo').value = memo;
         currentWalletAddress = address;
-        manualWalletAddress.disabled = true;
-        editButton.style.display = 'block';
+        currentWalletMemo = memo;
+        currentWalletProvider = walletType;
+        
+        // Save all wallet info together
+        localStorage.setItem('userWalletInfo', JSON.stringify({
+            address: address,
+            memo: memo,
+            provider: walletType
+        }));
+        
+        modal.style.display = 'none';
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Wallet Saved',
+            text: `${wallet.name} wallet details have been saved`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+    };
+}
+
+// Update the setupWalletAddressMemory function to handle both address and memo
+function setupWalletAddressMemory() {
+    // Load saved wallet info if it exists
+    const savedWallet = JSON.parse(localStorage.getItem('userWalletInfo')) || {};
+    
+    if (savedWallet.address) {
+        document.getElementById('manualWalletAddress').value = savedWallet.address;
+        document.getElementById('walletMemo').value = savedWallet.memo || '';
+        currentWalletAddress = savedWallet.address;
+        currentWalletMemo = savedWallet.memo || '';
+        currentWalletProvider = savedWallet.provider || '';
+        
+        // Show edit button if address exists
+        const editButton = document.getElementById('editWalletBtn');
+        if (editButton) {
+            editButton.style.display = 'block';
+            document.getElementById('manualWalletAddress').disabled = true;
+        }
+    }
+    
+    // Save button handler for manual entry
+    document.getElementById('saveWalletBtn').addEventListener('click', () => {
+        const address = document.getElementById('manualWalletAddress').value.trim();
+        const memo = document.getElementById('walletMemo').value.trim();
+        
+        if (!isValidWalletAddress(address)) {
+            Swal.fire({
+                icon: 'error',
+                title: translations[currentLanguage].missingWalletAddress,
+                text: currentLanguage === 'en' ? 
+                    'Please enter a valid wallet address (minimum 10 characters)' : 
+                    'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
+            });
+            return;
+        }
+        
+        // Save all wallet info together
+        localStorage.setItem('userWalletInfo', JSON.stringify({
+            address: address,
+            memo: memo,
+            provider: 'manual'
+        }));
+        
+        currentWalletAddress = address;
+        currentWalletMemo = memo;
+        currentWalletProvider = 'manual';
+        
+        document.getElementById('manualWalletAddress').disabled = true;
+        const editButton = document.getElementById('editWalletBtn');
+        if (editButton) editButton.style.display = 'block';
+        
         Swal.fire({
             icon: 'success',
             title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
@@ -1188,8 +1191,8 @@ function setupWalletAddressMemory() {
             timer: 2000,
             showConfirmButton: false
         });
-    }
-});
+    });
+}
   
   // Edit button handler
   editButton.addEventListener('click', () => {
