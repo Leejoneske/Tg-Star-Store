@@ -513,7 +513,7 @@
         <div class="w-6"></div>
     </div>
 
-    <div class="wallet-status">
+<div class="wallet-status">
     <!-- Manual Wallet Input Section -->
     <div class="mb-6">
         <h3 class="text-lg font-semibold mb-3 text-gray-800">Enter Manual Address</h3>
@@ -536,57 +536,37 @@
         <div class="grid grid-cols-2 gap-3">
             <!-- Binance -->
             <button onclick="openWallet('binance')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <div class="w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center mr-3">
-                    <svg class="w-2 h-2 text-black" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L2 7v10c0 5.55 3.84 9.95 9 11 5.16-1.05 9-5.45 9-11V7l-10-5zm0 3.3L18.7 8.2v8.3c0 3.7-2.56 6.64-6.7 7.34-4.14-.7-6.7-3.64-6.7-7.34V8.2L12 5.3z"/>
-                    </svg>
-                </div>
+                <img src="https://cryptologos.cc/logos/binance-coin-bnb-logo.png" class="w-5 h-5 mr-3" alt="Binance">
                 <span class="text-sm font-medium">Binance</span>
             </button>
 
             <!-- OKX -->
             <button onclick="openWallet('okx')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <div class="w-4 h-4 bg-black rounded-lg flex items-center justify-center mr-3">
-                    <span class="text-white text-[8px] font-bold">OKX</span>
-                </div>
+                <img src="https://cryptologos.cc/logos/okx-okx-logo.png" class="w-5 h-5 mr-3" alt="OKX">
                 <span class="text-sm font-medium">OKX</span>
             </button>
 
             <!-- Telegram Wallet -->
             <button onclick="openWallet('telegram')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <div class="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-                    <svg class="w-2 h-2 text-white" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 0C5.374 0 0 5.373 0 12s5.374 12 12 12 12-5.373 12-12S18.626 0 12 0zm5.568 8.16c-.169 1.858-.896 6.728-1.268 8.93-.158.934-.468 1.249-.77 1.279-.65.065-1.144-.43-1.774-.84-.985-.642-1.544-1.04-2.502-1.667-1.108-.724-.39-1.125.242-1.78.164-.17 3.017-2.761 3.077-2.993.007-.029.014-.132-.048-.187-.062-.055-.153-.036-.219-.02-.093.023-1.999 1.269-5.649 3.716-.543.365-1.022.54-1.438.486-.473-.056-1.4-.267-2.086-.487-.842-.27-1.51-.414-1.496-.878.007-.242.484-.487 1.482-.735 3.894-1.687 6.546-2.809 7.956-3.365 3.789-1.574 4.576-1.846 5.089-1.846.113 0 .366.026.529.159.137.112.175.263.193.369.019.105.043.345.025.532z"/>
-                    </svg>
-                </div>
+                <img src="https://telegram.org/img/t_logo.png" class="w-5 h-5 mr-3" alt="Telegram">
                 <span class="text-sm font-medium">Telegram</span>
             </button>
 
             <!-- TONKeeper -->
             <button onclick="openWallet('tonkeeper')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <div class="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center mr-3">
-                    <svg class="w-2 h-2 text-white" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L2 12l10 10 10-10L12 2zm0 3l7 7-7 7-7-7 7-7z"/>
-                    </svg>
-                </div>
+                <img src="https://tonkeeper.com/assets/tonkeeper-icon.png" class="w-5 h-5 mr-3" alt="TONKeeper">
                 <span class="text-sm font-medium">TONKeeper</span>
             </button>
 
             <!-- Bybit -->
             <button onclick="openWallet('bybit')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <div class="w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center mr-3">
-                    <span class="text-white text-[8px] font-bold">B</span>
-                </div>
+                <img src="https://cryptologos.cc/logos/bybit-token-byb-logo.png" class="w-5 h-5 mr-3" alt="Bybit">
                 <span class="text-sm font-medium">Bybit</span>
             </button>
 
             <!-- Cryptomus -->
             <button onclick="openWallet('cryptomus')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <div class="w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center mr-3">
-                    <svg class="w-2 h-2 text-white" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L2 7v10c0 5.55 3.84 9.95 9 11 5.16-1.05 9-5.45 9-11V7l-10-5zm-1 15h2v-6h-2v6zm0-8h2V7h-2v2z"/>
-                    </svg>
-                </div>
+                <img src="https://cryptomus.com/favicon.ico" class="w-5 h-5 mr-3" alt="Cryptomus">
                 <span class="text-sm font-medium">Cryptomus</span>
             </button>
         </div>
@@ -961,77 +941,52 @@ function updateLanguageTexts() {
 }
         
 function openWallet(walletType) {
-    // Check if running in Telegram environment
-    if (window.Telegram && window.Telegram.WebApp) {
+    // Define all URLs
+    const urls = {
+        binance: {
+            app: 'binance://app.binance.com',
+            web: 'https://www.binance.com'
+        },
+        okx: {
+            app: 'okx://',
+            web: 'https://www.okx.com'
+        },
+        telegram: {
+            web: 'https://wallet.tg'
+        },
+        tonkeeper: {
+            app: 'tonkeeper://',
+            web: 'https://tonkeeper.com'
+        },
+        bybit: {
+            app: 'bybit://',
+            web: 'https://www.bybit.com'
+        },
+        cryptomus: {
+            web: 'https://cryptomus.com'
+        }
+    };
+
+    // Check if running in Telegram
+    if (window.Telegram?.WebApp) {
         const tg = window.Telegram.WebApp;
+        const url = urls[walletType].app ? urls[walletType].app : urls[walletType].web;
+        tg.openLink(url);
+        return;
+    }
+
+    // For non-Telegram environments
+    if (urls[walletType].app) {
+        // Try to open app first
+        window.location.href = urls[walletType].app;
         
-        switch(walletType) {
-            case 'binance':
-                // Try to open Binance app first, fallback to web
-                tg.openLink('binance://');
-                setTimeout(() => {
-                    tg.openLink('https://www.binance.com/');
-                }, 1000);
-                break;
-            case 'okx':
-                // Try to open OKX app first, fallback to web
-                tg.openLink('okx://');
-                setTimeout(() => {
-                    tg.openLink('https://www.okx.com/');
-                }, 1000);
-                break;
-            case 'telegram':
-                // Open Telegram Wallet
-                tg.openLink('https://wallet.tg/');
-                break;
-            case 'tonkeeper':
-                // Try to open TONKeeper app first, fallback to web
-                tg.openLink('tonkeeper://');
-                setTimeout(() => {
-                    tg.openLink('https://tonkeeper.com/');
-                }, 1000);
-                break;
-            case 'bybit':
-                // Try to open Bybit app first, fallback to web
-                tg.openLink('bybit://');
-                setTimeout(() => {
-                    tg.openLink('https://www.bybit.com/');
-                }, 1000);
-                break;
-            case 'cryptomus':
-                // Open Cryptomus wallet
-                tg.openLink('https://cryptomus.com/');
-                break;
-        }
+        // Fallback to web after delay
+        setTimeout(() => {
+            window.open(urls[walletType].web, '_blank');
+        }, 500);
     } else {
-        // Fallback for non-Telegram environments
-        const appUrls = {
-            'binance': 'binance://',
-            'okx': 'okx://',
-            'telegram': 'https://wallet.tg/',
-            'tonkeeper': 'tonkeeper://',
-            'bybit': 'bybit://',
-            'cryptomus': 'https://cryptomus.com/'
-        };
-        
-        const webUrls = {
-            'binance': 'https://www.binance.com/',
-            'okx': 'https://www.okx.com/',
-            'telegram': 'https://wallet.tg/',
-            'tonkeeper': 'https://tonkeeper.com/',
-            'bybit': 'https://www.bybit.com/',
-            'cryptomus': 'https://cryptomus.com/'
-        };
-        
-        // Try to open app, fallback to web
-        if (walletType !== 'telegram' && walletType !== 'cryptomus') {
-            window.location.href = appUrls[walletType];
-            setTimeout(() => {
-                window.open(webUrls[walletType], '_blank');
-            }, 1000);
-        } else {
-            window.open(webUrls[walletType], '_blank');
-        }
+        // Directly open web if no app scheme
+        window.open(urls[walletType].web, '_blank');
     }
 }
         
