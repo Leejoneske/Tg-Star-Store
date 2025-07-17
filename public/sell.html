@@ -752,7 +752,18 @@
  <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+     <script>
+    // Check for Eruda debugger first
+    if (typeof eruda === 'undefined') {
+        
+    } else {
+        // Debug mode specific code (if needed)
+        console.log('Running in debug mode - skipping normal execution');
+    }
+</script>       
     <script>
+    
         // Global variables
        
         let currentWalletAddress = '';
