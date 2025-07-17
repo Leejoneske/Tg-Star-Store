@@ -107,6 +107,7 @@ const sellOrderSchema = new mongoose.Schema({
         required: true
     },
     walletAddress: String,
+    memoTag: String,
     status: {
         type: String,
         enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed'],
@@ -475,6 +476,7 @@ app.post("/api/sell-orders", async (req, res) => {
             username: sanitizeUsername(username),
             stars,
             walletAddress,
+            memoTag,
             status: "pending", 
             telegram_payment_charge_id: "temp_" + Date.now(),
             reversible: true,
