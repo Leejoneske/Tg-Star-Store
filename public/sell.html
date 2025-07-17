@@ -536,37 +536,37 @@
         <div class="grid grid-cols-2 gap-3">
             <!-- Binance -->
             <button onclick="openWallet('binance')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <img src="https://cryptologos.cc/logos/binance-coin-bnb-logo.png" class="w-5 h-5 mr-3" alt="Binance">
+                <img src="https://cdn.simpleicons.org/binance/F0B90B" class="w-5 h-5 mr-3" alt="Binance">
                 <span class="text-sm font-medium">Binance</span>
             </button>
 
             <!-- OKX -->
             <button onclick="openWallet('okx')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <img src="https://cryptologos.cc/logos/okx-okx-logo.png" class="w-5 h-5 mr-3" alt="OKX">
+                <img src="https://cdn.simpleicons.org/okx/000000" class="w-5 h-5 mr-3" alt="OKX">
                 <span class="text-sm font-medium">OKX</span>
             </button>
 
             <!-- Telegram Wallet -->
             <button onclick="openWallet('telegram')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <img src="https://telegram.org/img/t_logo.png" class="w-5 h-5 mr-3" alt="Telegram">
+                <img src="https://cdn.simpleicons.org/telegram/26A5E4" class="w-5 h-5 mr-3" alt="Telegram">
                 <span class="text-sm font-medium">Telegram</span>
             </button>
 
-            <!-- TONKeeper -->
+            <!-- TONKeeper (using generic TON icon) -->
             <button onclick="openWallet('tonkeeper')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <img src="https://tonkeeper.com/assets/tonkeeper-icon.png" class="w-5 h-5 mr-3" alt="TONKeeper">
+                <img src="https://cdn.simpleicons.org/ton/0098FF" class="w-5 h-5 mr-3" alt="TONKeeper">
                 <span class="text-sm font-medium">TONKeeper</span>
             </button>
 
             <!-- Bybit -->
             <button onclick="openWallet('bybit')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <img src="https://cryptologos.cc/logos/bybit-token-byb-logo.png" class="w-5 h-5 mr-3" alt="Bybit">
+                <img src="https://cdn.simpleicons.org/bybit/FAE501" class="w-5 h-5 mr-3" alt="Bybit">
                 <span class="text-sm font-medium">Bybit</span>
             </button>
 
-            <!-- Cryptomus -->
+            <!-- Cryptomus (using generic crypto icon) -->
             <button onclick="openWallet('cryptomus')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <img src="https://cryptomus.com/favicon.ico" class="w-5 h-5 mr-3" alt="Cryptomus">
+                <img src="https://cdn.simpleicons.org/bitcoin/F7931A" class="w-5 h-5 mr-3" alt="Cryptomus">
                 <span class="text-sm font-medium">Cryptomus</span>
             </button>
         </div>
@@ -941,52 +941,23 @@ function updateLanguageTexts() {
 }
         
 function openWallet(walletType) {
-    // Define all URLs
-    const urls = {
-        binance: {
-            app: 'binance://app.binance.com',
-            web: 'https://www.binance.com'
-        },
-        okx: {
-            app: 'okx://',
-            web: 'https://www.okx.com'
-        },
-        telegram: {
-            web: 'https://wallet.tg'
-        },
-        tonkeeper: {
-            app: 'tonkeeper://',
-            web: 'https://tonkeeper.com'
-        },
-        bybit: {
-            app: 'bybit://',
-            web: 'https://www.bybit.com'
-        },
-        cryptomus: {
-            web: 'https://cryptomus.com'
-        }
+    const walletUrls = {
+        binance: 'https://www.binance.com',
+        okx: 'https://www.okx.com',
+        telegram: 'https://t.me/wallet',
+        tonkeeper: 'https://tonkeeper.com',
+        bybit: 'https://www.bybit.com',
+        cryptomus: 'https://cryptomus.com'
     };
 
-    // Check if running in Telegram
+    const url = walletUrls[walletType];
+    
     if (window.Telegram?.WebApp) {
-        const tg = window.Telegram.WebApp;
-        const url = urls[walletType].app ? urls[walletType].app : urls[walletType].web;
-        tg.openLink(url);
-        return;
-    }
-
-    // For non-Telegram environments
-    if (urls[walletType].app) {
-        // Try to open app first
-        window.location.href = urls[walletType].app;
-        
-        // Fallback to web after delay
-        setTimeout(() => {
-            window.open(urls[walletType].web, '_blank');
-        }, 500);
+        // Telegram MiniApp optimized opening
+        window.Telegram.WebApp.openLink(url, { try_instant_view: true });
     } else {
-        // Directly open web if no app scheme
-        window.open(urls[walletType].web, '_blank');
+        // Standard web fallback
+        window.open(url, '_blank', 'noopener noreferrer');
     }
 }
         
