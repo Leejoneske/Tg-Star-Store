@@ -409,7 +409,19 @@
     .notice-button:hover {
         background-color: #6366f1;
     }
-    
+
+    .wallet-button {
+            transition: all 0.2s ease;
+        }
+        
+        .wallet-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .wallet-button:active {
+            transform: translateY(0);
+        }
 </style>
 </head>
 <body>
@@ -500,18 +512,81 @@
         <div class="logo-header">StarStore</div>
         <div class="w-6"></div>
     </div>
-    <div class="wallet-status">
-        <div id="manualWalletInput" class="mt-3">
-            <div class="relative">
-                <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-                    </svg>
-                </div>
-                <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
-                       class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+<div class="wallet-status">
+        <!-- Recommended Wallets Section -->
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-3 text-gray-800">Recommended Wallets</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Binance -->
+                <button onclick="openWallet('binance')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <img src="https://cdnjs.cloudflare.com/ajax/libs/cryptocurrency-icons/0.18.1/32/bnb.png" alt="Binance" class="w-8 h-8 mr-3">
+                    <span class="text-sm font-medium">Binance</span>
+                </button>
+
+                <!-- OKX -->
+                <button onclick="openWallet('okx')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div class="w-8 h-8 bg-black rounded-lg flex items-center justify-center mr-3">
+                        <span class="text-white text-xs font-bold">OKX</span>
+                    </div>
+                    <span class="text-sm font-medium">OKX</span>
+                </button>
+
+                <!-- Telegram Wallet -->
+                <button onclick="openWallet('telegram')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                        <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0C5.374 0 0 5.373 0 12s5.374 12 12 12 12-5.373 12-12S18.626 0 12 0zm5.568 8.16c-.169 1.858-.896 6.728-1.268 8.93-.158.934-.468 1.249-.77 1.279-.65.065-1.144-.43-1.774-.84-.985-.642-1.544-1.04-2.502-1.667-1.108-.724-.39-1.125.242-1.78.164-.17 3.017-2.761 3.077-2.993.007-.029.014-.132-.048-.187-.062-.055-.153-.036-.219-.02-.093.023-1.999 1.269-5.649 3.716-.543.365-1.022.54-1.438.486-.473-.056-1.4-.267-2.086-.487-.842-.27-1.51-.414-1.496-.878.007-.242.484-.487 1.482-.735 3.894-1.687 6.546-2.809 7.956-3.365 3.789-1.574 4.576-1.846 5.089-1.846.113 0 .366.026.529.159.137.112.175.263.193.369.019.105.043.345.025.532z"/>
+                        </svg>
+                    </div>
+                    <span class="text-sm font-medium">Telegram</span>
+                </button>
+
+                <!-- TONKeeper -->
+                <button onclick="openWallet('tonkeeper')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                        <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2.5L2.5 7v10c0 5.19 3.59 9.31 8.41 10.4.31.07.63.1.96.1h.26c.33 0 .65-.03.96-.1C17.91 26.31 21.5 22.19 21.5 17V7L12 2.5zM12 4.6L19.5 8.1v8.9c0 3.46-2.4 6.22-5.5 6.89V4.6zM4.5 8.1L12 4.6v19.29c-3.1-.67-5.5-3.43-5.5-6.89V8.1z"/>
+                        </svg>
+                    </div>
+                    <span class="text-sm font-medium">TONKeeper</span>
+                </button>
+
+                <!-- Bybit -->
+                <button onclick="openWallet('bybit')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div class="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center mr-3">
+                        <svg class="w-5 h-5 text-black" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2L2 12l10 10 10-10L12 2zm0 4l6 6-6 6-6-6 6-6z"/>
+                        </svg>
+                    </div>
+                    <span class="text-sm font-medium">Bybit</span>
+                </button>
+
+                <!-- Cryptomus -->
+                <button onclick="openWallet('cryptomus')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center mr-3">
+                        <span class="text-white text-xs font-bold">C</span>
+                    </div>
+                    <span class="text-sm font-medium">Cryptomus</span>
+                </button>
             </div>
         </div>
+
+        <!-- Manual Wallet Input Section -->
+        <div class="border-t border-gray-200 pt-6">
+            <h3 class="text-lg font-semibold mb-3 text-gray-800">Or Enter Manual Address</h3>
+            <div id="manualWalletInput" class="mt-3">
+                <div class="relative">
+                    <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                        </svg>
+                    </div>
+                    <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
+                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+        </div>
+
         <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
         <div class="bg-red-50 border-l-4 border-red-400 p-3 mt-3">
             <div class="flex">
@@ -879,6 +954,51 @@ function updateLanguageTexts() {
   }
 }
 
+ function openWallet(walletType) {
+            // Check if running in Telegram environment
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                
+                switch(walletType) {
+                    case 'binance':
+                        // Open Binance wallet
+                        tg.openLink('https://www.binance.com/en/web3wallet');
+                        break;
+                    case 'okx':
+                        // Open OKX wallet
+                        tg.openLink('https://www.okx.com/web3');
+                        break;
+                    case 'telegram':
+                        // Open Telegram Wallet
+                        tg.openLink('https://wallet.tg/');
+                        break;
+                    case 'tonkeeper':
+                        // Open TONKeeper
+                        tg.openLink('https://tonkeeper.com/');
+                        break;
+                    case 'bybit':
+                        // Open Bybit wallet
+                        tg.openLink('https://www.bybit.com/web3/');
+                        break;
+                    case 'cryptomus':
+                        // Open Cryptomus wallet
+                        tg.openLink('https://cryptomus.com/');
+                        break;
+                }
+            } else {
+                // Fallback for non-Telegram environments
+                const urls = {
+                    'binance': 'https://www.binance.com/en/web3wallet',
+                    'okx': 'https://www.okx.com/web3',
+                    'telegram': 'https://wallet.tg/',
+                    'tonkeeper': 'https://tonkeeper.com/',
+                    'bybit': 'https://www.bybit.com/web3/',
+                    'cryptomus': 'https://cryptomus.com/'
+                };
+                window.open(urls[walletType], '_blank');
+            }
+        }
+        
 // Wallet address persistence
 function setupWalletAddressMemory() {
   // Create edit button for manual wallet address
