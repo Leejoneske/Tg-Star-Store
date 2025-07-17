@@ -1054,48 +1054,47 @@ function openWallet(walletType) {
     modal.style.display = 'flex';
     
     // Save button handler
-    document.getElementById('saveWalletInfoBtn').onclick = function() {
-        const address = document.getElementById('walletModalAddress').value.trim();
-        const memo = document.getElementById('walletModalMemo').value.trim();
-        
-        if (!address) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Address',
-                text: 'Please enter a valid wallet address'
-            });
-            return;
-        }
-        
-        if (wallet.requiresMemo && !memo) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Memo Required',
-                text: 'This wallet requires a memo tag for transactions'
-            });
-            return;
-        }
-        
-        // Save to manual input fields
-        document.getElementById('manualWalletAddress').value = address;
-        document.getElementById('walletMemo').value = memo;
-        
-        // Set wallet provider for display
-        currentWalletProvider = walletType;
-        
-        // Close modal
-        modal.style.display = 'none';
-        
-        Swal.fire({
-            icon: 'success',
-            title: 'Wallet Saved',
-            text: `${wallet.name} wallet details have been saved`,
-            timer: 2000,
-            showConfirmButton: false
-        });
-    };
-}
 
+document.getElementById('saveWalletInfoBtn').onclick = function() {
+    const address = document.getElementById('walletModalAddress').value.trim();
+    const memo = document.getElementById('walletModalMemo').value.trim();
+    
+    if (!address) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Invalid Address',
+            text: 'Please enter a valid wallet address'
+        });
+        return;
+    }
+    
+    if (wallet.requiresMemo && !memo) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Memo Required',
+            text: 'This wallet requires a memo tag for transactions'
+        });
+        return;
+    }
+    
+    // Save to manual input fields
+    document.getElementById('manualWalletAddress').value = address;
+    document.getElementById('walletMemo').value = memo;  
+    
+    // Set wallet provider for display
+    currentWalletProvider = walletType;
+    
+    // Close modal
+    modal.style.display = 'none';
+    
+    Swal.fire({
+        icon: 'success',
+        title: 'Wallet Saved',
+        text: `${wallet.name} wallet details have been saved`,
+        timer: 2000,
+        showConfirmButton: false
+    });
+};
 
         
 // Wallet address persistence
@@ -1434,14 +1433,13 @@ function populateTransactionDetails(transaction) {
     const overlay = document.getElementById('transactionDetailsOverlay');
     const panel = document.getElementById('transactionDetailsPanel');
 
-    // Inside populateTransactionDetails function, add this near where you display the transaction ID:
-const walletIcon = document.createElement('img');
-walletIcon.className = 'w-5 h-5 ml-2';
-walletIcon.src = currentWalletProvider ? 
-    walletProviders[currentWalletProvider].icon : 
-    'https://cdn.simpleicons.org/ton/0098FF'; // Default icon
-walletIcon.alt = currentWalletProvider ? walletProviders[currentWalletProvider].name : 'Wallet';
-document.getElementById('transactionId').appendChild(walletIcon);
+if (transaction.walletProvider && walletProviders[transaction.walletProvider]) {
+    const walletIcon = document.createElement('img');
+    walletIcon.className = 'w-5 h-5 ml-2';
+    walletIcon.src = walletProviders[transaction.walletProvider].icon;
+    walletIcon.alt = walletProviders[transaction.walletProvider].name;
+    document.getElementById('transactionId').appendChild(walletIcon);
+}
 
 // Also add memo to the display if it exists
 const memo = document.getElementById('walletMemo').value.trim();
