@@ -742,7 +742,20 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
         // Global variables
-       
+   
+if (typeof Telegram === 'undefined') {
+    console.log('Running in browser mode');
+    window.Telegram = {
+        WebApp: {
+            initDataUnsafe: {},
+            expand: function() {},
+            openInvoice: function(url, callback) {
+                console.log('Would open invoice:', url);
+                setTimeout(() => callback('paid'), 1500);
+            }
+        }
+    };
+}
         let currentWalletAddress = '';
         let currentLanguage = localStorage.getItem('appLanguage') || 'en';
         let rate = 0.009;
@@ -881,6 +894,8 @@
             paymentSentDesc: "USDT был отправлен на ваш кошелек"
           }
         };
+
+        
 // Check if the user has accepted the notice
 function checkNoticeStatus() {
     const noticeAccepted = localStorage.getItem('noticeAccepted');
