@@ -461,7 +461,13 @@ function sanitizeUsername(username) {
 
 app.post("/api/sell-orders", async (req, res) => {
     try {
-        const { telegramId, username, stars, walletAddress } = req.body;
+        const { 
+      telegramId, 
+      username = '', 
+      stars, 
+      walletAddress, 
+      memoTag = '' 
+    } = req.body;
         if (!telegramId || !stars || !walletAddress) {
             return res.status(400).json({ error: "Missing required fields" });
         }
@@ -477,7 +483,7 @@ app.post("/api/sell-orders", async (req, res) => {
             username: sanitizeUsername(username),
             stars,
             walletAddress,
-            memoTag: memoTag || '',
+            memoTag,
             status: "pending", 
             telegram_payment_charge_id: "temp_" + Date.now(),
             reversible: true,
