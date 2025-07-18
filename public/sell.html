@@ -1259,6 +1259,16 @@ confirmPaymentBtn.addEventListener('click', async () => {
 
     const stars = parseInt(starsInput.value);
     const walletToUse = manualWalletAddress.value.trim();
+    const memoToUse = manualWalletMemo.value.trim();
+
+    if (!Telegram.WebApp.initDataUnsafe?.user?.id) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Authentication Error',
+            text: 'Please open this page through Telegram to proceed.'
+        });
+        return;
+    }
 
     try {
         const response = await axios.post('/api/sell-orders', {
@@ -1266,7 +1276,7 @@ confirmPaymentBtn.addEventListener('click', async () => {
             username: Telegram.WebApp.initDataUnsafe.user.username,
             stars: stars,
             walletAddress: walletToUse,
-            walletMemo: memoToUse
+            memoTag: memoToUse
         });
 
         if (response.data.success) {
