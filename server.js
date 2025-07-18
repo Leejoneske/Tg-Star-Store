@@ -477,7 +477,7 @@ app.post("/api/sell-orders", async (req, res) => {
             username: sanitizeUsername(username),
             stars,
             walletAddress,
-            memoTag: walletMemo,
+            memoTag: memoTag || '',
             status: "pending", 
             telegram_payment_charge_id: "temp_" + Date.now(),
             reversible: true,
