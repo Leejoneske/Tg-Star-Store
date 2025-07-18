@@ -1190,9 +1190,9 @@ function decrementStars() {
 function calculateTonAmount() {
     // Ensure value stays within bounds
     let stars = parseInt(starsInput.value) || 0;
-    if (stars < 50) {
-        stars = 50;
-        starsInput.value = 50;
+    if (stars < 5) {
+        stars = 5;
+        starsInput.value = 5;
     } else if (stars > 80000) {
         stars = 80000;
         starsInput.value = 80000;
