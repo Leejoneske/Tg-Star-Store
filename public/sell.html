@@ -470,23 +470,32 @@
         <div class="wallet-status">
             <div class="mb-6">
                 <h3 class="text-lg font-semibold mb-3 text-gray-800">Enter Manual Address</h3>
-                
                 <div id="manualWalletInput">
-    <div class="relative">
-        <div class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform">
-            <svg class="h-full w-full text-gray-400"></svg>
+    <!-- Wallet Address Field -->
+    <div class="relative mb-3">
+        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+            </svg>
         </div>
         <input type="text" id="manualWalletAddress" 
-               class="w-full border border-gray-300 py-3 pl-[40px] pr-4 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+               class="block w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500" 
+               placeholder="Enter USDT TON wallet address">
     </div>
-    <!-- Memo field -->
-    <div class="relative mt-3">
-        <div class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform">
-            <svg class="h-full w-full text-gray-400"></svg>
+    
+    <!-- Memo Field -->
+    <div class="relative">
+        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
         </div>
         <input type="text" id="walletMemo" 
-               class="w-full border border-gray-300 py-3 pl-[40px] pr-4 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+               class="block w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500" 
+               placeholder="Memo Tag (if applicable)">
     </div>
+</div>
+                
                 </div>
             </div>
             <div class="border-t border-gray-200 pt-6">
