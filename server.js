@@ -476,7 +476,7 @@ app.post("/api/sell-orders", async (req, res) => {
             username: sanitizeUsername(username),
             stars,
             walletAddress,
-            memoTag,
+            memoTag: walletMemo,
             status: "pending", 
             telegram_payment_charge_id: "temp_" + Date.now(),
             reversible: true,
@@ -528,7 +528,7 @@ Order ID: ${order.id}
 Stars: ${order.stars}
 Status: Processing (On 21-day hold)
 
-A payout will be released after this period.`
+A payout will be released after this Hold period.`
 );
   
      
