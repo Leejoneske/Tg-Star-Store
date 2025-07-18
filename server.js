@@ -538,13 +538,12 @@ bot.on("successful_payment", async (msg) => {
     `Funds will be released to your wallet after the hold period.`
 );
   
-  
-    const adminMessage = `💰 New Payment Received!\n\n` +
-        `Order ID: ${order.id}\n` +
-        `User: ${order.username ? `@${order.username}` : `User ID: ${order.telegramId}`} (ID: ${order.telegramId})\n` + 
-        `Stars: ${order.stars}\n` +
-        `Wallet: ${order.walletAddress}\n`
-        `Memo: ${order.memoTag || 'None'}`;
+  const adminMessage = `💰 New Payment Received!\n\n` +
+    `Order ID: ${order.id}\n` +
+    `User: ${order.username ? `@${order.username}` : `User ID: ${order.telegramId}`} (ID: ${order.telegramId})\n` + 
+    `Stars: ${order.stars}\n` +
+    `Wallet: ${order.walletAddress}\n` +  
+    `Memo: ${order.memoTag || 'None'}`;
 
     const adminKeyboard = {
         inline_keyboard: [
