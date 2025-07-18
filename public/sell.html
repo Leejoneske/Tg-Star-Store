@@ -497,7 +497,7 @@
                 
                 </div>
             </div>
-  <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-2 gap-3">
     <button onclick="openWallet('binance')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
         <img src="https://cdn.simpleicons.org/binance/F0B90B" class="w-5 h-5 mr-3" alt="Binance">
         <span class="text-sm font-medium">Binance</span>
@@ -515,8 +515,8 @@
         <span class="text-sm font-medium">TONKeeper</span>
     </button>
     <button onclick="openWallet('bybit')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-        <img src="https://assets.coingecko.com/coins/images/17489/large/bybit.jpg" 
-             class="w-5 h-5 mr-3 rounded-sm object-cover" 
+        <img src="https://cryptologos.cc/logos/bybit-exchange-bybit-logo.png" 
+             class="w-5 h-5 mr-3" 
              alt="Bybit"
              onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjRkFFNTAxIi8+CjxwYXRoIGQ9Ik0xNy41IDZIMTVWMTguNUgxNy41VjZaIiBmaWxsPSIjRkZGRkZGIi8+CjxwYXRoIGQ9Ik0xMy41IDlIMTFWMTguNUgxMy41VjlaIiBmaWxsPSIjRkZGRkZGIi8+CjxwYXRoIGQ9Ik05LjUgMTJIN1YxOC41SDkuNVYxMloiIGZpbGw9IiNGRkZGRkYiLz4KPC9zdmc+'; this.onerror=null;">
         <span class="text-sm font-medium">Bybit</span>
@@ -529,7 +529,6 @@
         <span class="text-sm font-medium">Cryptomus</span>
     </button>
 </div>
-            
             <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
             <div class="bg-red-50 border-l-4 border-red-400 p-3 mt-3">
                 <div class="flex">
@@ -891,43 +890,43 @@ function showAppContent() {
         }
                 
         const walletProviders = {
-            binance: {
-                name: "Binance",
-                icon: "https://cdn.simpleicons.org/binance/F0B90B",
-                requiresMemo: true,
-                instructions: "For Binance, both wallet address and memo tag are required for USDT transactions."
-            },
-            okx: {
-                name: "OKX",
-                icon: "https://cdn.simpleicons.org/okx/000000",
-                requiresMemo: false,
-                instructions: "For OKX, only the wallet address is required for USDT transactions."
-            },
-            telegram: {
-                name: "Telegram Wallet",
-                icon: "https://cdn.simpleicons.org/telegram/26A5E4",
-                requiresMemo: false,
-                instructions: "For Telegram Wallet, only the wallet address is required."
-            },
-            tonkeeper: {
-                name: "TONKeeper",
-                icon: "https://cdn.simpleicons.org/ton/0098FF",
-                requiresMemo: false,
-                instructions: "For TONKeeper, only the wallet address is required."
-            },
-            bybit: {
-                name: "Bybit",
-                icon: "https://cdn.simpleicons.org/bybit/FAE501",
-                requiresMemo: true,
-                instructions: "For Bybit, both wallet address and memo tag are required for USDT transactions."
-            },
-            cryptomus: {
-                name: "Cryptomus",
-                icon: "https://cdn.simpleicons.org/bitcoin/F7931A",
-                requiresMemo: false,
-                instructions: "For Cryptomus, only the wallet address is required."
-            }
-        };
+    binance: {
+        name: "Binance",
+        icon: "https://cdn.simpleicons.org/binance/F0B90B",
+        requiresMemo: true,
+        instructions: "For Binance, both wallet address and memo tag are required for USDT transactions."
+    },
+    okx: {
+        name: "OKX",
+        icon: "https://cdn.simpleicons.org/okx/000000",
+        requiresMemo: false,
+        instructions: "For OKX, only the wallet address is required for USDT transactions."
+    },
+    telegram: {
+        name: "Telegram Wallet",
+        icon: "https://cdn.simpleicons.org/telegram/26A5E4",
+        requiresMemo: false,
+        instructions: "For Telegram Wallet, only the wallet address is required."
+    },
+    tonkeeper: {
+        name: "TONKeeper",
+        icon: "https://cdn.simpleicons.org/ton/0098FF",
+        requiresMemo: false,
+        instructions: "For TONKeeper, only the wallet address is required."
+    },
+    bybit: {
+        name: "Bybit",
+        icon: "https://assets.coingecko.com/coins/images/17489/large/bybit.jpg",
+        requiresMemo: true,
+        instructions: "For Bybit, both wallet address and memo tag are required for USDT transactions."
+    },
+    cryptomus: {
+        name: "Cryptomus",
+        icon: "https://cryptomus.com/favicon.ico",
+        requiresMemo: false,
+        instructions: "For Cryptomus, only the wallet address is required."
+    }
+};
 
         function openWallet(walletType) {
             if (!walletProviders[walletType]) {
