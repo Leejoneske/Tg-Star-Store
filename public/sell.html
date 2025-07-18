@@ -711,9 +711,7 @@
         </div>
     </div>
 </div>
-
-<div id="transactionDetailsOverlay" class="transaction-details-overlay">
-    <div id="transactionDetailsPanel" class="transaction-details-panel">
+            
         <div class="p-6">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-xl font-bold">Transaction Details</h3>
@@ -1070,7 +1068,7 @@ function openWallet(walletType) {
     }
 
     // Load saved values if they exist
-    const savedWallet = JSON.parse(localStorage.getItem('userWalletInfo') || {};
+    const savedWallet = JSON.parse(localStorage.getItem('userWalletInfo') || '{}');
     document.getElementById('walletModalAddress').value = savedWallet.address || '';
     document.getElementById('walletModalMemo').value = savedWallet.memo || '';
     
@@ -1145,11 +1143,13 @@ function setupWalletAddressMemory() {
         
         // Show edit button if address exists
         const editButton = document.getElementById('editWalletBtn');
-        if (editButton) {
-            editButton.style.display = 'block';
-            document.getElementById('manualWalletAddress').disabled = true;
-        }
-    }
+if (editButton) {
+    editButton.addEventListener('click', () => {
+        manualWalletAddress.disabled = false;
+        manualWalletAddress.focus();
+    });
+}
+
     
     // Save button handler for manual entry
     document.getElementById('saveWalletBtn').addEventListener('click', () => {
