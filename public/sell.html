@@ -1046,7 +1046,7 @@ function openWalletDialog(walletType) {
     }
     
     // Load saved address if exists
-    const savedWallet = JSON.parse(localStorage.getItem(`wallet_${walletType}`) || {};
+    const savedWallet = JSON.parse(localStorage.getItem(`wallet_${walletType}`)) || {};
     walletDialogAddress.value = savedWallet.address || '';
     if (config.requiresMemo) {
         walletDialogMemo.value = savedWallet.memo || '';
