@@ -1054,6 +1054,7 @@ function closeWalletDialog() {
     walletDialog.classList.remove('flex');
 }
 
+// Update the saveWalletDetails function
 function saveWalletDetails() {
     const address = walletDialogAddress.value.trim();
     const memo = walletDialogMemo.value.trim();
@@ -1083,10 +1084,13 @@ function saveWalletDetails() {
         memo: memo
     }));
     
-    // Also save to manual input field
+    // Also save to manual input fields
     manualWalletAddress.value = address;
+    manualWalletMemo.value = memo; 
     localStorage.setItem('userWalletAddress', address);
+    localStorage.setItem('userWalletMemo', memo); 
     currentWalletAddress = address;
+    currentWalletMemo = memo; 
     
     Swal.fire({
         icon: 'success',
@@ -1119,7 +1123,6 @@ function setupWalletButtons() {
     document.querySelector('button[onclick="openWallet(\'cryptomus\')"]').onclick = () => openWalletDialog('cryptomus');
 }
 
-
 // Update the setupWalletAddressMemory function
 function setupWalletAddressMemory() {
     const savedAddress = localStorage.getItem('userWalletAddress');
@@ -1144,8 +1147,7 @@ function setupWalletAddressMemory() {
         currentWalletMemo = e.target.value.trim();
         localStorage.setItem('userWalletMemo', currentWalletMemo);
     });
-}
-
+}        
 
 // Side menu toggle
 const menuOverlay = document.getElementById('menuOverlay');
