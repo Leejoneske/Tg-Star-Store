@@ -529,21 +529,22 @@ bot.on("successful_payment", async (msg) => {
 
     await bot.sendMessage(
     order.telegramId,
-    `✅ Payment successful!
-
-Order ID: ${order.id}
-Stars: ${order.stars}
-Status: Processing (On 21-day hold)
-
-A payout will be released after this Hold period.`
+    `✅ Payment successful!\n\n` +
+    `Order ID: ${order.id}\n` +
+    `Stars: ${order.stars}\n` +
+    `Wallet: ${order.walletAddress}\n` +
+    `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
+    `\nStatus: Processing (21-day hold)\n\n` +
+    `Funds will be released to your wallet after the hold period.`
 );
   
-     
+  
     const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
         `User: ${order.username ? `@${order.username}` : `User ID: ${order.telegramId}`} (ID: ${order.telegramId})\n` + 
         `Stars: ${order.stars}\n` +
-        `Wallet: ${order.walletAddress}`;
+        `Wallet: ${order.walletAddress}\n`
+        `Memo: ${order.memoTag || 'None'}`;
 
     const adminKeyboard = {
         inline_keyboard: [
