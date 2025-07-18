@@ -7,6 +7,7 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
+const fetch = require('node-fetch');
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
