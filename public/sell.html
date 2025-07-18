@@ -1219,7 +1219,6 @@ starsInput.value = "50"; 
 
 calculateTonAmount();
 
-
 sellStarsBtn.addEventListener('click', () => {
     if (!manualWalletAddress.value.trim() || !isValidWalletAddress(manualWalletAddress.value.trim())) {
         Swal.fire({
@@ -1257,11 +1256,6 @@ function detectWalletType(address) {
     if (address.includes('bybit')) return 'bybit';
     return null;
 }
-    document.getElementById('modalStarsAmount').textContent = starsInput.value;
-    document.getElementById('modalTonAmount').textContent = calculateTonAmount();
-    paymentModal.classList.remove('hidden');
-    paymentModal.classList.add('flex');
-});
 
 cancelPaymentBtn.addEventListener('click', () => {
     paymentModal.classList.add('hidden');
