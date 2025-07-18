@@ -753,168 +753,155 @@
         </div>
     </div>
 </div>
-   
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
- <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
-     <script>
-    // Check for Eruda debugger first
-    if (typeof eruda === 'undefined') {
-        
-    } else {
-        // Debug mode specific code (if needed)
-        console.log('Running in debug mode - skipping normal execution');
-    }
+<script>
+if (typeof eruda === 'undefined') {
+} else {
+    console.log('Running in debug mode - skipping normal execution');
+}
 </script>       
-    <script>
+<script>
     
-        // Global variables
-       
-        let currentWalletAddress = '';
-        let currentLanguage = localStorage.getItem('appLanguage') || 'en';
-        let rate = 0.009;
-        let currentWalletProvider = '';
-        let currentWalletMemo = '';
+let currentWalletAddress = '';
+let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+let rate = 0.009;
+let currentWalletProvider = '';
+let currentWalletMemo = '';
 
-        
-        // DOM elements
-        const connectWalletButton = document.getElementById('connectWallet');
-        const manualWalletToggle = document.getElementById('manualWalletToggle');
-        const manualWalletInput = document.getElementById('manualWalletInput');
-        const manualWalletAddress = document.getElementById('manualWalletAddress');
-        const sellStarsBtn = document.getElementById('sellStarsBtn');
-        const paymentModal = document.getElementById('paymentModal');
-        const cancelPaymentBtn = document.getElementById('cancelPaymentBtn');
-        const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
-        const starsInput = document.getElementById('starsAmount');
-        const tonAmountDisplay = document.getElementById('tonAmount');
-        const skeletonLoading = document.getElementById('skeletonLoading');
-        const appContent = document.getElementById('appContent');
-        const noticeModal = document.getElementById('noticeModal');
-        const continueButton = document.getElementById('continueButton');
+const manualWalletInput = document.getElementById('manualWalletInput');
+const manualWalletAddress = document.getElementById('manualWalletAddress');
+const sellStarsBtn = document.getElementById('sellStarsBtn');
+const paymentModal = document.getElementById('paymentModal');
+const cancelPaymentBtn = document.getElementById('cancelPaymentBtn');
+const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
+const starsInput = document.getElementById('starsAmount');
+const tonAmountDisplay = document.getElementById('tonAmount');
+const skeletonLoading = document.getElementById('skeletonLoading');
+const appContent = document.getElementById('appContent');
+const noticeModal = document.getElementById('noticeModal');
+const continueButton = document.getElementById('continueButton');
 
+const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+    manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json'
+});
 
-        // TonConnect UI setup
-        const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-            manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json'
-        });
+const translations = {
+    en: {
+        menuTitle: "Menu",
+        home: "Home",
+        sell: "Sell",
+        history: "History",
+        referral: "Referral",
+        about: "About",
+        connectWallet: "Connect Wallet",
+        enterManually: "Enter wallet address manually",
+        paymentInfo: "Payments will be made to the selected wallet.",
+        editAddress: "Edit Address",
+        saveAddress: "Save Address",
+        sellStars: "Sell Stars",
+        currentRate: "Current Rate",
+        updatedAgo: "Updated 8m ago",
+        amountToSell: "Amount of Stars to Sell",
+        youWillReceive: "You'll Receive (USDT)",
+        sellNow: "Sell Now",
+        howItWorks: "How it works:",
+        step1: "Enter the amount of stars you want to sell",
+        step2: "Click \"Sell Now\" to initiate the transaction",
+        step3: "Send the stars via Telegram payment",
+        step4: "Once verified, USDT will be sent to your wallet within 21 days",
+        recentTransactions: "Recent Transactions",
+        noTransactions: "No transactions yet",
+        walletNotConnected: "Wallet Not Connected",
+        walletConnectMessage: "Please connect your wallet or enter a wallet address manually to proceed.",
+        missingWalletAddress: "Missing Wallet Address",
+        enterValidWallet: "Please enter a valid wallet address to proceed.",
+        paymentInitiated: "Payment Initiated!",
+        completePayment: "Please complete the payment in Telegram.",
+        paymentSuccessful: "Payment Successful!",
+        paymentProcessed: "Your payment has been successfully processed.",
+        paymentFailed: "Payment Failed",
+        paymentNotSuccessful: "Your payment was not successful. Please try again.",
+        paymentLinkMissing: "Payment Link Missing",
+        paymentLinkNotGenerated: "The payment link was not generated. Please try again.",
+        orderFailed: "Order Failed",
+        orderError: "There was an error placing your order. Please try again.",
+        transactionDetails: "Transaction Details",
+        transactionID: "Transaction ID:",
+        amount: "Amount",
+        toBeReceived: "To be received",
+        currentStatus: "Current Status",
+        estimatedCompletion: "Estimated Completion",
+        orderCreated: "Order Created",
+        orderCreatedDesc: "Your order has been successfully created",
+        transactionTimeline: "Transaction Timeline",
+        paymentVerification: "Payment Verification",
+        paymentVerificationDesc: "Your star payment is being verified",
+        processing: "Processing",
+        processingDesc: "Your payment is being processed",
+        paymentSent: "Payment Sent",
+        paymentSentDesc: "USDT has been sent to your wallet"
+    },
+    ru: {
+        menuTitle: "Меню",
+        home: "Главная",
+        sell: "Продать",
+        history: "История",
+        referral: "Реферальная",
+        about: "О нас",
+        connectWallet: "Подключить кошелек",
+        enterManually: "Ввести адрес кошелька вручную",
+        paymentInfo: "Платежи будут отправлены на выбранный кошелек.",
+        editAddress: "Изменить адрес",
+        saveAddress: "Сохранить адрес",
+        sellStars: "Продать звезды",
+        currentRate: "Текущий курс",
+        updatedAgo: "Обновлено 8м назад",
+        amountToSell: "Количество звезд для продажи",
+        youWillReceive: "Вы получите (USDT)",
+        sellNow: "Продать сейчас",
+        howItWorks: "Как это работает:",
+        step1: "Введите количество звезд, которые вы хотите продать",
+        step2: "Нажмите \"Продать сейчас\", чтобы инициировать транзакцию",
+        step3: "Отправьте звезды через платеж Telegram",
+        step4: "После проверки, USDT будет отправлен на ваш кошелек в течение 21 дня",
+        recentTransactions: "Недавние транзакции",
+        noTransactions: "Пока нет транзакций",
+        walletNotConnected: "Кошелек не подключен",
+        walletConnectMessage: "Пожалуйста, подключите кошелек или введите адрес кошелька вручную, чтобы продолжить.",
+        missingWalletAddress: "Отсутствует адрес кошелька",
+        enterValidWallet: "Пожалуйста, введите действительный адрес кошелька, чтобы продолжить.",
+        paymentInitiated: "Платеж инициирован!",
+        completePayment: "Пожалуйста, завершите платеж в Telegram.",
+        paymentSuccessful: "Платеж выполнен успешно!",
+        paymentProcessed: "Ваш платеж был успешно обработан.",
+        paymentFailed: "Ошибка платежа",
+        paymentNotSuccessful: "Ваш платеж не был успешным. Пожалуйста, попробуйте снова.",
+        paymentLinkMissing: "Ссылка на оплату отсутствует",
+        paymentLinkNotGenerated: "Ссылка на оплату не была сгенерирована. Пожалуйста, попробуйте снова.",
+        orderFailed: "Ошибка заказа",
+        orderError: "При размещении вашего заказа произошла ошибка. Пожалуйста, попробуйте снова.",
+        transactionDetails: "Детали транзакции",
+        transactionID: "ID транзакции:",
+        amount: "Количество",
+        toBeReceived: "К получению",
+        currentStatus: "Текущий статус",
+        estimatedCompletion: "Ожидаемая дата завершения",
+        orderCreated: "Заказ создан",
+        orderCreatedDesc: "Ваш заказ был успешно создан",
+        paymentVerification: "Проверка платежа",
+        transactionTimeline: "Хронология транзакции",
+        paymentVerificationDesc: "Ваш платеж звездами проверяется",
+        processing: "Обработка",
+        processingDesc: "Ваш платеж обрабатывается",
+        paymentSent: "Платеж отправлен",
+        paymentSentDesc: "USDT был отправлен на ваш кошелек"
+    }
+};
 
-        // Translations object
-        const translations = {
-          en: {
-            menuTitle: "Menu",
-            home: "Home",
-            sell: "Sell",
-            history: "History",
-            referral: "Referral",
-            about: "About",
-            connectWallet: "Connect Wallet",
-            enterManually: "Enter wallet address manually",
-            paymentInfo: "Payments will be made to the selected wallet.",
-            editAddress: "Edit Address",
-            saveAddress: "Save Address",
-            sellStars: "Sell Stars",
-            currentRate: "Current Rate",
-            updatedAgo: "Updated 8m ago",
-            amountToSell: "Amount of Stars to Sell",
-            youWillReceive: "You'll Receive (USDT)",
-            sellNow: "Sell Now",
-            howItWorks: "How it works:",
-            step1: "Enter the amount of stars you want to sell",
-            step2: "Click \"Sell Now\" to initiate the transaction",
-            step3: "Send the stars via Telegram payment",
-            step4: "Once verified, USDT will be sent to your wallet within 21 days",
-            recentTransactions: "Recent Transactions",
-            noTransactions: "No transactions yet",
-            walletNotConnected: "Wallet Not Connected",
-            walletConnectMessage: "Please connect your wallet or enter a wallet address manually to proceed.",
-            missingWalletAddress: "Missing Wallet Address",
-            enterValidWallet: "Please enter a valid wallet address to proceed.",
-            paymentInitiated: "Payment Initiated!",
-            completePayment: "Please complete the payment in Telegram.",
-            paymentSuccessful: "Payment Successful!",
-            paymentProcessed: "Your payment has been successfully processed.",
-            paymentFailed: "Payment Failed",
-            paymentNotSuccessful: "Your payment was not successful. Please try again.",
-            paymentLinkMissing: "Payment Link Missing",
-            paymentLinkNotGenerated: "The payment link was not generated. Please try again.",
-            orderFailed: "Order Failed",
-            orderError: "There was an error placing your order. Please try again.",
-            transactionDetails: "Transaction Details",
-            transactionID: "Transaction ID:",
-            amount: "Amount",
-            toBeReceived: "To be received",
-            currentStatus: "Current Status",
-            estimatedCompletion: "Estimated Completion",
-            orderCreated: "Order Created",
-            orderCreatedDesc: "Your order has been successfully created",
-            transactionTimeline: "Transaction Timeline",
-            paymentVerification: "Payment Verification",
-            paymentVerificationDesc: "Your star payment is being verified",
-            processing: "Processing",
-            processingDesc: "Your payment is being processed",
-            paymentSent: "Payment Sent",
-            paymentSentDesc: "USDT has been sent to your wallet"
-          },
-          ru: {
-            menuTitle: "Меню",
-            home: "Главная",
-            sell: "Продать",
-            history: "История",
-            referral: "Реферальная",
-            about: "О нас",
-            connectWallet: "Подключить кошелек",
-            enterManually: "Ввести адрес кошелька вручную",
-            paymentInfo: "Платежи будут отправлены на выбранный кошелек.",
-            editAddress: "Изменить адрес",
-            saveAddress: "Сохранить адрес",
-            sellStars: "Продать звезды",
-            currentRate: "Текущий курс",
-            updatedAgo: "Обновлено 8м назад",
-            amountToSell: "Количество звезд для продажи",
-            youWillReceive: "Вы получите (USDT)",
-            sellNow: "Продать сейчас",
-            howItWorks: "Как это работает:",
-            step1: "Введите количество звезд, которые вы хотите продать",
-            step2: "Нажмите \"Продать сейчас\", чтобы инициировать транзакцию",
-            step3: "Отправьте звезды через платеж Telegram",
-            step4: "После проверки, USDT будет отправлен на ваш кошелек в течение 21 дня",
-            recentTransactions: "Недавние транзакции",
-            noTransactions: "Пока нет транзакций",
-            walletNotConnected: "Кошелек не подключен",
-            walletConnectMessage: "Пожалуйста, подключите кошелек или введите адрес кошелька вручную, чтобы продолжить.",
-            missingWalletAddress: "Отсутствует адрес кошелька",
-            enterValidWallet: "Пожалуйста, введите действительный адрес кошелька, чтобы продолжить.",
-            paymentInitiated: "Платеж инициирован!",
-            completePayment: "Пожалуйста, завершите платеж в Telegram.",
-            paymentSuccessful: "Платеж выполнен успешно!",
-            paymentProcessed: "Ваш платеж был успешно обработан.",
-            paymentFailed: "Ошибка платежа",
-            paymentNotSuccessful: "Ваш платеж не был успешным. Пожалуйста, попробуйте снова.",
-            paymentLinkMissing: "Ссылка на оплату отсутствует",
-            paymentLinkNotGenerated: "Ссылка на оплату не была сгенерирована. Пожалуйста, попробуйте снова.",
-            orderFailed: "Ошибка заказа",
-            orderError: "При размещении вашего заказа произошла ошибка. Пожалуйста, попробуйте снова.",
-            transactionDetails: "Детали транзакции",
-            transactionID: "ID транзакции:",
-            amount: "Количество",
-            toBeReceived: "К получению",
-            currentStatus: "Текущий статус",
-            estimatedCompletion: "Ожидаемая дата завершения",
-            orderCreated: "Заказ создан",
-            orderCreatedDesc: "Ваш заказ был успешно создан",
-            paymentVerification: "Проверка платежа",
-            transactionTimeline: "Хронология транзакции",
-            paymentVerificationDesc: "Ваш платеж звездами проверяется",
-            processing: "Обработка",
-            processingDesc: "Ваш платеж обрабатывается",
-            paymentSent: "Платеж отправлен",
-            paymentSentDesc: "USDT был отправлен на ваш кошелек"
-          }
-        };
-// Check if the user has accepted the notice
 function checkNoticeStatus() {
     const noticeAccepted = localStorage.getItem('noticeAccepted');
     if (noticeAccepted === 'true') {
@@ -923,15 +910,13 @@ function checkNoticeStatus() {
         noticeModal.style.display = 'flex'; 
     }
 }
-// Show the main app content
+
 function showAppContent() {
     skeletonLoading.style.display = 'none';
     appContent.style.display = 'block';
-    // Fetch transactions when app content is shown
     fetchTransactions();
 }
 
-// Continue button handler for notice modal
 continueButton.addEventListener('click', () => {
     localStorage.setItem('noticeAccepted', 'true');
     noticeModal.style.display = 'none';
@@ -945,60 +930,43 @@ window.addEventListener('storage', (e) => {
     }
 });
       
-// Listen for language changes from index page
 window.addEventListener('languageChanged', () => {
     currentLanguage = localStorage.getItem('appLanguage') || 'en';
     updateLanguageTexts();
 });
 
-// Function to update all texts based on current language
 function updateLanguageTexts() {
-  const texts = translations[currentLanguage];
-  
-  // Update menu items
-  document.querySelector('.side-menu .text-xl').textContent = texts.menuTitle;
-  const menuItems = document.querySelectorAll('.menu-item');
-  menuItems[0].childNodes[2].textContent = texts.home;
-  menuItems[1].childNodes[2].textContent = texts.sell;
-  menuItems[2].childNodes[2].textContent = texts.history;
-  menuItems[3].childNodes[2].textContent = texts.referral;
-  menuItems[4].childNodes[2].textContent = texts.about;
-  
-  // Update wallet section
-  document.querySelector('.wallet-status p').textContent = texts.paymentInfo;
-  
-  // Update edit button text if it exists
-  const editButton = document.getElementById('editWalletBtn');
-  if (editButton) {
-    editButton.textContent = texts.editAddress;
-  }
-  
-  // Update sell stars section
-  document.querySelector('h2.text-xl').textContent = texts.sellStars;
-  document.querySelector('.rate-info .text-sm').textContent = texts.currentRate;
-  document.querySelector('label.block.text-sm').textContent = texts.amountToSell;
-  document.querySelectorAll('label.block.text-sm')[1].textContent = texts.youWillReceive;
-  sellStarsBtn.textContent = texts.sellNow;
-  
-  // Update how it works section
-  document.querySelector('.font-medium.text-blue-800').textContent = texts.howItWorks;
-  const steps = document.querySelectorAll('.list-decimal li');
-  steps[0].textContent = texts.step1;
-  steps[1].textContent = texts.step2;
-  steps[2].textContent = texts.step3;
-  steps[3].textContent = texts.step4;
-  
-  // Update transactions section
-  document.querySelector('.transaction-history h3').textContent = texts.recentTransactions;
-  
-  // Check if no transactions message exists and update it
-  const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
-  if (noTransactionsEl) {
-    noTransactionsEl.textContent = texts.noTransactions;
-  }
+    const texts = translations[currentLanguage];
+    document.querySelector('.side-menu .text-xl').textContent = texts.menuTitle;
+    const menuItems = document.querySelectorAll('.menu-item');
+    menuItems[0].childNodes[2].textContent = texts.home;
+    menuItems[1].childNodes[2].textContent = texts.sell;
+    menuItems[2].childNodes[2].textContent = texts.history;
+    menuItems[3].childNodes[2].textContent = texts.referral;
+    menuItems[4].childNodes[2].textContent = texts.about;
+    document.querySelector('.wallet-status p').textContent = texts.paymentInfo;
+    const editButton = document.getElementById('editWalletBtn');
+    if (editButton) {
+        editButton.textContent = texts.editAddress;
+    }
+    document.querySelector('h2.text-xl').textContent = texts.sellStars;
+    document.querySelector('.rate-info .text-sm').textContent = texts.currentRate;
+    document.querySelector('label.block.text-sm').textContent = texts.amountToSell;
+    document.querySelectorAll('label.block.text-sm')[1].textContent = texts.youWillReceive;
+    sellStarsBtn.textContent = texts.sellNow;
+    document.querySelector('.font-medium.text-blue-800').textContent = texts.howItWorks;
+    const steps = document.querySelectorAll('.list-decimal li');
+    steps[0].textContent = texts.step1;
+    steps[1].textContent = texts.step2;
+    steps[2].textContent = texts.step3;
+    steps[3].textContent = texts.step4;
+    document.querySelector('.transaction-history h3').textContent = texts.recentTransactions;
+    const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
+    if (noTransactionsEl) {
+        noTransactionsEl.textContent = texts.noTransactions;
+    }
 }
         
-// Wallet information for different providers
 const walletProviders = {
     binance: {
         name: "Binance",
@@ -1038,7 +1006,6 @@ const walletProviders = {
     }
 };
 
-// Update the openWallet function to include close handler
 function openWallet(walletType) {
     if (!walletProviders[walletType]) {
         console.error('Invalid wallet type:', walletType);
@@ -1048,13 +1015,11 @@ function openWallet(walletType) {
     const wallet = walletProviders[walletType];
     const modal = document.getElementById('walletInfoModal');
     
-    // Set modal content
     document.getElementById('walletModalIcon').src = wallet.icon;
     document.getElementById('walletModalTitle').textContent = wallet.name + ' Wallet';
     document.getElementById('walletModalSubtitle').textContent = 'Enter your ' + wallet.name + ' details';
     document.getElementById('walletModalInstructions').textContent = wallet.instructions;
 
-    // Configure memo field
     if (wallet.requiresMemo) {
         document.getElementById('memoFieldContainer').style.display = 'block';
         document.getElementById('memoLabel').textContent = 'Memo Tag*';
@@ -1067,20 +1032,16 @@ function openWallet(walletType) {
         document.getElementById('walletModalMemo').placeholder = 'Enter memo tag (if applicable)';
     }
 
-    // Load saved values if they exist
     const savedWallet = JSON.parse(localStorage.getItem('userWalletInfo') || '{}');
     document.getElementById('walletModalAddress').value = savedWallet.address || '';
     document.getElementById('walletModalMemo').value = savedWallet.memo || '';
     
-    // Show modal
     modal.style.display = 'flex';
     
-    // Close modal handler
     document.getElementById('closeWalletModal').onclick = function() {
         modal.style.display = 'none';
     };
     
-    // Save handler
     document.getElementById('saveWalletInfoBtn').onclick = function() {
         const address = document.getElementById('walletModalAddress').value.trim();
         const memo = document.getElementById('walletModalMemo').value.trim();
@@ -1103,14 +1064,12 @@ function openWallet(walletType) {
             return;
         }
         
-        // Save to both manual inputs and localStorage
         document.getElementById('manualWalletAddress').value = address;
         document.getElementById('walletMemo').value = memo;
         currentWalletAddress = address;
         currentWalletMemo = memo;
         currentWalletProvider = walletType;
         
-        // Save all wallet info together
         localStorage.setItem('userWalletInfo', JSON.stringify({
             address: address,
             memo: memo,
@@ -1129,10 +1088,8 @@ function openWallet(walletType) {
     };
 }
 
-// Update the setupWalletAddressMemory function to handle both address and memo
 function setupWalletAddressMemory() {
-    // Load saved wallet info if it exists
-    const savedWallet = JSON.parse(localStorage.getItem('userWalletInfo') || {});
+    const savedWallet = JSON.parse(localStorage.getItem('userWalletInfo') || '{}');
     
     if (savedWallet.address) {
         document.getElementById('manualWalletAddress').value = savedWallet.address;
@@ -1141,17 +1098,15 @@ function setupWalletAddressMemory() {
         currentWalletMemo = savedWallet.memo || '';
         currentWalletProvider = savedWallet.provider || '';
         
-        // Show edit button if address exists
         const editButton = document.getElementById('editWalletBtn');
-if (editButton) {
-    editButton.addEventListener('click', () => {
-        manualWalletAddress.disabled = false;
-        manualWalletAddress.focus();
-    });
-}
-
+        if (editButton) {
+            editButton.addEventListener('click', () => {
+                manualWalletAddress.disabled = false;
+                manualWalletAddress.focus();
+            });
+        }
+    }
     
-    // Save button handler for manual entry
     document.getElementById('saveWalletBtn').addEventListener('click', () => {
         const address = document.getElementById('manualWalletAddress').value.trim();
         const memo = document.getElementById('walletMemo').value.trim();
@@ -1167,7 +1122,6 @@ if (editButton) {
             return;
         }
         
-        // Save all wallet info together
         localStorage.setItem('userWalletInfo', JSON.stringify({
             address: address,
             memo: memo,
@@ -1192,30 +1146,12 @@ if (editButton) {
             showConfirmButton: false
         });
     });
-
-    // Edit button handler
-    const editButton = document.getElementById('editWalletBtn');
-    if (editButton) {
-        editButton.addEventListener('click', () => {
-            document.getElementById('manualWalletAddress').disabled = false;
-            document.getElementById('manualWalletAddress').focus();
-        });
-    }
-}
-  
-  // Edit button handler
-  editButton.addEventListener('click', () => {
-    manualWalletAddress.disabled = false;
-    manualWalletAddress.focus();
-  });
 }
 
-// Update wallet address when manual input changes
 manualWalletAddress.addEventListener('input', () => {
     currentWalletAddress = manualWalletAddress.value.trim();
 });
 
-// Side menu toggle
 const menuOverlay = document.getElementById('menuOverlay');
 const sideMenu = document.getElementById('sideMenu');
 
@@ -1230,49 +1166,43 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-      //wallet validation
 function isValidWalletAddress(address) {
     return address && address.length >= 10 && /^[a-zA-Z0-9].*$/.test(address);
 }
       
-// Stars amount handling
 function incrementStars() {
-    const currentValue = parseInt(starsInput.value) || 0;
-    starsInput.value = Math.min(currentValue + 5, 80000);
-    calculateTonAmount();
+    const currentValue = parseInt(starsInput.value) || 0;
+    starsInput.value = Math.min(currentValue + 5, 80000);
+    calculateTonAmount();
 }
 
 function decrementStars() {
-    const currentValue = parseInt(starsInput.value) || 0;
-    starsInput.value = Math.max(currentValue - 5, 50);
-    calculateTonAmount();
+    const currentValue = parseInt(starsInput.value) || 0;
+    starsInput.value = Math.max(currentValue - 5, 50);
+    calculateTonAmount();
 }
 
 function calculateTonAmount() {
-    // Ensure value stays within bounds
-    let stars = parseInt(starsInput.value) || 0;
-    if (stars < 50) {
-        stars = 50;
-        starsInput.value = 50;
-    } else if (stars > 80000) {
-        stars = 80000;
-        starsInput.value = 80000;
-    }
-    
-    const tonAmount = (stars * rate).toFixed(3);
-    tonAmountDisplay.textContent = `${tonAmount} USDT`;
-    return tonAmount;
+    let stars = parseInt(starsInput.value) || 0;
+    if (stars < 50) {
+        stars = 50;
+        starsInput.value = 50;
+    } else if (stars > 80000) {
+        stars = 80000;
+        starsInput.value = 80000;
+    }
+    
+    const tonAmount = (stars * rate).toFixed(3);
+    tonAmountDisplay.textContent = `${tonAmount} USDT`;
+    return tonAmount;
 }
 
-// Update the input field attributes to reflect new limits
 starsInput.min = "50";
 starsInput.max = "80000";
-starsInput.value = "50"; 
+starsInput.value = "50"; 
 
 calculateTonAmount();
 
-     
-// Payment modal handling
 sellStarsBtn.addEventListener('click', () => {
     if (!manualWalletAddress.value.trim() || !isValidWalletAddress(manualWalletAddress.value.trim())) {
         Swal.fire({
@@ -1304,15 +1234,14 @@ confirmPaymentBtn.addEventListener('click', async () => {
     const walletToUse = manualWalletAddress.value.trim();
 
     try {
-    
-const response = await axios.post('/api/sell-orders', {
-    telegramId: Telegram.WebApp.initDataUnsafe.user.id,
-    username: Telegram.WebApp.initDataUnsafe.user.username,
-    stars: stars,
-    walletAddress: walletToUse,
-    walletMemo: document.getElementById('walletMemo').value.trim(),
-    walletProvider: currentWalletProvider
-});
+        const response = await axios.post('/api/sell-orders', {
+            telegramId: Telegram.WebApp.initDataUnsafe.user.id,
+            username: Telegram.WebApp.initDataUnsafe.user.username,
+            stars: stars,
+            walletAddress: walletToUse,
+            walletMemo: document.getElementById('walletMemo').value.trim(),
+            walletProvider: currentWalletProvider
+        });
 
         if (response.data.success) {
             Swal.fire({
@@ -1362,7 +1291,6 @@ const response = await axios.post('/api/sell-orders', {
     }
 });
 
-// Create Transaction Details Panel
 function createTransactionDetailsPanel() {
     const panel = document.createElement('div');
     panel.id = 'transactionDetailsOverlay';
@@ -1406,7 +1334,6 @@ function createTransactionDetailsPanel() {
                 </div>
                 
                 <div id="transactionTimeline" class="mt-6">
-                    <!-- Timeline steps will be inserted here -->
                 </div>
             </div>
         </div>
@@ -1422,7 +1349,6 @@ function createTransactionDetailsPanel() {
     });
 }
 
-// Helper function to format dates with leading zeros
 function formatDateWithLeadingZeros(date) {
     if (!date) return 'N/A';
     
@@ -1434,15 +1360,12 @@ function formatDateWithLeadingZeros(date) {
     return `${day}/${month}/${year}`;
 }
 
-// Show loading state
 function showTransactionDetailsLoading() {
     const overlay = document.getElementById('transactionDetailsOverlay');
     const panel = document.getElementById('transactionDetailsPanel');
     
-    // Show overlay immediately
     overlay.style.display = 'block';
     
-    // Add loading content to panel
     panel.innerHTML = `
         <div class="loading-container" style="display: flex; justify-content: center; align-items: center; height: 400px; flex-direction: column;">
             <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid #f3f4f6; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;"></div>
@@ -1456,53 +1379,44 @@ function showTransactionDetailsLoading() {
         </style>
     `;
     
-    // Start smooth opening animation
     setTimeout(() => {
         panel.classList.add('active');
     }, 50);
 }
 
-// Open transaction details
 function openTransactionDetails(transaction) {
-    // Show loading state first
     showTransactionDetailsLoading();
-    
-    // Immediately populate details (no simulation delay)
     populateTransactionDetails(transaction);
 }
 
-// Populate transaction details
 function populateTransactionDetails(transaction) {
     const overlay = document.getElementById('transactionDetailsOverlay');
     const panel = document.getElementById('transactionDetailsPanel');
 
-if (transaction.walletProvider && walletProviders[transaction.walletProvider]) {
-    const walletIcon = document.createElement('img');
-    walletIcon.className = 'w-5 h-5 ml-2';
-    walletIcon.src = walletProviders[transaction.walletProvider].icon;
-    walletIcon.alt = walletProviders[transaction.walletProvider].name;
-    document.getElementById('transactionId').appendChild(walletIcon);
-}
+    if (transaction.walletProvider && walletProviders[transaction.walletProvider]) {
+        const walletIcon = document.createElement('img');
+        walletIcon.className = 'w-5 h-5 ml-2';
+        walletIcon.src = walletProviders[transaction.walletProvider].icon;
+        walletIcon.alt = walletProviders[transaction.walletProvider].name;
+        document.getElementById('transactionId').appendChild(walletIcon);
+    }
 
-// Also add memo to the display if it exists
-const memo = document.getElementById('walletMemo').value.trim();
-if (memo) {
-    const memoDisplay = document.createElement('div');
-    memoDisplay.className = 'text-sm text-gray-500 mt-1';
-    memoDisplay.textContent = `Memo: ${memo}`;
-    document.getElementById('transactionId').parentNode.insertBefore(memoDisplay, document.getElementById('transactionId').nextSibling);
-}
-    // Calculate estimated completion date (21 days from creation)
+    const memo = document.getElementById('walletMemo').value.trim();
+    if (memo) {
+        const memoDisplay = document.createElement('div');
+        memoDisplay.className = 'text-sm text-gray-500 mt-1';
+        memoDisplay.textContent = `Memo: ${memo}`;
+        document.getElementById('transactionId').parentNode.insertBefore(memoDisplay, document.getElementById('transactionId').nextSibling);
+    }
+    
     const creationDate = new Date(transaction.dateCreated);
     const completionDate = new Date(creationDate);
     completionDate.setDate(creationDate.getDate() + 21);
 
-    // For completed transactions, show estimated date instead of N/A if no actual completion date
     const displayDate = transaction.completedAt ? 
         formatDateWithLeadingZeros(transaction.completedAt) : 
         formatDateWithLeadingZeros(completionDate);
     
-    // Build the main content with improved mobile layout
     panel.innerHTML = `
         <div class="transaction-details-content" style="opacity: 0; transform: translateY(20px); transition: all 0.3s ease; padding: 16px;">
             <div class="flex justify-between items-start mb-4">
@@ -1539,7 +1453,6 @@ if (memo) {
         </div>
     `;
     
-    // Set status badge
     const statusBadge = document.getElementById('transactionStatusBadge');
     statusBadge.textContent = transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1);
     statusBadge.className = 'inline-block px-2 py-0.5 rounded-full text-xs font-medium';
@@ -1554,7 +1467,6 @@ if (memo) {
         statusBadge.classList.add('bg-red-100', 'text-red-800');
     }
           
-    // Calculate progress percentage
     const now = new Date();
     let progressPercentage = 0;
     
@@ -1563,16 +1475,13 @@ if (memo) {
     } else if (transaction.status === 'declined') {
         progressPercentage = 0;
     } else if (transaction.status === 'processing') {
-        // Only start counting progress when status is processing
         const daysPassed = Math.floor((now - creationDate) / (1000 * 60 * 60 * 24));
         progressPercentage = Math.min(Math.round((daysPassed / 21) * 100), 99);
     }
     
-    // Build timeline
     const timeline = document.getElementById('transactionTimeline');
     timeline.innerHTML = '';
     
-    // Define payment and completion status
     let paymentStatus = 'pending';
     let completionStatus = 'pending';
     
@@ -1583,7 +1492,6 @@ if (memo) {
         completionStatus = 'completed';
     }
     
-    // Define processing status for step 3
     let processingStatus = 'pending';
     if (transaction.status === 'processing' || transaction.status === 'completed') {
         processingStatus = 'active';
@@ -1592,30 +1500,25 @@ if (memo) {
         processingStatus = 'completed';
     }
     
-    // Step 1: Order Created
     addTimelineStep(timeline, 1, translations[currentLanguage].orderCreated, translations[currentLanguage].orderCreatedDesc, 
         formatDateWithLeadingZeros(transaction.dateCreated), 'completed');
 
-    // Step 2: Payment Verification
     addTimelineStep(timeline, 2, translations[currentLanguage].paymentVerification, translations[currentLanguage].paymentVerificationDesc, 
         transaction.status === 'pending' ? formatDateWithLeadingZeros(calculateStepDate(transaction.dateCreated, 1)) : 
         (transaction.datePaid ? formatDateWithLeadingZeros(transaction.datePaid) : ''),
         paymentStatus);
 
-    // Step 3: Processing Payment
     addTimelineStep(timeline, 3, translations[currentLanguage].processing, 
         translations[currentLanguage].processingDesc, 
         '', 
         processingStatus);
 
-    // Step 4: Payment Sent
     addTimelineStep(timeline, 4, translations[currentLanguage].paymentSent, translations[currentLanguage].paymentSentDesc, 
         transaction.status === 'completed' ? 
         (transaction.completedAt ? formatDateWithLeadingZeros(transaction.completedAt) : formatDateWithLeadingZeros(completionDate)) : 
         formatDateWithLeadingZeros(completionDate), 
         completionStatus);
     
-    // Animate content in
     setTimeout(() => {
         const content = document.querySelector('.transaction-details-content');
         if (content) {
@@ -1623,12 +1526,10 @@ if (memo) {
             content.style.transform = 'translateY(0)';
         }
         
-        // Animate progress bar
         setTimeout(() => {
             document.getElementById('progressBar').style.width = `${progressPercentage}%`;
         }, 200);
         
-        // Animate timeline steps
         const steps = timeline.querySelectorAll('.transaction-step');
         steps.forEach((step, index) => {
             setTimeout(() => {
@@ -1639,12 +1540,10 @@ if (memo) {
     }, 100);
 }
 
-// Close transaction details
 function closeTransactionDetails() {
     const panel = document.getElementById('transactionDetailsPanel');
     const overlay = document.getElementById('transactionDetailsOverlay');
     
-    // Animate content out
     const content = panel.querySelector('.transaction-details-content');
     if (content) {
         content.style.opacity = '0';
@@ -1657,7 +1556,6 @@ function closeTransactionDetails() {
     }, 300);
 }
 
-// Helper function to add timeline step
 function addTimelineStep(container, number, title, description, date, status) {
     const step = document.createElement('div');
     step.className = 'transaction-step';
@@ -1667,7 +1565,6 @@ function addTimelineStep(container, number, title, description, date, status) {
     step.style.paddingLeft = '8px';
     step.style.marginBottom = '12px';
     
-    // Determine step status class
     let statusClass = '';
     if (status === 'completed') {
         statusClass = 'completed';
@@ -1721,17 +1618,14 @@ function addTimelineStep(container, number, title, description, date, status) {
     container.appendChild(step);
 }
 
-// Helper function to calculate step dates
 function calculateStepDate(startDateStr, daysToAdd) {
     const date = new Date(startDateStr);
     date.setDate(date.getDate() + daysToAdd);
     return date;
 }
 
-// Fetch and display transactions
 const fetchTransactions = async () => {
     try {
-        // Add loading indicator
         const transactionsList = document.getElementById('transactionsList');
         if (!transactionsList) {
             console.error('Transaction list element not found');
@@ -1788,7 +1682,6 @@ const fetchTransactions = async () => {
     } catch (error) {
         console.error('Error fetching transactions:', error);
         
-        // Show error message in the transactions list
         const transactionsList = document.getElementById('transactionsList');
         if (transactionsList) {
             transactionsList.innerHTML = `
@@ -1800,33 +1693,29 @@ const fetchTransactions = async () => {
     }
 };
 
-// Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
-    // Check for language in localStorage first
     currentLanguage = localStorage.getItem('appLanguage') || 'en';
     setupWalletAddressMemory();
     updateLanguageTexts();
     createTransactionDetailsPanel();
     
-    // Show skeleton loading initially
     skeletonLoading.style.display = 'block';
     appContent.style.display = 'none';
     
-    // Check notice status after a small delay (simulating loading)
     setTimeout(() => {
         checkNoticeStatus();
     }, 800);
     
-    // Set up refresh interval for transactions (every 10 seconds instead of 5)
     setInterval(fetchTransactions, 10000);
     
-    // Set up Telegram WebApp
     Telegram.WebApp.onEvent('viewportChanged', () => {
         Telegram.WebApp.expand();
     });
 
     Telegram.WebApp.expand();
 });
+</script>
+
 
     </script>
 </body>
