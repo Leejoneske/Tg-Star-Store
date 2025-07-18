@@ -512,13 +512,11 @@
         <div class="logo-header">StarStore</div>
         <div class="w-6"></div>
     </div>
-
 <div class="wallet-status">
-    <!-- Manual Wallet Input Section -->
     <div class="mb-6">
         <h3 class="text-lg font-semibold mb-3 text-gray-800">Enter Manual Address</h3>
         <div id="manualWalletInput" class="mt-3">
-            <div class="relative">
+            <div class="relative mb-3">
                 <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
                     <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
@@ -527,8 +525,19 @@
                 <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
                        class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
+            <div class="relative">
+                <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                </div>
+                <input type="text" id="manualWalletMemo" placeholder="Memo/Tag (if required)" 
+                       class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <p class="text-xs text-gray-500 mt-1">Only required for certain exchanges like Binance, OKX</p>
         </div>
     </div>
+</div>
 
     <!-- Recommended Wallets Section -->
     <div class="border-t border-gray-200 pt-6">
@@ -745,7 +754,7 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
         // Global variables
-        
+        let currentWalletMemo = '';
         let currentWalletType = '';
         let currentWalletAddress = '';
         let currentLanguage = localStorage.getItem('appLanguage') || 'en';
@@ -1125,20 +1134,35 @@ function setupWalletButtons() {
     // Cryptomus
     document.querySelector('button[onclick="openWallet(\'cryptomus\')"]').onclick = () => openWalletDialog('cryptomus');
 }
-        
-  function setupWalletAddressMemory() {
+
+
+// Update the setupWalletAddressMemory function
+function setupWalletAddressMemory() {
     const savedAddress = localStorage.getItem('userWalletAddress');
+    const savedMemo = localStorage.getItem('userWalletMemo');
+    
     if (savedAddress) {
         manualWalletAddress.value = savedAddress;
         currentWalletAddress = savedAddress;
+    }
+    
+    if (savedMemo) {
+        manualWalletMemo.value = savedMemo;
+        currentWalletMemo = savedMemo;
     }
     
     manualWalletAddress.addEventListener('change', (e) => {
         currentWalletAddress = e.target.value.trim();
         localStorage.setItem('userWalletAddress', currentWalletAddress);
     });
-}      
-        
+    
+    manualWalletMemo.addEventListener('change', (e) => {
+        currentWalletMemo = e.target.value.trim();
+        localStorage.setItem('userWalletMemo', currentWalletMemo);
+    });
+}
+
+
 // Side menu toggle
 const menuOverlay = document.getElementById('menuOverlay');
 const sideMenu = document.getElementById('sideMenu');
@@ -1195,8 +1219,7 @@ starsInput.value = "50"; 
 
 calculateTonAmount();
 
-     
-// Payment modal handling
+
 sellStarsBtn.addEventListener('click', () => {
     if (!manualWalletAddress.value.trim() || !isValidWalletAddress(manualWalletAddress.value.trim())) {
         Swal.fire({
@@ -1209,6 +1232,31 @@ sellStarsBtn.addEventListener('click', () => {
         return;
     }
 
+    // Check if memo is required for certain wallet types
+    const walletType = detectWalletType(manualWalletAddress.value);
+    if (walletType && walletConfigs[walletType]?.requiresMemo && !manualWalletMemo.value.trim()) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Memo Required',
+            text: 'This wallet type requires a memo/tag for USDT TON deposits'
+        });
+        return;
+    }
+
+    document.getElementById('modalStarsAmount').textContent = starsInput.value;
+    document.getElementById('modalTonAmount').textContent = calculateTonAmount();
+    paymentModal.classList.remove('hidden');
+    paymentModal.classList.add('flex');
+});
+
+// Add this helper function to detect wallet type
+function detectWalletType(address) {
+    // Simple detection - you might want to enhance this
+    if (address.includes('binance')) return 'binance';
+    if (address.includes('okx')) return 'okx';
+    if (address.includes('bybit')) return 'bybit';
+    return null;
+}
     document.getElementById('modalStarsAmount').textContent = starsInput.value;
     document.getElementById('modalTonAmount').textContent = calculateTonAmount();
     paymentModal.classList.remove('hidden');
@@ -1232,7 +1280,8 @@ confirmPaymentBtn.addEventListener('click', async () => {
             telegramId: Telegram.WebApp.initDataUnsafe.user.id,
             username: Telegram.WebApp.initDataUnsafe.user.username,
             stars: stars,
-            walletAddress: walletToUse
+            walletAddress: walletToUse,
+            walletMemo: memoToUse
         });
 
         if (response.data.success) {
