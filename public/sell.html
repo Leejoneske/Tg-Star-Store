@@ -647,6 +647,34 @@
     </div>
 </div>
 
+<!-- Wallet Address Dialog Template -->
+<div id="walletDialog" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+        <div class="flex items-center mb-4">
+            <img id="walletDialogIcon" class="w-8 h-8 mr-3" src="" alt="Wallet Icon">
+            <h3 id="walletDialogTitle" class="text-xl font-bold"></h3>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">USDT TON Wallet Address</label>
+            <input type="text" id="walletDialogAddress" placeholder="Enter USDT TON wallet address" 
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        
+        <div class="mb-4" id="memoFieldContainer">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Memo/Tag (Required)</label>
+            <input type="text" id="walletDialogMemo" placeholder="Enter memo/tag if required" 
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <p class="text-xs text-gray-500 mt-1" id="memoNote"></p>
+        </div>
+        
+        <div class="flex justify-between space-x-4">
+            <button id="cancelWalletDialogBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
+            <button id="saveWalletDialogBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Save</button>
+        </div>
+    </div>
+</div>        
+            
 <!-- Modal Template for Star Payment -->
 <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
@@ -717,7 +745,8 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
         // Global variables
-       
+        
+        let currentWalletType = '';
         let currentWalletAddress = '';
         let currentLanguage = localStorage.getItem('appLanguage') || 'en';
         let rate = 0.009;
@@ -737,6 +766,19 @@
         const appContent = document.getElementById('appContent');
         const noticeModal = document.getElementById('noticeModal');
         const continueButton = document.getElementById('continueButton');
+
+        
+// Wallet dialog management
+const walletDialog = document.getElementById('walletDialog');
+const walletDialogIcon = document.getElementById('walletDialogIcon');
+const walletDialogTitle = document.getElementById('walletDialogTitle');
+const walletDialogAddress = document.getElementById('walletDialogAddress');
+const walletDialogMemo = document.getElementById('walletDialogMemo');
+const memoFieldContainer = document.getElementById('memoFieldContainer');
+const memoNote = document.getElementById('memoNote');
+const cancelWalletDialogBtn = document.getElementById('cancelWalletDialogBtn');
+const saveWalletDialogBtn = document.getElementById('saveWalletDialogBtn');
+
 
         // TonConnect UI setup
         const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
@@ -940,102 +982,151 @@ function updateLanguageTexts() {
   }
 }
         
-function openWallet(walletType) {
-    const walletUrls = {
-        binance: 'https://www.binance.com',
-        okx: 'https://www.okx.com',
-        telegram: 'https://t.me/wallet',
-        tonkeeper: 'https://tonkeeper.com',
-        bybit: 'https://www.bybit.com',
-        cryptomus: 'https://cryptomus.com'
-    };
 
-    const url = walletUrls[walletType];
-    
-    if (window.Telegram?.WebApp) {
-        // Telegram MiniApp optimized opening
-        window.Telegram.WebApp.openLink(url, { try_instant_view: true });
-    } else {
-        // Standard web fallback
-        window.open(url, '_blank', 'noopener noreferrer');
+// Wallet configurations
+const walletConfigs = {
+    binance: {
+        icon: 'https://cdn.simpleicons.org/binance/F0B90B',
+        name: 'Binance',
+        requiresMemo: true,
+        memoNote: 'Binance requires a memo/tag for USDT TON deposits'
+    },
+    okx: {
+        icon: 'https://cdn.simpleicons.org/okx/000000',
+        name: 'OKX',
+        requiresMemo: true,
+        memoNote: 'OKX requires a memo/tag for USDT TON deposits'
+    },
+    telegram: {
+        icon: 'https://cdn.simpleicons.org/telegram/26A5E4',
+        name: 'Telegram Wallet',
+        requiresMemo: false,
+        memoNote: 'No memo required for Telegram Wallet'
+    },
+    tonkeeper: {
+        icon: 'https://cdn.simpleicons.org/ton/0098FF',
+        name: 'TONKeeper',
+        requiresMemo: false,
+        memoNote: 'No memo required for TONKeeper'
+    },
+    bybit: {
+        icon: 'https://cdn.simpleicons.org/bybit/FAE501',
+        name: 'Bybit',
+        requiresMemo: true,
+        memoNote: 'Bybit requires a memo/tag for USDT TON deposits'
+    },
+    cryptomus: {
+        icon: 'https://cdn.simpleicons.org/bitcoin/F7931A',
+        name: 'Cryptomus',
+        requiresMemo: false,
+        memoNote: 'No memo required for Cryptomus'
     }
+};
+
+function openWalletDialog(walletType) {
+    currentWalletType = walletType;
+    const config = walletConfigs[walletType];
+    
+    // Set dialog content
+    walletDialogIcon.src = config.icon;
+    walletDialogTitle.textContent = config.name;
+    
+    // Handle memo field
+    if (config.requiresMemo) {
+        memoFieldContainer.style.display = 'block';
+        walletDialogMemo.disabled = false;
+        walletDialogMemo.placeholder = 'Enter required memo/tag';
+        memoNote.textContent = config.memoNote;
+    } else {
+        memoFieldContainer.style.display = 'block';
+        walletDialogMemo.disabled = true;
+        walletDialogMemo.placeholder = 'No memo required for this wallet';
+        walletDialogMemo.value = '';
+        memoNote.textContent = config.memoNote;
+    }
+    
+    // Load saved address if exists
+    const savedWallet = JSON.parse(localStorage.getItem(`wallet_${walletType}`) || {};
+    walletDialogAddress.value = savedWallet.address || '';
+    if (config.requiresMemo) {
+        walletDialogMemo.value = savedWallet.memo || '';
+    }
+    
+    // Show dialog
+    walletDialog.classList.remove('hidden');
+    walletDialog.classList.add('flex');
 }
-        
-// Wallet address persistence
-function setupWalletAddressMemory() {
-  // Create edit button for manual wallet address
-  const manualWalletContainer = document.getElementById('manualWalletInput');
-  const editContainer = document.createElement('div');
-  editContainer.className = 'flex items-center justify-between mt-2';
-  
-  const editButton = document.createElement('button');
-  editButton.id = 'editWalletBtn';
-  editButton.className = 'text-sm text-indigo-600 font-medium';
-  editButton.textContent = translations[currentLanguage].editAddress;
-  editButton.style.display = 'none';
-  
-  // Save button
-  const saveButton = document.createElement('button');
-  saveButton.id = 'saveWalletBtn';
-  saveButton.className = 'px-3 py-1 bg-indigo-600 text-white rounded-md text-sm';
-  saveButton.textContent = translations[currentLanguage].saveAddress;
-  
-  editContainer.appendChild(editButton);
-  editContainer.appendChild(saveButton);
-  manualWalletContainer.appendChild(editContainer);
-  
-  // Load saved address if it exists
-  const savedAddress = localStorage.getItem('userWalletAddress');
-  if (savedAddress) {
-    manualWalletAddress.value = savedAddress;
-    currentWalletAddress = savedAddress;
-    editButton.style.display = 'block';
-    manualWalletAddress.disabled = true;
-  }
-  
-  // Save button handler
-  saveButton.addEventListener('click', () => {
-    const address = manualWalletAddress.value.trim();
+
+function closeWalletDialog() {
+    walletDialog.classList.add('hidden');
+    walletDialog.classList.remove('flex');
+}
+
+function saveWalletDetails() {
+    const address = walletDialogAddress.value.trim();
+    const memo = walletDialogMemo.value.trim();
+    const config = walletConfigs[currentWalletType];
+    
     if (!isValidWalletAddress(address)) {
         Swal.fire({
             icon: 'error',
-            title: translations[currentLanguage].missingWalletAddress,
-            text: currentLanguage === 'en' ? 
-                'Please enter a valid wallet address (minimum 10 characters)' : 
-                'Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)'
+            title: 'Invalid Address',
+            text: 'Please enter a valid wallet address (minimum 10 characters)'
         });
         return;
     }
     
-    if (address) {
-        localStorage.setItem('userWalletAddress', address);
-        currentWalletAddress = address;
-        manualWalletAddress.disabled = true;
-        editButton.style.display = 'block';
+    if (config.requiresMemo && !memo) {
         Swal.fire({
-            icon: 'success',
-            title: currentLanguage === 'en' ? 'Address Saved' : 'Адрес сохранен',
-            text: currentLanguage === 'en' ? 
-                'Your wallet address has been saved for future use.' : 
-                'Ваш адрес кошелька был сохранен для будущего использования.',
-            timer: 2000,
-            showConfirmButton: false
+            icon: 'error',
+            title: 'Memo Required',
+            text: 'This wallet requires a memo/tag for USDT TON deposits'
         });
+        return;
     }
-});
-  
-  // Edit button handler
-  editButton.addEventListener('click', () => {
-    manualWalletAddress.disabled = false;
-    manualWalletAddress.focus();
-  });
+    
+    // Save to localStorage
+    localStorage.setItem(`wallet_${currentWalletType}`, JSON.stringify({
+        address: address,
+        memo: memo
+    }));
+    
+    // Also save to manual input field
+    manualWalletAddress.value = address;
+    localStorage.setItem('userWalletAddress', address);
+    currentWalletAddress = address;
+    
+    Swal.fire({
+        icon: 'success',
+        title: 'Wallet Saved',
+        text: `${config.name} wallet address has been saved`,
+        timer: 2000,
+        showConfirmButton: false
+    });
+    
+    closeWalletDialog();
 }
 
-// Update wallet address when manual input changes
-manualWalletAddress.addEventListener('input', () => {
-    currentWalletAddress = manualWalletAddress.value.trim();
-});
+// Event listeners for wallet dialog
+cancelWalletDialogBtn.addEventListener('click', closeWalletDialog);
+saveWalletDialogBtn.addEventListener('click', saveWalletDetails);
 
+// Replace the wallet button click handlers
+function setupWalletButtons() {
+    // Binance
+    document.querySelector('button[onclick="openWallet(\'binance\')"]').onclick = () => openWalletDialog('binance');
+    // OKX
+    document.querySelector('button[onclick="openWallet(\'okx\')"]').onclick = () => openWalletDialog('okx');
+    // Telegram
+    document.querySelector('button[onclick="openWallet(\'telegram\')"]').onclick = () => openWalletDialog('telegram');
+    // TONKeeper
+    document.querySelector('button[onclick="openWallet(\'tonkeeper\')"]').onclick = () => openWalletDialog('tonkeeper');
+    // Bybit
+    document.querySelector('button[onclick="openWallet(\'bybit\')"]').onclick = () => openWalletDialog('bybit');
+    // Cryptomus
+    document.querySelector('button[onclick="openWallet(\'cryptomus\')"]').onclick = () => openWalletDialog('cryptomus');
+}
+        
 // Side menu toggle
 const menuOverlay = document.getElementById('menuOverlay');
 const sideMenu = document.getElementById('sideMenu');
@@ -1609,6 +1700,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupWalletAddressMemory();
     updateLanguageTexts();
     createTransactionDetailsPanel();
+    setupWalletButtons();
     
     // Show skeleton loading initially
     skeletonLoading.style.display = 'block';
