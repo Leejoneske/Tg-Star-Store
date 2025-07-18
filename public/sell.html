@@ -763,6 +763,10 @@ if (typeof eruda === 'undefined') {
 } else {
     console.log('Running in debug mode - skipping normal execution');
 }
+    
+if (typeof Telegram !== 'undefined') {
+        Telegram.WebApp.ready();
+    }    
 </script>       
 <script>
     
