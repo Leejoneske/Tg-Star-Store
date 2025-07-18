@@ -753,7 +753,7 @@
         </div>
     </div>
 </div>
-   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+ <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -764,9 +764,7 @@ if (typeof eruda === 'undefined') {
     console.log('Running in debug mode - skipping normal execution');
 }
     
-if (typeof Telegram !== 'undefined') {
-        Telegram.WebApp.ready();
-    }    
+
 </script>       
 <script>
     
@@ -776,6 +774,7 @@ let rate = 0.009;
 let currentWalletProvider = '';
 let currentWalletMemo = '';
 
+const isTelegramWebApp = typeof Telegram !== 'undefined' && Telegram.WebApp;    
 const manualWalletInput = document.getElementById('manualWalletInput');
 const manualWalletAddress = document.getElementById('manualWalletAddress');
 const sellStarsBtn = document.getElementById('sellStarsBtn');
