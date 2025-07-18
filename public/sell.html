@@ -912,10 +912,17 @@ function checkNoticeStatus() {
 }
 
 function showAppContent() {
-    skeletonLoading.style.display = 'none';
-    appContent.style.display = 'block';
-    fetchTransactions();
-}
+    try {
+        skeletonLoading.style.display = 'none';
+        appContent.style.display = 'block';
+        fetchTransactions();
+    } catch (error) {
+        console.error('Error showing app content:', error);
+        
+        skeletonLoading.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
+    }
+}    
 
 continueButton.addEventListener('click', () => {
     localStorage.setItem('noticeAccepted', 'true');
