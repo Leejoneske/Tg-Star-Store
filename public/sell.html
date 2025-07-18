@@ -795,28 +795,41 @@
                 paymentSentDesc: "USDT был отправлен на ваш кошелек"
             }
         };
-
-        function checkNoticeStatus() {
-            const noticeAccepted = localStorage.getItem('noticeAccepted');
-            if (noticeAccepted === 'true') {
-                showAppContent(); 
-            } else {
-                noticeModal.style.display = 'flex'; 
-            }
+function checkNoticeStatus() {
+    try {
+        const noticeAccepted = localStorage.getItem('noticeAccepted');
+        if (noticeAccepted === 'true') {
+            showAppContent(); 
+        } else if (noticeModal) {
+            noticeModal.style.display = 'flex';
+        } else {
+            // If notice modal doesn't exist, just show the app
+            showAppContent();
         }
-
-        function showAppContent() {
-            try {
-                skeletonLoading.style.display = 'none';
-                appContent.style.display = 'block';
-                fetchTransactions();
-            } catch (error) {
-                console.error('Error showing app content:', error);
-                skeletonLoading.style.display = 'none';
-                if (appContent) appContent.style.display = 'block';
-            }
-        }    
-
+    } catch (error) {
+        console.error('Error in checkNoticeStatus:', error);
+        showAppContent();
+    }
+}
+        
+function showAppContent() {
+    try {
+        // Ensure elements exist before trying to manipulate them
+        if (skeletonLoading && appContent) {
+            skeletonLoading.style.display = 'none';
+            appContent.style.display = 'block';
+        }
+        fetchTransactions().catch(error => {
+            console.error('Error in fetchTransactions:', error);
+        });
+    } catch (error) {
+        console.error('Error showing app content:', error);
+        // Fallback - try to show content anyway
+        if (skeletonLoading) skeletonLoading.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
+    }
+}
+        
         continueButton.addEventListener('click', () => {
             localStorage.setItem('noticeAccepted', 'true');
             noticeModal.style.display = 'none';
@@ -1593,33 +1606,49 @@
             }
         };
 
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
-                console.error('Telegram WebApp not available');
-                showAppContent();
-                return;
-            }
-            
-            currentLanguage = localStorage.getItem('appLanguage') || 'en';
-            setupWalletAddressMemory();
-            updateLanguageTexts();
-            createTransactionDetailsPanel();
-            
-            skeletonLoading.style.display = 'block';
-            appContent.style.display = 'none';
-            
-            setTimeout(() => {
-                checkNoticeStatus();
-            }, 800);
-            
-            setInterval(fetchTransactions, 10000);
-            
-            Telegram.WebApp.onEvent('viewportChanged', () => {
-                Telegram.WebApp.expand();
-            });
+document.addEventListener('DOMContentLoaded', () => {
+    // First show the skeleton loading
+    skeletonLoading.style.display = 'block';
+    appContent.style.display = 'none';
+    
+    // Add a timeout fallback in case Telegram doesn't load
+    const fallbackTimeout = setTimeout(() => {
+        if (appContent.style.display === 'none') {
+            console.warn('Fallback loading triggered');
+            showAppContent();
+        }
+    }, 3000); // 3 second fallback
+    
+    if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
+        console.error('Telegram WebApp not available');
+        clearTimeout(fallbackTimeout);
+        showAppContent();
+        return;
+    }
+    
+    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    setupWalletAddressMemory();
+    updateLanguageTexts();
+    createTransactionDetailsPanel();
+    
+    // Modify checkNoticeStatus to handle errors
+    try {
+        checkNoticeStatus();
+        clearTimeout(fallbackTimeout);
+    } catch (error) {
+        console.error('Error in checkNoticeStatus:', error);
+        showAppContent();
+        clearTimeout(fallbackTimeout);
+    }
+    
+    setInterval(fetchTransactions, 10000);
+    
+    Telegram.WebApp.onEvent('viewportChanged', () => {
+        Telegram.WebApp.expand();
+    });
 
-            Telegram.WebApp.expand();
-        });    
+    Telegram.WebApp.expand();
+});
     </script>
 </body>
 </html>
