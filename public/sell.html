@@ -425,297 +425,313 @@
 </style>
 </head>
 <body>
-    <div id="noticeModal" class="notice-modal" style="display: none;">
-        <div class="notice-content">
-            <div class="notice-title">Important Notice</div>
-            <div class="notice-text">
-                Please note that we will hold your Stars for a mandatory 21-day period before processing a payout.
-                This period is required for security verification and compliance purposes. 
-                By clicking "Continue", you acknowledge and agree to these terms.
+<div id="noticeModal" class="notice-modal" style="display: none;">
+    <div class="notice-content">
+        <div class="notice-title">Important Notice</div>
+        <div class="notice-text">
+            Please note that we will hold your Stars for a mandatory 21-day period before processing a payout.
+            This period is required for security verification and compliance purposes. 
+            By clicking "Continue", you acknowledge and agree to these terms.
+        </div>
+        <button id="continueButton" class="notice-button">Continue</button>
+    </div>
+</div>
+
+<div id="skeletonLoading" class="app-container">
+    <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+        <div class="skeleton w-6 h-6"></div>
+        <div class="skeleton w-32 h-8"></div>
+        <div class="w-6"></div>
+    </div>
+    
+    <div class="p-4">
+        <div class="skeleton w-full h-24 rounded-lg mb-4"></div>
+        
+        <div class="bg-white rounded-xl p-6 mb-6">
+            <div class="skeleton w-32 h-6 mb-6"></div>
+            
+            <div class="skeleton w-full h-20 rounded-lg mb-4"></div>
+            
+            <div class="flex justify-between mb-4">
+                <div class="skeleton w-24 h-4"></div>
+                <div class="skeleton w-16 h-4"></div>
             </div>
-            <button id="continueButton" class="notice-button">Continue</button>
+            
+            <div class="skeleton w-full h-12 rounded-lg mb-4"></div>
+            
+            <div class="flex items-center justify-center gap-4 mb-6">
+                <div class="skeleton w-8 h-8 rounded-full"></div>
+                <div class="skeleton w-20 h-8 rounded-lg"></div>
+                <div class="skeleton w-8 h-8 rounded-full"></div>
+            </div>
+            
+            <div class="skeleton w-full h-12 rounded-lg mb-6"></div>
+            
+            <div class="skeleton w-full h-32 rounded-lg"></div>
         </div>
     </div>
+</div>
 
-    <div id="skeletonLoading" class="app-container">
-        <div class="p-4 flex justify-between items-center bg-white shadow-sm">
-            <div class="skeleton w-6 h-6"></div>
-            <div class="skeleton w-32 h-8"></div>
-            <div class="w-6"></div>
-        </div>
-        <div class="p-4">
-            <div class="skeleton w-full h-24 rounded-lg mb-4"></div>
-            <div class="bg-white rounded-xl p-6 mb-6">
-                <div class="skeleton w-32 h-6 mb-6"></div>
-                <div class="skeleton w-full h-20 rounded-lg mb-4"></div>
-                <div class="flex justify-between mb-4">
-                    <div class="skeleton w-24 h-4"></div>
-                    <div class="skeleton w-16 h-4"></div>
-                </div>
-                <div class="skeleton w-full h-12 rounded-lg mb-4"></div>
-                <div class="flex items-center justify-center gap-4 mb-6">
-                    <div class="skeleton w-8 h-8 rounded-full"></div>
-                    <div class="skeleton w-20 h-8 rounded-lg"></div>
-                    <div class="skeleton w-8 h-8 rounded-full"></div>
-                </div>
-                <div class="skeleton w-full h-12 rounded-lg mb-6"></div>
-                <div class="skeleton w-full h-32 rounded-lg"></div>
-            </div>
+<div id="appContent" class="app-container" style="display: none;">
+    <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+    <div class="side-menu" id="sideMenu">
+        <div class="p-6">
+            <div class="text-xl font-bold mb-8">Menu</div>
+            <nav class="space-y-2">
+                <a href="index.html" class="menu-item">
+                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
+                    Home
+                </a>
+                <a href="sell.html" class="menu-item">
+                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
+                    Sell
+                </a>
+                <a href="history.html" class="menu-item">
+                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
+                    History
+                </a>
+                <a href="referral.html" class="menu-item">
+                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
+                    Referral
+                </a>
+                <a href="about.html" class="menu-item">
+                    <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
+                    About
+                </a>
+            </nav>
         </div>
     </div>
-
-    <div id="appContent" class="app-container" style="display: none;">
-        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
-        <div class="side-menu" id="sideMenu">
-            <div class="p-6">
-                <div class="text-xl font-bold mb-8">Menu</div>
-                <nav class="space-y-2">
-                    <a href="index.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
-                        Home
-                    </a>
-                    <a href="sell.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
-                        Sell
-                    </a>
-                    <a href="history.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
-                        History
-                    </a>
-                    <a href="referral.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
-                        Referral
-                    </a>
-                    <a href="about.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
-                        About
-                    </a>
-                </nav>
+    
+    <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+        <button onclick="toggleMenu()" class="p-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+        <div class="logo-header">StarStore</div>
+        <div class="w-6"></div>
+    </div>
+    
+    <div class="wallet-status">
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-3 text-gray-800">Enter Manual Address</h3>
+            <div id="manualWalletInput" class="mt-3">
+                <div class="relative mb-3">
+                    <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                        </svg>
+                    </div>
+                    <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
+                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="relative">
+                    <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                    </div>
+                    <input type="text" id="manualWalletMemo" placeholder="Memo/Tag (if required)" 
+                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Only required for certain exchanges like Binance, OKX</p>
             </div>
         </div>
         
-        <div class="p-4 flex justify-between items-center bg-white shadow-sm">
-            <button onclick="toggleMenu()" class="p-2">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                </svg>
-            </button>
-            <div class="logo-header">StarStore</div>
-            <div class="w-6"></div>
+        <div class="border-t border-gray-200 pt-6">
+            <h3 class="text-lg font-semibold mb-3 text-gray-800">Or Choose Recommended Wallets</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="openWallet('binance')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <img src="https://cdn.simpleicons.org/binance/F0B90B" class="w-5 h-5 mr-3" alt="Binance">
+                    <span class="text-sm font-medium">Binance</span>
+                </button>
+                <button onclick="openWallet('okx')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <img src="https://cdn.simpleicons.org/okx/000000" class="w-5 h-5 mr-3" alt="OKX">
+                    <span class="text-sm font-medium">OKX</span>
+                </button>
+                <button onclick="openWallet('telegram')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <img src="https://cdn.simpleicons.org/telegram/26A5E4" class="w-5 h-5 mr-3" alt="Telegram">
+                    <span class="text-sm font-medium">Telegram</span>
+                </button>
+                <button onclick="openWallet('tonkeeper')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <img src="https://cdn.simpleicons.org/ton/0098FF" class="w-5 h-5 mr-3" alt="TONKeeper">
+                    <span class="text-sm font-medium">TONKeeper</span>
+                </button>
+                <button onclick="openWallet('bybit')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <img src="https://cdn.simpleicons.org/bybit/FAE501" class="w-5 h-5 mr-3" alt="Bybit">
+                    <span class="text-sm font-medium">Bybit</span>
+                </button>
+                <button onclick="openWallet('cryptomus')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <img src="https://cdn.simpleicons.org/bitcoin/F7931A" class="w-5 h-5 mr-3" alt="Cryptomus">
+                    <span class="text-sm font-medium">Cryptomus</span>
+                </button>
+            </div>
         </div>
-
-        <div class="wallet-status">
-            <div class="mb-6">
-                <h3 class="text-lg font-semibold mb-3 text-gray-800">Enter Manual Address</h3>
-                <div id="manualWalletInput" class="mt-3">
-                    <div class="relative mb-3">
-                        <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
-                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-                            </svg>
-                        </div>
-                        <input type="text" id="manualWalletAddress" placeholder="Enter USDT TON wallet address" 
-                               class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        
+        <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
+        <div class="bg-red-50 border-l-4 border-red-400 p-3 mt-3">
+            <div class="flex">
+                <svg class="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <p class="text-sm text-red-700">
+                    <strong>Important:</strong> Double-check your wallet address. Payments cannot be reversed once sent.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="p-6">
+        <div class="bg-white rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
+            <div class="rate-info mb-4">        
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-sm text-gray-600">Current Rate</span>
+                        <div class="font-bold">1 Star = 0.009 USDT</div>
                     </div>
-                    <div class="relative">
-                        <div class="absolute left-3 top-1/2 transform -translate-y-1/2">
-                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                            </svg>
-                        </div>
-                        <input type="text" id="manualWalletMemo" placeholder="Memo/Tag (if required)" 
-                               class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="text-center mt-2">
+                    <span class="info-badge">Minimum sell: 50 Stars</span>
+                </div>
+            </div> 
+            
+            <div class="sell-option p-4 mb-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
+                    <div class="stars-counter">
+                        <button class="counter-button" onclick="decrementStars()">-</button>
+                        <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
+                        <button class="counter-button" onclick="incrementStars()">+</button>
                     </div>
-                    <p class="text-xs text-gray-500 mt-1">Only required for certain exchanges like Binance, OKX</p>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
+                    <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
+                </div>
+                <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">Sell Now</button>
+            </div>
+            
+            <div class="bg-blue-50 rounded-lg p-4 text-sm">
+                <div class="flex items-start space-x-2">
+                    <svg class="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div>
+                        <p class="font-medium text-blue-800">How it works:</p>
+                        <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
+                            <li>Enter the amount of stars you want to sell</li>
+                            <li>Click "Sell Now" to initiate the transaction</li>
+                            <li>Send the stars via Telegram payment</li>
+                            <li>Once verified, USDT will be sent to your wallet within 21 days.</li>
+                        </ol>
+                    </div>
                 </div>
             </div>
             
-            <div class="border-t border-gray-200 pt-6">
-                <h3 class="text-lg font-semibold mb-3 text-gray-800">Or Choose Recommended Wallets</h3>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="openWalletDialog('binance')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <img src="https://cdn.simpleicons.org/binance/F0B90B" class="w-5 h-5 mr-3" alt="Binance">
-                        <span class="text-sm font-medium">Binance</span>
-                    </button>
-                    <button onclick="openWalletDialog('okx')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <img src="https://cdn.simpleicons.org/okx/000000" class="w-5 h-5 mr-3" alt="OKX">
-                        <span class="text-sm font-medium">OKX</span>
-                    </button>
-                    <button onclick="openWalletDialog('telegram')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <img src="https://cdn.simpleicons.org/telegram/26A5E4" class="w-5 h-5 mr-3" alt="Telegram">
-                        <span class="text-sm font-medium">Telegram</span>
-                    </button>
-                    <button onclick="openWalletDialog('tonkeeper')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <img src="https://cdn.simpleicons.org/ton/0098FF" class="w-5 h-5 mr-3" alt="TONKeeper">
-                        <span class="text-sm font-medium">TONKeeper</span>
-                    </button>
-                    <button onclick="openWalletDialog('bybit')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <img src="https://cdn.simpleicons.org/bybit/FAE501" class="w-5 h-5 mr-3" alt="Bybit">
-                        <span class="text-sm font-medium">Bybit</span>
-                    </button>
-                    <button onclick="openWalletDialog('cryptomus')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <img src="https://cdn.simpleicons.org/bitcoin/F7931A" class="w-5 h-5 mr-3" alt="Cryptomus">
-                        <span class="text-sm font-medium">Cryptomus</span>
-                    </button>
-                </div>
-            </div>
-
-            <p class="text-sm text-gray-600 mt-2">Payments will be made to the selected wallet.</p>
-            <div class="bg-red-50 border-l-4 border-red-400 p-3 mt-3">
-                <div class="flex">
-                    <svg class="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                    </svg>
-                    <p class="text-sm text-red-700">
-                        <strong>Important:</strong> Double-check your wallet address. Payments cannot be reversed once sent.
-                    </p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="p-6">
-            <div class="bg-white rounded-xl p-6 mb-6">
-                <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
-                <div class="rate-info mb-4">        
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <span class="text-sm text-gray-600">Current Rate</span>
-                            <div class="font-bold">1 Star = 0.009 USDT</div>
-                        </div>
-                    </div>
-                    <div class="text-center mt-2">
-                        <span class="info-badge">Minimum sell: 50 Stars</span>
-                    </div>
-                </div> 
- 
-                <div class="sell-option p-4 mb-6">
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
-                        <div class="stars-counter">
-                            <button class="counter-button" onclick="decrementStars()">-</button>
-                            <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
-                            <button class="counter-button" onclick="incrementStars()">+</button>
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
-                        <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
-                    </div>
-                    <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">Sell Now</button>
-                </div>
-
-                <div class="bg-blue-50 rounded-lg p-4 text-sm">
-                    <div class="flex items-start space-x-2">
-                        <svg class="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <div>
-                            <p class="font-medium text-blue-800">How it works:</p>
-                            <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
-                                <li>Enter the amount of stars you want to sell</li>
-                                <li>Click "Sell Now" to initiate the transaction</li>
-                                <li>Send the stars via Telegram payment</li>
-                                <li>Once verified, USDT will be sent to your wallet within 21 days.</li>
-                            </ol>
-                        </div>
-                    </div>
-                </div>
-
-                <a href="https://t.me/StarStore_app/82" target="_blank" rel="noopener noreferrer" 
-                   class="inline-block px-3 py-1.5 bg-gray-50 text-blue-600 rounded-md hover:bg-gray-100 hover:text-blue-700 border border-gray-200 hover:border-blue-300 transition-all duration-200 text-sm font-medium">
-                   Why 21 days?
-                </a>           
-                
-                <div class="transaction-history">
-                    <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
-                    <div id="transactionsList">
-                        <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="walletDialog" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-            <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-                <div class="flex items-center mb-4">
-                    <img id="walletDialogIcon" class="w-8 h-8 mr-3" src="" alt="Wallet Icon">
-                    <h3 id="walletDialogTitle" class="text-xl font-bold"></h3>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">USDT TON Wallet Address</label>
-                    <input type="text" id="walletDialogAddress" placeholder="Enter USDT TON wallet address" 
-                           class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div class="mb-4" id="memoFieldContainer">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Memo/Tag (Required)</label>
-                    <input type="text" id="walletDialogMemo" placeholder="Enter memo/tag if required" 
-                           class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <p class="text-xs text-gray-500 mt-1" id="memoNote"></p>
-                </div>
-                <div class="flex justify-between space-x-4">
-                    <button id="cancelWalletDialogBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
-                    <button id="saveWalletDialogBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Save</button>
-                </div>
-            </div>
-        </div>        
-                
-        <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-            <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-                <div class="text-center mb-4">
-                    <svg class="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <h3 class="text-xl font-bold mt-2">Payment Confirmation</h3>
-                </div>
-                <div class="mb-6">
-                    <p class="text-gray-700 mb-4">You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> stars for <span id="modalTonAmount" class="font-bold">0.438 TON</span>.</p>
-                    <p class="text-gray-700">Please confirm this transaction via Telegram payment.</p>
-                </div>
-                <div class="flex justify-between space-x-4">
-                    <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
-                    <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Confirm</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="transactionDetailsOverlay" class="transaction-details-overlay">
-            <div id="transactionDetailsPanel" class="transaction-details-panel">
-                <div class="p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-xl font-bold">Transaction Details</h3>
-                        <button class="close-details" id="closeTransactionDetails">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
-                    <div class="flex justify-between items-center mb-4">
-                        <div>
-                            <div class="text-sm text-gray-600">Amount</div>
-                            <div id="transactionAmount" class="font-bold text-xl"></div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-sm text-gray-600">To be received</div>
-                            <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-600 mb-1">Current Status</div>
-                        <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
-                    </div>
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-600 mb-1">Estimated Completion</div>
-                        <div id="transactionEstimatedCompletion" class="font-medium"></div>
-                    </div>
-                    <div class="progress-container">
-                        <div id="progressBar" class="progress-bar" style="width: 0%"></div>
-                    </div>
-                    <div id="transactionTimeline" class="mt-6"></div>
+            <a href="https://t.me/StarStore_app/82" target="_blank" rel="noopener noreferrer" 
+               class="inline-block px-3 py-1.5 bg-gray-50 text-blue-600 rounded-md hover:bg-gray-100 hover:text-blue-700 border border-gray-200 hover:border-blue-300 transition-all duration-200 text-sm font-medium">
+               Why 21 days?
+            </a>
+            
+            <div class="transaction-history">
+                <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
+                <div id="transactionsList">
+                    <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+
+<div id="walletDialog" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+        <div class="flex items-center mb-4">
+            <img id="walletDialogIcon" class="w-8 h-8 mr-3" src="" alt="Wallet Icon">
+            <h3 id="walletDialogTitle" class="text-xl font-bold"></h3>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">USDT TON Wallet Address</label>
+            <input type="text" id="walletDialogAddress" placeholder="Enter USDT TON wallet address" 
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        
+        <div class="mb-4" id="memoFieldContainer">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Memo/Tag (Required)</label>
+            <input type="text" id="walletDialogMemo" placeholder="Enter memo/tag if required" 
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <p class="text-xs text-gray-500 mt-1" id="memoNote"></p>
+        </div>
+        
+        <div class="flex justify-between space-x-4">
+            <button id="cancelWalletDialogBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
+            <button id="saveWalletDialogBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Save</button>
+        </div>
+    </div>
+</div>
+
+<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+        <div class="text-center mb-4">
+            <svg class="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="text-xl font-bold mt-2">Payment Confirmation</h3>
+        </div>
+        <div class="mb-6">
+            <p class="text-gray-700 mb-4">You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> stars for <span id="modalTonAmount" class="font-bold">0.438 TON</span>.</p>
+            <p class="text-gray-700">Please confirm this transaction via Telegram payment.</p>
+        </div>
+        <div class="flex justify-between space-x-4">
+            <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
+            <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<div id="transactionDetailsOverlay" class="transaction-details-overlay">
+    <div id="transactionDetailsPanel" class="transaction-details-panel">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold">Transaction Details</h3>
+                <button class="close-details" id="closeTransactionDetails">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <div class="text-sm text-gray-600">Amount</div>
+                    <div id="transactionAmount" class="font-bold text-xl"></div>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-gray-600">To be received</div>
+                    <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <div class="text-sm text-gray-600 mb-1">Current Status</div>
+                <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
+            </div>
+            
+            <div class="mb-4">
+                <div class="text-sm text-gray-600 mb-1">Estimated Completion</div>
+                <div id="transactionEstimatedCompletion" class="font-medium"></div>
+            </div>
+            
+            <div class="progress-container">
+                <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+            </div>
+            
+            <div id="transactionTimeline" class="mt-6">
+            </div>
+        </div>
+    </div>
+</div>
    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
