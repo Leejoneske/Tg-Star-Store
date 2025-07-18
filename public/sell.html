@@ -1694,6 +1694,14 @@ const fetchTransactions = async () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Check if Telegram WebApp is available
+    if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
+        console.error('Telegram WebApp not available');
+        // Fallback to show content anyway
+        showAppContent();
+        return;
+    }
+    
     currentLanguage = localStorage.getItem('appLanguage') || 'en';
     setupWalletAddressMemory();
     updateLanguageTexts();
@@ -1713,7 +1721,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     Telegram.WebApp.expand();
-});
+});    
 </script>
 </body>
 </html>
