@@ -562,7 +562,7 @@
                     <span class="text-sm font-medium">Bybit</span>
                 </button>
                 <button onclick="openWallet('cryptomus')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                    <img src="https://www.cryptomus.com/favicon.ico" class="w-5 h-5 mr-3" alt="Cryptomus">
+                    <img src="https://logo.clearbit.com/cryptomus.com" class="w-5 h-5 mr-3" alt="Cryptomus">
                     <span class="text-sm font-medium">Cryptomus</span>
                 </button>
             </div>
@@ -990,8 +990,8 @@ const walletConfigs = {
     okx: {
         icon: 'https://cdn.simpleicons.org/okx/000000',
         name: 'OKX',
-        requiresMemo: true,
-        memoNote: 'OKX requires a memo/tag for USDT TON deposits'
+        requiresMemo: false,
+        memoNote: 'No memo required for OKX'
     },
     telegram: {
         icon: 'https://cdn.simpleicons.org/telegram/26A5E4',
@@ -1008,11 +1008,11 @@ const walletConfigs = {
     bybit: {
         icon: 'https://www.bybit.com/favicon.ico',
         name: 'Bybit',
-        requiresMemo: true,
-        memoNote: 'Bybit requires a memo/tag for USDT TON deposits'
+        requiresMemo: false,
+        memoNote: 'No memo required for Bybit'
     },
     cryptomus: {
-        icon: 'https://www.cryptomus.com/favicon.ico',
+        icon: 'https://logo.clearbit.com/cryptomus.com',
         name: 'Cryptomus',
         requiresMemo: false,
         memoNote: 'No memo required for Cryptomus'
