@@ -435,6 +435,54 @@
     transform: translateY(0);
 }
 
+/* Enhanced Wallet Dialog Styles */
+#walletDialog {
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    display: flex !important;
+}
+
+#walletDialog.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+#walletDialog > div {
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+}
+
+#walletDialog.active > div {
+    transform: translateY(0);
+}  
+    
+#walletDialog input {
+    transition: all 0.2s ease;
+    border: 1px solid #e2e8f0;
+}
+
+#walletDialog input:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}    
+    
+#cancelWalletDialogBtn, #saveWalletDialogBtn {
+    transition: all 0.2s ease;
+}
+
+#cancelWalletDialogBtn:hover {
+    background-color: #f3f4f6;
+}
+
+#saveWalletDialogBtn:hover {
+    background-color: #4338ca;
+    transform: translateY(-1px);
+}
+
+#saveWalletDialogBtn:active {
+    transform: translateY(0);
+}
 /* Floating label styles */
 .input-group {
     position: relative;
@@ -723,7 +771,7 @@
     </div>
 
     <!-- Wallet Dialog Modal -->
-    <div id="walletDialog" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div id="walletDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
             <div class="flex items-center mb-4">
                 <img id="walletDialogIcon" class="w-8 h-8 mr-3" src="" alt="Wallet Icon">
@@ -1119,23 +1167,28 @@ function openWalletDialog(walletType) {
     }
     
     // Load saved address if exists
-const savedWalletData = localStorage.getItem(`wallet_${walletType}`);
-const savedWallet = savedWalletData ? JSON.parse(savedWalletData) : {};
+    const savedWalletData = localStorage.getItem(`wallet_${walletType}`);
+    const savedWallet = savedWalletData ? JSON.parse(savedWalletData) : {};
     walletDialogAddress.value = savedWallet.address || '';
     if (config.requiresMemo) {
         walletDialogMemo.value = savedWallet.memo || '';
     }
     
-    // Show dialog
-    walletDialog.classList.remove('hidden');
-    walletDialog.classList.add('flex');
+    // Show dialog with animation
+    walletDialog.classList.add('active');
+    document.body.style.overflow = 'hidden'; // Prevent scrolling
 }
 
 function closeWalletDialog() {
-    walletDialog.classList.add('hidden');
-    walletDialog.classList.remove('flex');
+    walletDialog.classList.remove('active');
+    document.body.style.overflow = ''; // Re-enable scrolling
+    
+    // Reset form after animation completes
+    setTimeout(() => {
+        walletDialogAddress.value = '';
+        walletDialogMemo.value = '';
+    }, 300);
 }
-
 // Update the saveWalletDetails function
 function saveWalletDetails() {
     const address = walletDialogAddress.value.trim();
