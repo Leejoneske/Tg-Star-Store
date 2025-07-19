@@ -410,9 +410,21 @@
         background-color: #6366f1;
     }
 
-    .wallet-button {
-    transition: all 0.2s ease;
+.wallet-button {
+    height: 48px; /* Fixed height */
+    min-width: 120px; /* Minimum width */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px; /* Consistent padding */
 }
+
+.wallet-button span {
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis; 
+}
+
 
 .wallet-button:hover {
     transform: translateY(-2px);
@@ -589,7 +601,7 @@
                        onblur="if(!this.value) this.placeholder = ' '">
                 <label for="manualWalletMemo">Memo/Tag (if required)</label>
             </div>
-           <p class="text-xs text-gray-500 mt-1">Only required for certain exchanges like Binance, OKX</p>
+          <p class="text-sm text-gray-600 mt-1 px-2">Only required for certain exchanges like Binance, OKX</p>
         </div>
     </div>
     
