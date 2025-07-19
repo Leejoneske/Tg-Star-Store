@@ -1733,8 +1733,8 @@ function initWalletConnection() {
             }
         });
     }
-}      
-
+}   
+        
 setTimeout(() => {
     if (tonConnectUI.connected) {
         const wallet = tonConnectUI.wallet;
@@ -1747,6 +1747,20 @@ setTimeout(() => {
         }
     }
 }, 1000);       
+        
+  function updateWalletButton() {
+    const btn = document.getElementById('connectWallet');
+    if (!btn) return;
+    
+    if (walletConnected && currentWalletAddress) {
+        btn.classList.add('wallet-connected');
+        const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
+        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
+    } else {
+        btn.classList.remove('wallet-connected');
+        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${translations[currentLanguage].connectWallet}`;
+    }
+}      
 //end of ton connect
 
 function initLanguageToggle() {
