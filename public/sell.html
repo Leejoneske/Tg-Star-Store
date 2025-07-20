@@ -703,72 +703,6 @@
                 </div>
             </section>
             
-            <!-- Sell Stars Section -->
-            <section class="p-6">
-                <div class="bg-white rounded-xl p-6 mb-6">
-                    <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
-                    <div class="rate-info mb-4">        
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <span class="text-sm text-gray-600">Current Rate</span>
-                                <div class="font-bold">1 Star = 0.009 USDT</div>
-                            </div>
-                        </div>
-                        <div class="text-center mt-2">
-                            <span class="info-badge">Minimum sell: 50 Stars</span>
-                        </div>
-                    </div> 
-                    
-                    <div class="sell-option p-4 mb-6">
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
-                            <div class="stars-counter">
-                                <button class="counter-button" onclick="decrementStars()">-</button>
-                                <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
-                                <button class="counter-button" onclick="incrementStars()">+</button>
-                            </div>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
-                            <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
-                        </div>
-                        <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">Sell Now</button>
-                    </div>
-                    
-                    <div class="bg-blue-50 rounded-lg p-4 text-sm">
-                        <div class="flex items-start space-x-2">
-                            <svg class="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <div>
-                                <p class="font-medium text-blue-800">How it works:</p>
-                                <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
-                                    <li>Enter the amount of stars you want to sell</li>
-                                    <li>Click "Sell Now" to initiate the transaction</li>
-                                    <li>Send the stars via Telegram payment</li>
-                                    <li>Once verified, USDT will be sent to your wallet within 21 days.</li>
-                                </ol>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button class="flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-all duration-200">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Why 21 days?
-                    </button>
-                    
-                    <div class="transaction-history">
-                        <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
-                        <div id="transactionsList">
-                            <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
 
     <!-- Wallet Dialog Modal -->
     <div id="walletDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -817,7 +751,56 @@
             </div>
         </div>
     </div>
-
+<!-- Sell Stars Section -->
+<section class="p-6">
+    <div class="bg-white rounded-xl shadow-sm border p-6">
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-bold mb-2">Sell Stars</h2>
+            <div class="text-gray-600">1 Star = <span class="font-semibold text-green-600">0.009 USDT</span></div>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <input 
+                    type="number" 
+                    id="starsAmount" 
+                    class="w-full text-center text-3xl font-bold py-4 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                    value="50" 
+                    min="50" 
+                    max="80000" 
+                    onchange="calculateTonAmount()"
+                    placeholder="Stars to sell"
+                >
+                <div class="text-xs text-gray-500 text-center mt-1">Minimum: 50 stars</div>
+            </div>
+            
+            <div class="text-center py-2">
+                <svg class="w-6 h-6 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                </svg>
+            </div>
+            
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                <div class="text-sm text-gray-600 mb-1">You'll receive</div>
+                <div class="text-2xl font-bold text-green-600" id="tonAmount">0.450 USDT</div>
+            </div>
+            
+            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors">
+                Sell Now
+            </button>
+        </div>
+        
+        <div class="mt-6 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+            <div class="font-medium mb-1">Process:</div>
+            Enter amount → Sell → Send via Telegram → Receive USDT (21 days)
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-xl shadow-sm border p-6 mt-4">
+        <h3 class="font-semibold mb-3">Recent Transactions</h3>
+        <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
+    </div>
+</section>
     <!-- Transaction Details Overlay -->
     <div id="transactionDetailsOverlay" class="transaction-details-overlay">
         <div id="transactionDetailsPanel" class="transaction-details-panel">
