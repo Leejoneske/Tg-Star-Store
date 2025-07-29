@@ -514,6 +514,28 @@ bot.on('pre_checkout_query', async (query) => {
     await bot.answerPreCheckoutQuery(query.id, !!order);
 });
 
+async function getUserDisplayName(telegramId) {
+    try {
+        const chat = await bot.getChat(telegramId);
+        
+        let displayName = '';
+        
+        if (chat.first_name) {
+            displayName = chat.first_name;
+            if (chat.last_name) {
+                displayName += ` ${chat.last_name}`;
+            }
+        } else {
+            displayName = `User ${telegramId}`;
+        }
+        
+        return displayName;
+    } catch (error) {
+        console.error(`Failed to get user info for ${telegramId}:`, error);
+        return `User ${telegramId}`;
+    }
+}
+
 bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId });
@@ -538,12 +560,14 @@ bot.on("successful_payment", async (msg) => {
     `Funds will be released to your wallet after the hold period.`
 );
   
-  const adminMessage = `💰 New Payment Received!\n\n` +
-    `Order ID: ${order.id}\n` +
-    `User: ${order.username ? `@${order.username}` : `User ID: ${order.telegramId}`} (ID: ${order.telegramId})\n` + 
-    `Stars: ${order.stars}\n` +
-    `Wallet: ${order.walletAddress}\n` +  
-    `Memo: ${order.memoTag || 'None'}`;
+  const userDisplayName = await getUserDisplayName(order.telegramId);
+    
+    const adminMessage = `💰 New Payment Received!\n\n` +
+        `Order ID: ${order.id}\n` +
+        `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` + 
+        `Stars: ${order.stars}\n` +
+        `Wallet: ${order.walletAddress}\n` +  
+        `Memo: ${order.memoTag || 'None'}`;
 
     const adminKeyboard = {
         inline_keyboard: [
@@ -761,28 +785,6 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
     }
 }
 
-async function createTelegramInvoice(chatId, orderId, stars, description) {
-    try {
-        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/createInvoiceLink`, {
-            chat_id: chatId,
-            provider_token: process.env.PROVIDER_TOKEN,
-            title: `Purchase of ${stars} Telegram Stars`,
-            description: description,
-            payload: orderId,
-            currency: 'XTR',
-            prices: [
-                {
-                    label: `${stars} Telegram Stars`,  
-                    amount: stars * 1
-                }
-            ]
-        });
-        return response.data.result;
-    } catch (error) {
-        console.error('Error creating invoice:', error);
-        throw error;
-    }
-}
 
 bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     const chatId = msg.chat.id;
