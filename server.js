@@ -497,7 +497,7 @@ app.post("/api/sell-orders", async (req, res) => {
         const existingOrder = await SellOrder.findOne({ 
             telegramId: telegramId,
             status: "pending",
-            sessionExpiry: { $gt: new Date() } // Only consider non-expired orders
+            sessionExpiry: { $gt: new Date() } 
         });
 
         if (existingOrder) {
@@ -509,7 +509,7 @@ app.post("/api/sell-orders", async (req, res) => {
 
         // Generate unique session token for this user and order
         const sessionToken = generateSessionToken(telegramId);
-        const sessionExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
+        const sessionExpiry = new Date(Date.now() + 15 * 60 * 1000); 
 
         const order = new SellOrder({
             id: generateOrderId(),
@@ -533,7 +533,7 @@ app.post("/api/sell-orders", async (req, res) => {
             order.id, 
             stars, 
             `Purchase of ${stars} Telegram Stars`,
-            sessionToken // Pass session token to invoice
+            sessionToken 
         );
         
         if (!paymentLink) {
@@ -564,19 +564,19 @@ function generateSessionToken(telegramId) {
     return `${telegramId}_${timestamp}_${random}`;
 }
 
-// Enhanced pre-checkout validation
+// Enhanced pre-checkout validation 
 bot.on('pre_checkout_query', async (query) => {
     const orderId = query.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId }) || await BuyOrder.findOne({ id: orderId });
     
     if (!order) {
-        await bot.answerPreCheckoutQuery(query.id, false, "Order not found");
+        await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Order not found" });
         return;
     }
 
     // Check if order has expired
     if (order.sessionExpiry && new Date() > order.sessionExpiry) {
-        await bot.answerPreCheckoutQuery(query.id, false, "Payment session has expired");
+        await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Payment session has expired" });
         // Update order status to expired
         order.status = "expired";
         await order.save();
@@ -585,13 +585,13 @@ bot.on('pre_checkout_query', async (query) => {
 
     // Check if the user making payment matches the order creator
     if (order.userLocked && order.userLocked.toString() !== query.from.id.toString()) {
-        await bot.answerPreCheckoutQuery(query.id, false, "This payment link is not valid for your account");
+        await bot.answerPreCheckoutQuery(query.id, false, { error_message: "This payment link is not valid for your account" });
         return;
     }
 
     // Check if order already processed (duplicate payment protection)
     if (order.status !== "pending") {
-        await bot.answerPreCheckoutQuery(query.id, false, "Order already processed");
+        await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Order already processed" });
         return;
     }
 
@@ -644,8 +644,8 @@ bot.on("successful_payment", async (msg) => {
     order.telegram_payment_charge_id = msg.successful_payment.telegram_payment_charge_id;
     order.status = "processing"; 
     order.datePaid = new Date();
-    order.sessionToken = null; // Clear session token after successful payment
-    order.sessionExpiry = null; // Clear expiry
+    order.sessionToken = null; 
+    order.sessionExpiry = null; 
     await order.save();
 
     await bot.sendMessage(
@@ -885,10 +885,31 @@ async function createTelegramInvoice(chatId, orderId, stars, description, sessio
     }
 }
 
-// Background job to clean up expired orders (run this periodically)
+// Background job to clean up expired orders - ENHANCED WITH USER NOTIFICATIONS
 async function cleanupExpiredOrders() {
     try {
-        const expiredOrders = await SellOrder.updateMany(
+        // Find expired orders first to notify users
+        const expiredOrders = await SellOrder.find({
+            status: "pending",
+            sessionExpiry: { $lt: new Date() }
+        });
+
+        // Notify users about expired orders
+        for (const order of expiredOrders) {
+            try {
+                await bot.sendMessage(
+                    order.telegramId,
+                    `⏰ Your sell order #${order.id} has expired.\n\n` +
+                    `Stars: ${order.stars}\n` +
+                    `You can create a new order if you still want to sell.`
+                );
+            } catch (err) {
+                console.error(`Failed to notify user ${order.telegramId} about expired order:`, err);
+            }
+        }
+
+        // Update expired orders in database
+        const updateResult = await SellOrder.updateMany(
             { 
                 status: "pending",
                 sessionExpiry: { $lt: new Date() }
@@ -899,11 +920,41 @@ async function cleanupExpiredOrders() {
             }
         );
         
-        if (expiredOrders.modifiedCount > 0) {
-            console.log(`Cleaned up ${expiredOrders.modifiedCount} expired sell orders`);
+        if (updateResult.modifiedCount > 0) {
+            // Send notification to admin channel or first admin instead of console
+            if (adminIds && adminIds.length > 0) {
+                try {
+                    await bot.sendMessage(
+                        adminIds[0], 
+                        `🧹 System Cleanup:\n\n` +
+                        `Cleaned up ${updateResult.modifiedCount} expired sell orders\n` +
+                        `Time: ${new Date().toLocaleString()}`
+                    );
+                } catch (err) {
+                    console.error('Failed to notify admin about cleanup:', err);
+                    // Fallback to console if admin notification fails
+                    console.log(`Cleaned up ${updateResult.modifiedCount} expired sell orders`);
+                }
+            } else {
+                console.log(`Cleaned up ${updateResult.modifiedCount} expired sell orders`);
+            }
         }
     } catch (error) {
         console.error('Error cleaning up expired orders:', error);
+        // Notify admin about cleanup errors
+        if (adminIds && adminIds.length > 0) {
+            try {
+                await bot.sendMessage(
+                    adminIds[0],
+                    `❌ Cleanup Error:\n\n` +
+                    `Failed to clean up expired orders\n` +
+                    `Error: ${error.message}\n` +
+                    `Time: ${new Date().toLocaleString()}`
+                );
+            } catch (err) {
+                console.error('Failed to notify admin about cleanup error:', err);
+            }
+        }
     }
 }
 
