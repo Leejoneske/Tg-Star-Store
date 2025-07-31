@@ -111,13 +111,12 @@ const sellOrderSchema = new mongoose.Schema({
     memoTag: String,
     status: {
         type: String,
-        enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed'],
+        enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed', 'expired'], 
         default: 'pending'
     },
     telegram_payment_charge_id: {
         type: String,
         required: function() {
-            
             return this.dateCreated > new Date('2025-05-25'); 
         },
         default: null
@@ -126,6 +125,20 @@ const sellOrderSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    // NEW FIELDS FOR SESSION MANAGEMENT
+    sessionToken: {
+        type: String,
+        default: null
+    },
+    sessionExpiry: {
+        type: Date,
+        default: null
+    },
+    userLocked: {
+        type: String, 
+        default: null
+    },
+    // END NEW FIELDS
     reversalData: {
         requested: Boolean,
         reason: String,
@@ -164,7 +177,9 @@ const sellOrderSchema = new mongoose.Schema({
     },
     dateCompleted: Date,
     dateReversed: Date,
-    dateRefunded: Date
+    dateRefunded: Date,
+    datePaid: Date, 
+    dateDeclined: Date 
 });
 
 const userSchema = new mongoose.Schema({
@@ -462,12 +477,13 @@ function sanitizeUsername(username) {
 app.post("/api/sell-orders", async (req, res) => {
     try {
         const { 
-      telegramId, 
-      username = '', 
-      stars, 
-      walletAddress, 
-      memoTag = '' 
-    } = req.body;
+            telegramId, 
+            username = '', 
+            stars, 
+            walletAddress, 
+            memoTag = '' 
+        } = req.body;
+        
         if (!telegramId || !stars || !walletAddress) {
             return res.status(400).json({ error: "Missing required fields" });
         }
@@ -476,6 +492,24 @@ app.post("/api/sell-orders", async (req, res) => {
         if (bannedUser) {
             return res.status(403).json({ error: "You are banned from placing orders" });
         }
+
+        // Check for existing pending orders for this user
+        const existingOrder = await SellOrder.findOne({ 
+            telegramId: telegramId,
+            status: "pending",
+            sessionExpiry: { $gt: new Date() } // Only consider non-expired orders
+        });
+
+        if (existingOrder) {
+            return res.status(409).json({ 
+                error: "You already have a pending order. Please complete or wait for it to expire before creating a new one.",
+                existingOrderId: existingOrder.id
+            });
+        }
+
+        // Generate unique session token for this user and order
+        const sessionToken = generateSessionToken(telegramId);
+        const sessionExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
 
         const order = new SellOrder({
             id: generateOrderId(),
@@ -489,29 +523,79 @@ app.post("/api/sell-orders", async (req, res) => {
             reversible: true,
             dateCreated: new Date(),
             adminMessages: [],
+            sessionToken: sessionToken, 
+            sessionExpiry: sessionExpiry, 
+            userLocked: telegramId 
         });
 
-        const paymentLink = await createTelegramInvoice(telegramId, order.id, stars, `Purchase of ${stars} Telegram Stars`);
+        const paymentLink = await createTelegramInvoice(
+            telegramId, 
+            order.id, 
+            stars, 
+            `Purchase of ${stars} Telegram Stars`,
+            sessionToken // Pass session token to invoice
+        );
+        
         if (!paymentLink) {
             return res.status(500).json({ error: "Failed to generate payment link" });
         }
 
         await order.save();
 
-        const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\nPay here: ${paymentLink}`;
+        const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
         await bot.sendMessage(telegramId, userMessage);
 
-        res.json({ success: true, order, paymentLink });
+        res.json({ 
+            success: true, 
+            order, 
+            paymentLink,
+            expiresAt: sessionExpiry
+        });
     } catch (err) {
         console.error("Sell order creation error:", err);
         res.status(500).json({ error: "Failed to create sell order" });
     }
 });
 
+// Generate unique session token
+function generateSessionToken(telegramId) {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 15);
+    return `${telegramId}_${timestamp}_${random}`;
+}
+
+// Enhanced pre-checkout validation
 bot.on('pre_checkout_query', async (query) => {
     const orderId = query.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId }) || await BuyOrder.findOne({ id: orderId });
-    await bot.answerPreCheckoutQuery(query.id, !!order);
+    
+    if (!order) {
+        await bot.answerPreCheckoutQuery(query.id, false, "Order not found");
+        return;
+    }
+
+    // Check if order has expired
+    if (order.sessionExpiry && new Date() > order.sessionExpiry) {
+        await bot.answerPreCheckoutQuery(query.id, false, "Payment session has expired");
+        // Update order status to expired
+        order.status = "expired";
+        await order.save();
+        return;
+    }
+
+    // Check if the user making payment matches the order creator
+    if (order.userLocked && order.userLocked.toString() !== query.from.id.toString()) {
+        await bot.answerPreCheckoutQuery(query.id, false, "This payment link is not valid for your account");
+        return;
+    }
+
+    // Check if order already processed (duplicate payment protection)
+    if (order.status !== "pending") {
+        await bot.answerPreCheckoutQuery(query.id, false, "Order already processed");
+        return;
+    }
+
+    await bot.answerPreCheckoutQuery(query.id, true);
 });
 
 async function getUserDisplayName(telegramId) {
@@ -544,23 +628,38 @@ bot.on("successful_payment", async (msg) => {
         return await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Please contact support.");
     }
 
+    // Verify user matches order creator
+    if (order.userLocked && order.userLocked.toString() !== msg.from.id.toString()) {
+        // This shouldn't happen if pre-checkout validation works, but extra safety
+        await bot.sendMessage(msg.chat.id, "❌ Payment validation error. Please contact support.");
+        return;
+    }
+
+    // Check if order already processed (duplicate payment protection)
+    if (order.status !== "pending") {
+        await bot.sendMessage(msg.chat.id, "❌ This order has already been processed. If you were charged multiple times, please contact support.");
+        return;
+    }
+
     order.telegram_payment_charge_id = msg.successful_payment.telegram_payment_charge_id;
     order.status = "processing"; 
     order.datePaid = new Date();
+    order.sessionToken = null; // Clear session token after successful payment
+    order.sessionExpiry = null; // Clear expiry
     await order.save();
 
     await bot.sendMessage(
-    order.telegramId,
-    `✅ Payment successful!\n\n` +
-    `Order ID: ${order.id}\n` +
-    `Stars: ${order.stars}\n` +
-    `Wallet: ${order.walletAddress}\n` +
-    `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
-    `\nStatus: Processing (21-day hold)\n\n` +
-    `Funds will be released to your wallet after the hold period.`
-);
+        order.telegramId,
+        `✅ Payment successful!\n\n` +
+        `Order ID: ${order.id}\n` +
+        `Stars: ${order.stars}\n` +
+        `Wallet: ${order.walletAddress}\n` +
+        `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
+        `\nStatus: Processing (21-day hold)\n\n` +
+        `Funds will be released to your wallet after the hold period.`
+    );
   
-  const userDisplayName = await getUserDisplayName(order.telegramId);
+    const userDisplayName = await getUserDisplayName(order.telegramId);
     
     const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
@@ -762,7 +861,7 @@ bot.on('callback_query', async (query) => {
     }
 });
 
-async function createTelegramInvoice(chatId, orderId, stars, description) {
+async function createTelegramInvoice(chatId, orderId, stars, description, sessionToken) {
     try {
         const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/createInvoiceLink`, {
             chat_id: chatId,
@@ -776,7 +875,8 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
                     label: `${stars} Telegram Stars`,  
                     amount: stars * 1
                 }
-            ]
+            ],
+            start_parameter: sessionToken?.substring(0, 64) 
         });
         return response.data.result;
     } catch (error) {
@@ -784,6 +884,31 @@ async function createTelegramInvoice(chatId, orderId, stars, description) {
         throw error;
     }
 }
+
+// Background job to clean up expired orders (run this periodically)
+async function cleanupExpiredOrders() {
+    try {
+        const expiredOrders = await SellOrder.updateMany(
+            { 
+                status: "pending",
+                sessionExpiry: { $lt: new Date() }
+            },
+            { 
+                status: "expired",
+                $unset: { sessionToken: 1, sessionExpiry: 1 }
+            }
+        );
+        
+        if (expiredOrders.modifiedCount > 0) {
+            console.log(`Cleaned up ${expiredOrders.modifiedCount} expired sell orders`);
+        }
+    } catch (error) {
+        console.error('Error cleaning up expired orders:', error);
+    }
+}
+
+// Run cleanup every 5 minutes
+setInterval(cleanupExpiredOrders, 5 * 60 * 1000);
 
 
 bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
