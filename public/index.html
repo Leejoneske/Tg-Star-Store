@@ -469,21 +469,6 @@
         margin-bottom: 12px;
     }
 
-    .sticker-container {
-        width: 72px;
-        height: 72px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto;
-    }
-
-    .sticker-container img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-    }
-
     .premium-package {
         padding: 20px;
         position: relative;
@@ -506,6 +491,119 @@
         font-size: 18px;
         font-weight: 700;
         color: #4f46e5;
+    }
+
+    /* Buy for another person styles */
+    .buy-for-toggle {
+        display: flex;
+        background: #f3f4f6;
+        padding: 4px;
+        border-radius: 10px;
+        margin-bottom: 16px;
+        gap: 4px;
+    }
+
+    .buy-for-button {
+        flex: 1;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: #6b7280;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+
+    .buy-for-button.active {
+        background: white;
+        color: #4f46e5;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .user-search-container {
+        margin-bottom: 16px;
+    }
+
+    .user-search-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 14px;
+        transition: border-color 0.2s ease;
+        outline: none;
+    }
+
+    .user-search-input:focus {
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .user-search-result {
+        margin-top: 8px;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+
+    .user-found {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
+    }
+
+    .user-not-found {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
+    }
+
+    .user-searching {
+        background: #fef3c7;
+        border: 1px solid #fde68a;
+        color: #92400e;
+    }
+
+    .custom-amount-container {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+        border: 1px solid #e5e7eb;
+    }
+
+    .custom-amount-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        text-align: center;
+        outline: none;
+        transition: border-color 0.2s ease;
+    }
+
+    .custom-amount-input:focus {
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .custom-amount-price {
+        text-align: center;
+        margin: 8px 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #4f46e5;
+    }
+
+    .minimum-note {
+        text-align: center;
+        font-size: 12px;
+        color: #6b7280;
+        margin-bottom: 12px;
     }
 
     @keyframes shimmer {
@@ -661,57 +759,79 @@
                 </div>
 
                 <div class="section-content active" id="starsSection">
+                    <!-- Buy For Toggle -->
+                    <div class="buy-for-toggle">
+                        <button class="buy-for-button active" id="buyForSelfBtn" data-translate="buyForSelf">Buy for Myself</button>
+                        <button class="buy-for-button" id="buyForOtherBtn" data-translate="buyForOther">Buy for Another Person</button>
+                    </div>
+
+                    <!-- User Search (hidden by default) -->
+                    <div class="user-search-container" id="userSearchContainer" style="display: none;">
+                        <input type="text" class="user-search-input" id="userSearchInput" placeholder="Enter username to search" data-translate-placeholder="enterUsername">
+                        <div class="user-search-result" id="userSearchResult" style="display: none;"></div>
+                    </div>
+
+                    <!-- Custom Amount -->
+                    <div class="custom-amount-container">
+                        <h4 class="text-md font-semibold text-gray-800 mb-3" data-translate="customAmount">Custom Amount</h4>
+                        <input type="number" class="custom-amount-input" id="customAmountInput" value="50" min="50" placeholder="Enter amount">
+                        <div class="custom-amount-price" id="customAmountPrice">1.00 USDT</div>
+                        <div class="minimum-note" data-translate="minimumStars">Minimum 50 stars</div>
+                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" id="customBuyButton" data-translate="buyNow">Buy Now</button>
+                    </div>
+
                     <div class="stars-card rounded-xl mb-8">
                         <h3 class="text-lg font-bold text-gray-800 mb-4">Choose a Stars Package</h3>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="package-option stars-package">
-                                <div class="stars-amount">15 Stars</div>
-                                <div class="usdt-price">0.35 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
-                                <div class="mt-2">
-                        
-                                    <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
-                                </div>
-                            </div>
-                            <div class="package-option stars-package">
-                                <div class="stars-amount">25 Stars</div>
-                                <div class="usdt-price">0.60 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
-                                <div class="mt-2">
-                                    <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
-                                </div>
-                            </div>
-                            <div class="package-option stars-package">
                                 <div class="stars-amount">50 Stars</div>
                                 <div class="usdt-price">1.00 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
-                                <div class="mt-2">
-                                <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
-                                </div>
                             </div>
                             <div class="package-option stars-package">
                                 <div class="stars-amount">100 Stars</div>
                                 <div class="usdt-price">2.00 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy Now</button>
-                                <div class="mt-2">
-                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
-                                </div>
+                            </div>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">250 Stars</div>
+                                <div class="usdt-price">5.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 250, "isPremium": false, "amount": "5.00"}'>Buy Now</button>
                             </div>
                             <div class="package-option stars-package">
                                 <div class="stars-amount">500 Stars</div>
                                 <div class="usdt-price">10.00 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy Now</button>
-                                <div class="mt-2">
-                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
-                                </div>
+                            </div>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">750 Stars</div>
+                                <div class="usdt-price">15.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 750, "isPremium": false, "amount": "15.00"}'>Buy Now</button>
                             </div>
                             <div class="package-option stars-package">
                                 <div class="stars-amount">1000 Stars</div>
                                 <div class="usdt-price">20.00 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy Now</button>
-                                <div class="mt-2">
-                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
-                                </div>
+                            </div>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">2500 Stars</div>
+                                <div class="usdt-price">50.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 2500, "isPremium": false, "amount": "50.00"}'>Buy Now</button>
+                            </div>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">5000 Stars</div>
+                                <div class="usdt-price">100.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 5000, "isPremium": false, "amount": "100.00"}'>Buy Now</button>
+                            </div>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">10000 Stars</div>
+                                <div class="usdt-price">200.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 10000, "isPremium": false, "amount": "200.00"}'>Buy Now</button>
+                            </div>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">25000 Stars</div>
+                                <div class="usdt-price">500.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 25000, "isPremium": false, "amount": "500.00"}'>Buy Now</button>
                             </div>
                         </div>
                     </div>
@@ -845,7 +965,15 @@ const translations = {
         notificationsNotAvailable: 'Notifications service not available',
         telegramRequiredForNotifications: 'Please open in Telegram to view notifications',
         tryInTelegram: 'Try opening in Telegram for full functionality',
-        userNotFound: "User information not found. Please refresh the page and try again."
+        userNotFound: "User information not found. Please refresh the page and try again.",
+        buyForSelf: "Buy for Myself",
+        buyForOther: "Buy for Another Person",
+        enterUsername: "Enter username to search",
+        customAmount: "Custom Amount",
+        minimumStars: "Minimum 50 stars",
+        userFound: "User found",
+        userNotFoundMsg: "User not found",
+        searching: "Searching..."
     },
     ru: {
         appName: "StarStore",
@@ -891,7 +1019,15 @@ const translations = {
         notificationsNotAvailable: 'Сервис уведомлений недоступен',
         telegramRequiredForNotifications: 'Откройте в Telegram для просмотра уведомлений',
         tryInTelegram: 'Попробуйте открыть в Telegram для полного функционала',
-        userNotFound: "Информация о пользователе не найдена. Пожалуйста, обновите страницу и попробуйте снова."
+        userNotFound: "Информация о пользователе не найдена. Пожалуйста, обновите страницу и попробуйте снова.",
+        buyForSelf: "Купить для себя",
+        buyForOther: "Купить для другого",
+        enterUsername: "Введите имя пользователя для поиска",
+        customAmount: "Произвольная сумма",
+        minimumStars: "Минимум 50 звезд",
+        userFound: "Пользователь найден",
+        userNotFoundMsg: "Пользователь не найден",
+        searching: "Поиск..."
     }
 };
 
@@ -904,6 +1040,11 @@ let currentUser = null;
 let isTelegramEnv = false;
 let updateUserInterfaceRetryCount = 0;
 let isInitialized = false;
+
+// Buy for another person variables
+let buyForSelf = true;
+let recipientUser = null;
+let searchTimeout = null;
 
 const stickerCache = new Map();
 const CACHE_DURATION = 40 * 60 * 1000; 
@@ -989,7 +1130,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateLanguage();
                     initBuyButtons();
                     initNotificationSystem();
-                    loadStickers();
+                    initBuyForToggle();
+                    initCustomAmount();
                     
                     window.currentUser = currentUser;
                     window.currentWalletAddress = currentWalletAddress;
@@ -1002,7 +1144,156 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// Initialize buy for toggle functionality
+function initBuyForToggle() {
+    const buyForSelfBtn = document.getElementById('buyForSelfBtn');
+    const buyForOtherBtn = document.getElementById('buyForOtherBtn');
+    const userSearchContainer = document.getElementById('userSearchContainer');
+    const userSearchInput = document.getElementById('userSearchInput');
+    const userSearchResult = document.getElementById('userSearchResult');
 
+    if (!buyForSelfBtn || !buyForOtherBtn || !userSearchContainer) return;
+
+    buyForSelfBtn.addEventListener('click', () => {
+        buyForSelf = true;
+        buyForSelfBtn.classList.add('active');
+        buyForOtherBtn.classList.remove('active');
+        userSearchContainer.style.display = 'none';
+        recipientUser = null;
+        updateBuyButtonTexts();
+    });
+
+    buyForOtherBtn.addEventListener('click', () => {
+        buyForSelf = false;
+        buyForSelfBtn.classList.remove('active');
+        buyForOtherBtn.classList.add('active');
+        userSearchContainer.style.display = 'block';
+        updateBuyButtonTexts();
+    });
+
+    // User search functionality
+    if (userSearchInput) {
+        userSearchInput.addEventListener('input', (e) => {
+            const username = e.target.value.trim();
+            
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+
+            if (!username) {
+                userSearchResult.style.display = 'none';
+                recipientUser = null;
+                return;
+            }
+
+            // Show searching state
+            userSearchResult.className = 'user-search-result user-searching';
+            userSearchResult.textContent = translations[currentLanguage].searching;
+            userSearchResult.style.display = 'block';
+
+            searchTimeout = setTimeout(() => {
+                searchUser(username);
+            }, 500);
+        });
+    }
+}
+
+// Search for user (mock implementation)
+async function searchUser(username) {
+    const userSearchResult = document.getElementById('userSearchResult');
+    
+    try {
+        // Simulate API call - replace with actual user search
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Mock result - in real implementation, call your user search API
+        const userExists = Math.random() > 0.3; // 70% chance user exists
+        
+        if (userExists) {
+            recipientUser = {
+                username: username,
+                first_name: `User ${username}`,
+                id: Math.floor(Math.random() * 1000000)
+            };
+            
+            userSearchResult.className = 'user-search-result user-found';
+            userSearchResult.innerHTML = `
+                <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
+                ${translations[currentLanguage].userFound}: @${username}
+            `;
+        } else {
+            recipientUser = null;
+            userSearchResult.className = 'user-search-result user-not-found';
+            userSearchResult.innerHTML = `
+                <i class="fas fa-times-circle" style="margin-right: 8px;"></i>
+                ${translations[currentLanguage].userNotFoundMsg}: @${username}
+            `;
+        }
+        
+        userSearchResult.style.display = 'block';
+    } catch (error) {
+        console.error('User search error:', error);
+        recipientUser = null;
+        userSearchResult.className = 'user-search-result user-not-found';
+        userSearchResult.textContent = translations[currentLanguage].userNotFoundMsg;
+        userSearchResult.style.display = 'block';
+    }
+}
+
+// Update buy button texts based on mode
+function updateBuyButtonTexts() {
+    const buyButtons = document.querySelectorAll('.buy-button');
+    buyButtons.forEach(button => {
+        const isCustom = button.id === 'customBuyButton';
+        if (buyForSelf) {
+            button.textContent = translations[currentLanguage].buyNow;
+        } else {
+            button.textContent = translations[currentLanguage].buygift;
+        }
+    });
+}
+
+// Initialize custom amount functionality
+function initCustomAmount() {
+    const customAmountInput = document.getElementById('customAmountInput');
+    const customAmountPrice = document.getElementById('customAmountPrice');
+    const customBuyButton = document.getElementById('customBuyButton');
+
+    if (!customAmountInput || !customAmountPrice || !customBuyButton) return;
+
+    const updateCustomPrice = () => {
+        const amount = parseInt(customAmountInput.value) || 50;
+        const validAmount = Math.max(50, amount);
+        
+        if (validAmount !== amount) {
+            customAmountInput.value = validAmount;
+        }
+        
+        const price = (validAmount * 0.02).toFixed(2);
+        customAmountPrice.textContent = `${price} USDT`;
+    };
+
+    customAmountInput.addEventListener('input', updateCustomPrice);
+    customAmountInput.addEventListener('change', updateCustomPrice);
+
+    customBuyButton.addEventListener('click', () => {
+        const amount = parseInt(customAmountInput.value) || 50;
+        const validAmount = Math.max(50, amount);
+        const price = (validAmount * 0.02).toFixed(2);
+        
+        const customItem = {
+            stars: validAmount,
+            isPremium: false,
+            amount: price,
+            isCustom: true
+        };
+        
+        handlePurchase(customItem);
+    });
+
+    // Initial price update
+    updateCustomPrice();
+}
 
 // Enhanced device detection
 function isLowEndDevice() {
@@ -1016,304 +1307,6 @@ function isLowEndDevice() {
   return (isMobile && isOldBrowser) || hasLowMemory || hasSlowConnection;
 }
 
-// Check if cached data is still valid
-function isCacheValid(cacheEntry) {
-  return cacheEntry && (Date.now() - cacheEntry.timestamp < CACHE_DURATION);
-}
-
-// Get sticker info with caching
-async function getStickerInfo(stickerId) {
-  const cached = stickerCache.get(stickerId);
-  if (isCacheValid(cached)) {
-    return cached.data;
-  }
-
-  try {
-    const response = await fetch(`/api/sticker/${stickerId}/info`);
-    if (!response.ok) return null;
-    
-    const info = await response.json();
-    stickerCache.set(stickerId, {
-      data: info,
-      timestamp: Date.now()
-    });
-    return info;
-  } catch (error) {
-    console.warn(`Failed to fetch sticker info for ${stickerId}:`, error);
-    return null;
-  }
-}
-
-// Batch load all sticker info to reduce network requests
-async function batchLoadStickerInfo(stickerIds) {
-  const uncachedIds = stickerIds.filter(id => {
-    const cached = stickerCache.get(id);
-    return !isCacheValid(cached);
-  });
-
-  if (uncachedIds.length === 0) return;
-
-  // Load all uncached stickers in parallel with controlled concurrency
-  const BATCH_SIZE = 5; // Limit concurrent requests for low-end devices
-  const batches = [];
-  
-  for (let i = 0; i < uncachedIds.length; i += BATCH_SIZE) {
-    batches.push(uncachedIds.slice(i, i + BATCH_SIZE));
-  }
-
-  for (const batch of batches) {
-    await Promise.allSettled(
-      batch.map(id => getStickerInfo(id))
-    );
-  }
-}
-
-async function loadStickers() {
-  // Prevent multiple simultaneous batch loads
-  if (batchLoadPromise) {
-    await batchLoadPromise;
-    return;
-  }
-
-  const containers = document.querySelectorAll('.sticker-container');
-  const stickerIds = Array.from(containers)
-    .map(container => container.getAttribute('data-sticker-id'))
-    .filter(Boolean);
-
-  if (stickerIds.length === 0) return;
-
-  // Start batch loading
-  batchLoadPromise = batchLoadStickerInfo(stickerIds);
-  await batchLoadPromise;
-  batchLoadPromise = null;
-
-  // Load all stickers simultaneously for synchronized playback
-  const loadPromises = Array.from(containers).map(container => {
-    const stickerId = container.getAttribute('data-sticker-id');
-    if (!stickerId) return Promise.resolve();
-
-    const cached = stickerCache.get(stickerId);
-    const info = cached?.data;
-    
-    if (!info) {
-      loadPlaceholder(container);
-      return Promise.resolve();
-    }
-
-    // For low-end devices, prefer static stickers
-    if (isLowEndDevice()) {
-      if (info.is_animated || info.is_video) {
-        return loadStaticSticker(container, stickerId);
-      } else {
-        return loadStaticSticker(container, stickerId);
-      }
-    }
-
-    // For high-end devices, load appropriate type
-    if (info.is_animated) {
-      return loadAnimatedSticker(container, stickerId)
-        .catch(() => loadStaticSticker(container, stickerId));
-    } else if (info.is_video) {
-      return loadVideoSticker(container, stickerId);
-    } else {
-      return loadStaticSticker(container, stickerId);
-    }
-  });
-
-  // Wait for all stickers to load simultaneously
-  await Promise.allSettled(loadPromises);
-  
-  // Synchronize animated content playback
-  synchronizeAnimations();
-}
-
-function loadStaticSticker(container, stickerId) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.width = 72;
-    img.height = 72;
-    img.alt = 'Sticker';
-    img.loading = 'lazy';
-    img.style.objectFit = 'contain';
-    
-    img.onload = () => {
-      container.replaceChildren(img);
-      resolve();
-    };
-    
-    img.onerror = () => {
-      loadPlaceholder(container);
-      reject(new Error('Failed to load static sticker'));
-    };
-    
-    img.src = `/api/sticker/${stickerId}`;
-  });
-}
-
-function loadVideoSticker(container, stickerId) {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    video.width = 72;
-    video.height = 72;
-    video.autoplay = false; 
-    video.loop = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.style.objectFit = 'contain';
-    video.preload = 'metadata';
-    
-    video.onloadedmetadata = () => {
-      container.replaceChildren(video);
-      container._videoElement = video;
-      resolve();
-    };
-    
-    video.onerror = () => {
-      loadPlaceholder(container);
-      reject(new Error('Failed to load video sticker'));
-    };
-    
-    video.src = `/api/sticker/${stickerId}`;
-  });
-}
-
-async function loadAnimatedSticker(container, stickerId) {
-  if (typeof lottie === 'undefined') {
-    throw new Error('Lottie not available');
-  }
-
-  try {
-    const response = await fetch(`/api/sticker/${stickerId}/json`);
-    if (!response.ok) throw new Error('Failed to fetch animation');
-    
-    const animationData = await response.json();
-    container.innerHTML = '';
-    container.style.width = '72px';
-    container.style.height = '72px';
-    
-    const animation = lottie.loadAnimation({
-      container: container,
-      renderer: 'svg',
-      loop: true,
-      autoplay: false, // Don't autoplay yet
-      animationData: animationData
-    });
-    
-    container._lottieAnimation = animation;
-    
-    return new Promise((resolve) => {
-      animation.addEventListener('DOMLoaded', () => {
-        resolve();
-      });
-    });
-  } catch (error) {
-    throw error;
-  }
-}
-
-function loadPlaceholder(container) {
-  const placeholder = document.createElement('div');
-  placeholder.style.width = '72px';
-  placeholder.style.height = '72px';
-  placeholder.style.backgroundColor = '#f0f0f0';
-  placeholder.style.display = 'flex';
-  placeholder.style.alignItems = 'center';
-  placeholder.style.justifyContent = 'center';
-  placeholder.style.color = '#999';
-  placeholder.style.fontSize = '12px';
-  placeholder.style.borderRadius = '4px';
-  placeholder.textContent = 'Sticker';
-  container.replaceChildren(placeholder);
-}
-
-// Synchronize all animations to play at the same time
-function synchronizeAnimations() {
-  const containers = document.querySelectorAll('.sticker-container');
-  
-  // Start all Lottie animations
-  containers.forEach(container => {
-    if (container._lottieAnimation) {
-      container._lottieAnimation.goToAndPlay(0);
-    }
-  });
-  
-  // Start all video elements
-  containers.forEach(container => {
-    if (container._videoElement) {
-      container._videoElement.currentTime = 0;
-      container._videoElement.play().catch(() => {
-        // Autoplay might be blocked, ignore error
-      });
-    }
-  });
-}
-
-// Optimized intersection observer for performance
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    const container = entry.target;
-    if (!entry.isIntersecting) {
-      // Pause animations when not visible to save resources
-      if (container._lottieAnimation) {
-        container._lottieAnimation.pause();
-      }
-      if (container._videoElement) {
-        container._videoElement.pause();
-      }
-    } else {
-      // Resume animations when visible
-      if (container._lottieAnimation) {
-        container._lottieAnimation.play();
-      }
-      if (container._videoElement) {
-        container._videoElement.play().catch(() => {});
-      }
-    }
-  });
-}, { 
-  threshold: 0.1,
-  rootMargin: '50px' 
-});
-
-// Clean up animations when they leave viewport completely
-const cleanupObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    const container = entry.target;
-    if (!entry.isIntersecting && container._lottieAnimation) {
-      // Only destroy if far from viewport to avoid unnecessary recreation
-      const rect = container.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const distanceFromViewport = Math.min(
-        Math.abs(rect.bottom),
-        Math.abs(rect.top - viewportHeight)
-      );
-      
-      if (distanceFromViewport > viewportHeight) {
-        container._lottieAnimation.destroy();
-        container._lottieAnimation = null;
-      }
-    }
-  });
-}, { threshold: 0, rootMargin: '-100px' });
-
-// Initialize observers
-document.querySelectorAll('.sticker-container').forEach(container => {
-  observer.observe(container);
-  cleanupObserver.observe(container);
-});
-
-// Clean up cache periodically to prevent memory leaks
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of stickerCache.entries()) {
-    if (now - value.timestamp > CACHE_DURATION) {
-      stickerCache.delete(key);
-    }
-  }
-}, 5 * 60 * 1000); // Clean up every 5 minutes        
-
-
-        
 //notification system
 function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
@@ -1800,6 +1793,15 @@ function initLanguageToggle() {
         if (tonConnectUI?.setLanguage) {
             tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
         }
+
+        // Update buy button texts
+        updateBuyButtonTexts();
+
+        // Update placeholder text
+        const userSearchInput = document.getElementById('userSearchInput');
+        if (userSearchInput) {
+            userSearchInput.placeholder = translations[currentLanguage].enterUsername;
+        }
     });
 }
 
@@ -1818,11 +1820,20 @@ function updateLanguage() {
             element.textContent = translations[currentLanguage][key];
         }
     });
+
+    // Update placeholder texts
+    const userSearchInput = document.getElementById('userSearchInput');
+    if (userSearchInput) {
+        userSearchInput.placeholder = translations[currentLanguage].enterUsername;
+    }
 }
 
 
 function initBuyButtons() {
     document.querySelectorAll('.buy-button').forEach(button => {
+        // Skip custom buy button as it has its own handler
+        if (button.id === 'customBuyButton') return;
+        
         button.addEventListener('click', function(e) {
             e.preventDefault();
             const itemData = this.getAttribute('data-item');
@@ -1849,6 +1860,14 @@ async function handlePurchase(item) {
     if (!user || !user.id) {
         showErrorToUser(translations[currentLanguage].userNotFound);
         return;
+    }
+
+    // Check if buying for another person and validate recipient
+    if (!buyForSelf) {
+        if (!recipientUser) {
+            showErrorToUser("Please search and select a valid user first.");
+            return;
+        }
     }
     
     // Check if running in Telegram environment
@@ -1939,7 +1958,11 @@ async function handlePurchase(item) {
                 premiumDuration: item.premiumDuration || null,
                 walletAddress: currentWalletAddress,
                 transactionHash: result,
-                isTelegramUser: isTelegramEnv
+                isTelegramUser: isTelegramEnv,
+                // Add recipient info if buying for another person
+                recipientId: buyForSelf ? null : recipientUser?.id,
+                recipientUsername: buyForSelf ? null : recipientUser?.username,
+                buyForSelf: buyForSelf
             };
             
             const response = await axios.post('/api/orders/create', orderData);
@@ -1951,9 +1974,14 @@ async function handlePurchase(item) {
                     loadingShown = false;
                 }
                 
+                let successMessage = translations[currentLanguage].orderCreated;
+                if (!buyForSelf && recipientUser) {
+                    successMessage += ` Gift will be sent to @${recipientUser.username}.`;
+                }
+                
                 await Swal.fire({
                     title: translations[currentLanguage].success,
-                    text: translations[currentLanguage].orderCreated,
+                    text: successMessage,
                     icon: 'success',
                     confirmButtonText: translations[currentLanguage].ok
                 });
@@ -2017,4 +2045,3 @@ async function fetchCurrentRate() {
     </script>
 </body>
 </html>
-
