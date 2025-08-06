@@ -574,6 +574,7 @@
 </style>
 </head>
 <body>
+
     <div class="app-container">
         <div id="skeleton-loading">
             <div class="p-4 flex justify-between items-center bg-white shadow-sm">
@@ -683,8 +684,8 @@
             <span class="text-indigo-600 font-semibold" id="estimatedCost">0.00 USDT</span>
         </div>
         <div class="flex space-x-4">
-            <button id="buyForSelfBtn" class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyForSelf">Buy for Myself</button>
-            <button id="buyForOtherBtn" class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm bg-indigo-400 hover:bg-indigo-500" data-translate="buyForOther">Buy for Someone</button>
+            <button id="buyForSelfBtn" class="buy-button w-full py-2 text-white rounded-lg font-semibold text-xs" data-translate="buyForSelf">For Me</button>
+            <button id="buyForOtherBtn" class="buy-button w-full py-2 text-white rounded-lg font-semibold text-xs bg-indigo-400 hover:bg-indigo-500" data-translate="buyForOther">Gift</button>
         </div>
     </div>
 </div>
@@ -764,7 +765,10 @@
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
                                     </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Subscribe Now</button>
+                                    <div class="flex space-x-2">
+                                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-xs" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>For Me</button>
+                                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-xs bg-indigo-400 hover:bg-indigo-500" data-translate="giftPremium" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31", "isGift": true}'>Gift</button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="package-option premium-package">
@@ -782,7 +786,10 @@
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Voice-to-Text</div>
                                     </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Subscribe Now</button>
+                                    <div class="flex space-x-2">
+                                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-xs" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>For Me</button>
+                                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-xs bg-indigo-400 hover:bg-indigo-500" data-translate="giftPremium" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25", "isGift": true}'>Gift</button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="package-option premium-package">
@@ -802,7 +809,10 @@
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Animated Profile Pic</div>
                                         <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Reactions</div>
                                     </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Subscribe Now</button>
+                                    <div class="flex space-x-2">
+                                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-xs" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>For Me</button>
+                                        <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-xs bg-indigo-400 hover:bg-indigo-500" data-translate="giftPremium" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79", "isGift": true}'>Gift</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -819,11 +829,6 @@
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-1" data-translate="recipientUsername">Recipient Username</label>
             <input type="text" id="recipientUsername" placeholder="@username" 
-                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-        </div>
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1" data-translate="recipientId">or Recipient ID</label>
-            <input type="text" id="recipientId" placeholder="123456789" 
                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
         </div>
         <div class="flex justify-end space-x-3">
