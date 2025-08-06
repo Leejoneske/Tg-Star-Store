@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -156,27 +157,6 @@
         background: linear-gradient(135deg, #5054c0, #3f3aaf);
         transform: translateY(-1px);
         box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
-    }
-
-    .gift-button {
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-        color: white;
-        border-radius: 10px;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.2);
-        padding: 8px 12px;
-        font-size: 14px;
-        border: none;
-        cursor: pointer;
-        will-change: transform;
-    }
-
-    .gift-button:hover {
-        background: linear-gradient(135deg, #d97706, #b45309);
-        transform: translateY(-1px);
-        box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.3);
     }
 
     #connectWallet {
@@ -396,6 +376,8 @@
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
+
+
     .section-toggle {
         display: flex;
         justify-content: space-between;
@@ -527,107 +509,6 @@
         color: #4f46e5;
     }
 
-    .gift-input-container {
-        margin-top: 12px;
-        padding: 12px;
-        background: #f8fafc;
-        border-radius: 8px;
-        border: 1px solid #e5e7eb;
-    }
-
-    .gift-input {
-        width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-size: 14px;
-        background: white;
-    }
-
-    .gift-input:focus {
-        outline: none;
-        border-color: #4f46e5;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-    }
-
-    .gift-input.error {
-        border-color: #ef4444;
-        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
-    }
-
-    .gift-input.success {
-        border-color: #10b981;
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-    }
-
-    .stars-list-container {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
-    }
-
-    .stars-list-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        margin-bottom: 8px;
-        background: #f9fafb;
-    }
-
-    .stars-list-item:last-child {
-        margin-bottom: 0;
-    }
-
-    .manual-stars-input {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
-    }
-
-    .input-group {
-        display: flex;
-        gap: 8px;
-        align-items: flex-end;
-    }
-
-    .input-group input {
-        flex: 1;
-    }
-
-    .calculate-button {
-        background: #6b7280;
-        color: white;
-        border: none;
-        padding: 10px 16px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: background-color 0.2s ease;
-    }
-
-    .calculate-button:hover {
-        background: #4b5563;
-    }
-
-    .price-display {
-        margin-top: 8px;
-        padding: 8px 12px;
-        background: #f0f9ff;
-        border: 1px solid #0ea5e9;
-        border-radius: 6px;
-        color: #0369a1;
-        font-weight: 600;
-        text-align: center;
-    }
-
     @keyframes shimmer {
         0% {
             background-position: 200% 0;
@@ -688,11 +569,6 @@
         
         .package-option {
             padding: 12px;
-        }
-
-        .input-group {
-            flex-direction: column;
-            align-items: stretch;
         }
     }
 </style>
@@ -768,11 +644,20 @@
             <div class="px-6 pt-6 pb-2">
                 <div class="user-info-container">
                     <div class="user-details">
-                        <div class="profile-image">
-                            <img id="profilePicture" src="https://via.placeholder.com/64" alt="User Profile" class="w-full h-full object-cover">
-                        </div>
-                        <div class="text-lg font-semibold text-gray-800" id="username">@username</div>
-                    </div>
+    <div class="profile-image">
+        <img id="profilePicture" src="https://via.placeholder.com/64" alt="User Profile" class="w-full h-full object-cover">
+    </div>
+    <div>
+        <div class="text-lg font-semibold text-gray-800" id="username">@username</div>
+        <!-- Add this new div for user ID -->
+        <div class="flex items-center mt-1">
+            <span class="text-sm text-gray-500 mr-2" id="userId">ID: loading...</span>
+            <button id="copyUserIdBtn" class="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded flex items-center">
+                <i class="fas fa-copy mr-1"></i> <span data-translate="copy">Copy</span>
+            </button>
+        </div>
+    </div>
+</div>
                     <button id="connectWallet" data-translate="connectWallet">
                         <i class="fas fa-wallet mr-2"></i>Connect Wallet
                     </button>
@@ -784,200 +669,77 @@
                     <button class="toggle-button active" id="starsToggle" data-translate="buyStars">Buy Stars</button>
                     <button class="toggle-button" id="premiumToggle" data-translate="telegramPremium">Telegram Premium</button>
                 </div>
+                
+                <div class="stars-card rounded-xl mt-6">
+    <h3 class="text-lg font-bold text-gray-800 mb-4" data-translate="buyCustomStars">Buy Custom Amount of Stars</h3>
+    <div class="flex flex-col space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-translate="starsAmount">Stars Amount (min 50)</label>
+            <input type="number" id="customStarsAmount" min="50" step="1" 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        <div class="flex justify-between items-center">
+            <span class="text-sm font-medium text-gray-700" data-translate="estimatedCost">Estimated Cost:</span>
+            <span class="text-indigo-600 font-semibold" id="estimatedCost">0.00 USDT</span>
+        </div>
+        <div class="flex space-x-4">
+            <button id="buyForSelfBtn" class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyForSelf">Buy for Myself</button>
+            <button id="buyForOtherBtn" class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm bg-indigo-400 hover:bg-indigo-500" data-translate="buyForOther">Buy for Someone</button>
+        </div>
+    </div>
+</div>
 
                 <div class="section-content active" id="starsSection">
-                    <!-- Stars List Display -->
-                    <div class="stars-list-container">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Available Stars Packages</h3>
-                        <div id="starsListDisplay">
-                            <div class="stars-list-item">
-                                <span class="font-semibold">50 Stars</span>
-                                <span class="text-blue-600 font-semibold">1.00 USDT</span>
-                            </div>
-                            <div class="stars-list-item">
-                                <span class="font-semibold">100 Stars</span>
-                                <span class="text-blue-600 font-semibold">2.00 USDT</span>
-                            </div>
-                            <div class="stars-list-item">
-                                <span class="font-semibold">250 Stars</span>
-                                <span class="text-blue-600 font-semibold">5.00 USDT</span>
-                            </div>
-                            <div class="stars-list-item">
-                                <span class="font-semibold">500 Stars</span>
-                                <span class="text-blue-600 font-semibold">10.00 USDT</span>
-                            </div>
-                            <div class="stars-list-item">
-                                <span class="font-semibold">1000 Stars</span>
-                                <span class="text-blue-600 font-semibold">20.00 USDT</span>
-                            </div>
-                            <div class="stars-list-item">
-                                <span class="font-semibold">2500 Stars</span>
-                                <span class="text-blue-600 font-semibold">50.00 USDT</span>
-                            </div>
-                            <div class="stars-list-item">
-                                <span class="font-semibold">5000 Stars</span>
-                                <span class="text-blue-600 font-semibold">100.00 USDT</span>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Manual Stars Input -->
-                    <div class="manual-stars-input">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Custom Stars Amount</h3>
-                        <div class="input-group">
-                            <div class="flex-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Enter Stars Amount (minimum 50)</label>
-                                <input type="number" id="customStarsInput" class="gift-input" placeholder="Enter stars amount..." min="50">
-                            </div>
-                            <button id="calculateCustomPrice" class="calculate-button">Calculate Price</button>
-                        </div>
-                        <div id="customPriceDisplay" class="price-display" style="display: none;"></div>
-                        
-                        <!-- Gift to User Section -->
-                        <div class="mt-4">
-                            <div class="gift-input-container">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Gift to User (Optional)</label>
-                                <div class="flex gap-2 mb-2">
-                                    <input type="text" id="customGiftUsername" class="gift-input flex-1" placeholder="Enter Telegram username (without @)...">
-                                    <button id="validateUsername" class="calculate-button" style="min-width: 80px;">
-                                        <i class="fas fa-check mr-1"></i>Verify
-                                    </button>
-                                </div>
-                                <div id="usernameValidationResult" class="text-sm mb-2" style="display: none;"></div>
-                                <div class="flex gap-2">
-                                    <button id="buyCustomStars" class="buy-button flex-1" style="display: none;">
-                                        <i class="fas fa-shopping-cart mr-2"></i>Buy for Me
-                                    </button>
-                                    <button id="giftCustomStars" class="gift-button flex-1" style="display: none;">
-                                        <i class="fas fa-gift mr-2"></i>Gift Stars
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Extended Stars Packages List -->
                     <div class="stars-card rounded-xl mb-8">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                            <i class="fas fa-star text-yellow-500 mr-2"></i>Stars Packages
-                        </h3>
-                        <div class="grid grid-cols-2 gap-3" id="starsPackagesGrid">
-                            <!-- 25 Stars Package -->
-                            <div class="package-option stars-package" data-stars="25" data-price="0.50">
-                                <div class="stars-amount">⭐ 25</div>
-                                <div class="usdt-price">$0.50 USDT</div>
-                                <div class="flex gap-1 mt-3">
-                                    <button class="buy-button flex-1" onclick="buyStars(25, 0.50)">Buy</button>
-                                    <button class="gift-button" onclick="showGiftModal(25, 0.50)">
-                                        <i class="fas fa-gift"></i>
-                                    </button>
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Choose a Stars Package</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">15 Stars</div>
+                                <div class="usdt-price">0.35 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
+                                <div class="mt-2">
+                        
+                                    <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
                                 </div>
                             </div>
-
-                            <!-- 50 Stars Package -->
-                            <div class="package-option stars-package" data-stars="50" data-price="1.00">
-                                <div class="stars-amount">⭐ 50</div>
-                                <div class="usdt-price">$1.00 USDT</div>
-                                <div class="flex gap-1 mt-3">
-                                    <button class="buy-button flex-1" onclick="buyStars(50, 1.00)">Buy</button>
-                                    <button class="gift-button" onclick="showGiftModal(50, 1.00)">
-                                        <i class="fas fa-gift"></i>
-                                    </button>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">25 Stars</div>
+                                <div class="usdt-price">0.60 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
+                                <div class="mt-2">
+                                    <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
                                 </div>
                             </div>
-
-                            <!-- 100 Stars Package -->
-                            <div class="package-option stars-package" data-stars="100" data-price="2.00">
-                                <div class="stars-amount">⭐ 100</div>
-                                <div class="usdt-price">$2.00 USDT</div>
-                                <div class="flex gap-1 mt-3">
-                                    <button class="buy-button flex-1" onclick="buyStars(100, 2.00)">Buy</button>
-                                    <button class="gift-button" onclick="showGiftModal(100, 2.00)">
-                                        <i class="fas fa-gift"></i>
-                                    </button>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">50 Stars</div>
+                                <div class="usdt-price">1.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
                                 </div>
                             </div>
-
-                            <!-- 250 Stars Package -->
-                            <div class="package-option stars-package" data-stars="250" data-price="5.00">
-                                <div class="stars-amount">⭐ 250</div>
-                                <div class="usdt-price">$5.00 USDT</div>
-                                <div class="flex gap-1 mt-3">
-                                    <button class="buy-button flex-1" onclick="buyStars(250, 5.00)">Buy</button>
-                                    <button class="gift-button" onclick="showGiftModal(250, 5.00)">
-                                        <i class="fas fa-gift"></i>
-                                    </button>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">100 Stars</div>
+                                <div class="usdt-price">2.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
                                 </div>
                             </div>
-
-                            <!-- 500 Stars Package -->
-                            <div class="package-option stars-package" data-stars="500" data-price="10.00">
-                                <div class="stars-amount">⭐ 500</div>
-                                <div class="usdt-price">$10.00 USDT</div>
-                                <div class="flex gap-1 mt-3">
-                                    <button class="buy-button flex-1" onclick="buyStars(500, 10.00)">Buy</button>
-                                    <button class="gift-button" onclick="showGiftModal(500, 10.00)">
-                                        <i class="fas fa-gift"></i>
-                                    </button>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">500 Stars</div>
+                                <div class="usdt-price">10.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
                                 </div>
                             </div>
-
-                            <!-- 1000 Stars Package -->
-                            <div class="package-option stars-package" data-stars="1000" data-price="20.00">
-                                <div class="stars-amount">⭐ 1000</div>
-                                <div class="usdt-price">$20.00 USDT</div>
-                                <div class="flex gap-1 mt-3">
-                                    <button class="buy-button flex-1" onclick="buyStars(1000, 20.00)">Buy</button>
-                                    <button class="gift-button" onclick="showGiftModal(1000, 20.00)">
-                                        <i class="fas fa-gift"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- 2500 Stars Package -->
-                            <div class="package-option stars-package" data-stars="2500" data-price="50.00">
-                                <div class="stars-amount">⭐ 2500</div>
-                                <div class="usdt-price">$50.00 USDT</div>
-                                <div class="flex gap-1 mt-3">
-                                    <button class="buy-button flex-1" onclick="buyStars(2500, 50.00)">Buy</button>
-                                    <button class="gift-button" onclick="showGiftModal(2500, 50.00)">
-                                        <i class="fas fa-gift"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- 5000 Stars Package -->
-                            <div class="package-option stars-package" data-stars="5000" data-price="100.00">
-                                <div class="stars-amount">⭐ 5000</div>
-                                <div class="usdt-price">$100.00 USDT</div>
-                                <div class="flex gap-1 mt-3">
-                                    <button class="buy-button flex-1" onclick="buyStars(5000, 100.00)">Buy</button>
-                                    <button class="gift-button" onclick="showGiftModal(5000, 100.00)">
-                                        <i class="fas fa-gift"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- 10000 Stars Package -->
-                            <div class="package-option stars-package" data-stars="10000" data-price="200.00">
-                                <div class="stars-amount">⭐ 10000</div>
-                                <div class="usdt-price">$200.00 USDT</div>
-                                <div class="flex gap-1 mt-3">
-                                    <button class="buy-button flex-1" onclick="buyStars(10000, 200.00)">Buy</button>
-                                    <button class="gift-button" onclick="showGiftModal(10000, 200.00)">
-                                        <i class="fas fa-gift"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- 25000 Stars Package -->
-                            <div class="package-option stars-package" data-stars="25000" data-price="500.00">
-                                <div class="stars-amount">⭐ 25000</div>
-                                <div class="usdt-price">$500.00 USDT</div>
-                                <div class="flex gap-1 mt-3">
-                                    <button class="buy-button flex-1" onclick="buyStars(25000, 500.00)">Buy</button>
-                                    <button class="gift-button" onclick="showGiftModal(25000, 500.00)">
-                                        <i class="fas fa-gift"></i>
-                                    </button>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">1000 Stars</div>
+                                <div class="usdt-price">20.00 USDT</div>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
                                 </div>
                             </div>
                         </div>
@@ -985,158 +747,92 @@
                 </div>
 
                 <div class="section-content" id="premiumSection">
-                    <div class="premium-card rounded-xl">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                            <i class="fas fa-crown text-yellow-500 mr-2"></i>Telegram Premium
-                        </h3>
+                    <div class="premium-card rounded-xl mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Telegram Premium Subscriptions</h3>
                         <div class="space-y-4">
-                            <!-- 1 Month Premium -->
                             <div class="package-option premium-package">
-                                <div class="premium-duration">1 Month Premium</div>
-                                <div class="premium-description">Full access to all premium features</div>
-                                <div class="premium-price">$4.99 USDT</div>
-                                <div class="gift-input-container mt-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Gift to User (Optional)</label>
-                                    <div class="flex gap-2 mb-2">
-                                        <input type="text" class="gift-input flex-1 premium-gift-username" placeholder="Enter Telegram username (without @)...">
-                                        <button class="calculate-button validate-premium-username" style="min-width: 80px;">
-                                            <i class="fas fa-check mr-1"></i>Verify
-                                        </button>
+                                <div class="flex flex-col space-y-4">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="premium-duration" data-translate="3monthsPremium">3 Months Premium</div>
+                                            <div class="premium-description" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
+                                        </div>
+                                        <div class="premium-price">19.31 USDT</div>
                                     </div>
-                                    <div class="username-validation-result text-sm mb-2" style="display: none;"></div>
-                                    <div class="flex gap-2">
-                                        <button class="buy-button flex-1" onclick="buyPremium('1month', 4.99)">
-                                            <i class="fas fa-shopping-cart mr-2"></i>Buy for Me
-                                        </button>
-                                        <button class="gift-button flex-1" onclick="giftPremium('1month', 4.99, this)">
-                                            <i class="fas fa-gift mr-2"></i>Gift Premium
-                                        </button>
+                                    <div class="premium-features">
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
                                     </div>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Subscribe Now</button>
                                 </div>
                             </div>
-
-                            <!-- 3 Months Premium -->
                             <div class="package-option premium-package">
-                                <div class="premium-duration">3 Months Premium</div>
-                                <div class="premium-description">Save 10% with quarterly subscription</div>
-                                <div class="premium-price">$13.47 USDT</div>
-                                <div class="gift-input-container mt-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Gift to User (Optional)</label>
-                                    <div class="flex gap-2 mb-2">
-                                        <input type="text" class="gift-input flex-1 premium-gift-username" placeholder="Enter Telegram username (without @)...">
-                                        <button class="calculate-button validate-premium-username" style="min-width: 80px;">
-                                            <i class="fas fa-check mr-1"></i>Verify
-                                        </button>
+                                <div class="flex flex-col space-y-4">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="premium-duration" data-translate="6monthsPremium">6 Months Premium</div>
+                                            <div class="premium-description" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
+                                        </div>
+                                        <div class="premium-price">26.25 USDT</div>
                                     </div>
-                                    <div class="username-validation-result text-sm mb-2" style="display: none;"></div>
-                                    <div class="flex gap-2">
-                                        <button class="buy-button flex-1" onclick="buyPremium('3months', 13.47)">
-                                            <i class="fas fa-shopping-cart mr-2"></i>Buy for Me
-                                        </button>
-                                        <button class="gift-button flex-1" onclick="giftPremium('3months', 13.47, this)">
-                                            <i class="fas fa-gift mr-2"></i>Gift Premium
-                                        </button>
+                                    <div class="premium-features">
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Voice-to-Text</div>
                                     </div>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Subscribe Now</button>
                                 </div>
                             </div>
-
-                            <!-- 6 Months Premium -->
                             <div class="package-option premium-package">
-                                <div class="premium-duration">6 Months Premium</div>
-                                <div class="premium-description">Save 15% with semi-annual subscription</div>
-                                <div class="premium-price">$25.43 USDT</div>
-                                <div class="gift-input-container mt-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Gift to User (Optional)</label>
-                                    <div class="flex gap-2 mb-2">
-                                        <input type="text" class="gift-input flex-1 premium-gift-username" placeholder="Enter Telegram username (without @)...">
-                                        <button class="calculate-button validate-premium-username" style="min-width: 80px;">
-                                            <i class="fas fa-check mr-1"></i>Verify
-                                        </button>
+                                <div class="flex flex-col space-y-4">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="premium-duration" data-translate="12monthsPremium">12 Months Premium</div>
+                                            <div class="premium-description" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
+                                        </div>
+                                        <div class="premium-price">44.79 USDT</div>
                                     </div>
-                                    <div class="username-validation-result text-sm mb-2" style="display: none;"></div>
-                                    <div class="flex gap-2">
-                                        <button class="buy-button flex-1" onclick="buyPremium('6months', 25.43)">
-                                            <i class="fas fa-shopping-cart mr-2"></i>Buy for Me
-                                        </button>
-                                        <button class="gift-button flex-1" onclick="giftPremium('6months', 25.43, this)">
-                                            <i class="fas fa-gift mr-2"></i>Gift Premium
-                                        </button>
+                                    <div class="premium-features">
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Voice-to-Text</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Animated Profile Pic</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Reactions</div>
                                     </div>
-                                </div>
-                            </div>
-
-                            <!-- 12 Months Premium -->
-                            <div class="package-option premium-package">
-                                <div class="premium-duration">12 Months Premium</div>
-                                <div class="premium-description">Save 20% with annual subscription</div>
-                                <div class="premium-price">$47.90 USDT</div>
-                                <div class="gift-input-container mt-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Gift to User (Optional)</label>
-                                    <div class="flex gap-2 mb-2">
-                                        <input type="text" class="gift-input flex-1 premium-gift-username" placeholder="Enter Telegram username (without @)...">
-                                        <button class="calculate-button validate-premium-username" style="min-width: 80px;">
-                                            <i class="fas fa-check mr-1"></i>Verify
-                                        </button>
-                                    </div>
-                                    <div class="username-validation-result text-sm mb-2" style="display: none;"></div>
-                                    <div class="flex gap-2">
-                                        <button class="buy-button flex-1" onclick="buyPremium('12months', 47.90)">
-                                            <i class="fas fa-shopping-cart mr-2"></i>Buy for Me
-                                        </button>
-                                        <button class="gift-button flex-1" onclick="giftPremium('12months', 47.90, this)">
-                                            <i class="fas fa-gift mr-2"></i>Gift Premium
-                                        </button>
-                                    </div>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Subscribe Now</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Footer -->
-            <div class="p-4 bg-gray-50 border-t border-gray-200 text-center text-sm text-gray-600">
-                <p>&copy; 2024 StarStore. All rights reserved.</p>
-            </div>
         </div>
     </div>
-
-    <!-- Gift Modal -->
-    <div id="giftModal" class="notification-overlay" style="display: none;">
-        <div class="notification-content-container">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">Gift Stars</h3>
-                    <button id="closeGiftModal" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="mb-4">
-                    <div class="text-center p-4 bg-blue-50 rounded-lg mb-4">
-                        <div class="text-2xl font-bold text-blue-600" id="giftStarsAmount">⭐ 0</div>
-                        <div class="text-lg font-semibold text-gray-800" id="giftPrice">$0.00 USDT</div>
-                    </div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Enter recipient's Telegram username</label>
-                    <div class="flex gap-2 mb-2">
-                        <input type="text" id="giftRecipientUsername" class="gift-input flex-1" placeholder="Username (without @)...">
-                        <button id="validateGiftUsername" class="calculate-button" style="min-width: 80px;">
-                            <i class="fas fa-check mr-1"></i>Verify
-                        </button>
-                    </div>
-                    <div id="giftUsernameValidationResult" class="text-sm mb-4" style="display: none;"></div>
-                </div>
-                <div class="flex gap-2">
-                    <button id="cancelGift" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
-                    <button id="confirmGift" class="flex-1 gift-button" disabled>
-                        <i class="fas fa-gift mr-2"></i>Send Gift
-                    </button>
-                </div>
-            </div>
+    
+<!-- Recipient Selection Modal -->
+<div id="recipientModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 class="text-lg font-bold text-gray-800 mb-4" data-translate="selectRecipient">Select Recipient</h3>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-translate="recipientUsername">Recipient Username</label>
+            <input type="text" id="recipientUsername" placeholder="@username" 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1" data-translate="recipientId">or Recipient ID</label>
+            <input type="text" id="recipientId" placeholder="123456789" 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        <div class="flex justify-end space-x-3">
+            <button id="cancelRecipientBtn" class="px-4 py-2 text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-100" data-translate="cancel">Cancel</button>
+            <button id="confirmRecipientBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700" data-translate="confirm">Confirm</button>
         </div>
     </div>
-
-
-   <!-- Google tag (gtag.js) -->
+</div>
+    <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-3CFMZX0XGZ"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -1198,7 +894,19 @@ const translations = {
         notificationsNotAvailable: 'Notifications service not available',
         telegramRequiredForNotifications: 'Please open in Telegram to view notifications',
         tryInTelegram: 'Try opening in Telegram for full functionality',
-        userNotFound: "User information not found. Please refresh the page and try again."
+        userNotFound: "User information not found. Please refresh the page and try again.",
+        copy: "Copy",
+buyCustomStars: "Buy Custom Amount of Stars",
+starsAmount: "Stars Amount (min 50)",
+estimatedCost: "Estimated Cost:",
+buyForSelf: "Buy for Myself",
+buyForOther: "Buy for Someone",
+selectRecipient: "Select Recipient",
+recipientUsername: "Recipient Username",
+recipientId: "or Recipient ID",
+confirm: "Confirm",
+invalidStarsAmount: "Please enter at least 50 stars",
+recipientRequired: "Please enter recipient username or ID"
     },
     ru: {
         appName: "StarStore",
@@ -1244,7 +952,19 @@ const translations = {
         notificationsNotAvailable: 'Сервис уведомлений недоступен',
         telegramRequiredForNotifications: 'Откройте в Telegram для просмотра уведомлений',
         tryInTelegram: 'Попробуйте открыть в Telegram для полного функционала',
-        userNotFound: "Информация о пользователе не найдена. Пожалуйста, обновите страницу и попробуйте снова."
+        userNotFound: "Информация о пользователе не найдена. Пожалуйста, обновите страницу и попробуйте снова.",
+        copy: "Copy",
+buyCustomStars: "Buy Custom Amount of Stars",
+starsAmount: "Stars Amount (min 50)",
+estimatedCost: "Estimated Cost:",
+buyForSelf: "Buy for Myself",
+buyForOther: "Buy for Someone",
+selectRecipient: "Select Recipient",
+recipientUsername: "Recipient Username",
+recipientId: "or Recipient ID",
+confirm: "Confirm",
+invalidStarsAmount: "Please enter at least 50 stars",
+recipientRequired: "Please enter recipient username or ID"
     }
 };
 
@@ -1343,6 +1063,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     initBuyButtons();
                     initNotificationSystem();
                     loadStickers();
+                    setupUserId();
+                    setupCustomStarsPurchase();
                     
                     window.currentUser = currentUser;
                     window.currentWalletAddress = currentWalletAddress;
@@ -1356,7 +1078,124 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
+        
+// User ID and copy functionality
+function setupUserId() {
+    if (currentUser?.id) {
+        document.getElementById('userId').textContent = `ID: ${currentUser.id}`;
+    } else {
+        document.getElementById('userId').textContent = 'ID: not available';
+    }
 
+    document.getElementById('copyUserIdBtn').addEventListener('click', () => {
+        if (currentUser?.id) {
+            navigator.clipboard.writeText(currentUser.id.toString())
+                .then(() => {
+                    const btn = document.getElementById('copyUserIdBtn');
+                    const originalHtml = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check mr-1"></i> <span data-translate="copied">Copied</span>';
+                    setTimeout(() => {
+                        btn.innerHTML = originalHtml;
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error('Failed to copy ID:', err);
+                });
+        }
+    });
+}
+
+// Custom stars purchase functionality
+function setupCustomStarsPurchase() {
+    const customStarsInput = document.getElementById('customStarsAmount');
+    const estimatedCost = document.getElementById('estimatedCost');
+    const buyForSelfBtn = document.getElementById('buyForSelfBtn');
+    const buyForOtherBtn = document.getElementById('buyForOtherBtn');
+    const recipientModal = document.getElementById('recipientModal');
+    const cancelRecipientBtn = document.getElementById('cancelRecipientBtn');
+    const confirmRecipientBtn = document.getElementById('confirmRecipientBtn');
+    
+    // Calculate rate based on existing packages (0.02 USDT per star)
+    const starsRate = 0.02;
+    
+    // Update estimated cost when input changes
+    customStarsInput.addEventListener('input', () => {
+        const stars = parseInt(customStarsInput.value) || 0;
+        if (stars >= 50) {
+            const cost = (stars * starsRate).toFixed(2);
+            estimatedCost.textContent = `${cost} USDT`;
+        } else {
+            estimatedCost.textContent = '0.00 USDT';
+        }
+    });
+    
+    // Handle buy for self
+    buyForSelfBtn.addEventListener('click', () => {
+        const stars = parseInt(customStarsInput.value) || 0;
+        if (stars < 50) {
+            showErrorToUser(translations[currentLanguage].invalidStarsAmount);
+            return;
+        }
+        
+        const amount = (stars * starsRate).toFixed(2);
+        handlePurchase({
+            stars: stars,
+            isPremium: false,
+            amount: amount,
+            forSelf: true
+        });
+    });
+    
+    // Handle buy for other
+    buyForOtherBtn.addEventListener('click', () => {
+        const stars = parseInt(customStarsInput.value) || 0;
+        if (stars < 50) {
+            showErrorToUser(translations[currentLanguage].invalidStarsAmount);
+            return;
+        }
+        
+        // Show recipient modal
+        recipientModal.classList.remove('hidden');
+    });
+    
+    // Recipient modal handlers
+    cancelRecipientBtn.addEventListener('click', () => {
+        recipientModal.classList.add('hidden');
+    });
+    
+    confirmRecipientBtn.addEventListener('click', () => {
+        const username = document.getElementById('recipientUsername').value.trim();
+        const userId = document.getElementById('recipientId').value.trim();
+        
+        if (!username && !userId) {
+            showErrorToUser(translations[currentLanguage].recipientRequired);
+            return;
+        }
+        
+        const stars = parseInt(customStarsInput.value) || 0;
+        const amount = (stars * starsRate).toFixed(2);
+        
+        recipientModal.classList.add('hidden');
+        
+        handlePurchase({
+            stars: stars,
+            isPremium: false,
+            amount: amount,
+            forSelf: false,
+            recipientUsername: username || undefined,
+            recipientId: userId || undefined
+        });
+    });
+    
+    // Close modal when clicking outside
+    recipientModal.addEventListener('click', (e) => {
+        if (e.target === recipientModal) {
+            recipientModal.classList.add('hidden');
+        }
+    });
+}
+
+        
 // Enhanced device detection
 function isLowEndDevice() {
   const userAgent = navigator.userAgent.toLowerCase();
@@ -2192,6 +2031,7 @@ function initBuyButtons() {
     });
 }
 
+
 async function handlePurchase(item) {
     if (!tonConnectUI || !walletConnected) {
         showErrorToUser(translations[currentLanguage].walletNotConnected);
@@ -2292,7 +2132,10 @@ async function handlePurchase(item) {
                 premiumDuration: item.premiumDuration || null,
                 walletAddress: currentWalletAddress,
                 transactionHash: result,
-                isTelegramUser: isTelegramEnv
+                isTelegramUser: isTelegramEnv,
+                forSelf: item.forSelf !== false, // Default to true if not specified
+                recipientUsername: item.recipientUsername,
+                recipientId: item.recipientId
             };
             
             const response = await axios.post('/api/orders/create', orderData);
@@ -2352,7 +2195,7 @@ async function handlePurchase(item) {
             Swal.close();
         }
     }
-}
+}       
 
 async function fetchCurrentRate() {
     try {
