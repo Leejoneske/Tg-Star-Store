@@ -6,6 +6,12 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const cors = require('cors');
+
+
+const { TelegramApi } = require('telegram');
+const { StringSession } = require('telegram/sessions');
+const input = require('input');
+
 const axios = require('axios');
 const fetch = require('node-fetch');
 const app = express();
@@ -384,6 +390,223 @@ app.get('/api/get-wallet-address', (req, res) => {
     }
 });
 
+
+class StarAutomationManager {
+    constructor() {
+        this.accounts = [
+            {
+                id: 1,
+                apiId: process.env.ADMIN1_API_ID,
+                apiHash: process.env.ADMIN1_API_HASH,
+                session: process.env.ADMIN1_SESSION || '',
+                phone: process.env.ADMIN1_PHONE,
+                client: null,
+                balance: 0,
+                lastUsed: 0,
+                isActive: false
+            },
+            {
+                id: 2,
+                apiId: process.env.ADMIN2_API_ID,
+                apiHash: process.env.ADMIN2_API_HASH,
+                session: process.env.ADMIN2_SESSION || '',
+                phone: process.env.ADMIN2_PHONE,
+                client: null,
+                balance: 0,
+                lastUsed: 0,
+                isActive: false
+            }
+        ];
+        this.processingQueue = [];
+        this.isInitialized = false;
+        this.botUsername = process.env.BOT_USERNAME || 'AutoBot';
+    }
+
+    async initialize() {
+        try {
+            for (let account of this.accounts) {
+                const stringSession = new StringSession(account.session);
+                account.client = new TelegramApi(account.apiId, account.apiHash, {
+                    session: stringSession,
+                    connectionRetries: 5,
+                });
+
+                await account.client.start({
+                    phoneNumber: account.phone,
+                    password: async () => await input.text('Password?'),
+                    phoneCode: async () => await input.text('Code?'),
+                    onError: (err) => console.log(err),
+                });
+
+                account.isActive = true;
+                account.session = account.client.session.save();
+                await this.updateBalance(account);
+            }
+            
+            this.isInitialized = true;
+            await this.notifyAdmins(`🤖 Star Automation System Initialized\n\nActive accounts: ${this.accounts.filter(a => a.isActive).length}/2\nBot: @${this.botUsername}`);
+            
+        } catch (error) {
+            await this.notifyAdmins(`❌ Automation System Failed to Initialize\n\nError: ${error.message}\nFallback: Manual processing required`);
+            throw error;
+        }
+    }
+
+    async updateBalance(account) {
+        try {
+            const result = await account.client.invoke({
+                _: 'payments.getStarsStatus',
+            });
+            account.balance = result.balance || 0;
+        } catch (error) {
+            console.error(`Failed to get balance for account ${account.id}:`, error);
+            account.balance = 0;
+        }
+    }
+
+    async getOptimalAccount(requiredStars) {
+        if (!this.isInitialized) return null;
+        
+        const availableAccounts = this.accounts.filter(a => 
+            a.isActive && 
+            a.balance >= requiredStars
+        );
+        
+        if (availableAccounts.length === 0) return null;
+        
+        return availableAccounts.reduce((prev, current) => 
+            (prev.lastUsed < current.lastUsed) ? prev : current
+        );
+    }
+
+    async sendStars(recipientId, amount, orderId) {
+        const account = await this.getOptimalAccount(amount);
+        
+        if (!account) {
+            throw new Error(`Insufficient balance across all accounts. Required: ${amount} stars`);
+        }
+
+        try {
+            await account.client.invoke({
+                _: 'payments.sendStarsForm',
+                userId: recipientId,
+                stars: amount,
+                formId: orderId
+            });
+
+            account.balance -= amount;
+            account.lastUsed = Date.now();
+            
+            return {
+                success: true,
+                accountUsed: account.id,
+                remainingBalance: account.balance
+            };
+            
+        } catch (error) {
+            throw new Error(`Failed to send stars: ${error.message}`);
+        }
+    }
+
+    async notifyAdmins(message) {
+        for (const adminId of adminIds) {
+            try {
+                await bot.sendMessage(adminId, message);
+            } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
+            }
+        }
+    }
+
+    async processAutomaticOrder(order, orderType) {
+        try {
+            if (orderType === 'buy') {
+                const result = await this.sendStars(order.telegramId, order.stars, order.id);
+                
+                order.status = 'completed';
+                order.dateCompleted = new Date();
+                order.processedBy = this.botUsername;
+                order.automationDetails = {
+                    accountUsed: result.accountUsed,
+                    remainingBalance: result.remainingBalance,
+                    processedAt: new Date()
+                };
+                await order.save();
+                
+                await trackStars(order.telegramId, order.stars, 'buy');
+                if (order.isPremium) {
+                    await trackPremiumActivation(order.telegramId);
+                }
+
+                const statusText = '✅ Completed';
+                const processedBy = `Processed by: @${this.botUsername} (Automated)`;
+                
+                const updatePromises = order.adminMessages.map(async (adminMsg) => {
+                    try {
+                        const updatedText = `${adminMsg.originalText}\n\n${statusText}\n${processedBy}`;
+                        await bot.editMessageText(updatedText, {
+                            chat_id: adminMsg.adminId,
+                            message_id: adminMsg.messageId,
+                            reply_markup: {
+                                inline_keyboard: [[
+                                    { 
+                                        text: '✅ Completed (Auto)', 
+                                        callback_data: `processed_${order.id}_${Date.now()}`
+                                    }
+                                ]]
+                            }
+                        });
+                    } catch (err) {
+                        console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
+                    }
+                });
+
+                await Promise.allSettled(updatePromises);
+
+                const userMessage = order.isPremium ?
+                    `✅ Your premium order #${order.id} has been completed automatically!\n\nDuration: ${order.premiumDuration} months\nStars sent to your account\n\nThank you for choosing StarStore!` :
+                    `✅ Your buy order #${order.id} has been completed automatically!\n\nStars: ${order.stars}\nStars sent to your account\n\nThank you for choosing StarStore!`;
+
+                await bot.sendMessage(order.telegramId, userMessage);
+
+                await this.notifyAdmins(`🤖 Automated Order Completed\n\nOrder ID: ${order.id}\nUser: @${order.username || 'N/A'}\nStars: ${order.stars}\nAccount Used: ${result.accountUsed}\nRemaining Balance: ${result.remainingBalance}`);
+
+                return { success: true, automated: true };
+                
+            }
+        } catch (error) {
+            await this.notifyAdmins(`❌ Automation Failed for Order ${order.id}\n\nError: ${error.message}\nOrder moved to manual processing`);
+            return { success: false, error: error.message, automated: false };
+        }
+    }
+
+    async checkSystemHealth() {
+        if (!this.isInitialized) return false;
+        
+        let healthyAccounts = 0;
+        let totalBalance = 0;
+        
+        for (let account of this.accounts) {
+            if (account.isActive) {
+                await this.updateBalance(account);
+                if (account.balance > 0) {
+                    healthyAccounts++;
+                    totalBalance += account.balance;
+                }
+            }
+        }
+        
+        if (healthyAccounts === 0) {
+            await this.notifyAdmins(`⚠️ System Health Alert\n\nNo accounts with stars available\nTotal Balance: ${totalBalance}\nManual intervention required`);
+            return false;
+        }
+        
+        return true;
+    }
+}
+
+const starAutomation = new StarAutomationManager();
+
 app.post('/api/orders/create', async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
@@ -426,20 +649,21 @@ app.post('/api/orders/create', async (req, res) => {
             isPremium,
             status: 'pending',
             dateCreated: new Date(),
-            adminMessages: []
+            adminMessages: [],
+            automationAttempted: false
         });
 
         await order.save();
 
         const userMessage = isPremium ?
-            `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending` :
-            `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending`;
+            `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Processing automatically...` :
+            `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Processing automatically...`;
 
         await bot.sendMessage(telegramId, userMessage);
 
         const adminMessage = isPremium ?
-            `🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months` :
-            `🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}`;
+            `🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Auto-processing...` :
+            `🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Auto-processing...`;
 
         const adminKeyboard = {
             inline_keyboard: [[
@@ -462,6 +686,41 @@ app.post('/api/orders/create', async (req, res) => {
         }
 
         await order.save();
+
+        setTimeout(async () => {
+            try {
+                const currentOrder = await BuyOrder.findOne({ id: order.id });
+                if (currentOrder && currentOrder.status === 'pending' && !currentOrder.automationAttempted) {
+                    currentOrder.automationAttempted = true;
+                    await currentOrder.save();
+                    
+                    const automationResult = await starAutomation.processAutomaticOrder(currentOrder, 'buy');
+                    
+                    if (!automationResult.success) {
+                        const fallbackMessage = isPremium ?
+                            `🛒 Premium Order (Manual Review)\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nReason: ${automationResult.error}` :
+                            `🛒 Buy Order (Manual Review)\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}\nReason: ${automationResult.error}`;
+                            
+                        for (const adminMsg of currentOrder.adminMessages) {
+                            try {
+                                await bot.editMessageText(fallbackMessage, {
+                                    chat_id: adminMsg.adminId,
+                                    message_id: adminMsg.messageId,
+                                    reply_markup: adminKeyboard
+                                });
+                            } catch (err) {
+                                console.error(`Failed to update admin message:`, err);
+                            }
+                        }
+                        
+                        await bot.sendMessage(telegramId, `⏳ Your order #${order.id} is being processed manually. You'll be notified once completed.`);
+                    }
+                }
+            } catch (error) {
+                console.error('Automation processing error:', error);
+            }
+        }, 5000);
+
         res.json({ success: true, order });
     } catch (err) {
         console.error('Order creation error:', err);
@@ -493,7 +752,6 @@ app.post("/api/sell-orders", async (req, res) => {
             return res.status(403).json({ error: "You are banned from placing orders" });
         }
 
-        // Check for existing pending orders for this user
         const existingOrder = await SellOrder.findOne({ 
             telegramId: telegramId,
             status: "pending",
@@ -507,7 +765,6 @@ app.post("/api/sell-orders", async (req, res) => {
             });
         }
 
-        // Generate unique session token for this user and order
         const sessionToken = generateSessionToken(telegramId);
         const sessionExpiry = new Date(Date.now() + 15 * 60 * 1000); 
 
@@ -557,14 +814,12 @@ app.post("/api/sell-orders", async (req, res) => {
     }
 });
 
-// Generate unique session token
 function generateSessionToken(telegramId) {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 15);
     return `${telegramId}_${timestamp}_${random}`;
 }
 
-// Enhanced pre-checkout validation 
 bot.on('pre_checkout_query', async (query) => {
     const orderId = query.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId }) || await BuyOrder.findOne({ id: orderId });
@@ -574,22 +829,18 @@ bot.on('pre_checkout_query', async (query) => {
         return;
     }
 
-    // Check if order has expired
     if (order.sessionExpiry && new Date() > order.sessionExpiry) {
         await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Payment session has expired" });
-        // Update order status to expired
         order.status = "expired";
         await order.save();
         return;
     }
 
-    // Check if the user making payment matches the order creator
     if (order.userLocked && order.userLocked.toString() !== query.from.id.toString()) {
         await bot.answerPreCheckoutQuery(query.id, false, { error_message: "This payment link is not valid for your account" });
         return;
     }
 
-    // Check if order already processed (duplicate payment protection)
     if (order.status !== "pending") {
         await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Order already processed" });
         return;
@@ -628,14 +879,11 @@ bot.on("successful_payment", async (msg) => {
         return await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Please contact support.");
     }
 
-    // Verify user matches order creator
     if (order.userLocked && order.userLocked.toString() !== msg.from.id.toString()) {
-        // This shouldn't happen if pre-checkout validation works, but extra safety
         await bot.sendMessage(msg.chat.id, "❌ Payment validation error. Please contact support.");
         return;
     }
 
-    // Check if order already processed (duplicate payment protection)
     if (order.status !== "pending") {
         await bot.sendMessage(msg.chat.id, "❌ This order has already been processed. If you were charged multiple times, please contact support.");
         return;
@@ -730,6 +978,7 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'completed';
             order.dateCompleted = new Date();
+            order.processedBy = adminUsername;
             await order.save();
             await trackStars(order.telegramId, order.stars, 'sell');
         } 
@@ -745,6 +994,7 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'failed';
             order.dateDeclined = new Date();
+            order.processedBy = adminUsername;
             await order.save();
         }
         else if (data.startsWith('refund_sell_')) {
@@ -759,6 +1009,7 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'refunded';
             order.dateRefunded = new Date();
+            order.processedBy = adminUsername;
             await order.save();
         }
         else if (data.startsWith('complete_buy_')) {
@@ -780,6 +1031,7 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'completed';
             order.dateCompleted = new Date();
+            order.processedBy = adminUsername;
             await order.save();
             await trackStars(order.telegramId, order.stars, 'buy');
             if (order.isPremium) {
@@ -798,6 +1050,7 @@ bot.on('callback_query', async (query) => {
 
             order.status = 'declined';
             order.dateDeclined = new Date();
+            order.processedBy = adminUsername;
             await order.save();
         }
         else {
@@ -807,7 +1060,7 @@ bot.on('callback_query', async (query) => {
         const statusText = order.status === 'completed' ? '✅ Completed' : 
                           order.status === 'failed' ? '❌ Failed' : 
                           order.status === 'refunded' ? '💸 Refunded' : '❌ Declined';
-        const processedBy = `Processed by: @${adminUsername}`;
+        const processedBy = `Processed by: @${order.processedBy || adminUsername}`;
         const completionNote = orderType === 'sell' && order.status === 'completed' ? '\n\nPayments have been transferred to the seller.' : '';
 
         const updatePromises = order.adminMessages.map(async (adminMsg) => {
@@ -885,16 +1138,13 @@ async function createTelegramInvoice(chatId, orderId, stars, description, sessio
     }
 }
 
-// Background job to clean up expired orders - ENHANCED WITH USER NOTIFICATIONS
 async function cleanupExpiredOrders() {
     try {
-        // Find expired orders first to notify users
         const expiredOrders = await SellOrder.find({
             status: "pending",
             sessionExpiry: { $lt: new Date() }
         });
 
-        // Notify users about expired orders
         for (const order of expiredOrders) {
             try {
                 await bot.sendMessage(
@@ -908,7 +1158,6 @@ async function cleanupExpiredOrders() {
             }
         }
 
-        // Update expired orders in database
         const updateResult = await SellOrder.updateMany(
             { 
                 status: "pending",
@@ -921,7 +1170,6 @@ async function cleanupExpiredOrders() {
         );
         
         if (updateResult.modifiedCount > 0) {
-            // Send notification to admin channel or first admin instead of console
             if (adminIds && adminIds.length > 0) {
                 try {
                     await bot.sendMessage(
@@ -932,7 +1180,6 @@ async function cleanupExpiredOrders() {
                     );
                 } catch (err) {
                     console.error('Failed to notify admin about cleanup:', err);
-                    // Fallback to console if admin notification fails
                     console.log(`Cleaned up ${updateResult.modifiedCount} expired sell orders`);
                 }
             } else {
@@ -941,7 +1188,6 @@ async function cleanupExpiredOrders() {
         }
     } catch (error) {
         console.error('Error cleaning up expired orders:', error);
-        // Notify admin about cleanup errors
         if (adminIds && adminIds.length > 0) {
             try {
                 await bot.sendMessage(
@@ -958,8 +1204,23 @@ async function cleanupExpiredOrders() {
     }
 }
 
-// Run cleanup every 5 minutes
 setInterval(cleanupExpiredOrders, 5 * 60 * 1000);
+
+async function initializeStarAutomation() {
+    try {
+        await starAutomation.initialize();
+        setInterval(async () => {
+            await starAutomation.checkSystemHealth();
+        }, 30 * 60 * 1000);
+    } catch (error) {
+        console.error('Failed to initialize star automation:', error);
+    }
+}
+
+process.nextTick(initializeStarAutomation);
+
+
+        
 
 
 bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
