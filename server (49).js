@@ -1868,6 +1868,12 @@ bot.on('callback_query', async (query) => {
 //referral tracking for referrals rewards
 async function handleReferralActivation(tracker) {
     try {
+        // Get user details
+        const [referrer, referred] = await Promise.all([
+            User.findOne({ id: tracker.referrerUserId }),
+            User.findOne({ id: tracker.referredUserId })
+        ]);
+
         // Update both tracker and referral
         tracker.status = 'active';
         tracker.dateActivated = new Date();
@@ -1880,14 +1886,37 @@ async function handleReferralActivation(tracker) {
             });
         }
 
-        // Send notification
+        // Format detailed admin notification
+        const adminMessage = `🎉 REFERRAL ACTIVATED!\n\n` +
+            `🔗 Referral Link: ${tracker.referral}\n` +
+            `👤 Referrer: @${referrer?.username || 'unknown'} (ID: ${tracker.referrerUserId})\n` +
+            `👥 Referred: @${referred?.username || tracker.referredUsername || 'unknown'} (ID: ${tracker.referredUserId})\n` +
+            `⭐ Total Stars Bought: ${tracker.totalBoughtStars}\n` +
+            `⭐ Total Stars Sold: ${tracker.totalSoldStars}\n` +
+            `🎖️ Premium Activated: ${tracker.premiumActivated ? 'Yes' : 'No'}\n` +
+            `📅 Date Referred: ${tracker.dateReferred.toLocaleDateString()}\n` +
+            `📅 Date Activated: ${new Date().toLocaleDateString()}`;
+
+        // Send to all admins
+        for (const adminId of adminIds) {
+            try {
+                await bot.sendMessage(adminId, adminMessage, {
+                    parse_mode: 'Markdown',
+                    disable_web_page_preview: true
+                });
+            } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
+            }
+        }
+
+        // Send notification to referrer
         await bot.sendMessage(
             tracker.referrerUserId,
-            `🎉 One of your referrals just qualified!\n\n` +
-            `You've received a bonus of 0.5 USDT.`
+            `🎉 Your referral @${referred?.username || tracker.referredUsername} just became active!\n` +
+            `You earned 0.5 USDT referral bonus.`
         );
     } catch (error) {
-        console.error('Activation error:', error);
+        console.error('Referral activation error:', error);
     }
 }
 
@@ -1904,25 +1933,7 @@ async function trackStars(userId, stars, type) {
         
         // Activation logic (100+ stars or premium)
         if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
-            tracker.status = 'active';
-            tracker.dateActivated = new Date();
-            await tracker.save();
-
-            // Update corresponding referral record
-            await Referral.findOneAndUpdate(
-                { referredUserId: userId },
-                { 
-                    status: 'active',
-                    dateActivated: new Date() 
-                }
-            );
-
-            // Notify referrer
-            await bot.sendMessage(
-                tracker.referrerUserId,
-                `🎉 Your referral @${tracker.referredUsername} just became active!\n` +
-                `You earned 0.5 USDT referral bonus.`
-            );
+            await handleReferralActivation(tracker);
         } else {
             await tracker.save();
         }
