@@ -620,13 +620,9 @@
         </div>
 
         <div id="content-container">
-            <div id="menubar-container"></div>
+            <div id="bottomnav-container"></div>
             <div class="p-4 flex justify-between items-center bg-white shadow-sm relative">
-                <button id="menuButton" class="p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                    </svg>
-                </button>
+                <div class="p-2"></div>
                 <div class="logo-header" data-translate="appName">StarStore</div>
                 <div class="flex items-center space-x-4">
                     <button class="notification-button relative p-2 rounded-full hover:bg-gray-100 transition-colors" id="notificationButton">
@@ -680,7 +676,7 @@
                         <div class="text-sm font-semibold text-gray-700 mb-2">Custom Stars</div>
                         <div class="flex items-center gap-2">
                             <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50)" class="flex-1 px-3 py-2 border rounded-md text-sm" />
-                            <button id="applyCustomStars" class="px-3 py-2 text-sm rounded-md border border-gray-300">Apply</button>
+                            <button id="buyCustomStars" class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-indigo-600 text-white">Buy</button>
                         </div>
                         <div class="text-xs text-gray-500 mt-1">If set, this overrides the package selection.</div>
                         <div class="text-xs text-gray-700 mt-1" id="customStarsQuote"></div>
@@ -1021,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initWalletConnection();
         
         setTimeout(() => {
-            loadMenuBar()
+            loadBottomNav()
                 .then(() => {
                     initLanguageToggle();
                     initSectionToggle();
@@ -1480,28 +1476,14 @@ function initNotificationSystem() {
 }
     
        
-function loadMenuBar() {
-    return new Promise((resolve, reject) => {
-        const menubarContainer = document.getElementById('menubar-container');
-        if (!menubarContainer) {
-            console.warn('Menubar container not found, continuing without menubar');
-            return resolve();
-        }
-
-        fetch('menubar.html')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.text();
-            })
-            .then(html => {
-                menubarContainer.innerHTML = html;
-                initMenu();
-                resolve();
-            })
-            .catch(error => {
-                console.error('Menubar load error:', error);
-                resolve();
-            });
+function loadBottomNav() {
+    return new Promise((resolve) => {
+        const container = document.getElementById('bottomnav-container');
+        if (!container) return resolve();
+        fetch('bottomnav.html')
+            .then(r => r.ok ? r.text() : '')
+            .then(html => { container.innerHTML = html; resolve(); })
+            .catch(() => resolve());
     });
 }
 
@@ -2046,7 +2028,7 @@ async function validateRecipients(containerId) {
 
 function initCustomStars() {
     const input = document.getElementById('customStarsInput');
-    const applyBtn = document.getElementById('applyCustomStars');
+    const applyBtn = document.getElementById('buyCustomStars');
     const quoteText = document.getElementById('customStarsQuote');
     if (!input || !applyBtn) return;
 
@@ -2074,7 +2056,25 @@ function initCustomStars() {
 
     applyBtn.addEventListener('click', async (e) => {
         e.preventDefault();
+        // Validate input and recipients then proceed to buy using custom stars
+        const val = Number(input.value || 0);
+        if (!val || val < 50) {
+            showErrorToUser('Please enter at least 50 stars');
+            return;
+        }
+        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+        if (buyForValue === 'others') {
+            const validation = await validateRecipients('recipientsContainer');
+            const recipients = validation?.recipients || [];
+            if (recipients.length === 0) {
+                showErrorToUser('Please add at least one valid recipient');
+                return;
+            }
+        }
         await refreshQuote();
+        // Trigger purchase with a synthetic item using custom stars
+        const fakeItem = { isPremium: false, stars: val };
+        await handlePurchase(fakeItem);
     });
 
     input.addEventListener('input', () => {
