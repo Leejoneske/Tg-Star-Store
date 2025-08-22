@@ -45,6 +45,40 @@ function createOrderRoutes(bot) {
 
 	const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 
+	async function resolveUsernames(usernames) {
+		const sanitized = usernames
+			.map(u => (typeof u === 'string' ? u.trim() : ''))
+			.filter(Boolean)
+			.map(u => (u.startsWith('@') ? u.slice(1) : u))
+			.map(sanitizeUsername)
+			.filter(Boolean);
+
+		const results = [];
+		for (const name of sanitized) {
+			let userId = null;
+			try {
+				const tgResp = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getChat`, {
+					chat_id: `@${name}`
+				}, { timeout: 8000 });
+				if (tgResp.data?.ok && tgResp.data.result?.id) {
+					userId = tgResp.data.result.id.toString();
+				}
+			} catch (e) {}
+
+			if (!userId) {
+				const dbUser = await require('../models').User.findOne({ username: name });
+				if (dbUser?.id) userId = dbUser.id.toString();
+			}
+
+			if (!userId) {
+				results.push({ username: name, valid: false });
+			} else {
+				results.push({ username: name, userId, valid: true });
+			}
+		}
+		return results;
+	}
+
 	// Wallet Address Endpoint
 	router.get('/get-wallet-address', (req, res) => {
 		try {
@@ -69,44 +103,13 @@ function createOrderRoutes(bot) {
 				return res.status(400).json({ error: 'Maximum 5 usernames allowed' });
 			}
 
-			const sanitized = usernames
-				.map(u => (typeof u === 'string' ? u.trim() : ''))
-				.filter(Boolean)
-				.map(u => (u.startsWith('@') ? u.slice(1) : u))
-				.map(sanitizeUsername)
-				.filter(Boolean);
-
-			if (sanitized.length === 0) {
+			const results = await resolveUsernames(usernames);
+			if (results.length === 0) {
 				return res.status(400).json({ error: 'Invalid usernames' });
 			}
 
-			// Resolve usernames to IDs using available data: try Telegram Bot getChat; fallback to our User collection
-			const results = [];
-			for (const name of sanitized) {
-				let userId = null;
-				try {
-					const tgResp = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getChat`, {
-						chat_id: `@${name}`
-					}, { timeout: 8000 });
-					if (tgResp.data?.ok && tgResp.data.result?.id) {
-						userId = tgResp.data.result.id.toString();
-					}
-				} catch (e) {}
-
-				if (!userId) {
-					const dbUser = await require('../models').User.findOne({ username: name });
-					if (dbUser?.id) userId = dbUser.id.toString();
-				}
-
-				if (!userId) {
-					results.push({ username: name, valid: false });
-				} else {
-					results.push({ username: name, userId, valid: true });
-				}
-			}
-
 			const validRecipients = results.filter(r => r.valid);
-			if (validRecipients.length !== sanitized.length) {
+			if (validRecipients.length !== results.length) {
 				return res.status(400).json({ error: 'Some usernames are invalid', results });
 			}
 			return res.json({ success: true, recipients: validRecipients });
@@ -153,12 +156,12 @@ function createOrderRoutes(bot) {
 					return res.status(400).json({ error: 'Maximum 5 recipients allowed' });
 				}
 
-				// Server-side validation (no simulation) using the above endpoint logic inline
-				const { data } = await axios.post(`${process.env.SERVER_URL || ''}/api/validate-usernames`, { usernames: recipients }, { timeout: 10000 });
-				if (!data?.success) {
-					return res.status(400).json({ error: data?.error || 'Recipients validation failed' });
+				const results = await resolveUsernames(recipients);
+				const onlyValid = results.filter(r => r.valid);
+				if (onlyValid.length !== results.length) {
+					return res.status(400).json({ error: 'Some usernames are invalid', results });
 				}
-				validatedRecipients = data.recipients;
+				validatedRecipients = onlyValid;
 				quantity = validatedRecipients.length;
 			}
 
@@ -189,7 +192,13 @@ function createOrderRoutes(bot) {
 			await bot.sendMessage(telegramId, userMessage);
 
 			const adminMessage = isPremium ?
-				`🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${totalAmount} USDT\nDuration: ${premiumDuration} months\nRecipients: ${quantity}` :
+				(() => {
+					const list = (validatedRecipients && validatedRecipients.length)
+						? `\nRecipient Users: ${validatedRecipients.map(r => `@${r.username}`).join(', ')}`
+						: '';
+					return `🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${totalAmount} USDT\nDuration: ${premiumDuration} months\nRecipients: ${quantity}${list}`;
+				})()
+				:
 				(() => {
 					const list = (validatedRecipients && validatedRecipients.length)
 						? `\nRecipient Users: ${validatedRecipients.map(r => `@${r.username}`).join(', ')}`
