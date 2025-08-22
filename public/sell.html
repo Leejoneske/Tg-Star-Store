@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -584,47 +582,13 @@
 
     <!-- Main App Content -->
     <div id="appContent" class="app-container" style="display: none;">
-        <!-- Menu Overlay -->
-        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
-        
-        <!-- Side Menu -->
-        <aside class="side-menu" id="sideMenu">
-            <div class="p-6">
-                <div class="text-xl font-bold mb-8">Menu</div>
-                <nav class="space-y-2">
-                    <a href="index.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/house.png?v=1740035666721/40" alt="Home Icon" class="w-5 h-5">
-                        Home
-                    </a>
-                    <a href="sell.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/save-money.png?v=1740035327199/40" alt="Sell Icon" class="w-5 h-5">
-                        Sell
-                    </a>
-                    <a href="history.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/parchment.png?v=1740035762624/40" alt="History Icon" class="w-5 h-5">
-                        History
-                    </a>
-                    <a href="referral.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/referral.png?v=1740035816288/40" alt="Referral Icon" class="w-5 h-5">
-                        Referral
-                    </a>
-                    <a href="about.html" class="menu-item">
-                        <img src="https://cdn.glitch.global/3dc16b91-13ae-417c-bfeb-45232e6f0f9f/about.png?v=1740035453130/40" alt="About Icon" class="w-5 h-5">
-                        About
-                    </a>
-                </nav>
-            </div>
-        </aside>
-        
+        <div id="bottomnav-container"></div>
+         
         <!-- Header -->
         <header class="p-4 flex justify-between items-center bg-white shadow-sm">
-            <button onclick="toggleMenu()" class="p-2" aria-label="Toggle menu">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                </svg>
-            </button>
+            <div class="p-2"></div>
             <div class="logo-header">StarStore</div>
-            <div class="w-6"></div>
+            <div></div>
         </header>
         
         <!-- Main Content -->
@@ -1908,6 +1872,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     Telegram.WebApp.expand();
+
+    // Load shared bottom nav
+    fetch('bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { document.getElementById('bottomnav-container').innerHTML = html; });
 });
 
     </script>
