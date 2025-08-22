@@ -19,6 +19,7 @@ const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 // Import Telegram auth middleware (single import only)
 const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
+const { Sticker, Notification, Warning, Reversal, Feedback, ReferralTracker, ReferralWithdrawal, Cache, BuyOrder, SellOrder, User, Referral, BannedUser } = require('./models');
 const reversalRequests = new Map();
 // Middleware
 app.use(cors({
@@ -78,289 +79,15 @@ app.get('/health', (req, res) => {
 });
 
 
-const buyOrderSchema = new mongoose.Schema({
-    id: String,
-    telegramId: String,
-    username: String,
-    amount: Number,
-    stars: Number,
-    premiumDuration: Number,
-    walletAddress: String,
-    isPremium: Boolean,
-    status: String,
-    dateCreated: Date,
-    adminMessages: Array
-});
-
-const sellOrderSchema = new mongoose.Schema({
-    id: {
-        type: String,
-        required: true,
-        unique: true
-    },
-    telegramId: {
-        type: String,
-        required: true
-    },
-    username: String,
-    stars: {
-        type: Number,
-        required: true
-    },
-    walletAddress: String,
-    memoTag: String,
-    status: {
-        type: String,
-        enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed', 'expired'], 
-        default: 'pending'
-    },
-    telegram_payment_charge_id: {
-        type: String,
-        required: function() {
-            return this.dateCreated > new Date('2025-05-25'); 
-        },
-        default: null
-    },
-    reversible: {
-        type: Boolean,
-        default: true
-    },
-    // NEW FIELDS FOR SESSION MANAGEMENT
-    sessionToken: {
-        type: String,
-        default: null
-    },
-    sessionExpiry: {
-        type: Date,
-        default: null
-    },
-    userLocked: {
-        type: String, 
-        default: null
-    },
-    // END NEW FIELDS
-    reversalData: {
-        requested: Boolean,
-        reason: String,
-        status: {
-            type: String,
-            enum: ['none', 'requested', 'approved', 'rejected', 'processed'],
-            default: 'none'
-        },
-        adminId: String,
-        processedAt: Date
-    },
-    refundData: {
-        requested: Boolean,
-        reason: String,
-        status: {
-            type: String,
-            enum: ['none', 'requested', 'approved', 'rejected', 'processed'],
-            default: 'none'
-        },
-        adminId: String,
-        processedAt: Date,
-        chargeId: String
-    },
-    adminMessages: [{
-        adminId: String,
-        messageId: Number,
-        originalText: String,
-        messageType: {
-            type: String,
-            enum: ['order', 'refund', 'reversal']
-        }
-    }],
-    dateCreated: {
-        type: Date,
-        default: Date.now
-    },
-    dateCompleted: Date,
-    dateReversed: Date,
-    dateRefunded: Date,
-    datePaid: Date, 
-    dateDeclined: Date 
-});
-
-const userSchema = new mongoose.Schema({
-    id: String,
-    username: String
-});
-
-const bannedUserSchema = new mongoose.Schema({
-    users: Array
-});
-
-const cacheSchema = new mongoose.Schema({
-    id: { type: String, required: true, unique: true },
-    username: { type: String, required: true },
-    date: { type: Date, default: Date.now }
-});
 
 
-const referralSchema = new mongoose.Schema({
-    referrerUserId: { type: String, required: true },
-    referredUserId: { type: String, required: true },
-    status: { type: String, enum: ['pending', 'active', 'completed'], default: 'pending' },
-    withdrawn: { type: Boolean, default: false },
-    dateReferred: { type: Date, default: Date.now }
-});
-
-const referralWithdrawalSchema = new mongoose.Schema({
-    withdrawalId: {  
-        type: String,
-        required: true,
-        unique: true,
-        default: () => generateOrderId() 
-    },
-    userId: String,
-    username: String,
-    amount: Number,
-    walletAddress: String,
-    referralIds: [{ 
-        type: String, 
-        ref: 'Referral' 
-    }],
-    status: { 
-        type: String, 
-        enum: ['pending', 'completed', 'declined'], 
-        default: 'pending' 
-    },
-    createdAt: { 
-        type: Date, 
-        default: Date.now 
-    }
-});
-
-const referralTrackerSchema = new mongoose.Schema({
-    referral: { type: mongoose.Schema.Types.ObjectId, ref: 'Referral' },
-    referrerUserId: { type: String, required: true },
-    referredUserId: { type: String, required: true, unique: true },
-    referredUsername: String,
-    totalBoughtStars: { type: Number, default: 0 },
-    totalSoldStars: { type: Number, default: 0 },
-    premiumActivated: { type: Boolean, default: false },
-    status: { type: String, enum: ['pending', 'active'], default: 'pending' },
-    dateReferred: { type: Date, default: Date.now },
-    dateActivated: Date
-});
-
-
-// Add to your schemas section
-const feedbackSchema = new mongoose.Schema({
-    orderId: { type: String, required: true },
-    telegramId: { type: String, required: true },
-    username: String,
-    satisfaction: { type: Number, min: 1, max: 5 }, 
-    reasons: String, // Why they rated this way
-    suggestions: String, // What could be improved
-    additionalInfo: String, // Optional free-form feedback
-    dateSubmitted: { type: Date, default: Date.now }
-});
-
-const reversalSchema = new mongoose.Schema({
-    orderId: { type: String, required: true },
-    telegramId: { type: String, required: true },
-    username: String,
-    stars: { type: Number, required: true },
-    reason: { type: String, required: true },
-    status: { type: String, enum: ['pending', 'approved', 'rejected', 'processed'], default: 'pending' },
-    adminId: String,
-    adminUsername: String,
-    processedAt: Date
-});
-
-const warningSchema = new mongoose.Schema({
-    userId: { type: String, required: true },
-    type: { type: String, enum: ['warning', 'ban'], required: true },
-    reason: { type: String, required: true },
-    issuedBy: { type: String, required: true },
-    issuedAt: { type: Date, default: Date.now },
-    expiresAt: { type: Date },
-    isActive: { type: Boolean, default: true },
-    autoRemove: { type: Boolean, default: false }
-});
-
-const notificationSchema = new mongoose.Schema({
-    userId: {
-        type: String,
-        default: 'all',
-        index: true // Add index for better performance
-    },
-    title: {
-        type: String,
-        required: true,
-        default: 'Notification'
-    },
-    message: {
-        type: String,
-        required: true
-    },
-    actionUrl: String, // Renamed from 'url' for clarity
-    icon: {
-        type: String,
-        default: 'bell' // Can be 'bell', 'warning', 'success', etc.
-    },
-    timestamp: {
-        type: Date,
-        default: Date.now,
-        index: true // Index for sorting
-    },
-    isGlobal: {
-        type: Boolean,
-        default: false
-    },
-    read: {
-        type: Boolean,
-        default: false,
-        index: true
-    },
-    createdBy: {
-        type: String,
-        default: 'system'
-    },
-    priority: {
-        type: Number,
-        default: 0, // 0 = normal, 1 = important, 2 = urgent
-        min: 0,
-        max: 2
-    }
-});
-
-const stickerSchema = new mongoose.Schema({
-  file_id: { type: String, required: true },
-  file_unique_id: { type: String, required: true, unique: true },
-  file_path: { type: String },
-  is_animated: { type: Boolean, default: false },
-  is_video: { type: Boolean, default: false },
-  emoji: { type: String },
-  set_name: { type: String },
-  created_at: { type: Date, default: Date.now },
-  updated_at: { type: Date, default: Date.now }
-});
-
-const Sticker = mongoose.model('Sticker', stickerSchema);
-const Notification = mongoose.model('Notification', notificationSchema);
-const Warning = mongoose.model('Warning', warningSchema);
-const Reversal = mongoose.model('Reversal', reversalSchema);
-const Feedback = mongoose.model('Feedback', feedbackSchema);
-const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
-const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
-const Cache = mongoose.model('Cache', cacheSchema);
-const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
-const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
-const User = mongoose.model('User', userSchema);
-const Referral = mongoose.model('Referral', referralSchema);
-const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
-
-
-const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
+const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
 // Wallet Address Endpoint
-app.get('/api/get-wallet-address', (req, res) => {
+// moved to routes/orderRoutes.js
     try {
         const walletAddress = process.env.WALLET_ADDRESS;
         
@@ -384,7 +111,7 @@ app.get('/api/get-wallet-address', (req, res) => {
     }
 });
 
-app.post('/api/orders/create', async (req, res) => {
+// moved to routes/orderRoutes.js
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
 
@@ -474,7 +201,7 @@ function sanitizeUsername(username) {
     return username.replace(/[^\w\d_]/g, '');
 }
 
-app.post("/api/sell-orders", async (req, res) => {
+// moved to routes/orderRoutes.js
     try {
         const { 
             telegramId, 
@@ -1487,78 +1214,19 @@ bot.on('sticker', async (msg) => {
 });
 
 // API ENDPOINTS
-app.get('/api/sticker/:sticker_id/json', async (req, res) => {
-  try {
-    const sticker = await Sticker.findOne({ file_unique_id: req.params.sticker_id });
-    if (!sticker || !sticker.file_path.endsWith('.tgs')) {
-      return res.status(404).json({ error: 'Sticker not found or not animated' });
-    }
+app.use('/api', require('./routes/stickerRoutes'));
+app.use('/api', require('./routes/notificationRoutes'));
+app.use('/api', require('./routes/referralRoutes'));
+app.use('/api', require('./routes/orderRoutes')(bot));
 
-    const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.file_path}`;
-    const tgRes = await fetch(telegramUrl);
-    const buffer = await tgRes.arrayBuffer();
+// Sticker routes moved to routes/stickerRoutes.js
 
-    zlib.unzip(Buffer.from(buffer), (err, jsonBuffer) => {
-      if (err) {
-        console.error('Decompression error:', err);
-        return res.status(500).json({ error: 'Failed to decode sticker' });
-      }
+// Sticker routes moved to routes/stickerRoutes.js
 
-      try {
-        const json = JSON.parse(jsonBuffer.toString());
-        res.json(json);
-      } catch (e) {
-        res.status(500).json({ error: 'Invalid JSON' });
-      }
-    });
-
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Internal error' });
-  }
-});
-
-app.get('/api/sticker/:id/info', async (req, res) => {
-  try {
-    const sticker = await Sticker.findOne(
-      { file_unique_id: req.params.id },
-      { _id: 0, file_unique_id: 1, is_animated: 1, is_video: 1, emoji: 1, set_name: 1 }
-    );
-    
-    if (!sticker) {
-      return res.status(404).json({ error: 'Sticker not found' });
-    }
-    
-    res.json(sticker);
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/stickers', async (req, res) => {
-  try {
-    const { set, limit = 50, offset = 0 } = req.query;
-    const query = set ? { set_name: set } : {};
-    
-    const stickers = await Sticker.find(query, {
-      file_unique_id: 1,
-      emoji: 1,
-      set_name: 1,
-      is_animated: 1,
-      is_video: 1
-    })
-    .sort({ created_at: -1 })
-    .skip(parseInt(offset))
-    .limit(parseInt(limit));
-    
-    res.json(stickers);
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// Sticker routes moved to routes/stickerRoutes.js
 
 // quarry database to get sell order for sell page
-app.get("/api/sell-orders", async (req, res) => {
+// moved to routes/orderRoutes.js
     try {
         const { telegramId } = req.query;
 
@@ -1578,7 +1246,7 @@ app.get("/api/sell-orders", async (req, res) => {
 });
 
 //for referral page 
-app.get('/api/referral-stats/:userId', async (req, res) => {
+// moved to routes/referralRoutes.js
     try {
         const referrals = await Referral.find({ referrerUserId: req.params.userId });
         const referredUserIds = referrals.map(r => r.referredUserId);
@@ -1629,7 +1297,7 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
 });
 //get history for referrals withdraw for referral page
 
-app.get('/api/withdrawal-history/:userId', async (req, res) => {
+// moved to routes/referralRoutes.js
     try {
         const { userId } = req.params;
         const withdrawals = await ReferralWithdrawal.find({ userId })
@@ -1645,7 +1313,7 @@ app.get('/api/withdrawal-history/:userId', async (req, res) => {
 
 
 // Withdrawal endpoint
-app.post('/api/referral-withdrawals', async (req, res) => {
+// moved to routes/referralRoutes.js
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -2397,189 +2065,19 @@ bot.onText(/\/broadcast/, async (msg) => {
 });
 
 // Enhanced notification fetching with pagination and unread count
-app.get('/api/notifications', async (req, res) => {
-    try {
-        const { userId, limit = 20, skip = 0 } = req.query;
-        
-        // Base query for notifications visible to this user
-        const query = {
-            $or: [
-                { userId: 'all' },
-                { isGlobal: true }
-            ]
-        };
-
-        // Add user-specific notifications if userId is provided and not anonymous
-        if (userId && userId !== 'anonymous') {
-            query.$or.push({ userId });
-        }
-
-        // Get notifications with pagination
-        const notifications = await Notification.find(query)
-            .sort({ priority: -1, timestamp: -1 }) // Sort by priority then time
-            .skip(parseInt(skip))
-            .limit(parseInt(limit))
-            .lean();
-
-        // Get unread count for this user
-        const unreadCount = await Notification.countDocuments({
-            ...query,
-            read: false
-        });
-
-        // Format for frontend
-        const formattedNotifications = notifications.map(notification => ({
-            id: notification._id.toString(),
-            title: notification.title,
-            message: notification.message,
-            actionUrl: notification.actionUrl,
-            icon: notification.icon,
-            createdAt: notification.timestamp,
-            read: notification.read,
-            isGlobal: notification.isGlobal,
-            priority: notification.priority
-        }));
-
-        res.json({
-            notifications: formattedNotifications,
-            unreadCount,
-            totalCount: await Notification.countDocuments(query)
-        });
-    } catch (error) {
-        console.error('Error fetching notifications:', error);
-        res.status(500).json({ error: "Failed to fetch notifications" });
-    }
-});
+// Notification routes moved to routes/notificationRoutes.js
 
 // Create notification with enhanced validation
-app.post('/api/notifications', async (req, res) => {
-    try {
-        const { userId, title, message, actionUrl, isGlobal, priority = 0 } = req.body;
-        
-        // Enhanced validation
-        if (!message || typeof message !== 'string' || message.trim().length === 0) {
-            return res.status(400).json({ error: "Valid message is required" });
-        }
-
-        // Admin check (implement your actual admin verification)
-        if (!req.user || !req.user.isAdmin) {
-            return res.status(403).json({ error: "Unauthorized: Admin access required" });
-        }
-
-        const newNotification = await Notification.create({
-            userId: isGlobal ? 'all' : userId,
-            title: title || 'Notification',
-            message: message.trim(),
-            actionUrl,
-            isGlobal: !!isGlobal,
-            priority: Math.min(2, Math.max(0, parseInt(priority) || 0))
-        });
-
-        // Real-time notification would go here (WebSocket, push, etc.)
-        // notifyClients(newNotification);
-
-        res.status(201).json({
-            id: newNotification._id,
-            success: true,
-            message: "Notification created successfully"
-        });
-    } catch (error) {
-        console.error('Error creating notification:', error);
-        res.status(500).json({ error: "Failed to create notification" });
-    }
-});
+// Notification routes moved to routes/notificationRoutes.js
 
 // Enhanced mark as read endpoint
-app.post('/api/notifications/:id/read', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { userId } = req.body; // Needed to verify ownership
-        
-        const notification = await Notification.findById(id);
-        
-        if (!notification) {
-            return res.status(404).json({ error: "Notification not found" });
-        }
-
-        // Verify user can mark this notification as read
-        if (notification.userId !== 'all' && 
-            !notification.isGlobal && 
-            notification.userId !== userId) {
-            return res.status(403).json({ error: "Unauthorized to modify this notification" });
-        }
-
-        await Notification.findByIdAndUpdate(id, { read: true });
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error marking notification as read:', error);
-        res.status(500).json({ error: "Failed to mark notification as read" });
-    }
-});
+// Notification routes moved to routes/notificationRoutes.js
 
 // Optimized mark all as read
-app.post('/api/notifications/mark-all-read', async (req, res) => {
-    try {
-        const { userId } = req.body;
-        
-        if (!userId) {
-            return res.status(400).json({ error: "User ID is required" });
-        }
-
-        const query = {
-            read: false,
-            $or: [
-                { userId: 'all' },
-                { isGlobal: true }
-            ]
-        };
-
-        // Add user-specific notifications if userId is not 'anonymous'
-        if (userId !== 'anonymous') {
-            query.$or.push({ userId });
-        }
-
-        const result = await Notification.updateMany(
-            query,
-            { $set: { read: true } }
-        );
-        
-        res.json({
-            success: true,
-            markedCount: result.modifiedCount
-        });
-    } catch (error) {
-        console.error('Error marking all notifications as read:', error);
-        res.status(500).json({ error: "Failed to mark all notifications as read" });
-    }
-});
+// Notification routes moved to routes/notificationRoutes.js
 
 // Enhanced notification deletion with ownership check
-app.delete('/api/notifications/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { userId } = req.body; // For ownership verification
-        
-        const notification = await Notification.findById(id);
-        
-        if (!notification) {
-            return res.status(404).json({ error: "Notification not found" });
-        }
-
-        // Only allow deletion by admins or the recipient (for personal notifications)
-        if (!req.user?.isAdmin && 
-            (notification.isGlobal || notification.userId === 'all')) {
-            return res.status(403).json({ error: "Unauthorized to delete this notification" });
-        }
-
-        await Notification.findByIdAndDelete(id);
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error dismissing notification:', error);
-        res.status(500).json({ error: "Failed to dismiss notification" });
-    }
-});
+// Notification routes moved to routes/notificationRoutes.js
 
 // Enhanced Telegram bot command handler with more options
 bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
