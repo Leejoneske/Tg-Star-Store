@@ -1955,6 +1955,8 @@ function initRecipientsUI() {
             } else {
                 container.style.display = '';
             }
+            // notify quote refreshers
+            window.dispatchEvent(new CustomEvent('recipientsChanged'));
         };
         radios.forEach(r => r.addEventListener('change', apply));
         apply();
@@ -1983,6 +1985,8 @@ async function validateRecipients(containerId) {
     if (usernames.length === 0) {
         // clear all statuses
         statusMap.forEach(s => s.textContent = '');
+        const detail = { count: 0 };
+        window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
         return { recipients: [] };
     }
     try {
@@ -2003,6 +2007,8 @@ async function validateRecipients(containerId) {
                     statusEl.className = 'text-xs text-red-600';
                 }
             });
+            const detail = { count: response.data.recipients.length };
+            window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
             return { recipients: response.data.recipients };
         } else {
             // Show invalids if provided
@@ -2013,6 +2019,8 @@ async function validateRecipients(containerId) {
                     statusEl.className = 'text-xs text-red-600';
                 }
             });
+            const detail = { count: 0 };
+            window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
             return { recipients: [] };
         }
     } catch (e) {
@@ -2023,6 +2031,8 @@ async function validateRecipients(containerId) {
                 statusEl.className = 'text-xs text-red-600';
             }
         });
+        const detail = { count: 0 };
+        window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
         return { recipients: [] };
     }
 }
@@ -2032,6 +2042,16 @@ function initCustomStars() {
     const applyBtn = document.getElementById('buyCustomStars');
     const quoteText = document.getElementById('customStarsQuote');
     if (!input || !applyBtn) return;
+
+    let lastRate = null;
+    let lastRateAt = 0;
+    async function getRateCached() {
+        const now = Date.now();
+        if (lastRate && now - lastRateAt < 60000) return lastRate;
+        const r = await fetchCurrentRate();
+        if (r) { lastRate = r; lastRateAt = now; }
+        return r;
+    }
 
     async function refreshQuote() {
         const val = Number(input.value || 0);
@@ -2046,7 +2066,11 @@ function initCustomStars() {
         try {
             const q = await axios.post('/api/quote', { stars: val, isPremium: false, recipientsCount });
             if (q.data?.success) {
-                quoteText.textContent = `Unit: ${q.data.unitAmount} USDT, Qty: ${q.data.quantity}, Total: ${q.data.totalAmount} USDT`;
+                const rate = await getRateCached();
+                const ton = rate ? (q.data.totalAmount / rate) : null;
+                quoteText.textContent = ton
+                    ? `Total: ${q.data.totalAmount} USDT (~${ton.toFixed(4)} TON) for ${q.data.quantity} ${q.data.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.data.unitAmount} USDT)`
+                    : `Total: ${q.data.totalAmount} USDT for ${q.data.quantity} ${q.data.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.data.unitAmount} USDT)`;
             } else {
                 quoteText.textContent = '';
             }
@@ -2078,8 +2102,16 @@ function initCustomStars() {
         await handlePurchase(fakeItem);
     });
 
+    let debounceTimer = null;
     input.addEventListener('input', () => {
-        quoteText.textContent = '';
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(refreshQuote, 300);
+    });
+
+    // React to recipients validation and toggle changes
+    window.addEventListener('recipientsChanged', () => {
+        // small delay to allow DOM status updates
+        setTimeout(refreshQuote, 100);
     });
 }
 
