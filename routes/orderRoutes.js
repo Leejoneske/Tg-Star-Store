@@ -190,7 +190,12 @@ function createOrderRoutes(bot) {
 
 			const adminMessage = isPremium ?
 				`🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${totalAmount} USDT\nDuration: ${premiumDuration} months\nRecipients: ${quantity}` :
-				`🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${totalAmount} USDT\nStars: ${stars}\nRecipients: ${quantity}`;
+				(() => {
+					const list = (validatedRecipients && validatedRecipients.length)
+						? `\nRecipient Users: ${validatedRecipients.map(r => `@${r.username}`).join(', ')}`
+						: '';
+					return `🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${totalAmount} USDT\nStars: ${stars}\nRecipients: ${quantity}${list}`;
+				})();
 
 			const adminKeyboard = {
 				inline_keyboard: [[
