@@ -58,10 +58,67 @@ function createOrderRoutes(bot) {
 		}
 	});
 
-	// Create buy order
+	// Validate Telegram usernames and return IDs (supports up to 5)
+	router.post('/validate-usernames', async (req, res) => {
+		try {
+			const { usernames } = req.body;
+			if (!Array.isArray(usernames) || usernames.length === 0) {
+				return res.status(400).json({ error: 'No usernames provided' });
+			}
+			if (usernames.length > 5) {
+				return res.status(400).json({ error: 'Maximum 5 usernames allowed' });
+			}
+
+			const sanitized = usernames
+				.map(u => (typeof u === 'string' ? u.trim() : ''))
+				.filter(Boolean)
+				.map(u => (u.startsWith('@') ? u.slice(1) : u))
+				.map(sanitizeUsername)
+				.filter(Boolean);
+
+			if (sanitized.length === 0) {
+				return res.status(400).json({ error: 'Invalid usernames' });
+			}
+
+			// Resolve usernames to IDs using available data: try Telegram Bot getChat; fallback to our User collection
+			const results = [];
+			for (const name of sanitized) {
+				let userId = null;
+				try {
+					const tgResp = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getChat`, {
+						chat_id: `@${name}`
+					}, { timeout: 8000 });
+					if (tgResp.data?.ok && tgResp.data.result?.id) {
+						userId = tgResp.data.result.id.toString();
+					}
+				} catch (e) {}
+
+				if (!userId) {
+					const dbUser = await require('../models').User.findOne({ username: name });
+					if (dbUser?.id) userId = dbUser.id.toString();
+				}
+
+				if (!userId) {
+					results.push({ username: name, valid: false });
+				} else {
+					results.push({ username: name, userId, valid: true });
+				}
+			}
+
+			const validRecipients = results.filter(r => r.valid);
+			if (validRecipients.length !== sanitized.length) {
+				return res.status(400).json({ error: 'Some usernames are invalid', results });
+			}
+			return res.json({ success: true, recipients: validRecipients });
+		} catch (err) {
+			return res.status(500).json({ error: 'Validation failed' });
+		}
+	});
+
+	// Create buy order (supports gifting up to 5 recipients)
 	router.post('/orders/create', async (req, res) => {
 		try {
-			const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
+			const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients } = req.body;
 			if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
 				return res.status(400).json({ error: 'Missing required fields' });
 			}
@@ -89,31 +146,51 @@ function createOrderRoutes(bot) {
 				return res.status(400).json({ error: 'Invalid selection' });
 			}
 
+			let validatedRecipients = [];
+			let quantity = 1;
+			if (Array.isArray(recipients) && recipients.length > 0) {
+				if (recipients.length > 5) {
+					return res.status(400).json({ error: 'Maximum 5 recipients allowed' });
+				}
+
+				// Server-side validation (no simulation) using the above endpoint logic inline
+				const { data } = await axios.post(`${process.env.SERVER_URL || ''}/api/validate-usernames`, { usernames: recipients }, { timeout: 10000 });
+				if (!data?.success) {
+					return res.status(400).json({ error: data?.error || 'Recipients validation failed' });
+				}
+				validatedRecipients = data.recipients;
+				quantity = validatedRecipients.length;
+			}
+
+			const totalAmount = amount * quantity;
+
 			const order = new BuyOrder({
 				id: generateOrderId(),
 				telegramId,
 				username,
-				amount,
+				amount: totalAmount,
 				stars: isPremium ? null : stars,
 				premiumDuration: isPremium ? premiumDuration : null,
 				walletAddress,
 				isPremium,
 				status: 'pending',
 				dateCreated: new Date(),
-				adminMessages: []
+				adminMessages: [],
+				recipients: validatedRecipients,
+				quantity
 			});
 
 			await order.save();
 
 			const userMessage = isPremium ?
-				`🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending` :
-				`🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending`;
+				`🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${totalAmount} USDT\nDuration: ${premiumDuration} months\nRecipients: ${quantity}\nStatus: Pending` :
+				`🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${totalAmount} USDT\nStars: ${stars}\nRecipients: ${quantity}\nStatus: Pending`;
 
 			await bot.sendMessage(telegramId, userMessage);
 
 			const adminMessage = isPremium ?
-				`🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months` :
-				`🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}`;
+				`🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${totalAmount} USDT\nDuration: ${premiumDuration} months\nRecipients: ${quantity}` :
+				`🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${totalAmount} USDT\nStars: ${stars}\nRecipients: ${quantity}`;
 
 			const adminKeyboard = {
 				inline_keyboard: [[
