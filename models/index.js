@@ -15,7 +15,9 @@ const buyOrderSchema = new mongoose.Schema({
     isPremium: Boolean,
     status: String,
     dateCreated: Date,
-    adminMessages: Array
+    adminMessages: Array,
+    recipients: [{ username: String, userId: String }],
+    quantity: { type: Number, default: 1 }
 });
 
 const sellOrderSchema = new mongoose.Schema({

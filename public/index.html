@@ -648,6 +648,7 @@
                             <img id="profilePicture" src="https://via.placeholder.com/64" alt="User Profile" class="w-full h-full object-cover">
                         </div>
                         <div class="text-lg font-semibold text-gray-800" id="username">@username</div>
+                        <div class="text-xs text-gray-500" id="userIdText"></div>
                     </div>
                     <button id="connectWallet" data-translate="connectWallet">
                         <i class="fas fa-wallet mr-2"></i>Connect Wallet
@@ -662,6 +663,14 @@
                 </div>
 
                 <div class="section-content active" id="starsSection">
+                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
+                        <div class="text-sm font-semibold text-gray-700 mb-2">Gift to other users (max 5)</div>
+                        <div class="space-y-2" id="recipientsContainer"></div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <button id="addRecipientBtn" class="px-3 py-2 text-sm rounded-md border border-gray-300">Add Recipient</button>
+                            <span class="text-xs text-gray-500" id="recipientHelp">Enter Telegram usernames, we will validate and show IDs</span>
+                        </div>
+                    </div>
                     <div class="stars-card rounded-xl mb-8">
                         <h3 class="text-lg font-bold text-gray-800 mb-4">Choose a Stars Package</h3>
                         <div class="grid grid-cols-2 gap-4">
@@ -719,6 +728,14 @@
                 </div>
 
                 <div class="section-content" id="premiumSection">
+                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
+                        <div class="text-sm font-semibold text-gray-700 mb-2">Gift to other users (max 5)</div>
+                        <div class="space-y-2" id="recipientsContainerPremium"></div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <button id="addRecipientBtnPremium" class="px-3 py-2 text-sm rounded-md border border-gray-300">Add Recipient</button>
+                            <span class="text-xs text-gray-500" id="recipientHelpPremium">Enter Telegram usernames, we will validate and show IDs</span>
+                        </div>
+                    </div>
                     <div class="premium-card rounded-xl mb-6">
                         <h3 class="text-lg font-bold text-gray-800 mb-4">Telegram Premium Subscriptions</h3>
                         <div class="space-y-4">
@@ -989,6 +1006,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     initSectionToggle();
                     updateLanguage();
                     initBuyButtons();
+                    initRecipientsUI();
                     initNotificationSystem();
                     loadStickers();
                     
@@ -1613,6 +1631,7 @@ function updateUserInterface(user) {
     
     const profilePic = document.getElementById('profilePicture');
     const usernameElement = document.getElementById('username');
+    const userIdText = document.getElementById('userIdText');
     
     if (!profilePic || !usernameElement) {
         console.warn('User interface elements not found');
@@ -1647,6 +1666,10 @@ function updateUserInterface(user) {
         usernameElement.textContent = user.first_name;
     } else {
         usernameElement.textContent = 'User';
+    }
+
+    if (userIdText) {
+        userIdText.textContent = `ID: ${user.id || 'unknown'}`;
     }
     
     if (!isTelegramEnv) {
@@ -1840,6 +1863,134 @@ function initBuyButtons() {
     });
 }
 
+function buildRecipientInput(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const makeRow = (idx) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2';
+        row.innerHTML = `
+            <input type="text" class="flex-1 px-3 py-2 border rounded-md text-sm" placeholder="@username" data-idx="${idx}" />
+            <span class="text-xs text-gray-500" data-status="${idx}"></span>
+            <button class="px-2 py-2 text-xs border rounded-md" data-remove="${idx}">Remove</button>
+        `;
+        return row;
+    };
+
+    const state = { rows: [] };
+
+    function addRow() {
+        if (state.rows.length >= 5) return;
+        const idx = Date.now() + Math.floor(Math.random()*1000);
+        const row = makeRow(idx);
+        container.appendChild(row);
+        state.rows.push(idx);
+        wireRow(row, idx);
+    }
+
+    function wireRow(row, idx) {
+        const input = row.querySelector(`input[data-idx="${idx}"]`);
+        const status = row.querySelector(`span[data-status="${idx}"]`);
+        const removeBtn = row.querySelector(`button[data-remove="${idx}"]`);
+
+        let debounceTimer = null;
+        input.addEventListener('input', () => {
+            status.textContent = '';
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                await validateRecipients(containerId);
+            }, 400);
+        });
+
+        removeBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            container.removeChild(row);
+            state.rows = state.rows.filter(r => r !== idx);
+            await validateRecipients(containerId);
+        });
+    }
+
+    return { addRow };
+}
+
+const recipientsUI = {};
+
+function initRecipientsUI() {
+    recipientsUI.stars = buildRecipientInput('recipientsContainer');
+    recipientsUI.premium = buildRecipientInput('recipientsContainerPremium');
+
+    const addStars = document.getElementById('addRecipientBtn');
+    if (addStars && recipientsUI.stars) addStars.addEventListener('click', (e) => { e.preventDefault(); recipientsUI.stars.addRow(); });
+
+    const addPremium = document.getElementById('addRecipientBtnPremium');
+    if (addPremium && recipientsUI.premium) addPremium.addEventListener('click', (e) => { e.preventDefault(); recipientsUI.premium.addRow(); });
+}
+
+function collectRecipients(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return [];
+    const inputs = Array.from(container.querySelectorAll('input'));
+    return inputs.map(i => i.value.trim()).filter(Boolean);
+}
+
+async function validateRecipients(containerId) {
+    const usernames = collectRecipients(containerId);
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+    const statusMap = new Map();
+    container.querySelectorAll('span[data-status]').forEach(s => {
+        const key = s.getAttribute('data-status');
+        statusMap.set(key, s);
+    });
+
+    if (usernames.length === 0) {
+        // clear all statuses
+        statusMap.forEach(s => s.textContent = '');
+        return { recipients: [] };
+    }
+    try {
+        const response = await axios.post('/api/validate-usernames', { usernames });
+        if (response.data?.success) {
+            // Mark all as valid (by username)
+            const mapByName = new Map(response.data.recipients.map(r => [r.username.toLowerCase(), r]));
+            container.querySelectorAll('input').forEach(input => {
+                const name = (input.value || '').trim().replace(/^@/, '').toLowerCase();
+                const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+                if (!statusEl) return;
+                if (mapByName.has(name)) {
+                    const rec = mapByName.get(name);
+                    statusEl.textContent = `ID: ${rec.userId}`;
+                    statusEl.className = 'text-xs text-green-600';
+                } else {
+                    statusEl.textContent = 'Invalid';
+                    statusEl.className = 'text-xs text-red-600';
+                }
+            });
+            return { recipients: response.data.recipients };
+        } else {
+            // Show invalids if provided
+            container.querySelectorAll('input').forEach(input => {
+                const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+                if (statusEl) {
+                    statusEl.textContent = 'Invalid';
+                    statusEl.className = 'text-xs text-red-600';
+                }
+            });
+            return { recipients: [] };
+        }
+    } catch (e) {
+        container.querySelectorAll('input').forEach(input => {
+            const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+            if (statusEl) {
+                statusEl.textContent = 'Validation failed';
+                statusEl.className = 'text-xs text-red-600';
+            }
+        });
+        return { recipients: [] };
+    }
+}
+
 async function handlePurchase(item) {
     if (!tonConnectUI || !walletConnected) {
         showErrorToUser(translations[currentLanguage].walletNotConnected);
@@ -1888,6 +2039,16 @@ async function handlePurchase(item) {
             return;
         }
 
+        // Collect and validate recipients based on section
+        const inPremium = !!item.isPremium;
+        const containerId = inPremium ? 'recipientsContainerPremium' : 'recipientsContainer';
+        const validation = await validateRecipients(containerId);
+        const recipients = validation?.recipients || [];
+        if (recipients.length > 5) {
+            showErrorToUser('Maximum 5 recipients allowed');
+            return;
+        }
+ 
         // Show loading indicator
         Swal.fire({
             title: translations[currentLanguage].processing,
@@ -1907,7 +2068,8 @@ async function handlePurchase(item) {
         }
         
         // Calculate amount in TON
-        const tonAmount = parsedAmount / tonToUsdtRate;
+        const multiplier = Math.max(1, recipients.length || 0);
+        const tonAmount = (parsedAmount * multiplier) / tonToUsdtRate;
         const nanoTonAmount = Math.round(tonAmount * 1e9);
         
         // Get payment address
@@ -1940,7 +2102,8 @@ async function handlePurchase(item) {
                 premiumDuration: item.premiumDuration || null,
                 walletAddress: currentWalletAddress,
                 transactionHash: result,
-                isTelegramUser: isTelegramEnv
+                isTelegramUser: isTelegramEnv,
+                recipients: recipients.map(r => r.username)
             };
             
             const response = await axios.post('/api/orders/create', orderData);
