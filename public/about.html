@@ -115,17 +115,13 @@
 <body>
 <div class="app-container">
     <div class="p-4 flex justify-between items-center bg-white shadow-sm">
-        <button id="menuButton" class="p-2">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-            </svg>
-        </button>
-        <div class="logo-header" data-translate="appName">StarStore</div>
-        <div class="w-6"></div>
+        <div class="p-2"></div>
+        <div class="logo-header">StarStore</div>
+        <div></div>
     </div>
 
 
-<div id="menubar-container"></div>
+<div id="bottomnav-container"></div>
     <div class="p-6 max-w-4xl mx-auto">
         <div class="text-center mb-12 animate__animated animate__fadeIn">
             <h1 class="text-4xl font-bold text-gray-900 mb-4">
@@ -283,15 +279,10 @@
     
     document.addEventListener('DOMContentLoaded', () => {
         updateLanguage();
-        fetch('menubar.html')
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById('menubar-container').innerHTML = html;
-                initMenu();
-            })
-            .catch(error => {
-                console.error('Error loading menubar:', error);
-            });
+        // Load shared bottom nav
+        fetch('bottomnav.html')
+            .then(r => r.ok ? r.text() : '')
+            .then(html => { document.getElementById('bottomnav-container').innerHTML = html; });
     });
 
     function updateLanguage() {
@@ -304,37 +295,6 @@
         });
     }
 
-    function initMenu() {
-    const menuButton = document.getElementById('menuButton');
-    const menuOverlay = document.getElementById('menuOverlay');
-    const sideMenu = document.getElementById('sideMenu');
-    
-    if (!menuButton || !menuOverlay || !sideMenu) return;
-    
-    const toggleMenu = () => {
-        menuOverlay.classList.toggle('active');
-        sideMenu.classList.toggle('active');
-    };
-    
-    menuButton.addEventListener('click', toggleMenu);
-    menuOverlay.addEventListener('click', toggleMenu);
-    
-    document.querySelectorAll('.menu-item').forEach(item => {
-        item.addEventListener('click', toggleMenu);
-    });
-}
-
-fetch('menubar.html')
-    .then(response => response.text())
-    .then(html => {
-        document.getElementById('menubar-container').innerHTML = html;
-        initMenu();
-    })
-    .catch(error => {
-        console.error('Error loading menubar:', error);
-    });
-    
-    document.addEventListener('DOMContentLoaded', initMenu);
     document.getElementById('contactSupport').addEventListener('click', () => {
         window.location.href = 'support.html';
     });
