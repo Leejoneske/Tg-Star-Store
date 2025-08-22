@@ -79,6 +79,22 @@ function createOrderRoutes(bot) {
 		return results;
 	}
 
+	function calculateAmount({ isPremium, premiumDuration, stars }) {
+		const priceMap = {
+			regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
+			premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
+		};
+
+		if (isPremium) {
+			return priceMap.premium[premiumDuration] || null;
+		}
+
+		if (typeof stars !== 'number') return null;
+		if (priceMap.regular[stars]) return priceMap.regular[stars];
+		if (stars >= 50) return Number((0.02 * stars).toFixed(2));
+		return null;
+	}
+
 	// Wallet Address Endpoint
 	router.get('/get-wallet-address', (req, res) => {
 		try {
@@ -89,6 +105,22 @@ function createOrderRoutes(bot) {
 			res.json({ success: true, walletAddress: walletAddress });
 		} catch (error) {
 			res.status(500).json({ success: false, error: 'Internal server error' });
+		}
+	});
+
+	// Quote endpoint for client to fetch accurate pricing before payment
+	router.post('/quote', async (req, res) => {
+		try {
+			const { stars, isPremium, premiumDuration, recipientsCount } = req.body;
+			const unitAmount = calculateAmount({ isPremium: !!isPremium, premiumDuration, stars: isPremium ? null : Number(stars) });
+			if (!unitAmount) {
+				return res.status(400).json({ error: 'Invalid selection. Minimum stars is 50 for custom.' });
+			}
+			const qty = Math.max(1, Math.min(5, Number(recipientsCount) || 0));
+			const totalAmount = Number((unitAmount * qty).toFixed(2));
+			return res.json({ success: true, unitAmount, quantity: qty, totalAmount });
+		} catch (e) {
+			return res.status(500).json({ error: 'Failed to compute quote' });
 		}
 	});
 
@@ -131,22 +163,9 @@ function createOrderRoutes(bot) {
 				return res.status(403).json({ error: 'You are banned from placing orders' });
 			}
 
-			const priceMap = {
-				regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
-				premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
-			};
-
-			let amount, packageType;
-			if (isPremium) {
-				packageType = 'premium';
-				amount = priceMap.premium[premiumDuration];
-			} else {
-				packageType = 'regular';
-				amount = priceMap.regular[stars];
-			}
-
-			if (!amount) {
-				return res.status(400).json({ error: 'Invalid selection' });
+			const unitAmount = calculateAmount({ isPremium: !!isPremium, premiumDuration, stars: isPremium ? null : Number(stars) });
+			if (!unitAmount) {
+				return res.status(400).json({ error: 'Invalid selection. Minimum stars is 50 for custom.' });
 			}
 
 			let validatedRecipients = [];
@@ -165,7 +184,7 @@ function createOrderRoutes(bot) {
 				quantity = validatedRecipients.length;
 			}
 
-			const totalAmount = amount * quantity;
+			const totalAmount = Number((unitAmount * quantity).toFixed(2));
 
 			const order = new BuyOrder({
 				id: generateOrderId(),
