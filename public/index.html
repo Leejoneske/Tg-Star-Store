@@ -2024,6 +2024,30 @@ async function validateRecipients(containerId) {
             return { recipients: [] };
         }
     } catch (e) {
+        // If server returned per-username results, use them to update UI
+        const results = e?.response?.data?.results;
+        if (Array.isArray(results) && results.length > 0) {
+            const valid = [];
+            const mapByName = new Map(results.map(r => [String(r.username || '').toLowerCase(), r]));
+            container.querySelectorAll('input').forEach(input => {
+                const name = (input.value || '').trim().replace(/^@/, '').toLowerCase();
+                const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+                if (!statusEl) return;
+                const r = mapByName.get(name);
+                if (r?.valid && r.userId) {
+                    valid.push({ username: r.username, userId: r.userId });
+                    statusEl.textContent = `ID: ${r.userId}`;
+                    statusEl.className = 'text-xs text-green-600';
+                } else {
+                    statusEl.textContent = 'Invalid';
+                    statusEl.className = 'text-xs text-red-600';
+                }
+            });
+            const detail = { count: valid.length };
+            window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
+            // Treat as unsuccessful overall to block purchase unless all are valid
+            return { recipients: valid };
+        }
         container.querySelectorAll('input').forEach(input => {
             const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
             if (statusEl) {
@@ -2173,8 +2197,10 @@ async function handlePurchase(item) {
         if (buyForValue === 'others') {
             const validation = await validateRecipients(containerId);
             recipients = validation?.recipients || [];
-            if (recipients.length === 0) {
-                showErrorToUser('Please add at least one valid recipient');
+            // Block if any invalids exist compared to inputs length
+            const inputsCount = collectRecipients(containerId).length;
+            if (recipients.length === 0 || recipients.length !== inputsCount) {
+                showErrorToUser('Please ensure all recipient usernames are valid');
                 return;
             }
         }
@@ -2182,7 +2208,42 @@ async function handlePurchase(item) {
             showErrorToUser('Maximum 5 recipients allowed');
             return;
         }
- 
+
+        // Fetch server quote for accurate amount per recipients
+        const quote = await axios.post('/api/quote', {
+            isPremium: !!item.isPremium,
+            premiumDuration: item.premiumDuration || null,
+            stars: item.isPremium ? null : Number(stars),
+            recipientsCount: recipients.length
+        });
+        if (!quote.data?.success) {
+            throw new Error(quote.data?.error || 'Failed to get quote');
+        }
+        const totalAmountUsdt = Number(quote.data.totalAmount);
+
+        // Confirm modal
+        const rate = await fetchCurrentRate();
+        const approxTon = rate ? (totalAmountUsdt / rate) : null;
+        const summaryLines = [];
+        if (!item.isPremium) {
+            summaryLines.push(`Stars: ${Number(stars)}${recipients.length ? ` × ${recipients.length} recipient(s)` : ''}`);
+        } else {
+            summaryLines.push(`Premium: ${item.premiumDuration} month(s)${recipients.length ? ` × ${recipients.length} recipient(s)` : ''}`);
+        }
+        summaryLines.push(`Total: ${totalAmountUsdt} USDT${approxTon ? ` (~${approxTon.toFixed(4)} TON)` : ''}`);
+        if (recipients.length) {
+            summaryLines.push(`Recipients: ${recipients.map(r => `@${r.username}`).join(', ')}`);
+        }
+        const confirm = await Swal.fire({
+            title: 'Confirm Purchase',
+            html: `<div style="text-align:left;white-space:pre-line">${summaryLines.join('\n')}</div>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Confirm',
+            cancelButtonText: 'Cancel'
+        });
+        if (!confirm.isConfirmed) return;
+
         // Show loading indicator
         Swal.fire({
             title: translations[currentLanguage].processing,
@@ -2195,21 +2256,8 @@ async function handlePurchase(item) {
         });
         loadingShown = true;
 
-        // Fetch server quote for accurate amount per recipients
-        const quote = await axios.post('/api/quote', {
-            isPremium: !!item.isPremium,
-            premiumDuration: item.premiumDuration || null,
-            stars: item.isPremium ? null : Number(stars),
-            recipientsCount: recipients.length
-        });
-        if (!quote.data?.success) {
-            throw new Error(quote.data?.error || 'Failed to get quote');
-        }
-
-        const totalAmountUsdt = Number(quote.data.totalAmount);
-
-        // Get current exchange rate
-        const tonToUsdtRate = await fetchCurrentRate();
+        // Get current exchange rate (already fetched above if needed)
+        const tonToUsdtRate = rate || await fetchCurrentRate();
         if (!tonToUsdtRate || tonToUsdtRate <= 0) {
             throw new Error('Failed to fetch current exchange rate');
         }
@@ -2284,7 +2332,6 @@ async function handlePurchase(item) {
         
         let errorMessage = translations[currentLanguage].paymentFailed || 'Payment failed';
         
-        // Show actual error details for debugging
         if (error?.response?.data?.error) {
             errorMessage = error.response.data.error;
         } else if (error?.response?.status) {
@@ -2304,7 +2351,6 @@ async function handlePurchase(item) {
             confirmButtonText: translations[currentLanguage].ok
         });
     } finally {
-        // Ensure loading is closed
         if (loadingShown) {
             Swal.close();
         }
