@@ -1015,15 +1015,6 @@ window.addEventListener('languageChanged', () => {
 function updateLanguageTexts() {
   const texts = translations[currentLanguage];
   
-  // Update menu items
-  document.querySelector('.side-menu .text-xl').textContent = texts.menuTitle;
-  const menuItems = document.querySelectorAll('.menu-item');
-  menuItems[0].childNodes[2].textContent = texts.home;
-  menuItems[1].childNodes[2].textContent = texts.sell;
-  menuItems[2].childNodes[2].textContent = texts.history;
-  menuItems[3].childNodes[2].textContent = texts.referral;
-  menuItems[4].childNodes[2].textContent = texts.about;
-  
   // Update wallet section
   document.querySelector('.wallet-status p').textContent = texts.paymentInfo;
   
@@ -1249,20 +1240,8 @@ function setupWalletAddressMemory() {
     });
 }        
 
-// Side menu toggle
-const menuOverlay = document.getElementById('menuOverlay');
-const sideMenu = document.getElementById('sideMenu');
-
-function toggleMenu() {
-    menuOverlay.classList.toggle('active');
-    sideMenu.classList.toggle('active');
-}
-
-document.querySelectorAll('.menu-item').forEach(item => {
-    item.addEventListener('click', () => {
-        toggleMenu();
-    });
-});
+// Legacy side menu removed; no-op stubs kept for compatibility if referenced elsewhere
+function toggleMenu() {}
 
       //wallet validation
 function isValidWalletAddress(address) {
