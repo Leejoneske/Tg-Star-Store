@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
@@ -12,11 +11,7 @@ const app = express();
 const path = require('path');  
 const zlib = require('zlib');
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
-const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
-                   process.env.RAILWAY_PUBLIC_DOMAIN || 
-                   'tg-star-store-production.up.railway.app');
-const WEBHOOK_PATH = '/telegram-webhook';
-const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
+const { SERVER_URL, WEBHOOK_PATH, WEBHOOK_URL, ADMIN_IDS } = require('./config');
 // Import Telegram auth middleware (single import only)
 const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
 const { Sticker, Notification, Warning, Reversal, Feedback, ReferralTracker, ReferralWithdrawal, Cache, BuyOrder, SellOrder, User, Referral, BannedUser } = require('./models');
@@ -81,120 +76,15 @@ app.get('/health', (req, res) => {
 
 
 
-const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').filter(Boolean).map(id => id.trim());
+const adminIds = ADMIN_IDS;
 
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
 // Wallet Address Endpoint
 // moved to routes/orderRoutes.js
-    try {
-        const walletAddress = process.env.WALLET_ADDRESS;
-        
-        if (!walletAddress) {
-            return res.status(500).json({
-                success: false,
-                error: 'Wallet address not configured'
-            });
-        }
-
-        res.json({
-            success: true,
-            walletAddress: walletAddress
-        });
-    } catch (error) {
-        console.error('Error getting wallet address:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
-    }
-});
 
 // moved to routes/orderRoutes.js
-    try {
-        const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
-
-        if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
-
-        const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
-        if (bannedUser) {
-            return res.status(403).json({ error: 'You are banned from placing orders' });
-        }
-
-        const priceMap = {
-            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
-            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
-        };
-
-        let amount, packageType;
-        if (isPremium) {
-            packageType = 'premium';
-            amount = priceMap.premium[premiumDuration];
-        } else {
-            packageType = 'regular';
-            amount = priceMap.regular[stars];
-        }
-
-        if (!amount) {
-            return res.status(400).json({ error: 'Invalid selection' });
-        }
-
-        const order = new BuyOrder({
-            id: generateOrderId(),
-            telegramId,
-            username,
-            amount,
-            stars: isPremium ? null : stars,
-            premiumDuration: isPremium ? premiumDuration : null,
-            walletAddress,
-            isPremium,
-            status: 'pending',
-            dateCreated: new Date(),
-            adminMessages: []
-        });
-
-        await order.save();
-
-        const userMessage = isPremium ?
-            `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending` :
-            `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending`;
-
-        await bot.sendMessage(telegramId, userMessage);
-
-        const adminMessage = isPremium ?
-            `🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months` :
-            `🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}`;
-
-        const adminKeyboard = {
-            inline_keyboard: [[
-                { text: '✅ Complete', callback_data: `complete_buy_${order.id}` },
-                { text: '❌ Decline', callback_data: `decline_buy_${order.id}` }
-            ]]
-        };
-
-        for (const adminId of adminIds) {
-            try {
-                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
-                order.adminMessages.push({ 
-                    adminId, 
-                    messageId: message.message_id,
-                    originalText: adminMessage 
-                });
-            } catch (err) {
-                console.error(`Failed to notify admin ${adminId}:`, err);
-            }
-        }
-
-        await order.save();
-        res.json({ success: true, order });
-    } catch (err) {
-        console.error('Order creation error:', err);
-        res.status(500).json({ error: 'Failed to create order' });
-    }
-});
 
 function sanitizeUsername(username) {
     if (!username) return null;
@@ -202,87 +92,6 @@ function sanitizeUsername(username) {
 }
 
 // moved to routes/orderRoutes.js
-    try {
-        const { 
-            telegramId, 
-            username = '', 
-            stars, 
-            walletAddress, 
-            memoTag = '' 
-        } = req.body;
-        
-        if (!telegramId || !stars || !walletAddress) {
-            return res.status(400).json({ error: "Missing required fields" });
-        }
-
-        const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
-        if (bannedUser) {
-            return res.status(403).json({ error: "You are banned from placing orders" });
-        }
-
-        // Check for existing pending orders for this user
-        const existingOrder = await SellOrder.findOne({ 
-            telegramId: telegramId,
-            status: "pending",
-            sessionExpiry: { $gt: new Date() } 
-        });
-
-        if (existingOrder) {
-            return res.status(409).json({ 
-                error: "You already have a pending order. Please complete or wait for it to expire before creating a new one.",
-                existingOrderId: existingOrder.id
-            });
-        }
-
-        // Generate unique session token for this user and order
-        const sessionToken = generateSessionToken(telegramId);
-        const sessionExpiry = new Date(Date.now() + 15 * 60 * 1000); 
-
-        const order = new SellOrder({
-            id: generateOrderId(),
-            telegramId,
-            username: sanitizeUsername(username),
-            stars,
-            walletAddress,
-            memoTag,
-            status: "pending", 
-            telegram_payment_charge_id: "temp_" + Date.now(),
-            reversible: true,
-            dateCreated: new Date(),
-            adminMessages: [],
-            sessionToken: sessionToken, 
-            sessionExpiry: sessionExpiry, 
-            userLocked: telegramId 
-        });
-
-        const paymentLink = await createTelegramInvoice(
-            telegramId, 
-            order.id, 
-            stars, 
-            `Purchase of ${stars} Telegram Stars`,
-            sessionToken 
-        );
-        
-        if (!paymentLink) {
-            return res.status(500).json({ error: "Failed to generate payment link" });
-        }
-
-        await order.save();
-
-        const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
-        await bot.sendMessage(telegramId, userMessage);
-
-        res.json({ 
-            success: true, 
-            order, 
-            paymentLink,
-            expiresAt: sessionExpiry
-        });
-    } catch (err) {
-        console.error("Sell order creation error:", err);
-        res.status(500).json({ error: "Failed to create sell order" });
-    }
-});
 
 // Generate unique session token
 function generateSessionToken(telegramId) {
@@ -325,27 +134,8 @@ bot.on('pre_checkout_query', async (query) => {
     await bot.answerPreCheckoutQuery(query.id, true);
 });
 
-async function getUserDisplayName(telegramId) {
-    try {
-        const chat = await bot.getChat(telegramId);
-        
-        let displayName = '';
-        
-        if (chat.first_name) {
-            displayName = chat.first_name;
-            if (chat.last_name) {
-                displayName += ` ${chat.last_name}`;
-            }
-        } else {
-            displayName = `User ${telegramId}`;
-        }
-        
-        return displayName;
-    } catch (error) {
-        console.error(`Failed to get user info for ${telegramId}:`, error);
-        return `User ${telegramId}`;
-    }
-}
+// moved to utils/helpers.js
+    // moved to utils/helpers.js
 
 bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
@@ -612,7 +402,7 @@ async function createTelegramInvoice(chatId, orderId, stars, description, sessio
     }
 }
 
-// Background job to clean up expired orders - ENHANCED WITH USER NOTIFICATIONS
+// moved to managers/maintenanceManager.js
 async function cleanupExpiredOrders() {
     try {
         // Find expired orders first to notify users
@@ -686,7 +476,7 @@ async function cleanupExpiredOrders() {
 }
 
 // Run cleanup every 5 minutes
-setInterval(cleanupExpiredOrders, 5 * 60 * 1000);
+// moved to managers/maintenanceManager.js
 
 
 bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
@@ -1161,63 +951,27 @@ async function updateAdminMessages(request, statusText) {
     }
 }
 
-setInterval(() => {
-    const now = Date.now();
-    const expiredSessions = [];
-    
-    reversalRequests.forEach((value, chatId) => {
-        if (now - value.timestamp > 300000) {
-            expiredSessions.push(chatId);
-        }
-    });
-    
-    expiredSessions.forEach(chatId => {
-        bot.sendMessage(chatId, "⌛ Session expired").catch(() => {});
-        reversalRequests.delete(chatId);
-    });
-}, 60000);
+// moved to managers/maintenanceManager.js
 
 // STICKER HANDLER
-bot.on('sticker', async (msg) => {
-  try {
-    const sticker = msg.sticker;
-    if (!sticker) return;
+// moved to botManager.js
 
-    console.log('Processing sticker:', {
-      id: sticker.file_unique_id,
-      set: sticker.set_name,
-      type: sticker.is_animated ? 'animated' : sticker.is_video ? 'video' : 'static'
-    });
-
-    const fileInfo = await bot.getFile(sticker.file_id);
-    if (!fileInfo.file_path) return;
-
-    const updateData = {
-      file_id: sticker.file_id,
-      file_path: fileInfo.file_path,
-      is_animated: sticker.is_animated || false,
-      is_video: sticker.is_video || false,
-      emoji: sticker.emoji || '',
-      set_name: sticker.set_name || '',
-      updated_at: new Date()
-    };
-
-    await Sticker.updateOne(
-      { file_unique_id: sticker.file_unique_id },
-      { $set: updateData, $setOnInsert: { created_at: new Date() } },
-      { upsert: true }
-    );
-
-  } catch (error) {
-    console.error('Sticker processing error:', error.message);
-  }
-});
+    // moved to botManager.js
 
 // API ENDPOINTS
-app.use('/api', require('./routes/stickerRoutes'));
-app.use('/api', require('./routes/notificationRoutes'));
-app.use('/api', require('./routes/referralRoutes'));
-app.use('/api', require('./routes/orderRoutes')(bot));
+const { setupBotHandlers } = require('./managers/botManager');
+const { setupMaintenanceJobs } = require('./managers/maintenanceManager');
+const { getUserDisplayName, trackStars, trackPremiumActivation } = require('./utils/helpers');
+const createOrderRoutes = require('./routes/orderRoutes');
+const referralRoutes = require('./routes/referralRoutes');
+const stickerRoutes = require('./routes/stickerRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const { createFeedbackRouter } = require('./managers/feedbackManager');
+app.use('/api', stickerRoutes);
+app.use('/api', notificationRoutes);
+app.use('/api', referralRoutes);
+app.use('/api', createOrderRoutes(bot));
+app.use('/api', createFeedbackRouter(bot, adminIds));
 
 // Sticker routes moved to routes/stickerRoutes.js
 
@@ -1227,95 +981,12 @@ app.use('/api', require('./routes/orderRoutes')(bot));
 
 // quarry database to get sell order for sell page
 // moved to routes/orderRoutes.js
-    try {
-        const { telegramId } = req.query;
-
-        if (!telegramId) {
-            return res.status(400).json({ error: "Missing telegramId" });
-        }
-
-        const transactions = await SellOrder.find({ telegramId })
-            .sort({ dateCreated: -1 }) 
-            .limit(3); 
-
-        res.json(transactions);
-    } catch (err) {
-        console.error("Error fetching transactions:", err);
-        res.status(500).json({ error: "Failed to fetch transactions" });
-    }
-});
 
 //for referral page 
 // moved to routes/referralRoutes.js
-    try {
-        const referrals = await Referral.find({ referrerUserId: req.params.userId });
-        const referredUserIds = referrals.map(r => r.referredUserId);
-        const users = await User.find({ id: { $in: referredUserIds } });
-        
-        const userMap = {};
-        users.forEach(user => userMap[user.id] = user.username);
-
-        const totalReferrals = referrals.length;
-        
-        // Get completed/active AND non-withdrawn referrals
-        const availableReferrals = await Referral.find({
-            referrerUserId: req.params.userId,
-            status: { $in: ['completed', 'active'] },
-            withdrawn: { $ne: true } // Changed from false to $ne: true for better handling
-        }).countDocuments();
-
-        // Get all completed/active (regardless of withdrawal status)
-        const completedReferrals = referrals.filter(r => 
-            ['completed', 'active'].includes(r.status)
-        ).length;
-
-        res.json({
-            success: true,
-            referrals: referrals.map(ref => ({
-                userId: ref.referredUserId,
-                name: userMap[ref.referredUserId] || `User ${ref.referredUserId.substring(0, 6)}`,
-                status: ref.status.toLowerCase(),
-                date: ref.dateReferred || ref.dateCreated || new Date(0),
-                amount: 0.5
-            })),
-            stats: {
-                availableBalance: availableReferrals * 0.5,
-                totalEarned: completedReferrals * 0.5,
-                referralsCount: totalReferrals,
-                pendingAmount: (totalReferrals - completedReferrals) * 0.5
-            },
-            referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`
-        });
-        
-    } catch (error) {
-        console.error('Referral stats error:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Failed to load referral data' 
-        });
-    }
-});
 //get history for referrals withdraw for referral page
 
 // moved to routes/referralRoutes.js
-    try {
-        const { userId } = req.params;
-        const withdrawals = await ReferralWithdrawal.find({ userId })
-            .sort({ createdAt: -1 })
-            .limit(50);
-
-        res.json({ success: true, withdrawals });
-    } catch (error) {
-        console.error('Withdrawal history error:', error);
-        res.status(500).json({ success: false, error: 'Internal server error' });
-    }
-});
-
-
-// Withdrawal endpoint
-// moved to routes/referralRoutes.js
-    const session = await mongoose.startSession();
-    session.startTransaction();
 
     try {
         const { userId, amount, walletAddress } = req.body;
@@ -1325,47 +996,15 @@ app.use('/api', require('./routes/orderRoutes')(bot));
             throw new Error('Missing required fields');
         }
 
-        const user = await User.findOne({ id: userId }).session(session) || {};
-        const availableReferrals = await Referral.find({
-            referrerUserId: userId,
-            status: { $in: ['completed', 'active'] },
-            withdrawn: { $ne: true }
-        }).session(session);
+        // moved to routes/referralRoutes.js
+        // moved to routes/referralRoutes.js
 
-        const availableBalance = availableReferrals.length * 0.5;
+        // moved to routes/referralRoutes.js
 
         if (amountNum < 0.5) throw new Error('Minimum withdrawal is 0.5 USDT');
         if (amountNum > availableBalance) throw new Error(`Available: ${availableBalance.toFixed(2)} USDT`);
 
-        const referralsNeeded = Math.ceil(amountNum / 0.5);
-        const referralsToMark = availableReferrals.slice(0, referralsNeeded);
-
-        const username = user.username || `@user`;
-
-        const withdrawal = new ReferralWithdrawal({
-            userId,
-            username: username,
-            amount: amountNum,
-            walletAddress: walletAddress.trim(),
-            referralIds: referralsToMark.map(r => r._id),
-            status: 'pending',
-            adminMessages: [],
-            createdAt: new Date()
-        });
-
-        await withdrawal.save({ session });
-
-        await Referral.updateMany(
-            { _id: { $in: referralsToMark.map(r => r._id) } },
-            { $set: { withdrawn: true } },
-            { session }
-        );
-
-        try {
-            await bot.sendSticker(userId, 'CAACAgIAAxkBAAEOfU1oJPNMEdvuCLmOLYdxV9Nb5TKe-QACfz0AAi3JKUp2tyZPFVNcFzYE');
-        } catch (stickerError) {
-            console.error('Failed to send sticker:', stickerError);
-        }
+        // moved to routes/referralRoutes.js
 
         const userMessage = `Withdrawal Request Submitted\n\n` +
                           `Amount: ${amountNum} USDT\n` +
@@ -1373,9 +1012,9 @@ app.use('/api', require('./routes/orderRoutes')(bot));
                           `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
                           `Status: Pending approval`;
 
-        await bot.sendMessage(userId, userMessage);
+        // moved to routes/referralRoutes.js
 
-        const adminMessage = `New Withdrawal Request\n\n` +
+        // moved to routes/referralRoutes.js\n\n` +
                            `User: ${username}\n` +
                            `ID: ${userId}\n` +
                            `Amount: ${amountNum} USDT\n` +
@@ -1392,36 +1031,7 @@ app.use('/api', require('./routes/orderRoutes')(bot));
             ]
         };
 
-        withdrawal.adminMessages = await Promise.all(adminIds.map(async adminId => {
-            try {
-                const message = await bot.sendMessage(
-                    adminId,
-                    adminMessage,
-                    { reply_markup: adminKeyboard }
-                );
-                return {
-                    adminId,
-                    messageId: message.message_id,
-                    originalText: adminMessage
-                };
-            } catch (err) {
-                console.error(`Failed to notify admin ${adminId}:`, err);
-                return null;
-            }
-        })).then(results => results.filter(Boolean));
-
-        await withdrawal.save({ session });
-        await session.commitTransaction();
-        return res.json({ success: true, withdrawalId: withdrawal._id });
-
-    } catch (error) {
-        await session.abortTransaction();
-        console.error('Withdrawal error:', error);
-        return res.status(400).json({ success: false, error: error.message });
-    } finally {
-        session.endSession();
-    }
-});
+        // moved to routes/referralRoutes.js
 
 bot.on('callback_query', async (query) => {
     const session = await mongoose.startSession();
@@ -2552,7 +2162,7 @@ bot.onText(/\/detect_users/, async (msg) => {
 
 
 //survey form submission 
-app.post('/api/survey', async (req, res) => {
+// moved to managers/feedbackManager.js router
     try {
         const surveyData = req.body;
         
@@ -2581,18 +2191,7 @@ app.post('/api/survey', async (req, res) => {
         
         message += `\n📅 Submitted: ${new Date().toLocaleString()}`;
         
-        const sendPromises = adminIds.map(chatId => {
-            return bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-        });
-        
-        await Promise.all(sendPromises);
-        
-        res.status(200).json({ success: true });
-    } catch (error) {
-        console.error('Error processing survey:', error);
-        res.status(500).json({ success: false, error: 'Failed to process survey' });
-    }
-});
+        // moved to managers/feedbackManager.js router
 
         
 //feedback on sell orders
@@ -3049,3 +2648,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Webhook set to: ${WEBHOOK_URL}`);
 });
+
+setupBotHandlers(bot, { adminIds, trackStars, trackPremiumActivation, getUserDisplayName: (id) => getUserDisplayName(bot, id) });
+setupMaintenanceJobs(bot, reversalRequests);
