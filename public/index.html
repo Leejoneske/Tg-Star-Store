@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>StarStore | Buy & Sell Telegram Stars | Stars to USDT Converter</title>
+
+    <!-- Telegram WebApp Script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <!-- CSS & Fonts -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
@@ -19,20 +22,68 @@
         background: #f8fafc;
         margin: 0;
         padding: 0;
+        /* Telegram Mini App specific styles */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        min-height: 100vh;
+        min-height: 100dvh; /* Dynamic viewport height for mobile */
+        overflow-x: hidden;
     }
 
+    /* Telegram Mini App fullscreen container */
     .app-container {
         display: flex;
         flex-direction: column;
         min-height: 100vh;
+        min-height: 100dvh;
         margin: 0 auto;
         background: white;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         position: relative;
         overflow: hidden;
-        max-width: 600px;
         width: 100%;
+        max-width: 100vw;
+        /* Remove max-width constraint for fullscreen */
         padding-bottom: 64px;
+        /* Ensure proper spacing for Telegram UI elements */
+        padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    }
+
+    /* Fullscreen mode for Telegram Mini App */
+    .telegram-fullscreen .app-container {
+        max-width: none;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        margin: 0;
+        box-shadow: none;
+        border-radius: 0;
+        padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    }
+
+    /* Ensure proper spacing for Telegram UI elements */
+    .telegram-fullscreen {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+
+    /* Handle fixed elements in fullscreen mode */
+    .telegram-fullscreen .fixed {
+        top: env(safe-area-inset-top);
+        left: env(safe-area-inset-left);
+        right: env(safe-area-inset-right);
+        bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Ensure proper viewport height on mobile */
+    @supports (height: 100dvh) {
+        .telegram-fullscreen {
+            min-height: 100dvh;
+        }
     }
 
     .menu-overlay {
@@ -1565,12 +1616,37 @@ function initTelegramApp() {
         
         const webApp = window.Telegram.WebApp;
         webApp.ready();
+        
+        // Enable fullscreen mode for Telegram Mini App
         webApp.expand();
         
+        // Set up viewport change handling for fullscreen
+        webApp.onEvent('viewportChanged', () => {
+            webApp.expand();
+            // Add fullscreen class when in Telegram
+            document.body.classList.add('telegram-fullscreen');
+        });
+        
+        // Handle theme changes
         if (webApp.themeParams) {
             document.documentElement.style.setProperty('--tg-bg-color', webApp.themeParams.bg_color || '#ffffff');
             document.documentElement.style.setProperty('--tg-text-color', webApp.themeParams.text_color || '#000000');
+            
+            // Apply theme colors to body
+            document.body.style.backgroundColor = webApp.themeParams.bg_color || '#ffffff';
+            document.body.style.color = webApp.themeParams.text_color || '#000000';
         }
+        
+        // Handle theme changes dynamically
+        webApp.onEvent('themeChanged', () => {
+            const themeParams = webApp.themeParams;
+            if (themeParams) {
+                document.documentElement.style.setProperty('--tg-bg-color', themeParams.bg_color || '#ffffff');
+                document.documentElement.style.setProperty('--tg-text-color', themeParams.text_color || '#000000');
+                document.body.style.backgroundColor = themeParams.bg_color || '#ffffff';
+                document.body.style.color = themeParams.text_color || '#000000';
+            }
+        });
         
         let user = null;
         
@@ -1598,6 +1674,7 @@ function initTelegramApp() {
             
             updateUserInterface(user);
             updateGlobalUserData();
+            setupTelegramFullscreen(); // Enable fullscreen mode
         } else {
             console.warn('No user data available from Telegram');
             currentUser = {
@@ -1608,6 +1685,7 @@ function initTelegramApp() {
             };
             updateUserInterface(currentUser);
             updateGlobalUserData();
+            setupTelegramFullscreen(); // Enable fullscreen mode
         }
     } catch (error) {
         console.error('Telegram init error:', error);
@@ -1619,6 +1697,7 @@ function initTelegramApp() {
         };
         updateUserInterface(currentUser);
         updateGlobalUserData();
+        setupTelegramFullscreen(); // Enable fullscreen mode
     }
 }
 
@@ -1626,6 +1705,35 @@ function updateGlobalUserData() {
     window.currentUser = currentUser;
     window.currentWalletAddress = currentWalletAddress;
     window.isTelegramEnv = isTelegramEnv;
+}
+
+// Function to handle Telegram Mini App fullscreen mode
+function setupTelegramFullscreen() {
+    if (window.Telegram?.WebApp) {
+        const webApp = window.Telegram.WebApp;
+        
+        // Add fullscreen class to body
+        document.body.classList.add('telegram-fullscreen');
+        
+        // Set up viewport change listener
+        webApp.onEvent('viewportChanged', () => {
+            webApp.expand();
+        });
+        
+        // Handle orientation changes
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                webApp.expand();
+            }, 100);
+        });
+        
+        // Handle resize events
+        window.addEventListener('resize', () => {
+            webApp.expand();
+        });
+        
+        console.log('Telegram Mini App fullscreen mode enabled');
+    }
 }
 
 function updateUserInterface(user) {
