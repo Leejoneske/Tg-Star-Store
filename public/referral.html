@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Referral - StarStore</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -15,40 +15,19 @@
         body {
             font-family: 'Inter', sans-serif;
             background: #f3f4f6;
-            /* Telegram Mini App specific styles */
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
-            padding-right: env(safe-area-inset-right);
-            min-height: 100vh;
-            min-height: 100dvh;
-            overflow-x: hidden;
         }
         .app-container {
-            max-width: 100vw;
+            max-width: 600px;
             margin: 0 auto;
             background: white;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
             min-height: 100vh;
-            min-height: 100dvh;
             position: relative;
             overflow: hidden;
-            padding-bottom: calc(64px + env(safe-area-inset-bottom));
+            padding-bottom: 64px;
         }
 
-        /* Fullscreen mode for Telegram Mini App */
-        .telegram-fullscreen .app-container {
-            max-width: none;
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
-            margin: 0;
-            box-shadow: none;
-            border-radius: 0;
-            padding-bottom: calc(64px + env(safe-area-inset-bottom));
-        }
-
-        /* Ensure proper spacing for Telegram UI elements */
+        /* Telegram Mini App specific styles - only applied when in Telegram */
         .telegram-fullscreen {
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
@@ -56,19 +35,14 @@
             padding-right: env(safe-area-inset-right);
         }
 
-        /* Handle fixed elements in fullscreen mode */
-        .telegram-fullscreen .fixed {
-            top: env(safe-area-inset-top);
-            left: env(safe-area-inset-left);
-            right: env(safe-area-inset-right);
-            bottom: env(safe-area-inset-bottom);
-        }
-
-        /* Ensure proper viewport height on mobile */
-        @supports (height: 100dvh) {
-            .telegram-fullscreen {
-                min-height: 100dvh;
-            }
+        .telegram-fullscreen .app-container {
+            max-width: none;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            box-shadow: none;
+            border-radius: 0;
+            padding-bottom: calc(64px + env(safe-area-inset-bottom));
         }
         .logo-header {
             font-size: 24px;
@@ -476,33 +450,6 @@ if (window.Telegram?.WebApp) {
     
     // Set up viewport change listener
     webApp.onEvent('viewportChanged', () => {
-        webApp.expand();
-    });
-    
-    // Handle theme changes
-    if (webApp.themeParams) {
-        document.body.style.backgroundColor = webApp.themeParams.bg_color || '#f3f4f6';
-        document.body.style.color = webApp.themeParams.text_color || '#000000';
-    }
-    
-    // Handle theme changes dynamically
-    webApp.onEvent('themeChanged', () => {
-        const themeParams = webApp.themeParams;
-        if (themeParams) {
-            document.body.style.backgroundColor = themeParams.bg_color || '#f3f4f6';
-            document.body.style.color = themeParams.text_color || '#000000';
-        }
-    });
-    
-    // Handle orientation changes
-    window.addEventListener('orientationchange', () => {
-        setTimeout(() => {
-            webApp.expand();
-        }, 100);
-    });
-    
-    // Handle resize events
-    window.addEventListener('resize', () => {
         webApp.expand();
     });
     
