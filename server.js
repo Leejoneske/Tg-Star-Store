@@ -15,6 +15,13 @@ const { SERVER_URL, WEBHOOK_PATH, WEBHOOK_URL, ADMIN_IDS } = require('./config')
 // Import Telegram auth middleware (single import only)
 const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
 const { Sticker, Notification, Warning, Reversal, Feedback, ReferralTracker, ReferralWithdrawal, Cache, BuyOrder, SellOrder, User, Referral, BannedUser } = require('./models');
+
+// Import managers
+const PaymentManager = require('./managers/paymentManager');
+const AdminManager = require('./managers/adminManager');
+const UserInteractionManager = require('./managers/userInteractionManager');
+const CallbackManager = require('./managers/callbackManager');
+
 const reversalRequests = new Map();
 // Middleware
 app.use(cors({
@@ -46,6 +53,9 @@ app.use(cors({
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
+
+// API routes
+app.use('/api', require('./routes/apiRoutes'));
 // Webhook setup
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
@@ -60,6 +70,12 @@ mongoose.connect(process.env.MONGODB_URI)
     console.error('❌ MongoDB connection error:', err.message);
     process.exit(1);
   });
+
+// Initialize managers
+new PaymentManager(bot, adminIds);
+new AdminManager(bot, adminIds);
+new UserInteractionManager(bot);
+new CallbackManager(bot, adminIds);
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
   if (process.env.WEBHOOK_SECRET && 
@@ -100,104 +116,7 @@ function generateSessionToken(telegramId) {
     return `${telegramId}_${timestamp}_${random}`;
 }
 
-// Enhanced pre-checkout validation 
-bot.on('pre_checkout_query', async (query) => {
-    const orderId = query.invoice_payload;
-    const order = await SellOrder.findOne({ id: orderId }) || await BuyOrder.findOne({ id: orderId });
-    
-    if (!order) {
-        await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Order not found" });
-        return;
-    }
-
-    // Check if order has expired
-    if (order.sessionExpiry && new Date() > order.sessionExpiry) {
-        await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Payment session has expired" });
-        // Update order status to expired
-        order.status = "expired";
-        await order.save();
-        return;
-    }
-
-    // Check if the user making payment matches the order creator
-    if (order.userLocked && order.userLocked.toString() !== query.from.id.toString()) {
-        await bot.answerPreCheckoutQuery(query.id, false, { error_message: "This payment link is not valid for your account" });
-        return;
-    }
-
-    // Check if order already processed (duplicate payment protection)
-    if (order.status !== "pending") {
-        await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Order already processed" });
-        return;
-    }
-
-    await bot.answerPreCheckoutQuery(query.id, true);
-});
-
-// moved to utils/helpers.js
-    // moved to utils/helpers.js
-
-bot.on("successful_payment", async (msg) => {
-    const orderId = msg.successful_payment.invoice_payload;
-    const order = await SellOrder.findOne({ id: orderId });
-
-    if (!order) {
-        return await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Please contact support.");
-    }
-
-    // Verify user matches order creator
-    if (order.userLocked && order.userLocked.toString() !== msg.from.id.toString()) {
-        // This shouldn't happen if pre-checkout validation works, but extra safety
-        await bot.sendMessage(msg.chat.id, "❌ Payment validation error. Please contact support.");
-        return;
-    }
-
-    // Check if order already processed (duplicate payment protection)
-    if (order.status !== "pending") {
-        await bot.sendMessage(msg.chat.id, "❌ This order has already been processed. If you were charged multiple times, please contact support.");
-        return;
-    }
-
-    order.telegram_payment_charge_id = msg.successful_payment.telegram_payment_charge_id;
-    order.status = "processing"; 
-    order.datePaid = new Date();
-    order.sessionToken = null; 
-    order.sessionExpiry = null; 
-    await order.save();
-
-    await bot.sendMessage(
-        order.telegramId,
-        `✅ Payment successful!\n\n` +
-        `Order ID: ${order.id}\n` +
-        `Stars: ${order.stars}\n` +
-        `Wallet: ${order.walletAddress}\n` +
-        `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
-        `\nStatus: Processing (21-day hold)\n\n` +
-        `Funds will be released to your wallet after the hold period.`
-    );
-  
-    const userDisplayName = await getUserDisplayName(order.telegramId);
-    
-    const adminMessage = `💰 New Payment Received!\n\n` +
-        `Order ID: ${order.id}\n` +
-        `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` + 
-        `Stars: ${order.stars}\n` +
-        `Wallet: ${order.walletAddress}\n` +  
-        `Memo: ${order.memoTag || 'None'}`;
-
-    const adminKeyboard = {
-        inline_keyboard: [
-            [
-                { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
-                { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
-                { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
-            ]
-        ]
-    };
-
-    for (const adminId of adminIds) {
-        try {
-            const message = await bot.sendMessage(
+// Payment handlers moved to PaymentManager
                 adminId,
                 adminMessage,
                 { reply_markup: adminKeyboard }
@@ -214,169 +133,11 @@ bot.on("successful_payment", async (msg) => {
     }
 });
 
-bot.on('callback_query', async (query) => {
-    try {
-        const data = query.data;
-        const adminUsername = query.from.username ? query.from.username : `User_${query.from.id}`;
+// Callback handlers moved to CallbackManager
 
-        let order, actionType, orderType;
 
-        if (data.startsWith('complete_sell_')) {
-            actionType = 'complete';
-            orderType = 'sell';
-            order = await SellOrder.findOne({ id: data.split('_')[2] });
 
-            if (!order) {
-                await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
-                return;
-            }
 
-            if (order.status !== 'processing') {
-                await bot.answerCallbackQuery(query.id, { 
-                    text: `Order is ${order.status} - cannot complete` 
-                });
-                return;
-            }
-
-            if (!order.telegram_payment_charge_id && order.dateCreated > new Date('2025-05-25')) {
-                await bot.answerCallbackQuery(query.id, { 
-                    text: "Cannot complete - missing payment reference" 
-                });
-                return;
-            }
-
-            order.status = 'completed';
-            order.dateCompleted = new Date();
-            await order.save();
-            await trackStars(order.telegramId, order.stars, 'sell');
-        } 
-        else if (data.startsWith('decline_sell_')) {
-            actionType = 'decline';
-            orderType = 'sell';
-            order = await SellOrder.findOne({ id: data.split('_')[2] });
-
-            if (!order) {
-                await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
-                return;
-            }
-
-            order.status = 'failed';
-            order.dateDeclined = new Date();
-            await order.save();
-        }
-        else if (data.startsWith('refund_sell_')) {
-            actionType = 'refund';
-            orderType = 'sell';
-            order = await SellOrder.findOne({ id: data.split('_')[2] });
-
-            if (!order) {
-                await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
-                return;
-            }
-
-            order.status = 'refunded';
-            order.dateRefunded = new Date();
-            await order.save();
-        }
-        else if (data.startsWith('complete_buy_')) {
-            actionType = 'complete';
-            orderType = 'buy';
-            order = await BuyOrder.findOne({ id: data.split('_')[2] });
-
-            if (!order) {
-                await bot.answerCallbackQuery(query.id, { text: "Buy order not found" });
-                return;
-            }
-
-            if (order.status !== 'pending') {
-                await bot.answerCallbackQuery(query.id, { 
-                    text: `Order is ${order.status} - cannot complete` 
-                });
-                return;
-            }
-
-            order.status = 'completed';
-            order.dateCompleted = new Date();
-            await order.save();
-            await trackStars(order.telegramId, order.stars, 'buy');
-            if (order.isPremium) {
-                await trackPremiumActivation(order.telegramId);
-            }
-        }
-        else if (data.startsWith('decline_buy_')) {
-            actionType = 'decline';
-            orderType = 'buy';
-            order = await BuyOrder.findOne({ id: data.split('_')[2] });
-
-            if (!order) {
-                await bot.answerCallbackQuery(query.id, { text: "Buy order not found" });
-                return;
-            }
-
-            order.status = 'declined';
-            order.dateDeclined = new Date();
-            await order.save();
-        }
-        else {
-            return await bot.answerCallbackQuery(query.id);
-        }
-
-        const statusText = order.status === 'completed' ? '✅ Completed' : 
-                          order.status === 'failed' ? '❌ Failed' : 
-                          order.status === 'refunded' ? '💸 Refunded' : '❌ Declined';
-        const processedBy = `Processed by: @${adminUsername}`;
-        const completionNote = orderType === 'sell' && order.status === 'completed' ? '\n\nPayments have been transferred to the seller.' : '';
-
-        const updatePromises = order.adminMessages.map(async (adminMsg) => {
-            try {
-                const updatedText = `${adminMsg.originalText}\n\n${statusText}\n${processedBy}${completionNote}`;
-                
-                if (updatedText.length > 4000) {
-                    console.warn(`Message too long for admin ${adminMsg.adminId}`);
-                    return;
-                }
-                
-                await bot.editMessageText(updatedText, {
-                    chat_id: adminMsg.adminId,
-                    message_id: adminMsg.messageId,
-                    reply_markup: {
-                        inline_keyboard: [[
-                            { 
-                                text: statusText, 
-                                callback_data: `processed_${order.id}_${Date.now()}`
-                            }
-                        ]]
-                    }
-                });
-            } catch (err) {
-                console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
-            }
-        });
-
-        await Promise.allSettled(updatePromises);
-
-        const userMessage = order.status === 'completed' 
-            ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your choosing StarStore!'}`
-            : order.status === 'failed'
-            ? `❌ Your sell order #${order.id} has failed.\n\nPlease try selling a lower amount or contact support if the issue persist.`
-            : order.status === 'refunded'
-            ? `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`
-            : `❌ Your buy order #${order.id} has been declined.\n\nPlease contact support if you believe this was a mistake.`;
-
-        await bot.sendMessage(order.telegramId, userMessage);
-
-        await bot.answerCallbackQuery(query.id, { 
-            text: `${orderType} order ${order.status}` 
-        });
-
-    } catch (err) {
-        console.error('Order processing error:', err);
-        const errorMsg = err.response?.description || err.message || "Processing failed";
-        await bot.answerCallbackQuery(query.id, { 
-            text: `Error: ${errorMsg.slice(0, 50)}` 
-        });
-    }
-});
 
 async function createTelegramInvoice(chatId, orderId, stars, description, sessionToken) {
     try {
@@ -1743,113 +1504,8 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
         bot.sendMessage(chatId, '❌ Failed to send notification: ' + err.message);
     }
 });
-// Get transaction history and should NOT TOUCH THIS CODE
-app.get('/api/transactions/:userId', async (req, res) => {
-    try {
-        const { userId } = req.params;
-        
-        // Get both buy and sell orders for the user
-        const buyOrders = await BuyOrder.find({ telegramId: userId })
-            .sort({ dateCreated: -1 })
-            .lean();
-        
-        const sellOrders = await SellOrder.find({ telegramId: userId })
-            .sort({ dateCreated: -1 })
-            .lean();
-
-        // Combine and format the data
-        const transactions = [
-            ...buyOrders.map(order => ({
-                id: order.id,
-                type: 'Buy Stars',
-                amount: order.stars,
-                status: order.status.toLowerCase(),
-                date: order.dateCreated,
-                details: `Buy order for ${order.stars} stars`,
-                usdtValue: order.amount
-            })),
-            ...sellOrders.map(order => ({
-                id: order.id,
-                type: 'Sell Stars',
-                amount: order.stars,
-                status: order.status.toLowerCase(),
-                date: order.dateCreated,
-                details: `Sell order for ${order.stars} stars`,
-                usdtValue: null 
-            }))
-        ];
-
-        res.json(transactions);
-    } catch (error) {
-        console.error('Error fetching transactions:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Get referral history
-app.get('/api/referrals/:userId', async (req, res) => {
-    try {
-        const { userId } = req.params;
-        
-        const referrals = await Referral.find({ referrerUserId: userId })
-            .sort({ dateReferred: -1 })
-            .lean();
-        
-        // Format referral data
-        const formattedReferrals = await Promise.all(referrals.map(async referral => {
-            const referredUser = await User.findOne({ id: referral.referredUserId }).lean();
-            
-            return {
-                id: referral._id.toString(),
-                name: referredUser?.username || 'Unknown User',
-                status: referral.status.toLowerCase(),
-                date: referral.dateReferred,
-                details: `Referred user ${referredUser?.username || referral.referredUserId}`,
-                amount: 0.5 // Fixed bonus amount or calculate based on your logic
-            };
-        }));
-
-        res.json(formattedReferrals);
-    } catch (error) {
-        console.error('Error fetching referrals:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-// Handle both /referrals command and plain text "referrals"
-bot.onText(/\/referrals|referrals/i, async (msg) => {
-    const chatId = msg.chat.id;
-
-    const referralLink = `https://t.me/TgStarStore_bot?start=ref_${chatId}`;
-
-    const referrals = await Referral.find({ referrerUserId: chatId.toString() });
-
-    if (referrals.length > 0) {
-        const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
-        const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
-
-        let message = `📊 Your Referrals:\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
-        message += 'Your pending referrals will be active when they make a purchase.\n\n';
-        message += `🔗 Your Referral Link:\n${referralLink}`;
-
-        const keyboard = {
-            inline_keyboard: [
-                [{ text: 'Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }]
-            ]
-        };
-
-        await bot.sendMessage(chatId, message, { reply_markup: keyboard });
-    } else {
-        const message = `You have no referrals yet.\n\n🔗 Your Referral Link:\n${referralLink}`;
-
-        const keyboard = {
-            inline_keyboard: [
-                [{ text: 'Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }]
-            ]
-        };
-
-        await bot.sendMessage(chatId, message, { reply_markup: keyboard });
-    }
-});
+// API routes moved to routes/apiRoutes.js
+// Referrals command moved to UserInteractionManager
 
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
