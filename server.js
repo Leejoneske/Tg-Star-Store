@@ -117,21 +117,6 @@ function generateSessionToken(telegramId) {
 }
 
 // Payment handlers moved to PaymentManager
-                adminId,
-                adminMessage,
-                { reply_markup: adminKeyboard }
-            );
-            order.adminMessages.push({ 
-                adminId, 
-                messageId: message.message_id,
-                originalText: adminMessage 
-            });
-            await order.save();
-        } catch (err) {
-            console.error(`Failed to notify admin ${adminId}:`, err);
-        }
-    }
-});
 
 // Callback handlers moved to CallbackManager
 
