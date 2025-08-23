@@ -40,11 +40,12 @@
     .telegram-fullscreen .app-container {
         max-width: none;
         width: 100vw;
-        height: 100vh;
+        min-height: 100vh;
         margin: 0;
         box-shadow: none;
         border-radius: 0;
         padding-bottom: calc(64px + env(safe-area-inset-bottom));
+        overflow-y: auto;
     }
     .sell-option {
         border: 1px solid #e5e7eb;
