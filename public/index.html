@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
     <title>StarStore | Buy & Sell Telegram Stars | Stars to USDT Converter</title>
 
     <!-- Telegram WebApp Script -->
@@ -44,16 +44,31 @@
         padding-bottom: env(safe-area-inset-bottom);
         padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);
+        min-height: 100vh;
+        min-height: 100dvh;
     }
 
     .telegram-fullscreen .app-container {
         max-width: none;
         width: 100vw;
-        height: 100vh;
+        min-height: 100vh;
+        min-height: 100dvh;
         margin: 0;
         box-shadow: none;
         border-radius: 0;
         padding-bottom: calc(64px + env(safe-area-inset-bottom));
+        overflow-y: auto;
+        position: relative;
+    }
+
+    /* Handle Telegram's safe area insets properly */
+    @supports (padding: max(0px)) {
+        .telegram-fullscreen {
+            padding-top: max(env(safe-area-inset-top), 0px);
+            padding-bottom: max(env(safe-area-inset-bottom), 0px);
+            padding-left: max(env(safe-area-inset-left), 0px);
+            padding-right: max(env(safe-area-inset-right), 0px);
+        }
     }
 
     .menu-overlay {
@@ -1593,9 +1608,28 @@ function initTelegramApp() {
         // Add fullscreen class when in Telegram
         document.body.classList.add('telegram-fullscreen');
         
+        // Use official fullscreen API if available
+        if (webApp.requestFullscreen) {
+            webApp.requestFullscreen();
+        }
+        
         // Set up viewport change handling for fullscreen
         webApp.onEvent('viewportChanged', () => {
             webApp.expand();
+        });
+        
+        // Handle fullscreen changes
+        webApp.onEvent('fullscreenChanged', () => {
+            if (webApp.isFullscreen) {
+                document.body.classList.add('telegram-fullscreen');
+            } else {
+                document.body.classList.remove('telegram-fullscreen');
+            }
+        });
+        
+        // Handle safe area changes
+        webApp.onEvent('safeAreaChanged', () => {
+            updateSafeAreaInsets(webApp.safeAreaInset);
         });
         
         // Handle theme changes
@@ -1677,6 +1711,16 @@ function setupTelegramFullscreen() {
         });
         
         console.log('Telegram Mini App fullscreen mode enabled');
+    }
+}
+
+// Function to update safe area insets
+function updateSafeAreaInsets(safeAreaInset) {
+    if (safeAreaInset) {
+        document.documentElement.style.setProperty('--safe-area-top', `${safeAreaInset.top}px`);
+        document.documentElement.style.setProperty('--safe-area-bottom', `${safeAreaInset.bottom}px`);
+        document.documentElement.style.setProperty('--safe-area-left', `${safeAreaInset.left}px`);
+        document.documentElement.style.setProperty('--safe-area-right', `${safeAreaInset.right}px`);
     }
 }
 
