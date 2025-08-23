@@ -27,58 +27,13 @@
             padding-bottom: 64px;
         }
 
-        /* Telegram Mini App specific styles - only applied when in Telegram */
-        .telegram-fullscreen {
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
-            padding-right: env(safe-area-inset-right);
-            min-height: 100vh;
-            min-height: 100dvh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
+        /* Simple Telegram Mini App styles */
         .telegram-fullscreen .app-container {
-            max-width: 95vw;
+            max-width: 100%;
             width: 100%;
-            min-height: 90vh;
-            min-height: 90dvh;
-            margin: 0 auto;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            border-radius: 16px;
-            padding-bottom: calc(64px + env(safe-area-inset-bottom));
-            overflow-y: auto;
-            position: relative;
-            background: white;
-        }
-
-        /* Handle Telegram's safe area insets properly */
-        @supports (padding: max(0px)) {
-            .telegram-fullscreen {
-                padding-top: max(env(safe-area-inset-top), 16px);
-                padding-bottom: max(env(safe-area-inset-bottom), 16px);
-                padding-left: max(env(safe-area-inset-left), 16px);
-                padding-right: max(env(safe-area-inset-right), 16px);
-            }
-        }
-
-        /* Responsive adjustments for different screen sizes */
-        @media (max-width: 480px) {
-            .telegram-fullscreen .app-container {
-                max-width: 98vw;
-                min-height: 85vh;
-                min-height: 85dvh;
-            }
-        }
-
-        @media (min-width: 768px) {
-            .telegram-fullscreen .app-container {
-                max-width: 80vw;
-                min-height: 80vh;
-                min-height: 80dvh;
-            }
+            margin: 0;
+            box-shadow: none;
+            border-radius: 0;
         }
         .logo-header {
             font-size: 24px;
@@ -484,31 +439,7 @@ if (window.Telegram?.WebApp) {
     // Add fullscreen class to body
     document.body.classList.add('telegram-fullscreen');
     
-    // Use official fullscreen API if available (optional - more conservative approach)
-    // if (webApp.requestFullscreen) {
-    //     webApp.requestFullscreen();
-    // }
-    
-    // Set up viewport change listener
-    webApp.onEvent('viewportChanged', () => {
-        webApp.expand();
-    });
-    
-    // Handle fullscreen changes
-    webApp.onEvent('fullscreenChanged', () => {
-        if (webApp.isFullscreen) {
-            document.body.classList.add('telegram-fullscreen');
-        } else {
-            document.body.classList.remove('telegram-fullscreen');
-        }
-    });
-    
-    // Handle safe area changes
-    webApp.onEvent('safeAreaChanged', () => {
-        updateSafeAreaInsets(webApp.safeAreaInset);
-    });
-    
-    console.log('Telegram Mini App fullscreen mode enabled');
+    console.log('Telegram Mini App mode enabled');
 }
 
 const tgWebApp = window.Telegram?.WebApp;
@@ -581,15 +512,7 @@ function init() {
     applyTranslations(); 
 }
 
-// Function to update safe area insets
-function updateSafeAreaInsets(safeAreaInset) {
-    if (safeAreaInset) {
-        document.documentElement.style.setProperty('--safe-area-top', `${safeAreaInset.top}px`);
-        document.documentElement.style.setProperty('--safe-area-bottom', `${safeAreaInset.bottom}px`);
-        document.documentElement.style.setProperty('--safe-area-left', `${safeAreaInset.left}px`);
-        document.documentElement.style.setProperty('--safe-area-right', `${safeAreaInset.right}px`);
-    }
-}    
+    
  
 async function loadReferralData() {
     try {
