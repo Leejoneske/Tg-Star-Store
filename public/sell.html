@@ -37,28 +37,49 @@
         padding-right: env(safe-area-inset-right);
         min-height: 100vh;
         min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .telegram-fullscreen .app-container {
-        max-width: none;
-        width: 100vw;
-        min-height: 100vh;
-        min-height: 100dvh;
-        margin: 0;
-        box-shadow: none;
-        border-radius: 0;
+        max-width: 95vw;
+        width: 100%;
+        min-height: 90vh;
+        min-height: 90dvh;
+        margin: 0 auto;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        border-radius: 16px;
         padding-bottom: calc(64px + env(safe-area-inset-bottom));
         overflow-y: auto;
         position: relative;
+        background: white;
     }
 
     /* Handle Telegram's safe area insets properly */
     @supports (padding: max(0px)) {
         .telegram-fullscreen {
-            padding-top: max(env(safe-area-inset-top), 0px);
-            padding-bottom: max(env(safe-area-inset-bottom), 0px);
-            padding-left: max(env(safe-area-inset-left), 0px);
-            padding-right: max(env(safe-area-inset-right), 0px);
+            padding-top: max(env(safe-area-inset-top), 16px);
+            padding-bottom: max(env(safe-area-inset-bottom), 16px);
+            padding-left: max(env(safe-area-inset-left), 16px);
+            padding-right: max(env(safe-area-inset-right), 16px);
+        }
+    }
+
+    /* Responsive adjustments for different screen sizes */
+    @media (max-width: 480px) {
+        .telegram-fullscreen .app-container {
+            max-width: 98vw;
+            min-height: 85vh;
+            min-height: 85dvh;
+        }
+    }
+
+    @media (min-width: 768px) {
+        .telegram-fullscreen .app-container {
+            max-width: 80vw;
+            min-height: 80vh;
+            min-height: 80dvh;
         }
     }
     .sell-option {
@@ -1891,10 +1912,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add fullscreen class to body
         document.body.classList.add('telegram-fullscreen');
         
-        // Use official fullscreen API if available
-        if (webApp.requestFullscreen) {
-            webApp.requestFullscreen();
-        }
+        // Use official fullscreen API if available (optional - more conservative approach)
+        // if (webApp.requestFullscreen) {
+        //     webApp.requestFullscreen();
+        // }
         
         // Set up viewport change listener
         webApp.onEvent('viewportChanged', () => {
