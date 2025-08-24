@@ -1,0 +1,29 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://starstore.site/sitemap.xml
+
+# Allow crawling of all pages
+Allow: /index.html
+Allow: /about.html
+Allow: /sell.html
+Allow: /history.html
+Allow: /referral.html
+Allow: /notification.html
+
+# Allow crawling of static assets
+Allow: /css/
+Allow: /js/
+Allow: /images/
+
+# Allow crawling of API endpoints (for SEO purposes)
+Allow: /api/
+
+# Disallow admin or sensitive areas
+Disallow: /admin/
+Disallow: /private/
+Disallow: /temp/
+
+# Crawl delay (optional - be respectful to server)
+Crawl-delay: 1
