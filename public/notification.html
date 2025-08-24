@@ -1,13 +1,13 @@
 
 <div class="notification-container">
   <div class="notification-header">
-    <h3>Notifications</h3>
+    <h3 data-translate="notifications">Notifications</h3>
     <div class="notification-actions">
       <button id="markAllRead" class="action-btn">
-        <i class="fas fa-check"></i> Mark All Read
+        <i class="fas fa-check"></i> <span data-translate="markAllRead">Mark All Read</span>
       </button>
       <button id="refreshNotifications" class="action-btn">
-        <i class="fas fa-sync-alt"></i> Refresh
+        <i class="fas fa-sync-alt"></i> <span data-translate="refresh">Refresh</span>
       </button>
       <button id="notificationCloseBtn" class="close-btn">
         <i class="fas fa-times"></i>
@@ -17,23 +17,23 @@
 
   <div class="notification-loading" id="notificationLoading">
     <div class="loading-spinner"></div>
-    <p>Loading notifications...</p>
+    <p data-translate="loadingNotifications">Loading notifications...</p>
   </div>
 
   <div class="notification-list" id="notificationList">
     <div class="empty-state" id="notificationEmpty">
       <i class="fas fa-bell-slash"></i>
-      <p>No notifications yet</p>
-      <small>We'll notify you about important updates and activities</small>
+      <p data-translate="noNotificationsYet">No notifications yet</p>
+      <small data-translate="notificationEmptyDesc">We'll notify you about important updates and activities</small>
     </div>
   </div>
 
   <div class="notification-footer">
     <div class="notification-stats" id="notificationStats">
-      <span id="unreadCount">0</span> unread
+      <span id="unreadCount">0</span> <span data-translate="unread">unread</span>
     </div>
     <button id="loadMoreNotifications" class="load-more-btn" style="display: none;">
-      Load More
+      <span data-translate="loadMore">Load More</span>
     </button>
   </div>
 </div>
@@ -589,3 +589,12 @@
   background: #94a3b8;
 }
 </style>
+
+<script src="js/translations.js"></script>
+<script>
+// Initialize TranslationUtils
+if (typeof TranslationUtils !== 'undefined') {
+    TranslationUtils.init();
+    TranslationUtils.applyTranslations();
+}
+</script>
