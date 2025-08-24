@@ -2,7 +2,7 @@ User-agent: *
 Allow: /
 
 # Sitemap location
-Sitemap: https://starstore.site/sitemap.xml
+Sitemap: https://starstore.site/api/sitemap.xml
 
 # Allow crawling of all pages
 Allow: /index.html

@@ -73,8 +73,17 @@ Allow: /css/
 Allow: /js/
 Allow: /images/
 
-# Allow crawling of API endpoints (for SEO purposes)
-Allow: /api/
+# Allow crawling of public API endpoints (for SEO purposes)
+Allow: /api/sitemap.xml
+Allow: /api/robots.txt
+Allow: /api/health
+
+# Disallow sensitive API endpoints
+Disallow: /api/admin/
+Disallow: /api/user/
+Disallow: /api/notifications/
+Disallow: /api/orders/
+Disallow: /api/referrals/
 
 # Disallow admin or sensitive areas
 Disallow: /admin/

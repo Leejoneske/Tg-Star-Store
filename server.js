@@ -6,6 +6,8 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const { requireTelegramAuth } = require('./middleware/telegramAuth');
+const { apiLimiter, sensitiveApiLimiter, requireApiAuth, apiLogger } = require('./middleware/apiAuth');
+const securityConfig = require('./config/security');
 
 // Load environment variables
 require('dotenv').config();
@@ -34,39 +36,28 @@ const app = express();
 
 // Security and performance middleware
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://telegram.org", "https://cdnjs.cloudflare.com"],
-            imgSrc: ["'self'", "data:", "https:", "blob:"],
-            connectSrc: ["'self'", "https://api.telegram.org", "https://ton.org"],
-            frameSrc: ["'self'", "https://telegram.org"],
-            objectSrc: ["'none'"],
-            upgradeInsecureRequests: []
-        }
-    }
+    contentSecurityPolicy: securityConfig.csp,
+    referrerPolicy: securityConfig.referrerPolicy,
+    permissionsPolicy: securityConfig.permissionsPolicy,
+    frameguard: securityConfig.frameguard,
+    hsts: securityConfig.hsts,
+    noSniff: true,
+    xssFilter: false // Disable deprecated X-XSS-Protection
 }));
 
 app.use(compression());
 
-// Rate limiting
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false,
-});
+// Apply API rate limiting
+app.use('/api/', apiLimiter);
 
-app.use('/api/', limiter);
+// Apply stricter rate limiting to sensitive endpoints
+app.use('/api/admin/', sensitiveApiLimiter);
+app.use('/api/user/', sensitiveApiLimiter);
 
-// Additional security headers
+// Additional security headers (only for non-helmet headers)
 app.use((req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    // Add any custom headers that helmet doesn't cover
+    res.setHeader('X-Powered-By', 'StarStore'); // Custom header for branding
     next();
 });
 
@@ -75,28 +66,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
-// SEO middleware - Add meta tags for better search engine visibility
+// SEO middleware - Add SEO-friendly headers
 app.use((req, res, next) => {
     // Add SEO-friendly headers
     res.setHeader('X-Robots-Tag', 'index, follow');
-    
-    // Add security headers (if not already set)
-    if (!res.getHeader('X-Content-Type-Options')) {
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-    }
-    if (!res.getHeader('X-Frame-Options')) {
-        res.setHeader('X-Frame-Options', 'DENY');
-    }
-    if (!res.getHeader('X-XSS-Protection')) {
-        res.setHeader('X-XSS-Protection', '1; mode=block');
-    }
-    if (!res.getHeader('Referrer-Policy')) {
-        res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    }
-    if (!res.getHeader('Permissions-Policy')) {
-        res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-    }
-    
     next();
 });
 
@@ -135,13 +108,13 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
-// API routes
-app.use('/api', apiRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api', referralRoutes);
-app.use('/api', orderRoutes);
-app.use('/api', stickerRoutes);
-app.use('/api', sitemapRoutes);
+// API routes with logging
+app.use('/api', apiLogger, apiRoutes);
+app.use('/api/notifications', apiLogger, notificationRoutes);
+app.use('/api', apiLogger, referralRoutes);
+app.use('/api', apiLogger, orderRoutes);
+app.use('/api', apiLogger, stickerRoutes);
+app.use('/api', apiLogger, sitemapRoutes);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
