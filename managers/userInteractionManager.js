@@ -51,14 +51,14 @@ class UserInteractionManager {
                 return;
             }
 
-            const referrer = await User.findOne({ telegramId: referrerId });
+            const referrer = await User.findOne({ $or: [{ id: referrerId }, { telegramId: referrerId }] });
             if (!referrer) {
                 await this.bot.sendMessage(chatId, "❌ Invalid referral link!");
                 return;
             }
 
             // Check if user already exists
-            let user = await User.findOne({ telegramId: userId });
+            let user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (user) {
                 if (user.referredBy) {
                     await this.bot.sendMessage(chatId, "❌ You have already been referred by someone else!");
@@ -71,6 +71,7 @@ class UserInteractionManager {
             } else {
                 // Create new user with referral
                 user = new User({
+                    id: userId,
                     telegramId: userId,
                     username: username,
                     referredBy: referrerId,
@@ -119,9 +120,10 @@ class UserInteractionManager {
         const username = msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`;
 
         try {
-            let user = await User.findOne({ telegramId: userId });
+            let user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (!user) {
                 user = new User({
+                    id: userId,
                     telegramId: userId,
                     username: username,
                     joinDate: new Date()
@@ -162,7 +164,7 @@ class UserInteractionManager {
         const userId = chatId.toString();
 
         try {
-            const user = await User.findOne({ telegramId: userId });
+            const user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (!user) {
                 await this.bot.sendMessage(chatId, "❌ User not found. Please use /start first.");
                 return;
@@ -172,7 +174,7 @@ class UserInteractionManager {
             const referrals = await Referral.find({ referrerId: userId }).sort({ dateCreated: -1 });
             
             // Get user's referral info
-            const referredBy = user.referredBy ? await User.findOne({ telegramId: user.referredBy }) : null;
+            const referredBy = user.referredBy ? await User.findOne({ $or: [{ id: user.referredBy }, { telegramId: user.referredBy }] }) : null;
 
             let message = `📊 **Your Referral Status**\n\n`;
 
@@ -231,9 +233,10 @@ class UserInteractionManager {
         const username = msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`;
 
         try {
-            let user = await User.findOne({ telegramId: userId });
+            let user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (!user) {
                 user = new User({
+                    id: userId,
                     telegramId: userId,
                     username: username,
                     joinDate: new Date()
@@ -256,7 +259,7 @@ class UserInteractionManager {
     // Method to activate referrals when user completes a purchase
     async activateReferral(userId, orderId, stars) {
         try {
-            const user = await User.findOne({ telegramId: userId });
+            const user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (!user || !user.referredBy) return;
 
             // Check if referral is already active
@@ -284,8 +287,8 @@ class UserInteractionManager {
 
             // Notify referrer
             try {
-                const referrer = await User.findOne({ telegramId: user.referredBy });
-                const referredUser = await User.findOne({ telegramId: userId });
+                const referrer = await User.findOne({ $or: [{ id: user.referredBy }, { telegramId: user.referredBy }] });
+                const referredUser = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
                 
                 const notification = `🎉 Referral Activated!\n\n` +
                     `User: @${referredUser.username}\n` +

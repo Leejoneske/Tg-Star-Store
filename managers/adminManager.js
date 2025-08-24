@@ -1105,7 +1105,7 @@ class AdminManager {
         
         try {
             // Validate user exists
-            const user = await User.findOne({ telegramId: userId });
+            const user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (!user) {
                 return this.bot.sendMessage(msg.chat.id, `❌ User ${userId} not found in database.`, {
                     reply_to_message_id: msg.message_id
@@ -1201,7 +1201,7 @@ class AdminManager {
         
         try {
             // Validate user exists
-            const user = await User.findOne({ telegramId: userId });
+            const user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (!user) {
                 return this.bot.sendMessage(msg.chat.id, `❌ User ${userId} not found in database.`, {
                     reply_to_message_id: msg.message_id

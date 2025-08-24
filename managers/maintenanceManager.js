@@ -91,10 +91,12 @@ class MaintenanceManager {
                 const ninetyDaysAgo = new Date();
                 ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
                 
-                const inactiveUsers = await User.find({
-                    lastSeen: { $lt: ninetyDaysAgo },
-                    joinDate: { $lt: ninetyDaysAgo }
-                });
+                            const inactiveUsers = await User.find({
+                $or: [
+                    { lastSeen: { $lt: ninetyDaysAgo }, joinDate: { $lt: ninetyDaysAgo } },
+                    { lastSeen: { $exists: false }, joinDate: { $lt: ninetyDaysAgo } }
+                ]
+            });
                 
                 if (inactiveUsers.length > 0) {
                     console.log(`🧹 Found ${inactiveUsers.length} inactive users`);

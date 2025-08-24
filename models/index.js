@@ -110,7 +110,16 @@ const sellOrderSchema = new mongoose.Schema({
 
 const userSchema = new mongoose.Schema({
     id: String,
-    username: String
+    telegramId: String,
+    username: String,
+    firstName: String,
+    lastName: String,
+    referredBy: String,
+    referralDate: Date,
+    joinDate: { type: Date, default: Date.now },
+    lastSeen: { type: Date, default: Date.now },
+    isActive: { type: Boolean, default: true },
+    inactiveDate: Date
 });
 
 const bannedUserSchema = new mongoose.Schema({
@@ -124,11 +133,16 @@ const cacheSchema = new mongoose.Schema({
 });
 
 const referralSchema = new mongoose.Schema({
-    referrerUserId: { type: String, required: true },
-    referredUserId: { type: String, required: true },
-    status: { type: String, enum: ['pending', 'active', 'completed'], default: 'pending' },
+    referrerId: { type: String, required: true },
+    referredId: { type: String, required: true },
+    referredUsername: String,
+    status: { type: String, enum: ['pending', 'active', 'completed', 'expired'], default: 'pending' },
     withdrawn: { type: Boolean, default: false },
-    dateReferred: { type: Date, default: Date.now }
+    dateCreated: { type: Date, default: Date.now },
+    activatedDate: Date,
+    activationOrderId: String,
+    starsPurchased: Number,
+    expiredDate: Date
 });
 
 const referralWithdrawalSchema = new mongoose.Schema({
@@ -187,10 +201,17 @@ const reversalSchema = new mongoose.Schema({
     username: String,
     stars: { type: Number, required: true },
     reason: { type: String, required: true },
-    status: { type: String, enum: ['pending', 'approved', 'rejected', 'processed'], default: 'pending' },
+    status: { type: String, enum: ['pending', 'processing', 'completed', 'declined'], default: 'pending' },
     adminId: String,
     adminUsername: String,
-    processedAt: Date
+    processedAt: Date,
+    createdAt: { type: Date, default: Date.now },
+    adminMessages: [{
+        adminId: String,
+        messageId: Number,
+        messageType: String
+    }],
+    errorMessage: String
 });
 
 const warningSchema = new mongoose.Schema({
