@@ -586,20 +586,20 @@
                     <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
                         <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="buyFor">Buy For</div>
                         <div class="flex items-center gap-3">
-                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForStars" value="self" checked> Myself</label>
-                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForStars" value="others"> Someone else</label>
+                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForStars" value="self" checked> <span data-translate="myself">Myself</span></label>
+                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForStars" value="others"> <span data-translate="someoneElse">Someone else</span></label>
                         </div>
                     </div>
                     <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
-                        <div class="text-sm font-semibold text-gray-700 mb-2">Recipients (up to 5)</div>
+                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="recipients">Recipients (up to 5)</div>
                         <div class="space-y-2" id="recipientsContainer"></div>
                         <div class="flex items-center gap-2 mt-2">
-                            <button id="addRecipientBtn" class="px-3 py-2 text-sm rounded-md border border-gray-300">Add Recipient</button>
+                            <button id="addRecipientBtn" class="px-3 py-2 text-sm rounded-md border border-gray-300" data-translate="addRecipient">Add Recipient</button>
                             <span class="text-xs text-gray-500" id="recipientHelp">Enter Telegram usernames. They will be validated and IDs shown.</span>
                         </div>
                     </div>
                     <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
-                        <div class="text-sm font-semibold text-gray-700 mb-2">Custom Stars</div>
+                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="customStars">Custom Stars</div>
                         <div class="flex items-center gap-2">
                             <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50)" class="flex-1 px-3 py-2 border rounded-md text-sm" data-translate-placeholder="enterStars" />
                             <button id="buyCustomStars" class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-indigo-600 text-white">Buy</button>
@@ -612,7 +612,7 @@
                         </div>
                     </div>
                     <div class="stars-card rounded-xl mb-8">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Choose a Stars Package</h3>
+                        <h3 class="text-lg font-bold text-gray-800 mb-4" data-translate="chooseStarsPackage">Choose a Stars Package</h3>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="package-option stars-package">
                                 <div class="stars-amount">15 Stars</div>
@@ -671,15 +671,15 @@
                     <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
                         <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="buyFor">Buy For</div>
                         <div class="flex items-center gap-3">
-                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForPremium" value="self" checked> Myself</label>
-                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForPremium" value="others"> Someone else</label>
+                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForPremium" value="self" checked> <span data-translate="myself">Myself</span></label>
+                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForPremium" value="others"> <span data-translate="someoneElse">Someone else</span></label>
                         </div>
                     </div>
                     <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
-                        <div class="text-sm font-semibold text-gray-700 mb-2">Recipients (up to 5)</div>
+                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="recipients">Recipients (up to 5)</div>
                         <div class="space-y-2" id="recipientsContainerPremium"></div>
                         <div class="flex items-center gap-2 mt-2">
-                            <button id="addRecipientBtnPremium" class="px-3 py-2 text-sm rounded-md border border-gray-300">Add Recipient</button>
+                            <button id="addRecipientBtnPremium" class="px-3 py-2 text-sm rounded-md border border-gray-300" data-translate="addRecipient">Add Recipient</button>
                             <span class="text-xs text-gray-500" id="recipientHelpPremium">Enter Telegram usernames. They will be validated and IDs shown.</span>
                         </div>
                     </div>
