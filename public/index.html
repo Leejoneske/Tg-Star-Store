@@ -2135,23 +2135,34 @@ async function updatePackagePrices() {
                 });
                 
                 if (quote.data?.success) {
+                    const totalAmount = quote.data.totalAmount;
+                    const unitAmount = quote.data.unitAmount;
+                    const quantity = quote.data.quantity;
+                    
+                    // Update price element independently
                     const priceElement = pkg.element.querySelector('.package-price');
-                    const buyButton = pkg.element.querySelector('.buy-button');
-                    if (priceElement && buyButton) {
-                        const totalAmount = quote.data.totalAmount;
-                        const unitAmount = quote.data.unitAmount;
-                        const quantity = quote.data.quantity;
-                        
+                    if (priceElement) {
                         if (quantity > 1) {
                             priceElement.textContent = `${totalAmount} USDT (${unitAmount} × ${quantity})`;
                         } else {
                             priceElement.textContent = `${totalAmount} USDT`;
                         }
-                        
-                        // Update button data to match the new price
-                        const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
-                        currentData.amount = totalAmount.toString();
-                        buyButton.setAttribute('data-item', JSON.stringify(currentData));
+                    }
+                    
+                    // Update button data independently
+                    const buyButton = pkg.element.querySelector('.buy-button');
+                    if (buyButton) {
+                        try {
+                            const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
+                            // Preserve all existing fields and update amount
+                            const updatedData = {
+                                ...currentData,
+                                amount: totalAmount.toString()
+                            };
+                            buyButton.setAttribute('data-item', JSON.stringify(updatedData));
+                        } catch (error) {
+                            console.warn('Failed to update button data for stars package:', pkg.stars, error);
+                        }
                     }
                 }
             }
@@ -2173,23 +2184,34 @@ async function updatePackagePrices() {
                 });
                 
                 if (quote.data?.success) {
+                    const totalAmount = quote.data.totalAmount;
+                    const unitAmount = quote.data.unitAmount;
+                    const quantity = quote.data.quantity;
+                    
+                    // Update price element independently
                     const priceElement = pkg.element.querySelector('.package-price');
-                    const buyButton = pkg.element.querySelector('.buy-button');
-                    if (priceElement && buyButton) {
-                        const totalAmount = quote.data.totalAmount;
-                        const unitAmount = quote.data.unitAmount;
-                        const quantity = quote.data.quantity;
-                        
+                    if (priceElement) {
                         if (quantity > 1) {
                             priceElement.textContent = `${totalAmount} USDT (${unitAmount} × ${quantity})`;
                         } else {
                             priceElement.textContent = `${totalAmount} USDT`;
                         }
-                        
-                        // Update button data to match the new price
-                        const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
-                        currentData.amount = totalAmount.toString();
-                        buyButton.setAttribute('data-item', JSON.stringify(currentData));
+                    }
+                    
+                    // Update button data independently
+                    const buyButton = pkg.element.querySelector('.buy-button');
+                    if (buyButton) {
+                        try {
+                            const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
+                            // Preserve all existing fields and update amount
+                            const updatedData = {
+                                ...currentData,
+                                amount: totalAmount.toString()
+                            };
+                            buyButton.setAttribute('data-item', JSON.stringify(updatedData));
+                        } catch (error) {
+                            console.warn('Failed to update button data for premium package:', pkg.duration, error);
+                        }
                     }
                 }
             }
