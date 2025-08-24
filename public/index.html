@@ -827,10 +827,10 @@ function detectTelegramEnvironment() {
 function showErrorToUser(message) {
     if (typeof Swal !== 'undefined') {
         Swal.fire({
-            title: translations[currentLanguage].error,
+            title: TranslationUtils.get('error'),
             text: message,
             icon: 'error',
-            confirmButtonText: translations[currentLanguage].ok
+            confirmButtonText: TranslationUtils.get('ok')
         });
     } else {
         alert(message);
@@ -1231,7 +1231,7 @@ function initNotificationSystem() {
         e.stopPropagation();
 
         if (!isTelegramEnv) {
-            showErrorToUser(translations[currentLanguage].telegramRequiredForNotifications);
+            showErrorToUser(TranslationUtils.get('telegramRequiredForNotifications'));
             return;
         }
 
@@ -1283,7 +1283,7 @@ function initNotificationSystem() {
             contentContainer.innerHTML = `
                 <div class="notification-error">
                     <i class="fas fa-exclamation-circle"></i>
-                    <p>${translations[currentLanguage].failedToLoadNotifications || 'Failed to load notifications'}</p>
+                    <p>${TranslationUtils.get('failedToLoadNotifications') || 'Failed to load notifications'}</p>
                 </div>
             `;
         }
@@ -1613,7 +1613,7 @@ function initWalletConnection() {
         console.error('TON Connect UI not loaded');
         const btn = document.getElementById('connectWallet');
         if (btn) {
-            btn.textContent = translations[currentLanguage]?.walletError || 'Wallet Error';
+            btn.textContent = TranslationUtils.get('walletError') || 'Wallet Error';
             btn.disabled = true;
         }
         return;
@@ -1660,7 +1660,7 @@ function initWalletConnection() {
                 }
             } catch (e) {
                 console.error('Wallet connection error:', e);
-                showErrorToUser(translations[currentLanguage]?.walletError || 'Wallet connection failed');
+                showErrorToUser(TranslationUtils.get('walletError') || 'Wallet connection failed');
             } finally {
                 btn.disabled = false;
             }
@@ -1691,7 +1691,7 @@ setTimeout(() => {
         btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
     } else {
         btn.classList.remove('wallet-connected');
-        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${translations[currentLanguage].connectWallet}`;
+        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${TranslationUtils.get('connectWallet')}`;
     }
 }      
 //end of ton connect
@@ -1703,13 +1703,20 @@ function initLanguageToggle() {
         return;
     }
     
+    // Initialize TranslationUtils
+    if (typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.init();
+    }
+    
     // Initialize
-    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    currentLanguage = TranslationUtils.getCurrentLanguage();
     updateLanguage(); // Initial update
     
     languageToggle.addEventListener('click', () => {
-        // Toggle language
-        currentLanguage = currentLanguage === 'en' ? 'ru' : 'en';
+        // Toggle language using TranslationUtils
+        const newLanguage = currentLanguage === 'en' ? 'ru' : 'en';
+        TranslationUtils.setCurrentLanguage(newLanguage);
+        currentLanguage = newLanguage;
         
         // Persist and notify
         localStorage.setItem('appLanguage', currentLanguage);
@@ -1725,7 +1732,7 @@ function initLanguageToggle() {
                 const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
                 connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
             } else {
-                connectWalletButton.textContent = translations[currentLanguage].connectWallet;
+                connectWalletButton.textContent = TranslationUtils.get('connectWallet');
             }
         }
         
@@ -1744,13 +1751,10 @@ function updateLanguage() {
         languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
     }
     
-    // Update all translatable elements
-    document.querySelectorAll('[data-translate]').forEach(element => {
-        const key = element.getAttribute('data-translate');
-        if (translations[currentLanguage]?.[key]) {
-            element.textContent = translations[currentLanguage][key];
-        }
-    });
+    // Update all translatable elements using TranslationUtils
+    if (typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.applyTranslations();
+    }
 }
 
 
@@ -1765,7 +1769,7 @@ function initBuyButtons() {
                     handlePurchase(item);
                 } catch (error) {
                     console.error('Purchase parse error:', error);
-                    showErrorToUser(translations[currentLanguage].error);
+                    showErrorToUser(TranslationUtils.get('error'));
                 }
             }
         });
@@ -2080,13 +2084,13 @@ function initCustomStars() {
 
 async function handlePurchase(item) {
     if (!tonConnectUI || !walletConnected) {
-        showErrorToUser(translations[currentLanguage].walletNotConnected);
+        showErrorToUser(TranslationUtils.get('walletNotConnected'));
         return;
     }
     
     const user = currentUser;
     if (!user || !user.id) {
-        showErrorToUser(translations[currentLanguage].userNotFound);
+        showErrorToUser(TranslationUtils.get('userNotFound'));
         return;
     }
     
@@ -2096,11 +2100,11 @@ async function handlePurchase(item) {
     if (!isInTelegram) {
         try {
             await Swal.fire({
-                title: translations[currentLanguage].warning || 'Warning',
-                text: translations[currentLanguage].tryInTelegram || 'This feature is only available in our Telegram bot. Please use the Telegram app to make purchases.',
+                title: TranslationUtils.get('warning') || 'Warning',
+                text: TranslationUtils.get('tryInTelegram') || 'This feature is only available in our Telegram bot. Please use the Telegram app to make purchases.',
                 icon: 'warning',
                 showCancelButton: false,
-                confirmButtonText: translations[currentLanguage].openTelegram || 'Open in Telegram',
+                confirmButtonText: TranslationUtils.get('openTelegram') || 'Open in Telegram',
                 allowOutsideClick: false,
                 customClass: {
                     confirmButton: 'telegram-confirm-btn'
@@ -2185,8 +2189,8 @@ async function handlePurchase(item) {
 
         // Show loading indicator
         Swal.fire({
-            title: translations[currentLanguage].processing,
-            text: translations[currentLanguage].preparingTransaction,
+            title: TranslationUtils.get('processing'),
+            text: TranslationUtils.get('preparingTransaction'),
             allowOutsideClick: false,
             showConfirmButton: false,
             didOpen: () => {
@@ -2249,16 +2253,16 @@ async function handlePurchase(item) {
                 }
                 
                 await Swal.fire({
-                    title: translations[currentLanguage].success,
-                    text: translations[currentLanguage].orderCreated,
+                    title: TranslationUtils.get('success'),
+                    text: TranslationUtils.get('orderCreated'),
                     icon: 'success',
-                    confirmButtonText: translations[currentLanguage].ok
+                    confirmButtonText: TranslationUtils.get('ok')
                 });
             } else {
-                throw new Error(response.data?.error || translations[currentLanguage].orderFailed);
+                throw new Error(response.data?.error || TranslationUtils.get('orderFailed'));
             }
         } else {
-            throw new Error(translations[currentLanguage].transactionFailed);
+            throw new Error(TranslationUtils.get('transactionFailed'));
         }
     } catch (error) {
         console.error('Payment error:', error);
@@ -2269,7 +2273,7 @@ async function handlePurchase(item) {
             loadingShown = false;
         }
         
-        let errorMessage = translations[currentLanguage].paymentFailed || 'Payment failed';
+        let errorMessage = TranslationUtils.get('paymentFailed') || 'Payment failed';
         
         if (error?.response?.data?.error) {
             errorMessage = error.response.data.error;
@@ -2280,14 +2284,14 @@ async function handlePurchase(item) {
         } else if (typeof error === 'string') {
             errorMessage = error;
         } else if (error?.name === 'UserRejectsError') {
-            errorMessage = translations[currentLanguage].transactionCancelled || 'Transaction was cancelled';
+            errorMessage = TranslationUtils.get('transactionCancelled') || 'Transaction was cancelled';
         }
         
         await Swal.fire({
-            title: translations[currentLanguage].error,
+            title: TranslationUtils.get('error'),
             text: errorMessage,
             icon: 'error',
-            confirmButtonText: translations[currentLanguage].ok
+            confirmButtonText: TranslationUtils.get('ok')
         });
     } finally {
         if (loadingShown) {
