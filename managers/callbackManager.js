@@ -81,6 +81,15 @@ class CallbackManager {
                 `Your stars have been sent to your Telegram account.`
             );
 
+            // Send notification
+            try {
+                const notificationManager = require('./notificationManager');
+                const notificationInstance = new notificationManager(this.bot, this.adminIds);
+                await notificationInstance.sendOrderCompletedNotification(order.telegramId, order.id, order.stars);
+            } catch (notificationError) {
+                console.error('Failed to send order completion notification:', notificationError);
+            }
+
             // Update admin message
             const updatedMessage = `✅ Order ${orderId} completed by admin`;
             await this.bot.editMessageText(updatedMessage, {

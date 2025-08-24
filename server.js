@@ -2,6 +2,10 @@ const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const path = require('path');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+const { requireTelegramAuth } = require('./middleware/telegramAuth');
 
 // Load environment variables
 require('dotenv').config();
@@ -21,11 +25,53 @@ const NotificationManager = require('./managers/notificationManager');
 // Import API routes
 const apiRoutes = require('./routes/apiRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const referralRoutes = require('./routes/referralRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const stickerRoutes = require('./routes/stickerRoutes');
 
 const app = express();
 
+// Security and performance middleware
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://telegram.org", "https://cdnjs.cloudflare.com"],
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
+            connectSrc: ["'self'", "https://api.telegram.org", "https://ton.org"],
+            frameSrc: ["'self'", "https://telegram.org"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: []
+        }
+    }
+}));
+
+app.use(compression());
+
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+app.use('/api/', limiter);
+
+// Additional security headers
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
+
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
 // Bot configuration
@@ -66,14 +112,49 @@ mongoose.connect(process.env.MONGODB_URI)
 // API routes
 app.use('/api', apiRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api', referralRoutes);
+app.use('/api', orderRoutes);
+app.use('/api', stickerRoutes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'ok', 
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
+app.get('/api/health', async (req, res) => {
+    try {
+        // Check database connection
+        const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+        
+        // Check bot status
+        let botStatus = 'unknown';
+        try {
+            const botInfo = await bot.getMe();
+            botStatus = botInfo ? 'active' : 'inactive';
+        } catch (error) {
+            botStatus = 'error';
+        }
+        
+        // Check memory usage
+        const memUsage = process.memoryUsage();
+        
+        res.status(200).json({ 
+            status: 'ok', 
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            database: dbStatus,
+            bot: botStatus,
+            memory: {
+                rss: Math.round(memUsage.rss / 1024 / 1024) + ' MB',
+                heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + ' MB',
+                heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + ' MB'
+            },
+            version: require('./package.json').version,
+            environment: process.env.NODE_ENV || 'development'
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            status: 'error', 
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
 });
 
 // Maintenance mode endpoint (for testing 503 page)
