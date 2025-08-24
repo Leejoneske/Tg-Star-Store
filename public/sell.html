@@ -340,33 +340,7 @@
         cursor: pointer;
     }
 
-    /* Skeleton Loading Styles */
-    .skeleton {
-        background-color: #e5e7eb;
-        border-radius: 4px;
-        position: relative;
-        overflow: hidden;
-    }
 
-    .skeleton::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-        animation: shimmer 1.5s infinite;
-    }
-
-    @keyframes shimmer {
-        0% {
-            transform: translateX(-100%);
-        }
-        100% {
-            transform: translateX(100%);
-        }
-    }
 
     /* Notice Modal Styles */
     .notice-modal {
@@ -559,39 +533,8 @@
         </div>
     </div>
 
-    <!-- Skeleton Loading -->
-    <div id="skeletonLoading" class="app-container">
-        <header class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm">
-            <div class="skeleton w-6 h-6"></div>
-            <div class="skeleton w-32 h-8"></div>
-            <div class="w-6"></div>
-        </header>
-        
-        <main class="p-4">
-            <div class="skeleton w-full h-24 rounded-lg mb-4"></div>
-            
-            <div class="bg-white rounded-xl p-6 mb-6">
-                <div class="skeleton w-32 h-6 mb-6"></div>
-                <div class="skeleton w-full h-20 rounded-lg mb-4"></div>
-                
-                <div class="flex justify-between mb-4">
-                    <div class="skeleton w-24 h-4"></div>
-                    <div class="skeleton w-16 h-4"></div>
-                </div>
-                
-                <div class="skeleton w-full h-12 rounded-lg mb-4"></div>
-                
-                <div class="flex items-center justify-center gap-4 mb-6">
-                    <div class="skeleton w-8 h-8 rounded-full"></div>
-                    <div class="skeleton w-20 h-8 rounded-lg"></div>
-                    <div class="skeleton w-8 h-8 rounded-full"></div>
-                </div>
-                
-                <div class="skeleton w-full h-12 rounded-lg mb-6"></div>
-                <div class="skeleton w-full h-32 rounded-lg"></div>
-            </div>
-        </main>
-    </div>
+    <!-- Standard Loading -->
+    <div id="loading-container"></div>
 
     <!-- Main App Content -->
     <div id="appContent" class="app-container" style="display: none;">
@@ -845,6 +788,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="js/translations.js"></script>
+    <script src="js/loading.js"></script>
     <script>
         // Global variables
         let currentWalletMemo = '';
@@ -864,7 +808,7 @@
         const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
         const starsInput = document.getElementById('starsAmount');
         const tonAmountDisplay = document.getElementById('tonAmount');
-        const skeletonLoading = document.getElementById('skeletonLoading');
+
         const appContent = document.getElementById('appContent');
         const noticeModal = document.getElementById('noticeModal');
         const continueButton = document.getElementById('continueButton');
@@ -901,7 +845,7 @@ function checkNoticeStatus() {
 }
 // Show the main app content
 function showAppContent() {
-    skeletonLoading.style.display = 'none';
+            LoadingComponent.hide('loading-container');
     appContent.style.display = 'block';
     // Fetch transactions when app content is shown
     fetchTransactions();
@@ -1718,8 +1662,8 @@ document.addEventListener('DOMContentLoaded', () => {
     createTransactionDetailsPanel();
     
     
-    // Show skeleton loading initially
-    skeletonLoading.style.display = 'block';
+            // Show standard loading initially
+        LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
     appContent.style.display = 'none';
     
     // Check notice status after a small delay 
