@@ -1812,12 +1812,22 @@ function buildRecipientInput(containerId) {
         const removeBtn = row.querySelector(`button[data-remove="${idx}"]`);
 
         let debounceTimer = null;
+        let isValidating = false;
         input.addEventListener('input', () => {
             status.textContent = '';
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(async () => {
-                await validateRecipients(containerId);
-            }, 400);
+                if (!isValidating) {
+                    isValidating = true;
+                    try {
+                        await validateRecipients(containerId);
+                    } catch (error) {
+                        console.error('Error validating recipients:', error);
+                    } finally {
+                        isValidating = false;
+                    }
+                }
+            }, 600); // Increased debounce time
         });
 
         removeBtn.addEventListener('click', async (e) => {
@@ -1978,12 +1988,28 @@ function initCustomStars() {
         return r;
     }
 
+    // Cache for package quotes to avoid redundant API calls
+    let packageQuoteCache = new Map();
+    let lastRecipientsCount = 0;
+    let lastRecipientsHash = '';
+
     async function refreshQuote() {
         const val = Number(input.value || 0);
         const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
-        const recValidation = await validateRecipients('recipientsContainer');
-        const recipients = (buyForValue === 'others') ? (recValidation?.recipients || []) : [];
-        const recipientsCount = recipients.length;
+        
+        // Get recipients count (cached validation)
+        let recipientsCount = 0;
+        let recipients = [];
+        
+        if (buyForValue === 'others') {
+            const recValidation = await validateRecipients('recipientsContainer');
+            recipients = recValidation?.recipients || [];
+            recipientsCount = recipients.length;
+        }
+        
+        // Create cache key for package quotes
+        const recipientsHash = recipients.map(r => r.username).sort().join(',');
+        const cacheKey = `recipients_${recipientsCount}_${recipientsHash}`;
         
         // Hide distribution if no valid input or recipients
         const distributionDiv = document.getElementById('starsDistribution');
@@ -2020,8 +2046,8 @@ function initCustomStars() {
                 // Not enough stars per recipient
                 if (distributionDiv) distributionDiv.style.display = 'none';
                 const minStars = 50 * recipientsCount;
-            const translatedText = TranslationUtils.format('needAtLeastStars', {stars: minStars, count: recipientsCount});
-            quoteText.textContent = `⚠️ ${translatedText}`;
+                const translatedText = TranslationUtils.format('needAtLeastStars', {stars: minStars, count: recipientsCount});
+                quoteText.textContent = `⚠️ ${translatedText}`;
                 return;
             }
         } else {
@@ -2042,6 +2068,13 @@ function initCustomStars() {
             }
         } catch (_) {
             quoteText.textContent = '';
+        }
+        
+        // Update package prices only if recipients changed
+        if (lastRecipientsCount !== recipientsCount || lastRecipientsHash !== recipientsHash) {
+            lastRecipientsCount = recipientsCount;
+            lastRecipientsHash = recipientsHash;
+            await updatePackagePricesOptimized(recipientsCount, cacheKey);
         }
     }
 
@@ -2069,9 +2102,22 @@ function initCustomStars() {
     });
 
     let debounceTimer = null;
+    let isRefreshing = false;
+    
     input.addEventListener('input', () => {
         if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(refreshQuote, 300);
+        debounceTimer = setTimeout(async () => {
+            if (!isRefreshing) {
+                isRefreshing = true;
+                try {
+                    await refreshQuote();
+                } catch (error) {
+                    console.error('Error refreshing quote:', error);
+                } finally {
+                    isRefreshing = false;
+                }
+            }
+        }, 500); // Increased debounce time for better performance
     });
 
     // React to recipients validation and toggle changes
@@ -2079,7 +2125,6 @@ function initCustomStars() {
         // small delay to allow DOM status updates
         setTimeout(() => {
             refreshQuote();
-            updatePackagePrices();
         }, 100);
     });
     
@@ -2095,27 +2140,19 @@ function initCustomStars() {
         radio.addEventListener('change', () => {
             setTimeout(() => {
                 refreshQuote();
-                updatePackagePrices();
             }, 100);
         });
     });
 }
 
-// Function to update package prices based on recipient count
-async function updatePackagePrices() {
+// Optimized function to update package prices with caching
+async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
     try {
-        // Get current recipient count
-        const buyForStarsValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
-        const buyForPremiumValue = Array.from(document.querySelectorAll('input[name="buyForPremium"]')).find(r => r.checked)?.value;
-        
-        let recipientsCount = 0;
-        
-        if (buyForStarsValue === 'others') {
-            const validation = await validateRecipients('recipientsContainer');
-            recipientsCount = validation?.recipients?.length || 0;
-        } else if (buyForPremiumValue === 'others') {
-            const validation = await validateRecipients('recipientsContainerPremium');
-            recipientsCount = validation?.recipients?.length || 0;
+        // Check cache first
+        if (packageQuoteCache.has(cacheKey)) {
+            const cachedData = packageQuoteCache.get(cacheKey);
+            updatePackagePricesFromCache(cachedData);
+            return;
         }
         
         // Update stars package prices
@@ -2126,47 +2163,27 @@ async function updatePackagePrices() {
             { stars: 1000, element: document.querySelector('[data-stars="1000"]') }
         ];
         
-        for (const pkg of starsPackages) {
-            if (pkg.element) {
-                const quote = await axios.post('/api/quote', {
+        const cacheData = {};
+        
+        // Batch API calls for better performance
+        const starsQuotes = await Promise.allSettled(
+            starsPackages.map(pkg => 
+                axios.post('/api/quote', {
                     stars: pkg.stars,
                     isPremium: false,
                     recipientsCount: recipientsCount
-                });
-                
-                if (quote.data?.success) {
-                    const totalAmount = quote.data.totalAmount;
-                    const unitAmount = quote.data.unitAmount;
-                    const quantity = quote.data.quantity;
-                    
-                    // Update price element independently
-                    const priceElement = pkg.element.querySelector('.package-price');
-                    if (priceElement) {
-                        if (quantity > 1) {
-                            priceElement.textContent = `${totalAmount} USDT (${unitAmount} × ${quantity})`;
-                        } else {
-                            priceElement.textContent = `${totalAmount} USDT`;
-                        }
-                    }
-                    
-                    // Update button data independently
-                    const buyButton = pkg.element.querySelector('.buy-button');
-                    if (buyButton) {
-                        try {
-                            const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
-                            // Preserve all existing fields and update amount
-                            const updatedData = {
-                                ...currentData,
-                                amount: totalAmount.toString()
-                            };
-                            buyButton.setAttribute('data-item', JSON.stringify(updatedData));
-                        } catch (error) {
-                            console.warn('Failed to update button data for stars package:', pkg.stars, error);
-                        }
-                    }
-                }
+                })
+            )
+        );
+        
+        starsQuotes.forEach((result, index) => {
+            const pkg = starsPackages[index];
+            if (result.status === 'fulfilled' && result.value.data?.success && pkg.element) {
+                const quoteData = result.value.data;
+                cacheData[`stars_${pkg.stars}`] = quoteData;
+                updatePackagePriceDisplay(pkg.element, quoteData);
             }
-        }
+        });
         
         // Update premium package prices
         const premiumPackages = [
@@ -2175,50 +2192,118 @@ async function updatePackagePrices() {
             { duration: 12, element: document.querySelector('[data-premium-duration="12"]') }
         ];
         
-        for (const pkg of premiumPackages) {
-            if (pkg.element) {
-                const quote = await axios.post('/api/quote', {
+        const premiumQuotes = await Promise.allSettled(
+            premiumPackages.map(pkg => 
+                axios.post('/api/quote', {
                     isPremium: true,
                     premiumDuration: pkg.duration,
                     recipientsCount: recipientsCount
-                });
-                
-                if (quote.data?.success) {
-                    const totalAmount = quote.data.totalAmount;
-                    const unitAmount = quote.data.unitAmount;
-                    const quantity = quote.data.quantity;
-                    
-                    // Update price element independently
-                    const priceElement = pkg.element.querySelector('.package-price');
-                    if (priceElement) {
-                        if (quantity > 1) {
-                            priceElement.textContent = `${totalAmount} USDT (${unitAmount} × ${quantity})`;
-                        } else {
-                            priceElement.textContent = `${totalAmount} USDT`;
-                        }
-                    }
-                    
-                    // Update button data independently
-                    const buyButton = pkg.element.querySelector('.buy-button');
-                    if (buyButton) {
-                        try {
-                            const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
-                            // Preserve all existing fields and update amount
-                            const updatedData = {
-                                ...currentData,
-                                amount: totalAmount.toString()
-                            };
-                            buyButton.setAttribute('data-item', JSON.stringify(updatedData));
-                        } catch (error) {
-                            console.warn('Failed to update button data for premium package:', pkg.duration, error);
-                        }
-                    }
-                }
+                })
+            )
+        );
+        
+        premiumQuotes.forEach((result, index) => {
+            const pkg = premiumPackages[index];
+            if (result.status === 'fulfilled' && result.value.data?.success && pkg.element) {
+                const quoteData = result.value.data;
+                cacheData[`premium_${pkg.duration}`] = quoteData;
+                updatePackagePriceDisplay(pkg.element, quoteData);
             }
+        });
+        
+        // Cache the results
+        packageQuoteCache.set(cacheKey, cacheData);
+        
+        // Limit cache size to prevent memory leaks
+        if (packageQuoteCache.size > 10) {
+            const firstKey = packageQuoteCache.keys().next().value;
+            packageQuoteCache.delete(firstKey);
         }
+        
     } catch (error) {
         console.error('Error updating package prices:', error);
     }
+}
+
+// Helper function to update package price display
+function updatePackagePriceDisplay(element, quoteData) {
+    const totalAmount = quoteData.totalAmount;
+    const unitAmount = quoteData.unitAmount;
+    const quantity = quoteData.quantity;
+    
+    // Update price element
+    const priceElement = element.querySelector('.package-price');
+    if (priceElement) {
+        if (quantity > 1) {
+            priceElement.textContent = `${totalAmount} USDT (${unitAmount} × ${quantity})`;
+        } else {
+            priceElement.textContent = `${totalAmount} USDT`;
+        }
+    }
+    
+    // Update button data
+    const buyButton = element.querySelector('.buy-button');
+    if (buyButton) {
+        try {
+            const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
+            const updatedData = {
+                ...currentData,
+                amount: totalAmount.toString()
+            };
+            buyButton.setAttribute('data-item', JSON.stringify(updatedData));
+        } catch (error) {
+            console.warn('Failed to update button data for package:', error);
+        }
+    }
+}
+
+// Helper function to update from cache
+function updatePackagePricesFromCache(cacheData) {
+    // Update stars packages from cache
+    const starsPackages = [
+        { stars: 50, element: document.querySelector('[data-stars="50"]') },
+        { stars: 100, element: document.querySelector('[data-stars="100"]') },
+        { stars: 500, element: document.querySelector('[data-stars="500"]') },
+        { stars: 1000, element: document.querySelector('[data-stars="1000"]') }
+    ];
+    
+    starsPackages.forEach(pkg => {
+        if (pkg.element && cacheData[`stars_${pkg.stars}`]) {
+            updatePackagePriceDisplay(pkg.element, cacheData[`stars_${pkg.stars}`]);
+        }
+    });
+    
+    // Update premium packages from cache
+    const premiumPackages = [
+        { duration: 3, element: document.querySelector('[data-premium-duration="3"]') },
+        { duration: 6, element: document.querySelector('[data-premium-duration="6"]') },
+        { duration: 12, element: document.querySelector('[data-premium-duration="12"]') }
+    ];
+    
+    premiumPackages.forEach(pkg => {
+        if (pkg.element && cacheData[`premium_${pkg.duration}`]) {
+            updatePackagePriceDisplay(pkg.element, cacheData[`premium_${pkg.duration}`]);
+        }
+    });
+}
+
+// Legacy function for backward compatibility
+async function updatePackagePrices() {
+    const buyForStarsValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+    const buyForPremiumValue = Array.from(document.querySelectorAll('input[name="buyForPremium"]')).find(r => r.checked)?.value;
+    
+    let recipientsCount = 0;
+    
+    if (buyForStarsValue === 'others') {
+        const validation = await validateRecipients('recipientsContainer');
+        recipientsCount = validation?.recipients?.length || 0;
+    } else if (buyForPremiumValue === 'others') {
+        const validation = await validateRecipients('recipientsContainerPremium');
+        recipientsCount = validation?.recipients?.length || 0;
+    }
+    
+    const cacheKey = `recipients_${recipientsCount}_legacy`;
+    await updatePackagePricesOptimized(recipientsCount, cacheKey);
 }
 
 async function handlePurchase(item) {
