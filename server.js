@@ -28,6 +28,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const referralRoutes = require('./routes/referralRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const stickerRoutes = require('./routes/stickerRoutes');
+const sitemapRoutes = require('./routes/sitemapRoutes');
 
 const app = express();
 
@@ -74,6 +75,31 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
+// SEO middleware - Add meta tags for better search engine visibility
+app.use((req, res, next) => {
+    // Add SEO-friendly headers
+    res.setHeader('X-Robots-Tag', 'index, follow');
+    
+    // Add security headers (if not already set)
+    if (!res.getHeader('X-Content-Type-Options')) {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+    }
+    if (!res.getHeader('X-Frame-Options')) {
+        res.setHeader('X-Frame-Options', 'DENY');
+    }
+    if (!res.getHeader('X-XSS-Protection')) {
+        res.setHeader('X-XSS-Protection', '1; mode=block');
+    }
+    if (!res.getHeader('Referrer-Policy')) {
+        res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    }
+    if (!res.getHeader('Permissions-Policy')) {
+        res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    }
+    
+    next();
+});
+
 // Bot configuration
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
@@ -115,6 +141,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api', referralRoutes);
 app.use('/api', orderRoutes);
 app.use('/api', stickerRoutes);
+app.use('/api', sitemapRoutes);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
