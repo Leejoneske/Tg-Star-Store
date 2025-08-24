@@ -702,21 +702,21 @@
             </div>
             
             <div class="mb-4">
-                <label for="walletDialogAddress" class="block text-sm font-medium text-gray-700 mb-1">USDT TON Wallet Address</label>
+                <label for="walletDialogAddress" class="block text-sm font-medium text-gray-700 mb-1" data-translate="enterWalletAddress">USDT TON Wallet Address</label>
                 <input type="text" id="walletDialogAddress" placeholder="Enter USDT TON wallet address" 
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-translate-placeholder="enterWalletAddress">
             </div>
             
             <div class="mb-4" id="memoFieldContainer">
-                <label for="walletDialogMemo" class="block text-sm font-medium text-gray-700 mb-1">Memo/Tag (Required)</label>
+                <label for="walletDialogMemo" class="block text-sm font-medium text-gray-700 mb-1" data-translate="memoTag">Memo/Tag (Required)</label>
                 <input type="text" id="walletDialogMemo" placeholder="Enter memo/tag if required" 
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-translate-placeholder="enterMemoTag">
                 <p class="text-xs text-gray-500 mt-1" id="memoNote"></p>
             </div>
             
             <div class="flex justify-between space-x-4">
-                <button id="cancelWalletDialogBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
-                <button id="saveWalletDialogBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Save</button>
+                <button id="cancelWalletDialogBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50" data-translate="cancel">Cancel</button>
+                <button id="saveWalletDialogBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700" data-translate="save">Save</button>
             </div>
         </div>
     </div>
@@ -735,8 +735,8 @@
                 <p class="text-gray-700" data-translate="pleaseConfirmTransaction">Please confirm this transaction via Telegram payment.</p>
             </div>
             <div class="flex justify-between space-x-4">
-                <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
-                <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Confirm</button>
+                <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50" data-translate="cancel">Cancel</button>
+                <button id="confirmPaymentBtn" class="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700" data-translate="confirm">Confirm</button>
             </div>
         </div>
     </div>
@@ -1679,7 +1679,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Load shared bottom nav
-    fetch('bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { document.getElementById('bottomnav-container').innerHTML = html; });
+    fetch('bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { 
+        document.getElementById('bottomnav-container').innerHTML = html; 
+        // Set active navigation after loading
+        if (typeof setActiveNavigation === 'function') {
+            setActiveNavigation();
+        }
+    });
     
 });
 

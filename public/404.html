@@ -82,13 +82,19 @@
             <h1>404</h1>
         </div>
         <div class="contant_box_404">
-            <h3>Look like you're lost</h3>
-            <p>the page you are looking for not avaible!</p>
-            <a onclick="window.location.href='index.html'" class="link_404">Go to Home</a>
+                            <h3 data-translate="lookLikeLost">Look like you're lost</h3>
+                <p data-translate="pageNotAvailable">the page you are looking for not available!</p>
+                <a onclick="window.location.href='index.html'" class="link_404" data-translate="goToHome">Go to Home</a>
         </div>
     </section>
 
+    <script src="js/translations.js"></script>
     <script>
+        // Initialize translations
+        if (typeof TranslationUtils !== 'undefined') {
+            TranslationUtils.init();
+        }
+        
         // Alternative JavaScript approach if needed
         document.querySelector('.link_404').addEventListener('click', function() {
             window.location.href = 'index.html';

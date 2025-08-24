@@ -595,19 +595,19 @@
                         <div class="space-y-2" id="recipientsContainer"></div>
                         <div class="flex items-center gap-2 mt-2">
                             <button id="addRecipientBtn" class="px-3 py-2 text-sm rounded-md border border-gray-300" data-translate="addRecipient">Add Recipient</button>
-                            <span class="text-xs text-gray-500" id="recipientHelp">Enter Telegram usernames. They will be validated and IDs shown.</span>
+                            <span class="text-xs text-gray-500" id="recipientHelp" data-translate="enterTelegramUsernames">Enter Telegram usernames. They will be validated and IDs shown.</span>
                         </div>
                     </div>
                     <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
                         <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="customStars">Custom Stars</div>
                         <div class="flex items-center gap-2">
                             <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50)" class="flex-1 px-3 py-2 border rounded-md text-sm" data-translate-placeholder="enterStars" />
-                            <button id="buyCustomStars" class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-indigo-600 text-white">Buy</button>
+                            <button id="buyCustomStars" class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-indigo-600 text-white" data-translate="buy">Buy</button>
                         </div>
-                        <div class="text-xs text-gray-500 mt-1">If set, this overrides the package selection.</div>
+                        <div class="text-xs text-gray-500 mt-1" data-translate="ifSetOverrides">If set, this overrides the package selection.</div>
                         <div class="text-xs text-gray-700 mt-1" id="customStarsQuote"></div>
                         <div id="starsDistribution" class="mt-3 p-3 bg-gray-50 rounded-lg" style="display: none;">
-                            <div class="text-xs font-semibold text-gray-700 mb-2">Stars Distribution:</div>
+                            <div class="text-xs font-semibold text-gray-700 mb-2" data-translate="starsDistribution">Stars Distribution:</div>
                             <div id="distributionList" class="space-y-1"></div>
                         </div>
                     </div>
@@ -680,7 +680,7 @@
                         <div class="space-y-2" id="recipientsContainerPremium"></div>
                         <div class="flex items-center gap-2 mt-2">
                             <button id="addRecipientBtnPremium" class="px-3 py-2 text-sm rounded-md border border-gray-300" data-translate="addRecipient">Add Recipient</button>
-                            <span class="text-xs text-gray-500" id="recipientHelpPremium">Enter Telegram usernames. They will be validated and IDs shown.</span>
+                            <span class="text-xs text-gray-500" id="recipientHelpPremium" data-translate="enterTelegramUsernames">Enter Telegram usernames. They will be validated and IDs shown.</span>
                         </div>
                     </div>
                     <div class="premium-card rounded-xl mb-6">
@@ -1357,7 +1357,14 @@ function loadBottomNav() {
         if (!container) return resolve();
         fetch('bottomnav.html')
             .then(r => r.ok ? r.text() : '')
-            .then(html => { container.innerHTML = html; resolve(); })
+            .then(html => { 
+                container.innerHTML = html; 
+                // Set active navigation after loading
+                if (typeof setActiveNavigation === 'function') {
+                    setActiveNavigation();
+                }
+                resolve(); 
+            })
             .catch(() => resolve());
     });
 }
@@ -2015,7 +2022,9 @@ function initCustomStars() {
             } else {
                 // Not enough stars per recipient
                 if (distributionDiv) distributionDiv.style.display = 'none';
-                quoteText.textContent = `⚠️ Need at least ${50 * recipientsCount} stars for ${recipientsCount} recipients (50 stars minimum each)`;
+                const minStars = 50 * recipientsCount;
+            const translatedText = TranslationUtils.format('needAtLeastStars', minStars, recipientsCount);
+            quoteText.textContent = `⚠️ ${translatedText}`;
                 return;
             }
         } else {
@@ -2148,7 +2157,7 @@ async function handlePurchase(item) {
             }
         }
         if (recipients.length > 5) {
-            showErrorToUser('Maximum 5 recipients allowed');
+            showErrorToUser(TranslationUtils.get('maximumRecipientsAllowed'));
             return;
         }
 

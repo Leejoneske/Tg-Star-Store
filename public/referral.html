@@ -713,7 +713,13 @@ function updateWithdrawalsList() {
  
 function setupEventListeners() {
     // load bottom nav
-    fetch('bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { document.getElementById('bottomnav-container').innerHTML = html; });
+    fetch('bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { 
+        document.getElementById('bottomnav-container').innerHTML = html; 
+        // Set active navigation after loading
+        if (typeof setActiveNavigation === 'function') {
+            setActiveNavigation();
+        }
+    });
     document.getElementById('copyButton').addEventListener('click', copyReferralLink);
     document.getElementById('withdrawButton').addEventListener('click', showWithdrawPopup);
     document.getElementById('shareFb').addEventListener('click', shareToFacebook);
