@@ -9,6 +9,7 @@
     <title>About StarStore | Telegram Premium & Stars Platform</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="js/translations.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
@@ -250,68 +251,12 @@
     </div>
 </div>
 <script>
-    const translations = {
-        'en': {
-            'menu': 'Menu',
-            'home': 'Home',
-            'sell': 'Sell',
-            'history': 'History',
-            'referral': 'Referral',
-            'about': 'About',
-            'welcome': 'Welcome to',
-            'tagline': 'Your trusted platform for Telegram Premium and Stars',
-            'mission': 'Our Mission',
-            'mission-text': 'We aim to provide a seamless and secure platform for Telegram users to enhance their experience through premium features and star purchases. Our commitment is to deliver exceptional service while maintaining transparency and trust.',
-            'features': 'Key Features',
-            'secure': 'Secure Transactions',
-            'secure-text': 'Your payments are protected with TON blockchain technology',
-            'instant': 'Instant Delivery',
-            'instant-text': 'Receive your purchases immediately after payment confirmation',
-            'support': '24/7 Support',
-            'support-text': 'Our team is always ready to assist you with any questions',
-            'impact': 'Our Impact',
-            'users': 'Active Users',
-            'transactions': 'Transactions',
-            'success': 'Success Rate',
-            'rating': 'User Rating',
-            'contact': 'Get in Touch',
-            'contact-text': 'Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.',
-            'contact-btn': 'Contact Support',
-            'footer-powered': 'Powered by',
-            'terms': 'Terms & Conditions'
-        },
-        'ru': {
-            'menu': 'Меню',
-            'home': 'Главная',
-            'sell': 'Продажа',
-            'history': 'История',
-            'referral': 'Реферал',
-            'about': 'О нас',
-            'welcome': 'Добро пожаловать в',
-            'tagline': 'Ваша надежная платформа для Telegram Premium и Звезд',
-            'mission': 'Наша миссия',
-            'mission-text': 'Мы стремимся предоставить безупречную и безопасную платформу для пользователей Telegram, чтобы улучшить их опыт использования с помощью премиум-функций и покупки звезд. Наше обязательство — обеспечить исключительный сервис, сохраняя прозрачность и доверие.',
-            'features': 'Ключевые особенности',
-            'secure': 'Безопасные транзакции',
-            'secure-text': 'Ваши платежи защищены технологией блокчейна TON',
-            'instant': 'Мгновенная доставка',
-            'instant-text': 'Получайте свои покупки сразу после подтверждения оплаты',
-            'support': 'Поддержка 24/7',
-            'support-text': 'Наша команда всегда готова помочь вам с любыми вопросами',
-            'impact': 'Наше влияние',
-            'users': 'Активных пользователей',
-            'transactions': 'Транзакций',
-            'success': 'Успешных операций',
-            'rating': 'Рейтинг пользователей',
-            'contact': 'Свяжитесь с нами',
-            'contact-text': 'Есть вопросы или нужна поддержка? Наша команда здесь, чтобы помочь! Мы предоставляем круглосуточную помощь для всех ваших потребностей в StarStore.',
-            'contact-btn': 'Связаться с поддержкой',
-            'footer-powered': 'Работает на',
-            'terms': 'Условия использования'
-        }
-    };
+    // Initialize translations
+    if (typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.init();
+    }
 
-    let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    let currentLanguage = TranslationUtils.getCurrentLanguage();
     
     document.addEventListener('DOMContentLoaded', () => {
         updateLanguage();
@@ -337,8 +282,9 @@
         const languageToggle = document.getElementById('languageToggle');
         if (languageToggle) {
             languageToggle.addEventListener('click', () => {
-                currentLanguage = currentLanguage === 'en' ? 'ru' : 'en';
-                localStorage.setItem('appLanguage', currentLanguage);
+                const newLanguage = currentLanguage === 'en' ? 'ru' : 'en';
+                TranslationUtils.setCurrentLanguage(newLanguage);
+                currentLanguage = newLanguage;
                 languageToggle.textContent = currentLanguage === 'en' ? '🇬🇧' : '🇷🇺';
                 updateLanguage();
             });
@@ -349,13 +295,9 @@
     });
 
     function updateLanguage() {
-        const elements = document.querySelectorAll('[data-lang]');
-        elements.forEach(element => {
-            const key = element.getAttribute('data-lang');
-            if (translations[currentLanguage] && translations[currentLanguage][key]) {
-                element.textContent = translations[currentLanguage][key];
-            }
-        });
+        if (typeof TranslationUtils !== 'undefined') {
+            TranslationUtils.applyTranslations();
+        }
     }
 
     document.getElementById('contactSupport').addEventListener('click', () => {
@@ -364,7 +306,7 @@
 
     window.addEventListener('storage', function(event) {
         if (event.key === 'appLanguage') {
-            currentLanguage = event.newValue || 'en';
+            currentLanguage = TranslationUtils.getCurrentLanguage();
             updateLanguage();
         }
     });

@@ -844,12 +844,13 @@
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="js/translations.js"></script>
     <script>
         // Global variables
         let currentWalletMemo = '';
         let currentWalletType = '';
         let currentWalletAddress = '';
-        let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+        let currentLanguage = TranslationUtils.getCurrentLanguage();
         let rate = 0.009;
 
         // DOM elements
@@ -874,106 +875,10 @@
             manifestUrl: 'https://tg-star-store-production.up.railway.app/tonconnect-manifest.json'
         });
 
-        // Translations object
-        const translations = {
-          en: {
-            menuTitle: "Menu",
-            home: "Home",
-            sell: "Sell",
-            history: "History",
-            referral: "Referral",
-            about: "About",
-            connectWallet: "Connect Wallet",
-            enterManually: "Enter wallet address manually",
-            paymentInfo: "Payments will be made to the selected wallet.",
-            editAddress: "Edit Address",
-            saveAddress: "Save Address",
-            sellStars: "Sell Stars",
-            currentRate: "Current Rate",
-            updatedAgo: "Updated 8m ago",
-            amountToSell: "Amount of Stars to Sell",
-            youWillReceive: "You'll Receive (USDT)",
-            sellNow: "Sell Now",
-            howItWorks: "How it works:",
-            step1: "Enter the amount of stars you want to sell",
-            step2: "Click \"Sell Now\" to initiate the transaction",
-            step3: "Send the stars via Telegram payment",
-            step4: "Once verified, USDT will be sent to your wallet within 21 days",
-            recentTransactions: "Recent Transactions",
-            noTransactions: "No transactions yet",
-            walletNotConnected: "Wallet Not Connected",
-            walletConnectMessage: "Please connect your wallet or enter a wallet address manually to proceed.",
-            missingWalletAddress: "Missing Wallet Address",
-            enterValidWallet: "Please enter a valid wallet address to proceed.",
-            paymentInitiated: "Payment Initiated!",
-            completePayment: "Please complete the payment in Telegram.",
-            paymentSuccessful: "Payment Successful!",
-            paymentProcessed: "Your payment has been successfully processed.",
-            paymentFailed: "Payment Failed",
-            paymentNotSuccessful: "Your payment was not successful. Please try again.",
-            paymentLinkMissing: "Payment Link Missing",
-            paymentLinkNotGenerated: "The payment link was not generated. Please try again.",
-            orderFailed: "Order Failed",
-            orderError: "There was an error placing your order. Please try again.",
-            transactionDetails: "Transaction Details",
-            transactionID: "Transaction ID:",
-            amount: "Amount",
-            toBeReceived: "To be received",
-            currentStatus: "Current Status",
-            estimatedCompletion: "Estimated Completion",
-            orderCreated: "Order Created",
-            orderCreatedDesc: "Your order has been successfully created",
-            transactionTimeline: "Transaction Timeline",
-            paymentVerification: "Payment Verification",
-            paymentVerificationDesc: "Your star payment is being verified",
-            processing: "Processing",
-            processingDesc: "Your payment is being processed",
-            paymentSent: "Payment Sent",
-            paymentSentDesc: "USDT has been sent to your wallet"
-          },
-          ru: {
-            menuTitle: "Меню",
-            home: "Главная",
-            sell: "Продать",
-            history: "История",
-            referral: "Реферальная",
-            about: "О нас",
-            connectWallet: "Подключить кошелек",
-            enterManually: "Ввести адрес кошелька вручную",
-            paymentInfo: "Платежи будут отправлены на выбранный кошелек.",
-            editAddress: "Изменить адрес",
-            saveAddress: "Сохранить адрес",
-            sellStars: "Продать звезды",
-            currentRate: "Текущий курс",
-            updatedAgo: "Обновлено 8м назад",
-            amountToSell: "Количество звезд для продажи",
-            youWillReceive: "Вы получите (USDT)",
-            sellNow: "Продать сейчас",
-            howItWorks: "Как это работает:",
-            step1: "Введите количество звезд, которые вы хотите продать",
-            step2: "Нажмите \"Продать сейчас\", чтобы инициировать транзакцию",
-            step3: "Отправьте звезды через платеж Telegram",
-            step4: "После проверки, USDT будет отправлен на ваш кошелек в течение 21 дня",
-            recentTransactions: "Недавние транзакции",
-            noTransactions: "Пока нет транзакций",
-            walletNotConnected: "Кошелек не подключен",
-            walletConnectMessage: "Пожалуйста, подключите кошелек или введите адрес кошелька вручную, чтобы продолжить.",
-            missingWalletAddress: "Отсутствует адрес кошелька",
-            enterValidWallet: "Пожалуйста, введите действительный адрес кошелька, чтобы продолжить.",
-            paymentInitiated: "Платеж инициирован!",
-            completePayment: "Пожалуйста, завершите платеж в Telegram.",
-            paymentSuccessful: "Платеж выполнен успешно!",
-            paymentProcessed: "Ваш платеж был успешно обработан.",
-            paymentFailed: "Ошибка платежа",
-            paymentNotSuccessful: "Ваш платеж не был успешным. Пожалуйста, попробуйте снова.",
-            paymentLinkMissing: "Ссылка на оплату отсутствует",
-            paymentLinkNotGenerated: "Ссылка на оплату не была сгенерирована. Пожалуйста, попробуйте снова.",
-            orderFailed: "Ошибка заказа",
-            orderError: "При размещении вашего заказа произошла ошибка. Пожалуйста, попробуйте снова.",
-            transactionDetails: "Детали транзакции",
-            transactionID: "ID транзакции:",
-            amount: "Количество",
-            toBeReceived: "К получению",
+        // Initialize translations
+        if (typeof TranslationUtils !== 'undefined') {
+            TranslationUtils.init();
+        }
             currentStatus: "Текущий статус",
             estimatedCompletion: "Ожидаемая дата завершения",
             orderCreated: "Заказ создан",
@@ -984,8 +889,6 @@
             processing: "Обработка",
             processingDesc: "Ваш платеж обрабатывается",
             paymentSent: "Платеж отправлен",
-            paymentSentDesc: "USDT был отправлен на ваш кошелек"
-          }
         };
 // Check if the user has accepted the notice
 function checkNoticeStatus() {
@@ -1020,45 +923,14 @@ window.addEventListener('storage', (e) => {
       
 // Listen for language changes from index page
 window.addEventListener('languageChanged', () => {
-    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    currentLanguage = TranslationUtils.getCurrentLanguage();
     updateLanguageTexts();
 });
 
 // Function to update all texts based on current language
 function updateLanguageTexts() {
-  const texts = translations[currentLanguage];
-  
-  // Update wallet section
-  document.querySelector('.wallet-status p').textContent = texts.paymentInfo;
-  
-  // Update edit button text if it exists
-  const editButton = document.getElementById('editWalletBtn');
-  if (editButton) {
-    editButton.textContent = texts.editAddress;
-  }
-  
-  // Update sell stars section
-  document.querySelector('h2.text-xl').textContent = texts.sellStars;
-  document.querySelector('.rate-info .text-sm').textContent = texts.currentRate;
-  document.querySelector('label.block.text-sm').textContent = texts.amountToSell;
-  document.querySelectorAll('label.block.text-sm')[1].textContent = texts.youWillReceive;
-  sellStarsBtn.textContent = texts.sellNow;
-  
-  // Update how it works section
-  document.querySelector('.font-medium.text-blue-800').textContent = texts.howItWorks;
-  const steps = document.querySelectorAll('.list-decimal li');
-  steps[0].textContent = texts.step1;
-  steps[1].textContent = texts.step2;
-  steps[2].textContent = texts.step3;
-  steps[3].textContent = texts.step4;
-  
-  // Update transactions section
-  document.querySelector('.transaction-history h3').textContent = texts.recentTransactions;
-  
-  // Check if no transactions message exists and update it
-  const noTransactionsEl = document.querySelector('#transactionsList .text-gray-500');
-  if (noTransactionsEl) {
-    noTransactionsEl.textContent = texts.noTransactions;
+  if (typeof TranslationUtils !== 'undefined') {
+    TranslationUtils.applyTranslations();
   }
 }
         

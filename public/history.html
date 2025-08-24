@@ -10,6 +10,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="js/translations.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         body {
@@ -374,81 +375,13 @@ let currentReferralFilter = 'all';
 let currentTransactionSearch = '';
 let currentReferralSearch = '';
 const itemsPerPage = 5;
-let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+let currentLanguage = TranslationUtils.getCurrentLanguage();
 let transactionChart = null;
 
-const translations = {
-    en: {
-        menu: "Menu",
-        home: "Home",
-        sell: "Sell",
-        history: "History",
-        referral: "Referral",
-        about: "About",
-        transactions: "Transactions",
-        referrals: "Referrals",
-        overview: "Overview",
-        all: "All",
-        completed: "Completed",
-        processing: "Processing",
-        declined: "Declined",
-        active: "Active",
-        search_transactions: "Search transactions...",
-        search_referrals: "Search referrals...",
-        no_transactions: "No transactions found",
-        no_referrals: "No referrals found",
-        export_transactions: "Export Transactions",
-        export_referrals: "Export Referrals",
-        transaction_details: "Transaction Details",
-        referral_details: "Referral Details",
-        id: "ID",
-        type: "Type",
-        amount: "Amount",
-        status: "Status",
-        date: "Date",
-        name: "Name",
-        today: "Today",
-        yesterday: "Yesterday",
-        days_ago: "days ago",
-        total: "Total",
-        close: "Close"
-    },
-    ru: {
-        menu: "Меню",
-        home: "Главная",
-        sell: "Продать",
-        history: "История",
-        referral: "Рефералы",
-        about: "О нас",
-        transactions: "Транзакции",
-        referrals: "Рефералы",
-        overview: "Обзор",
-        all: "Все",
-        completed: "Завершено",
-        processing: "В обработке",
-        declined: "Отклонено",
-        active: "Активно",
-        search_transactions: "Поиск транзакций...",
-        search_referrals: "Поиск рефералов...",
-        no_transactions: "Транзакций не найдено",
-        no_referrals: "Рефералов не найдено",
-        export_transactions: "Экспорт транзакций",
-        export_referrals: "Экспорт рефералов",
-        transaction_details: "Детали транзакции",
-        referral_details: "Детали реферала",
-        id: "ID",
-        type: "Тип",
-        amount: "Сумма",
-        status: "Статус",
-        date: "Дата",
-        name: "Имя",
-        today: "Сегодня",
-        yesterday: "Вчера",
-        days_ago: "дней назад",
-        total: "Всего",
-        close: "Закрыть"
-    }
-};
+// Initialize translations
+if (typeof TranslationUtils !== 'undefined') {
+    TranslationUtils.init();
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
