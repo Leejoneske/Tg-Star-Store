@@ -2122,7 +2122,6 @@ async function updatePackagePrices() {
         const starsPackages = [
             { stars: 50, element: document.querySelector('[data-stars="50"]') },
             { stars: 100, element: document.querySelector('[data-stars="100"]') },
-            { stars: 200, element: document.querySelector('[data-stars="200"]') },
             { stars: 500, element: document.querySelector('[data-stars="500"]') },
             { stars: 1000, element: document.querySelector('[data-stars="1000"]') }
         ];
@@ -2137,7 +2136,8 @@ async function updatePackagePrices() {
                 
                 if (quote.data?.success) {
                     const priceElement = pkg.element.querySelector('.package-price');
-                    if (priceElement) {
+                    const buyButton = pkg.element.querySelector('.buy-button');
+                    if (priceElement && buyButton) {
                         const totalAmount = quote.data.totalAmount;
                         const unitAmount = quote.data.unitAmount;
                         const quantity = quote.data.quantity;
@@ -2147,6 +2147,11 @@ async function updatePackagePrices() {
                         } else {
                             priceElement.textContent = `${totalAmount} USDT`;
                         }
+                        
+                        // Update button data to match the new price
+                        const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
+                        currentData.amount = totalAmount.toString();
+                        buyButton.setAttribute('data-item', JSON.stringify(currentData));
                     }
                 }
             }
@@ -2169,7 +2174,8 @@ async function updatePackagePrices() {
                 
                 if (quote.data?.success) {
                     const priceElement = pkg.element.querySelector('.package-price');
-                    if (priceElement) {
+                    const buyButton = pkg.element.querySelector('.buy-button');
+                    if (priceElement && buyButton) {
                         const totalAmount = quote.data.totalAmount;
                         const unitAmount = quote.data.unitAmount;
                         const quantity = quote.data.quantity;
@@ -2179,6 +2185,11 @@ async function updatePackagePrices() {
                         } else {
                             priceElement.textContent = `${totalAmount} USDT`;
                         }
+                        
+                        // Update button data to match the new price
+                        const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
+                        currentData.amount = totalAmount.toString();
+                        buyButton.setAttribute('data-item', JSON.stringify(currentData));
                     }
                 }
             }
