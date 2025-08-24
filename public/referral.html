@@ -478,6 +478,12 @@ const state = {
     referrals: [],
     withdrawals: []
 };
+
+// Initialize UI with default values immediately
+document.addEventListener('DOMContentLoaded', () => {
+    updateUI();
+    applyTranslations();
+});
     
 // Initialize language
 function initLanguage() {
@@ -514,7 +520,6 @@ function init() {
     loadReferralData();
     loadWithdrawalHistory();
     setupTelegramSharing();
-    applyTranslations();
     
     // Set up auto-refresh for withdrawal status
     setInterval(fetchWithdrawals, 15000); // Refresh every 15 seconds
@@ -524,10 +529,15 @@ function init() {
  
 async function loadReferralData() {
     try {
+        console.log('Loading referral data for userId:', state.userId);
         const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`);
+        console.log('Response status:', response.status);
+        
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const data = await response.json();
+        console.log('Received data:', data);
+        
         if (!data.success) throw new Error(data.error || 'Failed to load referral data');
 
         state.referrals = data.referrals || [];
@@ -539,9 +549,21 @@ async function loadReferralData() {
         };
         state.referralLink = data.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
 
+        console.log('Updated state:', state);
         updateUI();
+        applyTranslations();
     } catch (error) {
         console.error('Error loading referral data:', error);
+        // Set default values if API fails
+        state.stats = {
+            availableBalance: 0,
+            totalEarned: 0,
+            referralsCount: 0,
+            pendingAmount: 0
+        };
+        state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
+        updateUI();
+        applyTranslations();
         showError('Failed to load referral data');
     }
 }
@@ -562,6 +584,7 @@ async function loadWithdrawalHistory() {
 }
 
 function updateUI() {
+    console.log('Updating UI with stats:', state.stats);
     document.getElementById('availableBalance').textContent = `${state.stats.availableBalance.toFixed(2)} USDT`;
     document.getElementById('totalEarned').textContent = `${state.stats.totalEarned.toFixed(2)} USDT`;
     document.getElementById('referralsCount').textContent = state.stats.referralsCount;
