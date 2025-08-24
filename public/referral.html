@@ -98,15 +98,15 @@
             transition: all 0.2s ease;
         }
         .copy-button:active {
-        }
-        
-
             transform: scale(0.95);
         }
         .referral-stats {
             background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
             border-radius: 12px;
             color: white;
+            min-height: 120px;
+            display: block !important;
+            visibility: visible !important;
         }
         .tab-button {
             transition: all 0.2s ease;
@@ -161,6 +161,13 @@
         }
         .show {
             display: block;
+        }
+        
+        /* Debug styles to ensure balance elements are visible */
+        #availableBalance, #totalEarned, #referralsCount, #pendingAmount {
+            display: block !important;
+            visibility: visible !important;
+            color: white !important;
         }
         .dot {
             height: 8px;
