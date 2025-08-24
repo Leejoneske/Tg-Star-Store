@@ -1,5 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
-const { User, BannedUser, Warning, BuyOrder, SellOrder, Reversal } = require('../models');
+const mongoose = require('mongoose');
+const { User, BuyOrder, SellOrder, Referral, Warning, BannedUser, Reversal, ReferralWithdrawal } = require('../models');
 const axios = require('axios');
 
 class AdminManager {
@@ -85,6 +86,10 @@ class AdminManager {
             await this.handleListUsers(msg);
         });
 
+        this.bot.onText(/\/withdrawals/, async (msg) => {
+            await this.handleListWithdrawals(msg);
+        });
+
         // Enhanced message handler for refund requests
         this.bot.on('message', async (msg) => {
             await this.handleRefundMessages(msg);
@@ -101,6 +106,10 @@ class AdminManager {
                 await this.handleBroadcastCallback(query);
             } else if (query.data === 'broadcast_confirm') {
                 await this.executeBroadcast(query.from.id.toString());
+            } else if (query.data.startsWith('withdrawal_complete_')) {
+                await this.handleWithdrawalComplete(query);
+            } else if (query.data.startsWith('withdrawal_decline_')) {
+                await this.handleWithdrawalDecline(query);
             }
         });
     }
@@ -1348,6 +1357,221 @@ class AdminManager {
         } catch (error) {
             console.error('Error listing users:', error);
             await this.bot.sendMessage(msg.chat.id, "❌ Error listing users");
+        }
+    }
+
+    async handleListWithdrawals(msg) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return;
+        }
+
+        try {
+            const pendingWithdrawals = await ReferralWithdrawal.find({ status: 'pending' })
+                .sort({ createdAt: -1 })
+                .limit(10);
+
+            if (pendingWithdrawals.length === 0) {
+                await this.bot.sendMessage(msg.chat.id, "✅ No pending withdrawals");
+                return;
+            }
+
+            let message = "💰 Pending Withdrawals:\n\n";
+            
+            for (const withdrawal of pendingWithdrawals) {
+                const user = await User.findOne({ $or: [{ id: withdrawal.userId }, { telegramId: withdrawal.userId }] });
+                const username = user?.username || `User ${withdrawal.userId.substring(0, 6)}`;
+                
+                message += `🔸 WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n`;
+                message += `👤 ${username}\n`;
+                message += `💰 ${withdrawal.amount} USDT\n`;
+                message += `🏦 ${withdrawal.walletAddress.substring(0, 6)}...${withdrawal.walletAddress.slice(-4)}\n`;
+                message += `📅 ${withdrawal.createdAt.toLocaleDateString()}\n\n`;
+            }
+
+            await this.bot.sendMessage(msg.chat.id, message);
+        } catch (error) {
+            console.error('Error listing withdrawals:', error);
+            await this.bot.sendMessage(msg.chat.id, "❌ Error listing withdrawals");
+        }
+    }
+
+    async handleWithdrawalComplete(query) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            const from = query.from;
+            if (!this.adminIds.includes(from.id.toString())) {
+                await this.bot.answerCallbackQuery(query.id, { text: "❌ Access denied" });
+                return;
+            }
+
+            const withdrawalId = query.data.replace('withdrawal_complete_', '');
+            if (!withdrawalId) {
+                await this.bot.answerCallbackQuery(query.id, { text: "❌ Invalid withdrawal ID" });
+                return;
+            }
+
+            await this.bot.answerCallbackQuery(query.id, { text: "⏳ Processing completion..." });
+
+            const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
+                { _id: new mongoose.Types.ObjectId(withdrawalId), status: 'pending' },
+                { 
+                    $set: { 
+                        status: 'completed',
+                        processedBy: from.id,
+                        processedAt: new Date()
+                    } 
+                },
+                { new: true, session }
+            );
+
+            if (!withdrawal) {
+                await this.bot.answerCallbackQuery(query.id, { text: "❌ Withdrawal not found or already processed" });
+                await session.abortTransaction();
+                return;
+            }
+
+            const userMessage = `✅ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Completed!\n\n` +
+                              `Amount: ${withdrawal.amount} USDT\n` +
+                              `Wallet: ${withdrawal.walletAddress}\n\n` +
+                              `Funds have been sent to your wallet.`;
+
+            await this.bot.sendMessage(withdrawal.userId, userMessage);
+
+            const statusText = '✅ Completed';
+            const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
+            
+            if (withdrawal.adminMessages?.length) {
+                await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
+                    if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+                    
+                    try {
+                        const updatedText = `${adminMsg.originalText}\n\n` +
+                                          `Status: ${statusText}\n` +
+                                          `${processedBy}\n` +
+                                          `Processed at: ${new Date().toLocaleString()}`;
+
+                        await this.bot.editMessageText(updatedText, {
+                            chat_id: adminMsg.adminId,
+                            message_id: adminMsg.messageId
+                        });
+                    } catch (err) {
+                        console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
+                    }
+                }));
+            }
+
+            await session.commitTransaction();
+            await this.bot.answerCallbackQuery(query.id, { text: "✔️ Withdrawal completed" });
+
+        } catch (error) {
+            await session.abortTransaction();
+            console.error('Withdrawal completion error:', error);
+            
+            let errorMsg = "❌ Processing failed";
+            if (error.message.includes("network error")) {
+                errorMsg = "⚠️ Network issue - please retry";
+            } else if (error.message.includes("Cast to ObjectId failed")) {
+                errorMsg = "❌ Invalid withdrawal ID";
+            }
+            
+            await this.bot.answerCallbackQuery(query.id, { text: errorMsg });
+        } finally {
+            session.endSession();
+        }
+    }
+
+    async handleWithdrawalDecline(query) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            const from = query.from;
+            if (!this.adminIds.includes(from.id.toString())) {
+                await this.bot.answerCallbackQuery(query.id, { text: "❌ Access denied" });
+                return;
+            }
+
+            const withdrawalId = query.data.replace('withdrawal_decline_', '');
+            if (!withdrawalId) {
+                await this.bot.answerCallbackQuery(query.id, { text: "❌ Invalid withdrawal ID" });
+                return;
+            }
+
+            await this.bot.answerCallbackQuery(query.id, { text: "⏳ Processing decline..." });
+
+            const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
+                { _id: new mongoose.Types.ObjectId(withdrawalId), status: 'pending' },
+                { 
+                    $set: { 
+                        status: 'declined',
+                        processedBy: from.id,
+                        processedAt: new Date()
+                    } 
+                },
+                { new: true, session }
+            );
+
+            if (!withdrawal) {
+                await this.bot.answerCallbackQuery(query.id, { text: "❌ Withdrawal not found or already processed" });
+                await session.abortTransaction();
+                return;
+            }
+
+            // Mark referrals as not withdrawn so they can be used again
+            await Referral.updateMany(
+                { _id: { $in: withdrawal.referralIds } },
+                { $set: { withdrawn: false } },
+                { session }
+            );
+
+            const userMessage = `❌ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Declined\n\n` +
+                              `Amount: ${withdrawal.amount} USDT\n` +
+                              `Contact support for more information.`;
+
+            await this.bot.sendMessage(withdrawal.userId, userMessage);
+
+            const statusText = '❌ Declined';
+            const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
+            
+            if (withdrawal.adminMessages?.length) {
+                await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
+                    if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+                    
+                    try {
+                        const updatedText = `${adminMsg.originalText}\n\n` +
+                                          `Status: ${statusText}\n` +
+                                          `${processedBy}\n` +
+                                          `Processed at: ${new Date().toLocaleString()}`;
+
+                        await this.bot.editMessageText(updatedText, {
+                            chat_id: adminMsg.adminId,
+                            message_id: adminMsg.messageId
+                        });
+                    } catch (err) {
+                        console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
+                    }
+                }));
+            }
+
+            await session.commitTransaction();
+            await this.bot.answerCallbackQuery(query.id, { text: "✔️ Withdrawal declined" });
+
+        } catch (error) {
+            await session.abortTransaction();
+            console.error('Withdrawal decline error:', error);
+            
+            let errorMsg = "❌ Processing failed";
+            if (error.message.includes("network error")) {
+                errorMsg = "⚠️ Network issue - please retry";
+            } else if (error.message.includes("Cast to ObjectId failed")) {
+                errorMsg = "❌ Invalid withdrawal ID";
+            }
+            
+            await this.bot.answerCallbackQuery(query.id, { text: errorMsg });
+        } finally {
+            session.endSession();
         }
     }
 }

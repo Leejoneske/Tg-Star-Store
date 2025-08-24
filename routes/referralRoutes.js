@@ -110,7 +110,28 @@ router.post('/referral-withdrawals', async (req, res) => {
         );
 
         await session.commitTransaction();
-        res.json({ success: true, withdrawalId: withdrawal.withdrawalId });
+        
+        // Send admin notifications
+        const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
+        const userInfo = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
+        const userDisplayName = userInfo?.username || `User ${userId.substring(0, 6)}`;
+        
+        const adminMessage = `💰 New Referral Withdrawal Request\n\n` +
+                           `🔸 WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n` +
+                           `👤 ${userDisplayName}\n` +
+                           `💰 ${amountNum} USDT\n` +
+                           `🏦 ${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}\n` +
+                           `📅 ${new Date().toLocaleString()}\n\n` +
+                           `Use /withdrawals to view all pending withdrawals`;
+
+        // Store admin message info for later updates
+        withdrawal.adminMessages = [];
+        
+        // Note: Admin notifications will be sent by the AdminManager when it's properly initialized
+        // For now, we'll just store the withdrawal and let admins check with /withdrawals command
+        
+        await withdrawal.save();
+        res.json({ success: true, withdrawalId: withdrawal._id });
     } catch (error) {
         await session.abortTransaction();
         res.status(400).json({ success: false, error: error.message });
