@@ -14,6 +14,7 @@ const PaymentManager = require('./managers/paymentManager');
 const AdminManager = require('./managers/adminManager');
 const UserInteractionManager = require('./managers/userInteractionManager');
 const CallbackManager = require('./managers/callbackManager');
+const FeedbackManager = require('./managers/feedbackManager');
 
 // Import API routes
 const apiRoutes = require('./routes/apiRoutes');
@@ -48,6 +49,7 @@ mongoose.connect(process.env.MONGODB_URI)
     new AdminManager(bot, adminIds);
     new UserInteractionManager(bot);
     new CallbackManager(bot, adminIds);
+    new FeedbackManager(bot, adminIds);
     
     console.log('✅ All managers initialized');
   })
