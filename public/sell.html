@@ -1643,8 +1643,13 @@ const fetchTransactions = async () => {
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
-    // Check for language in localStorage first
-    currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    // Initialize TranslationUtils and get current language
+    if (typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.init();
+        currentLanguage = TranslationUtils.getCurrentLanguage();
+    } else {
+        currentLanguage = localStorage.getItem('appLanguage') || 'en';
+    }
     setupWalletAddressMemory();
     setupWalletButtons();
     updateLanguageTexts();
