@@ -251,7 +251,7 @@
         
         <div class="error-code">403</div>
         
-        <h1 class="error-title">Access Denied</h1>
+                        <h1 class="error-title" data-translate="accessDenied">Access Denied</h1>
         
         <p class="error-message">
             You don't have permission to access this resource. Please contact support if you believe this is an error.
@@ -302,7 +302,13 @@
         </div>
     </div>
 
+    <script src="js/translations.js"></script>
     <script>
+        // Initialize translations
+        if (typeof TranslationUtils !== 'undefined') {
+            TranslationUtils.init();
+        }
+        
         // Initialize Telegram WebApp if available
         if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.ready();
