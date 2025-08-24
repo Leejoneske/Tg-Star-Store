@@ -1357,7 +1357,14 @@ function loadBottomNav() {
         if (!container) return resolve();
         fetch('bottomnav.html')
             .then(r => r.ok ? r.text() : '')
-            .then(html => { container.innerHTML = html; resolve(); })
+            .then(html => { 
+                container.innerHTML = html; 
+                // Set active navigation after loading
+                if (typeof setActiveNavigation === 'function') {
+                    setActiveNavigation();
+                }
+                resolve(); 
+            })
             .catch(() => resolve());
     });
 }

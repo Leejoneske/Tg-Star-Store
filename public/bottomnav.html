@@ -3,36 +3,107 @@
 		<nav>
 			<ul class="grid grid-cols-5 text-xs text-gray-600">
 				<li>
-					<a href="index.html" class="flex flex-col items-center py-2">
+					<a href="index.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="home">
 						<i class="fas fa-home text-lg"></i>
-						<span>Home</span>
+						<span data-translate="home">Home</span>
 					</a>
 				</li>
 				<li>
-					<a href="sell.html" class="flex flex-col items-center py-2">
+					<a href="sell.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="sell">
 						<i class="fas fa-dollar-sign text-lg"></i>
-						<span>Sell</span>
+						<span data-translate="sell">Sell</span>
 					</a>
 				</li>
 				<li>
-					<a href="history.html" class="flex flex-col items-center py-2">
+					<a href="history.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="history">
 						<i class="fas fa-list text-lg"></i>
-						<span>History</span>
+						<span data-translate="history">History</span>
 					</a>
 				</li>
 				<li>
-					<a href="referral.html" class="flex flex-col items-center py-2">
+					<a href="referral.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="referral">
 						<i class="fas fa-user-friends text-lg"></i>
-						<span>Referral</span>
+						<span data-translate="referral">Referral</span>
 					</a>
 				</li>
 				<li>
-					<a href="about.html" class="flex flex-col items-center py-2">
+					<a href="about.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="about">
 						<i class="fas fa-info-circle text-lg"></i>
-						<span>About</span>
+						<span data-translate="about">About</span>
 					</a>
 				</li>
 			</ul>
 		</nav>
 	</div>
 </div>
+
+<style>
+.nav-link {
+	color: #6b7280;
+	text-decoration: none;
+}
+
+.nav-link:hover {
+	color: #4f46e5;
+}
+
+.nav-link.active {
+	color: #4f46e5;
+}
+
+.nav-link.active i {
+	color: #4f46e5;
+}
+
+.nav-link.active span {
+	color: #4f46e5;
+	font-weight: 600;
+}
+</style>
+
+<script>
+// Function to set active navigation based on current page
+function setActiveNavigation() {
+	const currentPage = getCurrentPage();
+	const navLinks = document.querySelectorAll('.nav-link');
+	
+	navLinks.forEach(link => {
+		link.classList.remove('active');
+		if (link.getAttribute('data-page') === currentPage) {
+			link.classList.add('active');
+		}
+	});
+}
+
+// Function to determine current page
+function getCurrentPage() {
+	const path = window.location.pathname;
+	const filename = path.split('/').pop();
+	
+	switch(filename) {
+		case 'index.html':
+		case '':
+			return 'home';
+		case 'sell.html':
+			return 'sell';
+		case 'history.html':
+			return 'history';
+		case 'referral.html':
+			return 'referral';
+		case 'about.html':
+			return 'about';
+		default:
+			return 'home';
+	}
+}
+
+// Set active navigation when DOM is loaded
+document.addEventListener('DOMContentLoaded', setActiveNavigation);
+
+// Also set active navigation immediately if DOM is already loaded
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', setActiveNavigation);
+} else {
+	setActiveNavigation();
+}
+</script>

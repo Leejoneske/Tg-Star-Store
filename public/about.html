@@ -277,7 +277,13 @@
         // Load shared bottom nav
         fetch('bottomnav.html')
             .then(r => r.ok ? r.text() : '')
-            .then(html => { document.getElementById('bottomnav-container').innerHTML = html; });
+            .then(html => { 
+        document.getElementById('bottomnav-container').innerHTML = html; 
+        // Set active navigation after loading
+        if (typeof setActiveNavigation === 'function') {
+            setActiveNavigation();
+        }
+    });
         
         // Set up language toggle
         const languageToggle = document.getElementById('languageToggle');
