@@ -9,6 +9,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="js/translations.js"></script>
+    <script src="js/loading.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
@@ -935,134 +937,15 @@ function showError(message) {
     });
 }
 
-const translations = {
-    en: {
-        'menu': 'Menu',
-        'home': 'Home',
-        'sell': 'Sell',
-        'history': 'History',
-        'referral': 'Referral',
-        'about': 'About',
-        'referral-title': 'Referral Program',
-        'referral-subtitle': 'Invite friends and earn rewards',
-        'available-balance': 'Available Balance',
-        'withdraw': 'Withdraw',
-        'total-earned': 'Total Earned',
-        'referrals': 'Referrals',
-        'pending': 'Pending',
-        'your-link': 'Your Referral Link',
-        'share-text': 'Share this link with friends and earn 0.5 USDT for every successful referral',
-        'share-fb': 'Share',
-        'share-tw': 'Share',
-        'share-wa': 'Share',
-        'share-tg': 'Share',
-        'share-tw-text': 'Check out StarStore! Use my referral link to get started:',
-        'share-wa-text': 'Check out StarStore! Use my referral link to get started:',
-        'share-tg-text': 'Check out StarStore! Use my referral link to get started:',
-        'referral-info': 'You will earn 0.5 USDT for each successful referral. Earnings can be withdrawn to your TON wallet.',
-        'my-referrals': 'My Referrals',
-        'withdrawals': 'Withdrawals',
-        'no-referrals': 'You don\'t have any referrals yet',
-        'share-invite': 'Share your referral link to invite friends',
-        'completed': 'Completed',
-        'no-withdrawals': 'No withdrawal history yet',
-        'start-earning': 'Start earning by inviting friends',
-        'how-it-works': 'How It Works',
-        'step1-title': 'Share Your Link',
-        'step1-desc': 'Copy your unique referral link and share it with friends',
-        'step2-title': 'Friends Make a Purchase',
-        'step2-desc': 'They get instant access to Premium or Stars',
-        'step3-title': 'You Earn Rewards',
-        'step3-desc': 'Get 0.5 USDT for each successful referral',
-        'step4-title': 'Withdraw Earnings',
-        'step4-desc': 'Transfer funds to your TON wallet when ready',
-        'withdraw-title': 'Withdraw Funds',
-        'withdraw-desc': 'Transfer your earnings to your TON wallet',
-        'amount': 'Amount (USDT)',
-        'wallet-address': 'TON Wallet Address',
-        'submit-withdrawal': 'Submit Withdrawal',
-        'link-copied': 'Link copied to clipboard!',
-        'min-withdraw': 'Minimum withdrawal is 0.5 USDT',
-        'max-withdraw': 'Maximum withdrawal is',
-        'invalid-wallet': 'Invalid TON wallet address',
-        'withdraw-success-title': 'Success!',
-        'withdraw-success-text': 'Withdrawal of',
-        'requested': 'requested',
-        'withdraw-error': 'Withdrawal failed',
-        'insufficient-balance-title': 'Insufficient Balance',
-        'insufficient-balance-text': 'You need at least 1 completed referral (0.5 USDT) to withdraw.',
-        'your-balance': 'Your balance:',
-        'error': 'Error',
-        'cancel': 'Cancel'
-    },
-    ru: {
-        'menu': 'Меню',
-        'home': 'Главная',
-        'sell': 'Продать',
-        'history': 'История',
-        'referral': 'Реферальная программа',
-        'about': 'О нас',
-        'referral-title': 'Реферальная программа',
-        'referral-subtitle': 'Приглашайте друзей и получайте вознаграждения',
-        'available-balance': 'Доступный баланс',
-        'withdraw': 'Вывести',
-        'total-earned': 'Всего заработано',
-        'referrals': 'Рефералы',
-        'pending': 'В ожидании',
-        'your-link': 'Ваша реферальная ссылка',
-        'share-text': 'Поделитесь этой ссылкой с друзьями и получите 0.5 USDT за каждого успешного реферала',
-        'share-fb': 'Поделиться',
-        'share-tw': 'Поделиться',
-        'share-wa': 'Поделиться',
-        'share-tg': 'Поделиться',
-        'share-tw-text': 'Попробуйте StarStore! Используйте мою реферальную ссылку:',
-        'share-wa-text': 'Попробуйте StarStore! Используйте мою реферальную ссылку:',
-        'share-tg-text': 'Попробуйте StarStore! Используйте мою реферальную ссылку:',
-        'referral-info': 'Вы заработаете 0.5 USDT за каждого успешного реферала. Заработок можно вывести на ваш TON кошелек.',
-        'my-referrals': 'Мои рефералы',
-        'withdrawals': 'Выводы',
-        'no-referrals': 'У вас пока нет рефералов',
-        'share-invite': 'Поделитесь своей реферальной ссылкой, чтобы пригласить друзей',
-        'completed': 'Завершено',
-        'no-withdrawals': 'История выводов пуста',
-        'start-earning': 'Начните зарабатывать, приглашая друзей',
-        'how-it-works': 'Как это работает',
-        'step1-title': 'Поделитесь своей ссылкой',
-        'step1-desc': 'Скопируйте уникальную реферальную ссылку и поделитесь ею с друзьями',
-        'step2-title': 'Друзья совершают покупку',
-        'step2-desc': 'Они получают мгновенный доступ к Premium или Stars',
-        'step3-title': 'Вы получаете вознаграждение',
-        'step3-desc': 'Получите 0.5 USDT за каждого успешного реферала',
-        'step4-title': 'Выведите заработок',
-        'step4-desc': 'Переведите средства на свой TON кошелек, когда будете готовы',
-        'withdraw-title': 'Вывод средств',
-        'withdraw-desc': 'Перевод заработка на ваш TON кошелек',
-        'amount': 'Сумма (USDT)',
-        'wallet-address': 'Адрес TON кошелька',
-        'submit-withdrawal': 'Отправить запрос на вывод',
-        'link-copied': 'Ссылка скопирована в буфер обмена!',
-        'min-withdraw': 'Минимальная сумма вывода 0.5 USDT',
-        'max-withdraw': 'Максимальная сумма вывода',
-        'invalid-wallet': 'Неверный адрес TON кошелька',
-        'withdraw-success-title': 'Успешно!',
-        'withdraw-success-text': 'Запрос на вывод',
-        'requested': 'отправлен',
-        'withdraw-error': 'Ошибка при выводе средств',
-        'insufficient-balance-title': 'Недостаточно средств',
-        'insufficient-balance-text': 'Для вывода требуется хотя бы 1 завершенный реферал (0.5 USDT).',
-        'your-balance': 'Ваш баланс:',
-        'error': 'Ошибка',
-        'cancel': 'Отмена'
-    }
-};
+// Initialize translations
+if (typeof TranslationUtils !== 'undefined') {
+    TranslationUtils.init();
+}
 
 function applyTranslations() {
-    document.querySelectorAll('[data-lang]').forEach(el => {
-        const key = el.getAttribute('data-lang');
-        if (translations[state.language] && translations[state.language][key]) {
-            el.textContent = translations[state.language][key];
-        }
-    });
+    if (typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.applyTranslations();
+    }
 }
 
 init();

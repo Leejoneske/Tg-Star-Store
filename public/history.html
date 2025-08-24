@@ -10,6 +10,8 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="js/translations.js"></script>
+    <script src="js/loading.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         body {
@@ -166,19 +168,7 @@
             color: #4f46e5;
             border-color: #4f46e5;
         }
-        .skeleton {
-            background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-        }
-        @keyframes loading {
-            0% {
-                background-position: 200% 0;
-            }
-            100% {
-                background-position: -200% 0;
-            }
-        }
+
         .tab-content {
             display: none;
         }
@@ -270,11 +260,7 @@
                     </div>
                 </div>
                 
-                <div id="transactionsLoading" class="space-y-4 mb-6">
-                    <div class="skeleton h-20 rounded-xl shimmer"></div>
-                    <div class="skeleton h-20 rounded-xl shimmer"></div>
-                    <div class="skeleton h-20 rounded-xl shimmer"></div>
-                </div>
+                <div id="transactionsLoading" class="space-y-4 mb-6"></div>
                 
                 <div id="transactionsList" class="space-y-4 mb-6" style="display:none"></div>
                 
@@ -318,11 +304,7 @@
                     </div>
                 </div>
                 
-                <div id="referralsLoading" class="space-y-4 mb-6">
-                    <div class="skeleton h-20 rounded-xl shimmer"></div>
-                    <div class="skeleton h-20 rounded-xl shimmer"></div>
-                    <div class="skeleton h-20 rounded-xl shimmer"></div>
-                </div>
+                <div id="referralsLoading" class="space-y-4 mb-6"></div>
                 
                 <div id="referralsList" class="space-y-4 mb-6" style="display:none"></div>
                 
@@ -374,81 +356,13 @@ let currentReferralFilter = 'all';
 let currentTransactionSearch = '';
 let currentReferralSearch = '';
 const itemsPerPage = 5;
-let currentLanguage = localStorage.getItem('appLanguage') || 'en';
+let currentLanguage = TranslationUtils.getCurrentLanguage();
 let transactionChart = null;
 
-const translations = {
-    en: {
-        menu: "Menu",
-        home: "Home",
-        sell: "Sell",
-        history: "History",
-        referral: "Referral",
-        about: "About",
-        transactions: "Transactions",
-        referrals: "Referrals",
-        overview: "Overview",
-        all: "All",
-        completed: "Completed",
-        processing: "Processing",
-        declined: "Declined",
-        active: "Active",
-        search_transactions: "Search transactions...",
-        search_referrals: "Search referrals...",
-        no_transactions: "No transactions found",
-        no_referrals: "No referrals found",
-        export_transactions: "Export Transactions",
-        export_referrals: "Export Referrals",
-        transaction_details: "Transaction Details",
-        referral_details: "Referral Details",
-        id: "ID",
-        type: "Type",
-        amount: "Amount",
-        status: "Status",
-        date: "Date",
-        name: "Name",
-        today: "Today",
-        yesterday: "Yesterday",
-        days_ago: "days ago",
-        total: "Total",
-        close: "Close"
-    },
-    ru: {
-        menu: "Меню",
-        home: "Главная",
-        sell: "Продать",
-        history: "История",
-        referral: "Рефералы",
-        about: "О нас",
-        transactions: "Транзакции",
-        referrals: "Рефералы",
-        overview: "Обзор",
-        all: "Все",
-        completed: "Завершено",
-        processing: "В обработке",
-        declined: "Отклонено",
-        active: "Активно",
-        search_transactions: "Поиск транзакций...",
-        search_referrals: "Поиск рефералов...",
-        no_transactions: "Транзакций не найдено",
-        no_referrals: "Рефералов не найдено",
-        export_transactions: "Экспорт транзакций",
-        export_referrals: "Экспорт рефералов",
-        transaction_details: "Детали транзакции",
-        referral_details: "Детали реферала",
-        id: "ID",
-        type: "Тип",
-        amount: "Сумма",
-        status: "Статус",
-        date: "Дата",
-        name: "Имя",
-        today: "Сегодня",
-        yesterday: "Вчера",
-        days_ago: "дней назад",
-        total: "Всего",
-        close: "Закрыть"
-    }
-};
+// Initialize translations
+if (typeof TranslationUtils !== 'undefined') {
+    TranslationUtils.init();
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
@@ -540,12 +454,12 @@ function updateLanguage() {
 }
 
 function loadTransactionHistory() {
-    document.getElementById('transactionsLoading').style.display = 'block';
+            LoadingComponent.show('transactionsLoading', 'cards', { count: 3 });
     document.getElementById('transactionsList').style.display = 'none';
     document.getElementById('transactionsEmpty').style.display = 'none';
 
     if (!user || !user.id) {
-        document.getElementById('transactionsLoading').style.display = 'none';
+        LoadingComponent.hide('transactionsLoading');
         document.getElementById('transactionsEmpty').style.display = 'flex';
         return;
     }
@@ -572,18 +486,18 @@ function loadTransactionHistory() {
         updateTransactionChart();
     })
     .catch(error => {
-        document.getElementById('transactionsLoading').style.display = 'none';
+        LoadingComponent.hide('transactionsLoading');
         document.getElementById('transactionsEmpty').style.display = 'flex';
     });
 }
 
 function loadReferralHistory() {
-    document.getElementById('referralsLoading').style.display = 'block';
+    LoadingComponent.show('referralsLoading', 'cards', { count: 3 });
     document.getElementById('referralsList').style.display = 'none';
     document.getElementById('referralsEmpty').style.display = 'none';
 
     if (!user || !user.id) {
-        document.getElementById('referralsLoading').style.display = 'none';
+        LoadingComponent.hide('referralsLoading');
         document.getElementById('referralsEmpty').style.display = 'flex';
         return;
     }
@@ -609,7 +523,7 @@ function loadReferralHistory() {
         updateReferralList();
     })
     .catch(error => {
-        document.getElementById('referralsLoading').style.display = 'none';
+        LoadingComponent.hide('referralsLoading');
         document.getElementById('referralsEmpty').style.display = 'flex';
     });
 }
@@ -657,7 +571,7 @@ function updateTransactionList() {
     const paginatedTransactions = filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
     
     updateTransactionCounts(filteredTransactions);
-    document.getElementById('transactionsLoading').style.display = 'none';
+    LoadingComponent.hide('transactionsLoading');
     
     if (paginatedTransactions.length === 0) {
         document.getElementById('transactionsList').style.display = 'none';
@@ -738,7 +652,7 @@ function updateReferralList() {
     const startIndex = (currentReferralPage - 1) * itemsPerPage;
     const paginatedReferrals = filteredReferrals.slice(startIndex, startIndex + itemsPerPage);
     
-    document.getElementById('referralsLoading').style.display = 'none';
+    LoadingComponent.hide('referralsLoading');
     
     if (paginatedReferrals.length === 0) {
         document.getElementById('referralsList').style.display = 'none';

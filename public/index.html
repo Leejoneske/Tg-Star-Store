@@ -275,46 +275,7 @@
         overflow: hidden;
     }
 
-    .skeleton {
-        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-        background-size: 200% 100%;
-        animation: shimmer 1.5s infinite;
-        border-radius: 4px;
-        color: transparent !important;
-    }
 
-    .skeleton-img {
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-    }
-
-    .skeleton-text {
-        height: 16px;
-        margin-bottom: 8px;
-    }
-
-    .skeleton-text.short {
-        width: 60%;
-    }
-
-    .skeleton-button {
-        width: 120px;
-        height: 36px;
-        border-radius: 8px;
-    }
-
-    .skeleton-card {
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 16px;
-    }
-
-    .skeleton-item {
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 12px;
-    }
 
 
 .notification-button {
@@ -583,51 +544,7 @@
 </head>
 <body>
     <div class="app-container">
-        <div id="skeleton-loading">
-            <div class="p-4 flex justify-between items-center bg-white shadow-sm">
-                <div class="p-2">
-                    <div class="skeleton" style="width: 24px; height: 24px;"></div>
-                </div>
-                <div class="skeleton" style="width: 100px; height: 24px; margin: 0 auto;"></div>
-                <div class="skeleton skeleton-button" style="width: 40px;"></div>
-            </div>
-            
-            <div class="p-6">
-                <div class="flex items-center space-x-4 mb-6">
-                    <div class="skeleton skeleton-img"></div>
-                    <div class="flex-1">
-                        <div class="skeleton skeleton-text short"></div>
-                        <div class="skeleton skeleton-text" style="width: 80%"></div>
-                    </div>
-                    <div class="skeleton skeleton-button"></div>
-                </div>
-                
-                <div class="skeleton-card">
-                    <div class="skeleton skeleton-text" style="width: 40%; margin-bottom: 16px;"></div>
-                    <div class="space-y-4">
-                        <div class="skeleton skeleton-item"></div>
-                        <div class="skeleton skeleton-item"></div>
-                        <div class="skeleton skeleton-item"></div>
-                    </div>
-                </div>
-                
-                <div class="skeleton-card">
-                    <div class="skeleton skeleton-text" style="width: 30%; margin-bottom: 16px;"></div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="skeleton skeleton-item"></div>
-                        <div class="skeleton skeleton-item"></div>
-                        <div class="skeleton skeleton-item"></div>
-                        <div class="skeleton skeleton-item"></div>
-                        <div class="skeleton skeleton-item"></div>
-                        <div class="skeleton skeleton-item"></div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="footer">
-                <div class="skeleton" style="width: 100%; height: 16px;"></div>
-            </div>
-        </div>
+        <div id="loading-container"></div>
 
         <div id="content-container">
             <div id="bottomnav-container"></div>
@@ -689,6 +606,10 @@
                         </div>
                         <div class="text-xs text-gray-500 mt-1">If set, this overrides the package selection.</div>
                         <div class="text-xs text-gray-700 mt-1" id="customStarsQuote"></div>
+                        <div id="starsDistribution" class="mt-3 p-3 bg-gray-50 rounded-lg" style="display: none;">
+                            <div class="text-xs font-semibold text-gray-700 mb-2">Stars Distribution:</div>
+                            <div id="distributionList" class="space-y-1"></div>
+                        </div>
                     </div>
                     <div class="stars-card rounded-xl mb-8">
                         <h3 class="text-lg font-bold text-gray-800 mb-4">Choose a Stars Package</h3>
@@ -843,104 +764,12 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 
+    <script src="js/translations.js"></script>
+    <script src="js/loading.js"></script>
     <script>
-const translations = {
-    en: {
-        appName: "StarStore",
-        connectWallet: "Connect Wallet",
-        walletNotConnected: "Please connect your wallet to proceed.",
-        invalidAmount: "The payment amount must be a valid number greater than 0.",
-        processing: "Processing...",
-        preparingTransaction: "Preparing your transaction",
-        orderCreated: "Your order has been successfully created.",
-        orderFailed: "Failed to create order. Please contact support.",
-        transactionFailed: "The transaction could not be completed. Please try again.",
-        paymentFailed: "Payment failed. Please try again later.",
-        noNotifications: "No new notifications",
-        error: "Error",
-        success: "Success",
-        ok: "OK",
-        warning: "Warning",
-        continue: "Continue",
-        cancel: "Cancel",
-        menu: "Menu",
-        home: "Home",
-        sell: "Sell",
-        history: "History",
-        referral: "Referral",
-        about: "About",
-        telegramPremium: "Telegram Premium",
-        buyStars: "Buy Stars",
-        "3monthsPremium": "3 Months Premium",
-        "3monthsDesc": "Unlock premium features for 3 months",
-        "6monthsPremium": "6 Months Premium",
-        "6monthsDesc": "Unlock premium features for 6 months",
-        "12monthsPremium": "12 Months Premium",
-        "12monthsDesc": "Unlock premium features for 12 months",
-        buyNow: "Buy Now",
-        buy: "Buy",
-        buygift: "Buy Gift",
-        poweredBy: "Powered by",
-        terms: "Terms & Conditions",
-        initializationError: 'Failed to initialize application',
-        telegramInitError: 'Telegram initialization failed. Running in limited mode.',
-        loadingNotifications: 'Loading notifications...',
-        notificationsError: 'Failed to load notifications',
-        notificationsNotAvailable: 'Notifications service not available',
-        telegramRequiredForNotifications: 'Please open in Telegram to view notifications',
-        tryInTelegram: 'Try opening in Telegram for full functionality',
-        userNotFound: "User information not found. Please refresh the page and try again."
-    },
-    ru: {
-        appName: "StarStore",
-        connectWallet: "Подключить кошелек",
-        walletNotConnected: "Пожалуйста, подключите кошелек, чтобы продолжить.",
-        invalidAmount: "Сумма платежа должна быть действительным числом больше 0.",
-        processing: "Обработка...",
-        preparingTransaction: "Подготовка вашей транзакции",
-        orderCreated: "Ваш заказ успешно создан.",
-        orderFailed: "Не удалось создать заказ. Пожалуйста, обратитесь в поддержку.",
-        transactionFailed: "Транзакция не удалась. Пожалуйста, попробуйте еще раз.",
-        paymentFailed: "Оплата не удалась. Пожалуйста, попробуйте позже.",
-        noNotifications: "Нет новых уведомлений",
-        error: "Ошибка",
-        success: "Успешно",
-        ok: "ОК",
-        warning: "Предупреждение",
-        continue: "Продолжить",
-        cancel: "Отмена",
-        menu: "Меню",
-        home: "Главная",
-        sell: "Продажа",
-        history: "История",
-        referral: "Реферал",
-        about: "О нас",
-        telegramPremium: "Telegram Премиум",
-        buyStars: "Купить Звезды",
-        "3monthsPremium": "3 Месяца Премиум",
-        "3monthsDesc": "Разблокируйте премиум-функции на 3 месяца",
-        "6monthsPremium": "6 Месяцев Премиум",
-        "6monthsDesc": "Разблокируйте премиум-функции на 6 месяцев",
-        "12monthsPremium": "12 Месяцев Премиум",
-        "12monthsDesc": "Разблокируйте премиум-функции на 12 месяцев",
-        buyNow: "Купить сейчас",
-        buy: "Купить",
-        buygift: "Купить Подарок",
-        poweredBy: "Работает на",
-        terms: "Условия использования",
-        initializationError: 'Ошибка инициализации приложения',
-        telegramInitError: 'Ошибка инициализации Telegram. Работа в ограниченном режиме.',
-        loadingNotifications: 'Загрузка уведомлений...',
-        notificationsError: 'Не удалось загрузить уведомления',
-        notificationsNotAvailable: 'Сервис уведомлений недоступен',
-        telegramRequiredForNotifications: 'Откройте в Telegram для просмотра уведомлений',
-        tryInTelegram: 'Попробуйте открыть в Telegram для полного функционала',
-        userNotFound: "Информация о пользователе не найдена. Пожалуйста, обновите страницу и попробуйте снова."
-    }
-};
 
 let tonConnectUI = null;
-let currentLanguage = sessionStorage.getItem('appLanguage') || 'en';
+let currentLanguage = TranslationUtils.getCurrentLanguage();
 let walletConnected = false;
 let currentWalletAddress = '';
 let lastUserData = null;
@@ -1014,10 +843,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     detectTelegramEnvironment();
     
-    const skeleton = document.getElementById('skeleton-loading');
     const content = document.getElementById('content-container');
     
-    if (skeleton) skeleton.style.display = 'block';
+    LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
     if (content) content.style.display = 'none';
 
     requestAnimationFrame(() => {
@@ -1535,9 +1363,8 @@ function loadBottomNav() {
 }
 
 function showContent() {
-    const skeleton = document.getElementById('skeleton-loading');
+    LoadingComponent.hide('loading-container');
     const content = document.getElementById('content-container');
-    if (skeleton) skeleton.style.display = 'none';
     if (content) content.style.display = 'block';
 }
 
@@ -2149,10 +1976,49 @@ function initCustomStars() {
         const recValidation = await validateRecipients('recipientsContainer');
         const recipients = (buyForValue === 'others') ? (recValidation?.recipients || []) : [];
         const recipientsCount = recipients.length;
+        
+        // Hide distribution if no valid input or recipients
+        const distributionDiv = document.getElementById('starsDistribution');
+        const distributionList = document.getElementById('distributionList');
+        
         if (!val || val < 50) {
             quoteText.textContent = '';
+            if (distributionDiv) distributionDiv.style.display = 'none';
             return;
         }
+        
+        // Show distribution for multiple recipients
+        if (buyForValue === 'others' && recipientsCount > 0) {
+            const starsPerRecipient = Math.floor(val / recipientsCount);
+            const remainingStars = val % recipientsCount;
+            
+            if (starsPerRecipient >= 50) {
+                // Show distribution
+                if (distributionDiv) distributionDiv.style.display = 'block';
+                if (distributionList) {
+                    let distributionHTML = '';
+                    recipients.forEach((recipient, index) => {
+                        const starsForThisRecipient = starsPerRecipient + (index < remainingStars ? 1 : 0);
+                        distributionHTML += `
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-gray-600">@${recipient.username}:</span>
+                                <span class="font-semibold text-indigo-600">${starsForThisRecipient} stars</span>
+                            </div>
+                        `;
+                    });
+                    distributionList.innerHTML = distributionHTML;
+                }
+            } else {
+                // Not enough stars per recipient
+                if (distributionDiv) distributionDiv.style.display = 'none';
+                quoteText.textContent = `⚠️ Need at least ${50 * recipientsCount} stars for ${recipientsCount} recipients (50 stars minimum each)`;
+                return;
+            }
+        } else {
+            // Hide distribution for single recipient or no recipients
+            if (distributionDiv) distributionDiv.style.display = 'none';
+        }
+        
         try {
             const q = await axios.post('/api/quote', { stars: val, isPremium: false, recipientsCount });
             if (q.data?.success) {
@@ -2202,6 +2068,13 @@ function initCustomStars() {
     window.addEventListener('recipientsChanged', () => {
         // small delay to allow DOM status updates
         setTimeout(refreshQuote, 100);
+    });
+    
+    // Also refresh when "Buy For" selection changes
+    document.querySelectorAll('input[name="buyForStars"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            setTimeout(refreshQuote, 100);
+        });
     });
 }
 
