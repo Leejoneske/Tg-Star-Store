@@ -1,5 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
-const { User, Referral } = require('../models');
+const { User, BuyOrder, SellOrder, Referral } = require('../models');
 
 class UserInteractionManager {
     constructor(bot) {
@@ -8,22 +8,20 @@ class UserInteractionManager {
     }
 
     setupUserHandlers() {
-        // Start command
-        this.bot.onText(/\/start(.*)/, async (msg, match) => {
+        // User commands
+        this.bot.onText(/^\/start(?:\s+(.+))?/, async (msg, match) => {
             await this.handleStart(msg, match);
         });
 
-        // Help command
-        this.bot.onText(/\/help/, (msg) => {
-            this.handleHelp(msg);
+        this.bot.onText(/^\/help/, async (msg) => {
+            await this.handleHelp(msg);
         });
 
-        // Referrals command
-        this.bot.onText(/\/referrals|referrals/i, async (msg) => {
+        this.bot.onText(/^\/referrals/, async (msg) => {
             await this.handleReferrals(msg);
         });
 
-        // General message handler
+        // Handle general messages
         this.bot.on('message', async (msg) => {
             await this.handleGeneralMessage(msg);
         });
@@ -31,184 +29,289 @@ class UserInteractionManager {
 
     async handleStart(msg, match) {
         const chatId = msg.chat.id;
-        const startParam = match[1]?.trim();
+        const userId = chatId.toString();
+        const referrerId = match[1];
 
-        // Handle referral parameter
-        if (startParam && startParam.startsWith('ref_')) {
-            const referrerId = startParam.substring(4);
+        if (referrerId) {
             await this.handleReferralStart(msg, referrerId);
-            return;
+        } else {
+            await this.handleRegularStart(msg);
         }
-
-        // Regular start message
-        const welcomeMessage = `🌟 Welcome to StarStore!\n\n` +
-            `Your trusted platform for Telegram Premium and Stars.\n\n` +
-            `🔗 Visit our web app: ${process.env.SERVER_URL}\n\n` +
-            `Commands:\n` +
-            `/help - Show help\n` +
-            `/referrals - Your referral info`;
-
-        await this.bot.sendMessage(chatId, welcomeMessage);
-
-        // Save user if not exists
-        await this.saveUser(msg);
     }
 
     async handleReferralStart(msg, referrerId) {
         const chatId = msg.chat.id;
-        const referrerIdStr = referrerId.toString();
-
-        // Don't allow self-referral
-        if (chatId.toString() === referrerIdStr) {
-            await this.bot.sendMessage(chatId, "❌ You cannot refer yourself!");
-            return;
-        }
+        const userId = chatId.toString();
+        const username = msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`;
 
         try {
-            // Check if referral already exists
-            const existingReferral = await Referral.findOne({
-                referrerUserId: referrerIdStr,
-                referredUserId: chatId.toString()
-            });
-
-            if (existingReferral) {
-                await this.bot.sendMessage(chatId, "❌ You have already been referred by this user!");
+            // Check if referrer exists and is not the same user
+            if (referrerId === userId) {
+                await this.bot.sendMessage(chatId, "❌ You cannot refer yourself!");
                 return;
             }
 
-            // Create referral
+            const referrer = await User.findOne({ telegramId: referrerId });
+            if (!referrer) {
+                await this.bot.sendMessage(chatId, "❌ Invalid referral link!");
+                return;
+            }
+
+            // Check if user already exists
+            let user = await User.findOne({ telegramId: userId });
+            if (user) {
+                if (user.referredBy) {
+                    await this.bot.sendMessage(chatId, "❌ You have already been referred by someone else!");
+                    return;
+                }
+                // Update existing user with referral
+                user.referredBy = referrerId;
+                user.referralDate = new Date();
+                await user.save();
+            } else {
+                // Create new user with referral
+                user = new User({
+                    telegramId: userId,
+                    username: username,
+                    referredBy: referrerId,
+                    referralDate: new Date(),
+                    joinDate: new Date()
+                });
+                await user.save();
+            }
+
+            // Create referral record
             const referral = new Referral({
-                referrerUserId: referrerIdStr,
-                referredUserId: chatId.toString(),
+                referrerId: referrerId,
+                referredId: userId,
+                referredUsername: username,
                 status: 'pending',
-                dateReferred: new Date()
+                dateCreated: new Date()
             });
             await referral.save();
 
-            await this.bot.sendMessage(chatId, 
-                `🎉 Welcome! You've been referred by another user.\n\n` +
-                `You'll receive a bonus when you make your first purchase!`
-            );
-
             // Notify referrer
             try {
-                await this.bot.sendMessage(referrerId, 
-                    `🎉 New referral! User ${msg.from.username || chatId} joined using your link.`
-                );
+                const referrerMessage = `🎉 New Referral!\n\n` +
+                    `User: @${username}\n` +
+                    `Status: Pending activation\n\n` +
+                    `They need to complete a star purchase to activate your referral bonus.`;
+                await this.bot.sendMessage(parseInt(referrerId), referrerMessage);
             } catch (error) {
                 console.error('Failed to notify referrer:', error);
             }
 
+            await this.bot.sendMessage(chatId, 
+                `🎉 Welcome to StarStore!\n\n` +
+                `You were referred by @${referrer.username}\n\n` +
+                `Complete your first star purchase to activate the referral bonus for both of you!`
+            );
+
         } catch (error) {
             console.error('Error handling referral start:', error);
-            await this.bot.sendMessage(chatId, "❌ Error processing referral");
+            await this.bot.sendMessage(chatId, "❌ Error processing referral. Please try again.");
         }
+    }
 
-        // Save user
-        await this.saveUser(msg);
+    async handleRegularStart(msg) {
+        const chatId = msg.chat.id;
+        const userId = chatId.toString();
+        const username = msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`;
+
+        try {
+            let user = await User.findOne({ telegramId: userId });
+            if (!user) {
+                user = new User({
+                    telegramId: userId,
+                    username: username,
+                    joinDate: new Date()
+                });
+                await user.save();
+            }
+
+            const welcomeMessage = `🌟 Welcome to StarStore!\n\n` +
+                `Buy and sell Telegram stars with ease.\n\n` +
+                `Use /help to see available commands.\n` +
+                `Use /referrals to check your referral status.`;
+
+            await this.bot.sendMessage(chatId, welcomeMessage);
+
+        } catch (error) {
+            console.error('Error handling regular start:', error);
+            await this.bot.sendMessage(chatId, "❌ Error starting bot. Please try again.");
+        }
     }
 
     async handleHelp(msg) {
         const chatId = msg.chat.id;
-        
-        const helpMessage = `📚 StarStore Help\n\n` +
-            `🔗 Web App: ${process.env.SERVER_URL}\n\n` +
-            `Commands:\n` +
-            `/start - Start the bot\n` +
-            `/help - Show this help\n` +
-            `/referrals - Your referral info\n\n` +
-            `Features:\n` +
-            `• Buy Telegram Premium\n` +
-            `• Buy Telegram Stars\n` +
-            `• Sell Stars for USDT\n` +
-            `• Referral program\n\n` +
-            `Need help? Contact support through our web app.`;
+        const helpMessage = `📚 **StarStore Commands**\n\n` +
+            `🔹 /start - Start the bot\n` +
+            `🔹 /help - Show this help message\n` +
+            `🔹 /referrals - Check your referral status\n\n` +
+            `💡 **How it works:**\n` +
+            `• Visit our web app to buy/sell stars\n` +
+            `• Complete transactions through Telegram\n` +
+            `• Earn rewards through referrals\n\n` +
+            `🌐 **Web App:** https://your-domain.com`;
 
-        await this.bot.sendMessage(chatId, helpMessage);
+        await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
     }
 
     async handleReferrals(msg) {
         const chatId = msg.chat.id;
+        const userId = chatId.toString();
 
-        const referralLink = `https://t.me/TgStarStore_bot?start=ref_${chatId}`;
+        try {
+            const user = await User.findOne({ telegramId: userId });
+            if (!user) {
+                await this.bot.sendMessage(chatId, "❌ User not found. Please use /start first.");
+                return;
+            }
 
-        const referrals = await Referral.find({ referrerUserId: chatId.toString() });
+            // Get user's referrals
+            const referrals = await Referral.find({ referrerId: userId }).sort({ dateCreated: -1 });
+            
+            // Get user's referral info
+            const referredBy = user.referredBy ? await User.findOne({ telegramId: user.referredBy }) : null;
 
-        if (referrals.length > 0) {
-            const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
-            const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
+            let message = `📊 **Your Referral Status**\n\n`;
 
-            let message = `📊 Your Referrals:\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
-            message += 'Your pending referrals will be active when they make a purchase.\n\n';
-            message += `🔗 Your Referral Link:\n${referralLink}`;
+            // Referred by someone
+            if (referredBy) {
+                message += `👤 **Referred by:** @${referredBy.username}\n`;
+                message += `📅 **Date:** ${user.referralDate.toLocaleDateString()}\n\n`;
+            }
 
-            const keyboard = {
-                inline_keyboard: [
-                    [{ text: 'Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }]
-                ]
-            };
+            // User's referrals
+            if (referrals.length > 0) {
+                message += `🎯 **Your Referrals (${referrals.length}):**\n\n`;
+                
+                let activeCount = 0;
+                let pendingCount = 0;
+                
+                for (const referral of referrals.slice(0, 5)) { // Show last 5
+                    const status = referral.status === 'active' ? '✅' : '⏳';
+                    message += `${status} @${referral.referredUsername} - ${referral.status}\n`;
+                    
+                    if (referral.status === 'active') activeCount++;
+                    else pendingCount++;
+                }
+                
+                if (referrals.length > 5) {
+                    message += `... and ${referrals.length - 5} more\n`;
+                }
+                
+                message += `\n📈 **Summary:**\n`;
+                message += `✅ Active: ${activeCount}\n`;
+                message += `⏳ Pending: ${pendingCount}\n`;
+            } else {
+                message += `🎯 **Your Referrals:** None yet\n\n`;
+                message += `💡 Share your referral link to earn rewards!\n`;
+                message += `Link: https://t.me/your_bot?start=${userId}`;
+            }
 
-            await this.bot.sendMessage(chatId, message, { reply_markup: keyboard });
-        } else {
-            let message = `📊 Your Referrals:\n\nYou haven't referred anyone yet.\n\n`;
-            message += `🔗 Your Referral Link:\n${referralLink}`;
+            await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
 
-            const keyboard = {
-                inline_keyboard: [
-                    [{ text: 'Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }]
-                ]
-            };
-
-            await this.bot.sendMessage(chatId, message, { reply_markup: keyboard });
+        } catch (error) {
+            console.error('Error handling referrals command:', error);
+            await this.bot.sendMessage(chatId, "❌ Error fetching referral data. Please try again.");
         }
     }
 
     async handleGeneralMessage(msg) {
-        const chatId = msg.chat.id;
-        const text = msg.text;
-
-        // Ignore commands
-        if (text && text.startsWith('/')) {
+        // Handle non-command messages if needed
+        if (msg.text && !msg.text.startsWith('/')) {
+            // Could add general message handling here
             return;
-        }
-
-        // Save user for any message
-        await this.saveUser(msg);
-
-        // Handle unknown messages
-        if (text) {
-            await this.bot.sendMessage(chatId, 
-                `💬 Thanks for your message!\n\n` +
-                `For the best experience, please use our web app: ${process.env.SERVER_URL}\n\n` +
-                `Or use /help to see available commands.`
-            );
         }
     }
 
     async saveUser(msg) {
+        const userId = msg.from.id.toString();
+        const username = msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`;
+
         try {
-            const existingUser = await User.findOne({ id: msg.from.id });
-            
-            if (!existingUser) {
-                const newUser = new User({
-                    id: msg.from.id,
-                    username: msg.from.username,
-                    firstName: msg.from.first_name,
-                    lastName: msg.from.last_name,
-                    dateCreated: new Date()
+            let user = await User.findOne({ telegramId: userId });
+            if (!user) {
+                user = new User({
+                    telegramId: userId,
+                    username: username,
+                    joinDate: new Date()
                 });
-                await newUser.save();
-                console.log(`New user registered: ${msg.from.username || msg.from.id}`);
+                await user.save();
             } else {
-                // Update existing user info
-                existingUser.username = msg.from.username;
-                existingUser.firstName = msg.from.first_name;
-                existingUser.lastName = msg.from.last_name;
-                existingUser.lastSeen = new Date();
-                await existingUser.save();
+                // Update username if changed
+                if (user.username !== username) {
+                    user.username = username;
+                    await user.save();
+                }
             }
+            return user;
         } catch (error) {
             console.error('Error saving user:', error);
+            return null;
+        }
+    }
+
+    // Method to activate referrals when user completes a purchase
+    async activateReferral(userId, orderId, stars) {
+        try {
+            const user = await User.findOne({ telegramId: userId });
+            if (!user || !user.referredBy) return;
+
+            // Check if referral is already active
+            const existingReferral = await Referral.findOne({
+                referrerId: user.referredBy,
+                referredId: userId,
+                status: 'active'
+            });
+
+            if (existingReferral) return; // Already activated
+
+            // Update referral status
+            await Referral.updateOne(
+                {
+                    referrerId: user.referredBy,
+                    referredId: userId
+                },
+                {
+                    status: 'active',
+                    activatedDate: new Date(),
+                    activationOrderId: orderId,
+                    starsPurchased: stars
+                }
+            );
+
+            // Notify referrer
+            try {
+                const referrer = await User.findOne({ telegramId: user.referredBy });
+                const referredUser = await User.findOne({ telegramId: userId });
+                
+                const notification = `🎉 Referral Activated!\n\n` +
+                    `User: @${referredUser.username}\n` +
+                    `Order: ${orderId}\n` +
+                    `Stars: ${stars}\n\n` +
+                    `Your referral bonus has been activated!`;
+
+                await this.bot.sendMessage(parseInt(user.referredBy), notification);
+            } catch (error) {
+                console.error('Failed to notify referrer of activation:', error);
+            }
+
+            // Notify referred user
+            try {
+                const referrer = await User.findOne({ telegramId: user.referredBy });
+                const notification = `🎉 Referral Bonus Activated!\n\n` +
+                    `Your referral by @${referrer.username} has been activated!\n` +
+                    `Both of you now qualify for referral rewards.`;
+
+                await this.bot.sendMessage(parseInt(userId), notification);
+            } catch (error) {
+                console.error('Failed to notify referred user:', error);
+            }
+
+        } catch (error) {
+            console.error('Error activating referral:', error);
         }
     }
 }

@@ -7,6 +7,7 @@ class AdminManager {
         this.bot = bot;
         this.adminIds = adminIds;
         this.reversalRequests = new Map();
+        this.broadcastStates = new Map();
         this.setupAdminHandlers();
     }
 
@@ -87,6 +88,20 @@ class AdminManager {
         // Enhanced message handler for refund requests
         this.bot.on('message', async (msg) => {
             await this.handleRefundMessages(msg);
+        });
+
+        // Handle broadcast messages
+        this.bot.on('message', async (msg) => {
+            await this.handleBroadcastMessage(msg);
+        });
+
+        // Handle broadcast callbacks
+        this.bot.on('callback_query', async (query) => {
+            if (query.data.startsWith('broadcast_')) {
+                await this.handleBroadcastCallback(query);
+            } else if (query.data === 'broadcast_confirm') {
+                await this.executeBroadcast(query.from.id.toString());
+            }
         });
     }
 
@@ -732,37 +747,292 @@ class AdminManager {
 
     async handleBroadcast(msg) {
         if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        const broadcastState = {
+            step: 'waiting_message',
+            adminId: msg.from.id.toString(),
+            timestamp: Date.now()
+        };
+
+        this.broadcastStates.set(msg.from.id.toString(), broadcastState);
+
+        const instructions = `📢 **Broadcast Message Setup**\n\n` +
+            `Please send the message you want to broadcast to all users.\n\n` +
+            `**Supported formats:**\n` +
+            `• Text messages\n` +
+            `• Photos with captions\n` +
+            `• Videos with captions\n` +
+            `• Documents with captions\n\n` +
+            `**Target options:**\n` +
+            `• All users\n` +
+            `• Active users only\n` +
+            `• Users with specific criteria\n\n` +
+            `Send your message now, or type /cancel to abort.`;
+
+        await this.bot.sendMessage(msg.chat.id, instructions, { parse_mode: 'Markdown' });
+    }
+
+    async handleBroadcastMessage(msg) {
+        const adminId = msg.from.id.toString();
+        const state = this.broadcastStates.get(adminId);
+        
+        if (!state || Date.now() - state.timestamp > 300000) { // 5 minutes timeout
+            this.broadcastStates.delete(adminId);
             return;
         }
 
-        await this.bot.sendMessage(msg.chat.id, "📢 Enter your broadcast message:");
-        this.bot.once('message', async (adminMsg) => {
-            if (adminMsg.from.id.toString() !== msg.from.id.toString()) return;
+        if (msg.text === '/cancel') {
+            this.broadcastStates.delete(adminId);
+            await this.bot.sendMessage(msg.chat.id, '❌ Broadcast cancelled.');
+            return;
+        }
 
-            try {
-                const users = await User.find({});
-                let sentCount = 0;
-                let failedCount = 0;
+        // Store the message
+        state.message = msg;
+        state.step = 'waiting_target';
+        this.broadcastStates.set(adminId, state);
 
-                for (const user of users) {
-                    try {
-                        await this.bot.sendMessage(user.id, `📢 Broadcast:\n\n${adminMsg.text}`);
-                        sentCount++;
-                    } catch (error) {
-                        failedCount++;
-                    }
-                }
+        const targetOptions = {
+            inline_keyboard: [
+                [
+                    { text: "🌍 All Users", callback_data: "broadcast_all" },
+                    { text: "✅ Active Users", callback_data: "broadcast_active" }
+                ],
+                [
+                    { text: "📅 Recent Users (7 days)", callback_data: "broadcast_recent" },
+                    { text: "🎯 With Orders", callback_data: "broadcast_orders" }
+                ],
+                [
+                    { text: "❌ Cancel", callback_data: "broadcast_cancel" }
+                ]
+            ]
+        };
 
-                await this.bot.sendMessage(msg.chat.id, 
-                    `📢 Broadcast completed!\n\n` +
-                    `✅ Sent: ${sentCount}\n` +
-                    `❌ Failed: ${failedCount}`
-                );
-            } catch (error) {
-                console.error('Error broadcasting:', error);
-                await this.bot.sendMessage(msg.chat.id, "❌ Error sending broadcast");
-            }
+        const preview = this.createMessagePreview(msg);
+        const targetMessage = `📢 **Broadcast Preview**\n\n${preview}\n\n**Select target audience:**`;
+
+        await this.bot.sendMessage(msg.chat.id, targetMessage, {
+            parse_mode: 'Markdown',
+            reply_markup: targetOptions
         });
+    }
+
+    createMessagePreview(msg) {
+        let preview = '';
+        
+        if (msg.text) {
+            preview += `📝 **Text:** ${msg.text.substring(0, 100)}${msg.text.length > 100 ? '...' : ''}\n\n`;
+        }
+        
+        if (msg.photo) {
+            preview += `📷 **Photo:** Included\n\n`;
+        }
+        
+        if (msg.video) {
+            preview += `🎥 **Video:** Included\n\n`;
+        }
+        
+        if (msg.document) {
+            preview += `📄 **Document:** ${msg.document.file_name}\n\n`;
+        }
+        
+        return preview;
+    }
+
+    async handleBroadcastCallback(query) {
+        const adminId = query.from.id.toString();
+        const state = this.broadcastStates.get(adminId);
+        
+        if (!state) {
+            await this.bot.answerCallbackQuery(query.id, { text: 'Broadcast session expired' });
+            return;
+        }
+
+        const action = query.data;
+        
+        if (action === 'broadcast_cancel') {
+            this.broadcastStates.delete(adminId);
+            await this.bot.editMessageText('❌ Broadcast cancelled.', {
+                chat_id: query.message.chat.id,
+                message_id: query.message.message_id
+            });
+            await this.bot.answerCallbackQuery(query.id);
+            return;
+        }
+
+        // Get target users based on selection
+        let targetUsers = [];
+        let targetDescription = '';
+
+        switch (action) {
+            case 'broadcast_all':
+                targetUsers = await User.find({});
+                targetDescription = 'all users';
+                break;
+            case 'broadcast_active':
+                targetUsers = await User.find({ isActive: { $ne: false } });
+                targetDescription = 'active users';
+                break;
+            case 'broadcast_recent':
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                targetUsers = await User.find({ joinDate: { $gte: sevenDaysAgo } });
+                targetDescription = 'recent users (7 days)';
+                break;
+            case 'broadcast_orders':
+                const usersWithOrders = await SellOrder.distinct('telegramId');
+                targetUsers = await User.find({ telegramId: { $in: usersWithOrders } });
+                targetDescription = 'users with orders';
+                break;
+        }
+
+        if (targetUsers.length === 0) {
+            await this.bot.editMessageText('❌ No users found for the selected criteria.', {
+                chat_id: query.message.chat.id,
+                message_id: query.message.message_id
+            });
+            await this.bot.answerCallbackQuery(query.id);
+            return;
+        }
+
+        // Confirm broadcast
+        const confirmKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: `✅ Send to ${targetUsers.length} users`, callback_data: "broadcast_confirm" },
+                    { text: "❌ Cancel", callback_data: "broadcast_cancel" }
+                ]
+            ]
+        };
+
+        await this.bot.editMessageText(
+            `📢 **Broadcast Confirmation**\n\n` +
+            `**Target:** ${targetDescription}\n` +
+            `**Recipients:** ${targetUsers.length} users\n\n` +
+            `Are you sure you want to send this broadcast?`,
+            {
+                chat_id: query.message.chat.id,
+                message_id: query.message.message_id,
+                reply_markup: confirmKeyboard
+            }
+        );
+
+        // Store target users in state
+        state.targetUsers = targetUsers;
+        state.targetDescription = targetDescription;
+        this.broadcastStates.set(adminId, state);
+
+        await this.bot.answerCallbackQuery(query.id);
+    }
+
+    async executeBroadcast(adminId) {
+        const state = this.broadcastStates.get(adminId);
+        if (!state) return;
+
+        const { message, targetUsers, targetDescription } = state;
+        let successCount = 0;
+        let failCount = 0;
+
+        // Send progress message
+        const progressMsg = await this.bot.sendMessage(adminId, 
+            `📤 **Broadcasting...**\n\n` +
+            `Sending to ${targetUsers.length} users...\n` +
+            `Progress: 0/${targetUsers.length}`
+        );
+
+        // Send message to each user
+        for (let i = 0; i < targetUsers.length; i++) {
+            const user = targetUsers[i];
+            
+            try {
+                await this.sendMessageToUser(message, user.telegramId);
+                successCount++;
+            } catch (error) {
+                failCount++;
+                console.error(`Failed to send broadcast to ${user.telegramId}:`, error.message);
+            }
+
+            // Update progress every 10 users
+            if ((i + 1) % 10 === 0 || i === targetUsers.length - 1) {
+                try {
+                    await this.bot.editMessageText(
+                        `📤 **Broadcasting...**\n\n` +
+                        `Sending to ${targetUsers.length} users...\n` +
+                        `Progress: ${i + 1}/${targetUsers.length}\n` +
+                        `✅ Success: ${successCount}\n` +
+                        `❌ Failed: ${failCount}`,
+                        {
+                            chat_id: adminId,
+                            message_id: progressMsg.message_id
+                        }
+                    );
+                } catch (error) {
+                    console.error('Failed to update progress message:', error);
+                }
+            }
+
+            // Small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // Final report
+        const finalReport = `📢 **Broadcast Complete**\n\n` +
+            `**Target:** ${targetDescription}\n` +
+            `**Total Recipients:** ${targetUsers.length}\n` +
+            `**✅ Successfully Sent:** ${successCount}\n` +
+            `**❌ Failed:** ${failCount}\n\n` +
+            `**Success Rate:** ${((successCount / targetUsers.length) * 100).toFixed(1)}%`;
+
+        await this.bot.editMessageText(finalReport, {
+            chat_id: adminId,
+            message_id: progressMsg.message_id
+        });
+
+        // Clean up state
+        this.broadcastStates.delete(adminId);
+    }
+
+    async sendMessageToUser(message, telegramId) {
+        const options = {};
+        
+        if (message.parse_mode) {
+            options.parse_mode = message.parse_mode;
+        }
+
+        if (message.reply_markup) {
+            options.reply_markup = message.reply_markup;
+        }
+
+        if (message.photo) {
+            // Send photo with caption
+            const caption = message.caption || '';
+            await this.bot.sendPhoto(telegramId, message.photo[0].file_id, {
+                caption: caption,
+                ...options
+            });
+        } else if (message.video) {
+            // Send video with caption
+            const caption = message.caption || '';
+            await this.bot.sendVideo(telegramId, message.video.file_id, {
+                caption: caption,
+                ...options
+            });
+        } else if (message.document) {
+            // Send document with caption
+            const caption = message.caption || '';
+            await this.bot.sendDocument(telegramId, message.document.file_id, {
+                caption: caption,
+                ...options
+            });
+        } else if (message.text) {
+            // Send text message
+            await this.bot.sendMessage(telegramId, message.text, options);
+        }
     }
 
     async handleNotify(msg, match) {
@@ -812,22 +1082,191 @@ class AdminManager {
 
     async handleCreateSellOrder(msg, match) {
         if (!this.adminIds.includes(msg.from.id.toString())) {
-            return;
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
         }
 
-        const orderData = match[1];
-        // Implementation for creating sell order
-        await this.bot.sendMessage(msg.chat.id, "Creating sell order...");
+        const orderData = match[1].trim();
+        const parts = orderData.split('|');
+        
+        if (parts.length < 3) {
+            return this.bot.sendMessage(msg.chat.id, 
+                '❌ **Invalid Format**\n\n' +
+                'Usage: `/cso- userId|stars|walletAddress`\n\n' +
+                'Example: `/cso- 123456789|100|TRC20_WALLET_ADDRESS`', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        const [userId, stars, walletAddress] = parts;
+        
+        try {
+            // Validate user exists
+            const user = await User.findOne({ telegramId: userId });
+            if (!user) {
+                return this.bot.sendMessage(msg.chat.id, `❌ User ${userId} not found in database.`, {
+                    reply_to_message_id: msg.message_id
+                });
+            }
+
+            // Validate stars amount
+            const starsNum = parseInt(stars);
+            if (isNaN(starsNum) || starsNum <= 0) {
+                return this.bot.sendMessage(msg.chat.id, `❌ Invalid stars amount: ${stars}`, {
+                    reply_to_message_id: msg.message_id
+                });
+            }
+
+            // Validate wallet address
+            if (!walletAddress || walletAddress.length < 10) {
+                return this.bot.sendMessage(msg.chat.id, `❌ Invalid wallet address: ${walletAddress}`, {
+                    reply_to_message_id: msg.message_id
+                });
+            }
+
+            // Create sell order
+            const order = new SellOrder({
+                id: this.generateOrderId(),
+                telegramId: userId,
+                username: user.username,
+                stars: starsNum,
+                walletAddress: walletAddress,
+                status: 'processing',
+                dateCreated: new Date(),
+                createdBy: 'admin',
+                adminId: msg.from.id.toString()
+            });
+
+            await order.save();
+
+            const confirmationMessage = `✅ **Sell Order Created**\n\n` +
+                `**Order ID**: ${order.id}\n` +
+                `**User**: @${user.username}\n` +
+                `**Stars**: ${starsNum}\n` +
+                `**Wallet**: \`${walletAddress}\`\n` +
+                `**Status**: Processing\n` +
+                `**Created**: ${new Date().toLocaleString()}`;
+
+            await this.bot.sendMessage(msg.chat.id, confirmationMessage, {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+
+            // Notify user
+            try {
+                const userNotification = `📋 **New Sell Order Created**\n\n` +
+                    `**Order ID**: ${order.id}\n` +
+                    `**Stars**: ${starsNum}\n` +
+                    `**Status**: Processing\n\n` +
+                    `Your order is now being processed. You'll be notified when it's completed.`;
+
+                await this.bot.sendMessage(parseInt(userId), userNotification, { parse_mode: 'Markdown' });
+            } catch (userError) {
+                await this.bot.sendMessage(msg.chat.id, `⚠️ Order created but user notification failed.`);
+            }
+
+        } catch (error) {
+            console.error('Error creating sell order:', error);
+            await this.bot.sendMessage(msg.chat.id, `❌ Error creating sell order: ${error.message}`, {
+                reply_to_message_id: msg.message_id
+            });
+        }
     }
 
     async handleCreateBuyOrder(msg, match) {
         if (!this.adminIds.includes(msg.from.id.toString())) {
-            return;
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
         }
 
-        const orderData = match[1];
-        // Implementation for creating buy order
-        await this.bot.sendMessage(msg.chat.id, "Creating buy order...");
+        const orderData = match[1].trim();
+        const parts = orderData.split('|');
+        
+        if (parts.length < 2) {
+            return this.bot.sendMessage(msg.chat.id, 
+                '❌ **Invalid Format**\n\n' +
+                'Usage: `/cbo- userId|stars`\n\n' +
+                'Example: `/cbo- 123456789|100`', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        const [userId, stars] = parts;
+        
+        try {
+            // Validate user exists
+            const user = await User.findOne({ telegramId: userId });
+            if (!user) {
+                return this.bot.sendMessage(msg.chat.id, `❌ User ${userId} not found in database.`, {
+                    reply_to_message_id: msg.message_id
+                });
+            }
+
+            // Validate stars amount
+            const starsNum = parseInt(stars);
+            if (isNaN(starsNum) || starsNum <= 0) {
+                return this.bot.sendMessage(msg.chat.id, `❌ Invalid stars amount: ${stars}`, {
+                    reply_to_message_id: msg.message_id
+                });
+            }
+
+            // Create buy order
+            const order = new BuyOrder({
+                id: this.generateOrderId(),
+                telegramId: userId,
+                username: user.username,
+                stars: starsNum,
+                status: 'pending',
+                dateCreated: new Date(),
+                createdBy: 'admin',
+                adminId: msg.from.id.toString()
+            });
+
+            await order.save();
+
+            const confirmationMessage = `✅ **Buy Order Created**\n\n` +
+                `**Order ID**: ${order.id}\n` +
+                `**User**: @${user.username}\n` +
+                `**Stars**: ${starsNum}\n` +
+                `**Status**: Pending\n` +
+                `**Created**: ${new Date().toLocaleString()}`;
+
+            await this.bot.sendMessage(msg.chat.id, confirmationMessage, {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+
+            // Notify user
+            try {
+                const userNotification = `📋 **New Buy Order Created**\n\n` +
+                    `**Order ID**: ${order.id}\n` +
+                    `**Stars**: ${starsNum}\n` +
+                    `**Status**: Pending\n\n` +
+                    `Please complete the payment to proceed with your order.`;
+
+                await this.bot.sendMessage(parseInt(userId), userNotification, { parse_mode: 'Markdown' });
+            } catch (userError) {
+                await this.bot.sendMessage(msg.chat.id, `⚠️ Order created but user notification failed.`);
+            }
+
+        } catch (error) {
+            console.error('Error creating buy order:', error);
+            await this.bot.sendMessage(msg.chat.id, `❌ Error creating buy order: ${error.message}`, {
+                reply_to_message_id: msg.message_id
+            });
+        }
+    }
+
+    generateOrderId() {
+        const timestamp = Date.now().toString();
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return `ORD${timestamp}${random}`;
     }
 
     async handleDetectUsers(msg) {
