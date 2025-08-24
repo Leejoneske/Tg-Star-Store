@@ -297,6 +297,11 @@ const translations = {
         unread: "unread",
         loadMore: "Load More",
         
+        // Error messages
+        quoteError: "Unable to get quote. Please try again.",
+        quoteUnavailable: "Quote unavailable. Please try again.",
+        validationError: "Validation failed. Please try again.",
+        
         // History page specific
         overview: "Overview",
         all: "All",
@@ -693,6 +698,11 @@ const translations = {
         notificationEmptyDesc: "Мы будем уведомлять вас о важных обновлениях и действиях",
         unread: "непрочитанных",
         loadMore: "Загрузить еще",
+        
+        // Error messages
+        quoteError: "Не удалось получить котировку. Попробуйте еще раз.",
+        quoteUnavailable: "Котировка недоступна. Попробуйте еще раз.",
+        validationError: "Ошибка валидации. Попробуйте еще раз.",
         
         // History page specific
         overview: "Обзор",

@@ -1812,19 +1812,20 @@ function buildRecipientInput(containerId) {
         const removeBtn = row.querySelector(`button[data-remove="${idx}"]`);
 
         let debounceTimer = null;
-        let isValidating = false;
         input.addEventListener('input', () => {
             status.textContent = '';
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(async () => {
-                if (!isValidating) {
-                    isValidating = true;
+                if (!window.buyPageState.isValidating) {
+                    window.buyPageState.isValidating = true;
                     try {
                         await validateRecipients(containerId);
                     } catch (error) {
                         console.error('Error validating recipients:', error);
+                        // Show user-friendly error message
+                        status.textContent = TranslationUtils.get('validationError') || 'Validation failed. Please try again.';
                     } finally {
-                        isValidating = false;
+                        window.buyPageState.isValidating = false;
                     }
                 }
             }, 600); // Increased debounce time
@@ -1900,39 +1901,47 @@ async function validateRecipients(containerId) {
         window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
         return { recipients: [] };
     }
+    
+    // Create cache key for validation
+    const normalizedUsernames = usernames
+        .map(name => name.toLowerCase().trim().replace(/^@/, ''))
+        .filter(name => name.length > 0)
+        .sort();
+    const validationCacheKey = normalizedUsernames.join(',');
+    
+    // Check validation cache first
+    if (window.buyPageState.validationCache.has(validationCacheKey)) {
+        const cachedResult = window.buyPageState.validationCache.get(validationCacheKey);
+        updateValidationStatus(container, cachedResult);
+        const detail = { count: cachedResult.recipients.length };
+        window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
+        return cachedResult;
+    }
+    
     try {
         const response = await axios.post('/api/validate-usernames', { usernames });
         if (response.data?.success) {
-            // Mark all as valid (by username)
-            const mapByName = new Map(response.data.recipients.map(r => [r.username.toLowerCase(), r]));
-            container.querySelectorAll('input').forEach(input => {
-                const name = (input.value || '').trim().replace(/^@/, '').toLowerCase();
-                const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
-                if (!statusEl) return;
-                if (mapByName.has(name)) {
-                    const rec = mapByName.get(name);
-                    statusEl.textContent = `ID: ${rec.userId}`;
-                    statusEl.className = 'text-xs text-green-600';
-                } else {
-                    statusEl.textContent = 'Invalid';
-                    statusEl.className = 'text-xs text-red-600';
-                }
-            });
+            const result = { recipients: response.data.recipients };
+            
+            // Cache the validation result
+            window.buyPageState.validationCache.set(validationCacheKey, result);
+            
+            // Limit validation cache size
+            if (window.buyPageState.validationCache.size > 20) {
+                const firstKey = window.buyPageState.validationCache.keys().next().value;
+                window.buyPageState.validationCache.delete(firstKey);
+            }
+            
+            updateValidationStatus(container, result);
             const detail = { count: response.data.recipients.length };
             window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
-            return { recipients: response.data.recipients };
+            return result;
         } else {
-            // Show invalids if provided
-            container.querySelectorAll('input').forEach(input => {
-                const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
-                if (statusEl) {
-                    statusEl.textContent = 'Invalid';
-                    statusEl.className = 'text-xs text-red-600';
-                }
-            });
+            const result = { recipients: [] };
+            updateValidationStatus(container, result);
             const detail = { count: 0 };
             window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
-            return { recipients: [] };
+            return result;
         }
     } catch (e) {
         // If server returned per-username results, use them to update UI
@@ -1959,10 +1968,12 @@ async function validateRecipients(containerId) {
             // Treat as unsuccessful overall to block purchase unless all are valid
             return { recipients: valid };
         }
+        
+        // Show user-friendly error message
         container.querySelectorAll('input').forEach(input => {
             const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
             if (statusEl) {
-                statusEl.textContent = 'Validation failed';
+                statusEl.textContent = TranslationUtils.get('validationError') || 'Validation failed';
                 statusEl.className = 'text-xs text-red-600';
             }
         });
@@ -1970,6 +1981,24 @@ async function validateRecipients(containerId) {
         window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
         return { recipients: [] };
     }
+}
+
+// Helper function to update validation status
+function updateValidationStatus(container, result) {
+    const mapByName = new Map(result.recipients.map(r => [r.username.toLowerCase(), r]));
+    container.querySelectorAll('input').forEach(input => {
+        const name = (input.value || '').trim().replace(/^@/, '').toLowerCase();
+        const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+        if (!statusEl) return;
+        if (mapByName.has(name)) {
+            const rec = mapByName.get(name);
+            statusEl.textContent = `ID: ${rec.userId}`;
+            statusEl.className = 'text-xs text-green-600';
+        } else {
+            statusEl.textContent = 'Invalid';
+            statusEl.className = 'text-xs text-red-600';
+        }
+    });
 }
 
 function initCustomStars() {
@@ -1988,10 +2017,15 @@ function initCustomStars() {
         return r;
     }
 
-    // Cache for package quotes to avoid redundant API calls
-    let packageQuoteCache = new Map();
-    let lastRecipientsCount = 0;
-    let lastRecipientsHash = '';
+    // Global state management to prevent race conditions
+    window.buyPageState = window.buyPageState || {
+        isRefreshing: false,
+        isValidating: false,
+        packageQuoteCache: new Map(),
+        lastRecipientsCount: 0,
+        lastRecipientsHash: '',
+        validationCache: new Map()
+    };
 
     async function refreshQuote() {
         const val = Number(input.value || 0);
@@ -2007,8 +2041,13 @@ function initCustomStars() {
             recipientsCount = recipients.length;
         }
         
-        // Create cache key for package quotes
-        const recipientsHash = recipients.map(r => r.username).sort().join(',');
+        // Create normalized cache key for package quotes
+        const normalizedRecipients = recipients
+            .map(r => r.username.toLowerCase().trim())
+            .filter(username => username.length > 0)
+            .sort();
+        const uniqueRecipients = [...new Set(normalizedRecipients)];
+        const recipientsHash = uniqueRecipients.join(',');
         const cacheKey = `recipients_${recipientsCount}_${recipientsHash}`;
         
         // Hide distribution if no valid input or recipients
@@ -2064,16 +2103,17 @@ function initCustomStars() {
                     ? `Total: ${q.data.totalAmount} USDT (~${ton.toFixed(4)} TON) for ${q.data.quantity} ${q.data.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.data.unitAmount} USDT)`
                     : `Total: ${q.data.totalAmount} USDT for ${q.data.quantity} ${q.data.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.data.unitAmount} USDT)`;
             } else {
-                quoteText.textContent = '';
+                quoteText.textContent = TranslationUtils.get('quoteUnavailable') || 'Quote unavailable. Please try again.';
             }
-        } catch (_) {
-            quoteText.textContent = '';
+        } catch (error) {
+            console.error('Error fetching quote:', error);
+            quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
         }
         
         // Update package prices only if recipients changed
-        if (lastRecipientsCount !== recipientsCount || lastRecipientsHash !== recipientsHash) {
-            lastRecipientsCount = recipientsCount;
-            lastRecipientsHash = recipientsHash;
+        if (window.buyPageState.lastRecipientsCount !== recipientsCount || window.buyPageState.lastRecipientsHash !== recipientsHash) {
+            window.buyPageState.lastRecipientsCount = recipientsCount;
+            window.buyPageState.lastRecipientsHash = recipientsHash;
             await updatePackagePricesOptimized(recipientsCount, cacheKey);
         }
     }
@@ -2102,19 +2142,20 @@ function initCustomStars() {
     });
 
     let debounceTimer = null;
-    let isRefreshing = false;
     
     input.addEventListener('input', () => {
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
-            if (!isRefreshing) {
-                isRefreshing = true;
+            if (!window.buyPageState.isRefreshing) {
+                window.buyPageState.isRefreshing = true;
                 try {
                     await refreshQuote();
                 } catch (error) {
                     console.error('Error refreshing quote:', error);
+                    // Show user-friendly error message
+                    quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
                 } finally {
-                    isRefreshing = false;
+                    window.buyPageState.isRefreshing = false;
                 }
             }
         }, 500); // Increased debounce time for better performance
@@ -2123,23 +2164,55 @@ function initCustomStars() {
     // React to recipients validation and toggle changes
     window.addEventListener('recipientsChanged', () => {
         // small delay to allow DOM status updates
-        setTimeout(() => {
-            refreshQuote();
+        setTimeout(async () => {
+            if (!window.buyPageState.isRefreshing) {
+                window.buyPageState.isRefreshing = true;
+                try {
+                    await refreshQuote();
+                } catch (error) {
+                    console.error('Error refreshing quote on recipients change:', error);
+                    quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                } finally {
+                    window.buyPageState.isRefreshing = false;
+                }
+            }
         }, 100);
     });
     
     // Also refresh when "Buy For" selection changes
     document.querySelectorAll('input[name="buyForStars"]').forEach(radio => {
         radio.addEventListener('change', () => {
-            setTimeout(refreshQuote, 100);
+            setTimeout(async () => {
+                if (!window.buyPageState.isRefreshing) {
+                    window.buyPageState.isRefreshing = true;
+                    try {
+                        await refreshQuote();
+                    } catch (error) {
+                        console.error('Error refreshing quote on selection change:', error);
+                        quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                    } finally {
+                        window.buyPageState.isRefreshing = false;
+                    }
+                }
+            }, 100);
         });
     });
     
     // Add event listeners for premium section
     document.querySelectorAll('input[name="buyForPremium"]').forEach(radio => {
         radio.addEventListener('change', () => {
-            setTimeout(() => {
-                refreshQuote();
+            setTimeout(async () => {
+                if (!window.buyPageState.isRefreshing) {
+                    window.buyPageState.isRefreshing = true;
+                    try {
+                        await refreshQuote();
+                    } catch (error) {
+                        console.error('Error refreshing quote on premium change:', error);
+                        quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                    } finally {
+                        window.buyPageState.isRefreshing = false;
+                    }
+                }
             }, 100);
         });
     });
@@ -2149,8 +2222,8 @@ function initCustomStars() {
 async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
     try {
         // Check cache first
-        if (packageQuoteCache.has(cacheKey)) {
-            const cachedData = packageQuoteCache.get(cacheKey);
+        if (window.buyPageState.packageQuoteCache.has(cacheKey)) {
+            const cachedData = window.buyPageState.packageQuoteCache.get(cacheKey);
             updatePackagePricesFromCache(cachedData);
             return;
         }
@@ -2212,12 +2285,12 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         });
         
         // Cache the results
-        packageQuoteCache.set(cacheKey, cacheData);
+        window.buyPageState.packageQuoteCache.set(cacheKey, cacheData);
         
         // Limit cache size to prevent memory leaks
-        if (packageQuoteCache.size > 10) {
-            const firstKey = packageQuoteCache.keys().next().value;
-            packageQuoteCache.delete(firstKey);
+        if (window.buyPageState.packageQuoteCache.size > 10) {
+            const firstKey = window.buyPageState.packageQuoteCache.keys().next().value;
+            window.buyPageState.packageQuoteCache.delete(firstKey);
         }
         
     } catch (error) {
