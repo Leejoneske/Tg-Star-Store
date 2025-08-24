@@ -386,6 +386,10 @@ function initApp() {
     // load shared bottom nav
     fetch('bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { 
         document.getElementById('bottomnav-container').innerHTML = html; 
+        // Apply translations to bottom nav after loading
+        if (typeof TranslationUtils !== 'undefined') {
+            TranslationUtils.applyTranslations();
+        }
     });
 }
 
