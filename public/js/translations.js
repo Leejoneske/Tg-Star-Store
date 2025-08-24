@@ -750,12 +750,12 @@ const TranslationUtils = {
         return langTranslations[key] || translations.en[key] || key;
     },
 
-    // Apply translations to all elements with data-lang attribute
+    // Apply translations to all elements with data-translate attribute
     applyTranslations() {
         const currentLang = this.getCurrentLanguage();
         
-        document.querySelectorAll('[data-lang]').forEach(element => {
-            const key = element.getAttribute('data-lang');
+        document.querySelectorAll('[data-translate]').forEach(element => {
+            const key = element.getAttribute('data-translate');
             const translation = this.get(key, currentLang);
             
             if (translation) {
