@@ -523,13 +523,13 @@
     <!-- Notice Modal -->
     <div id="noticeModal" class="notice-modal" style="display: none;">
         <div class="notice-content">
-            <div class="notice-title">Important Notice</div>
-            <div class="notice-text">
+            <div class="notice-title" data-translate="importantNotice">Important Notice</div>
+            <div class="notice-text" data-translate="noticeText">
                 Please note that we will hold your Stars for a mandatory 21-day period before processing a payout.
                 This period is required for security verification and compliance purposes. 
                 By clicking "Continue", you acknowledge and agree to these terms.
             </div>
-            <button id="continueButton" class="notice-button">Continue</button>
+            <button id="continueButton" class="notice-button" data-translate="continue">Continue</button>
         </div>
     </div>
 
@@ -552,7 +552,7 @@
             <!-- Wallet Status Section -->
             <section class="wallet-status">
                 <div class="mb-6">
-                    <h3 class="text-lg font-semibold mb-3 text-gray-800">Enter Manual Address</h3>
+                    <h3 class="text-lg font-semibold mb-3 text-gray-800" data-translate="enterManualAddress">Enter Manual Address</h3>
                     <div id="manualWalletInput" class="mt-3">
                         <div class="input-group mb-4">
                             <div class="input-icon">
@@ -564,7 +564,7 @@
                                    placeholder=" "
                                    onfocus="this.placeholder = ' '"
                                    onblur="if(!this.value) this.placeholder = ' '">
-                            <label for="manualWalletAddress">Enter USDT TON wallet address</label>
+                            <label for="manualWalletAddress" data-translate="enterWalletAddress">Enter USDT TON wallet address</label>
                         </div>
                         <div class="input-group">
                             <div class="input-icon">
@@ -576,14 +576,14 @@
                                    placeholder=" "
                                    onfocus="this.placeholder = ' '"
                                    onblur="if(!this.value) this.placeholder = ' '">
-                            <label for="manualWalletMemo">Memo/Tag (if required)</label>
+                            <label for="manualWalletMemo" data-translate="memoTag">Memo/Tag (if required)</label>
                         </div>
-                        <p class="text-sm text-gray-600 mt-1 px-2">Only required for certain exchanges like Binance, OKX</p>
+                        <p class="text-sm text-gray-600 mt-1 px-2" data-translate="memoNote">Only required for certain exchanges like Binance, OKX</p>
                     </div>
                 </div>
                 
                 <div class="border-t border-gray-200 pt-6">
-                    <h3 class="text-lg font-semibold mb-3 text-gray-800">Or Choose Recommended Wallets</h3>
+                    <h3 class="text-lg font-semibold mb-3 text-gray-800" data-translate="chooseRecommendedWallets">Or Choose Recommended Wallets</h3>
                     <div class="grid grid-cols-2 gap-3">
                         <button onclick="openWallet('binance')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                             <img src="https://cdn.simpleicons.org/binance/F0B90B" class="w-5 h-5 mr-3" alt="Binance">
@@ -627,22 +627,22 @@
             <!-- Sell Stars Section -->
             <section class="p-6">
                 <div class="bg-white rounded-xl p-6 mb-6">
-                    <h2 class="text-xl font-bold mb-4">Sell Stars</h2>
+                    <h2 class="text-xl font-bold mb-4" data-translate="sellStars">Sell Stars</h2>
                     <div class="rate-info mb-4">        
                         <div class="flex justify-between items-center">
                             <div>
-                                <span class="text-sm text-gray-600">Current Rate</span>
+                                <span class="text-sm text-gray-600" data-translate="currentRate">Current Rate</span>
                                 <div class="font-bold">1 Star = 0.009 USDT</div>
                             </div>
                         </div>
                         <div class="text-center mt-2">
-                            <span class="info-badge">Minimum sell: 50 Stars</span>
+                            <span class="info-badge" data-translate="minimumSell">Minimum sell: 50 Stars</span>
                         </div>
                     </div> 
                     
                     <div class="sell-option p-4 mb-6">
                         <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Amount of Stars to Sell</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="amountToSell">Amount of Stars to Sell</label>
                             <div class="stars-counter">
                                 <button class="counter-button" onclick="decrementStars()">-</button>
                                 <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
@@ -650,10 +650,10 @@
                             </div>
                         </div>
                         <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">You'll Receive (USDT)</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="youWillReceive">You'll Receive (USDT)</label>
                             <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
                         </div>
-                        <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold">Sell Now</button>
+                                                  <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold" data-translate="sellNow">Sell Now</button>
                     </div>
                     
                     <div class="bg-blue-50 rounded-lg p-4 text-sm">
@@ -662,12 +662,12 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                             <div>
-                                <p class="font-medium text-blue-800">How it works:</p>
+                                <p class="font-medium text-blue-800" data-translate="howItWorks">How it works:</p>
                                 <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
-                                    <li>Enter the amount of stars you want to sell</li>
-                                    <li>Click "Sell Now" to initiate the transaction</li>
-                                    <li>Send the stars via Telegram payment</li>
-                                    <li>Once verified, USDT will be sent to your wallet within 21 days.</li>
+                                    <li data-translate="step1Sell">Enter the amount of stars you want to sell</li>
+                                    <li data-translate="step2Sell">Click "Sell Now" to initiate the transaction</li>
+                                    <li data-translate="step3Sell">Send the stars via Telegram payment</li>
+                                    <li data-translate="step4Sell">Once verified, USDT will be sent to your wallet within 21 days.</li>
                                 </ol>
                             </div>
                         </div>
@@ -681,9 +681,9 @@
                     </button>
                     
                     <div class="transaction-history">
-                        <h3 class="text-lg font-semibold mb-3">Recent Transactions</h3>
+                        <h3 class="text-lg font-semibold mb-3" data-translate="recentTransactions">Recent Transactions</h3>
                         <div id="transactionsList">
-                            <div class="text-gray-500 text-center py-4 text-sm">No transactions yet</div>
+                            <div class="text-gray-500 text-center py-4 text-sm" data-translate="noTransactions">No transactions yet</div>
                         </div>
                     </div>
                 </div>
@@ -823,17 +823,6 @@
         if (typeof TranslationUtils !== 'undefined') {
             TranslationUtils.init();
         }
-            currentStatus: "Текущий статус",
-            estimatedCompletion: "Ожидаемая дата завершения",
-            orderCreated: "Заказ создан",
-            orderCreatedDesc: "Ваш заказ был успешно создан",
-            paymentVerification: "Проверка платежа",
-            transactionTimeline: "Хронология транзакции",
-            paymentVerificationDesc: "Ваш платеж звездами проверяется",
-            processing: "Обработка",
-            processingDesc: "Ваш платеж обрабатывается",
-            paymentSent: "Платеж отправлен",
-        };
 // Check if the user has accepted the notice
 function checkNoticeStatus() {
     const noticeAccepted = localStorage.getItem('noticeAccepted');
@@ -1637,19 +1626,19 @@ const fetchTransactions = async () => {
             noTransactions.textContent = translations[currentLanguage].noTransactions;
             transactionsList.appendChild(noTransactions);
         }
-    } catch (error) {
-        console.error('Error fetching transactions:', error);
-        
-        // Show error message in the transactions list
-        const transactionsList = document.getElementById('transactionsList');
-        if (transactionsList) {
-            transactionsList.innerHTML = `
-                <div class="text-red-500 text-center py-4 text-sm">
-                    ${currentLanguage === 'en' ? 'Error loading transactions' : 'Ошибка загрузки транзакций'}
-                </div>
-            `;
+            } catch (error) {
+            console.error('Error fetching transactions:', error);
+            
+            // Show error message in the transactions list
+            const transactionsList = document.getElementById('transactionsList');
+            if (transactionsList) {
+                transactionsList.innerHTML = `
+                    <div class="text-red-500 text-center py-4 text-sm">
+                        ${TranslationUtils.get('errorLoadingTransactions')}
+                    </div>
+                `;
+            }
         }
-    }
 };
 
 // Initialize the app
