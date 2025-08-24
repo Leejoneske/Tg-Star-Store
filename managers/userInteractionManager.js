@@ -138,6 +138,15 @@ class UserInteractionManager {
 
             await this.bot.sendMessage(chatId, welcomeMessage);
 
+            // Send welcome notification
+            try {
+                const notificationManager = require('./notificationManager');
+                const notificationInstance = new notificationManager(this.bot, []);
+                await notificationInstance.sendWelcomeNotification(userId);
+            } catch (notificationError) {
+                console.error('Failed to send welcome notification:', notificationError);
+            }
+
         } catch (error) {
             console.error('Error handling regular start:', error);
             await this.bot.sendMessage(chatId, "❌ Error starting bot. Please try again.");

@@ -243,7 +243,7 @@ const notificationSchema = new mongoose.Schema({
     actionUrl: String,
     icon: {
         type: String,
-        default: 'bell'
+        default: 'fa-bell'
     },
     timestamp: {
         type: Date,
@@ -268,6 +268,11 @@ const notificationSchema = new mongoose.Schema({
         default: 0,
         min: 0,
         max: 2
+    },
+    type: {
+        type: String,
+        default: 'system',
+        enum: ['system', 'order_completed', 'order_cancelled', 'payment_received', 'refund_processed', 'referral_activated', 'system_maintenance', 'new_feature', 'security_alert', 'welcome', 'reminder', 'manual', 'global']
     }
 });
 

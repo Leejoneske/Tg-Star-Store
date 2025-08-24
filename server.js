@@ -16,9 +16,11 @@ const UserInteractionManager = require('./managers/userInteractionManager');
 const CallbackManager = require('./managers/callbackManager');
 const FeedbackManager = require('./managers/feedbackManager');
 const MaintenanceManager = require('./managers/maintenanceManager');
+const NotificationManager = require('./managers/notificationManager');
 
 // Import API routes
 const apiRoutes = require('./routes/apiRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
@@ -52,6 +54,7 @@ mongoose.connect(process.env.MONGODB_URI)
     new CallbackManager(bot, adminIds);
     new FeedbackManager(bot, adminIds);
     new MaintenanceManager(bot, adminIds);
+    new NotificationManager(bot, adminIds);
     
     console.log('✅ All managers initialized');
   })
@@ -62,6 +65,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // API routes
 app.use('/api', apiRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
