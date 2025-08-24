@@ -1,22 +1,24 @@
 const express = require('express');
-const { Notification } = require('../models');
+const { Notification, User } = require('../models');
 
 const router = express.Router();
 
+// Get user notifications
 router.get('/notifications', async (req, res) => {
     try {
         const { userId, limit = 20, skip = 0 } = req.query;
 
+        if (!userId || userId === 'anonymous') {
+            return res.status(400).json({ error: "User ID is required" });
+        }
+
         const query = {
             $or: [
                 { userId: 'all' },
-                { isGlobal: true }
+                { isGlobal: true },
+                { userId: userId }
             ]
         };
-
-        if (userId && userId !== 'anonymous') {
-            query.$or.push({ userId });
-        }
 
         const notifications = await Notification.find(query)
             .sort({ priority: -1, timestamp: -1 })
@@ -38,7 +40,8 @@ router.get('/notifications', async (req, res) => {
             createdAt: notification.timestamp,
             read: notification.read,
             isGlobal: notification.isGlobal,
-            priority: notification.priority
+            priority: notification.priority,
+            type: notification.type
         }));
 
         res.json({
@@ -47,19 +50,25 @@ router.get('/notifications', async (req, res) => {
             totalCount: await Notification.countDocuments(query)
         });
     } catch (error) {
+        console.error('Error fetching notifications:', error);
         res.status(500).json({ error: "Failed to fetch notifications" });
     }
 });
 
+// Create notification (admin only)
 router.post('/notifications', async (req, res) => {
     try {
-        const { userId, title, message, actionUrl, isGlobal, priority = 0 } = req.body;
+        const { userId, title, message, actionUrl, isGlobal, priority = 0, type = 'manual' } = req.body;
 
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
             return res.status(400).json({ error: "Valid message is required" });
         }
 
-        if (!req.user || !req.user.isAdmin) {
+        // Check if user is admin (you might want to implement proper authentication)
+        const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
+        const requestUserId = req.headers['x-user-id'] || req.body.requestUserId;
+        
+        if (!adminIds.includes(requestUserId)) {
             return res.status(403).json({ error: "Unauthorized: Admin access required" });
         }
 
@@ -69,7 +78,9 @@ router.post('/notifications', async (req, res) => {
             message: message.trim(),
             actionUrl,
             isGlobal: !!isGlobal,
-            priority: Math.min(2, Math.max(0, parseInt(priority) || 0))
+            priority: Math.min(2, Math.max(0, parseInt(priority) || 0)),
+            type: type,
+            createdBy: requestUserId
         });
 
         res.status(201).json({
@@ -78,81 +89,152 @@ router.post('/notifications', async (req, res) => {
             message: "Notification created successfully"
         });
     } catch (error) {
+        console.error('Error creating notification:', error);
         res.status(500).json({ error: "Failed to create notification" });
     }
 });
 
+// Mark notification as read
 router.post('/notifications/:id/read', async (req, res) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: "User ID is required" });
+        }
 
         const notification = await Notification.findById(id);
         if (!notification) {
             return res.status(404).json({ error: "Notification not found" });
         }
 
+        // Check if user can read this notification
         if (notification.userId !== 'all' &&
             !notification.isGlobal &&
             notification.userId !== userId) {
             return res.status(403).json({ error: "Unauthorized to modify this notification" });
         }
 
-        await Notification.findByIdAndUpdate(id, { read: true });
-        res.json({ success: true });
+        notification.read = true;
+        await notification.save();
+
+        res.json({ success: true, message: "Notification marked as read" });
     } catch (error) {
+        console.error('Error marking notification as read:', error);
         res.status(500).json({ error: "Failed to mark notification as read" });
     }
 });
 
+// Mark all notifications as read
 router.post('/notifications/mark-all-read', async (req, res) => {
     try {
         const { userId } = req.body;
+
         if (!userId) {
             return res.status(400).json({ error: "User ID is required" });
         }
 
-        const query = {
-            read: false,
-            $or: [
-                { userId: 'all' },
-                { isGlobal: true }
-            ]
-        };
-
-        if (userId !== 'anonymous') {
-            query.$or.push({ userId });
-        }
-
         const result = await Notification.updateMany(
-            query,
-            { $set: { read: true } }
+            {
+                $or: [{ userId: 'all' }, { userId: userId }, { isGlobal: true }],
+                read: false
+            },
+            { read: true }
         );
 
-        res.json({ success: true, markedCount: result.modifiedCount });
+        res.json({ 
+            success: true, 
+            message: "All notifications marked as read",
+            updatedCount: result.modifiedCount
+        });
     } catch (error) {
-        res.status(500).json({ error: "Failed to mark all notifications as read" });
+        console.error('Error marking all notifications as read:', error);
+        res.status(500).json({ error: "Failed to mark notifications as read" });
     }
 });
 
+// Get notification statistics (admin only)
+router.get('/notifications/stats', async (req, res) => {
+    try {
+        const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
+        const requestUserId = req.headers['x-user-id'] || req.query.requestUserId;
+        
+        if (!adminIds.includes(requestUserId)) {
+            return res.status(403).json({ error: "Unauthorized: Admin access required" });
+        }
+
+        const totalNotifications = await Notification.countDocuments();
+        const unreadNotifications = await Notification.countDocuments({ read: false });
+        const globalNotifications = await Notification.countDocuments({ isGlobal: true });
+        const todayNotifications = await Notification.countDocuments({
+            timestamp: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+        });
+
+        const typeStats = await Notification.aggregate([
+            {
+                $group: {
+                    _id: '$type',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        res.json({
+            totalNotifications,
+            unreadNotifications,
+            globalNotifications,
+            todayNotifications,
+            readRate: totalNotifications > 0 ? ((totalNotifications - unreadNotifications) / totalNotifications * 100).toFixed(1) : 0,
+            typeStats
+        });
+    } catch (error) {
+        console.error('Error getting notification stats:', error);
+        res.status(500).json({ error: "Failed to get notification statistics" });
+    }
+});
+
+// Delete notification (admin only)
 router.delete('/notifications/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
+        const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
+        const requestUserId = req.headers['x-user-id'] || req.body.requestUserId;
+        
+        if (!adminIds.includes(requestUserId)) {
+            return res.status(403).json({ error: "Unauthorized: Admin access required" });
+        }
 
-        const notification = await Notification.findById(id);
+        const notification = await Notification.findByIdAndDelete(id);
         if (!notification) {
             return res.status(404).json({ error: "Notification not found" });
         }
 
-        if (!req.user?.isAdmin && (notification.isGlobal || notification.userId === 'all')) {
-            return res.status(403).json({ error: "Unauthorized to delete this notification" });
+        res.json({ success: true, message: "Notification deleted successfully" });
+    } catch (error) {
+        console.error('Error deleting notification:', error);
+        res.status(500).json({ error: "Failed to delete notification" });
+    }
+});
+
+// Get unread count
+router.get('/notifications/unread-count', async (req, res) => {
+    try {
+        const { userId } = req.query;
+
+        if (!userId) {
+            return res.status(400).json({ error: "User ID is required" });
         }
 
-        await Notification.findByIdAndDelete(id);
-        res.json({ success: true });
+        const unreadCount = await Notification.countDocuments({
+            $or: [{ userId: 'all' }, { userId: userId }, { isGlobal: true }],
+            read: false
+        });
+
+        res.json({ unreadCount });
     } catch (error) {
-        res.status(500).json({ error: "Failed to dismiss notification" });
+        console.error('Error getting unread count:', error);
+        res.status(500).json({ error: "Failed to get unread count" });
     }
 });
 

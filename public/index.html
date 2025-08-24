@@ -1360,13 +1360,21 @@ setInterval(() => {
 
 
         
-//notification system
+// Real Notification System
 function initNotificationSystem() {
     const notificationButton = document.getElementById('notificationButton');
     if (!notificationButton) return;
 
     let notificationOverlay = null;
-    let contentContainer = null;
+    let currentUserId = null;
+
+    // Get current user ID
+    function getCurrentUserId() {
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            return window.Telegram.WebApp.initDataUnsafe.user.id.toString();
+        }
+        return localStorage.getItem('userId');
+    }
 
     // Handle messages from notification iframe
     const handleMessage = (event) => {
@@ -1375,6 +1383,12 @@ function initNotificationSystem() {
         switch(event.data.type) {
             case 'CLOSE_NOTIFICATIONS':
                 closeNotificationWindow();
+                break;
+            case 'NOTIFICATION_READ':
+                updateNotificationBadge(event.data.count);
+                break;
+            case 'ALL_NOTIFICATIONS_READ':
+                updateNotificationBadge(0);
                 break;
             case 'UPDATE_BADGE':
                 updateNotificationBadge(event.data.count);
@@ -1404,7 +1418,7 @@ function initNotificationSystem() {
         notificationOverlay.className = 'notification-overlay';
         
         // Create content container
-        contentContainer = document.createElement('div');
+        const contentContainer = document.createElement('div');
         contentContainer.className = 'notification-content-container';
         
         notificationOverlay.appendChild(contentContainer);
@@ -1456,17 +1470,33 @@ function initNotificationSystem() {
             if (notificationOverlay && document.body.contains(notificationOverlay)) {
                 document.body.removeChild(notificationOverlay);
                 notificationOverlay = null;
-                contentContainer = null;
             }
         }, { once: true });
     }
 
-    function updateNotificationBadge(count) {
+    async function updateNotificationBadge(count = null) {
         const badge = document.getElementById('notificationBadge');
         if (!badge) return;
+
+        if (count === null) {
+            // Fetch current unread count from API
+            currentUserId = getCurrentUserId();
+            if (currentUserId) {
+                try {
+                    const response = await fetch(`/api/notifications/unread-count?userId=${currentUserId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        count = data.unreadCount;
+                    }
+                } catch (error) {
+                    console.error('Error fetching unread count:', error);
+                    return;
+                }
+            }
+        }
         
         if (count > 0) {
-            badge.textContent = count > 9 ? '9+' : count.toString();
+            badge.textContent = count > 99 ? '99+' : count.toString();
             badge.classList.remove('hidden');
             badge.style.display = 'flex'; // Ensure it's visible
         } else {
@@ -1474,6 +1504,14 @@ function initNotificationSystem() {
             badge.style.display = 'none';
         }
     }
+
+    // Initialize badge with current count
+    updateNotificationBadge();
+
+    // Auto-refresh badge every 30 seconds
+    setInterval(() => {
+        updateNotificationBadge();
+    }, 30000);
 
     // Cleanup
     return () => {

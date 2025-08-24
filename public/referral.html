@@ -509,7 +509,10 @@ function init() {
     loadReferralData();
     loadWithdrawalHistory();
     setupTelegramSharing();
-    applyTranslations(); 
+    applyTranslations();
+    
+    // Set up auto-refresh for withdrawal status
+    setInterval(fetchWithdrawals, 15000); // Refresh every 15 seconds
 }
 
     
@@ -619,6 +622,21 @@ function formatDate(dateString) {
 }
  
  
+async function fetchWithdrawals() {
+    try {
+        const response = await fetch(`${BASE_API_URL}/withdrawal-history/${state.userId}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                state.withdrawals = data.withdrawals;
+                updateWithdrawalsList();
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching withdrawals:', error);
+    }
+}
+
 function updateWithdrawalsList() {
     const container = document.getElementById('withdrawalsContainer');
     container.innerHTML = '';
@@ -876,13 +894,10 @@ async function submitWithdrawal({ amount, walletAddress }) {
             throw new Error(data.error || translations[state.language]['withdraw-error'] || 'Withdrawal failed');
         }
 
-        state.withdrawals.unshift({
-            amount: parseFloat(amount),
-            walletAddress,
-            date: new Date().toISOString(),
-            status: 'pending'
-        });
+        // Refresh withdrawal data from server
+        await fetchWithdrawals();
         
+        // Update available balance
         state.stats.availableBalance -= parseFloat(amount);
         updateUI();
         

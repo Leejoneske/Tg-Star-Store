@@ -50,20 +50,20 @@ router.get('/referrals/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
         
-        const referrals = await Referral.find({ referrerUserId: userId })
-            .sort({ dateReferred: -1 })
+        const referrals = await Referral.find({ referrerId: userId })
+            .sort({ dateCreated: -1 })
             .lean();
         
         // Format referral data
         const formattedReferrals = await Promise.all(referrals.map(async referral => {
-            const referredUser = await User.findOne({ id: referral.referredUserId }).lean();
+            const referredUser = await User.findOne({ $or: [{ id: referral.referredId }, { telegramId: referral.referredId }] }).lean();
             
             return {
                 id: referral._id.toString(),
                 name: referredUser?.username || 'Unknown User',
                 status: referral.status.toLowerCase(),
-                date: referral.dateReferred,
-                details: `Referred user ${referredUser?.username || referral.referredUserId}`,
+                date: referral.dateCreated,
+                details: `Referred user ${referredUser?.username || referral.referredId}`,
                 amount: 0.5 // Fixed bonus amount or calculate based on your logic
             };
         }));

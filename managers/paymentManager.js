@@ -119,6 +119,15 @@ class PaymentManager {
                 console.error(`Failed to send admin notification to ${adminId}:`, error);
             }
         }
+
+        // Send notification to user
+        try {
+            const notificationManager = require('./notificationManager');
+            const notificationInstance = new notificationManager(this.bot, this.adminIds);
+            await notificationInstance.sendPaymentReceivedNotification(order.telegramId, order.id, order.amount);
+        } catch (notificationError) {
+            console.error('Failed to send payment notification:', notificationError);
+        }
     }
 }
 

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 - Server Error</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .error-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 60px 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .error-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ef4444, #f97316, #eab308);
+        }
+
+        .error-icon {
+            font-size: 80px;
+            color: #ef4444;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .error-code {
+            font-size: 72px;
+            font-weight: 900;
+            color: #ef4444;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .error-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+
+        .error-message {
+            font-size: 16px;
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .error-details {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .error-details h4 {
+            color: #374151;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .error-details ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .error-details li {
+            color: #6b7280;
+            font-size: 13px;
+            margin-bottom: 5px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .error-details li::before {
+            content: '•';
+            color: #ef4444;
+            position: absolute;
+            left: 0;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            min-width: 120px;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
+        .retry-indicator {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .retry-countdown {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        @media (max-width: 480px) {
+            .error-container {
+                padding: 40px 20px;
+            }
+
+            .error-code {
+                font-size: 60px;
+            }
+
+            .error-title {
+                font-size: 24px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+
+        .telegram-fullscreen .error-container {
+            border-radius: 0;
+            box-shadow: none;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        
+        <div class="error-code">500</div>
+        
+        <h1 class="error-title">Internal Server Error</h1>
+        
+        <p class="error-message">
+            Something went wrong on our end. Our team has been notified and is working to fix the issue.
+        </p>
+
+        <div class="error-details">
+            <h4>
+                <i class="fas fa-info-circle"></i>
+                What happened?
+            </h4>
+            <ul>
+                <li>Our servers encountered an unexpected error</li>
+                <li>This is not your fault - it's a technical issue</li>
+                <li>We're working to resolve it as quickly as possible</li>
+            </ul>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="retryPage()">
+                <i class="fas fa-redo"></i>
+                Try Again
+            </button>
+            
+            <a href="/" class="btn btn-secondary">
+                <i class="fas fa-home"></i>
+                Go Home
+            </a>
+            
+            <button class="btn btn-danger" onclick="reportIssue()">
+                <i class="fas fa-bug"></i>
+                Report Issue
+            </button>
+        </div>
+
+        <div class="retry-indicator">
+            Auto-retry in <span class="retry-countdown" id="countdown">30</span> seconds
+        </div>
+    </div>
+
+    <script>
+        // Initialize Telegram WebApp if available
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+            document.body.classList.add('telegram-fullscreen');
+        }
+
+        // Auto-retry countdown
+        let countdown = 30;
+        const countdownElement = document.getElementById('countdown');
+        
+        const countdownTimer = setInterval(() => {
+            countdown--;
+            countdownElement.textContent = countdown;
+            
+            if (countdown <= 0) {
+                clearInterval(countdownTimer);
+                retryPage();
+            }
+        }, 1000);
+
+        // Retry function
+        function retryPage() {
+            clearInterval(countdownTimer);
+            window.location.reload();
+        }
+
+        // Report issue function
+        function reportIssue() {
+            const userAgent = navigator.userAgent;
+            const url = window.location.href;
+            const timestamp = new Date().toISOString();
+            
+            const issueData = {
+                error: '500 Internal Server Error',
+                url: url,
+                timestamp: timestamp,
+                userAgent: userAgent,
+                telegramUser: window.Telegram?.WebApp?.initDataUnsafe?.user || 'Not available'
+            };
+
+            // You can implement reporting to your backend here
+            console.log('Issue Report:', issueData);
+            
+            // For now, show a simple alert
+            alert('Issue reported. Our team will investigate. Thank you for your patience.');
+        }
+
+        // Check if we can reach the server
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('/api/health', { 
+                    method: 'HEAD',
+                    cache: 'no-cache'
+                });
+                if (response.ok) {
+                    // Server is back up, redirect to home
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                // Server still down, continue showing error
+                console.log('Server still unavailable');
+            }
+        }
+
+        // Check server status every 10 seconds
+        setInterval(checkServerStatus, 10000);
+    </script>
+</body>
+</html>
