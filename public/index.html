@@ -1359,10 +1359,6 @@ function loadBottomNav() {
             .then(r => r.ok ? r.text() : '')
             .then(html => { 
                 container.innerHTML = html; 
-                // Set active navigation after loading
-                if (typeof setActiveNavigation === 'function') {
-                    setActiveNavigation();
-                }
                 resolve(); 
             })
             .catch(() => resolve());
@@ -2023,7 +2019,7 @@ function initCustomStars() {
                 // Not enough stars per recipient
                 if (distributionDiv) distributionDiv.style.display = 'none';
                 const minStars = 50 * recipientsCount;
-            const translatedText = TranslationUtils.format('needAtLeastStars', minStars, recipientsCount);
+            const translatedText = TranslationUtils.format('needAtLeastStars', {stars: minStars, count: recipientsCount});
             quoteText.textContent = `⚠️ ${translatedText}`;
                 return;
             }

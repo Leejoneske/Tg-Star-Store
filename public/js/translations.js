@@ -856,9 +856,19 @@ const TranslationUtils = {
     format(key, ...params) {
         let translation = this.get(key);
         
-        params.forEach((param, index) => {
-            translation = translation.replace(`{${index}}`, param);
-        });
+        // Handle both indexed and named placeholders
+        if (params.length === 1 && typeof params[0] === 'object') {
+            // Named placeholders: format(key, {stars: 100, count: 2})
+            const namedParams = params[0];
+            Object.keys(namedParams).forEach(paramName => {
+                translation = translation.replace(new RegExp(`{${paramName}}`, 'g'), namedParams[paramName]);
+            });
+        } else {
+            // Indexed placeholders: format(key, param1, param2)
+            params.forEach((param, index) => {
+                translation = translation.replace(new RegExp(`{${index}}`, 'g'), param);
+            });
+        }
         
         return translation;
     },

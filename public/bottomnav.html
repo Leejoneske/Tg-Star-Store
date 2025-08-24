@@ -62,48 +62,44 @@
 </style>
 
 <script>
-// Function to set active navigation based on current page
-function setActiveNavigation() {
-	const currentPage = getCurrentPage();
-	const navLinks = document.querySelectorAll('.nav-link');
-	
-	navLinks.forEach(link => {
-		link.classList.remove('active');
-		if (link.getAttribute('data-page') === currentPage) {
-			link.classList.add('active');
+// Immediately invoked function to avoid global pollution
+(function() {
+	// Function to determine current page
+	function getCurrentPage() {
+		const path = window.location.pathname;
+		const filename = path.split('/').pop();
+		
+		switch(filename) {
+			case 'index.html':
+			case '':
+				return 'home';
+			case 'sell.html':
+				return 'sell';
+			case 'history.html':
+				return 'history';
+			case 'referral.html':
+				return 'referral';
+			case 'about.html':
+				return 'about';
+			default:
+				return 'home';
 		}
-	});
-}
-
-// Function to determine current page
-function getCurrentPage() {
-	const path = window.location.pathname;
-	const filename = path.split('/').pop();
-	
-	switch(filename) {
-		case 'index.html':
-		case '':
-			return 'home';
-		case 'sell.html':
-			return 'sell';
-		case 'history.html':
-			return 'history';
-		case 'referral.html':
-			return 'referral';
-		case 'about.html':
-			return 'about';
-		default:
-			return 'home';
 	}
-}
 
-// Set active navigation when DOM is loaded
-document.addEventListener('DOMContentLoaded', setActiveNavigation);
+	// Function to set active navigation based on current page
+	function setActiveNavigation() {
+		const currentPage = getCurrentPage();
+		const navLinks = document.querySelectorAll('.nav-link');
+		
+		navLinks.forEach(link => {
+			link.classList.remove('active');
+			if (link.getAttribute('data-page') === currentPage) {
+				link.classList.add('active');
+			}
+		});
+	}
 
-// Also set active navigation immediately if DOM is already loaded
-if (document.readyState === 'loading') {
-	document.addEventListener('DOMContentLoaded', setActiveNavigation);
-} else {
+	// Set active navigation immediately
 	setActiveNavigation();
-}
+})();
 </script>
