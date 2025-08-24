@@ -620,7 +620,7 @@
                             <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                         </svg>
                         <p class="text-sm text-red-700">
-                            <strong>Important:</strong> Double-check your wallet address. Payments cannot be reversed once sent.
+                            <strong data-translate="important">Important:</strong> <span data-translate="doubleCheckWallet">Double-check your wallet address. Payments cannot be reversed once sent.</span>
                         </p>
                     </div>
                 </div>
@@ -704,13 +704,13 @@
             <div class="mb-4">
                 <label for="walletDialogAddress" class="block text-sm font-medium text-gray-700 mb-1">USDT TON Wallet Address</label>
                 <input type="text" id="walletDialogAddress" placeholder="Enter USDT TON wallet address" 
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-translate-placeholder="enterWalletAddress">
             </div>
             
             <div class="mb-4" id="memoFieldContainer">
                 <label for="walletDialogMemo" class="block text-sm font-medium text-gray-700 mb-1">Memo/Tag (Required)</label>
                 <input type="text" id="walletDialogMemo" placeholder="Enter memo/tag if required" 
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-translate-placeholder="enterMemoTag">
                 <p class="text-xs text-gray-500 mt-1" id="memoNote"></p>
             </div>
             
@@ -728,11 +728,11 @@
                 <svg class="w-16 h-16 text-indigo-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <h3 class="text-xl font-bold mt-2">Payment Confirmation</h3>
+                <h3 class="text-xl font-bold mt-2" data-translate="paymentConfirmation">Payment Confirmation</h3>
             </div>
             <div class="mb-6">
-                <p class="text-gray-700 mb-4">You're about to sell <span id="modalStarsAmount" class="font-bold">50</span> stars for <span id="modalTonAmount" class="font-bold">0.438 TON</span>.</p>
-                <p class="text-gray-700">Please confirm this transaction via Telegram payment.</p>
+                <p class="text-gray-700 mb-4"><span data-translate="aboutToSell">You're about to sell</span> <span id="modalStarsAmount" class="font-bold">50</span> <span data-translate="starsFor">stars for</span> <span id="modalTonAmount" class="font-bold">0.438 TON</span>.</p>
+                <p class="text-gray-700" data-translate="pleaseConfirmTransaction">Please confirm this transaction via Telegram payment.</p>
             </div>
             <div class="flex justify-between space-x-4">
                 <button id="cancelPaymentBtn" class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
@@ -746,7 +746,7 @@
         <div id="transactionDetailsPanel" class="transaction-details-panel">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold">Transaction Details</h3>
+                    <h3 class="text-xl font-bold" data-translate="transactionDetails">Transaction Details</h3>
                     <button class="close-details" id="closeTransactionDetails" aria-label="Close transaction details">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -756,22 +756,22 @@
                 <div id="transactionId" class="text-sm font-mono text-gray-500 mb-2"></div>
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        <div class="text-sm text-gray-600">Amount</div>
+                        <div class="text-sm text-gray-600" data-translate="amount">Amount</div>
                         <div id="transactionAmount" class="font-bold text-xl"></div>
                     </div>
                     <div class="text-right">
-                        <div class="text-sm text-gray-600">To be received</div>
+                        <div class="text-sm text-gray-600" data-translate="toBeReceived">To be received</div>
                         <div id="transactionValue" class="font-bold text-xl text-indigo-600"></div>
                     </div>
                 </div>
                 
                 <div class="mb-4">
-                    <div class="text-sm text-gray-600 mb-1">Current Status</div>
+                    <div class="text-sm text-gray-600 mb-1" data-translate="currentStatus">Current Status</div>
                     <div id="transactionStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-medium"></div>
                 </div>
                 
                 <div class="mb-4">
-                    <div class="text-sm text-gray-600 mb-1">Estimated Completion</div>
+                    <div class="text-sm text-gray-600 mb-1" data-translate="estimatedCompletion">Estimated Completion</div>
                     <div id="transactionEstimatedCompletion" class="font-medium"></div>
                 </div>
                 
@@ -1308,7 +1308,7 @@ function showTransactionDetailsLoading() {
     `;
     
     // Simple loading text
-    document.getElementById('transaction-details-loading').innerHTML = '<div style="color: #6b7280; font-size: 14px;">Loading transaction details...</div>';
+            document.getElementById('transaction-details-loading').innerHTML = '<div style="color: #6b7280; font-size: 14px;">' + TranslationUtils.get('loadingTransactionDetails') + '</div>';
     
     // Start smooth opening animation
     setTimeout(() => {
