@@ -279,6 +279,10 @@
             .then(r => r.ok ? r.text() : '')
             .then(html => { 
         document.getElementById('bottomnav-container').innerHTML = html; 
+        // Apply translations to bottom nav after loading
+        if (typeof TranslationUtils !== 'undefined') {
+            TranslationUtils.applyTranslations();
+        }
     });
         
         // Set up language toggle
