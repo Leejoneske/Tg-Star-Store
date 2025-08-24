@@ -5,7 +5,7 @@ const fs = require('fs');
 
 // Generate dynamic sitemap
 router.get('/sitemap.xml', (req, res) => {
-    const baseUrl = process.env.BASE_URL || 'https://yourdomain.com';
+    const baseUrl = process.env.BASE_URL || 'https://starstore.site';
     const currentDate = new Date().toISOString().split('T')[0];
     
     // Define your site structure
@@ -19,7 +19,11 @@ router.get('/sitemap.xml', (req, res) => {
         { url: '/notification.html', priority: '0.5', changefreq: 'daily' },
         { url: '/blog/', priority: '0.8', changefreq: 'weekly' },
         { url: '/blog/index.html', priority: '0.8', changefreq: 'weekly' },
-        { url: '/blog/telegram-stars-guide.html', priority: '0.7', changefreq: 'monthly' }
+        { url: '/blog/telegram-stars-guide.html', priority: '0.7', changefreq: 'monthly' },
+        { url: '/how-to-withdraw-telegram-stars/', priority: '0.8', changefreq: 'weekly' },
+        { url: '/how-to-withdraw-telegram-stars/index.html', priority: '0.8', changefreq: 'weekly' },
+        { url: '/knowledge-base/', priority: '0.7', changefreq: 'weekly' },
+        { url: '/knowledge-base/index.html', priority: '0.7', changefreq: 'weekly' }
     ];
     
     // Generate sitemap XML
@@ -45,7 +49,7 @@ router.get('/sitemap.xml', (req, res) => {
 
 // Generate robots.txt
 router.get('/robots.txt', (req, res) => {
-    const baseUrl = process.env.BASE_URL || 'https://yourdomain.com';
+    const baseUrl = process.env.BASE_URL || 'https://starstore.site';
     
     const robotsTxt = `User-agent: *
 Allow: /
@@ -61,6 +65,8 @@ Allow: /history.html
 Allow: /referral.html
 Allow: /notification.html
 Allow: /blog/
+Allow: /how-to-withdraw-telegram-stars/
+Allow: /knowledge-base/
 
 # Allow crawling of static assets
 Allow: /css/
