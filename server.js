@@ -67,6 +67,92 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use('/api', apiRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'ok', 
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+
+// Maintenance mode endpoint (for testing 503 page)
+app.get('/maintenance', (req, res) => {
+    res.status(503).sendFile(path.join(__dirname, 'public', '503.html'));
+});
+
+// Error handling middleware
+app.use((req, res, next) => {
+    // Handle 404 errors
+    if (req.accepts('html')) {
+        res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+        return;
+    }
+    
+    if (req.accepts('json')) {
+        res.status(404).json({ error: 'Not found' });
+        return;
+    }
+    
+    res.status(404).type('txt').send('Not found');
+});
+
+// Handle 400 Bad Request
+app.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        if (req.accepts('html')) {
+            res.status(400).sendFile(path.join(__dirname, 'public', '400.html'));
+            return;
+        }
+        res.status(400).json({ error: 'Bad request' });
+        return;
+    }
+    next(err);
+});
+
+// Handle 403 Forbidden
+app.use((err, req, res, next) => {
+    if (err.status === 403) {
+        if (req.accepts('html')) {
+            res.status(403).sendFile(path.join(__dirname, 'public', '403.html'));
+            return;
+        }
+        res.status(403).json({ error: 'Forbidden' });
+        return;
+    }
+    next(err);
+});
+
+// Handle 503 Service Unavailable
+app.use((err, req, res, next) => {
+    if (err.status === 503) {
+        if (req.accepts('html')) {
+            res.status(503).sendFile(path.join(__dirname, 'public', '503.html'));
+            return;
+        }
+        res.status(503).json({ error: 'Service unavailable' });
+        return;
+    }
+    next(err);
+});
+
+// Handle 500 Internal Server Error
+app.use((err, req, res, next) => {
+    console.error('Server Error:', err);
+    
+    if (req.accepts('html')) {
+        res.status(500).sendFile(path.join(__dirname, 'public', '500.html'));
+        return;
+    }
+    
+    if (req.accepts('json')) {
+        res.status(500).json({ error: 'Internal server error' });
+        return;
+    }
+    
+    res.status(500).type('txt').send('Internal server error');
+});
+
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
   bot.processUpdate(req.body);
