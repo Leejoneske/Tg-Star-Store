@@ -100,27 +100,7 @@
         color: #4f46e5;
     }
     
-    /* Language toggle button */
-    .language-toggle {
-        background: #4f46e5;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 40px;
-        height: 36px;
-    }
-    
-    .language-toggle:hover {
-        background: #6366f1;
-        transform: scale(1.05);
-    }
+
         transition: all 0.2s ease;
         position: relative;
         display: flex;
@@ -567,7 +547,7 @@
         <header class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm">
             <div class="p-2"></div>
             <div class="logo-header">StarStore</div>
-            <button id="languageToggle" class="language-toggle">🇬🇧</button>
+            <div></div>
         </header>
         
         <!-- Main Content -->
@@ -1324,17 +1304,12 @@ function showTransactionDetailsLoading() {
     
     // Add loading content to panel
     panel.innerHTML = `
-        <div class="loading-container" style="display: flex; justify-content: center; align-items: center; height: 400px; flex-direction: column;">
-            <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid #f3f4f6; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;"></div>
-            <div style="color: #6b7280; font-size: 14px;">Loading transaction details...</div>
+        <div id="transaction-details-loading" style="display: flex; justify-content: center; align-items: center; height: 400px; flex-direction: column;">
         </div>
-        <style>
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
     `;
+    
+    // Use standard LoadingComponent
+    LoadingComponent.show('transaction-details-loading', 'spinner', { text: 'Loading transaction details...' });
     
     // Start smooth opening animation
     setTimeout(() => {
@@ -1355,6 +1330,9 @@ function openTransactionDetails(transaction) {
 function populateTransactionDetails(transaction) {
     const overlay = document.getElementById('transactionDetailsOverlay');
     const panel = document.getElementById('transactionDetailsPanel');
+    
+    // Hide loading
+    LoadingComponent.hide('transaction-details-loading');
     
     // Calculate estimated completion date (21 days from creation)
     const creationDate = new Date(transaction.dateCreated);
@@ -1706,33 +1684,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load shared bottom nav
     fetch('bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { document.getElementById('bottomnav-container').innerHTML = html; });
     
-    // Initialize language toggle
-    initLanguageToggle();
 });
-
-// Language toggle functionality
-function initLanguageToggle() {
-    const languageToggle = document.getElementById('languageToggle');
-    if (!languageToggle) return;
-    
-    // Set initial button text
-    languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
-    
-    languageToggle.addEventListener('click', () => {
-        const newLanguage = currentLanguage === 'en' ? 'ru' : 'en';
-        currentLanguage = newLanguage;
-        
-        if (typeof TranslationUtils !== 'undefined') {
-            TranslationUtils.setCurrentLanguage(newLanguage);
-        } else {
-            localStorage.setItem('appLanguage', newLanguage);
-            updateLanguageTexts();
-        }
-        
-        // Update button text
-        languageToggle.textContent = newLanguage === 'en' ? '🇷🇺' : '🇬🇧';
-    });
-}
 
 
 

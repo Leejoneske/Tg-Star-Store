@@ -3,7 +3,6 @@
   <div class="notification-header">
     <h3 data-translate="notifications">Notifications</h3>
     <div class="notification-actions">
-      <button id="languageToggle" class="language-toggle">🇬🇧</button>
       <button id="markAllRead" class="action-btn">
         <i class="fas fa-check"></i> <span data-translate="markAllRead">Mark All Read</span>
       </button>
@@ -590,27 +589,7 @@
   background: #94a3b8;
 }
 
-/* Language toggle button */
-.language-toggle {
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 32px;
-  margin-right: 8px;
-}
 
-.language-toggle:hover {
-  background: #5a67d8;
-}
 </style>
 
 <script src="js/translations.js"></script>
@@ -621,26 +600,5 @@ if (typeof TranslationUtils !== 'undefined') {
     TranslationUtils.applyTranslations();
 }
 
-// Language toggle functionality
-function initLanguageToggle() {
-    const languageToggle = document.getElementById('languageToggle');
-    if (!languageToggle) return;
-    
-    const currentLanguage = TranslationUtils.getCurrentLanguage();
-    
-    // Set initial button text
-    languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
-    
-    languageToggle.addEventListener('click', () => {
-        const newLanguage = currentLanguage === 'en' ? 'ru' : 'en';
-        
-        TranslationUtils.setCurrentLanguage(newLanguage);
-        
-        // Update button text
-        languageToggle.textContent = newLanguage === 'en' ? '🇷🇺' : '🇬🇧';
-    });
-}
 
-// Initialize language toggle
-initLanguageToggle();
 </script>

@@ -99,27 +99,7 @@
             font-weight: 600;
         }
         
-        /* Language toggle button */
-        .language-toggle {
-            background: #4f46e5;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 40px;
-            height: 36px;
-        }
-        
-        .language-toggle:hover {
-            background: #6366f1;
-            transform: scale(1.05);
-        }
+
         .transaction-card {
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -230,7 +210,7 @@
         <div class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm">
             <div class="p-2"></div>
             <div class="logo-header">StarStore</div>
-            <button id="languageToggle" class="language-toggle">🇬🇧</button>
+            <div></div>
         </div>
         
         <div class="px-4">
@@ -1069,32 +1049,7 @@ function exportReferrals() {
     });
 }
 
-// Language toggle functionality
-function initLanguageToggle() {
-    const languageToggle = document.getElementById('languageToggle');
-    if (!languageToggle) return;
-    
-    // Set initial button text
-    languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
-    
-    languageToggle.addEventListener('click', () => {
-        const newLanguage = currentLanguage === 'en' ? 'ru' : 'en';
-        currentLanguage = newLanguage;
-        
-        if (typeof TranslationUtils !== 'undefined') {
-            TranslationUtils.setCurrentLanguage(newLanguage);
-        } else {
-            localStorage.setItem('appLanguage', newLanguage);
-            updateLanguage();
-        }
-        
-        // Update button text
-        languageToggle.textContent = newLanguage === 'en' ? '🇷🇺' : '🇬🇧';
-    });
-}
 
-// Initialize language toggle
-initLanguageToggle();
 </script>
     
 </body>
