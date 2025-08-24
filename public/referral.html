@@ -896,7 +896,7 @@ async function submitWithdrawal({ amount, walletAddress }) {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error || translations[state.language]['withdraw-error'] || 'Withdrawal failed');
+            throw new Error(data.error || TranslationUtils.get('withdrawError') || 'Withdrawal failed');
         }
 
         // Refresh withdrawal data from server
@@ -909,8 +909,8 @@ async function submitWithdrawal({ amount, walletAddress }) {
         return true;
     } catch (error) {
         await Swal.fire({
-            title: translations[state.language]['error'] || 'Error',
-            text: error.message || translations[state.language]['withdraw-error'] || 'Withdrawal failed. Please try again.',
+            title: TranslationUtils.get('error') || 'Error',
+            text: error.message || TranslationUtils.get('withdrawError') || 'Withdrawal failed. Please try again.',
             icon: 'error',
             confirmButtonText: 'OK'
         });

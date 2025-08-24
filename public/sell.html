@@ -536,8 +536,7 @@
         </div>
     </div>
 
-    <!-- Standard Loading -->
-    <div id="loading-container"></div>
+
 
     <!-- Main App Content -->
     <div id="appContent" class="app-container" style="display: none;">
@@ -837,7 +836,7 @@ function checkNoticeStatus() {
 }
 // Show the main app content
 function showAppContent() {
-            LoadingComponent.hide('loading-container');
+        
     appContent.style.display = 'block';
     // Fetch transactions when app content is shown
     fetchTransactions();
@@ -1308,8 +1307,8 @@ function showTransactionDetailsLoading() {
         </div>
     `;
     
-    // Use standard LoadingComponent
-    LoadingComponent.show('transaction-details-loading', 'spinner', { text: 'Loading transaction details...' });
+    // Simple loading text
+    document.getElementById('transaction-details-loading').innerHTML = '<div style="color: #6b7280; font-size: 14px;">Loading transaction details...</div>';
     
     // Start smooth opening animation
     setTimeout(() => {
@@ -1331,8 +1330,7 @@ function populateTransactionDetails(transaction) {
     const overlay = document.getElementById('transactionDetailsOverlay');
     const panel = document.getElementById('transactionDetailsPanel');
     
-    // Hide loading
-    LoadingComponent.hide('transaction-details-loading');
+
     
     // Calculate estimated completion date (21 days from creation)
     const creationDate = new Date(transaction.dateCreated);
@@ -1657,9 +1655,8 @@ document.addEventListener('DOMContentLoaded', () => {
     createTransactionDetailsPanel();
     
     
-            // Show standard loading initially
-        LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
-    appContent.style.display = 'none';
+            // Show content immediately
+        appContent.style.display = 'block';
     
     // Check notice status after a small delay 
     setTimeout(() => {
