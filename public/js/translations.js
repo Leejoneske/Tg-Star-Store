@@ -246,8 +246,20 @@ const translations = {
         rating: "User Rating",
         getInTouch: "Get in Touch",
         getInTouchText: "Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.",
+        contactText: "Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.",
         contactSupport: "Contact Support",
+        contactBtn: "Contact Support",
         footerPowered: "Powered by",
+        
+        // Notification page specific
+        notifications: "Notifications",
+        markAllRead: "Mark All Read",
+        refresh: "Refresh",
+        loadingNotifications: "Loading notifications...",
+        noNotificationsYet: "No notifications yet",
+        notificationEmptyDesc: "We'll notify you about important updates and activities",
+        unread: "unread",
+        loadMore: "Load More",
         
         // History page specific
         overview: "Overview",
@@ -595,8 +607,20 @@ const translations = {
         rating: "Рейтинг пользователей",
         getInTouch: "Свяжитесь с нами",
         getInTouchText: "Есть вопросы или нужна поддержка? Наша команда здесь, чтобы помочь! Мы предоставляем круглосуточную помощь для всех ваших потребностей в StarStore.",
+        contactText: "Есть вопросы или нужна поддержка? Наша команда здесь, чтобы помочь! Мы предоставляем круглосуточную помощь для всех ваших потребностей в StarStore.",
         contactSupport: "Связаться с поддержкой",
+        contactBtn: "Связаться с поддержкой",
         footerPowered: "Работает на",
+        
+        // Notification page specific
+        notifications: "Уведомления",
+        markAllRead: "Отметить все как прочитанные",
+        refresh: "Обновить",
+        loadingNotifications: "Загрузка уведомлений...",
+        noNotificationsYet: "Пока нет уведомлений",
+        notificationEmptyDesc: "Мы будем уведомлять вас о важных обновлениях и действиях",
+        unread: "непрочитанных",
+        loadMore: "Загрузить еще",
         
         // History page specific
         overview: "Обзор",
@@ -726,12 +750,12 @@ const TranslationUtils = {
         return langTranslations[key] || translations.en[key] || key;
     },
 
-    // Apply translations to all elements with data-lang attribute
+    // Apply translations to all elements with data-translate attribute
     applyTranslations() {
         const currentLang = this.getCurrentLanguage();
         
-        document.querySelectorAll('[data-lang]').forEach(element => {
-            const key = element.getAttribute('data-lang');
+        document.querySelectorAll('[data-translate]').forEach(element => {
+            const key = element.getAttribute('data-translate');
             const translation = this.get(key, currentLang);
             
             if (translation) {

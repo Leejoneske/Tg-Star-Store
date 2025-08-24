@@ -98,6 +98,8 @@
             color: #4f46e5;
             font-weight: 600;
         }
+        
+
         .transaction-card {
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -213,45 +215,45 @@
         
         <div class="px-4">
             <div class="flex border-b mb-6">
-                <button id="transactionsTab" class="flex-1 py-3 text-center tab-active" data-lang="transactions">
+                <button id="transactionsTab" class="flex-1 py-3 text-center tab-active" data-translate="transactions">
                     Transactions
                 </button>
-                <button id="referralsTab" class="flex-1 py-3 text-center" data-lang="referrals">
+                <button id="referralsTab" class="flex-1 py-3 text-center" data-translate="referrals">
                     Referrals
                 </button>
             </div>
             
             <div id="transactionsContent" class="tab-content active">
                 <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
-                    <h3 class="text-lg font-semibold mb-4" data-lang="overview">Overview</h3>
+                    <h3 class="text-lg font-semibold mb-4" data-translate="overview">Overview</h3>
                     <div class="chart-container">
                         <canvas id="transactionChart"></canvas>
                     </div>
                     <div class="grid grid-cols-3 gap-3 mt-4">
                         <div class="text-center p-2 rounded-lg bg-green-50">
                             <div class="text-green-600 text-xl font-semibold" id="completedCount">0</div>
-                            <div class="text-xs text-green-800" data-lang="completed">Completed</div>
+                            <div class="text-xs text-green-800" data-translate="completed">Completed</div>
                         </div>
                         <div class="text-center p-2 rounded-lg bg-blue-50">
                             <div class="text-blue-600 text-xl font-semibold" id="processingCount">0</div>
-                            <div class="text-xs text-blue-800" data-lang="processing">Processing</div>
+                            <div class="text-xs text-blue-800" data-translate="processing">Processing</div>
                         </div>
                         <div class="text-center p-2 rounded-lg bg-red-50">
                             <div class="text-red-600 text-xl font-semibold" id="declinedCount">0</div>
-                            <div class="text-xs text-red-800" data-lang="declined">Declined</div>
+                            <div class="text-xs text-red-800" data-translate="declined">Declined</div>
                         </div>
                     </div>
                 </div>
                 
                 <div class="flex mb-4 space-x-2 overflow-x-auto pb-2 scrollbar-hide">
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap filter-active" data-filter="all" data-lang="all">All</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="completed" data-lang="completed">Completed</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-lang="processing">Processing</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="declined" data-lang="declined">Declined</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap filter-active" data-filter="all" data-translate="all">All</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="completed" data-translate="completed">Completed</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-translate="processing">Processing</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="declined" data-translate="declined">Declined</button>
                 </div>
                 
                 <div class="relative mb-6">
-                    <input type="text" id="searchTransactions" class="w-full p-3 pl-10 pr-4 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-lang-placeholder="search_transactions" placeholder="Search transactions...">
+                    <input type="text" id="searchTransactions" class="w-full p-3 pl-10 pr-4 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Search transactions...">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
                             <circle cx="11" cy="11" r="8"></circle>
@@ -272,7 +274,7 @@
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    <p class="text-center" data-lang="no_transactions">No transactions found</p>
+                    <p class="text-center" data-translate="noTransactions">No transactions found</p>
                 </div>
                 
                 <div id="transactionsPagination" class="flex justify-center items-center gap-2 mb-6"></div>
@@ -283,19 +285,19 @@
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    <span data-lang="export_transactions">Export Transactions</span>
+                    <span data-translate="exportTransactions">Export Transactions</span>
                 </button>
             </div>
             
             <div id="referralsContent" class="tab-content">
                 <div class="flex mb-4 space-x-2 overflow-x-auto pb-2 scrollbar-hide">
-                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap filter-active" data-filter="all" data-lang="all">All</button>
-                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="active" data-lang="active">Active</button>
-                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-lang="processing">Processing</button>
+                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap filter-active" data-filter="all" data-translate="all">All</button>
+                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="active" data-translate="active">Active</button>
+                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-translate="processing">Processing</button>
                 </div>
                 
                 <div class="relative mb-6">
-                    <input type="text" id="searchReferrals" class="w-full p-3 pl-10 pr-4 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-lang-placeholder="search_referrals" placeholder="Search referrals...">
+                    <input type="text" id="searchReferrals" class="w-full p-3 pl-10 pr-4 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Search referrals...">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
                             <circle cx="11" cy="11" r="8"></circle>
@@ -315,7 +317,7 @@
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
-                    <p class="text-center" data-lang="no_referrals">No referrals found</p>
+                    <p class="text-center" data-translate="noReferrals">No referrals found</p>
                 </div>
                 
                 <div id="referralsPagination" class="flex justify-center items-center gap-2 mb-6"></div>
@@ -326,7 +328,7 @@
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    <span data-lang="export_referrals">Export Referrals</span>
+                    <span data-translate="exportReferrals">Export Referrals</span>
                 </button>
             </div>
         </div>
@@ -1046,6 +1048,8 @@ function exportReferrals() {
         confirmButtonColor: '#4f46e5'
     });
 }
+
+
 </script>
     
 </body>
