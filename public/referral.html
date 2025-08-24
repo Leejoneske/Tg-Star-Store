@@ -482,6 +482,7 @@ const state = {
 // Initialize UI with default values immediately
 document.addEventListener('DOMContentLoaded', () => {
     updateUI();
+    applyTranslations();
 });
     
 // Initialize language
@@ -519,7 +520,6 @@ function init() {
     loadReferralData();
     loadWithdrawalHistory();
     setupTelegramSharing();
-    applyTranslations();
     
     // Set up auto-refresh for withdrawal status
     setInterval(fetchWithdrawals, 15000); // Refresh every 15 seconds
@@ -551,6 +551,7 @@ async function loadReferralData() {
 
         console.log('Updated state:', state);
         updateUI();
+        applyTranslations();
     } catch (error) {
         console.error('Error loading referral data:', error);
         // Set default values if API fails
@@ -562,6 +563,7 @@ async function loadReferralData() {
         };
         state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
         updateUI();
+        applyTranslations();
         showError('Failed to load referral data');
     }
 }
