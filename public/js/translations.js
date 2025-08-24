@@ -17,6 +17,8 @@ const translations = {
         cancel: "Cancel",
         loading: "Loading...",
         processing: "Processing...",
+        loadingTransactionDetails: "Loading transaction details...",
+        connectingToSupport: "Connecting to StarStore support...",
         save: "Save",
         edit: "Edit",
         delete: "Delete",
@@ -82,6 +84,7 @@ const translations = {
         buyNow: "Buy Now",
         buy: "Buy",
         buygift: "Buy Gift",
+        buyFor: "Buy For",
         sellNow: "Sell Now",
         currentRate: "Current Rate",
         updatedAgo: "Updated 8m ago",
@@ -123,6 +126,10 @@ const translations = {
         memoNote: "Only required for certain exchanges like Binance, OKX",
         chooseRecommendedWallets: "Or Choose Recommended Wallets",
         minimumSell: "Minimum sell: 50 Stars",
+        enterStars: "Enter stars (min 50)",
+        enterMemoTag: "Enter memo/tag if required",
+        enterRequiredMemo: "Enter required memo/tag",
+        enterValidWalletAddress: "Please enter a valid wallet address (minimum 10 characters)",
         amountToSell: "Amount of Stars to Sell",
         youWillReceive: "You'll Receive (USDT)",
         sellNow: "Sell Now",
@@ -378,6 +385,8 @@ const translations = {
         cancel: "Отмена",
         loading: "Загрузка...",
         processing: "Обработка...",
+        loadingTransactionDetails: "Загрузка деталей транзакции...",
+        connectingToSupport: "Подключение к поддержке StarStore...",
         save: "Сохранить",
         edit: "Изменить",
         delete: "Удалить",
@@ -443,6 +452,7 @@ const translations = {
         buyNow: "Купить сейчас",
         buy: "Купить",
         buygift: "Купить подарок",
+        buyFor: "Купить для",
         sellNow: "Продать сейчас",
         currentRate: "Текущий курс",
         updatedAgo: "Обновлено 8м назад",
@@ -484,6 +494,10 @@ const translations = {
         memoNote: "Требуется только для определенных бирж, таких как Binance, OKX",
         chooseRecommendedWallets: "Или выберите рекомендуемые кошельки",
         minimumSell: "Минимальная продажа: 50 Stars",
+        enterStars: "Введите звезды (мин. 50)",
+        enterMemoTag: "Введите мемо/тег, если требуется",
+        enterRequiredMemo: "Введите требуемый мемо/тег",
+        enterValidWalletAddress: "Пожалуйста, введите действительный адрес кошелька (минимум 10 символов)",
         amountToSell: "Количество Stars для продажи",
         youWillReceive: "Вы получите (USDT)",
         sellNow: "Продать сейчас",
@@ -759,11 +773,17 @@ const TranslationUtils = {
             const translation = this.get(key, currentLang);
             
             if (translation) {
-                if (element.tagName === 'INPUT' && element.type === 'placeholder') {
-                    element.placeholder = translation;
-                } else {
-                    element.textContent = translation;
-                }
+                element.textContent = translation;
+            }
+        });
+
+        // Apply placeholder translations
+        document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
+            const key = element.getAttribute('data-translate-placeholder');
+            const translation = this.get(key, currentLang);
+            
+            if (translation) {
+                element.placeholder = translation;
             }
         });
 
