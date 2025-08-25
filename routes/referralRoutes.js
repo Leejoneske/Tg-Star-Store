@@ -7,8 +7,8 @@ const router = express.Router();
 // Referral stats
 router.get('/referral-stats/:userId', async (req, res) => {
     try {
-        const referrals = await Referral.find({ referrerUserId: req.params.userId });
-        const referredUserIds = referrals.map(r => r.referredUserId);
+        const referrals = await Referral.find({ referrerId: req.params.userId });
+        const referredUserIds = referrals.map(r => r.referredId);
         const users = await User.find({ id: { $in: referredUserIds } });
 
         const userMap = {};
@@ -16,7 +16,7 @@ router.get('/referral-stats/:userId', async (req, res) => {
 
         const totalReferrals = referrals.length;
         const availableReferrals = await Referral.find({
-            referrerUserId: req.params.userId,
+            referrerId: req.params.userId,
             status: { $in: ['completed', 'active'] },
             withdrawn: { $ne: true }
         }).countDocuments();
@@ -26,8 +26,8 @@ router.get('/referral-stats/:userId', async (req, res) => {
         res.json({
             success: true,
             referrals: referrals.map(ref => ({
-                userId: ref.referredUserId,
-                name: userMap[ref.referredUserId] || `User ${ref.referredUserId.substring(0, 6)}`,
+                userId: ref.referredId,
+                name: userMap[ref.referredId] || `User ${ref.referredId.substring(0, 6)}`,
                 status: ref.status.toLowerCase(),
                 date: ref.dateReferred || ref.dateCreated || new Date(0),
                 amount: 0.5
@@ -75,7 +75,7 @@ router.post('/referral-withdrawals', async (req, res) => {
 
         const user = await User.findOne({ id: userId }).session(session) || {};
         const availableReferrals = await Referral.find({
-            referrerUserId: userId,
+            referrerId: userId,
             status: { $in: ['completed', 'active'] },
             withdrawn: { $ne: true }
         }).session(session);
@@ -137,6 +137,36 @@ router.post('/referral-withdrawals', async (req, res) => {
         res.status(400).json({ success: false, error: error.message });
     } finally {
         session.endSession();
+    }
+});
+
+// Get referral history
+router.get('/referrals/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const referrals = await Referral.find({ referrerId: userId })
+            .sort({ dateCreated: -1 })
+            .limit(50);
+
+        // Format referral data
+        const formattedReferrals = await Promise.all(referrals.map(async referral => {
+            const referredUser = await User.findOne({ id: referral.referredId }).lean();
+            
+            return {
+                id: referral._id.toString(),
+                referredUserId: referral.referredId,
+                status: referral.status.toLowerCase(),
+                date: referral.dateCreated,
+                details: `Referred user ${referredUser?.username || referral.referredId}`,
+                amount: 0.5
+            };
+        }));
+
+        res.json({ success: true, referrals: formattedReferrals });
+    } catch (error) {
+        console.error('Error fetching referrals:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch referral history' });
     }
 });
 

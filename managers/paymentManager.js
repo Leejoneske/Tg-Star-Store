@@ -1,11 +1,13 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { SellOrder, BuyOrder } = require('../models');
 const { getUserDisplayName } = require('../utils/helpers');
+const ReferralTrackingManager = require('./referralTrackingManager');
 
 class PaymentManager {
     constructor(bot, adminIds) {
         this.bot = bot;
         this.adminIds = adminIds;
+        this.referralTrackingManager = new ReferralTrackingManager(bot, adminIds);
         this.setupPaymentHandlers();
     }
 
@@ -118,6 +120,14 @@ class PaymentManager {
             } catch (error) {
                 console.error(`Failed to send admin notification to ${adminId}:`, error);
             }
+        }
+
+        // Track referral activity for buy orders
+        try {
+            await this.referralTrackingManager.trackStars(order.telegramId, order.stars, 'buy');
+            await this.referralTrackingManager.trackPremiumActivation(order.telegramId);
+        } catch (referralError) {
+            console.error('Failed to track referral for buy order:', referralError);
         }
 
         // Send notification to user
