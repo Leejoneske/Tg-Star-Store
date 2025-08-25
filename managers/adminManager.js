@@ -1617,10 +1617,10 @@ class AdminManager {
                 return this.bot.sendMessage(chatId, "❌ Sell order not found");
             }
 
-            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nStars: ${order.stars}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             await this.bot.sendMessage(order.telegramId, userOrderDetails);
 
-            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUser: ${order.username || order.telegramId}\nStars: ${order.stars}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             await this.bot.sendMessage(chatId, adminOrderDetails, {
                 reply_markup: {
                     inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${order.id}_${chatId}` }]]
@@ -1646,10 +1646,10 @@ class AdminManager {
                 return this.bot.sendMessage(chatId, "❌ Buy order not found");
             }
 
-            const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nAmount: ${order.amount} USDT\n${order.isPremium ? `Premium: ${order.premiumDuration} months` : `Stars: ${order.stars}`}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             await this.bot.sendMessage(order.telegramId, userOrderDetails);
 
-            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUser: ${order.username || order.telegramId}\nAmount: ${order.amount} USDT\n${order.isPremium ? `Premium: ${order.premiumDuration} months` : `Stars: ${order.stars}`}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             await this.bot.sendMessage(chatId, adminOrderDetails, {
                 reply_markup: {
                     inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${order.id}_${chatId}` }]]

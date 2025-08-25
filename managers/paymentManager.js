@@ -2,12 +2,14 @@ const TelegramBot = require('node-telegram-bot-api');
 const { SellOrder, BuyOrder } = require('../models');
 const { getUserDisplayName } = require('../utils/helpers');
 const ReferralTrackingManager = require('./referralTrackingManager');
+const NotificationManager = require('./notificationManager');
 
 class PaymentManager {
     constructor(bot, adminIds) {
         this.bot = bot;
         this.adminIds = adminIds;
         this.referralTrackingManager = new ReferralTrackingManager(bot, adminIds);
+        this.notificationManager = new NotificationManager(this.bot, this.adminIds);
         this.setupPaymentHandlers();
     }
 
@@ -89,8 +91,6 @@ class PaymentManager {
             `✅ Payment successful!\n\n` +
             `Order ID: ${order.id}\n` +
             `Stars: ${order.stars}\n` +
-            `Wallet: ${order.walletAddress}\n` +
-            `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
             `\nStatus: Processing (21-day hold)\n\n` +
             `Funds will be released to your wallet after the hold period.`
         );
@@ -132,9 +132,7 @@ class PaymentManager {
 
         // Send notification to user
         try {
-            const notificationManager = require('./notificationManager');
-            const notificationInstance = new notificationManager(this.bot, this.adminIds);
-            await notificationInstance.sendPaymentReceivedNotification(order.telegramId, order.id, order.amount);
+            await this.notificationManager.sendPaymentReceivedNotification(order.telegramId, order.id, order.amount);
         } catch (notificationError) {
             console.error('Failed to send payment notification:', notificationError);
         }
