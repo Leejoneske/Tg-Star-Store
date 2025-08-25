@@ -31,6 +31,10 @@ class CallbackManager {
                 await this.handleDeclineSell(query);
             } else if (data.startsWith('refund_sell_')) {
                 await this.handleRefundSell(query);
+            } else if (data.startsWith('complete_buy_')) {
+                await this.handleCompleteBuy(query);
+            } else if (data.startsWith('decline_buy_')) {
+                await this.handleDeclineBuy(query);
             } else if (data.startsWith('reverse_')) {
                 await this.handleReverseOrder(query);
             } else if (data.startsWith('refund_')) {
@@ -206,6 +210,125 @@ class CallbackManager {
         } catch (error) {
             console.error('Error refunding order:', error);
             await this.bot.answerCallbackQuery(query.id, { text: 'Error refunding order' });
+        }
+    }
+
+    async handleCompleteBuy(query) {
+        if (!this.adminIds.includes(query.from.id.toString())) {
+            await this.bot.answerCallbackQuery(query.id, { text: 'Unauthorized' });
+            return;
+        }
+
+        const orderId = query.data.replace('complete_buy_', '');
+        
+        try {
+            const order = await BuyOrder.findOne({ id: orderId });
+            if (!order) {
+                await this.bot.answerCallbackQuery(query.id, { text: 'Order not found' });
+                return;
+            }
+
+            if (order.status === "completed") {
+                await this.bot.answerCallbackQuery(query.id, { text: 'Order already completed' });
+                return;
+            }
+
+            order.status = "completed";
+            order.dateCompleted = new Date();
+            await order.save();
+
+            // Track referral activity for buy orders
+            try {
+                await this.referralTrackingManager.trackStars(order.telegramId, order.stars, 'buy');
+                if (order.isPremium) {
+                    await this.referralTrackingManager.trackPremiumActivation(order.telegramId);
+                }
+            } catch (referralError) {
+                console.error('Failed to track referral for buy order:', referralError);
+            }
+
+            // Notify user
+            const userMessage = order.isPremium ?
+                `✅ Your premium order has been completed!\n\n` +
+                `Order ID: ${order.id}\n` +
+                `Duration: ${order.premiumDuration} months\n` +
+                `Status: Completed\n\n` +
+                `Your premium subscription has been activated.` :
+                `✅ Your buy order has been completed!\n\n` +
+                `Order ID: ${order.id}\n` +
+                `Stars: ${order.stars}\n` +
+                `Status: Completed\n\n` +
+                `Your stars have been sent to your Telegram account.`;
+
+            await this.bot.sendMessage(order.telegramId, userMessage);
+
+            // Send notification
+            try {
+                const notificationManager = require('./notificationManager');
+                const notificationInstance = new notificationManager(this.bot, this.adminIds);
+                await notificationInstance.sendOrderCompletedNotification(order.telegramId, order.id, order.stars);
+            } catch (notificationError) {
+                console.error('Failed to send order completion notification:', notificationError);
+            }
+
+            // Update admin message
+            const updatedMessage = `✅ Buy order ${orderId} completed by admin`;
+            await this.bot.editMessageText(updatedMessage, {
+                chat_id: query.message.chat.id,
+                message_id: query.message.message_id
+            });
+
+            await this.bot.answerCallbackQuery(query.id, { text: 'Buy order completed successfully' });
+        } catch (error) {
+            console.error('Error completing buy order:', error);
+            await this.bot.answerCallbackQuery(query.id, { text: 'Error completing order' });
+        }
+    }
+
+    async handleDeclineBuy(query) {
+        if (!this.adminIds.includes(query.from.id.toString())) {
+            await this.bot.answerCallbackQuery(query.id, { text: 'Unauthorized' });
+            return;
+        }
+
+        const orderId = query.data.replace('decline_buy_', '');
+        
+        try {
+            const order = await BuyOrder.findOne({ id: orderId });
+            if (!order) {
+                await this.bot.answerCallbackQuery(query.id, { text: 'Order not found' });
+                return;
+            }
+
+            if (order.status === "declined") {
+                await this.bot.answerCallbackQuery(query.id, { text: 'Order already declined' });
+                return;
+            }
+
+            order.status = "declined";
+            order.dateDeclined = new Date();
+            await order.save();
+
+            // Notify user
+            await this.bot.sendMessage(
+                order.telegramId,
+                `❌ Your buy order has been declined.\n\n` +
+                `Order ID: ${order.id}\n` +
+                `Status: Declined\n\n` +
+                `Please contact support if you believe this was a mistake.`
+            );
+
+            // Update admin message
+            const updatedMessage = `❌ Buy order ${orderId} declined by admin`;
+            await this.bot.editMessageText(updatedMessage, {
+                chat_id: query.message.chat.id,
+                message_id: query.message.message_id
+            });
+
+            await this.bot.answerCallbackQuery(query.id, { text: 'Buy order declined successfully' });
+        } catch (error) {
+            console.error('Error declining buy order:', error);
+            await this.bot.answerCallbackQuery(query.id, { text: 'Error declining order' });
         }
     }
 

@@ -7,9 +7,11 @@ const router = express.Router();
 // Referral stats
 router.get('/referral-stats/:userId', async (req, res) => {
     try {
-        const referrals = await Referral.find({ referrerId: req.params.userId });
+        const referrals = await Referral.find({ referrerId: req.params.userId }).lean();
         const referredUserIds = referrals.map(r => r.referredId);
-        const users = await User.find({ id: { $in: referredUserIds } });
+        const users = await User.find({ id: { $in: referredUserIds } })
+            .select('id username')
+            .lean();
 
         const userMap = {};
         users.forEach(user => userMap[user.id] = user.username);
@@ -147,21 +149,36 @@ router.get('/referrals/:userId', async (req, res) => {
         
         const referrals = await Referral.find({ referrerId: userId })
             .sort({ dateCreated: -1 })
-            .limit(50);
+            .limit(50)
+            .lean();
+
+        // Get all referred user IDs
+        const referredUserIds = referrals.map(ref => ref.referredId);
+        
+        // Batch fetch all referred users in a single query
+        const referredUsers = await User.find({ id: { $in: referredUserIds } })
+            .select('id username')
+            .lean();
+        
+        // Create a map for quick lookup
+        const userMap = {};
+        referredUsers.forEach(user => {
+            userMap[user.id] = user.username;
+        });
 
         // Format referral data
-        const formattedReferrals = await Promise.all(referrals.map(async referral => {
-            const referredUser = await User.findOne({ id: referral.referredId }).lean();
+        const formattedReferrals = referrals.map(referral => {
+            const referredUsername = userMap[referral.referredId] || referral.referredId;
             
             return {
                 id: referral._id.toString(),
                 referredUserId: referral.referredId,
                 status: referral.status.toLowerCase(),
                 date: referral.dateCreated,
-                details: `Referred user ${referredUser?.username || referral.referredId}`,
+                details: `Referred user ${referredUsername}`,
                 amount: 0.5
             };
-        }));
+        });
 
         res.json({ success: true, referrals: formattedReferrals });
     } catch (error) {

@@ -82,6 +82,14 @@ class AdminManager {
             await this.handleSellDecline(msg, match);
         });
 
+        this.bot.onText(/\/recreate_sell (.+)/, async (msg, match) => {
+            await this.handleRecreateSellOrder(msg, match);
+        });
+
+        this.bot.onText(/\/recreate_buy (.+)/, async (msg, match) => {
+            await this.handleRecreateBuyOrder(msg, match);
+        });
+
         this.bot.onText(/\/users/, async (msg) => {
             await this.handleListUsers(msg);
         });
@@ -470,7 +478,8 @@ class AdminManager {
 
         const searchTerm = match[1];
         try {
-            const order = await SellOrder.findOne({
+            // Search in both buy and sell orders
+            let order = await SellOrder.findOne({
                 $or: [
                     { id: searchTerm },
                     { telegramId: searchTerm },
@@ -478,15 +487,35 @@ class AdminManager {
                 ]
             });
 
+            let orderType = 'sell';
+            if (!order) {
+                order = await BuyOrder.findOne({
+                    $or: [
+                        { id: searchTerm },
+                        { telegramId: searchTerm },
+                        { username: searchTerm }
+                    ]
+                });
+                orderType = 'buy';
+            }
+
             if (!order) {
                 await this.bot.sendMessage(msg.chat.id, "❌ Order not found");
                 return;
             }
 
-            const message = `🔍 Order Found:\n\n` +
+            const message = `🔍 ${orderType.toUpperCase()} Order Found:\n\n` +
                 `ID: ${order.id}\n` +
                 `User: ${order.username || 'Unknown'} (${order.telegramId})\n` +
-                `Stars: ${order.stars}\n` +
+                `Type: ${orderType.toUpperCase()}\n` +
+                `${orderType === 'buy' ? 
+                    (order.isPremium ? 
+                        `Premium Duration: ${order.premiumDuration} months\n` :
+                        `Stars: ${order.stars}\n`
+                    ) : 
+                    `Stars: ${order.stars}\n`
+                }` +
+                `Amount: ${order.amount || 'N/A'} USDT\n` +
                 `Status: ${order.status}\n` +
                 `Created: ${order.dateCreated}`;
 
@@ -531,27 +560,26 @@ class AdminManager {
         );
         
         try {
-            const userSuspensionNotice = `**ACCOUNT NOTICE**\n\n` +
+            const userSuspensionNotice = `ACCOUNT NOTICE\n\n` +
                 `We've detected unusual account activities that violate our terms of service.\n\n` +
-                `**Account Status**: Temporarily Restricted\n` +
-                `**Effective Date**: ${new Date().toLocaleDateString()}\n\n` +
+                `Account Status: Temporarily Restricted\n` +
+                `Effective Date: ${new Date().toLocaleDateString()}\n\n` +
                 `During this time, you will not be able to place orders until the restriction period ends.\n\n` +
                 `If you believe this is an error, please contact our support team.`;
             
-            await this.bot.sendMessage(userId, userSuspensionNotice, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(userId, userSuspensionNotice);
         } catch (error) {
             console.error('Suspension notification delivery failed:', error);
         }
         
-        const adminSummary = `✅ **Account Ban Applied**\n\n` +
-            `**Target Account**: ${userId}\n` +
-            `**Suspension Type**: Indefinite\n` +
-            `**Reason**: Rule violation\n` +
-            `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
-            `**Timestamp**: ${new Date().toLocaleString()}`;
+        const adminSummary = `✅ Account Ban Applied\n\n` +
+            `Target Account: ${userId}\n` +
+            `Suspension Type: Indefinite\n` +
+            `Reason: Rule violation\n` +
+            `Authorized By: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
+            `Timestamp: ${new Date().toLocaleString()}`;
         
         await this.bot.sendMessage(msg.chat.id, adminSummary, {
-            parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
         });
     }
@@ -1572,6 +1600,64 @@ class AdminManager {
             await this.bot.answerCallbackQuery(query.id, { text: errorMsg });
         } finally {
             session.endSession();
+        }
+    }
+
+    async handleRecreateSellOrder(msg, match) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ Access Denied');
+        }
+
+        const orderId = match[1].trim();
+        const chatId = msg.chat.id;
+
+        try {
+            const order = await SellOrder.findOne({ id: orderId });
+            if (!order) {
+                return this.bot.sendMessage(chatId, "❌ Sell order not found");
+            }
+
+            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            await this.bot.sendMessage(order.telegramId, userOrderDetails);
+
+            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            await this.bot.sendMessage(chatId, adminOrderDetails, {
+                reply_markup: {
+                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${order.id}_${chatId}` }]]
+                }
+            });
+        } catch (error) {
+            console.error('Error recreating sell order:', error);
+            await this.bot.sendMessage(chatId, "❌ Error recreating sell order");
+        }
+    }
+
+    async handleRecreateBuyOrder(msg, match) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ Access Denied');
+        }
+
+        const orderId = match[1].trim();
+        const chatId = msg.chat.id;
+
+        try {
+            const order = await BuyOrder.findOne({ id: orderId });
+            if (!order) {
+                return this.bot.sendMessage(chatId, "❌ Buy order not found");
+            }
+
+            const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            await this.bot.sendMessage(order.telegramId, userOrderDetails);
+
+            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            await this.bot.sendMessage(chatId, adminOrderDetails, {
+                reply_markup: {
+                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${order.id}_${chatId}` }]]
+                }
+            });
+        } catch (error) {
+            console.error('Error recreating buy order:', error);
+            await this.bot.sendMessage(chatId, "❌ Error recreating buy order");
         }
     }
 }
