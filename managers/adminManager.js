@@ -560,27 +560,26 @@ class AdminManager {
         );
         
         try {
-            const userSuspensionNotice = `**ACCOUNT NOTICE**\n\n` +
+            const userSuspensionNotice = `ACCOUNT NOTICE\n\n` +
                 `We've detected unusual account activities that violate our terms of service.\n\n` +
-                `**Account Status**: Temporarily Restricted\n` +
-                `**Effective Date**: ${new Date().toLocaleDateString()}\n\n` +
+                `Account Status: Temporarily Restricted\n` +
+                `Effective Date: ${new Date().toLocaleDateString()}\n\n` +
                 `During this time, you will not be able to place orders until the restriction period ends.\n\n` +
                 `If you believe this is an error, please contact our support team.`;
             
-            await this.bot.sendMessage(userId, userSuspensionNotice, { parse_mode: 'Markdown' });
+            await this.bot.sendMessage(userId, userSuspensionNotice);
         } catch (error) {
             console.error('Suspension notification delivery failed:', error);
         }
         
-        const adminSummary = `✅ **Account Ban Applied**\n\n` +
-            `**Target Account**: ${userId}\n` +
-            `**Suspension Type**: Indefinite\n` +
-            `**Reason**: Rule violation\n` +
-            `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
-            `**Timestamp**: ${new Date().toLocaleString()}`;
+        const adminSummary = `✅ Account Ban Applied\n\n` +
+            `Target Account: ${userId}\n` +
+            `Suspension Type: Indefinite\n` +
+            `Reason: Rule violation\n` +
+            `Authorized By: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
+            `Timestamp: ${new Date().toLocaleString()}`;
         
         await this.bot.sendMessage(msg.chat.id, adminSummary, {
-            parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
         });
     }

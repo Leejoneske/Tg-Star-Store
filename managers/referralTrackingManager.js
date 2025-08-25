@@ -9,12 +9,25 @@ class ReferralTrackingManager {
     // Track stars for referral activation
     async trackStars(userId, stars, type) {
         try {
-            const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
+            // Validate inputs
+            if (!userId || !type || (type !== 'buy' && type !== 'sell')) {
+                console.error('Invalid parameters for trackStars:', { userId, stars, type });
+                return;
+            }
+            
+            const userIdStr = userId?.toString() || '';
+            if (!userIdStr) {
+                console.error('Invalid userId for trackStars:', userId);
+                return;
+            }
+            
+            const tracker = await ReferralTracker.findOne({ referredUserId: userIdStr });
             if (!tracker) return;
 
             // Update star counts based on transaction type
-            if (type === 'buy') tracker.totalBoughtStars += stars || 0;
-            if (type === 'sell') tracker.totalSoldStars += stars || 0;
+            const starCount = parseInt(stars) || 0;
+            if (type === 'buy') tracker.totalBoughtStars += starCount;
+            if (type === 'sell') tracker.totalSoldStars += starCount;
 
             const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
             
@@ -32,7 +45,19 @@ class ReferralTrackingManager {
     // Track premium activation for referral
     async trackPremiumActivation(userId) {
         try {
-            const tracker = await ReferralTracker.findOne({ referredUserId: userId.toString() });
+            // Validate input
+            if (!userId) {
+                console.error('Invalid userId for trackPremiumActivation:', userId);
+                return;
+            }
+            
+            const userIdStr = userId?.toString() || '';
+            if (!userIdStr) {
+                console.error('Invalid userId string for trackPremiumActivation:', userId);
+                return;
+            }
+            
+            const tracker = await ReferralTracker.findOne({ referredUserId: userIdStr });
             if (!tracker) return;
 
             if (!tracker.premiumActivated) {
@@ -69,11 +94,11 @@ class ReferralTrackingManager {
                 });
             }
 
-            // Format detailed admin notification
+            // Format detailed admin notification (without Markdown to avoid formatting issues)
             const adminMessage = `🎉 REFERRAL ACTIVATED!\n\n` +
                 `🔗 Referral ID: ${tracker.referral}\n` +
-                `👤 Referrer: @${referrer?.username || 'unknown'} (ID: ${tracker.referrerUserId})\n` +
-                `👥 Referred: @${referred?.username || tracker.referredUsername || 'unknown'} (ID: ${tracker.referredUserId})\n` +
+                `👤 Referrer: ${referrer?.username ? `@${referrer.username}` : 'unknown'} (ID: ${tracker.referrerUserId})\n` +
+                `👥 Referred: ${referred?.username ? `@${referred.username}` : tracker.referredUsername || 'unknown'} (ID: ${tracker.referredUserId})\n` +
                 `⭐ Total Stars Bought: ${tracker.totalBoughtStars}\n` +
                 `⭐ Total Stars Sold: ${tracker.totalSoldStars}\n` +
                 `🎖️ Premium Activated: ${tracker.premiumActivated ? 'Yes' : 'No'}\n` +
@@ -84,7 +109,6 @@ class ReferralTrackingManager {
             for (const adminId of this.adminIds) {
                 try {
                     await this.bot.sendMessage(adminId, adminMessage, {
-                        parse_mode: 'Markdown',
                         disable_web_page_preview: true
                     });
                 } catch (err) {
@@ -106,12 +130,20 @@ class ReferralTrackingManager {
     // Create referral tracker when user starts with referral
     async createReferralTracker(referrerUserId, referredUserId, referredUsername) {
         try {
-            const existing = await ReferralTracker.findOne({ referredUserId: referredUserId.toString() });
+            // Ensure IDs are strings and handle potential null/undefined values
+            const referrerUserIdStr = referrerUserId?.toString() || '';
+            const referredUserIdStr = referredUserId?.toString() || '';
+            
+            if (!referrerUserIdStr || !referredUserIdStr) {
+                throw new Error('Invalid user IDs provided');
+            }
+            
+            const existing = await ReferralTracker.findOne({ referredUserId: referredUserIdStr });
             if (existing) return existing;
 
             const referral = await Referral.create({
-                referrerId: referrerUserId,
-                referredId: referredUserId.toString(),
+                referrerId: referrerUserIdStr,
+                referredId: referredUserIdStr,
                 referredUsername,
                 status: 'pending',
                 dateCreated: new Date()
@@ -119,14 +151,14 @@ class ReferralTrackingManager {
             
             const tracker = await ReferralTracker.create({
                 referral: referral._id,
-                referrerUserId,
-                referredUserId: referredUserId.toString(),
+                referrerUserId: referrerUserIdStr,
+                referredUserId: referredUserIdStr,
                 referredUsername,
                 status: 'pending',
                 dateReferred: new Date()
             });
 
-            await this.bot.sendMessage(referrerUserId, `🎉 Someone used your referral link and joined StarStore!`);
+            await this.bot.sendMessage(referrerUserIdStr, `🎉 Someone used your referral link and joined StarStore!`);
             
             return tracker;
         } catch (error) {
