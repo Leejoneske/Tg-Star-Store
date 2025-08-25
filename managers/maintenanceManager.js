@@ -12,6 +12,7 @@ class MaintenanceManager {
         // Start all maintenance jobs
         this.startWarningCleanup();
         this.startOrderCleanup();
+        this.startExpiredSellOrderCleanup();
         this.startUserCleanup();
         this.startReferralCleanup();
         this.startDailyReport();
@@ -82,6 +83,43 @@ class MaintenanceManager {
                 console.error('Error in order cleanup:', error);
             }
         }, 24 * 60 * 60 * 1000); // Daily
+    }
+
+    // Cleanup expired sell orders (expired payment sessions)
+    startExpiredSellOrderCleanup() {
+        setInterval(async () => {
+            try {
+                const expiredOrders = await SellOrder.find({
+                    status: 'pending',
+                    sessionExpiry: { $lt: new Date() }
+                });
+                
+                if (expiredOrders.length > 0) {
+                    console.log(`⏰ Cleaning up ${expiredOrders.length} expired sell orders`);
+                    
+                    for (const order of expiredOrders) {
+                        // Update order status to expired
+                        order.status = 'expired';
+                        await order.save();
+                        
+                        // Notify user about expired order
+                        try {
+                            await this.bot.sendMessage(order.telegramId, 
+                                `⏰ Your sell order #${order.id} has expired.\n\n` +
+                                `The payment session has timed out. Please create a new order if you still want to sell your stars.`
+                            );
+                        } catch (error) {
+                            console.error(`Failed to notify user ${order.telegramId} about expired order:`, error);
+                        }
+                    }
+                    
+                    // Log cleanup summary
+                    console.log(`✅ Cleaned up ${expiredOrders.length} expired sell orders`);
+                }
+            } catch (error) {
+                console.error('Error in expired sell order cleanup:', error);
+            }
+        }, 15 * 60 * 1000); // Every 15 minutes
     }
 
     // Cleanup inactive users (no activity for 90 days)

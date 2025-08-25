@@ -314,6 +314,106 @@ function createOrderRoutes(bot) {
 		}
 	});
 
+	// Get comprehensive order history for a user (both buy and sell orders)
+	router.get('/order-history/:userId', async (req, res) => {
+		try {
+			const { userId } = req.params;
+			
+			// Get both buy and sell orders for the user
+			const buyOrders = await BuyOrder.find({ telegramId: userId })
+				.sort({ dateCreated: -1 })
+				.lean();
+			
+			const sellOrders = await SellOrder.find({ telegramId: userId })
+				.sort({ dateCreated: -1 })
+				.lean();
+
+			// Combine and format the data
+			const transactions = [
+				...buyOrders.map(order => ({
+					id: order.id,
+					type: 'Buy Stars',
+					amount: order.stars,
+					status: order.status.toLowerCase(),
+					date: order.dateCreated,
+					details: order.isPremium ? 
+						`Premium order for ${order.premiumDuration} months` : 
+						`Buy order for ${order.stars} stars`,
+					usdtValue: order.amount,
+					isPremium: order.isPremium,
+					premiumDuration: order.premiumDuration
+				})),
+				...sellOrders.map(order => ({
+					id: order.id,
+					type: 'Sell Stars',
+					amount: order.stars,
+					status: order.status.toLowerCase(),
+					date: order.dateCreated,
+					details: `Sell order for ${order.stars} stars`,
+					usdtValue: null 
+				}))
+			];
+
+			res.json({ success: true, transactions });
+		} catch (error) {
+			console.error('Error fetching order history:', error);
+			res.status(500).json({ success: false, error: 'Internal server error' });
+		}
+	});
+
+	// Get order details by order ID
+	router.get('/order-details/:orderId', async (req, res) => {
+		try {
+			const { orderId } = req.params;
+			
+			// Try to find the order in both buy and sell orders
+			let order = await BuyOrder.findOne({ id: orderId }).lean();
+			let orderType = 'buy';
+			
+			if (!order) {
+				order = await SellOrder.findOne({ id: orderId }).lean();
+				orderType = 'sell';
+			}
+			
+			if (!order) {
+				return res.status(404).json({ success: false, error: 'Order not found' });
+			}
+
+			const orderDetails = {
+				id: order.id,
+				type: orderType,
+				telegramId: order.telegramId,
+				username: order.username,
+				status: order.status,
+				dateCreated: order.dateCreated,
+				dateCompleted: order.dateCompleted,
+				dateDeclined: order.dateDeclined,
+				adminMessages: order.adminMessages || []
+			};
+
+			if (orderType === 'buy') {
+				orderDetails.amount = order.amount;
+				orderDetails.stars = order.stars;
+				orderDetails.isPremium = order.isPremium;
+				orderDetails.premiumDuration = order.premiumDuration;
+				orderDetails.walletAddress = order.walletAddress;
+				orderDetails.recipients = order.recipients;
+				orderDetails.quantity = order.quantity;
+			} else {
+				orderDetails.stars = order.stars;
+				orderDetails.walletAddress = order.walletAddress;
+				orderDetails.memoTag = order.memoTag;
+				orderDetails.telegram_payment_charge_id = order.telegram_payment_charge_id;
+				orderDetails.reversible = order.reversible;
+			}
+
+			res.json({ success: true, order: orderDetails });
+		} catch (error) {
+			console.error('Error fetching order details:', error);
+			res.status(500).json({ success: false, error: 'Internal server error' });
+		}
+	});
+
 	return router;
 }
 
