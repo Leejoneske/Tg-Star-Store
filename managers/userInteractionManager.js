@@ -1,9 +1,11 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { User, BuyOrder, SellOrder, Referral } = require('../models');
+const ReferralTrackingManager = require('./referralTrackingManager');
 
 class UserInteractionManager {
     constructor(bot) {
         this.bot = bot;
+        this.referralTrackingManager = new ReferralTrackingManager(bot, process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : []);
         this.setupUserHandlers();
     }
 
@@ -81,15 +83,8 @@ class UserInteractionManager {
                 await user.save();
             }
 
-            // Create referral record
-            const referral = new Referral({
-                referrerId: referrerId,
-                referredId: userId,
-                referredUsername: username,
-                status: 'pending',
-                dateCreated: new Date()
-            });
-            await referral.save();
+            // Create referral record and tracker using ReferralTrackingManager
+            await this.referralTrackingManager.createReferralTracker(referrerId, userId, username);
 
             // Notify referrer
             try {

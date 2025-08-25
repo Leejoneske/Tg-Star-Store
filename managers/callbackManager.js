@@ -1,12 +1,14 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { SellOrder, BuyOrder, User, Reversal } = require('../models');
 const { getUserDisplayName } = require('../utils/helpers');
+const ReferralTrackingManager = require('./referralTrackingManager');
 const axios = require('axios');
 
 class CallbackManager {
     constructor(bot, adminIds) {
         this.bot = bot;
         this.adminIds = adminIds;
+        this.referralTrackingManager = new ReferralTrackingManager(bot, adminIds);
         this.setupCallbackHandlers();
     }
 
@@ -80,6 +82,13 @@ class CallbackManager {
                 `Status: Completed\n\n` +
                 `Your stars have been sent to your Telegram account.`
             );
+
+            // Track referral activity
+            try {
+                await this.referralTrackingManager.trackStars(order.telegramId, order.stars, 'sell');
+            } catch (referralError) {
+                console.error('Failed to track referral for sell order:', referralError);
+            }
 
             // Send notification
             try {
