@@ -318,7 +318,12 @@ function createOrderRoutes(bot) {
 	router.get('/order-history/:userId', async (req, res) => {
 		try {
 			const { userId } = req.params;
-			
+			const authHeader = req.headers['authorization'] || '';
+			const requesterId = req.headers['x-telegram-id'] || req.query.telegramId;
+			// Require either matching owner or valid API key (admin)
+			if (requesterId?.toString() !== userId.toString() && authHeader !== process.env.API_KEY) {
+				return res.status(403).json({ success: false, error: 'Forbidden' });
+			}
 			// Get both buy and sell orders for the user
 			const buyOrders = await BuyOrder.find({ telegramId: userId })
 				.sort({ dateCreated: -1 })
@@ -328,13 +333,13 @@ function createOrderRoutes(bot) {
 				.sort({ dateCreated: -1 })
 				.lean();
 
-			// Combine and format the data
+			// Combine and format the data (redacted)
 			const transactions = [
 				...buyOrders.map(order => ({
 					id: order.id,
 					type: 'Buy Stars',
 					amount: order.stars,
-					status: order.status.toLowerCase(),
+					status: order.status?.toLowerCase(),
 					date: order.dateCreated,
 					details: order.isPremium ? 
 						`Premium order for ${order.premiumDuration} months` : 
@@ -347,7 +352,7 @@ function createOrderRoutes(bot) {
 					id: order.id,
 					type: 'Sell Stars',
 					amount: order.stars,
-					status: order.status.toLowerCase(),
+					status: order.status?.toLowerCase(),
 					date: order.dateCreated,
 					details: `Sell order for ${order.stars} stars`,
 					usdtValue: null 
@@ -365,6 +370,8 @@ function createOrderRoutes(bot) {
 	router.get('/order-details/:orderId', async (req, res) => {
 		try {
 			const { orderId } = req.params;
+			const authHeader = req.headers['authorization'] || '';
+			const requesterId = req.headers['x-telegram-id'] || req.query.telegramId;
 			
 			// Try to find the order in both buy and sell orders
 			let order = await BuyOrder.findOne({ id: orderId }).lean();
@@ -379,7 +386,13 @@ function createOrderRoutes(bot) {
 				return res.status(404).json({ success: false, error: 'Order not found' });
 			}
 
-			const orderDetails = {
+			// Authorization: owner or admin API key
+			if (requesterId?.toString() !== order.telegramId?.toString() && authHeader !== process.env.API_KEY) {
+				return res.status(403).json({ success: false, error: 'Forbidden' });
+			}
+
+			// Redact sensitive fields
+			const redacted = {
 				id: order.id,
 				type: orderType,
 				telegramId: order.telegramId,
@@ -387,27 +400,21 @@ function createOrderRoutes(bot) {
 				status: order.status,
 				dateCreated: order.dateCreated,
 				dateCompleted: order.dateCompleted,
-				dateDeclined: order.dateDeclined,
-				adminMessages: order.adminMessages || []
+				dateDeclined: order.dateDeclined
 			};
 
 			if (orderType === 'buy') {
-				orderDetails.amount = order.amount;
-				orderDetails.stars = order.stars;
-				orderDetails.isPremium = order.isPremium;
-				orderDetails.premiumDuration = order.premiumDuration;
-				orderDetails.walletAddress = order.walletAddress;
-				orderDetails.recipients = order.recipients;
-				orderDetails.quantity = order.quantity;
+				redacted.amount = order.amount;
+				redacted.stars = order.stars;
+				redacted.isPremium = order.isPremium;
+				redacted.premiumDuration = order.premiumDuration;
+				// walletAddress, recipients, adminMessages intentionally omitted
 			} else {
-				orderDetails.stars = order.stars;
-				orderDetails.walletAddress = order.walletAddress;
-				orderDetails.memoTag = order.memoTag;
-				orderDetails.telegram_payment_charge_id = order.telegram_payment_charge_id;
-				orderDetails.reversible = order.reversible;
+				redacted.stars = order.stars;
+				// walletAddress, memoTag, telegram_payment_charge_id, adminMessages omitted
 			}
 
-			res.json({ success: true, order: orderDetails });
+			res.json({ success: true, order: redacted });
 		} catch (error) {
 			console.error('Error fetching order details:', error);
 			res.status(500).json({ success: false, error: 'Internal server error' });

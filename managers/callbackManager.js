@@ -2,6 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const { SellOrder, BuyOrder, User, Reversal } = require('../models');
 const { getUserDisplayName } = require('../utils/helpers');
 const ReferralTrackingManager = require('./referralTrackingManager');
+const NotificationManager = require('./notificationManager');
 const axios = require('axios');
 
 class CallbackManager {
@@ -9,6 +10,7 @@ class CallbackManager {
         this.bot = bot;
         this.adminIds = adminIds;
         this.referralTrackingManager = new ReferralTrackingManager(bot, adminIds);
+        this.notificationManager = new NotificationManager(this.bot, this.adminIds);
         this.setupCallbackHandlers();
     }
 
@@ -96,9 +98,7 @@ class CallbackManager {
 
             // Send notification
             try {
-                const notificationManager = require('./notificationManager');
-                const notificationInstance = new notificationManager(this.bot, this.adminIds);
-                await notificationInstance.sendOrderCompletedNotification(order.telegramId, order.id, order.stars);
+                await this.notificationManager.sendOrderCompletedNotification(order.telegramId, order.id, order.stars);
             } catch (notificationError) {
                 console.error('Failed to send order completion notification:', notificationError);
             }
@@ -264,9 +264,7 @@ class CallbackManager {
 
             // Send notification
             try {
-                const notificationManager = require('./notificationManager');
-                const notificationInstance = new notificationManager(this.bot, this.adminIds);
-                await notificationInstance.sendOrderCompletedNotification(order.telegramId, order.id, order.stars);
+                await this.notificationManager.sendOrderCompletedNotification(order.telegramId, order.id, order.stars);
             } catch (notificationError) {
                 console.error('Failed to send order completion notification:', notificationError);
             }
