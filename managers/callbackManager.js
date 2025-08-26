@@ -561,8 +561,10 @@ class CallbackManager {
             
             // Only update request if it exists and was found
             if (request) {
-                request.status = 'processing';
+                // Use terminal failure status instead of 'processing'
+                request.status = 'failed';
                 request.errorMessage = refundError.message;
+                request.processedAt = new Date();
                 await request.save();
             }
             

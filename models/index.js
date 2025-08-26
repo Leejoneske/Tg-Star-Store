@@ -201,7 +201,7 @@ const reversalSchema = new mongoose.Schema({
     username: String,
     stars: { type: Number, required: true },
     reason: { type: String, required: true },
-    status: { type: String, enum: ['pending', 'processing', 'completed', 'declined'], default: 'pending' },
+    status: { type: String, enum: ['pending', 'processing', 'completed', 'declined', 'failed'], default: 'pending' },
     adminId: String,
     adminUsername: String,
     processedAt: Date,
@@ -209,7 +209,11 @@ const reversalSchema = new mongoose.Schema({
     adminMessages: [{
         adminId: String,
         messageId: Number,
-        messageType: String
+        originalText: String,
+        messageType: {
+            type: String,
+            enum: ['order', 'refund', 'reversal']
+        }
     }],
     errorMessage: String
 });
