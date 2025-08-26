@@ -1130,7 +1130,7 @@ class AdminManager {
         }
 
         const orderDetails = match[1].split(' ');
-        if (orderDetails.length < 4) {
+        if (orderDetails.length < 3) {
             return this.bot.sendMessage(msg.chat.id, "Usage: /cso- <stars> <amount> <wallet_address>");
         }
 
@@ -1192,7 +1192,7 @@ class AdminManager {
         }
 
         const orderDetails = match[1].split(' ');
-        if (orderDetails.length < 4) {
+        if (orderDetails.length < 3) {
             return this.bot.sendMessage(msg.chat.id, "Usage: /cbo- <stars> <amount> <wallet_address>");
         }
 
@@ -1278,13 +1278,13 @@ class AdminManager {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const orders = await SellOrder.find({ telegramId: telegramId, dateCreated: { $gte: thirtyDaysAgo } });
-        if (orders.length > 0) {
+        const sellOrders = await SellOrder.find({ telegramId: telegramId, dateCreated: { $gte: thirtyDaysAgo } });
+        if (sellOrders.length > 0) {
             return `Has active sell orders in the last 30 days.`;
         }
 
-        const orders = await BuyOrder.find({ telegramId: telegramId, dateCreated: { $gte: thirtyDaysAgo } });
-        if (orders.length > 0) {
+        const buyOrders = await BuyOrder.find({ telegramId: telegramId, dateCreated: { $gte: thirtyDaysAgo } });
+        if (buyOrders.length > 0) {
             return `Has active buy orders in the last 30 days.`;
         }
 
