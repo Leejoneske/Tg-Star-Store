@@ -3,6 +3,7 @@ const fetch = require('node-fetch');
 const zlib = require('zlib');
 const { Sticker } = require('../models');
 const { trackUserActivity } = require('../middleware/userActivity');
+const { requireAdminAuth, logAdminAction } = require('../middleware/adminAuth');
 
 const router = express.Router();
 
@@ -250,14 +251,8 @@ router.get('/sticker/:id/file', trackUserActivity, async (req, res) => {
 });
 
 // Get sticker processing status (admin only)
-router.get('/stickers/status', trackUserActivity, async (req, res) => {
+router.get('/stickers/status', requireAdminAuth, logAdminAction, trackUserActivity, async (req, res) => {
   try {
-    // Admin authorization check
-    const authHeader = req.headers['authorization'] || '';
-    if (authHeader !== process.env.API_KEY) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     // This would need to be passed from the StickerManager
     // For now, return basic stats
     const [total, processing] = await Promise.all([
@@ -277,14 +272,8 @@ router.get('/stickers/status', trackUserActivity, async (req, res) => {
 });
 
 // Get sticker processing queue status (admin only)
-router.get('/stickers/queue-status', trackUserActivity, async (req, res) => {
+router.get('/stickers/queue-status', requireAdminAuth, logAdminAction, trackUserActivity, async (req, res) => {
   try {
-    // Admin authorization check
-    const authHeader = req.headers['authorization'] || '';
-    if (authHeader !== process.env.API_KEY) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     // This would need to be passed from the StickerManager
     // For now, return basic queue health info
     const [total, processing] = await Promise.all([

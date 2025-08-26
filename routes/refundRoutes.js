@@ -2,54 +2,34 @@ const express = require('express');
 const { SellOrder, Reversal } = require('../models');
 const { requireAdminAuth, adminRateLimit, logAdminAction } = require('../middleware/adminAuth');
 const { trackUserActivity } = require('../middleware/userActivity');
-const { 
-    validateTelegramId, 
-    validateTransactionId, 
-    validateOrderId,
-    maskSensitiveData 
-} = require('../utils/validation');
+const { validateTelegramId, validateTransactionId, validateOrderId, maskSensitiveData } = require('../utils/validation');
 const axios = require('axios');
 
 const router = express.Router();
 
-// Apply rate limiting to all refund routes
+// Apply rate limiting to all routes
 router.use(adminRateLimit);
 
-// Get refund requests (admin only)
+// Get all refund requests (admin only)
 router.get('/refund-requests', requireAdminAuth, logAdminAction, trackUserActivity, async (req, res) => {
     try {
-        const { status, limit = 50, offset = 0 } = req.query;
-        
-        // Validate query parameters
-        const limitNum = parseInt(limit, 10);
-        const offsetNum = parseInt(offset, 10);
-        
-        if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Invalid limit parameter (1-100)' 
-            });
-        }
-        
-        if (isNaN(offsetNum) || offsetNum < 0) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Invalid offset parameter' 
-            });
-        }
-        
-        const filter = {};
-        if (status && ['pending', 'approved', 'rejected', 'processing', 'expired'].includes(status)) {
-            filter.status = status;
+        const { limit = 50, offset = 0, status } = req.query;
+        const limitNum = Math.min(parseInt(limit), 100);
+        const offsetNum = Math.max(parseInt(offset), 0);
+
+        const query = {};
+        if (status) {
+            query.status = status;
         }
 
-        const requests = await Reversal.find(filter)
-            .sort({ createdAt: -1 })
-            .limit(limitNum)
-            .skip(offsetNum)
-            .lean();
-
-        const total = await Reversal.countDocuments(filter);
+        const [requests, total] = await Promise.all([
+            Reversal.find(query)
+                .sort({ createdAt: -1 })
+                .skip(offsetNum)
+                .limit(limitNum)
+                .lean(),
+            Reversal.countDocuments(query)
+        ]);
 
         res.json({
             success: true,
@@ -62,26 +42,22 @@ router.get('/refund-requests', requireAdminAuth, logAdminAction, trackUserActivi
             }
         });
     } catch (error) {
-        console.error('Error fetching refund requests:', error);
+        console.error('Refund requests error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 
-// Get refund request by ID
+// Get specific refund request (admin only)
 router.get('/refund-requests/:requestId', requireAdminAuth, logAdminAction, trackUserActivity, async (req, res) => {
     try {
         const { requestId } = req.params;
+        const validation = validateOrderId(requestId);
         
-        // Validate order ID
-        const orderValidation = validateOrderId(requestId);
-        if (!orderValidation.valid) {
-            return res.status(400).json({ 
-                success: false, 
-                error: orderValidation.error 
-            });
+        if (!validation.valid) {
+            return res.status(400).json({ success: false, error: validation.error });
         }
-        
-        const request = await Reversal.findOne({ orderId: orderValidation.orderId }).lean();
+
+        const request = await Reversal.findOne({ orderId: validation.orderId }).lean();
         
         if (!request) {
             return res.status(404).json({ success: false, error: 'Refund request not found' });
@@ -89,77 +65,83 @@ router.get('/refund-requests/:requestId', requireAdminAuth, logAdminAction, trac
 
         res.json({ success: true, request });
     } catch (error) {
-        console.error('Error fetching refund request:', error);
+        console.error('Refund request error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 
-// Process refund (admin only)
+// Process refund request (admin only)
 router.post('/refund-requests/:requestId/process', requireAdminAuth, logAdminAction, trackUserActivity, async (req, res) => {
     try {
         const { requestId } = req.params;
-        const { action } = req.body; // 'approve' or 'reject'
+        const { action, reason } = req.body; // action: 'approve' or 'reject'
         
-        // Validate order ID
-        const orderValidation = validateOrderId(requestId);
-        if (!orderValidation.valid) {
-            return res.status(400).json({ 
-                success: false, 
-                error: orderValidation.error 
-            });
-        }
-        
-        if (!['approve', 'reject'].includes(action)) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Invalid action. Must be "approve" or "reject"' 
-            });
+        const validation = validateOrderId(requestId);
+        if (!validation.valid) {
+            return res.status(400).json({ success: false, error: validation.error });
         }
 
-        const request = await Reversal.findOne({ orderId: orderValidation.orderId });
-        
+        if (!['approve', 'reject'].includes(action)) {
+            return res.status(400).json({ success: false, error: 'Invalid action. Use "approve" or "reject"' });
+        }
+
+        const request = await Reversal.findOne({ orderId: validation.orderId });
         if (!request) {
             return res.status(404).json({ success: false, error: 'Refund request not found' });
         }
 
         if (request.status !== 'pending') {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Request already processed' 
-            });
+            return res.status(400).json({ success: false, error: 'Refund request already processed' });
         }
 
+        // Process the refund
         if (action === 'approve') {
-            // Process the refund
-            const result = await processRefund(orderValidation.orderId);
-            
-            if (result.success) {
-                request.status = 'approved';
-                request.processedAt = new Date();
-                await request.save();
+            // Call Telegram API to process refund
+            const refundPayload = {
+                user_id: parseInt(request.telegramId),
+                telegram_payment_charge_id: request.orderId
+            };
 
-                res.json({
-                    success: true,
-                    message: 'Refund processed successfully',
-                    chargeId: result.chargeId,
-                    alreadyRefunded: result.alreadyRefunded
-                });
-            } else {
-                res.status(500).json({ success: false, error: 'Failed to process refund' });
+            console.log('Processing refund:', maskSensitiveData({ 
+                orderId: request.orderId, 
+                userId: request.telegramId,
+                adminId: req.isAdmin ? 'admin' : 'unknown'
+            }));
+
+            const { data } = await axios.post(
+                `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/refundStarPayment`,
+                refundPayload,
+                { 
+                    timeout: 15000,
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            if (!data.ok) {
+                throw new Error(data.description || 'Refund API call failed');
             }
+
+            request.status = 'approved';
+            request.processedAt = new Date();
+            request.processedBy = req.isAdmin ? 'admin' : 'unknown';
+            request.adminReason = reason;
         } else {
-            // Reject the refund
             request.status = 'rejected';
             request.processedAt = new Date();
-            await request.save();
-
-            res.json({
-                success: true,
-                message: 'Refund request rejected'
-            });
+            request.processedBy = req.isAdmin ? 'admin' : 'unknown';
+            request.adminReason = reason;
         }
+
+        await request.save();
+
+        res.json({ 
+            success: true, 
+            message: `Refund request ${action}ed successfully`,
+            request 
+        });
+
     } catch (error) {
-        console.error('Error processing refund request:', error);
+        console.error('Refund processing error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
@@ -169,22 +151,14 @@ router.post('/refund-transaction', requireAdminAuth, logAdminAction, trackUserAc
     try {
         const { txId, userId } = req.body;
         
-        // Validate transaction ID
         const txValidation = validateTransactionId(txId);
         if (!txValidation.valid) {
-            return res.status(400).json({ 
-                success: false, 
-                error: txValidation.error 
-            });
+            return res.status(400).json({ success: false, error: txValidation.error });
         }
-        
-        // Validate user ID
+
         const userValidation = validateTelegramId(userId);
         if (!userValidation.valid) {
-            return res.status(400).json({ 
-                success: false, 
-                error: userValidation.error 
-            });
+            return res.status(400).json({ success: false, error: userValidation.error });
         }
 
         const refundPayload = {
@@ -192,9 +166,8 @@ router.post('/refund-transaction', requireAdminAuth, logAdminAction, trackUserAc
             telegram_payment_charge_id: txValidation.txId
         };
 
-        // Log the refund attempt (without sensitive data)
-        console.log('Processing direct refund:', maskSensitiveData({
-            txId: txValidation.txId,
+        console.log('Processing direct refund:', maskSensitiveData({ 
+            txId: txValidation.txId, 
             userId: userValidation.id,
             adminId: req.isAdmin ? 'admin' : 'unknown'
         }));
@@ -204,118 +177,24 @@ router.post('/refund-transaction', requireAdminAuth, logAdminAction, trackUserAc
             refundPayload,
             { 
                 timeout: 15000,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Content-Type': 'application/json' }
             }
         );
 
         if (!data.ok) {
-            if (data.description && data.description.includes('CHARGE_ALREADY_REFUNDED')) {
-                return res.json({
-                    success: true,
-                    message: 'Transaction was already refunded',
-                    alreadyRefunded: true
-                });
-            }
-            throw new Error(data.description || "Refund API call failed");
+            throw new Error(data.description || 'Refund API call failed');
         }
 
-        // Update order if found
-        const order = await SellOrder.findOne({ telegram_payment_charge_id: txValidation.txId });
-        if (order) {
-            order.status = 'refunded';
-            order.dateRefunded = new Date();
-            order.refundData = {
-                requested: true,
-                status: 'processed',
-                processedAt: new Date(),
-                chargeId: txValidation.txId
-            };
-            await order.save();
-        }
-
-        res.json({
-            success: true,
-            message: 'Refund processed successfully',
-            chargeId: txValidation.txId
+        res.json({ 
+            success: true, 
+            message: 'Direct refund processed successfully',
+            txId: txValidation.txId
         });
 
     } catch (error) {
-        console.error('Error processing direct refund:', error.message);
+        console.error('Direct refund error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
-
-// Helper function to process refund
-async function processRefund(orderId) {
-    const session = await require('mongoose').startSession();
-    session.startTransaction();
-
-    try {
-        const order = await SellOrder.findOne({ id: orderId }).session(session);
-        if (!order) throw new Error("Order not found");
-        if (order.status !== 'processing') throw new Error("Order not in processing state");
-        if (!order.telegram_payment_charge_id) throw new Error("Missing payment reference");
-
-        // Validate user ID before processing
-        const userValidation = validateTelegramId(order.telegramId);
-        if (!userValidation.valid) {
-            throw new Error("Invalid user ID in order");
-        }
-
-        const refundPayload = {
-            user_id: userValidation.id,
-            telegram_payment_charge_id: order.telegram_payment_charge_id
-        };
-
-        const { data } = await axios.post(
-            `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/refundStarPayment`,
-            refundPayload,
-            { 
-                timeout: 15000,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-
-        if (!data.ok) {
-            if (data.description && data.description.includes('CHARGE_ALREADY_REFUNDED')) {
-                order.status = 'refunded';
-                order.dateRefunded = new Date();
-                order.refundData = {
-                    requested: true,
-                    status: 'refunded',
-                    processedAt: new Date(),
-                    chargeId: order.telegram_payment_charge_id
-                };
-                await order.save({ session });
-                await session.commitTransaction();
-                return { success: true, chargeId: order.telegram_payment_charge_id, alreadyRefunded: true };
-            }
-            throw new Error(data.description || "Refund API call failed");
-        }
-
-        order.status = 'refunded';
-        order.dateRefunded = new Date();
-        order.refundData = {
-            requested: true,
-            status: 'refunded',
-            processedAt: new Date(),
-            chargeId: order.telegram_payment_charge_id
-        };
-        await order.save({ session });
-        await session.commitTransaction();
-        return { success: true, chargeId: order.telegram_payment_charge_id };
-
-    } catch (error) {
-        await session.abortTransaction();
-        console.error('Refund processing error:', error.message);
-        throw error;
-    } finally {
-        session.endSession();
-    }
-}
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const { BuyOrder, SellOrder, BannedUser } = require('../models');
+const { validateTelegramId } = require('../utils/validation');
 
 function createOrderRoutes(bot) {
 	const router = express.Router();
@@ -36,16 +37,26 @@ function createOrderRoutes(bot) {
 					}
 				],
 				start_parameter: sessionToken?.substring(0, 64)
+			}, {
+				timeout: 10000,
+				headers: {
+					'Content-Type': 'application/json'
+				}
 			});
 			return response.data.result;
 		} catch (error) {
-			throw error;
+			console.error('Telegram invoice creation error:', error);
+			throw new Error('Failed to create Telegram invoice');
 		}
 	}
 
 	const adminIds = (process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 
 	async function resolveUsernames(usernames) {
+		if (!Array.isArray(usernames) || usernames.length === 0) {
+			return [];
+		}
+
 		const sanitized = usernames
 			.map(u => (typeof u === 'string' ? u.trim() : ''))
 			.filter(Boolean)
@@ -59,11 +70,18 @@ function createOrderRoutes(bot) {
 			try {
 				const tgResp = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getChat`, {
 					chat_id: `@${name}`
-				}, { timeout: 8000 });
+				}, { 
+					timeout: 8000,
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				});
 				if (tgResp.data?.ok && tgResp.data.result?.id) {
 					userId = tgResp.data.result.id.toString();
 				}
-			} catch (e) {}
+			} catch (e) {
+				console.error(`Failed to resolve username ${name}:`, e.message);
+			}
 
 			if (!userId) {
 				const dbUser = await require('../models').User.findOne({ username: name });
@@ -104,6 +122,7 @@ function createOrderRoutes(bot) {
 			}
 			res.json({ success: true, walletAddress: walletAddress });
 		} catch (error) {
+			console.error('Wallet address error:', error);
 			res.status(500).json({ success: false, error: 'Internal server error' });
 		}
 	});
@@ -112,15 +131,34 @@ function createOrderRoutes(bot) {
 	router.post('/quote', async (req, res) => {
 		try {
 			const { stars, isPremium, premiumDuration, recipientsCount } = req.body;
+			
+			// Validate input
+			if (isPremium && (!premiumDuration || ![3, 6, 12].includes(premiumDuration))) {
+				return res.status(400).json({ success: false, error: 'Invalid premium duration. Must be 3, 6, or 12 months.' });
+			}
+			
+			if (!isPremium && (!stars || stars < 50)) {
+				return res.status(400).json({ success: false, error: 'Invalid stars amount. Minimum is 50 stars.' });
+			}
+			
 			const unitAmount = calculateAmount({ isPremium: !!isPremium, premiumDuration, stars: isPremium ? null : Number(stars) });
 			if (!unitAmount) {
-				return res.status(400).json({ error: 'Invalid selection. Minimum stars is 50 for custom.' });
+				return res.status(400).json({ success: false, error: 'Invalid selection. Minimum stars is 50 for custom.' });
 			}
+			
 			const qty = Math.max(1, Math.min(5, Number(recipientsCount) || 0));
 			const totalAmount = Number((unitAmount * qty).toFixed(2));
-			return res.json({ success: true, unitAmount, quantity: qty, totalAmount });
-		} catch (e) {
-			return res.status(500).json({ error: 'Failed to compute quote' });
+			
+			return res.json({ 
+				success: true, 
+				unitAmount, 
+				quantity: qty, 
+				totalAmount,
+				currency: 'USDT'
+			});
+		} catch (error) {
+			console.error('Quote calculation error:', error);
+			return res.status(500).json({ success: false, error: 'Failed to compute quote' });
 		}
 	});
 
@@ -129,24 +167,25 @@ function createOrderRoutes(bot) {
 		try {
 			const { usernames } = req.body;
 			if (!Array.isArray(usernames) || usernames.length === 0) {
-				return res.status(400).json({ error: 'No usernames provided' });
+				return res.status(400).json({ success: false, error: 'No usernames provided' });
 			}
 			if (usernames.length > 5) {
-				return res.status(400).json({ error: 'Maximum 5 usernames allowed' });
+				return res.status(400).json({ success: false, error: 'Maximum 5 usernames allowed' });
 			}
 
 			const results = await resolveUsernames(usernames);
 			if (results.length === 0) {
-				return res.status(400).json({ error: 'Invalid usernames' });
+				return res.status(400).json({ success: false, error: 'Invalid usernames' });
 			}
 
 			const validRecipients = results.filter(r => r.valid);
 			if (validRecipients.length !== results.length) {
-				return res.status(400).json({ error: 'Some usernames are invalid', results });
+				return res.status(400).json({ success: false, error: 'Some usernames are invalid', results });
 			}
 			return res.json({ success: true, recipients: validRecipients });
-		} catch (err) {
-			return res.status(500).json({ error: 'Validation failed' });
+		} catch (error) {
+			console.error('Username validation error:', error);
+			return res.status(500).json({ success: false, error: 'Validation failed' });
 		}
 	});
 
@@ -155,30 +194,30 @@ function createOrderRoutes(bot) {
 		try {
 			const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients } = req.body;
 			if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
-				return res.status(400).json({ error: 'Missing required fields' });
+				return res.status(400).json({ success: false, error: 'Missing required fields' });
 			}
 
 			const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
 			if (bannedUser) {
-				return res.status(403).json({ error: 'You are banned from placing orders' });
+				return res.status(403).json({ success: false, error: 'You are banned from placing orders' });
 			}
 
 			const unitAmount = calculateAmount({ isPremium: !!isPremium, premiumDuration, stars: isPremium ? null : Number(stars) });
 			if (!unitAmount) {
-				return res.status(400).json({ error: 'Invalid selection. Minimum stars is 50 for custom.' });
+				return res.status(400).json({ success: false, error: 'Invalid selection. Minimum stars is 50 for custom.' });
 			}
 
 			let validatedRecipients = [];
 			let quantity = 1;
 			if (Array.isArray(recipients) && recipients.length > 0) {
 				if (recipients.length > 5) {
-					return res.status(400).json({ error: 'Maximum 5 recipients allowed' });
+					return res.status(400).json({ success: false, error: 'Maximum 5 recipients allowed' });
 				}
 
 				const results = await resolveUsernames(recipients);
 				const onlyValid = results.filter(r => r.valid);
 				if (onlyValid.length !== results.length) {
-					return res.status(400).json({ error: 'Some usernames are invalid', results });
+					return res.status(400).json({ success: false, error: 'Some usernames are invalid', results });
 				}
 				validatedRecipients = onlyValid;
 				quantity = validatedRecipients.length;
@@ -236,13 +275,16 @@ function createOrderRoutes(bot) {
 				try {
 					const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
 					order.adminMessages.push({ adminId, messageId: message.message_id, originalText: adminMessage });
-				} catch (err) {}
+				} catch (err) {
+					console.error(`Failed to send admin message to ${adminId}:`, err);
+				}
 			}
 
 			await order.save();
 			res.json({ success: true, order });
 		} catch (err) {
-			res.status(500).json({ error: 'Failed to create order' });
+			console.error('Failed to create buy order:', err);
+			res.status(500).json({ success: false, error: 'Failed to create order' });
 		}
 	});
 
@@ -251,17 +293,17 @@ function createOrderRoutes(bot) {
 		try {
 			const { telegramId, username = '', stars, walletAddress, memoTag = '' } = req.body;
 			if (!telegramId || !stars || !walletAddress) {
-				return res.status(400).json({ error: 'Missing required fields' });
+				return res.status(400).json({ success: false, error: 'Missing required fields' });
 			}
 
 			const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
 			if (bannedUser) {
-				return res.status(403).json({ error: 'You are banned from placing orders' });
+				return res.status(403).json({ success: false, error: 'You are banned from placing orders' });
 			}
 
 			const existingOrder = await SellOrder.findOne({ telegramId: telegramId, status: 'pending', sessionExpiry: { $gt: new Date() } });
 			if (existingOrder) {
-				return res.status(409).json({ error: 'You already have a pending order. Please complete or wait for it to expire before creating a new one.', existingOrderId: existingOrder.id });
+				return res.status(409).json({ success: false, error: 'You already have a pending order. Please complete or wait for it to expire before creating a new one.', existingOrderId: existingOrder.id });
 			}
 
 			const sessionToken = generateSessionToken(telegramId);
@@ -286,7 +328,7 @@ function createOrderRoutes(bot) {
 
 			const paymentLink = await createTelegramInvoice(telegramId, order.id, stars, `Purchase of ${stars} Telegram Stars`, sessionToken);
 			if (!paymentLink) {
-				return res.status(500).json({ error: 'Failed to generate payment link' });
+				return res.status(500).json({ success: false, error: 'Failed to generate payment link' });
 			}
 
 			await order.save();
@@ -296,7 +338,8 @@ function createOrderRoutes(bot) {
 
 			res.json({ success: true, order, paymentLink, expiresAt: sessionExpiry });
 		} catch (err) {
-			res.status(500).json({ error: 'Failed to create sell order' });
+			console.error('Failed to create sell order:', err);
+			res.status(500).json({ success: false, error: 'Failed to create sell order' });
 		}
 	});
 
@@ -305,12 +348,13 @@ function createOrderRoutes(bot) {
 		try {
 			const { telegramId } = req.query;
 			if (!telegramId) {
-				return res.status(400).json({ error: 'Missing telegramId' });
+				return res.status(400).json({ success: false, error: 'Missing telegramId' });
 			}
 			const transactions = await SellOrder.find({ telegramId }).sort({ dateCreated: -1 }).limit(3);
 			res.json(transactions);
 		} catch (err) {
-			res.status(500).json({ error: 'Failed to fetch transactions' });
+			console.error('Failed to fetch sell orders:', err);
+			res.status(500).json({ success: false, error: 'Failed to fetch transactions' });
 		}
 	});
 

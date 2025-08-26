@@ -56,6 +56,9 @@
     <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" as="script">
     
+    <!-- API Utility Script -->
+    <script src="/js/api.js"></script>
+
 <style>
     body {
         font-family: 'Inter', sans-serif;
@@ -2135,13 +2138,13 @@ function initCustomStars() {
         }
         
         try {
-            const q = await axios.post('/api/quote', { stars: val, isPremium: false, recipientsCount });
-            if (q.data?.success) {
+            const q = await API.getQuote({ stars: val, isPremium: false, recipientsCount });
+            if (q.success) {
                 const rate = await getRateCached();
-                const ton = rate ? (q.data.totalAmount / rate) : null;
+                const ton = rate ? (q.totalAmount / rate) : null;
                 quoteText.textContent = ton
-                    ? `Total: ${q.data.totalAmount} USDT (~${ton.toFixed(4)} TON) for ${q.data.quantity} ${q.data.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.data.unitAmount} USDT)`
-                    : `Total: ${q.data.totalAmount} USDT for ${q.data.quantity} ${q.data.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.data.unitAmount} USDT)`;
+                    ? `Total: ${q.totalAmount} USDT (~${ton.toFixed(4)} TON) for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.unitAmount} USDT)`
+                    : `Total: ${q.totalAmount} USDT for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.unitAmount} USDT)`;
             } else {
                 quoteText.textContent = TranslationUtils.get('quoteUnavailable') || 'Quote unavailable. Please try again.';
             }
@@ -2281,7 +2284,7 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         // Batch API calls for better performance
         const starsQuotes = await Promise.allSettled(
             starsPackages.map(pkg => 
-                axios.post('/api/quote', {
+                API.getQuote({
                     stars: pkg.stars,
                     isPremium: false,
                     recipientsCount: recipientsCount
@@ -2291,8 +2294,8 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         
         starsQuotes.forEach((result, index) => {
             const pkg = starsPackages[index];
-            if (result.status === 'fulfilled' && result.value.data?.success && pkg.element) {
-                const quoteData = result.value.data;
+            if (result.status === 'fulfilled' && result.value.success && pkg.element) {
+                const quoteData = result.value;
                 cacheData[`stars_${pkg.stars}`] = quoteData;
                 updatePackagePriceDisplay(pkg.element, quoteData);
             }
@@ -2307,7 +2310,7 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         
         const premiumQuotes = await Promise.allSettled(
             premiumPackages.map(pkg => 
-                axios.post('/api/quote', {
+                API.getQuote({
                     isPremium: true,
                     premiumDuration: pkg.duration,
                     recipientsCount: recipientsCount
@@ -2317,8 +2320,8 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         
         premiumQuotes.forEach((result, index) => {
             const pkg = premiumPackages[index];
-            if (result.status === 'fulfilled' && result.value.data?.success && pkg.element) {
-                const quoteData = result.value.data;
+            if (result.status === 'fulfilled' && result.value.success && pkg.element) {
+                const quoteData = result.value;
                 cacheData[`premium_${pkg.duration}`] = quoteData;
                 updatePackagePriceDisplay(pkg.element, quoteData);
             }
@@ -2490,16 +2493,16 @@ async function handlePurchase(item) {
         }
 
         // Fetch server quote for accurate amount per recipients
-        const quote = await axios.post('/api/quote', {
+        const quote = await API.getQuote({
             isPremium: !!item.isPremium,
             premiumDuration: item.premiumDuration || null,
             stars: item.isPremium ? null : Number(stars),
             recipientsCount: recipients.length
         });
-        if (!quote.data?.success) {
-            throw new Error(quote.data?.error || 'Failed to get quote');
+        if (!quote.success) {
+            throw new Error(quote.error || 'Failed to get quote');
         }
-        const totalAmountUsdt = Number(quote.data.totalAmount);
+        const totalAmountUsdt = Number(quote.totalAmount);
 
         // Confirm modal
         const rate = await fetchCurrentRate();
@@ -2547,8 +2550,8 @@ async function handlePurchase(item) {
         const nanoTonAmount = Math.round(tonAmount * 1e9);
         
         // Get payment address
-        const walletResponse = await axios.get('https://starstore.site/api/get-wallet-address');
-        if (!walletResponse.data?.walletAddress) {
+        const walletResponse = await API.getWalletAddress();
+        if (!walletResponse.success || !walletResponse.walletAddress) {
             throw new Error('Failed to get payment address');
         }
 
@@ -2580,9 +2583,9 @@ async function handlePurchase(item) {
                 recipients: recipients.map(r => r.username)
             };
             
-            const response = await axios.post('/api/orders/create', orderData);
+            const response = await API.createOrder(orderData);
             
-            if (response.data && response.data.success) {
+            if (response && response.success) {
                 // Close loading before showing success
                 if (loadingShown) {
                     Swal.close();
@@ -2596,7 +2599,7 @@ async function handlePurchase(item) {
                     confirmButtonText: TranslationUtils.get('ok')
                 });
             } else {
-                throw new Error(response.data?.error || TranslationUtils.get('orderFailed'));
+                throw new Error(response?.error || TranslationUtils.get('orderFailed'));
             }
         } else {
             throw new Error(TranslationUtils.get('transactionFailed'));
