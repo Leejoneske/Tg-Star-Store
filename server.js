@@ -12,6 +12,21 @@ const securityConfig = require('./config/security');
 // Load environment variables
 require('dotenv').config();
 
+// Validate required environment variables
+const requiredEnvVars = [
+    'TELEGRAM_BOT_TOKEN',
+    'MONGODB_URI',
+    'WEBHOOK_URL',
+    'API_KEY',
+    'WALLET_ADDRESS'
+];
+
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+    console.error('❌ Missing required environment variables:', missingEnvVars);
+    process.exit(1);
+}
+
 // Import models
 const { User, BuyOrder, SellOrder, Referral } = require('./models');
 
@@ -84,39 +99,110 @@ const WEBHOOK_URL = process.env.WEBHOOK_URL;
 const WEBHOOK_PATH = `/webhook/${TELEGRAM_BOT_TOKEN}`;
 
 // Admin configuration
-const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
+const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').filter(Boolean) : [];
 
-// Initialize bot
-const bot = new TelegramBot(TELEGRAM_BOT_TOKEN);
-
-// Set webhook
-bot.setWebHook(`${WEBHOOK_URL}${WEBHOOK_PATH}`);
-
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(async () => {
-    console.log('✅ Connected to MongoDB');
-    
-    // Initialize managers after MongoDB connection
-    const paymentManager = new PaymentManager(bot);
-    const adminManager = new AdminManager(bot, adminIds);
-    const userInteractionManager = new UserInteractionManager(bot, adminIds);
-    const callbackManager = new CallbackManager(bot, adminIds);
-    const maintenanceManager = new MaintenanceManager();
-    const notificationManager = new NotificationManager(bot);
-    const referralTrackingManager = new ReferralTrackingManager(bot, adminIds);
-    const stickerManager = new StickerManager(bot);
-    const withdrawalManager = new WithdrawalManager(bot, adminIds);
-    
-    // Wire managers together
-    maintenanceManager.setStickerManager(stickerManager);
-    
-    console.log('✅ All managers initialized');
-  })
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err);
+// Initialize bot with error handling
+let bot;
+try {
+    bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {
+        polling: false, // Disable polling since we're using webhooks
+        webHook: {
+            port: process.env.PORT || 8080
+        }
+    });
+    console.log('✅ Telegram bot initialized successfully');
+} catch (error) {
+    console.error('❌ Failed to initialize Telegram bot:', error);
     process.exit(1);
-  });
+}
+
+// Set webhook with error handling
+async function setupWebhook() {
+    try {
+        await bot.setWebHook(`${WEBHOOK_URL}${WEBHOOK_PATH}`);
+        console.log('✅ Webhook set successfully');
+    } catch (error) {
+        console.error('❌ Failed to set webhook:', error);
+        process.exit(1);
+    }
+}
+
+// MongoDB connection with retry logic
+async function connectToMongoDB() {
+    const maxRetries = 5;
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+        try {
+            await mongoose.connect(process.env.MONGODB_URI, {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+                serverSelectionTimeoutMS: 5000,
+                socketTimeoutMS: 45000,
+            });
+            console.log('✅ Connected to MongoDB');
+            return true;
+        } catch (error) {
+            retries++;
+            console.error(`❌ MongoDB connection attempt ${retries} failed:`, error.message);
+            if (retries < maxRetries) {
+                console.log(`🔄 Retrying in 5 seconds... (${retries}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            } else {
+                console.error('❌ Failed to connect to MongoDB after all retries');
+                process.exit(1);
+            }
+        }
+    }
+}
+
+// Initialize managers with proper error handling
+async function initializeManagers() {
+    try {
+        const managers = {
+            paymentManager: new PaymentManager(bot),
+            adminManager: new AdminManager(bot, adminIds),
+            userInteractionManager: new UserInteractionManager(bot, adminIds),
+            callbackManager: new CallbackManager(bot, adminIds),
+            maintenanceManager: new MaintenanceManager(),
+            notificationManager: new NotificationManager(bot),
+            referralTrackingManager: new ReferralTrackingManager(bot, adminIds),
+            stickerManager: new StickerManager(bot),
+            withdrawalManager: new WithdrawalManager(bot, adminIds)
+        };
+        
+        // Wire managers together
+        managers.maintenanceManager.setStickerManager(managers.stickerManager);
+        
+        console.log('✅ All managers initialized successfully');
+        return managers;
+    } catch (error) {
+        console.error('❌ Failed to initialize managers:', error);
+        process.exit(1);
+    }
+}
+
+// Main initialization function
+async function initializeApp() {
+    try {
+        // Setup webhook first
+        await setupWebhook();
+        
+        // Connect to MongoDB
+        await connectToMongoDB();
+        
+        // Initialize managers
+        await initializeManagers();
+        
+        console.log('✅ Application initialized successfully');
+    } catch (error) {
+        console.error('❌ Application initialization failed:', error);
+        process.exit(1);
+    }
+}
+
+// Start initialization
+initializeApp();
 
 // API routes with logging
 app.use('/api', apiLogger, apiRoutes);
