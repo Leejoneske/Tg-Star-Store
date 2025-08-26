@@ -1370,21 +1370,24 @@ class AdminManager {
 
     async handleListUsers(msg) {
         if (!this.adminIds.includes(msg.from.id.toString())) {
-            return;
+            return this.bot.sendMessage(msg.chat.id, '❌ Unauthorized: Only admins can use this command.');
         }
 
         try {
-            const users = await User.find({}).sort({ dateCreated: -1 }).limit(10);
-            let message = "📊 Recent Users:\n\n";
+            const userCount = await User.countDocuments({});
+            const activeUsers = await User.countDocuments({ isActive: true });
+            const inactiveUsers = await User.countDocuments({ isActive: false });
             
-            users.forEach((user, index) => {
-                message += `${index + 1}. ${user.username || 'Unknown'} (${user.id})\n`;
-            });
+            const message = `📊 **User Statistics**\n\n` +
+                `👥 **Total Users:** ${userCount}\n` +
+                `✅ **Active Users:** ${activeUsers}\n` +
+                `❌ **Inactive Users:** ${inactiveUsers}\n\n` +
+                `📅 **Last Updated:** ${new Date().toLocaleString()}`;
 
-            await this.bot.sendMessage(msg.chat.id, message);
-        } catch (error) {
-            console.error('Error listing users:', error);
-            await this.bot.sendMessage(msg.chat.id, "❌ Error listing users");
+            await this.bot.sendMessage(msg.chat.id, message, { parse_mode: 'Markdown' });
+        } catch (err) {
+            console.error('Error fetching user count:', err);
+            await this.bot.sendMessage(msg.chat.id, '❌ Failed to fetch user statistics.');
         }
     }
 

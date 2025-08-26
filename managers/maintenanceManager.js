@@ -9,15 +9,16 @@ class MaintenanceManager {
     }
 
     setupMaintenanceJobs() {
+        console.log('🔧 Setting up maintenance jobs...');
+        
         // Start all maintenance jobs
-        this.startWarningCleanup();
-        this.startOrderCleanup();
         this.startExpiredSellOrderCleanup();
         this.startUserCleanup();
         this.startReferralCleanup();
-        this.startDailyReport();
+        this.startWarningCleanup();
+        this.startRefundRequestCleanup();
         
-        console.log('🔧 Maintenance jobs initialized');
+        console.log('✅ All maintenance jobs started');
     }
 
     // Cleanup expired warnings every hour
@@ -129,27 +130,34 @@ class MaintenanceManager {
                 const ninetyDaysAgo = new Date();
                 ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
                 
-                            const inactiveUsers = await User.find({
-                $or: [
-                    { lastSeen: { $lt: ninetyDaysAgo }, joinDate: { $lt: ninetyDaysAgo } },
-                    { lastSeen: { $exists: false }, joinDate: { $lt: ninetyDaysAgo } }
-                ]
-            });
+                const inactiveUsers = await User.find({
+                    $or: [
+                        { lastSeen: { $lt: ninetyDaysAgo }, joinDate: { $lt: ninetyDaysAgo } },
+                        { lastSeen: { $exists: false }, joinDate: { $lt: ninetyDaysAgo } }
+                    ],
+                    isActive: true
+                });
                 
                 if (inactiveUsers.length > 0) {
-                    console.log(`🧹 Found ${inactiveUsers.length} inactive users`);
+                    console.log(`🧹 Marking ${inactiveUsers.length} users as inactive`);
                     
-                    // Mark users as inactive instead of deleting
-                    for (const user of inactiveUsers) {
-                        user.isActive = false;
-                        user.inactiveDate = new Date();
-                        await user.save();
-                    }
+                    // Mark users as inactive instead of deleting them
+                    await User.updateMany(
+                        { _id: { $in: inactiveUsers.map(u => u._id) } },
+                        { 
+                            $set: { 
+                                isActive: false,
+                                inactiveDate: new Date()
+                            }
+                        }
+                    );
+                    
+                    console.log(`✅ Marked ${inactiveUsers.length} users as inactive`);
                 }
             } catch (error) {
                 console.error('Error in user cleanup:', error);
             }
-        }, 7 * 24 * 60 * 60 * 1000); // Weekly
+        }, 24 * 60 * 60 * 1000); // Daily
     }
 
     // Cleanup old referral records
@@ -177,6 +185,39 @@ class MaintenanceManager {
                 console.error('Error in referral cleanup:', error);
             }
         }, 7 * 24 * 60 * 60 * 1000); // Weekly
+    }
+
+    // Cleanup expired refund requests (older than 30 days)
+    startRefundRequestCleanup() {
+        setInterval(async () => {
+            try {
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                
+                const expiredRequests = await Reversal.find({
+                    status: 'pending',
+                    createdAt: { $lt: thirtyDaysAgo }
+                });
+                
+                if (expiredRequests.length > 0) {
+                    console.log(`🧹 Marking ${expiredRequests.length} expired refund requests as expired`);
+                    
+                    await Reversal.updateMany(
+                        { _id: { $in: expiredRequests.map(r => r._id) } },
+                        { 
+                            $set: { 
+                                status: 'expired',
+                                processedAt: new Date()
+                            }
+                        }
+                    );
+                    
+                    console.log(`✅ Marked ${expiredRequests.length} refund requests as expired`);
+                }
+            } catch (error) {
+                console.error('Error in refund request cleanup:', error);
+            }
+        }, 24 * 60 * 60 * 1000); // Daily
     }
 
     // Daily report to admins

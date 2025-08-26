@@ -1,11 +1,13 @@
 const TelegramBot = require('node-telegram-bot-api');
-const { User, BuyOrder, SellOrder, Referral } = require('../models');
+const { User, BuyOrder, SellOrder, Referral, Reversal } = require('../models');
 const ReferralTrackingManager = require('./referralTrackingManager');
+const { trackBotActivity } = require('../middleware/userActivity');
 
 class UserInteractionManager {
     constructor(bot) {
         this.bot = bot;
         this.referralTrackingManager = new ReferralTrackingManager(bot, process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : []);
+        this.refundRequests = new Map();
         this.setupUserHandlers();
     }
 
@@ -23,6 +25,10 @@ class UserInteractionManager {
             await this.handleReferrals(msg);
         });
 
+        this.bot.onText(/^\/refund(?:\s+(.+))?/, async (msg, match) => {
+            await this.handleRefundRequest(msg, match);
+        });
+
         // Handle general messages
         this.bot.on('message', async (msg) => {
             await this.handleGeneralMessage(msg);
@@ -33,6 +39,9 @@ class UserInteractionManager {
         const chatId = msg.chat.id;
         const userId = chatId.toString();
         const referrerId = match[1];
+
+        // Track user activity
+        await trackBotActivity(userId);
 
         if (referrerId) {
             await this.handleReferralStart(msg, referrerId);
@@ -69,6 +78,8 @@ class UserInteractionManager {
                 // Update existing user with referral
                 user.referredBy = referrerId;
                 user.referralDate = new Date();
+                user.lastSeen = new Date();
+                user.isActive = true;
                 await user.save();
             } else {
                 // Create new user with referral
@@ -76,9 +87,13 @@ class UserInteractionManager {
                     id: userId,
                     telegramId: userId,
                     username: username,
+                    firstName: msg.from.first_name,
+                    lastName: msg.from.last_name,
                     referredBy: referrerId,
                     referralDate: new Date(),
-                    joinDate: new Date()
+                    joinDate: new Date(),
+                    lastSeen: new Date(),
+                    isActive: true
                 });
                 await user.save();
             }
@@ -121,8 +136,17 @@ class UserInteractionManager {
                     id: userId,
                     telegramId: userId,
                     username: username,
-                    joinDate: new Date()
+                    firstName: msg.from.first_name,
+                    lastName: msg.from.last_name,
+                    joinDate: new Date(),
+                    lastSeen: new Date(),
+                    isActive: true
                 });
+                await user.save();
+            } else {
+                // Update lastSeen for existing user
+                user.lastSeen = new Date();
+                user.isActive = true;
                 await user.save();
             }
 
@@ -150,73 +174,271 @@ class UserInteractionManager {
 
     async handleHelp(msg) {
         const chatId = msg.chat.id;
+        const userId = chatId.toString();
+        
+        // Track user activity
+        await trackBotActivity(userId);
+        
         const helpMessage = `📚 **StarStore Commands**\n\n` +
             `🔹 /start - Start the bot\n` +
             `🔹 /help - Show this help message\n` +
-            `🔹 /referrals - Check your referral status\n\n` +
+            `🔹 /referrals - Check your referral status\n` +
+            `🔹 /refund [orderId] - Request a refund for your order\n\n` +
             `💡 **How it works:**\n` +
             `• Visit our web app to buy/sell stars\n` +
             `• Complete transactions through Telegram\n` +
-            `• Earn rewards through referrals\n\n` +
-            `🌐 **Web App:** https://your-domain.com`;
+            `• Earn rewards through referrals\n` +
+            `• Request refunds for processing orders\n\n` +
+            `🔄 **Refund Policy:**\n` +
+            `• Only processing orders can be refunded\n` +
+            `• Limited to one refund request per month\n` +
+            `• Requires detailed explanation (10+ words)\n\n` +
+            `🔗 **Links:**\n` +
+            `• Web App: https://starstore.site\n` +
+            `• Community: https://t.me/StarStore_Chat`;
 
         await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+    }
+
+    async handleGeneralMessage(msg) {
+        const chatId = msg.chat.id;
+        const userId = chatId.toString();
+        
+        // Track user activity for any message
+        await trackBotActivity(userId);
+
+        // Handle refund request workflow
+        const request = this.refundRequests.get(chatId);
+        if (request && Date.now() - request.timestamp < 300000) { // 5 minute window
+            await this.handleRefundMessage(msg, request);
+        }
+    }
+
+    async handleRefundMessage(msg, request) {
+        const chatId = msg.chat.id;
+        const userId = chatId.toString();
+
+        if (request.step === 'waiting_order_id') {
+            const orderId = msg.text.trim();
+            const order = await SellOrder.findOne({ id: orderId, telegramId: userId });
+            
+            if (!order) {
+                return this.bot.sendMessage(chatId, "❌ Order not found or doesn't belong to you. Please enter a valid Order ID:");
+            }
+            if (order.status !== 'processing') {
+                return this.bot.sendMessage(chatId, `❌ Order ${orderId} is ${order.status} - cannot be refunded. Please enter a different Order ID:`);
+            }
+            
+            request.step = 'waiting_reason';
+            request.orderId = orderId;
+            request.timestamp = Date.now();
+            this.refundRequests.set(chatId, request);
+            
+            return this.bot.sendMessage(chatId, 
+                `📋 Order Found: ${orderId}\n` +
+                `Stars: ${order.stars}\n\n` +
+                `Please provide a detailed explanation (minimum 10 words) for why you need to refund this order:`
+            );
+        }
+
+        if (request.step === 'waiting_reason') {
+            const reason = msg.text.trim();
+            const wordCount = reason.split(/\s+/).filter(word => word.length > 0).length;
+            
+            if (wordCount < 10) {
+                return this.bot.sendMessage(chatId, 
+                    `❌ Please provide a more detailed reason (minimum 10 words). Current: ${wordCount} words.\n` +
+                    `Please explain in detail why you need this refund:`
+                );
+            }
+
+            const order = await SellOrder.findOne({ id: request.orderId });
+            const refundRequest = new Reversal({
+                orderId: request.orderId,
+                telegramId: userId,
+                username: msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`,
+                stars: order.stars,
+                reason: reason,
+                status: 'pending'
+            });
+            await refundRequest.save();
+
+            // Notify admins
+            const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
+            const safeUsername = refundRequest.username.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+            const safeReason = reason.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+            
+            const adminMsg = `🔄 Refund Request\n` +
+                `Order: ${request.orderId}\n` +
+                `User: @${safeUsername}\n` +
+                `User ID: ${userId}\n` +
+                `Stars: ${order.stars}\n` +
+                `Reason: ${safeReason}`;
+            
+            for (const adminId of adminIds) {
+                try {
+                    const message = await this.bot.sendMessage(parseInt(adminId), adminMsg, {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    { text: "✅ Approve", callback_data: `req_approve_${request.orderId}` },
+                                    { text: "❌ Reject", callback_data: `req_reject_${request.orderId}` }
+                                ]
+                            ]
+                        },
+                        parse_mode: 'MarkdownV2'
+                    });
+                    
+                    // Store admin message info
+                    refundRequest.adminMessages.push({
+                        adminId: adminId,
+                        messageId: message.message_id,
+                        messageType: 'refund'
+                    });
+                    await refundRequest.save();
+                } catch (error) {
+                    console.error(`Failed to notify admin ${adminId}:`, error);
+                }
+            }
+            
+            // Confirm receipt to user
+            await this.bot.sendMessage(chatId, `Thank you for your refund request! We will review it and get back to you shortly.`);
+            
+            // Clear the request state
+            this.refundRequests.delete(chatId);
+        }
+    }
+
+    async handleRefundRequest(msg, match) {
+        const chatId = msg.chat.id;
+        const userId = chatId.toString();
+        
+        // Track user activity
+        await trackBotActivity(userId);
+
+        try {
+            // Check monthly refund limit
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            const recentRequest = await Reversal.findOne({
+                telegramId: userId,
+                createdAt: { $gte: thirtyDaysAgo },
+                status: { $in: ['pending', 'processing'] }
+            });
+            
+            if (recentRequest) {
+                const nextAllowedDate = new Date(recentRequest.createdAt);
+                nextAllowedDate.setDate(nextAllowedDate.getDate() + 30);
+                return this.bot.sendMessage(chatId, 
+                    `❌ You can only request one refund per month.\n` +
+                    `Next refund available: ${nextAllowedDate.toDateString()}`
+                );
+            }
+            
+            const orderId = match[1] ? match[1].trim() : null;
+            
+            if (!orderId) {
+                const welcomeMsg = `🔄 Welcome to Refund Request System\n\n` +
+                    `You are about to request a cancellation and refund for your order. ` +
+                    `Please note that refund requests are limited to once per month.\n\n` +
+                    `Please enter your Order ID:`;
+                
+                this.refundRequests.set(chatId, { 
+                    step: 'waiting_order_id', 
+                    timestamp: Date.now() 
+                });
+                return this.bot.sendMessage(chatId, welcomeMsg);
+            }
+            
+            const order = await SellOrder.findOne({ id: orderId, telegramId: userId });
+            
+            if (!order) {
+                return this.bot.sendMessage(chatId, "❌ Order not found or doesn't belong to you");
+            }
+            if (order.status !== 'processing') {
+                return this.bot.sendMessage(chatId, `❌ Order is ${order.status} - cannot be refunded`);
+            }
+            
+            this.refundRequests.set(chatId, { 
+                step: 'waiting_reason',
+                orderId, 
+                timestamp: Date.now() 
+            });
+            
+            await this.bot.sendMessage(chatId, 
+                `📋 Order Found: ${orderId}\n` +
+                `Stars: ${order.stars}\n\n` +
+                `Please provide a detailed explanation (minimum 10 words) for why you need to refund this order:`
+            );
+
+        } catch (error) {
+            console.error('Error handling refund request:', error);
+            await this.bot.sendMessage(chatId, "❌ Error processing refund request. Please try again.");
+        }
     }
 
     async handleReferrals(msg) {
         const chatId = msg.chat.id;
         const userId = chatId.toString();
+        
+        // Track user activity
+        await trackBotActivity(userId);
 
         try {
             const user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (!user) {
-                await this.bot.sendMessage(chatId, "❌ User not found. Please use /start first.");
+                await this.bot.sendMessage(chatId, "❌ User not found. Please start the bot first with /start");
                 return;
             }
 
+            const referralLink = `https://t.me/TgStarStore_bot?start=ref_${userId}`;
+
             // Get user's referrals
             const referrals = await Referral.find({ referrerId: userId }).sort({ dateCreated: -1 });
-            
-            // Get user's referral info
-            const referredBy = user.referredBy ? await User.findOne({ $or: [{ id: user.referredBy }, { telegramId: user.referredBy }] }) : null;
 
             let message = `📊 **Your Referral Status**\n\n`;
 
-            // Referred by someone
-            if (referredBy) {
-                message += `👤 **Referred by:** @${referredBy.username}\n`;
+            if (user.referredBy) {
+                const referrer = await User.findOne({ $or: [{ id: user.referredBy }, { telegramId: user.referredBy }] });
+                message += `👥 **Referred by:** @${referrer?.username || 'Unknown'}\n`;
                 message += `📅 **Date:** ${user.referralDate.toLocaleDateString()}\n\n`;
             }
 
             // User's referrals
             if (referrals.length > 0) {
                 message += `🎯 **Your Referrals (${referrals.length}):**\n\n`;
-                
                 let activeCount = 0;
-                let pendingCount = 0;
                 
                 for (const referral of referrals.slice(0, 5)) { // Show last 5
                     const status = referral.status === 'active' ? '✅' : '⏳';
                     message += `${status} @${referral.referredUsername} - ${referral.status}\n`;
-                    
                     if (referral.status === 'active') activeCount++;
-                    else pendingCount++;
                 }
+                
+                message += `\n💰 **Active Referrals:** ${activeCount}\n`;
+                message += `💵 **Earnings:** ${activeCount * 0.5} USDT\n`;
                 
                 if (referrals.length > 5) {
                     message += `... and ${referrals.length - 5} more\n`;
                 }
-                
-                message += `\n📈 **Summary:**\n`;
-                message += `✅ Active: ${activeCount}\n`;
-                message += `⏳ Pending: ${pendingCount}\n`;
             } else {
                 message += `🎯 **Your Referrals:** None yet\n\n`;
                 message += `💡 Share your referral link to earn rewards!\n`;
-                message += `Link: https://t.me/your_bot?start=${userId}`;
             }
 
-            await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+            message += `\n🔗 **Your Referral Link:**\n${referralLink}`;
+
+            const keyboard = {
+                inline_keyboard: [
+                    [{ text: 'Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }]
+                ]
+            };
+
+            await this.bot.sendMessage(chatId, message, { 
+                parse_mode: 'Markdown',
+                reply_markup: keyboard 
+            });
 
         } catch (error) {
             console.error('Error handling referrals command:', error);
@@ -224,45 +446,13 @@ class UserInteractionManager {
         }
     }
 
-    async handleGeneralMessage(msg) {
-        // Handle non-command messages if needed
-        if (msg.text && !msg.text.startsWith('/')) {
-            // Could add general message handling here
-            return;
-        }
-    }
-
-    async saveUser(msg) {
-        const userId = msg.from.id.toString();
-        const username = msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`;
-
-        try {
-            let user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
-            if (!user) {
-                user = new User({
-                    id: userId,
-                    telegramId: userId,
-                    username: username,
-                    joinDate: new Date()
-                });
-                await user.save();
-            } else {
-                // Update username if changed
-                if (user.username !== username) {
-                    user.username = username;
-                    await user.save();
-                }
-            }
-            return user;
-        } catch (error) {
-            console.error('Error saving user:', error);
-            return null;
-        }
-    }
-
     // Method to activate referrals when user completes a purchase
     async activateReferral(userId, orderId, stars) {
         try {
+            // Track user activity
+            await trackBotActivity(userId);
+
+            // Check if user has a referral
             const user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (!user || !user.referredBy) return;
 
@@ -282,40 +472,31 @@ class UserInteractionManager {
                     referredId: userId
                 },
                 {
-                    status: 'active',
-                    activatedDate: new Date(),
-                    activationOrderId: orderId,
-                    starsPurchased: stars
+                    $set: {
+                        status: 'active',
+                        activatedDate: new Date(),
+                        activationOrderId: orderId,
+                        starsPurchased: stars
+                    }
                 }
             );
 
-            // Notify referrer
-            try {
-                const referrer = await User.findOne({ $or: [{ id: user.referredBy }, { telegramId: user.referredBy }] });
-                const referredUser = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
-                
-                const notification = `🎉 Referral Activated!\n\n` +
-                    `User: @${referredUser.username}\n` +
-                    `Order: ${orderId}\n` +
-                    `Stars: ${stars}\n\n` +
-                    `Your referral bonus has been activated!`;
+            // Get referrer details
+            const referrer = await User.findOne({ $or: [{ id: user.referredBy }, { telegramId: user.referredBy }] });
 
-                await this.bot.sendMessage(parseInt(user.referredBy), notification);
-            } catch (error) {
-                console.error('Failed to notify referrer of activation:', error);
-            }
+            // Notify referrer
+            const notification = `🎉 Referral Activated!\n\n` +
+                `Your referral @${user.username} just completed their first purchase!\n` +
+                `You both now qualify for referral rewards.`;
+
+            await this.bot.sendMessage(user.referredBy, notification);
 
             // Notify referred user
-            try {
-                const referrer = await User.findOne({ telegramId: user.referredBy });
-                const notification = `🎉 Referral Bonus Activated!\n\n` +
-                    `Your referral by @${referrer.username} has been activated!\n` +
-                    `Both of you now qualify for referral rewards.`;
+            const userNotification = `🎉 Referral Bonus Activated!\n\n` +
+                `Your referral by @${referrer.username} has been activated!\n` +
+                `Both of you now qualify for referral rewards.`;
 
-                await this.bot.sendMessage(parseInt(userId), notification);
-            } catch (error) {
-                console.error('Failed to notify referred user:', error);
-            }
+            await this.bot.sendMessage(userId, userNotification);
 
         } catch (error) {
             console.error('Error activating referral:', error);
