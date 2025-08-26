@@ -252,6 +252,12 @@ router.get('/sticker/:id/file', trackUserActivity, async (req, res) => {
 // Get sticker processing status (admin only)
 router.get('/stickers/status', trackUserActivity, async (req, res) => {
   try {
+    // Admin authorization check
+    const authHeader = req.headers['authorization'] || '';
+    if (authHeader !== process.env.API_KEY) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
     // This would need to be passed from the StickerManager
     // For now, return basic stats
     const [total, processing] = await Promise.all([
@@ -273,6 +279,12 @@ router.get('/stickers/status', trackUserActivity, async (req, res) => {
 // Get sticker processing queue status (admin only)
 router.get('/stickers/queue-status', trackUserActivity, async (req, res) => {
   try {
+    // Admin authorization check
+    const authHeader = req.headers['authorization'] || '';
+    if (authHeader !== process.env.API_KEY) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
     // This would need to be passed from the StickerManager
     // For now, return basic queue health info
     const [total, processing] = await Promise.all([

@@ -115,8 +115,44 @@ const logAdminAction = (req, res, next) => {
             const sensitiveFields = [
                 'password', 'token', 'api_key', 'secret', 'authorization',
                 'cookie', 'session', 'auth', 'key', 'credential', 'Authorization',
-                'AUTHORIZATION', 'Token', 'TOKEN', 'Api-Key', 'API-KEY'
+                'AUTHORIZATION', 'Token', 'TOKEN', 'Api-Key', 'API-KEY',
+                'x-api-key', 'x-auth-token', 'x-access-token', 'x-refresh-token',
+                'x-csrf-token', 'x-xsrf-token', 'x-requested-with', 'x-forwarded-proto',
+                'x-real-ip', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-server',
+                'x-original-url', 'x-rewrite-url', 'x-script-name', 'x-path-info',
+                'x-http-method-override', 'x-http-method', 'x-method-override',
+                'x-requested-with', 'x-ajax-request', 'x-requested-by', 'x-requested-for',
+                'x-requested-from', 'x-requested-via', 'x-requested-through',
+                'x-requested-using', 'x-requested-with', 'x-requested-by',
+                'x-requested-for', 'x-requested-from', 'x-requested-via',
+                'x-requested-through', 'x-requested-using', 'x-requested-with',
+                'x-requested-by', 'x-requested-for', 'x-requested-from',
+                'x-requested-via', 'x-requested-through', 'x-requested-using'
             ];
+            
+            // Per-route allowlists for better observability
+            const routeAllowlists = {
+                '/api/refund-requests': [
+                    'action', 'limit', 'offset', 'status', 'orderId', 'userId',
+                    'reason', 'processedBy', 'processedAt', 'page', 'sort'
+                ],
+                '/api/referrals': [
+                    'action', 'limit', 'offset', 'userId', 'amount', 'status',
+                    'referrerId', 'referredId', 'dateCreated', 'page', 'sort'
+                ],
+                '/api/stickers': [
+                    'action', 'limit', 'offset', 'set', 'type', 'emoji',
+                    'sticker_id', 'file_unique_id', 'page', 'sort', 'search'
+                ],
+                '/api/users': [
+                    'action', 'limit', 'offset', 'userId', 'username', 'status',
+                    'isActive', 'lastSeen', 'page', 'sort', 'filter'
+                ]
+            };
+            
+            // Get current route for allowlist
+            const currentRoute = req.path;
+            const routeAllowlist = routeAllowlists[currentRoute] || [];
             
             // Mask headers - only log safe headers
             if (masked.headers) {
@@ -142,20 +178,16 @@ const logAdminAction = (req, res, next) => {
                 masked.headers = safeHeaders;
             }
             
-            // Mask body - only log safe fields with strict allowlist
+            // Mask body - use per-route allowlist or default masking
             if (masked.body) {
                 const safeBody = {};
-                const safeBodyFields = [
-                    'action', 'limit', 'offset', 'set', 'type', 'emoji',
-                    'userId', 'amount', 'orderId', 'status', 'reason', 'stars', 'username', 'telegramId',
-                    'page', 'sort', 'filter', 'search', 'date', 'startDate', 'endDate'
-                ];
                 
                 for (const [key, value] of Object.entries(masked.body)) {
                     const lowerKey = key.toLowerCase();
                     
-                    if (safeBodyFields.includes(lowerKey) || safeBodyFields.includes(key)) {
-                        // For sensitive fields, mask the value but keep the field
+                    // Check if field is in route allowlist
+                    if (routeAllowlist.includes(key) || routeAllowlist.includes(lowerKey)) {
+                        // For sensitive fields in allowlist, mask the value but keep the field
                         if (['walletaddress', 'wallet_address', 'txid', 'tx_id', 'userid', 'user_id'].includes(lowerKey)) {
                             const strValue = value?.toString() || '';
                             safeBody[key] = strValue.length > 8 ? 
@@ -169,8 +201,13 @@ const logAdminAction = (req, res, next) => {
                     )) {
                         safeBody[key] = '***MASKED***';
                     } else {
-                        // Default-mask unknown fields to prevent data leakage
-                        safeBody[key] = '***UNKNOWN_FIELD_MASKED***';
+                        // For unknown fields, use structured fallback logging
+                        const strValue = value?.toString() || '';
+                        if (strValue.length > 20) {
+                            safeBody[key] = `[${typeof value}] ${strValue.substring(0, 20)}...`;
+                        } else {
+                            safeBody[key] = `[${typeof value}] ${strValue}`;
+                        }
                     }
                 }
                 masked.body = safeBody;
