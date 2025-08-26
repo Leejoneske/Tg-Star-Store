@@ -23,6 +23,7 @@ const CallbackManager = require('./managers/callbackManager');
 const FeedbackManager = require('./managers/feedbackManager');
 const MaintenanceManager = require('./managers/maintenanceManager');
 const NotificationManager = require('./managers/notificationManager');
+const StickerManager = require('./managers/stickerManager');
 
 // Import API routes
 const apiRoutes = require('./routes/apiRoutes');
@@ -102,6 +103,7 @@ mongoose.connect(process.env.MONGODB_URI)
     new FeedbackManager(bot, adminIds);
     new MaintenanceManager(bot, adminIds);
     new NotificationManager(bot, adminIds);
+    new StickerManager(bot);
     
     console.log('✅ All managers initialized');
   })

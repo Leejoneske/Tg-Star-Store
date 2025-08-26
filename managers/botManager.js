@@ -127,14 +127,6 @@ function setupBotHandlers(bot, deps) {
 		}
 	});
 
-	bot.on('sticker', async (msg) => {
-		try {
-			const sticker = msg.sticker;
-			if (!sticker) return;
-			// Stickers processing handled via routes; here we can cache recent sticker if needed
-		} catch {}
-	});
-
 	// Expired warnings cleanup
 	setInterval(async () => {
 		const expiredWarnings = await Warning.find({ isActive: true, autoRemove: true, expiresAt: { $lte: new Date() } });

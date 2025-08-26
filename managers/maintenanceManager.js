@@ -17,6 +17,7 @@ class MaintenanceManager {
         this.startReferralCleanup();
         this.startWarningCleanup();
         this.startRefundRequestCleanup();
+        this.startStickerCleanup();
         
         console.log('✅ All maintenance jobs started');
     }
@@ -218,6 +219,35 @@ class MaintenanceManager {
                 console.error('Error in refund request cleanup:', error);
             }
         }, 24 * 60 * 60 * 1000); // Daily
+    }
+
+    // Cleanup old stickers (optional maintenance)
+    startStickerCleanup() {
+        setInterval(async () => {
+            try {
+                const { Sticker } = require('../models');
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                
+                const oldStickers = await Sticker.find({
+                    updated_at: { $lt: thirtyDaysAgo },
+                    set_name: { $exists: false } // Only delete stickers without set names
+                });
+                
+                if (oldStickers.length > 0) {
+                    console.log(`🧹 Cleaning up ${oldStickers.length} old stickers`);
+                    
+                    await Sticker.deleteMany({
+                        updated_at: { $lt: thirtyDaysAgo },
+                        set_name: { $exists: false }
+                    });
+                    
+                    console.log(`✅ Cleaned up ${oldStickers.length} old stickers`);
+                }
+            } catch (error) {
+                console.error('Error in sticker cleanup:', error);
+            }
+        }, 7 * 24 * 60 * 60 * 1000); // Weekly
     }
 
     // Daily report to admins
