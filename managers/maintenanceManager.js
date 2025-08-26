@@ -129,27 +129,34 @@ class MaintenanceManager {
                 const ninetyDaysAgo = new Date();
                 ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
                 
-                            const inactiveUsers = await User.find({
-                $or: [
-                    { lastSeen: { $lt: ninetyDaysAgo }, joinDate: { $lt: ninetyDaysAgo } },
-                    { lastSeen: { $exists: false }, joinDate: { $lt: ninetyDaysAgo } }
-                ]
-            });
+                const inactiveUsers = await User.find({
+                    $or: [
+                        { lastSeen: { $lt: ninetyDaysAgo }, joinDate: { $lt: ninetyDaysAgo } },
+                        { lastSeen: { $exists: false }, joinDate: { $lt: ninetyDaysAgo } }
+                    ],
+                    isActive: true
+                });
                 
                 if (inactiveUsers.length > 0) {
-                    console.log(`🧹 Found ${inactiveUsers.length} inactive users`);
+                    console.log(`🧹 Marking ${inactiveUsers.length} users as inactive`);
                     
-                    // Mark users as inactive instead of deleting
-                    for (const user of inactiveUsers) {
-                        user.isActive = false;
-                        user.inactiveDate = new Date();
-                        await user.save();
-                    }
+                    // Mark users as inactive instead of deleting them
+                    await User.updateMany(
+                        { _id: { $in: inactiveUsers.map(u => u._id) } },
+                        { 
+                            $set: { 
+                                isActive: false,
+                                inactiveDate: new Date()
+                            }
+                        }
+                    );
+                    
+                    console.log(`✅ Marked ${inactiveUsers.length} users as inactive`);
                 }
             } catch (error) {
                 console.error('Error in user cleanup:', error);
             }
-        }, 7 * 24 * 60 * 60 * 1000); // Weekly
+        }, 24 * 60 * 60 * 1000); // Daily
     }
 
     // Cleanup old referral records

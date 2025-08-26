@@ -1,6 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { User, BuyOrder, SellOrder, Referral } = require('../models');
 const ReferralTrackingManager = require('./referralTrackingManager');
+const { trackBotActivity } = require('../middleware/userActivity');
 
 class UserInteractionManager {
     constructor(bot) {
@@ -33,6 +34,9 @@ class UserInteractionManager {
         const chatId = msg.chat.id;
         const userId = chatId.toString();
         const referrerId = match[1];
+
+        // Track user activity
+        await trackBotActivity(userId);
 
         if (referrerId) {
             await this.handleReferralStart(msg, referrerId);
@@ -69,6 +73,8 @@ class UserInteractionManager {
                 // Update existing user with referral
                 user.referredBy = referrerId;
                 user.referralDate = new Date();
+                user.lastSeen = new Date();
+                user.isActive = true;
                 await user.save();
             } else {
                 // Create new user with referral
@@ -76,9 +82,13 @@ class UserInteractionManager {
                     id: userId,
                     telegramId: userId,
                     username: username,
+                    firstName: msg.from.first_name,
+                    lastName: msg.from.last_name,
                     referredBy: referrerId,
                     referralDate: new Date(),
-                    joinDate: new Date()
+                    joinDate: new Date(),
+                    lastSeen: new Date(),
+                    isActive: true
                 });
                 await user.save();
             }
@@ -121,8 +131,17 @@ class UserInteractionManager {
                     id: userId,
                     telegramId: userId,
                     username: username,
-                    joinDate: new Date()
+                    firstName: msg.from.first_name,
+                    lastName: msg.from.last_name,
+                    joinDate: new Date(),
+                    lastSeen: new Date(),
+                    isActive: true
                 });
+                await user.save();
+            } else {
+                // Update lastSeen for existing user
+                user.lastSeen = new Date();
+                user.isActive = true;
                 await user.save();
             }
 
@@ -150,6 +169,11 @@ class UserInteractionManager {
 
     async handleHelp(msg) {
         const chatId = msg.chat.id;
+        const userId = chatId.toString();
+        
+        // Track user activity
+        await trackBotActivity(userId);
+        
         const helpMessage = `📚 **StarStore Commands**\n\n` +
             `🔹 /start - Start the bot\n` +
             `🔹 /help - Show this help message\n` +
@@ -158,65 +182,82 @@ class UserInteractionManager {
             `• Visit our web app to buy/sell stars\n` +
             `• Complete transactions through Telegram\n` +
             `• Earn rewards through referrals\n\n` +
-            `🌐 **Web App:** https://your-domain.com`;
+            `🔗 **Links:**\n` +
+            `• Web App: https://starstore.site\n` +
+            `• Community: https://t.me/StarStore_Chat`;
 
         await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+    }
+
+    async handleGeneralMessage(msg) {
+        const chatId = msg.chat.id;
+        const userId = chatId.toString();
+        
+        // Track user activity for any message
+        await trackBotActivity(userId);
     }
 
     async handleReferrals(msg) {
         const chatId = msg.chat.id;
         const userId = chatId.toString();
+        
+        // Track user activity
+        await trackBotActivity(userId);
 
         try {
             const user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (!user) {
-                await this.bot.sendMessage(chatId, "❌ User not found. Please use /start first.");
+                await this.bot.sendMessage(chatId, "❌ User not found. Please start the bot first with /start");
                 return;
             }
 
+            const referralLink = `https://t.me/TgStarStore_bot?start=ref_${userId}`;
+
             // Get user's referrals
             const referrals = await Referral.find({ referrerId: userId }).sort({ dateCreated: -1 });
-            
-            // Get user's referral info
-            const referredBy = user.referredBy ? await User.findOne({ $or: [{ id: user.referredBy }, { telegramId: user.referredBy }] }) : null;
 
             let message = `📊 **Your Referral Status**\n\n`;
 
-            // Referred by someone
-            if (referredBy) {
-                message += `👤 **Referred by:** @${referredBy.username}\n`;
+            if (user.referredBy) {
+                const referrer = await User.findOne({ $or: [{ id: user.referredBy }, { telegramId: user.referredBy }] });
+                message += `👥 **Referred by:** @${referrer?.username || 'Unknown'}\n`;
                 message += `📅 **Date:** ${user.referralDate.toLocaleDateString()}\n\n`;
             }
 
             // User's referrals
             if (referrals.length > 0) {
                 message += `🎯 **Your Referrals (${referrals.length}):**\n\n`;
-                
                 let activeCount = 0;
-                let pendingCount = 0;
                 
                 for (const referral of referrals.slice(0, 5)) { // Show last 5
                     const status = referral.status === 'active' ? '✅' : '⏳';
                     message += `${status} @${referral.referredUsername} - ${referral.status}\n`;
-                    
                     if (referral.status === 'active') activeCount++;
-                    else pendingCount++;
                 }
+                
+                message += `\n💰 **Active Referrals:** ${activeCount}\n`;
+                message += `💵 **Earnings:** ${activeCount * 0.5} USDT\n`;
                 
                 if (referrals.length > 5) {
                     message += `... and ${referrals.length - 5} more\n`;
                 }
-                
-                message += `\n📈 **Summary:**\n`;
-                message += `✅ Active: ${activeCount}\n`;
-                message += `⏳ Pending: ${pendingCount}\n`;
             } else {
                 message += `🎯 **Your Referrals:** None yet\n\n`;
                 message += `💡 Share your referral link to earn rewards!\n`;
-                message += `Link: https://t.me/your_bot?start=${userId}`;
             }
 
-            await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+            message += `\n🔗 **Your Referral Link:**\n${referralLink}`;
+
+            const keyboard = {
+                inline_keyboard: [
+                    [{ text: 'Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }]
+                ]
+            };
+
+            await this.bot.sendMessage(chatId, message, { 
+                parse_mode: 'Markdown',
+                reply_markup: keyboard 
+            });
 
         } catch (error) {
             console.error('Error handling referrals command:', error);
@@ -224,45 +265,13 @@ class UserInteractionManager {
         }
     }
 
-    async handleGeneralMessage(msg) {
-        // Handle non-command messages if needed
-        if (msg.text && !msg.text.startsWith('/')) {
-            // Could add general message handling here
-            return;
-        }
-    }
-
-    async saveUser(msg) {
-        const userId = msg.from.id.toString();
-        const username = msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`;
-
-        try {
-            let user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
-            if (!user) {
-                user = new User({
-                    id: userId,
-                    telegramId: userId,
-                    username: username,
-                    joinDate: new Date()
-                });
-                await user.save();
-            } else {
-                // Update username if changed
-                if (user.username !== username) {
-                    user.username = username;
-                    await user.save();
-                }
-            }
-            return user;
-        } catch (error) {
-            console.error('Error saving user:', error);
-            return null;
-        }
-    }
-
     // Method to activate referrals when user completes a purchase
     async activateReferral(userId, orderId, stars) {
         try {
+            // Track user activity
+            await trackBotActivity(userId);
+
+            // Check if user has a referral
             const user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
             if (!user || !user.referredBy) return;
 
@@ -282,40 +291,31 @@ class UserInteractionManager {
                     referredId: userId
                 },
                 {
-                    status: 'active',
-                    activatedDate: new Date(),
-                    activationOrderId: orderId,
-                    starsPurchased: stars
+                    $set: {
+                        status: 'active',
+                        activatedDate: new Date(),
+                        activationOrderId: orderId,
+                        starsPurchased: stars
+                    }
                 }
             );
 
-            // Notify referrer
-            try {
-                const referrer = await User.findOne({ $or: [{ id: user.referredBy }, { telegramId: user.referredBy }] });
-                const referredUser = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
-                
-                const notification = `🎉 Referral Activated!\n\n` +
-                    `User: @${referredUser.username}\n` +
-                    `Order: ${orderId}\n` +
-                    `Stars: ${stars}\n\n` +
-                    `Your referral bonus has been activated!`;
+            // Get referrer details
+            const referrer = await User.findOne({ $or: [{ id: user.referredBy }, { telegramId: user.referredBy }] });
 
-                await this.bot.sendMessage(parseInt(user.referredBy), notification);
-            } catch (error) {
-                console.error('Failed to notify referrer of activation:', error);
-            }
+            // Notify referrer
+            const notification = `🎉 Referral Activated!\n\n` +
+                `Your referral @${user.username} just completed their first purchase!\n` +
+                `You both now qualify for referral rewards.`;
+
+            await this.bot.sendMessage(user.referredBy, notification);
 
             // Notify referred user
-            try {
-                const referrer = await User.findOne({ telegramId: user.referredBy });
-                const notification = `🎉 Referral Bonus Activated!\n\n` +
-                    `Your referral by @${referrer.username} has been activated!\n` +
-                    `Both of you now qualify for referral rewards.`;
+            const userNotification = `🎉 Referral Bonus Activated!\n\n` +
+                `Your referral by @${referrer.username} has been activated!\n` +
+                `Both of you now qualify for referral rewards.`;
 
-                await this.bot.sendMessage(parseInt(userId), notification);
-            } catch (error) {
-                console.error('Failed to notify referred user:', error);
-            }
+            await this.bot.sendMessage(userId, userNotification);
 
         } catch (error) {
             console.error('Error activating referral:', error);
