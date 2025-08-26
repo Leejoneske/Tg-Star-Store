@@ -264,7 +264,7 @@ class MaintenanceManager {
     async startStickerQueueCleanup() {
         try {
             if (this.stickerManager) {
-                const cleanedCount = this.stickerManager.performCleanup();
+                const cleanedCount = await this.stickerManager.performCleanup();
                 if (cleanedCount > 0) {
                     console.log(`✅ Sticker queue cleanup completed: ${cleanedCount} entries removed`);
                 }

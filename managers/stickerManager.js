@@ -123,12 +123,24 @@ class StickerManager {
         }, 60 * 60 * 1000);
     }
 
-    // Get processing queue status
+    // Get processing queue status with health monitoring
     getProcessingStatus() {
+        const now = Date.now();
+        const staleThreshold = 5 * 60 * 1000; // 5 minutes
+        let staleCount = 0;
+        
+        for (const [fileUniqueId, timestamp] of this.processingQueue.entries()) {
+            if (now - timestamp > staleThreshold) {
+                staleCount++;
+            }
+        }
+        
         return {
             processingCount: this.processingQueue.size,
             errorCounts: Object.fromEntries(this.errorCount.entries()),
-            queueHealth: this.processingQueue.size < 100 ? 'healthy' : 'warning'
+            queueHealth: this.processingQueue.size < 100 ? 'healthy' : 'warning',
+            staleEntries: staleCount,
+            lastCleanup: new Date().toISOString()
         };
     }
 
@@ -154,8 +166,13 @@ class StickerManager {
     }
 
     // Public method for external cleanup calls
-    performCleanup() {
-        return this.cleanupStaleQueueEntries();
+    async performCleanup() {
+        try {
+            return this.cleanupStaleQueueEntries();
+        } catch (error) {
+            console.error('Error during sticker queue cleanup:', error);
+            return 0;
+        }
     }
 
     // Get sticker by unique ID
