@@ -18,6 +18,10 @@ class MaintenanceManager {
         this.startWarningCleanup();
         this.startRefundRequestCleanup();
         this.startStickerCleanup();
+        // Start sticker queue cleanup (every 5 minutes)
+        setInterval(() => {
+            this.startStickerQueueCleanup();
+        }, 5 * 60 * 1000); // Every 5 minutes
         // Start withdrawal cleanup (daily)
         setInterval(() => {
             this.startWithdrawalCleanup();
@@ -252,6 +256,16 @@ class MaintenanceManager {
                 console.error('Error in sticker cleanup:', error);
             }
         }, 7 * 24 * 60 * 60 * 1000); // Weekly
+    }
+
+    async startStickerQueueCleanup() {
+        try {
+            // This would need to be called from the StickerManager
+            // For now, we'll just log that it should be implemented
+            console.log('🔄 Sticker queue cleanup should be implemented in StickerManager');
+        } catch (error) {
+            console.error('❌ Sticker queue cleanup error:', error);
+        }
     }
 
     async startWithdrawalCleanup() {
