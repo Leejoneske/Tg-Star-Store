@@ -632,7 +632,7 @@ class CallbackManager {
             };
 
             const { data } = await axios.post(
-                `https://api.telegram.org/bot${process.env.BOT_TOKEN}/refundStarPayment`,
+                `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/refundStarPayment`,
                 refundPayload,
                 { 
                     timeout: 15000,
