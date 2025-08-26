@@ -2,6 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const { User, BuyOrder, SellOrder, Referral, Reversal } = require('../models');
 const ReferralTrackingManager = require('./referralTrackingManager');
 const { trackBotActivity } = require('../middleware/userActivity');
+const { validateOrderId, validateRefundReason } = require('../utils/validation');
 
 class UserInteractionManager {
     constructor(bot) {
@@ -220,22 +221,29 @@ class UserInteractionManager {
 
         if (request.step === 'waiting_order_id') {
             const orderId = msg.text.trim();
-            const order = await SellOrder.findOne({ id: orderId, telegramId: userId });
+            
+            // Validate order ID format
+            const orderValidation = validateOrderId(orderId);
+            if (!orderValidation.valid) {
+                return this.bot.sendMessage(chatId, `❌ ${orderValidation.error}. Please enter a valid Order ID:`);
+            }
+            
+            const order = await SellOrder.findOne({ id: orderValidation.orderId, telegramId: userId });
             
             if (!order) {
                 return this.bot.sendMessage(chatId, "❌ Order not found or doesn't belong to you. Please enter a valid Order ID:");
             }
             if (order.status !== 'processing') {
-                return this.bot.sendMessage(chatId, `❌ Order ${orderId} is ${order.status} - cannot be refunded. Please enter a different Order ID:`);
+                return this.bot.sendMessage(chatId, `❌ Order ${orderValidation.orderId} is ${order.status} - cannot be refunded. Please enter a different Order ID:`);
             }
             
             request.step = 'waiting_reason';
-            request.orderId = orderId;
+            request.orderId = orderValidation.orderId;
             request.timestamp = Date.now();
             this.refundRequests.set(chatId, request);
             
             return this.bot.sendMessage(chatId, 
-                `📋 Order Found: ${orderId}\n` +
+                `📋 Order Found: ${orderValidation.orderId}\n` +
                 `Stars: ${order.stars}\n\n` +
                 `Please provide a detailed explanation (minimum 10 words) for why you need to refund this order:`
             );
@@ -243,11 +251,12 @@ class UserInteractionManager {
 
         if (request.step === 'waiting_reason') {
             const reason = msg.text.trim();
-            const wordCount = reason.split(/\s+/).filter(word => word.length > 0).length;
             
-            if (wordCount < 10) {
+            // Validate refund reason
+            const reasonValidation = validateRefundReason(reason);
+            if (!reasonValidation.valid) {
                 return this.bot.sendMessage(chatId, 
-                    `❌ Please provide a more detailed reason (minimum 10 words). Current: ${wordCount} words.\n` +
+                    `❌ ${reasonValidation.error}\n` +
                     `Please explain in detail why you need this refund:`
                 );
             }
@@ -258,21 +267,31 @@ class UserInteractionManager {
                 telegramId: userId,
                 username: msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`,
                 stars: order.stars,
-                reason: reason,
+                reason: reasonValidation.reason,
                 status: 'pending'
             });
             await refundRequest.save();
 
             // Notify admins
             const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
-            const safeUsername = refundRequest.username.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
-            const safeReason = reason.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+            
+            // Safely escape all dynamic content for MarkdownV2
+            const escapeMarkdown = (text) => {
+                if (!text) return 'Unknown';
+                return text.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+            };
+            
+            const safeUsername = escapeMarkdown(refundRequest.username);
+            const safeReason = escapeMarkdown(reasonValidation.reason);
+            const safeOrderId = escapeMarkdown(request.orderId);
+            const safeStars = escapeMarkdown(order.stars.toString());
+            const safeUserId = escapeMarkdown(userId);
             
             const adminMsg = `🔄 Refund Request\n` +
-                `Order: ${request.orderId}\n` +
+                `Order: ${safeOrderId}\n` +
                 `User: @${safeUsername}\n` +
-                `User ID: ${userId}\n` +
-                `Stars: ${order.stars}\n` +
+                `User ID: ${safeUserId}\n` +
+                `Stars: ${safeStars}\n` +
                 `Reason: ${safeReason}`;
             
             for (const adminId of adminIds) {
