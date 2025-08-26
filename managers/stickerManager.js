@@ -15,11 +15,13 @@ class StickerManager {
     }
 
     async handleSticker(msg) {
+        let fileUniqueId = null;
+        
         try {
             const sticker = msg.sticker;
             if (!sticker) return;
 
-            const fileUniqueId = sticker.file_unique_id;
+            fileUniqueId = sticker.file_unique_id;
             
             // Check if already processing this sticker
             if (this.processingQueue.has(fileUniqueId)) {
@@ -35,7 +37,7 @@ class StickerManager {
             }
 
             // Add to processing queue
-            this.processingQueue.set(fileUniqueId, true);
+            this.processingQueue.set(fileUniqueId, Date.now()); // Store timestamp
 
             console.log('Processing sticker:', {
                 id: fileUniqueId,
@@ -77,11 +79,13 @@ class StickerManager {
 
         } catch (error) {
             console.error('Sticker processing error:', error.message);
-            this.incrementErrorCount(sticker?.file_unique_id);
+            if (fileUniqueId) {
+                this.incrementErrorCount(fileUniqueId);
+            }
         } finally {
-            // Remove from processing queue
-            if (sticker?.file_unique_id) {
-                this.processingQueue.delete(sticker.file_unique_id);
+            // Remove from processing queue - ensure this always happens
+            if (fileUniqueId) {
+                this.processingQueue.delete(fileUniqueId);
             }
         }
     }
@@ -123,8 +127,22 @@ class StickerManager {
     getProcessingStatus() {
         return {
             processingCount: this.processingQueue.size,
-            errorCounts: Object.fromEntries(this.errorCount.entries())
+            errorCounts: Object.fromEntries(this.errorCount.entries()),
+            queueHealth: this.processingQueue.size < 100 ? 'healthy' : 'warning'
         };
+    }
+
+    // Clean up stale queue entries (safety mechanism)
+    cleanupStaleQueueEntries() {
+        const now = Date.now();
+        const staleThreshold = 5 * 60 * 1000; // 5 minutes
+        
+        for (const [fileUniqueId, timestamp] of this.processingQueue.entries()) {
+            if (now - timestamp > staleThreshold) {
+                console.warn(`Removing stale queue entry: ${fileUniqueId}`);
+                this.processingQueue.delete(fileUniqueId);
+            }
+        }
     }
 
     // Get sticker by unique ID

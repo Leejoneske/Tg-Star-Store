@@ -145,20 +145,36 @@ const logAdminAction = (req, res, next) => {
             // Mask body - only log safe fields
             if (masked.body) {
                 const safeBody = {};
-                const safeBodyFields = ['action', 'limit', 'offset', 'set', 'type', 'emoji'];
+                const safeBodyFields = [
+                    'action', 'limit', 'offset', 'set', 'type', 'emoji',
+                    'userId', 'amount', 'walletAddress', 'orderId', 'txId',
+                    'status', 'reason', 'stars', 'username', 'telegramId',
+                    'page', 'sort', 'filter', 'search', 'date', 'startDate', 'endDate'
+                ];
                 
                 for (const [key, value] of Object.entries(masked.body)) {
                     const lowerKey = key.toLowerCase();
                     
-                    if (safeBodyFields.includes(lowerKey)) {
-                        safeBody[key] = value;
+                    if (safeBodyFields.includes(lowerKey) || safeBodyFields.includes(key)) {
+                        // For sensitive fields, mask the value but keep the field
+                        if (['walletaddress', 'wallet_address', 'txid', 'tx_id', 'userid', 'user_id'].includes(lowerKey)) {
+                            const strValue = value?.toString() || '';
+                            safeBody[key] = strValue.length > 8 ? 
+                                strValue.substring(0, 4) + '...' + strValue.substring(strValue.length - 4) : 
+                                '***MASKED***';
+                        } else {
+                            safeBody[key] = value;
+                        }
                     } else if (sensitiveFields.some(field => 
                         lowerKey.includes(field.toLowerCase())
                     )) {
                         safeBody[key] = '***MASKED***';
                     } else {
-                        // For unknown fields, mask them to be safe
-                        safeBody[key] = '***MASKED***';
+                        // For unknown fields, log them but truncate long values
+                        const strValue = value?.toString() || '';
+                        safeBody[key] = strValue.length > 50 ? 
+                            strValue.substring(0, 50) + '...' : 
+                            strValue;
                     }
                 }
                 masked.body = safeBody;

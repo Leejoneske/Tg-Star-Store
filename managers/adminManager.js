@@ -1100,4 +1100,473 @@ class AdminManager {
                 const username = target.substring(1);
                 const user = await User.findOne({ username });
                 if (user) {
-                    await this.bot.sendMessage(user.id, `
+                    await this.bot.sendMessage(user.id, `🔔 Notification:\n\n${message}`);
+                    sentCount = 1;
+                } else {
+                    failedCount = 1;
+                }
+            } else {
+                await this.bot.sendMessage(target, `🔔 Notification:\n\n${message}`);
+                sentCount = 1;
+            }
+
+            await this.bot.sendMessage(msg.chat.id, 
+                `🔔 Notification sent!\n\n` +
+                `✅ Sent: ${sentCount}\n` +
+                `❌ Failed: ${failedCount}`
+            );
+        } catch (error) {
+            console.error('Error sending notification:', error);
+            await this.bot.sendMessage(msg.chat.id, "❌ Error sending notification");
+        }
+    }
+
+    async handleCreateSellOrder(msg, match) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        const orderDetails = match[1].split(' ');
+        if (orderDetails.length < 4) {
+            return this.bot.sendMessage(msg.chat.id, "Usage: /cso- <stars> <amount> <wallet_address>");
+        }
+
+        const stars = parseInt(orderDetails[0]);
+        const amount = parseFloat(orderDetails[1]);
+        const walletAddress = orderDetails[2];
+
+        if (isNaN(stars) || stars <= 0) {
+            return this.bot.sendMessage(msg.chat.id, "Stars must be a positive number.");
+        }
+        if (isNaN(amount) || amount <= 0) {
+            return this.bot.sendMessage(msg.chat.id, "Amount must be a positive number.");
+        }
+        if (!walletAddress) {
+            return this.bot.sendMessage(msg.chat.id, "Wallet address cannot be empty.");
+        }
+
+        const user = await User.findOne({ telegramId: msg.from.id });
+        if (!user) {
+            return this.bot.sendMessage(msg.chat.id, "You must be a registered user to create an order.");
+        }
+
+        const existingOrder = await SellOrder.findOne({ telegramId: msg.from.id });
+        if (existingOrder) {
+            return this.bot.sendMessage(msg.chat.id, "You already have an active sell order. Please use /recreate_sell to update it.");
+        }
+
+        const newOrder = new SellOrder({
+            id: `SO-${Date.now()}`,
+            telegramId: msg.from.id,
+            username: user.username || `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
+            stars: stars,
+            amount: amount,
+            walletAddress: walletAddress,
+            status: 'processing',
+            dateCreated: new Date(),
+            dateUpdated: new Date()
+        });
+
+        await newOrder.save();
+
+        const orderMessage = `✅ Sell Order Created!\n\n` +
+            `ID: ${newOrder.id}\n` +
+            `Stars: ${newOrder.stars}\n` +
+            `Amount: ${newOrder.amount} USDT\n` +
+            `Wallet: ${newOrder.walletAddress}\n` +
+            `Status: ${newOrder.status}\n` +
+            `Created: ${newOrder.dateCreated}`;
+
+        await this.bot.sendMessage(msg.chat.id, orderMessage);
+    }
+
+    async handleCreateBuyOrder(msg, match) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        const orderDetails = match[1].split(' ');
+        if (orderDetails.length < 4) {
+            return this.bot.sendMessage(msg.chat.id, "Usage: /cbo- <stars> <amount> <wallet_address>");
+        }
+
+        const stars = parseInt(orderDetails[0]);
+        const amount = parseFloat(orderDetails[1]);
+        const walletAddress = orderDetails[2];
+
+        if (isNaN(stars) || stars <= 0) {
+            return this.bot.sendMessage(msg.chat.id, "Stars must be a positive number.");
+        }
+        if (isNaN(amount) || amount <= 0) {
+            return this.bot.sendMessage(msg.chat.id, "Amount must be a positive number.");
+        }
+        if (!walletAddress) {
+            return this.bot.sendMessage(msg.chat.id, "Wallet address cannot be empty.");
+        }
+
+        const user = await User.findOne({ telegramId: msg.from.id });
+        if (!user) {
+            return this.bot.sendMessage(msg.chat.id, "You must be a registered user to create an order.");
+        }
+
+        const existingOrder = await BuyOrder.findOne({ telegramId: msg.from.id });
+        if (existingOrder) {
+            return this.bot.sendMessage(msg.chat.id, "You already have an active buy order. Please use /recreate_buy to update it.");
+        }
+
+        const newOrder = new BuyOrder({
+            id: `BO-${Date.now()}`,
+            telegramId: msg.from.id,
+            username: user.username || `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
+            stars: stars,
+            amount: amount,
+            walletAddress: walletAddress,
+            status: 'processing',
+            dateCreated: new Date(),
+            dateUpdated: new Date()
+        });
+
+        await newOrder.save();
+
+        const orderMessage = `✅ Buy Order Created!\n\n` +
+            `ID: ${newOrder.id}\n` +
+            `Stars: ${newOrder.stars}\n` +
+            `Amount: ${newOrder.amount} USDT\n` +
+            `Wallet: ${newOrder.walletAddress}\n` +
+            `Status: ${newOrder.status}\n` +
+            `Created: ${newOrder.dateCreated}`;
+
+        await this.bot.sendMessage(msg.chat.id, orderMessage);
+    }
+
+    async handleDetectUsers(msg) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        try {
+            const users = await User.find({});
+            let detectedUsers = [];
+            for (const user of users) {
+                const recentActivity = await this.checkUserActivity(user.telegramId);
+                if (recentActivity) {
+                    detectedUsers.push(`User: @${user.username || `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`} (ID: ${user.telegramId})\nLast Activity: ${recentActivity}`);
+                }
+            }
+
+            if (detectedUsers.length === 0) {
+                await this.bot.sendMessage(msg.chat.id, "No suspicious users detected.");
+            } else {
+                await this.bot.sendMessage(msg.chat.id, "🚨 **Suspicious User Detection Report**\n\n" + detectedUsers.join('\n\n'));
+            }
+        } catch (error) {
+            console.error('Error detecting users:', error);
+            await this.bot.sendMessage(msg.chat.id, "❌ Error detecting users");
+        }
+    }
+
+    async checkUserActivity(telegramId) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const orders = await SellOrder.find({ telegramId: telegramId, dateCreated: { $gte: thirtyDaysAgo } });
+        if (orders.length > 0) {
+            return `Has active sell orders in the last 30 days.`;
+        }
+
+        const orders = await BuyOrder.find({ telegramId: telegramId, dateCreated: { $gte: thirtyDaysAgo } });
+        if (orders.length > 0) {
+            return `Has active buy orders in the last 30 days.`;
+        }
+
+        const warnings = await Warning.find({ userId: telegramId, isActive: true });
+        if (warnings.length > 0) {
+            return `Has active warnings.`;
+        }
+
+        const bannedUsers = await BannedUser.findOne({ users: telegramId });
+        if (bannedUsers && bannedUsers.users.includes(telegramId)) {
+            return `Is banned.`;
+        }
+
+        return null;
+    }
+
+    async handleSellComplete(msg, match) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        const orderId = match[1];
+        try {
+            const order = await SellOrder.findOne({ id: orderId });
+            if (!order) {
+                await this.bot.sendMessage(msg.chat.id, "❌ Sell order not found.");
+                return;
+            }
+            if (order.status !== 'processing') {
+                await this.bot.sendMessage(msg.chat.id, `❌ Order ${orderId} is not in 'processing' status.`);
+                return;
+            }
+
+            order.status = 'completed';
+            order.dateCompleted = new Date();
+            order.refundData = {
+                requested: false,
+                status: 'completed',
+                processedAt: new Date()
+            };
+            await order.save();
+
+            await this.bot.sendMessage(order.telegramId, `✅ Your sell order ${orderId} has been completed.`);
+            await this.bot.sendMessage(msg.chat.id, `✅ Sell order ${orderId} marked as completed.`);
+        } catch (error) {
+            console.error('Error completing sell order:', error);
+            await this.bot.sendMessage(msg.chat.id, "❌ Error completing sell order");
+        }
+    }
+
+    async handleSellDecline(msg, match) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        const orderId = match[1];
+        try {
+            const order = await SellOrder.findOne({ id: orderId });
+            if (!order) {
+                await this.bot.sendMessage(msg.chat.id, "❌ Sell order not found.");
+                return;
+            }
+            if (order.status !== 'processing') {
+                await this.bot.sendMessage(msg.chat.id, `❌ Order ${orderId} is not in 'processing' status.`);
+                return;
+            }
+
+            order.status = 'declined';
+            order.dateDeclined = new Date();
+            order.refundData = {
+                requested: false,
+                status: 'declined',
+                processedAt: new Date()
+            };
+            await order.save();
+
+            await this.bot.sendMessage(order.telegramId, `❌ Your sell order ${orderId} has been declined.`);
+            await this.bot.sendMessage(msg.chat.id, `❌ Sell order ${orderId} marked as declined.`);
+        } catch (error) {
+            console.error('Error declining sell order:', error);
+            await this.bot.sendMessage(msg.chat.id, "❌ Error declining sell order");
+        }
+    }
+
+    async handleRecreateSellOrder(msg, match) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        const orderId = match[1];
+        try {
+            const order = await SellOrder.findOne({ id: orderId });
+            if (!order) {
+                await this.bot.sendMessage(msg.chat.id, "❌ Sell order not found.");
+                return;
+            }
+            if (order.status !== 'declined' && order.status !== 'completed') {
+                await this.bot.sendMessage(msg.chat.id, `❌ Order ${orderId} cannot be recreated as it's not in 'declined' or 'completed' status.`);
+                return;
+            }
+
+            const user = await User.findOne({ telegramId: order.telegramId });
+            if (!user) {
+                await this.bot.sendMessage(msg.chat.id, "User not found for this order.");
+                return;
+            }
+
+            const newOrder = new SellOrder({
+                id: `SO-${Date.now()}`,
+                telegramId: order.telegramId,
+                username: user.username || `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
+                stars: order.stars,
+                amount: order.amount,
+                walletAddress: order.walletAddress,
+                status: 'processing',
+                dateCreated: new Date(),
+                dateUpdated: new Date()
+            });
+
+            await newOrder.save();
+
+            const orderMessage = `✅ Sell Order Recreated!\n\n` +
+                `ID: ${newOrder.id}\n` +
+                `Stars: ${newOrder.stars}\n` +
+                `Amount: ${newOrder.amount} USDT\n` +
+                `Wallet: ${newOrder.walletAddress}\n` +
+                `Status: ${newOrder.status}\n` +
+                `Created: ${newOrder.dateCreated}`;
+
+            await this.bot.sendMessage(msg.chat.id, orderMessage);
+        } catch (error) {
+            console.error('Error recreating sell order:', error);
+            await this.bot.sendMessage(msg.chat.id, "❌ Error recreating sell order");
+        }
+    }
+
+    async handleRecreateBuyOrder(msg, match) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        const orderId = match[1];
+        try {
+            const order = await BuyOrder.findOne({ id: orderId });
+            if (!order) {
+                await this.bot.sendMessage(msg.chat.id, "❌ Buy order not found.");
+                return;
+            }
+            if (order.status !== 'declined' && order.status !== 'completed') {
+                await this.bot.sendMessage(msg.chat.id, `❌ Order ${orderId} cannot be recreated as it's not in 'declined' or 'completed' status.`);
+                return;
+            }
+
+            const user = await User.findOne({ telegramId: order.telegramId });
+            if (!user) {
+                await this.bot.sendMessage(msg.chat.id, "User not found for this order.");
+                return;
+            }
+
+            const newOrder = new BuyOrder({
+                id: `BO-${Date.now()}`,
+                telegramId: order.telegramId,
+                username: user.username || `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
+                stars: order.stars,
+                amount: order.amount,
+                walletAddress: order.walletAddress,
+                status: 'processing',
+                dateCreated: new Date(),
+                dateUpdated: new Date()
+            });
+
+            await newOrder.save();
+
+            const orderMessage = `✅ Buy Order Recreated!\n\n` +
+                `ID: ${newOrder.id}\n` +
+                `Stars: ${newOrder.stars}\n` +
+                `Amount: ${newOrder.amount} USDT\n` +
+                `Wallet: ${newOrder.walletAddress}\n` +
+                `Status: ${newOrder.status}\n` +
+                `Created: ${newOrder.dateCreated}`;
+
+            await this.bot.sendMessage(msg.chat.id, orderMessage);
+        } catch (error) {
+            console.error('Error recreating buy order:', error);
+            await this.bot.sendMessage(msg.chat.id, "❌ Error recreating buy order");
+        }
+    }
+
+    async handleListUsers(msg) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        try {
+            const users = await User.find({});
+            if (users.length === 0) {
+                await this.bot.sendMessage(msg.chat.id, "No users found in the database.");
+                return;
+            }
+
+            let userList = "📋 **Registered Users**\n\n";
+            users.forEach((user, index) => {
+                userList += `${index + 1}. @${user.username || `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`} (ID: ${user.telegramId})\n`;
+            });
+            await this.bot.sendMessage(msg.chat.id, userList);
+        } catch (error) {
+            console.error('Error listing users:', error);
+            await this.bot.sendMessage(msg.chat.id, "❌ Error listing users");
+        }
+    }
+
+    async handleListWithdrawals(msg) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        try {
+            const withdrawals = await ReferralWithdrawal.find({}).sort({ date: -1 });
+            if (withdrawals.length === 0) {
+                await this.bot.sendMessage(msg.chat.id, "No withdrawal requests found.");
+                return;
+            }
+
+            let withdrawalList = "📋 **Referral Withdrawal Requests**\n\n";
+            withdrawals.forEach((withdrawal, index) => {
+                withdrawalList += `${index + 1}. User: @${withdrawal.username || withdrawal.telegramId}\n` +
+                    `Amount: ${withdrawal.amount} USDT\n` +
+                    `Status: ${withdrawal.status}\n` +
+                    `Date: ${withdrawal.date.toLocaleDateString()}\n\n`;
+            });
+            await this.bot.sendMessage(msg.chat.id, withdrawalList);
+        } catch (error) {
+            console.error('Error listing withdrawals:', error);
+            await this.bot.sendMessage(msg.chat.id, "❌ Error listing withdrawals");
+        }
+    }
+
+    async handleWithdrawalStats(msg) {
+        if (!this.adminIds.includes(msg.from.id.toString())) {
+            return this.bot.sendMessage(msg.chat.id, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        try {
+            const totalWithdrawals = await ReferralWithdrawal.countDocuments({});
+            const totalAmount = await ReferralWithdrawal.aggregate([
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]);
+            const totalReferrals = await Referral.countDocuments({});
+
+            await this.bot.sendMessage(msg.chat.id, 
+                `📊 **Referral Withdrawal Statistics**\n\n` +
+                `Total Withdrawal Requests: ${totalWithdrawals}\n` +
+                `Total Amount Withdrawn: ${totalAmount.length > 0 ? totalAmount[0].total : 0} USDT\n` +
+                `Total Referrals: ${totalReferrals}\n\n` +
+                `To view specific withdrawal requests, use /withdrawals`
+            );
+        } catch (error) {
+            console.error('Error getting withdrawal stats:', error);
+            await this.bot.sendMessage(msg.chat.id, "❌ Error getting withdrawal stats");
+        }
+    }
+}
+
+module.exports = AdminManager;
