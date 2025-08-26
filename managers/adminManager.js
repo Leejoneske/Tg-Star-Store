@@ -98,6 +98,10 @@ class AdminManager {
             await this.handleListWithdrawals(msg);
         });
 
+        this.bot.onText(/\/withdrawal_stats/, async (msg) => {
+            await this.handleWithdrawalStats(msg);
+        });
+
         // Enhanced message handler for refund requests
         this.bot.on('message', async (msg) => {
             await this.handleRefundMessages(msg);

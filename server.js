@@ -24,6 +24,8 @@ const FeedbackManager = require('./managers/feedbackManager');
 const MaintenanceManager = require('./managers/maintenanceManager');
 const NotificationManager = require('./managers/notificationManager');
 const StickerManager = require('./managers/stickerManager');
+const WithdrawalManager = require('./managers/withdrawalManager');
+const ReferralTrackingManager = require('./managers/referralTrackingManager');
 
 // Import API routes
 const apiRoutes = require('./routes/apiRoutes');
@@ -96,14 +98,15 @@ mongoose.connect(process.env.MONGODB_URI)
     console.log('✅ Connected to MongoDB');
     
     // Initialize managers after MongoDB connection
-    new PaymentManager(bot, adminIds);
-    new AdminManager(bot, adminIds);
-    new UserInteractionManager(bot);
-    new CallbackManager(bot, adminIds);
-    new FeedbackManager(bot, adminIds);
-    new MaintenanceManager(bot, adminIds);
-    new NotificationManager(bot, adminIds);
-    new StickerManager(bot);
+    const paymentManager = new PaymentManager(bot);
+    const adminManager = new AdminManager(bot, adminIds);
+    const userInteractionManager = new UserInteractionManager(bot, adminIds);
+    const callbackManager = new CallbackManager(bot, adminIds);
+    const maintenanceManager = new MaintenanceManager();
+    const notificationManager = new NotificationManager(bot);
+    const referralTrackingManager = new ReferralTrackingManager(bot, adminIds);
+    const stickerManager = new StickerManager(bot);
+    const withdrawalManager = new WithdrawalManager(bot, adminIds);
     
     console.log('✅ All managers initialized');
   })

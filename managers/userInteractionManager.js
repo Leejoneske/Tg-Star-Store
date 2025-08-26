@@ -31,6 +31,19 @@ class UserInteractionManager {
             await this.handleRefundRequest(msg, match);
         });
 
+        // Withdrawal commands
+        this.bot.onText(/\/withdraw (.+)/, async (msg, match) => {
+            await this.handleWithdrawCommand(msg, match);
+        });
+
+        this.bot.onText(/\/withdrawals/, async (msg) => {
+            await this.handleWithdrawalsCommand(msg);
+        });
+
+        this.bot.onText(/\/balance/, async (msg) => {
+            await this.handleBalanceCommand(msg);
+        });
+
         // Handle general messages
         this.bot.on('message', async (msg) => {
             await this.handleGeneralMessage(msg);
@@ -181,23 +194,24 @@ class UserInteractionManager {
         // Track user activity
         await trackBotActivity(userId);
         
-        const helpMessage = `📚 **StarStore Commands**\n\n` +
-            `🔹 /start - Start the bot\n` +
-            `🔹 /help - Show this help message\n` +
-            `🔹 /referrals - Check your referral status\n` +
-            `🔹 /refund [orderId] - Request a refund for your order\n\n` +
-            `💡 **How it works:**\n` +
-            `• Visit our web app to buy/sell stars\n` +
-            `• Complete transactions through Telegram\n` +
-            `• Earn rewards through referrals\n` +
-            `• Request refunds for processing orders\n\n` +
-            `🔄 **Refund Policy:**\n` +
-            `• Only processing orders can be refunded\n` +
-            `• Limited to one refund request per month\n` +
-            `• Requires detailed explanation (10+ words)\n\n` +
-            `🔗 **Links:**\n` +
-            `• Web App: https://starstore.site\n` +
-            `• Community: https://t.me/StarStore_Chat`;
+        const helpMessage = `🤖 **Welcome to Telegram Star Store Bot!**\n\n` +
+                           `**Available Commands:**\n\n` +
+                           `📋 **General Commands:**\n` +
+                           `• /start - Start the bot\n` +
+                           `• /help - Show this help message\n` +
+                           `• /buy - Buy Telegram Stars\n` +
+                           `• /sell - Sell Telegram Stars\n` +
+                           `• /orders - View your orders\n` +
+                           `• /refund - Request a refund\n\n` +
+                           `💰 **Referral System:**\n` +
+                           `• /referrals - View your referrals\n` +
+                           `• /balance - Check your referral balance\n` +
+                           `• /withdraw <amount> <wallet> - Withdraw earnings\n` +
+                           `• /withdrawals - View withdrawal history\n\n` +
+                           `📞 **Support:**\n` +
+                           `• Contact support for any issues\n\n` +
+                           `**Referral Link:**\n` +
+                           `Share this link to earn: https://t.me/TgStarStore_bot?start=ref_${msg.from.id}`;
 
         await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
     }
@@ -510,6 +524,153 @@ class UserInteractionManager {
 
         } catch (error) {
             console.error('Error activating referral:', error);
+        }
+    }
+
+    async handleWithdrawCommand(msg, match) {
+        const userId = msg.from.id.toString();
+        const args = match[1].trim().split(' ');
+        
+        if (args.length < 2) {
+            return this.bot.sendMessage(msg.chat.id, 
+                '❌ **Invalid Format**\n\n' +
+                'Usage: `/withdraw <amount> <wallet_address>`\n\n' +
+                'Example: `/withdraw 5.0 TRC20_WALLET_ADDRESS`\n\n' +
+                'Minimum withdrawal: 0.5 USDT', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+
+        const [amount, ...walletParts] = args;
+        const walletAddress = walletParts.join(' ');
+
+        try {
+            const amountNum = parseFloat(amount);
+            if (isNaN(amountNum) || amountNum < 0.5) {
+                return this.bot.sendMessage(msg.chat.id, 
+                    '❌ **Invalid Amount**\n\nMinimum withdrawal is 0.5 USDT', {
+                    parse_mode: 'Markdown',
+                    reply_to_message_id: msg.message_id
+                });
+            }
+
+            if (!walletAddress || walletAddress.length < 10) {
+                return this.bot.sendMessage(msg.chat.id, 
+                    '❌ **Invalid Wallet Address**\n\nPlease provide a valid wallet address', {
+                    parse_mode: 'Markdown',
+                    reply_to_message_id: msg.message_id
+                });
+            }
+
+            // Create withdrawal using WithdrawalManager
+            const { WithdrawalManager } = require('./withdrawalManager');
+            const withdrawalManager = new WithdrawalManager(this.bot, this.adminIds);
+            
+            const withdrawal = await withdrawalManager.createWithdrawal(userId, amountNum, walletAddress);
+
+            await this.bot.sendMessage(msg.chat.id, 
+                '✅ **Withdrawal Request Submitted**\n\n' +
+                `Amount: ${amountNum} USDT\n` +
+                `Wallet: ${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}\n` +
+                `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
+                'Status: Pending approval', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+
+        } catch (error) {
+            console.error('Withdrawal error:', error);
+            await this.bot.sendMessage(msg.chat.id, 
+                `❌ **Withdrawal Failed**\n\n${error.message}`, {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+    }
+
+    async handleWithdrawalsCommand(msg) {
+        const userId = msg.from.id.toString();
+
+        try {
+            const { WithdrawalManager } = require('./withdrawalManager');
+            const withdrawalManager = new WithdrawalManager(this.bot, this.adminIds);
+            
+            const withdrawals = await withdrawalManager.getWithdrawalHistory(userId);
+
+            if (withdrawals.length === 0) {
+                return this.bot.sendMessage(msg.chat.id, 
+                    '📋 **No Withdrawals Found**\n\nYou haven\'t made any withdrawal requests yet.', {
+                    parse_mode: 'Markdown',
+                    reply_to_message_id: msg.message_id
+                });
+            }
+
+            let message = '📋 **Your Withdrawal History**\n\n';
+            
+            for (const withdrawal of withdrawals.slice(0, 5)) {
+                const status = withdrawal.status === 'completed' ? '✅' : 
+                              withdrawal.status === 'pending' ? '⏳' : '❌';
+                const withdrawalId = `WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
+                
+                message += `${status} **${withdrawalId}**\n`;
+                message += `💰 ${withdrawal.amount} USDT\n`;
+                message += `📅 ${withdrawal.createdAt.toLocaleDateString()}\n`;
+                message += `Status: ${withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}\n\n`;
+            }
+
+            if (withdrawals.length > 5) {
+                message += `... and ${withdrawals.length - 5} more withdrawals`;
+            }
+
+            await this.bot.sendMessage(msg.chat.id, message, {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+
+        } catch (error) {
+            console.error('Withdrawals history error:', error);
+            await this.bot.sendMessage(msg.chat.id, 
+                '❌ **Error**\n\nFailed to load withdrawal history', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        }
+    }
+
+    async handleBalanceCommand(msg) {
+        const userId = msg.from.id.toString();
+
+        try {
+            const { Referral } = require('../models');
+            
+            const availableReferrals = await Referral.find({
+                referrerId: userId,
+                status: { $in: ['completed', 'active'] },
+                withdrawn: { $ne: true }
+            }).lean();
+
+            const availableBalance = availableReferrals.length * 0.5;
+            const totalReferrals = await Referral.countDocuments({ referrerId: userId });
+
+            const message = '💰 **Your Referral Balance**\n\n' +
+                           `Available: **${availableBalance.toFixed(2)} USDT**\n` +
+                           `Active Referrals: **${availableReferrals.length}**\n` +
+                           `Total Referrals: **${totalReferrals}**\n\n` +
+                           'Use `/withdraw <amount> <wallet>` to withdraw your earnings';
+
+            await this.bot.sendMessage(msg.chat.id, message, {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+
+        } catch (error) {
+            console.error('Balance error:', error);
+            await this.bot.sendMessage(msg.chat.id, 
+                '❌ **Error**\n\nFailed to load balance information', {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
         }
     }
 }
