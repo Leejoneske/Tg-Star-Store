@@ -33,6 +33,16 @@ class CallbackManager {
                 await this.handleDeclineSell(query);
             } else if (data.startsWith('refund_sell_')) {
                 await this.handleRefundSell(query);
+            } else if (data.startsWith('req_approve_')) {
+                await this.handleApproveRefundRequest(query);
+            } else if (data.startsWith('req_reject_')) {
+                await this.handleRejectRefundRequest(query);
+            } else if (data.startsWith('refund_order_')) {
+                await this.handleRefundOrder(query);
+            } else if (data.startsWith('reject_refund_')) {
+                await this.handleRejectRefund(query);
+            } else if (data.startsWith('approve_refund_')) {
+                await this.handleApproveRefund(query);
             } else if (data.startsWith('complete_buy_')) {
                 await this.handleCompleteBuy(query);
             } else if (data.startsWith('decline_buy_')) {
@@ -41,10 +51,16 @@ class CallbackManager {
                 await this.handleReverseOrder(query);
             } else if (data.startsWith('refund_')) {
                 await this.handleRefundOrder(query);
-            } else if (data.startsWith('req_approve_')) {
-                await this.handleApproveRefund(query);
-            } else if (data.startsWith('req_reject_')) {
-                await this.handleRejectRefund(query);
+            } else if (data.startsWith('recreate_sell_')) {
+                await this.handleRecreateSell(query);
+            } else if (data.startsWith('recreate_buy_')) {
+                await this.handleRecreateBuy(query);
+            } else if (data.startsWith('ban_user_')) {
+                await this.handleBanUser(query);
+            } else if (data.startsWith('unban_user_')) {
+                await this.handleUnbanUser(query);
+            } else if (data.startsWith('processed_done')) {
+                await this.bot.answerCallbackQuery(query.id, { text: 'Action completed' });
             } else {
                 // Unknown callback
                 await this.bot.answerCallbackQuery(query.id, { text: 'Unknown action' });
@@ -469,6 +485,110 @@ class CallbackManager {
             }
 
             request.status = 'declined';
+            request.processedAt = new Date();
+            await request.save();
+            
+            await this.bot.sendMessage(query.from.id, `❌ Refund request rejected for ${orderId}`);
+            
+            try {
+                await this.bot.sendMessage(parseInt(request.telegramId), `❌ Your refund request for order ${orderId} has been rejected.`);
+            } catch (userError) {
+                console.error('Failed to notify user of rejection:', userError.message);
+            }
+
+            await this.updateAdminMessages(request, "❌ REJECTED");
+            await this.bot.answerCallbackQuery(query.id, { text: 'Refund rejected' });
+
+        } catch (error) {
+            console.error('Error rejecting refund:', error);
+            await this.bot.answerCallbackQuery(query.id, { text: 'Error rejecting refund' });
+        }
+    }
+
+    async handleApproveRefundRequest(query) {
+        if (!this.adminIds.includes(query.from.id.toString())) {
+            await this.bot.answerCallbackQuery(query.id, { text: 'Unauthorized' });
+            return;
+        }
+
+        const orderId = query.data.replace('req_approve_', '');
+        
+        try {
+            const request = await Reversal.findOne({ orderId: orderId });
+            if (!request) {
+                await this.bot.answerCallbackQuery(query.id, { text: 'Refund request not found' });
+                return;
+            }
+
+            if (request.status !== 'pending') {
+                await this.bot.answerCallbackQuery(query.id, { text: 'Request already processed' });
+                return;
+            }
+
+            // Process the refund
+            const result = await this.processRefund(orderId);
+            
+            if (result.success) {
+                request.status = 'approved';
+                request.adminId = query.from.id.toString();
+                request.adminUsername = query.from.username || query.from.first_name;
+                request.processedAt = new Date();
+                await request.save();
+
+                const statusMessage = result.alreadyRefunded
+                    ? `✅ Refund request approved for ${orderId}\nCharge ID: ${result.chargeId}`
+                    : `✅ Refund processed successfully for ${orderId}\nCharge ID: ${result.chargeId}`;
+
+                await this.bot.sendMessage(query.from.id, statusMessage);
+
+                // Notify user
+                const userMessage = result.alreadyRefunded
+                    ? `💸 Your refund for order ${orderId} was already processed\nTX ID: ${result.chargeId}`
+                    : `💸 Refund Processed\nOrder: ${orderId}\nTX ID: ${result.chargeId}`;
+
+                try {
+                    await this.bot.sendMessage(parseInt(request.telegramId), userMessage);
+                } catch (userError) {
+                    await this.bot.sendMessage(query.from.id, `⚠️ Refund processed but user notification failed`);
+                }
+
+                await this.updateAdminMessages(request, "✅ APPROVED");
+                await this.bot.answerCallbackQuery(query.id, { text: 'Refund approved and processed' });
+            }
+        } catch (refundError) {
+            console.error('Error processing refund:', refundError);
+            request.status = 'processing';
+            request.errorMessage = refundError.message;
+            await request.save();
+            
+            await this.bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}\nError: ${refundError.message}`);
+            await this.bot.answerCallbackQuery(query.id, { text: 'Refund failed' });
+        }
+    }
+
+    async handleRejectRefundRequest(query) {
+        if (!this.adminIds.includes(query.from.id.toString())) {
+            await this.bot.answerCallbackQuery(query.id, { text: 'Unauthorized' });
+            return;
+        }
+
+        const orderId = query.data.replace('req_reject_', '');
+        
+        try {
+            const request = await Reversal.findOne({ orderId: orderId });
+            if (!request) {
+                await this.bot.answerCallbackQuery(query.id, { text: 'Refund request not found' });
+                return;
+            }
+
+            if (request.status !== 'pending') {
+                await this.bot.answerCallbackQuery(query.id, { text: 'Request already processed' });
+                return;
+            }
+
+            request.status = 'rejected';
+            request.adminId = query.from.id.toString();
+            request.adminUsername = query.from.username || query.from.first_name;
             request.processedAt = new Date();
             await request.save();
             

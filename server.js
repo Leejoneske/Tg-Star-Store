@@ -30,6 +30,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const referralRoutes = require('./routes/referralRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const userRoutes = require('./routes/userRoutes');
+const refundRoutes = require('./routes/refundRoutes');
 const stickerRoutes = require('./routes/stickerRoutes');
 const sitemapRoutes = require('./routes/sitemapRoutes');
 
@@ -115,6 +116,7 @@ app.use('/api/notifications', apiLogger, notificationRoutes);
 app.use('/api', apiLogger, referralRoutes);
 app.use('/api', apiLogger, orderRoutes);
 app.use('/api/users', apiLogger, userRoutes);
+app.use('/api', apiLogger, refundRoutes);
 app.use('/api', apiLogger, stickerRoutes);
 app.use('/api', apiLogger, sitemapRoutes);
 

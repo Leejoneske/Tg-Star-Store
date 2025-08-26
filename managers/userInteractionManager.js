@@ -1,5 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
-const { User, BuyOrder, SellOrder, Referral } = require('../models');
+const { User, BuyOrder, SellOrder, Referral, Reversal } = require('../models');
 const ReferralTrackingManager = require('./referralTrackingManager');
 const { trackBotActivity } = require('../middleware/userActivity');
 
@@ -7,6 +7,7 @@ class UserInteractionManager {
     constructor(bot) {
         this.bot = bot;
         this.referralTrackingManager = new ReferralTrackingManager(bot, process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : []);
+        this.refundRequests = new Map();
         this.setupUserHandlers();
     }
 
@@ -22,6 +23,10 @@ class UserInteractionManager {
 
         this.bot.onText(/^\/referrals/, async (msg) => {
             await this.handleReferrals(msg);
+        });
+
+        this.bot.onText(/^\/refund(?:\s+(.+))?/, async (msg, match) => {
+            await this.handleRefundRequest(msg, match);
         });
 
         // Handle general messages
@@ -177,11 +182,17 @@ class UserInteractionManager {
         const helpMessage = `📚 **StarStore Commands**\n\n` +
             `🔹 /start - Start the bot\n` +
             `🔹 /help - Show this help message\n` +
-            `🔹 /referrals - Check your referral status\n\n` +
+            `🔹 /referrals - Check your referral status\n` +
+            `🔹 /refund [orderId] - Request a refund for your order\n\n` +
             `💡 **How it works:**\n` +
             `• Visit our web app to buy/sell stars\n` +
             `• Complete transactions through Telegram\n` +
-            `• Earn rewards through referrals\n\n` +
+            `• Earn rewards through referrals\n` +
+            `• Request refunds for processing orders\n\n` +
+            `🔄 **Refund Policy:**\n` +
+            `• Only processing orders can be refunded\n` +
+            `• Limited to one refund request per month\n` +
+            `• Requires detailed explanation (10+ words)\n\n` +
             `🔗 **Links:**\n` +
             `• Web App: https://starstore.site\n` +
             `• Community: https://t.me/StarStore_Chat`;
@@ -195,6 +206,176 @@ class UserInteractionManager {
         
         // Track user activity for any message
         await trackBotActivity(userId);
+
+        // Handle refund request workflow
+        const request = this.refundRequests.get(chatId);
+        if (request && Date.now() - request.timestamp < 300000) { // 5 minute window
+            await this.handleRefundMessage(msg, request);
+        }
+    }
+
+    async handleRefundMessage(msg, request) {
+        const chatId = msg.chat.id;
+        const userId = chatId.toString();
+
+        if (request.step === 'waiting_order_id') {
+            const orderId = msg.text.trim();
+            const order = await SellOrder.findOne({ id: orderId, telegramId: userId });
+            
+            if (!order) {
+                return this.bot.sendMessage(chatId, "❌ Order not found or doesn't belong to you. Please enter a valid Order ID:");
+            }
+            if (order.status !== 'processing') {
+                return this.bot.sendMessage(chatId, `❌ Order ${orderId} is ${order.status} - cannot be refunded. Please enter a different Order ID:`);
+            }
+            
+            request.step = 'waiting_reason';
+            request.orderId = orderId;
+            request.timestamp = Date.now();
+            this.refundRequests.set(chatId, request);
+            
+            return this.bot.sendMessage(chatId, 
+                `📋 Order Found: ${orderId}\n` +
+                `Stars: ${order.stars}\n\n` +
+                `Please provide a detailed explanation (minimum 10 words) for why you need to refund this order:`
+            );
+        }
+
+        if (request.step === 'waiting_reason') {
+            const reason = msg.text.trim();
+            const wordCount = reason.split(/\s+/).filter(word => word.length > 0).length;
+            
+            if (wordCount < 10) {
+                return this.bot.sendMessage(chatId, 
+                    `❌ Please provide a more detailed reason (minimum 10 words). Current: ${wordCount} words.\n` +
+                    `Please explain in detail why you need this refund:`
+                );
+            }
+
+            const order = await SellOrder.findOne({ id: request.orderId });
+            const refundRequest = new Reversal({
+                orderId: request.orderId,
+                telegramId: userId,
+                username: msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`,
+                stars: order.stars,
+                reason: reason,
+                status: 'pending'
+            });
+            await refundRequest.save();
+
+            // Notify admins
+            const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
+            const safeUsername = refundRequest.username.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+            const safeReason = reason.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+            
+            const adminMsg = `🔄 Refund Request\n` +
+                `Order: ${request.orderId}\n` +
+                `User: @${safeUsername}\n` +
+                `User ID: ${userId}\n` +
+                `Stars: ${order.stars}\n` +
+                `Reason: ${safeReason}`;
+            
+            for (const adminId of adminIds) {
+                try {
+                    const message = await this.bot.sendMessage(parseInt(adminId), adminMsg, {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    { text: "✅ Approve", callback_data: `req_approve_${request.orderId}` },
+                                    { text: "❌ Reject", callback_data: `req_reject_${request.orderId}` }
+                                ]
+                            ]
+                        },
+                        parse_mode: 'MarkdownV2'
+                    });
+                    
+                    // Store admin message info
+                    refundRequest.adminMessages.push({
+                        adminId: adminId,
+                        messageId: message.message_id,
+                        messageType: 'refund'
+                    });
+                    await refundRequest.save();
+                } catch (error) {
+                    console.error(`Failed to notify admin ${adminId}:`, error);
+                }
+            }
+            
+            // Confirm receipt to user
+            await this.bot.sendMessage(chatId, `Thank you for your refund request! We will review it and get back to you shortly.`);
+            
+            // Clear the request state
+            this.refundRequests.delete(chatId);
+        }
+    }
+
+    async handleRefundRequest(msg, match) {
+        const chatId = msg.chat.id;
+        const userId = chatId.toString();
+        
+        // Track user activity
+        await trackBotActivity(userId);
+
+        try {
+            // Check monthly refund limit
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            const recentRequest = await Reversal.findOne({
+                telegramId: userId,
+                createdAt: { $gte: thirtyDaysAgo },
+                status: { $in: ['pending', 'processing'] }
+            });
+            
+            if (recentRequest) {
+                const nextAllowedDate = new Date(recentRequest.createdAt);
+                nextAllowedDate.setDate(nextAllowedDate.getDate() + 30);
+                return this.bot.sendMessage(chatId, 
+                    `❌ You can only request one refund per month.\n` +
+                    `Next refund available: ${nextAllowedDate.toDateString()}`
+                );
+            }
+            
+            const orderId = match[1] ? match[1].trim() : null;
+            
+            if (!orderId) {
+                const welcomeMsg = `🔄 Welcome to Refund Request System\n\n` +
+                    `You are about to request a cancellation and refund for your order. ` +
+                    `Please note that refund requests are limited to once per month.\n\n` +
+                    `Please enter your Order ID:`;
+                
+                this.refundRequests.set(chatId, { 
+                    step: 'waiting_order_id', 
+                    timestamp: Date.now() 
+                });
+                return this.bot.sendMessage(chatId, welcomeMsg);
+            }
+            
+            const order = await SellOrder.findOne({ id: orderId, telegramId: userId });
+            
+            if (!order) {
+                return this.bot.sendMessage(chatId, "❌ Order not found or doesn't belong to you");
+            }
+            if (order.status !== 'processing') {
+                return this.bot.sendMessage(chatId, `❌ Order is ${order.status} - cannot be refunded`);
+            }
+            
+            this.refundRequests.set(chatId, { 
+                step: 'waiting_reason',
+                orderId, 
+                timestamp: Date.now() 
+            });
+            
+            await this.bot.sendMessage(chatId, 
+                `📋 Order Found: ${orderId}\n` +
+                `Stars: ${order.stars}\n\n` +
+                `Please provide a detailed explanation (minimum 10 words) for why you need to refund this order:`
+            );
+
+        } catch (error) {
+            console.error('Error handling refund request:', error);
+            await this.bot.sendMessage(chatId, "❌ Error processing refund request. Please try again.");
+        }
     }
 
     async handleReferrals(msg) {
