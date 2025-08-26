@@ -3,6 +3,7 @@ const { User, BuyOrder, SellOrder, Referral, Reversal } = require('../models');
 const ReferralTrackingManager = require('./referralTrackingManager');
 const { trackBotActivity } = require('../middleware/userActivity');
 const { validateOrderId, validateRefundReason } = require('../utils/validation');
+const { formatAdminNotification } = require('../utils/markdown');
 
 class UserInteractionManager {
     constructor(bot) {
@@ -272,27 +273,17 @@ class UserInteractionManager {
             });
             await refundRequest.save();
 
-            // Notify admins
+            // Notify admins using centralized markdown formatting
             const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
             
-            // Safely escape all dynamic content for MarkdownV2
-            const escapeMarkdown = (text) => {
-                if (!text) return 'Unknown';
-                return text.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
-            };
-            
-            const safeUsername = escapeMarkdown(refundRequest.username);
-            const safeReason = escapeMarkdown(reasonValidation.reason);
-            const safeOrderId = escapeMarkdown(request.orderId);
-            const safeStars = escapeMarkdown(order.stars.toString());
-            const safeUserId = escapeMarkdown(userId);
-            
-            const adminMsg = `🔄 Refund Request\n` +
-                `Order: ${safeOrderId}\n` +
-                `User: @${safeUsername}\n` +
-                `User ID: ${safeUserId}\n` +
-                `Stars: ${safeStars}\n` +
-                `Reason: ${safeReason}`;
+            const adminMsg = formatAdminNotification({
+                orderId: request.orderId,
+                username: refundRequest.username,
+                userId: userId,
+                stars: order.stars,
+                reason: reasonValidation.reason,
+                type: 'refund'
+            });
             
             for (const adminId of adminIds) {
                 try {

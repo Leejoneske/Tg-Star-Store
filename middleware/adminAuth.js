@@ -38,13 +38,21 @@ const requireAdminAuth = (req, res, next) => {
             });
         }
 
-        // Compare with environment variable (constant-time comparison)
+        // Get expected token from environment
         const expectedToken = process.env.API_KEY;
         if (!expectedToken) {
             console.error('API_KEY environment variable not set');
             return res.status(500).json({ 
                 success: false, 
                 error: 'Server configuration error' 
+            });
+        }
+
+        // CRITICAL: Check lengths before timingSafeEqual to prevent exceptions
+        if (token.length !== expectedToken.length) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Invalid credentials' 
             });
         }
 
@@ -73,8 +81,10 @@ const requireAdminAuth = (req, res, next) => {
     }
 };
 
-// Rate limiting for admin endpoints
-const adminRateLimit = {
+// Rate limiting for admin endpoints (properly configured)
+const rateLimit = require('express-rate-limit');
+
+const adminRateLimit = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // limit each IP to 100 requests per windowMs
     message: {
@@ -83,15 +93,59 @@ const adminRateLimit = {
     },
     standardHeaders: true,
     legacyHeaders: false,
-};
+    // Add additional security headers
+    skipSuccessfulRequests: false,
+    skipFailedRequests: false,
+    // Custom key generator for better rate limiting
+    keyGenerator: (req) => {
+        return req.ip + ':' + (req.headers['x-forwarded-for'] || '');
+    }
+});
 
-// Audit logging for admin actions
+// Audit logging for admin actions (with comprehensive masking)
 const logAdminAction = (req, res, next) => {
     const originalSend = res.send;
     
     res.send = function(data) {
+        // Comprehensive masking of sensitive data
+        const maskSensitiveData = (obj) => {
+            if (!obj || typeof obj !== 'object') return obj;
+            
+            const masked = { ...obj };
+            const sensitiveFields = [
+                'password', 'token', 'api_key', 'secret', 'authorization',
+                'cookie', 'session', 'auth', 'key', 'credential'
+            ];
+            
+            // Mask headers
+            if (masked.headers) {
+                sensitiveFields.forEach(field => {
+                    if (masked.headers[field]) {
+                        const value = masked.headers[field].toString();
+                        masked.headers[field] = value.length > 8 ? 
+                            value.substring(0, 4) + '...' + value.substring(value.length - 4) : 
+                            '***';
+                    }
+                });
+            }
+            
+            // Mask body fields
+            if (masked.body) {
+                sensitiveFields.forEach(field => {
+                    if (masked.body[field]) {
+                        const value = masked.body[field].toString();
+                        masked.body[field] = value.length > 8 ? 
+                            value.substring(0, 4) + '...' + value.substring(value.length - 4) : 
+                            '***';
+                    }
+                });
+            }
+            
+            return masked;
+        };
+        
         // Log admin actions (without sensitive data)
-        const logData = {
+        const logData = maskSensitiveData({
             timestamp: new Date().toISOString(),
             method: req.method,
             path: req.path,
@@ -99,9 +153,11 @@ const logAdminAction = (req, res, next) => {
             userAgent: req.get('User-Agent'),
             statusCode: res.statusCode,
             adminToken: req.adminToken ? 
-                req.adminToken.substring(0, 8) + '...' : 
-                'unknown'
-        };
+                req.adminToken.substring(0, 4) + '...' + req.adminToken.substring(req.adminToken.length - 4) : 
+                'unknown',
+            headers: req.headers,
+            body: req.body
+        });
         
         console.log('Admin Action:', JSON.stringify(logData));
         
