@@ -15,10 +15,7 @@ require('dotenv').config();
 // Validate required environment variables
 const requiredEnvVars = [
     'TELEGRAM_BOT_TOKEN',
-    'MONGODB_URI',
-    'WEBHOOK_URL',
-    'API_KEY',
-    'WALLET_ADDRESS'
+    'MONGODB_URI'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -27,6 +24,13 @@ if (missingEnvVars.length > 0) {
     process.exit(1);
 }
 
+// Set default values for optional environment variables
+process.env.WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://localhost:8080';
+process.env.API_KEY = process.env.API_KEY || 'default-api-key-' + Math.random().toString(36).substring(7);
+process.env.WALLET_ADDRESS = process.env.WALLET_ADDRESS || 'UQDefaultWalletAddress';
+process.env.ADMIN_IDS = process.env.ADMIN_IDS || '';
+
+console.log('✅ Environment variables configured with defaults where needed');
 // Import models
 const { User, BuyOrder, SellOrder, Referral } = require('./models');
 
