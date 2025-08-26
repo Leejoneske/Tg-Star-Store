@@ -512,9 +512,10 @@ class CallbackManager {
         }
 
         const orderId = query.data.replace('req_approve_', '');
+        let request;
         
         try {
-            const request = await Reversal.findOne({ orderId: orderId });
+            request = await Reversal.findOne({ orderId: orderId });
             if (!request) {
                 await this.bot.answerCallbackQuery(query.id, { text: 'Refund request not found' });
                 return;
@@ -557,9 +558,13 @@ class CallbackManager {
             }
         } catch (refundError) {
             console.error('Error processing refund:', refundError);
-            request.status = 'processing';
-            request.errorMessage = refundError.message;
-            await request.save();
+            
+            // Only update request if it exists and was found
+            if (request) {
+                request.status = 'processing';
+                request.errorMessage = refundError.message;
+                await request.save();
+            }
             
             await this.bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}\nError: ${refundError.message}`);
             await this.bot.answerCallbackQuery(query.id, { text: 'Refund failed' });
