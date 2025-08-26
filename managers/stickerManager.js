@@ -3,6 +3,8 @@ const { Sticker } = require('../models');
 class StickerManager {
     constructor(bot) {
         this.bot = bot;
+        this.processingQueue = new Map(); // Track processing stickers
+        this.errorCount = new Map(); // Track error counts for backoff
         this.setupStickerHandler();
     }
 
@@ -17,16 +19,35 @@ class StickerManager {
             const sticker = msg.sticker;
             if (!sticker) return;
 
+            const fileUniqueId = sticker.file_unique_id;
+            
+            // Check if already processing this sticker
+            if (this.processingQueue.has(fileUniqueId)) {
+                console.log('Sticker already being processed:', fileUniqueId);
+                return;
+            }
+
+            // Check error backoff
+            const errorCount = this.errorCount.get(fileUniqueId) || 0;
+            if (errorCount >= 3) {
+                console.log('Skipping sticker due to too many errors:', fileUniqueId);
+                return;
+            }
+
+            // Add to processing queue
+            this.processingQueue.set(fileUniqueId, true);
+
             console.log('Processing sticker:', {
-                id: sticker.file_unique_id,
+                id: fileUniqueId,
                 set: sticker.set_name,
                 type: sticker.is_animated ? 'animated' : sticker.is_video ? 'video' : 'static'
             });
 
-            // Get file info from Telegram
-            const fileInfo = await this.bot.getFile(sticker.file_id);
-            if (!fileInfo.file_path) {
-                console.error('No file path for sticker:', sticker.file_unique_id);
+            // Get file info from Telegram with timeout and retry
+            const fileInfo = await this.getFileWithRetry(sticker.file_id);
+            if (!fileInfo || !fileInfo.file_path) {
+                console.error('No file path for sticker:', fileUniqueId);
+                this.incrementErrorCount(fileUniqueId);
                 return;
             }
 
@@ -42,7 +63,7 @@ class StickerManager {
 
             // Update or create sticker record
             await Sticker.updateOne(
-                { file_unique_id: sticker.file_unique_id },
+                { file_unique_id: fileUniqueId },
                 { 
                     $set: updateData, 
                     $setOnInsert: { created_at: new Date() } 
@@ -50,11 +71,60 @@ class StickerManager {
                 { upsert: true }
             );
 
-            console.log('Sticker processed successfully:', sticker.file_unique_id);
+            // Clear error count on success
+            this.errorCount.delete(fileUniqueId);
+            console.log('Sticker processed successfully:', fileUniqueId);
 
         } catch (error) {
             console.error('Sticker processing error:', error.message);
+            this.incrementErrorCount(sticker?.file_unique_id);
+        } finally {
+            // Remove from processing queue
+            if (sticker?.file_unique_id) {
+                this.processingQueue.delete(sticker.file_unique_id);
+            }
         }
+    }
+
+    // Get file with retry and timeout
+    async getFileWithRetry(fileId, maxRetries = 2) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const fileInfo = await Promise.race([
+                    this.bot.getFile(fileId),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout')), 10000)
+                    )
+                ]);
+                return fileInfo;
+            } catch (error) {
+                console.error(`File retrieval attempt ${attempt} failed:`, error.message);
+                if (attempt === maxRetries) {
+                    throw error;
+                }
+                // Wait before retry (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
+        }
+    }
+
+    // Increment error count for backoff
+    incrementErrorCount(fileUniqueId) {
+        const currentCount = this.errorCount.get(fileUniqueId) || 0;
+        this.errorCount.set(fileUniqueId, currentCount + 1);
+        
+        // Clean up error count after 1 hour
+        setTimeout(() => {
+            this.errorCount.delete(fileUniqueId);
+        }, 60 * 60 * 1000);
+    }
+
+    // Get processing queue status
+    getProcessingStatus() {
+        return {
+            processingCount: this.processingQueue.size,
+            errorCounts: Object.fromEntries(this.errorCount.entries())
+        };
     }
 
     // Get sticker by unique ID

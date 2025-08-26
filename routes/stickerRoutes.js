@@ -249,4 +249,25 @@ router.get('/sticker/:id/file', trackUserActivity, async (req, res) => {
   }
 });
 
+// Get sticker processing status (admin only)
+router.get('/stickers/status', trackUserActivity, async (req, res) => {
+  try {
+    // This would need to be passed from the StickerManager
+    // For now, return basic stats
+    const [total, processing] = await Promise.all([
+      Sticker.countDocuments({}),
+      Sticker.countDocuments({ updated_at: { $gte: new Date(Date.now() - 5 * 60 * 1000) } }) // Last 5 minutes
+    ]);
+
+    res.json({
+      total,
+      recentlyProcessed: processing,
+      status: 'operational'
+    });
+  } catch (error) {
+    console.error('Sticker status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

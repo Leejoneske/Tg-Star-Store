@@ -1,81 +1,131 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const { Referral, User, ReferralWithdrawal } = require('../models');
+const { trackUserActivity } = require('../middleware/userActivity');
+const { validateTelegramId } = require('../utils/validation');
 
 const router = express.Router();
 
-// Referral stats
-router.get('/referral-stats/:userId', async (req, res) => {
+// Get referral statistics
+router.get('/referral-stats/:userId', trackUserActivity, async (req, res) => {
     try {
-        const referrals = await Referral.find({ referrerId: req.params.userId }).lean();
-        const referredUserIds = referrals.map(r => r.referredId);
-        const users = await User.find({ id: { $in: referredUserIds } })
-            .select('id username')
-            .lean();
+        const { userId } = req.params;
+        
+        // Validate user ID
+        const userValidation = validateTelegramId(userId);
+        if (!userValidation.valid) {
+            return res.status(400).json({ 
+                success: false, 
+                error: userValidation.error 
+            });
+        }
 
-        const userMap = {};
-        users.forEach(user => userMap[user.id] = user.username);
+        const [referrals, activeReferrals, totalEarnings, pendingWithdrawals] = await Promise.all([
+            Referral.countDocuments({ referrerId: userId }),
+            Referral.countDocuments({ referrerId: userId, status: 'active' }),
+            ReferralWithdrawal.aggregate([
+                { $match: { userId: userId, status: 'completed' } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]),
+            ReferralWithdrawal.countDocuments({ userId: userId, status: 'pending' })
+        ]);
 
-        const totalReferrals = referrals.length;
-        const availableReferrals = await Referral.find({
-            referrerId: req.params.userId,
-            status: { $in: ['completed', 'active'] },
-            withdrawn: { $ne: true }
-        }).countDocuments();
-
-        const completedReferrals = referrals.filter(r => ['completed', 'active'].includes(r.status)).length;
+        const availableBalance = activeReferrals * 0.5;
+        const totalEarned = totalEarnings[0]?.total || 0;
 
         res.json({
             success: true,
-            referrals: referrals.map(ref => ({
-                userId: ref.referredId,
-                name: userMap[ref.referredId] || `User ${ref.referredId.substring(0, 6)}`,
-                status: ref.status.toLowerCase(),
-                date: ref.dateReferred || ref.dateCreated || new Date(0),
-                amount: 0.5
-            })),
             stats: {
-                availableBalance: availableReferrals * 0.5,
-                totalEarned: completedReferrals * 0.5,
-                referralsCount: totalReferrals,
-                pendingAmount: (totalReferrals - completedReferrals) * 0.5
-            },
-            referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`
+                totalReferrals: referrals,
+                activeReferrals,
+                availableBalance: availableBalance.toFixed(2),
+                totalEarned: totalEarned.toFixed(2),
+                pendingWithdrawals
+            }
         });
-
     } catch (error) {
-        res.status(500).json({ success: false, error: 'Failed to load referral data' });
-    }
-});
-
-// Withdrawal history
-router.get('/withdrawal-history/:userId', async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const withdrawals = await ReferralWithdrawal.find({ userId })
-            .sort({ createdAt: -1 })
-            .limit(50);
-
-        res.json({ success: true, withdrawals });
-    } catch (error) {
+        console.error('Referral stats error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 
-// Create withdrawal
-router.post('/referral-withdrawals', async (req, res) => {
+// Get withdrawal history
+router.get('/withdrawal-history/:userId', trackUserActivity, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        // Validate user ID
+        const userValidation = validateTelegramId(userId);
+        if (!userValidation.valid) {
+            return res.status(400).json({ 
+                success: false, 
+                error: userValidation.error 
+            });
+        }
+
+        const withdrawals = await ReferralWithdrawal.find({ userId })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .lean();
+
+        res.json({ success: true, withdrawals });
+    } catch (error) {
+        console.error('Withdrawal history error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// Create withdrawal with enhanced security
+router.post('/referral-withdrawals', trackUserActivity, async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
         const { userId, amount, walletAddress } = req.body;
-        const amountNum = parseFloat(amount);
-
-        if (!userId || !amount || !walletAddress) {
-            throw new Error('Missing required fields');
+        
+        // Validate user ID
+        const userValidation = validateTelegramId(userId);
+        if (!userValidation.valid) {
+            throw new Error('Invalid user ID');
         }
 
-        const user = await User.findOne({ id: userId }).session(session) || {};
+        // Validate amount
+        const amountNum = parseFloat(amount);
+        if (isNaN(amountNum) || amountNum < 0.5) {
+            throw new Error('Minimum withdrawal is 0.5 USDT');
+        }
+
+        if (amountNum > 1000) {
+            throw new Error('Maximum withdrawal is 1000 USDT');
+        }
+
+        // Validate wallet address
+        if (!walletAddress || walletAddress.trim().length < 10) {
+            throw new Error('Invalid wallet address');
+        }
+
+        // Sanitize wallet address
+        const sanitizedWallet = walletAddress.trim().replace(/[<>]/g, '');
+
+        const user = await User.findOne({ 
+            $or: [{ id: userId }, { telegramId: userId }] 
+        }).session(session);
+
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        // Check for existing pending withdrawals
+        const pendingWithdrawals = await ReferralWithdrawal.countDocuments({
+            userId: userId,
+            status: 'pending'
+        }).session(session);
+
+        if (pendingWithdrawals >= 3) {
+            throw new Error('You have too many pending withdrawals. Please wait for existing ones to be processed.');
+        }
+
+        // Get available referrals
         const availableReferrals = await Referral.find({
             referrerId: userId,
             status: { $in: ['completed', 'active'] },
@@ -84,19 +134,18 @@ router.post('/referral-withdrawals', async (req, res) => {
 
         const availableBalance = availableReferrals.length * 0.5;
 
-        if (amountNum < 0.5) throw new Error('Minimum withdrawal is 0.5 USDT');
-        if (amountNum > availableBalance) throw new Error(`Available: ${availableBalance.toFixed(2)} USDT`);
+        if (amountNum > availableBalance) {
+            throw new Error(`Available: ${availableBalance.toFixed(2)} USDT`);
+        }
 
         const referralsNeeded = Math.ceil(amountNum / 0.5);
         const referralsToMark = availableReferrals.slice(0, referralsNeeded);
 
-        const username = user.username || `@user`;
-
         const withdrawal = new ReferralWithdrawal({
             userId,
-            username: username,
+            username: user.username || `User_${userId.substring(0, 6)}`,
             amount: amountNum,
-            walletAddress: walletAddress.trim(),
+            walletAddress: sanitizedWallet,
             referralIds: referralsToMark.map(r => r._id),
             status: 'pending',
             adminMessages: [],
@@ -105,6 +154,7 @@ router.post('/referral-withdrawals', async (req, res) => {
 
         await withdrawal.save({ session });
 
+        // Mark referrals as withdrawn
         await Referral.updateMany(
             { _id: { $in: referralsToMark.map(r => r._id) } },
             { $set: { withdrawn: true } },
@@ -113,77 +163,94 @@ router.post('/referral-withdrawals', async (req, res) => {
 
         await session.commitTransaction();
         
-        // Send admin notifications
-        const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
-        const userInfo = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
-        const userDisplayName = userInfo?.username || `User ${userId.substring(0, 6)}`;
-        
-        const adminMessage = `💰 New Referral Withdrawal Request\n\n` +
-                           `🔸 WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n` +
-                           `👤 ${userDisplayName}\n` +
-                           `💰 ${amountNum} USDT\n` +
-                           `🏦 ${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}\n` +
-                           `📅 ${new Date().toLocaleString()}\n\n` +
-                           `Use /withdrawals to view all pending withdrawals`;
+        res.json({ 
+            success: true, 
+            withdrawalId: withdrawal._id,
+            message: 'Withdrawal request submitted successfully'
+        });
 
-        // Store admin message info for later updates
-        withdrawal.adminMessages = [];
-        
-        // Note: Admin notifications will be sent by the AdminManager when it's properly initialized
-        // For now, we'll just store the withdrawal and let admins check with /withdrawals command
-        
-        await withdrawal.save();
-        res.json({ success: true, withdrawalId: withdrawal._id });
     } catch (error) {
         await session.abortTransaction();
+        console.error('Withdrawal creation error:', error);
         res.status(400).json({ success: false, error: error.message });
     } finally {
         session.endSession();
     }
 });
 
-// Get referral history
-router.get('/referrals/:userId', async (req, res) => {
+// Get referral history with pagination
+router.get('/referrals/:userId', trackUserActivity, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { limit = 20, offset = 0 } = req.query;
+        
+        // Validate user ID
+        const userValidation = validateTelegramId(userId);
+        if (!userValidation.valid) {
+            return res.status(400).json({ 
+                success: false, 
+                error: userValidation.error 
+            });
+        }
+
+        // Validate pagination parameters
+        const limitNum = Math.min(parseInt(limit), 100);
+        const offsetNum = Math.max(parseInt(offset), 0);
+
+        const referrals = await Referral.find({ referrerId: userId })
+            .sort({ dateCreated: -1 })
+            .skip(offsetNum)
+            .limit(limitNum)
+            .lean();
+
+        const total = await Referral.countDocuments({ referrerId: userId });
+
+        res.json({
+            success: true,
+            referrals,
+            pagination: {
+                total,
+                limit: limitNum,
+                offset: offsetNum,
+                hasMore: total > offsetNum + referrals.length
+            }
+        });
+    } catch (error) {
+        console.error('Referral history error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// Get available balance
+router.get('/available-balance/:userId', trackUserActivity, async (req, res) => {
     try {
         const { userId } = req.params;
         
-        const referrals = await Referral.find({ referrerId: userId })
-            .sort({ dateCreated: -1 })
-            .limit(50)
-            .lean();
+        // Validate user ID
+        const userValidation = validateTelegramId(userId);
+        if (!userValidation.valid) {
+            return res.status(400).json({ 
+                success: false, 
+                error: userValidation.error 
+            });
+        }
 
-        // Get all referred user IDs
-        const referredUserIds = referrals.map(ref => ref.referredId);
-        
-        // Batch fetch all referred users in a single query
-        const referredUsers = await User.find({ id: { $in: referredUserIds } })
-            .select('id username')
-            .lean();
-        
-        // Create a map for quick lookup
-        const userMap = {};
-        referredUsers.forEach(user => {
-            userMap[user.id] = user.username;
+        const availableReferrals = await Referral.find({
+            referrerId: userId,
+            status: { $in: ['completed', 'active'] },
+            withdrawn: { $ne: true }
+        }).lean();
+
+        const availableBalance = availableReferrals.length * 0.5;
+
+        res.json({
+            success: true,
+            availableBalance: availableBalance.toFixed(2),
+            activeReferrals: availableReferrals.length
         });
-
-        // Format referral data
-        const formattedReferrals = referrals.map(referral => {
-            const referredUsername = userMap[referral.referredId] || referral.referredId;
-            
-            return {
-                id: referral._id.toString(),
-                referredUserId: referral.referredId,
-                status: referral.status.toLowerCase(),
-                date: referral.dateCreated,
-                details: `Referred user ${referredUsername}`,
-                amount: 0.5
-            };
-        });
-
-        res.json({ success: true, referrals: formattedReferrals });
     } catch (error) {
-        console.error('Error fetching referrals:', error);
-        res.status(500).json({ success: false, error: 'Failed to fetch referral history' });
+        console.error('Available balance error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 

@@ -18,6 +18,10 @@ class MaintenanceManager {
         this.startWarningCleanup();
         this.startRefundRequestCleanup();
         this.startStickerCleanup();
+        // Start withdrawal cleanup (daily)
+        setInterval(() => {
+            this.startWithdrawalCleanup();
+        }, 24 * 60 * 60 * 1000); // Daily
         
         console.log('✅ All maintenance jobs started');
     }
@@ -248,6 +252,33 @@ class MaintenanceManager {
                 console.error('Error in sticker cleanup:', error);
             }
         }, 7 * 24 * 60 * 60 * 1000); // Weekly
+    }
+
+    async startWithdrawalCleanup() {
+        try {
+            // Mark old pending withdrawals as expired (older than 30 days)
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            
+            const result = await ReferralWithdrawal.updateMany(
+                { 
+                    status: 'pending', 
+                    createdAt: { $lt: thirtyDaysAgo } 
+                },
+                { 
+                    $set: { 
+                        status: 'expired',
+                        processedAt: new Date(),
+                        processedBy: 'system'
+                    } 
+                }
+            );
+
+            if (result.modifiedCount > 0) {
+                console.log(`✅ Cleaned up ${result.modifiedCount} expired withdrawal requests`);
+            }
+        } catch (error) {
+            console.error('❌ Withdrawal cleanup error:', error);
+        }
     }
 
     // Daily report to admins

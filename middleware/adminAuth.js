@@ -114,31 +114,54 @@ const logAdminAction = (req, res, next) => {
             const masked = { ...obj };
             const sensitiveFields = [
                 'password', 'token', 'api_key', 'secret', 'authorization',
-                'cookie', 'session', 'auth', 'key', 'credential'
+                'cookie', 'session', 'auth', 'key', 'credential', 'Authorization',
+                'AUTHORIZATION', 'Token', 'TOKEN', 'Api-Key', 'API-KEY'
             ];
             
-            // Mask headers
+            // Mask headers - only log safe headers
             if (masked.headers) {
-                sensitiveFields.forEach(field => {
-                    if (masked.headers[field]) {
-                        const value = masked.headers[field].toString();
-                        masked.headers[field] = value.length > 8 ? 
-                            value.substring(0, 4) + '...' + value.substring(value.length - 4) : 
-                            '***';
+                const safeHeaders = {};
+                const safeHeaderKeys = [
+                    'user-agent', 'accept', 'content-type', 'content-length',
+                    'host', 'origin', 'referer', 'x-forwarded-for', 'x-real-ip'
+                ];
+                
+                for (const [key, value] of Object.entries(masked.headers)) {
+                    const lowerKey = key.toLowerCase();
+                    
+                    // Only include safe headers
+                    if (safeHeaderKeys.includes(lowerKey)) {
+                        safeHeaders[key] = value;
+                    } else if (sensitiveFields.some(field => 
+                        lowerKey.includes(field.toLowerCase())
+                    )) {
+                        // Mask sensitive headers
+                        safeHeaders[key] = '***MASKED***';
                     }
-                });
+                }
+                masked.headers = safeHeaders;
             }
             
-            // Mask body fields
+            // Mask body - only log safe fields
             if (masked.body) {
-                sensitiveFields.forEach(field => {
-                    if (masked.body[field]) {
-                        const value = masked.body[field].toString();
-                        masked.body[field] = value.length > 8 ? 
-                            value.substring(0, 4) + '...' + value.substring(value.length - 4) : 
-                            '***';
+                const safeBody = {};
+                const safeBodyFields = ['action', 'limit', 'offset', 'set', 'type', 'emoji'];
+                
+                for (const [key, value] of Object.entries(masked.body)) {
+                    const lowerKey = key.toLowerCase();
+                    
+                    if (safeBodyFields.includes(lowerKey)) {
+                        safeBody[key] = value;
+                    } else if (sensitiveFields.some(field => 
+                        lowerKey.includes(field.toLowerCase())
+                    )) {
+                        safeBody[key] = '***MASKED***';
+                    } else {
+                        // For unknown fields, mask them to be safe
+                        safeBody[key] = '***MASKED***';
                     }
-                });
+                }
+                masked.body = safeBody;
             }
             
             return masked;
