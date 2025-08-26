@@ -136,13 +136,26 @@ class StickerManager {
     cleanupStaleQueueEntries() {
         const now = Date.now();
         const staleThreshold = 5 * 60 * 1000; // 5 minutes
+        let cleanedCount = 0;
         
         for (const [fileUniqueId, timestamp] of this.processingQueue.entries()) {
             if (now - timestamp > staleThreshold) {
                 console.warn(`Removing stale queue entry: ${fileUniqueId}`);
                 this.processingQueue.delete(fileUniqueId);
+                cleanedCount++;
             }
         }
+        
+        if (cleanedCount > 0) {
+            console.log(`🧹 Cleaned up ${cleanedCount} stale sticker queue entries`);
+        }
+        
+        return cleanedCount;
+    }
+
+    // Public method for external cleanup calls
+    performCleanup() {
+        return this.cleanupStaleQueueEntries();
     }
 
     // Get sticker by unique ID

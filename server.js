@@ -108,6 +108,9 @@ mongoose.connect(process.env.MONGODB_URI)
     const stickerManager = new StickerManager(bot);
     const withdrawalManager = new WithdrawalManager(bot, adminIds);
     
+    // Wire managers together
+    maintenanceManager.setStickerManager(stickerManager);
+    
     console.log('✅ All managers initialized');
   })
   .catch(err => {

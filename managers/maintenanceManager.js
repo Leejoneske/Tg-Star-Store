@@ -2,10 +2,13 @@ const TelegramBot = require('node-telegram-bot-api');
 const { User, BuyOrder, SellOrder, Referral, Warning, BannedUser } = require('../models');
 
 class MaintenanceManager {
-    constructor(bot, adminIds) {
-        this.bot = bot;
-        this.adminIds = adminIds;
+    constructor() {
+        this.stickerManager = null;
         this.setupMaintenanceJobs();
+    }
+
+    setStickerManager(stickerManager) {
+        this.stickerManager = stickerManager;
     }
 
     setupMaintenanceJobs() {
@@ -260,9 +263,14 @@ class MaintenanceManager {
 
     async startStickerQueueCleanup() {
         try {
-            // This would need to be called from the StickerManager
-            // For now, we'll just log that it should be implemented
-            console.log('🔄 Sticker queue cleanup should be implemented in StickerManager');
+            if (this.stickerManager) {
+                const cleanedCount = this.stickerManager.performCleanup();
+                if (cleanedCount > 0) {
+                    console.log(`✅ Sticker queue cleanup completed: ${cleanedCount} entries removed`);
+                }
+            } else {
+                console.warn('⚠️ StickerManager not available for queue cleanup');
+            }
         } catch (error) {
             console.error('❌ Sticker queue cleanup error:', error);
         }

@@ -142,13 +142,12 @@ const logAdminAction = (req, res, next) => {
                 masked.headers = safeHeaders;
             }
             
-            // Mask body - only log safe fields
+            // Mask body - only log safe fields with strict allowlist
             if (masked.body) {
                 const safeBody = {};
                 const safeBodyFields = [
                     'action', 'limit', 'offset', 'set', 'type', 'emoji',
-                    'userId', 'amount', 'walletAddress', 'orderId', 'txId',
-                    'status', 'reason', 'stars', 'username', 'telegramId',
+                    'userId', 'amount', 'orderId', 'status', 'reason', 'stars', 'username', 'telegramId',
                     'page', 'sort', 'filter', 'search', 'date', 'startDate', 'endDate'
                 ];
                 
@@ -170,11 +169,8 @@ const logAdminAction = (req, res, next) => {
                     )) {
                         safeBody[key] = '***MASKED***';
                     } else {
-                        // For unknown fields, log them but truncate long values
-                        const strValue = value?.toString() || '';
-                        safeBody[key] = strValue.length > 50 ? 
-                            strValue.substring(0, 50) + '...' : 
-                            strValue;
+                        // Default-mask unknown fields to prevent data leakage
+                        safeBody[key] = '***UNKNOWN_FIELD_MASKED***';
                     }
                 }
                 masked.body = safeBody;
