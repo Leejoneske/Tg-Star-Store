@@ -1,6 +1,13 @@
 
 require('dotenv').config();
 const express = require('express');
+
+// Debug environment variables
+console.log('🔧 Environment check:');
+console.log('BOT_TOKEN:', process.env.BOT_TOKEN ? 'Set' : 'Not set');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
+
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
@@ -11,6 +18,11 @@ const fetch = require('node-fetch');
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
+if (!process.env.BOT_TOKEN) {
+  console.error('❌ BOT_TOKEN environment variable is required!');
+  process.exit(1);
+}
+
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
