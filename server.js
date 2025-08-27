@@ -77,6 +77,8 @@ const sitemapRoutes = require('./routes/sitemapRoutes');
 const app = express();
 
 // Security and performance middleware
+// Trust proxy when deployed behind a load balancer / reverse proxy (needed for express-rate-limit)
+app.set('trust proxy', (process.env.NODE_ENV || '').toLowerCase() === 'production' ? 1 : false);
 app.use(helmet({
     contentSecurityPolicy: securityConfig.csp,
     referrerPolicy: securityConfig.referrerPolicy,
@@ -176,12 +178,7 @@ async function connectToMongoDB() {
     }
     while (retries < maxRetries) {
         try {
-            await mongoose.connect(process.env.MONGODB_URI, {
-                useNewUrlParser: true,
-                useUnifiedTopology: true,
-                serverSelectionTimeoutMS: 5000,
-                socketTimeoutMS: 45000,
-            });
+            await mongoose.connect(process.env.MONGODB_URI);
             console.log('✅ Connected to MongoDB');
             return true;
         } catch (error) {
