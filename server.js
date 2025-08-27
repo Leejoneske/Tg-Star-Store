@@ -14,7 +14,7 @@ const zlib = require('zlib');
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
-                   'tg-star-store-production.up.railway.app');
+                   'starstore.site');
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 // Import Telegram auth middleware (single import only)
