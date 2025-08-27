@@ -302,7 +302,7 @@ if (window.Telegram?.WebApp) {
     console.log('Telegram Mini App mode enabled');
 }
 
-const user = Telegram.WebApp.initDataUnsafe.user;
+const user = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) ? window.Telegram.WebApp.initDataUnsafe.user : null;
 const BASE_API_URL = window.location.origin + '/api';
 
 let transactionHistory = [];
@@ -493,6 +493,7 @@ function mapOrderStatus(status) {
         'declined': 'declined',
         'refunded': 'declined'
     };
+    if (!status || typeof status !== 'string') return 'processing';
     return statusMap[status.toLowerCase()] || 'processing';
 }
 
@@ -503,6 +504,7 @@ function mapReferralStatus(status) {
         'pending': 'processing',
         'processing': 'processing'
     };
+    if (!status || typeof status !== 'string') return 'processing';
     return statusMap[status.toLowerCase()] || 'processing';
 }
 
@@ -512,11 +514,11 @@ function updateTransactionList() {
         if (currentTransactionSearch) {
             const searchLower = currentTransactionSearch.toLowerCase();
             return (
-                txn.id.toLowerCase().includes(searchLower) ||
-                txn.type.toLowerCase().includes(searchLower) ||
-                txn.amount.toString().includes(searchLower) ||
-                txn.status.toLowerCase().includes(searchLower) ||
-                txn.details.toLowerCase().includes(searchLower)
+                (txn.id || '').toString().toLowerCase().includes(searchLower) ||
+                (txn.type || '').toString().toLowerCase().includes(searchLower) ||
+                (txn.amount ?? '').toString().toLowerCase().includes(searchLower) ||
+                (txn.status || '').toString().toLowerCase().includes(searchLower) ||
+                (txn.details || '').toString().toLowerCase().includes(searchLower)
             );
         }
         return true;
@@ -594,11 +596,11 @@ function updateReferralList() {
         if (currentReferralSearch) {
             const searchLower = currentReferralSearch.toLowerCase();
             return (
-                ref.id.toLowerCase().includes(searchLower) ||
-                ref.name.toLowerCase().includes(searchLower) ||
-                ref.amount.toString().includes(searchLower) ||
-                ref.status.toLowerCase().includes(searchLower) ||
-                ref.details.toLowerCase().includes(searchLower)
+                (ref.id || '').toString().toLowerCase().includes(searchLower) ||
+                (ref.name || '').toString().toLowerCase().includes(searchLower) ||
+                (ref.amount ?? '').toString().toLowerCase().includes(searchLower) ||
+                (ref.status || '').toString().toLowerCase().includes(searchLower) ||
+                (ref.details || '').toString().toLowerCase().includes(searchLower)
             );
         }
         return true;
@@ -840,11 +842,11 @@ function showTransactionDetails(transaction) {
     switch(transaction.status) {
         case 'completed':
             statusClass = 'status-completed';
-                            statusText = TranslationUtils.get('completed');
+            statusText = TranslationUtils.get('completed');
             break;
         case 'processing':
             statusClass = 'status-processing';
-            statusText = translations[currentLanguage].processing;
+            statusText = TranslationUtils.get('processing');
             break;
         case 'declined':
             statusClass = 'status-declined';
@@ -881,7 +883,7 @@ function showTransactionDetails(transaction) {
                 </div>
             </div>
         `,
-        confirmButtonText: translations[currentLanguage].close,
+        confirmButtonText: TranslationUtils.get('close'),
         confirmButtonColor: '#4f46e5'
     });
 }
@@ -963,8 +965,8 @@ function exportTransactions() {
     document.body.removeChild(link);
     
     Swal.fire({
-        title: 'Success',
-        text: 'Transactions exported successfully',
+        title: TranslationUtils.get('success'),
+        text: TranslationUtils.get('exportTransactions'),
         icon: 'success',
         confirmButtonText: TranslationUtils.get('close'),
         confirmButtonColor: '#4f46e5'
@@ -1003,10 +1005,10 @@ function exportReferrals() {
     document.body.removeChild(link);
     
     Swal.fire({
-        title: 'Success',
-        text: 'Referrals exported successfully',
+        title: TranslationUtils.get('success'),
+        text: TranslationUtils.get('exportReferrals'),
         icon: 'success',
-        confirmButtonText: translations[currentLanguage].close,
+        confirmButtonText: TranslationUtils.get('close'),
         confirmButtonColor: '#4f46e5'
     });
 }
