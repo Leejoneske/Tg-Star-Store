@@ -9,8 +9,8 @@ const router = express.Router();
 router.get('/profile/:userId', requireTelegramAuth, trackUserActivity, async (req, res) => {
     try {
         const { userId } = req.params;
-        const rawAuth = req.headers['authorization'] || '';
-        const apiKey = rawAuth && rawAuth.toLowerCase().startsWith('bearer ') ? rawAuth.slice(7) : rawAuth;
+        const { extractApiKey } = require('../utils/auth');
+        const apiKey = extractApiKey(req);
         const requesterId = req.verifiedTelegramUser?.id || req.headers['x-telegram-id'] || req.query.telegramId;
         
         // Require either matching owner or valid API key (admin)
@@ -95,8 +95,8 @@ router.put('/profile/:userId', requireTelegramAuth, trackUserActivity, async (re
 router.get('/stats/:userId', requireTelegramAuth, trackUserActivity, async (req, res) => {
     try {
         const { userId } = req.params;
-        const rawAuth = req.headers['authorization'] || '';
-        const apiKey = rawAuth && rawAuth.toLowerCase().startsWith('bearer ') ? rawAuth.slice(7) : rawAuth;
+        const { extractApiKey } = require('../utils/auth');
+        const apiKey = extractApiKey(req);
         const requesterId = req.verifiedTelegramUser?.id || req.headers['x-telegram-id'] || req.query.telegramId;
         
         // Require either matching owner or valid API key (admin)

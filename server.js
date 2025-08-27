@@ -93,8 +93,11 @@ app.disable('x-powered-by');
 
 app.use(compression());
 
-// Apply API rate limiting
+// Apply API rate limiting (global)
 app.use('/api/', apiLimiter);
+// Apply global non-API limiter as well to protect static endpoints
+const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
+app.use(globalLimiter);
 
 // Apply stricter rate limiting to sensitive endpoints
 app.use('/api/admin/', sensitiveApiLimiter);
