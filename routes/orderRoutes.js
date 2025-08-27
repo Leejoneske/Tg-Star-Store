@@ -24,6 +24,10 @@ function createOrderRoutes(bot) {
 
 	async function createTelegramInvoice(chatId, orderId, stars, description, sessionToken) {
 		try {
+			if (!process.env.PROVIDER_TOKEN) {
+				console.warn('Skipping Telegram invoice creation: PROVIDER_TOKEN is not set');
+				return null;
+			}
 			const response = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
 				chat_id: chatId,
 				provider_token: process.env.PROVIDER_TOKEN,
@@ -329,7 +333,8 @@ function createOrderRoutes(bot) {
 
 			const paymentLink = await createTelegramInvoice(telegramId, order.id, stars, `Purchase of ${stars} Telegram Stars`, sessionToken);
 			if (!paymentLink) {
-				return res.status(500).json({ success: false, error: 'Failed to generate payment link' });
+				// Provider token not configured; gracefully inform client instead of crashing
+				return res.status(503).json({ success: false, error: 'Payments are temporarily unavailable. Please try again later.' });
 			}
 
 			await order.save();

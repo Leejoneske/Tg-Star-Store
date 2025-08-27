@@ -40,7 +40,6 @@ console.log('✅ Environment variables configured with defaults where needed');
 // Additional env validation in production
 if ((process.env.NODE_ENV || '').toLowerCase() === 'production') {
     const prodErrors = [];
-    if (!process.env.PROVIDER_TOKEN) prodErrors.push('PROVIDER_TOKEN');
     if (!process.env.API_KEY || process.env.API_KEY.startsWith('default-api-key-')) prodErrors.push('API_KEY');
     if (!process.env.WALLET_ADDRESS || process.env.WALLET_ADDRESS === 'UQDefaultWalletAddress') prodErrors.push('WALLET_ADDRESS');
     if (!process.env.WEBHOOK_URL || process.env.WEBHOOK_URL.includes('localhost')) prodErrors.push('WEBHOOK_URL');
