@@ -875,12 +875,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const content = document.getElementById('content-container');
     
-    // Temporarily disable loading to test content visibility
-    // LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
-    // if (content) content.style.display = 'none';
+    // Show loading briefly, then show content
+    LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
+    if (content) content.style.display = 'none';
     
-    // Show content immediately for testing
-    if (content) content.style.display = 'block';
+    // Show content after a brief loading period
+    setTimeout(() => {
+        if (content) content.style.display = 'block';
+        LoadingComponent.hide('loading-container');
+    }, 500);
 
     // Ensure content is shown even if there are errors
     const showContentWithFallback = () => {
