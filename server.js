@@ -136,11 +136,10 @@ if (SKIP_TELEGRAM) {
     console.log('⚠️  Telegram bot initialization skipped (SKIP_TELEGRAM=1)');
 } else {
     try {
+        // Initialize bot without creating its own HTTP server.
+        // Express will handle incoming webhook POSTs on WEBHOOK_PATH.
         bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {
-            polling: false, // Disable polling since we're using webhooks
-            webHook: {
-                port: process.env.PORT || 8080
-            }
+            polling: false
         });
         console.log('✅ Telegram bot initialized successfully');
     } catch (error) {
