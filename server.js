@@ -157,10 +157,14 @@ async function setupWebhook() {
         return;
     }
     try {
-        await bot.setWebHook(`${WEBHOOK_URL}${WEBHOOK_PATH}`, {
+        // Construct the full webhook URL properly
+        const fullWebhookUrl = WEBHOOK_URL.endsWith('/') 
+            ? `${WEBHOOK_URL.slice(0, -1)}${WEBHOOK_PATH}`
+            : `${WEBHOOK_URL}${WEBHOOK_PATH}`;
+        await bot.setWebHook(fullWebhookUrl, {
             secret_token: TELEGRAM_WEBHOOK_SECRET || undefined
         });
-        console.log('✅ Webhook set successfully');
+        console.log(`✅ Webhook set successfully to: ${fullWebhookUrl.replace(TELEGRAM_BOT_TOKEN, '[BOT_TOKEN]')}`);
     } catch (error) {
         console.error('❌ Failed to set webhook:', error);
         process.exit(1);
@@ -379,11 +383,14 @@ app.use((err, req, res, next) => {
 
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
+  console.log(`📡 Webhook received at ${WEBHOOK_PATH}`);
   if (!SKIP_TELEGRAM) {
     const headerSecret = req.headers['x-telegram-bot-api-secret-token'];
     if (TELEGRAM_WEBHOOK_SECRET && headerSecret !== TELEGRAM_WEBHOOK_SECRET) {
+      console.log('❌ Invalid webhook secret');
       return res.status(403).json({ error: 'Invalid webhook secret' });
     }
+    console.log('✅ Processing Telegram update');
     bot.processUpdate(req.body);
   }
   res.sendStatus(200);
