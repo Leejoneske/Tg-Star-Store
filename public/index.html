@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2083,13 +2084,7 @@ function initCustomStars() {
                 return;
             }
             
-            const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
-            const q = await window.API.getQuote({ 
-                stars: val, 
-                isPremium: false, 
-                recipientsCount,
-                buyForMyself: buyForValue === 'myself'
-            });
+            const q = await window.API.getQuote({ stars: val, isPremium: false, recipientsCount });
             if (q.success) {
                 const rate = await getRateCached();
                 const ton = rate ? (q.totalAmount / rate) : null;
@@ -2116,19 +2111,11 @@ function initCustomStars() {
         e.preventDefault();
         // Validate input and recipients then proceed to buy using custom stars
         const val = Number(input.value || 0);
+        if (!val || val < 50) {
+            showErrorToUser('Please enter at least 50 stars');
+            return;
+        }
         const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
-        
-        // Only enforce 50 star minimum for "buy for others"
-        if (buyForValue === 'others' && (!val || val < 50)) {
-            showErrorToUser('Please enter at least 50 stars for recipients');
-            return;
-        }
-        
-        // For "buy for myself", allow any amount
-        if (buyForValue === 'myself' && (!val || val <= 0)) {
-            showErrorToUser('Please enter a valid number of stars');
-            return;
-        }
         if (buyForValue === 'others') {
             const validation = await validateRecipients('recipientsContainer');
             const recipients = validation?.recipients || [];
@@ -2251,18 +2238,13 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
             return;
         }
         
-        // Get current "buy for" selection
-        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
-        const buyForMyself = buyForValue === 'myself';
-        
         // Batch API calls for better performance
         const starsQuotes = await Promise.allSettled(
             starsPackages.map(pkg => 
                 window.API.getQuote({
                     stars: pkg.stars,
                     isPremium: false,
-                    recipientsCount: recipientsCount,
-                    buyForMyself: buyForMyself
+                    recipientsCount: recipientsCount
                 })
             )
         );
@@ -2288,8 +2270,7 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
                 window.API.getQuote({
                     isPremium: true,
                     premiumDuration: pkg.duration,
-                    recipientsCount: recipientsCount,
-                    buyForMyself: buyForMyself
+                    recipientsCount: recipientsCount
                 })
             )
         );
@@ -2474,17 +2455,12 @@ async function handlePurchase(item) {
             window.API = new API();
         }
         
-        // Get current "buy for" selection
-        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
-        const buyForMyself = buyForValue === 'myself';
-        
         // Fetch server quote for accurate amount per recipients
         const quote = await window.API.getQuote({
             isPremium: !!item.isPremium,
             premiumDuration: item.premiumDuration || null,
             stars: item.isPremium ? null : Number(stars),
-            recipientsCount: recipients.length,
-            buyForMyself: buyForMyself
+            recipientsCount: recipients.length
         });
         if (!quote.success) {
             throw new Error(quote.error || 'Failed to get quote');
@@ -2536,14 +2512,8 @@ async function handlePurchase(item) {
         const tonAmount = totalAmountUsdt / tonToUsdtRate;
         const nanoTonAmount = Math.round(tonAmount * 1e9);
         
-        // Ensure API is available
-        if (!window.API) {
-            console.warn('API not found, creating new instance');
-            window.API = new API();
-        }
-        
         // Get payment address
-        const walletResponse = await window.API.getWalletAddress();
+        const walletResponse = await API.getWalletAddress();
         if (!walletResponse.success || !walletResponse.walletAddress) {
             throw new Error('Failed to get payment address');
         }
@@ -2649,4 +2619,3 @@ async function fetchCurrentRate() {
     </script>
 </body>
 </html>
-
