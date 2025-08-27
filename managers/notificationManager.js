@@ -5,6 +5,8 @@ class NotificationManager {
     constructor(bot, adminIds) {
         this.bot = bot;
         this.adminIds = adminIds;
+        // Prevent duplicate initialization across multiple instances
+        this._handlersInitialized = this._handlersInitialized || false;
         this.notificationTypes = {
             ORDER_COMPLETED: 'order_completed',
             ORDER_CANCELLED: 'order_cancelled',
@@ -18,7 +20,10 @@ class NotificationManager {
             REMINDER: 'reminder'
         };
         
-        this.setupNotificationHandlers();
+        if (!this._handlersInitialized) {
+            this.setupNotificationHandlers();
+            this._handlersInitialized = true;
+        }
         this.startAutomaticNotifications();
     }
 
@@ -367,11 +372,15 @@ class NotificationManager {
 
     // Automatic notification scheduling
     startAutomaticNotifications() {
+        // Ensure automatic notification jobs start only once per process
+        if (NotificationManager._autoJobsStarted) return;
+        NotificationManager._autoJobsStarted = true;
+
         // Send welcome notifications for new users (handled in UserInteractionManager)
         // Send daily reminders (if needed)
         // Send system maintenance notifications
         // Send new feature announcements
-        
+
         console.log('🔔 Automatic notification system started');
     }
 
