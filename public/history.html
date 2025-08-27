@@ -435,6 +435,9 @@ function loadTransactionHistory() {
         return response.json();
     })
     .then(data => {
+        console.log('📊 Received transaction data:', data);
+        console.log('📊 Data length:', data.length);
+        
         transactionHistory = data.map(item => {
             return {
                 ...item,
@@ -442,6 +445,10 @@ function loadTransactionHistory() {
                 date: new Date(item.date)
             };
         });
+        
+        console.log('📊 Processed transactionHistory:', transactionHistory);
+        console.log('📊 TransactionHistory length:', transactionHistory.length);
+        
         updateTransactionList();
         updateTransactionChart();
     })
@@ -477,6 +484,9 @@ function loadReferralHistory() {
         return response.json();
     })
     .then(data => {
+        console.log('👥 Received referral data:', data);
+        console.log('👥 Referral data length:', data.length);
+        
         referralHistory = data.map(ref => {
             return {
                 ...ref,
@@ -484,6 +494,10 @@ function loadReferralHistory() {
                 date: new Date(ref.date)
             };
         });
+        
+        console.log('👥 Processed referralHistory:', referralHistory);
+        console.log('👥 ReferralHistory length:', referralHistory.length);
+        
         updateReferralList();
     })
     .catch(error => {
@@ -517,6 +531,11 @@ function mapReferralStatus(status) {
 }
 
 function updateTransactionList() {
+    console.log('🔄 updateTransactionList called');
+    console.log('🔄 transactionHistory length:', transactionHistory.length);
+    console.log('🔄 currentTransactionFilter:', currentTransactionFilter);
+    console.log('🔄 currentTransactionSearch:', currentTransactionSearch);
+    
     let filteredTransactions = transactionHistory.filter(txn => {
         if (currentTransactionFilter !== 'all' && txn.status !== currentTransactionFilter) return false;
         if (currentTransactionSearch) {
@@ -535,6 +554,9 @@ function updateTransactionList() {
     const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
     const startIndex = (currentTransactionPage - 1) * itemsPerPage;
     const paginatedTransactions = filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
+    
+    console.log('🔄 filteredTransactions length:', filteredTransactions.length);
+    console.log('🔄 paginatedTransactions length:', paginatedTransactions.length);
     
     updateTransactionCounts(filteredTransactions);
     LoadingComponent.hide('transactionsLoading');
