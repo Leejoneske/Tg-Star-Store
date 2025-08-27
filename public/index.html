@@ -750,6 +750,11 @@ let isTelegramEnv = false;
 let updateUserInterfaceRetryCount = 0;
 let isInitialized = false;
 
+// Ensure API is globally available
+if (typeof API !== 'undefined' && !window.API) {
+    window.API = new API();
+}
+
 const stickerCache = new Map();
 const CACHE_DURATION = 40 * 60 * 1000; 
 let batchLoadPromise = null;        
@@ -839,6 +844,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadStickers();
                     
                     // Ensure API is properly initialized
+                    if (typeof API === 'undefined') {
+                        console.error('API class not loaded');
+                        return;
+                    }
+                    
                     if (!window.API) {
                         console.warn('API not initialized, creating new instance');
                         window.API = new API();
@@ -2061,12 +2071,19 @@ function initCustomStars() {
         }
         
         try {
-            if (!window.API || typeof window.API.getQuote !== 'function') {
+            // Ensure API is available
+            if (!window.API) {
+                console.warn('API not found, creating new instance');
+                window.API = new API();
+            }
+            
+            if (typeof window.API.getQuote !== 'function') {
                 console.error('API.getQuote is not available');
                 quoteText.textContent = 'Quote service unavailable. Please refresh the page.';
                 return;
             }
-            const q = await API.getQuote({ stars: val, isPremium: false, recipientsCount });
+            
+            const q = await window.API.getQuote({ stars: val, isPremium: false, recipientsCount });
             if (q.success) {
                 const rate = await getRateCached();
                 const ton = rate ? (q.totalAmount / rate) : null;
@@ -2209,8 +2226,13 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         
         const cacheData = {};
         
-        // Check if API is available
-        if (!window.API || typeof window.API.getQuote !== 'function') {
+        // Ensure API is available
+        if (!window.API) {
+            console.warn('API not found, creating new instance');
+            window.API = new API();
+        }
+        
+        if (typeof window.API.getQuote !== 'function') {
             console.error('API.getQuote is not available');
             return;
         }
@@ -2218,7 +2240,7 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         // Batch API calls for better performance
         const starsQuotes = await Promise.allSettled(
             starsPackages.map(pkg => 
-                API.getQuote({
+                window.API.getQuote({
                     stars: pkg.stars,
                     isPremium: false,
                     recipientsCount: recipientsCount
@@ -2244,7 +2266,7 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         
         const premiumQuotes = await Promise.allSettled(
             premiumPackages.map(pkg => 
-                API.getQuote({
+                window.API.getQuote({
                     isPremium: true,
                     premiumDuration: pkg.duration,
                     recipientsCount: recipientsCount
@@ -2426,8 +2448,14 @@ async function handlePurchase(item) {
             return;
         }
 
+        // Ensure API is available
+        if (!window.API) {
+            console.warn('API not found, creating new instance');
+            window.API = new API();
+        }
+        
         // Fetch server quote for accurate amount per recipients
-        const quote = await API.getQuote({
+        const quote = await window.API.getQuote({
             isPremium: !!item.isPremium,
             premiumDuration: item.premiumDuration || null,
             stars: item.isPremium ? null : Number(stars),
