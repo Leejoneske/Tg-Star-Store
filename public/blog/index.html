@@ -24,6 +24,8 @@
 
     <!-- Canonical URL -->
     <link rel="canonical" href="https://starstore.site/blog/">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../css/blog.css">
     
     <!-- Structured Data -->
     <script type="application/ld+json">
@@ -66,19 +68,23 @@
         <!-- Main Content -->
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <!-- Hero Section -->
-            <div class="text-center mb-16">
-                <h1 class="text-4xl font-bold text-gray-900 mb-3">StarStore Insights</h1>
-                <p class="text-lg text-gray-600 max-w-3xl mx-auto">
+            <div class="text-center mb-16 insights-hero">
+                <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">StarStore Insights</h1>
+                <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
                     Practical guides, expert tips, and platform updates—crafted for buyers, sellers, and creators using Telegram Stars and Premium.
                 </p>
+                <div class="mt-6 flex items-center justify-center gap-3">
+                    <a href="../index.html" class="inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition">Go to App</a>
+                    <a href="../referral.html" class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:border-gray-400 transition">Referral Program</a>
+                </div>
             </div>
 
             <!-- Blog Posts Grid -->
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Blog Post 1 -->
-                <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <article class="insights-card rounded-xl overflow-hidden">
                     <div class="p-6">
-                        <div class="flex items-center text-sm text-gray-500 mb-2">
+                        <div class="meta flex items-center text-sm text-gray-500 mb-2">
                             <time datetime="2024-01-15">January 15, 2024</time>
                             <span class="mx-2">•</span>
                             <span>5 min read</span>
@@ -90,9 +96,9 @@
                             Learn how to cash out Telegram stars and sell them for USDT or real money. Complete guide to converting Telegram stars to cash with StarStore.
                         </p>
                         <div class="flex items-center justify-between">
-                            <div class="flex space-x-2">
-                                <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Withdraw</span>
-                                <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Cash Out</span>
+                            <div class="flex gap-2">
+                                <span class="badge text-xs px-2 py-1 rounded">Withdraw</span>
+                                <span class="badge text-xs px-2 py-1 rounded">Cash Out</span>
                             </div>
                             <a href="../how-to-withdraw-telegram-stars/" class="text-indigo-600 hover:text-indigo-800 font-medium">Read more →</a>
                         </div>
@@ -100,9 +106,9 @@
                 </article>
 
                 <!-- Blog Post 2 -->
-                <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <article class="insights-card rounded-xl overflow-hidden">
                     <div class="p-6">
-                        <div class="flex items-center text-sm text-gray-500 mb-2">
+                        <div class="meta flex items-center text-sm text-gray-500 mb-2">
                             <time datetime="2024-01-10">January 10, 2024</time>
                             <span class="mx-2">•</span>
                             <span>3 min read</span>
@@ -114,9 +120,9 @@
                             Comprehensive knowledge base for StarStore - your complete guide to buying and selling Telegram Stars. Learn about packages, security, and platform usage.
                         </p>
                         <div class="flex items-center justify-between">
-                            <div class="flex space-x-2">
-                                <span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">Guide</span>
-                                <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">Knowledge</span>
+                            <div class="flex gap-2">
+                                <span class="badge text-xs px-2 py-1 rounded">Guide</span>
+                                <span class="badge text-xs px-2 py-1 rounded">Knowledge</span>
                             </div>
                             <a href="../knowledge-base/" class="text-indigo-600 hover:text-indigo-800 font-medium">Read more →</a>
                         </div>
@@ -124,9 +130,9 @@
                 </article>
 
                 <!-- Blog Post 3 -->
-                <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <article class="insights-card rounded-xl overflow-hidden">
                     <div class="p-6">
-                        <div class="flex items-center text-sm text-gray-500 mb-2">
+                        <div class="meta flex items-center text-sm text-gray-500 mb-2">
                             <time datetime="2024-01-05">January 5, 2024</time>
                             <span class="mx-2">•</span>
                             <span>4 min read</span>
@@ -138,9 +144,9 @@
                             Learn everything about Telegram Stars - from what they are to how to use them effectively. This comprehensive guide covers all aspects of the new Telegram feature.
                         </p>
                         <div class="flex items-center justify-between">
-                            <div class="flex space-x-2">
-                                <span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded">Telegram</span>
-                                <span class="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">Stars</span>
+                            <div class="flex gap-2">
+                                <span class="badge text-xs px-2 py-1 rounded">Telegram</span>
+                                <span class="badge text-xs px-2 py-1 rounded">Stars</span>
                             </div>
                             <a href="telegram-stars-guide.html" class="text-indigo-600 hover:text-indigo-800 font-medium">Read more →</a>
                         </div>
@@ -172,9 +178,9 @@
                 </article>
 
                 <!-- Blog Post 5 -->
-                <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <article class="insights-card rounded-xl overflow-hidden">
                     <div class="p-6">
-                        <div class="flex items-center text-sm text-gray-500 mb-2">
+                        <div class="meta flex items-center text-sm text-gray-500 mb-2">
                             <time datetime="2023-12-28">December 28, 2023</time>
                             <span class="mx-2">•</span>
                             <span>4 min read</span>
@@ -186,9 +192,9 @@
                             Stay up to date with the latest Telegram features and updates. We cover all the new functionality and improvements coming to the platform.
                         </p>
                         <div class="flex items-center justify-between">
-                            <div class="flex space-x-2">
-                                <span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Updates</span>
-                                <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded">2024</span>
+                            <div class="flex gap-2">
+                                <span class="badge text-xs px-2 py-1 rounded">Updates</span>
+                                <span class="badge text-xs px-2 py-1 rounded">2024</span>
                             </div>
                             <a href="telegram-stars-guide.html" class="text-indigo-600 hover:text-indigo-800 font-medium">Read more →</a>
                         </div>
@@ -196,9 +202,9 @@
                 </article>
 
                 <!-- Blog Post 6 -->
-                <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <article class="insights-card rounded-xl overflow-hidden">
                     <div class="p-6">
-                        <div class="flex items-center text-sm text-gray-500 mb-2">
+                        <div class="meta flex items-center text-sm text-gray-500 mb-2">
                             <time datetime="2023-12-25">December 25, 2023</time>
                             <span class="mx-2">•</span>
                             <span>3 min read</span>
@@ -210,9 +216,9 @@
                             Learn about our comprehensive customer support system and how we ensure your success with Telegram Stars and Premium services.
                         </p>
                         <div class="flex items-center justify-between">
-                            <div class="flex space-x-2">
-                                <span class="bg-teal-100 text-teal-800 text-xs px-2 py-1 rounded">Support</span>
-                                <span class="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded">Service</span>
+                            <div class="flex gap-2">
+                                <span class="badge text-xs px-2 py-1 rounded">Support</span>
+                                <span class="badge text-xs px-2 py-1 rounded">Service</span>
                             </div>
                             <a href="../support.html" class="text-indigo-600 hover:text-indigo-800 font-medium">Read more →</a>
                         </div>
