@@ -212,6 +212,8 @@ const LoadingComponent = {
 };
 
 // Auto-initialize when DOM is loaded
+// Temporarily disabled to test if this is causing the issue
+/*
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         LoadingComponent.init();
@@ -219,6 +221,7 @@ if (document.readyState === 'loading') {
 } else {
     LoadingComponent.init();
 }
+*/
 
 // Export for use in other scripts
 if (typeof module !== 'undefined' && module.exports) {
