@@ -29,12 +29,20 @@ const LoadingComponent = {
 
     // Full page loading overlay
     getFullPageLoadingHTML(text = 'Loading StarStore...') {
+        const loadingMessages = [
+            'Preparing your StarStore experience...',
+            'Setting up secure connections...',
+            'Loading your personalized dashboard...',
+            'Almost ready...',
+            'Welcome to StarStore!'
+        ];
+        
         return `
             <div id="fullPageLoading" class="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50">
                 <div class="text-center">
                     <div class="loading-spinner w-16 h-16 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin mb-6"></div>
                     <div class="loading-text text-gray-700 text-lg font-medium">${text}</div>
-                    <div class="loading-subtitle text-gray-500 text-sm mt-2">Please wait while we prepare your experience</div>
+                    <div class="loading-subtitle text-gray-500 text-sm mt-2" id="loadingSubtitle">Preparing your StarStore experience...</div>
                 </div>
             </div>
         `;
@@ -95,6 +103,8 @@ const LoadingComponent = {
                 break;
             case 'fullPage':
                 html = this.getFullPageLoadingHTML(config.text);
+                // Start cycling through loading messages
+                this.startLoadingMessageCycle();
                 break;
             case 'inline':
                 html = this.getInlineLoadingHTML(config.text);
@@ -110,10 +120,41 @@ const LoadingComponent = {
         element.style.display = 'block';
     },
 
+    // Start cycling through loading messages
+    startLoadingMessageCycle() {
+        const loadingMessages = [
+            'Preparing your StarStore experience...',
+            'Setting up secure connections...',
+            'Loading your personalized dashboard...',
+            'Almost ready...',
+            'Welcome to StarStore!'
+        ];
+        
+        let currentIndex = 0;
+        const subtitleElement = document.getElementById('loadingSubtitle');
+        
+        if (subtitleElement) {
+            this.loadingMessageInterval = setInterval(() => {
+                currentIndex = (currentIndex + 1) % loadingMessages.length;
+                subtitleElement.textContent = loadingMessages[currentIndex];
+            }, 2000); // Change message every 2 seconds
+        }
+    },
+    
+    // Stop loading message cycle
+    stopLoadingMessageCycle() {
+        if (this.loadingMessageInterval) {
+            clearInterval(this.loadingMessageInterval);
+            this.loadingMessageInterval = null;
+        }
+    },
+
     // Hide loading
     hide(elementId) {
         const element = document.getElementById(elementId);
         if (element) {
+            // Stop loading message cycle if it's running
+            this.stopLoadingMessageCycle();
             element.style.display = 'none';
         }
     },
