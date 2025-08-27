@@ -21,6 +21,24 @@ router.get('/transactions/:userId', optionalTelegramAuth, async (req, res) => {
             return res.status(403).json({ error: 'Forbidden' });
         }
         
+        // Check if database is connected
+        if (process.env.SKIP_DB === '1') {
+            console.log('📊 Database skipped, returning mock data');
+            // Return mock data for testing
+            const mockTransactions = [
+                {
+                    id: 'mock-1',
+                    type: 'Sell Stars',
+                    amount: 100,
+                    status: 'completed',
+                    date: new Date(),
+                    details: 'Mock sell order for 100 stars',
+                    usdtValue: null
+                }
+            ];
+            return res.json({ success: true, transactions: mockTransactions });
+        }
+        
         // Get both buy and sell orders for the user
         const buyOrders = await BuyOrder.find({ telegramId: userId })
             .sort({ dateCreated: -1 })
@@ -65,6 +83,23 @@ router.get('/transactions/:userId', optionalTelegramAuth, async (req, res) => {
 router.get('/referrals/:userId', optionalTelegramAuth, async (req, res) => {
     try {
         const { userId } = req.params;
+        
+        // Check if database is connected
+        if (process.env.SKIP_DB === '1') {
+            console.log('👥 Database skipped, returning mock referral data');
+            // Return mock data for testing
+            const mockReferrals = [
+                {
+                    id: 'mock-ref-1',
+                    name: 'Mock User',
+                    status: 'completed',
+                    date: new Date(),
+                    details: 'Mock referred user',
+                    amount: 0.5
+                }
+            ];
+            return res.json(mockReferrals);
+        }
         
         // Handle both old and new schema field names
         const referrals = await Referral.find({ 
