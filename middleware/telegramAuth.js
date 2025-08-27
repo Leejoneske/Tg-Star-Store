@@ -49,10 +49,21 @@ function isTelegramUser(req) {
   if (!verifyTelegramWebAppData(initData)) return false;
   const parsed = parseTelegramInitData(initData);
   if (!parsed || !parsed.user || !parsed.user.id) return false;
-  // Freshness check with configurable tolerance (default 300s)
+  // Freshness check: default 300s; long windows require explicit override
   const now = Math.floor(Date.now() / 1000);
-  const maxAgeSecRaw = parseInt(process.env.TELEGRAM_INIT_MAX_AGE_SECONDS || '300', 10);
-  const maxAgeSec = Number.isFinite(maxAgeSecRaw) ? Math.max(30, Math.min(maxAgeSecRaw, 86400)) : 300;
+  const requested = parseInt(process.env.TELEGRAM_INIT_MAX_AGE_SECONDS || '300', 10);
+  const allowLong = process.env.TELEGRAM_INIT_ALLOW_LONG_WINDOW === '1';
+  let maxAgeSec = 300;
+  if (Number.isFinite(requested)) {
+    if (requested <= 300) {
+      maxAgeSec = Math.max(30, requested);
+    } else if (allowLong) {
+      maxAgeSec = Math.min(requested, 86400);
+      if (maxAgeSec > 300) {
+        console.warn('⚠️  Using extended Telegram init freshness window:', maxAgeSec, 'seconds');
+      }
+    }
+  }
   if (!parsed.authDate || now - parsed.authDate > maxAgeSec) return false;
   const user = parsed.user;
   if (user.id) {
