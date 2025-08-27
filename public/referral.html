@@ -493,7 +493,13 @@ function init() {
 async function loadReferralData() {
     try {
         console.log('Loading referral data for userId:', state.userId);
-        const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`);
+        const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`, {
+            headers: {
+                'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                'x-telegram-id': state.userId,
+                'Content-Type': 'application/json'
+            }
+        });
         console.log('Response status:', response.status);
         
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -533,7 +539,13 @@ async function loadReferralData() {
 
 async function loadWithdrawalHistory() {
     try {
-        const response = await fetch(`${BASE_API_URL}/withdrawal-history/${state.userId}`);
+        const response = await fetch(`${BASE_API_URL}/withdrawal-history/${state.userId}`, {
+            headers: {
+                'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                'x-telegram-id': state.userId,
+                'Content-Type': 'application/json'
+            }
+        });
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const data = await response.json();
@@ -615,7 +627,13 @@ function formatDate(dateString) {
  
 async function fetchWithdrawals() {
     try {
-        const response = await fetch(`${BASE_API_URL}/withdrawal-history/${state.userId}`);
+        const response = await fetch(`${BASE_API_URL}/withdrawal-history/${state.userId}`, {
+            headers: {
+                'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                'x-telegram-id': state.userId,
+                'Content-Type': 'application/json'
+            }
+        });
         if (response.ok) {
             const data = await response.json();
             if (data.success) {

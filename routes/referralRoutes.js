@@ -3,11 +3,12 @@ const mongoose = require('mongoose');
 const { Referral, User, ReferralWithdrawal } = require('../models');
 const { trackUserActivity } = require('../middleware/userActivity');
 const { validateTelegramId } = require('../utils/validation');
+const { optionalTelegramAuth } = require('../middleware/telegramAuth');
 
 const router = express.Router();
 
 // Get referral statistics
-router.get('/referral-stats/:userId', trackUserActivity, async (req, res) => {
+router.get('/referral-stats/:userId', optionalTelegramAuth, trackUserActivity, async (req, res) => {
     try {
         const { userId } = req.params;
         
@@ -50,7 +51,7 @@ router.get('/referral-stats/:userId', trackUserActivity, async (req, res) => {
 });
 
 // Get withdrawal history
-router.get('/withdrawal-history/:userId', trackUserActivity, async (req, res) => {
+router.get('/withdrawal-history/:userId', optionalTelegramAuth, trackUserActivity, async (req, res) => {
     try {
         const { userId } = req.params;
         

@@ -1,12 +1,12 @@
 const express = require('express');
 const { Notification, User } = require('../models');
 const { requireAdminAuth } = require('../middleware/adminAuth');
-const { requireTelegramAuth } = require('../middleware/telegramAuth');
+const { requireTelegramAuth, optionalTelegramAuth } = require('../middleware/telegramAuth');
 
 const router = express.Router();
 
 // Get user notifications
-router.get('/notifications', requireTelegramAuth, async (req, res) => {
+router.get('/notifications', optionalTelegramAuth, async (req, res) => {
     try {
         const { userId, limit = 20, skip = 0 } = req.query;
 
@@ -204,7 +204,7 @@ router.delete('/notifications/:id', requireAdminAuth, async (req, res) => {
 });
 
 // Get unread count
-router.get('/notifications/unread-count', async (req, res) => {
+router.get('/notifications/unread-count', optionalTelegramAuth, async (req, res) => {
     try {
         const { userId } = req.query;
 

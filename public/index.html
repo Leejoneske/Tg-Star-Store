@@ -1284,7 +1284,13 @@ function initNotificationSystem() {
             currentUserId = getCurrentUserId();
             if (currentUserId) {
                 try {
-                    const response = await fetch(`/api/notifications/unread-count?userId=${currentUserId}`);
+                    const response = await fetch(`/api/notifications/unread-count?userId=${currentUserId}`, {
+                        headers: {
+                            'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                            'x-telegram-id': currentUserId,
+                            'Content-Type': 'application/json'
+                        }
+                    });
                     if (response.ok) {
                         const data = await response.json();
                         count = data.unreadCount;
