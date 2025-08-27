@@ -157,10 +157,17 @@ async function setupWebhook() {
         return;
     }
     try {
-        // Construct the full webhook URL properly
-        const fullWebhookUrl = WEBHOOK_URL.endsWith('/') 
-            ? `${WEBHOOK_URL.slice(0, -1)}${WEBHOOK_PATH}`
-            : `${WEBHOOK_URL}${WEBHOOK_PATH}`;
+        // Construct the full webhook URL properly - avoid double /webhook/
+        let fullWebhookUrl;
+        if (WEBHOOK_URL.includes('/webhook/')) {
+            // If WEBHOOK_URL already contains /webhook/, use it as-is
+            fullWebhookUrl = WEBHOOK_URL;
+        } else {
+            // Otherwise, append the webhook path
+            fullWebhookUrl = WEBHOOK_URL.endsWith('/') 
+                ? `${WEBHOOK_URL.slice(0, -1)}${WEBHOOK_PATH}`
+                : `${WEBHOOK_URL}${WEBHOOK_PATH}`;
+        }
         await bot.setWebHook(fullWebhookUrl, {
             secret_token: TELEGRAM_WEBHOOK_SECRET || undefined
         });
