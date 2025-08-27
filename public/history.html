@@ -425,7 +425,8 @@ function loadTransactionHistory() {
 
     fetch(`${BASE_API_URL}/transactions/${user.id}`, {
         headers: {
-            'tg-web-app-data': Telegram.WebApp.initData,
+            'x-telegram-init-data': Telegram.WebApp.initData,
+            'x-telegram-id': user.id,
             'Content-Type': 'application/json'
         }
     })
@@ -466,7 +467,8 @@ function loadReferralHistory() {
 
     fetch(`${BASE_API_URL}/referrals/${user.id}`, {
         headers: {
-            'tg-web-app-data': Telegram.WebApp.initData,
+            'x-telegram-init-data': Telegram.WebApp.initData,
+            'x-telegram-id': user.id,
             'Content-Type': 'application/json'
         }
     })

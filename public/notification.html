@@ -143,7 +143,13 @@
     }
 
     try {
-      const response = await fetch(`/api/notifications?userId=${currentUserId}&limit=10&skip=${page * 10}`);
+      const response = await fetch(`/api/notifications?userId=${currentUserId}&limit=10&skip=${page * 10}`, {
+        headers: {
+          'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+          'x-telegram-id': currentUserId,
+          'Content-Type': 'application/json'
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -173,6 +179,8 @@
       const response = await fetch(`/api/notifications/${notificationId}/read`, {
         method: 'POST',
         headers: {
+          'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+          'x-telegram-id': currentUserId,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ userId: currentUserId })
@@ -204,6 +212,8 @@
       const response = await fetch('/api/notifications/mark-all-read', {
         method: 'POST',
         headers: {
+          'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+          'x-telegram-id': currentUserId,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ userId: currentUserId })
@@ -231,7 +241,13 @@
   async function updateUnreadCount(count = null) {
     if (count === null) {
       try {
-        const response = await fetch(`/api/notifications/unread-count?userId=${currentUserId}`);
+        const response = await fetch(`/api/notifications/unread-count?userId=${currentUserId}`, {
+          headers: {
+            'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+            'x-telegram-id': currentUserId,
+            'Content-Type': 'application/json'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           count = data.unreadCount;
