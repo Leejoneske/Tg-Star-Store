@@ -1,4 +1,4 @@
-// Standard Loading Component for StarStore
+// Simple Loading Component for StarStore (temporary)
 const LoadingComponent = {
     // Standard spinner HTML
     getSpinnerHTML(size = 'medium', text = 'Loading...', color = 'primary') {
