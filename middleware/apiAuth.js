@@ -26,8 +26,9 @@ const sensitiveApiLimiter = rateLimit({
 
 // Authentication middleware for sensitive API endpoints
 const requireApiAuth = (req, res, next) => {
-    // Check for API key in headers
-    const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
+    // Check for API key in headers; support Bearer scheme
+    const rawAuth = req.headers['authorization'];
+    const apiKey = req.headers['x-api-key'] || (rawAuth && rawAuth.toLowerCase().startsWith('bearer ') ? rawAuth.slice(7) : rawAuth);
     
     if (!apiKey) {
         return res.status(401).json({
@@ -36,7 +37,7 @@ const requireApiAuth = (req, res, next) => {
         });
     }
     
-    // Validate API key (you can implement your own validation logic)
+    // Validate API key
     if (apiKey !== process.env.API_KEY) {
         return res.status(403).json({
             error: 'Invalid API key',

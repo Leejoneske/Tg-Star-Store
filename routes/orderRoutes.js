@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const { BuyOrder, SellOrder, BannedUser } = require('../models');
 const { validateTelegramId } = require('../utils/validation');
+const { requireTelegramAuth } = require('../middleware/telegramAuth');
 
 function createOrderRoutes(bot) {
 	const router = express.Router();
@@ -128,7 +129,7 @@ function createOrderRoutes(bot) {
 	});
 
 	// Quote endpoint for client to fetch accurate pricing before payment
-	router.post('/quote', async (req, res) => {
+	router.post('/quote', requireTelegramAuth, async (req, res) => {
 		try {
 			const { stars, isPremium, premiumDuration, recipientsCount } = req.body;
 			
@@ -163,7 +164,7 @@ function createOrderRoutes(bot) {
 	});
 
 	// Validate Telegram usernames and return IDs (supports up to 5)
-	router.post('/validate-usernames', async (req, res) => {
+	router.post('/validate-usernames', requireTelegramAuth, async (req, res) => {
 		try {
 			const { usernames } = req.body;
 			if (!Array.isArray(usernames) || usernames.length === 0) {
@@ -190,7 +191,7 @@ function createOrderRoutes(bot) {
 	});
 
 	// Create buy order (supports gifting up to 5 recipients)
-	router.post('/orders/create', async (req, res) => {
+	router.post('/orders/create', requireTelegramAuth, async (req, res) => {
 		try {
 			const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients } = req.body;
 			if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
@@ -289,7 +290,7 @@ function createOrderRoutes(bot) {
 	});
 
 	// Create sell order
-	router.post('/sell-orders', async (req, res) => {
+	router.post('/sell-orders', requireTelegramAuth, async (req, res) => {
 		try {
 			const { telegramId, username = '', stars, walletAddress, memoTag = '' } = req.body;
 			if (!telegramId || !stars || !walletAddress) {
@@ -344,7 +345,7 @@ function createOrderRoutes(bot) {
 	});
 
 	// Get latest sell orders for a user
-	router.get('/sell-orders', async (req, res) => {
+	router.get('/sell-orders', requireTelegramAuth, async (req, res) => {
 		try {
 			const { telegramId } = req.query;
 			if (!telegramId) {
@@ -359,13 +360,14 @@ function createOrderRoutes(bot) {
 	});
 
 	// Get comprehensive order history for a user (both buy and sell orders)
-	router.get('/order-history/:userId', async (req, res) => {
+	router.get('/order-history/:userId', requireTelegramAuth, async (req, res) => {
 		try {
 			const { userId } = req.params;
-			const authHeader = req.headers['authorization'] || '';
-			const requesterId = req.headers['x-telegram-id'] || req.query.telegramId;
+			const rawAuth = req.headers['authorization'] || '';
+			const apiKey = rawAuth && rawAuth.toLowerCase().startsWith('bearer ') ? rawAuth.slice(7) : rawAuth;
+			const requesterId = req.verifiedTelegramUser?.id || req.headers['x-telegram-id'] || req.query.telegramId;
 			// Require either matching owner or valid API key (admin)
-			if (requesterId?.toString() !== userId.toString() && authHeader !== process.env.API_KEY) {
+			if (requesterId?.toString() !== userId.toString() && apiKey !== process.env.API_KEY) {
 				return res.status(403).json({ success: false, error: 'Forbidden' });
 			}
 			// Get both buy and sell orders for the user
@@ -411,11 +413,12 @@ function createOrderRoutes(bot) {
 	});
 
 	// Get order details by order ID
-	router.get('/order-details/:orderId', async (req, res) => {
+	router.get('/order-details/:orderId', requireTelegramAuth, async (req, res) => {
 		try {
 			const { orderId } = req.params;
-			const authHeader = req.headers['authorization'] || '';
-			const requesterId = req.headers['x-telegram-id'] || req.query.telegramId;
+			const rawAuth = req.headers['authorization'] || '';
+			const apiKey = rawAuth && rawAuth.toLowerCase().startsWith('bearer ') ? rawAuth.slice(7) : rawAuth;
+			const requesterId = req.verifiedTelegramUser?.id || req.headers['x-telegram-id'] || req.query.telegramId;
 			
 			// Try to find the order in both buy and sell orders
 			let order = await BuyOrder.findOne({ id: orderId }).lean();
@@ -431,7 +434,7 @@ function createOrderRoutes(bot) {
 			}
 
 			// Authorization: owner or admin API key
-			if (requesterId?.toString() !== order.telegramId?.toString() && authHeader !== process.env.API_KEY) {
+			if (requesterId?.toString() !== order.telegramId?.toString() && apiKey !== process.env.API_KEY) {
 				return res.status(403).json({ success: false, error: 'Forbidden' });
 			}
 
