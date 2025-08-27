@@ -396,7 +396,11 @@ app.use((err, req, res, next) => {
     }
     
     if (req.accepts('json')) {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ 
+            error: 'Internal server error',
+            message: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
         return;
     }
     
@@ -412,7 +416,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   // Do not log full webhook path to avoid leaking the token
