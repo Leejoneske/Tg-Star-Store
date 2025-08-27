@@ -6,9 +6,10 @@ const { validateOrderId, validateRefundReason } = require('../utils/validation')
 const { formatAdminNotification } = require('../utils/markdown');
 
 class UserInteractionManager {
-    constructor(bot) {
+    constructor(bot, adminIds = []) {
         this.bot = bot;
-        this.referralTrackingManager = new ReferralTrackingManager(bot, process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : []);
+        this.adminIds = adminIds;
+        this.referralTrackingManager = new ReferralTrackingManager(bot, adminIds);
         this.refundRequests = new Map();
         this.setupUserHandlers();
     }
@@ -596,7 +597,7 @@ class UserInteractionManager {
         const userId = msg.from.id.toString();
 
         try {
-            const { WithdrawalManager } = require('./withdrawalManager');
+            const WithdrawalManager = require('./withdrawalManager');
             const withdrawalManager = new WithdrawalManager(this.bot, this.adminIds);
             
             const withdrawals = await withdrawalManager.getWithdrawalHistory(userId);
