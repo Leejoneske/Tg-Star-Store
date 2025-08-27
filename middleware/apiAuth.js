@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const { extractApiKey } = require('../utils/auth');
 
 // Rate limiting for API endpoints
 const apiLimiter = rateLimit({
@@ -27,13 +28,12 @@ const sensitiveApiLimiter = rateLimit({
 // Authentication middleware for sensitive API endpoints
 const requireApiAuth = (req, res, next) => {
     // Check for API key in headers; support Bearer scheme
-    const rawAuth = req.headers['authorization'];
-    const apiKey = req.headers['x-api-key'] || (rawAuth && rawAuth.toLowerCase().startsWith('bearer ') ? rawAuth.slice(7) : rawAuth);
+    const apiKey = extractApiKey(req);
     
     if (!apiKey) {
         return res.status(401).json({
             error: 'API key required',
-            message: 'Please provide a valid API key in the Authorization header'
+            message: 'Provide API key via Authorization: Bearer <key> or x-api-key'
         });
     }
     

@@ -36,8 +36,10 @@ function verifyTelegramAuth(initData) {
 function parseTelegramInitData(initData) {
   const params = new URLSearchParams(initData);
   const userJson = params.get('user');
+  const authDate = Number(params.get('auth_date')) || 0;
   try {
-    return userJson ? JSON.parse(userJson) : null;
+    const user = userJson ? JSON.parse(userJson) : null;
+    return { user, authDate };
   } catch { return null; }
 }
 
@@ -45,8 +47,13 @@ function isTelegramUser(req) {
   const initData = req.headers['x-telegram-init-data'] || req.query.tgWebAppData;
   if (!initData) return false;
   if (!verifyTelegramWebAppData(initData)) return false;
-  const user = parseTelegramInitData(initData);
-  if (user?.id) {
+  const parsed = parseTelegramInitData(initData);
+  if (!parsed || !parsed.user || !parsed.user.id) return false;
+  // Freshness check: 1 minute skew
+  const now = Math.floor(Date.now() / 1000);
+  if (!parsed.authDate || now - parsed.authDate > 60) return false;
+  const user = parsed.user;
+  if (user.id) {
     req.verifiedTelegramUser = { id: user.id.toString(), username: user.username };
   }
   return true;

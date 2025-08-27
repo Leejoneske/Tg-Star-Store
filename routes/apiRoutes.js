@@ -7,8 +7,8 @@ const { BuyOrder, SellOrder, Referral, User } = require('../models');
 router.get('/transactions/:userId', requireTelegramAuth, async (req, res) => {
     try {
         const { userId } = req.params;
-        const rawAuth = req.headers['authorization'] || '';
-        const apiKey = rawAuth && rawAuth.toLowerCase().startsWith('bearer ') ? rawAuth.slice(7) : rawAuth;
+        const { extractApiKey } = require('../utils/auth');
+        const apiKey = extractApiKey(req);
         const requesterId = req.verifiedTelegramUser?.id || req.headers['x-telegram-id'] || req.query.telegramId;
         if (requesterId?.toString() !== userId.toString() && apiKey !== process.env.API_KEY) {
             return res.status(403).json({ error: 'Forbidden' });
