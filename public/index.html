@@ -736,9 +736,10 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 
-    <script src="js/translations.js"></script>
-    <script src="js/loading.js"></script>
-    <script src="js/api.js"></script>
+    <!-- Temporarily commented out to test if these are causing the blank page -->
+    <!-- <script src="js/translations.js"></script> -->
+    <!-- <script src="js/loading.js"></script> -->
+    <!-- <script src="js/api.js"></script> -->
     <script>
 
 let tonConnectUI = null;
@@ -869,51 +870,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isInitialized) return;
     isInitialized = true;
     
-    detectTelegramEnvironment();
+    console.log('🚀 Testing basic page load...');
     
+    // Show content immediately without any dependencies
     const content = document.getElementById('content-container');
+    if (content) {
+        content.style.display = 'block';
+        console.log('✅ Content shown immediately');
+    }
     
-    LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
-    if (content) content.style.display = 'none';
-
-    requestAnimationFrame(() => {
-        showContent();
-        initTelegramApp();
-        initWalletConnection();
-        
-        setTimeout(() => {
-            loadBottomNav()
-                .then(() => {
-                    initLanguageToggle();
-                    initSectionToggle();
-                    updateLanguage();
-                    initBuyButtons();
-                    initRecipientsUI();
-                    initCustomStars();
-                    updatePackagePrices(); // Initialize package prices
-                    initNotificationSystem();
-                    loadStickers();
-                    
-                    // Ensure API is properly initialized
-                    if (typeof API === 'undefined') {
-                        console.error('API class not loaded');
-                        return;
-                    }
-                    
-                    if (!window.API) {
-                        console.warn('API not initialized, creating new instance');
-                        window.API = new API();
-                    }
-                    
-                    window.currentUser = currentUser;
-                    window.currentWalletAddress = currentWalletAddress;
-                    window.isTelegramEnv = isTelegramEnv;
-                })
-                .catch(error => {
-                    console.error('Initialization error:', error);
-                });
-        }, 300);
-    });
+    // Simple test to see if page loads
+    document.body.style.backgroundColor = '#f0f0f0';
+    console.log('✅ Basic initialization completed');
 });
 
 
