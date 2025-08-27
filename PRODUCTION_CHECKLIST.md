@@ -23,6 +23,7 @@
 - [ ] CORS properly configured for Telegram domains
 - [ ] Input validation implemented
 - [ ] Authentication middleware active
+- [ ] Telegram WebApp init freshness set appropriately (default 300s). For longer windows, set `TELEGRAM_INIT_ALLOW_LONG_WINDOW=1` and document risk
 
 ### Infrastructure
 - [ ] Server with Node.js 16+ installed
