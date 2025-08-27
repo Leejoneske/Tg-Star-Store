@@ -3560,6 +3560,19 @@ bot.onText(/\/users/, async (msg) => {
     }
 });
 
+// Load API routes
+const createOrderRoutes = require('./routes/orderRoutes');
+const apiRoutes = require('./routes/apiRoutes');
+const referralRoutes = require('./routes/referralRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const userRoutes = require('./routes/userRoutes');
+
+app.use('/api', createOrderRoutes(bot));
+app.use('/api', apiRoutes);
+app.use('/api', referralRoutes);
+app.use('/api', notificationRoutes);
+app.use('/api', userRoutes);
+
 
 
 const PORT = process.env.PORT || 8080;

@@ -1873,7 +1873,13 @@ async function validateRecipients(containerId) {
     }
     
     try {
-        const response = await axios.post('/api/validate-usernames', { usernames });
+        const response = await axios.post('/api/validate-usernames', { usernames }, {
+            headers: {
+                'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '',
+                'Content-Type': 'application/json'
+            }
+        });
         if (response.data?.success) {
             const result = { recipients: response.data.recipients };
             
@@ -2049,6 +2055,11 @@ function initCustomStars() {
         }
         
         try {
+            if (!window.API || typeof window.API.getQuote !== 'function') {
+                console.error('API.getQuote is not available');
+                quoteText.textContent = 'Quote service unavailable. Please refresh the page.';
+                return;
+            }
             const q = await API.getQuote({ stars: val, isPremium: false, recipientsCount });
             if (q.success) {
                 const rate = await getRateCached();
@@ -2191,6 +2202,12 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         ];
         
         const cacheData = {};
+        
+        // Check if API is available
+        if (!window.API || typeof window.API.getQuote !== 'function') {
+            console.error('API.getQuote is not available');
+            return;
+        }
         
         // Batch API calls for better performance
         const starsQuotes = await Promise.allSettled(
