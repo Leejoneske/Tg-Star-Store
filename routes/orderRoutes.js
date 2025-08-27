@@ -148,14 +148,9 @@ function createOrderRoutes(bot) {
 				return res.status(400).json({ success: false, error: 'Invalid premium duration. Must be 3, 6, or 12 months.' });
 			}
 			
-			// Only enforce 50 star minimum for "buy for others"
-			if (!isPremium && !buyForMyself && (!stars || stars < 50)) {
-				return res.status(400).json({ success: false, error: 'Invalid stars amount. Minimum is 50 stars for recipients.' });
-			}
-			
-			// For "buy for myself", allow any positive amount
-			if (!isPremium && buyForMyself && (!stars || stars <= 0)) {
-				return res.status(400).json({ success: false, error: 'Please enter a valid number of stars.' });
+			// Always enforce 50 star minimum for manual input
+			if (!isPremium && (!stars || stars < 50)) {
+				return res.status(400).json({ success: false, error: 'Invalid stars amount. Minimum is 50 stars.' });
 			}
 			
 			const unitAmount = calculateAmount({ isPremium: !!isPremium, premiumDuration, stars: isPremium ? null : Number(stars) });
