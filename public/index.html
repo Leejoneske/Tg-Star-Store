@@ -838,6 +838,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     initNotificationSystem();
                     loadStickers();
                     
+                    // Ensure API is properly initialized
+                    if (!window.API) {
+                        console.warn('API not initialized, creating new instance');
+                        window.API = new API();
+                    }
+                    
                     window.currentUser = currentUser;
                     window.currentWalletAddress = currentWalletAddress;
                     window.isTelegramEnv = isTelegramEnv;
