@@ -1121,6 +1121,12 @@ confirmPaymentBtn.addEventListener('click', async () => {
             stars: stars,
             walletAddress: walletToUse,
             memoTag: memoToUse
+        }, {
+            headers: {
+                'x-telegram-init-data': Telegram.WebApp.initData,
+                'x-telegram-id': Telegram.WebApp.initDataUnsafe.user.id,
+                'Content-Type': 'application/json'
+            }
         });
 
         if (response.data.success) {
@@ -1531,6 +1537,11 @@ const fetchTransactions = async () => {
         const response = await axios.get('/api/sell-orders', {
             params: {
                 telegramId: Telegram.WebApp.initDataUnsafe.user.id
+            },
+            headers: {
+                'x-telegram-init-data': Telegram.WebApp.initData,
+                'x-telegram-id': Telegram.WebApp.initDataUnsafe.user.id,
+                'Content-Type': 'application/json'
             }
         });
 
