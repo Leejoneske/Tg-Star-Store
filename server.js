@@ -12,10 +12,14 @@ const securityConfig = require('./config/security');
 // Load environment variables
 require('dotenv').config();
 
-// Validate required environment variables
+// Optional development skips
+const SKIP_DB = process.env.SKIP_DB === '1';
+const SKIP_TELEGRAM = process.env.SKIP_TELEGRAM === '1';
+
+// Validate required environment variables (conditional in dev)
 const requiredEnvVars = [
-    'TELEGRAM_BOT_TOKEN',
-    'MONGODB_URI'
+    ...(SKIP_TELEGRAM ? [] : ['TELEGRAM_BOT_TOKEN']),
+    ...(SKIP_DB ? [] : ['MONGODB_URI'])
 ];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -40,7 +44,7 @@ if ((process.env.NODE_ENV || '').toLowerCase() === 'production') {
     if (!process.env.API_KEY || process.env.API_KEY.startsWith('default-api-key-')) prodErrors.push('API_KEY');
     if (!process.env.WALLET_ADDRESS || process.env.WALLET_ADDRESS === 'UQDefaultWalletAddress') prodErrors.push('WALLET_ADDRESS');
     if (!process.env.WEBHOOK_URL || process.env.WEBHOOK_URL.includes('localhost')) prodErrors.push('WEBHOOK_URL');
-    if (!process.env.TELEGRAM_WEBHOOK_SECRET) prodErrors.push('TELEGRAM_WEBHOOK_SECRET');
+    if (!process.env.TELEGRAM_WEBHOOK_SECRET && !SKIP_TELEGRAM) prodErrors.push('TELEGRAM_WEBHOOK_SECRET');
     if (prodErrors.length) {
         console.error('❌ Missing or insecure production env vars:', prodErrors);
         process.exit(1);
@@ -121,21 +125,34 @@ const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').filter
 
 // Initialize bot with error handling
 let bot;
-try {
-    bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {
-        polling: false, // Disable polling since we're using webhooks
-        webHook: {
-            port: process.env.PORT || 8080
-        }
-    });
-    console.log('✅ Telegram bot initialized successfully');
-} catch (error) {
-    console.error('❌ Failed to initialize Telegram bot:', error);
-    process.exit(1);
+if (SKIP_TELEGRAM) {
+    bot = {
+        processUpdate: () => {},
+        getMe: async () => ({ ok: true }),
+        setWebHook: async () => ({ ok: true })
+    };
+    console.log('⚠️  Telegram bot initialization skipped (SKIP_TELEGRAM=1)');
+} else {
+    try {
+        bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {
+            polling: false, // Disable polling since we're using webhooks
+            webHook: {
+                port: process.env.PORT || 8080
+            }
+        });
+        console.log('✅ Telegram bot initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize Telegram bot:', error);
+        process.exit(1);
+    }
 }
 
 // Set webhook with error handling
 async function setupWebhook() {
+    if (SKIP_TELEGRAM) {
+        console.log('⚠️  Skipping webhook setup (SKIP_TELEGRAM=1)');
+        return;
+    }
     try {
         await bot.setWebHook(`${WEBHOOK_URL}${WEBHOOK_PATH}`, {
             secret_token: TELEGRAM_WEBHOOK_SECRET || undefined
@@ -152,6 +169,10 @@ async function connectToMongoDB() {
     const maxRetries = 5;
     let retries = 0;
     
+    if (SKIP_DB) {
+        console.log('⚠️  Skipping MongoDB connection (SKIP_DB=1)');
+        return true;
+    }
     while (retries < maxRetries) {
         try {
             await mongoose.connect(process.env.MONGODB_URI, {
@@ -179,6 +200,10 @@ async function connectToMongoDB() {
 // Initialize managers with proper error handling
 async function initializeManagers() {
     try {
+        if (SKIP_TELEGRAM) {
+            console.log('⚠️  Skipping managers initialization (SKIP_TELEGRAM=1)');
+            return {};
+        }
         const managers = {
             paymentManager: new PaymentManager(bot),
             adminManager: new AdminManager(bot, adminIds),
@@ -356,11 +381,13 @@ app.use((err, req, res, next) => {
 
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
-  const headerSecret = req.headers['x-telegram-bot-api-secret-token'];
-  if (TELEGRAM_WEBHOOK_SECRET && headerSecret !== TELEGRAM_WEBHOOK_SECRET) {
-    return res.status(403).json({ error: 'Invalid webhook secret' });
+  if (!SKIP_TELEGRAM) {
+    const headerSecret = req.headers['x-telegram-bot-api-secret-token'];
+    if (TELEGRAM_WEBHOOK_SECRET && headerSecret !== TELEGRAM_WEBHOOK_SECRET) {
+      return res.status(403).json({ error: 'Invalid webhook secret' });
+    }
+    bot.processUpdate(req.body);
   }
-  bot.processUpdate(req.body);
   res.sendStatus(200);
 });
 
