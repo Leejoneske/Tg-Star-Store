@@ -49,9 +49,11 @@ function isTelegramUser(req) {
   if (!verifyTelegramWebAppData(initData)) return false;
   const parsed = parseTelegramInitData(initData);
   if (!parsed || !parsed.user || !parsed.user.id) return false;
-  // Freshness check: 1 minute skew
+  // Freshness check with configurable tolerance (default 300s)
   const now = Math.floor(Date.now() / 1000);
-  if (!parsed.authDate || now - parsed.authDate > 60) return false;
+  const maxAgeSecRaw = parseInt(process.env.TELEGRAM_INIT_MAX_AGE_SECONDS || '300', 10);
+  const maxAgeSec = Number.isFinite(maxAgeSecRaw) ? Math.max(30, Math.min(maxAgeSecRaw, 86400)) : 300;
+  if (!parsed.authDate || now - parsed.authDate > maxAgeSec) return false;
   const user = parsed.user;
   if (user.id) {
     req.verifiedTelegramUser = { id: user.id.toString(), username: user.username };
