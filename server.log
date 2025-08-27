@@ -1,0 +1,15 @@
+✅ Environment variables configured with defaults where needed
+⚠️  Telegram bot initialization skipped (SKIP_TELEGRAM=1)
+⚠️  Skipping webhook setup (SKIP_TELEGRAM=1)
+🚀 Server running on port 8080
+📡 Webhook configured
+⚠️  Skipping MongoDB connection (SKIP_DB=1)
+⚠️  Skipping managers initialization (SKIP_TELEGRAM=1)
+✅ Application initialized successfully
+GET /api/health - 200 - 5ms
+GET /api/health - 200 - 5ms
+GET /api/health - 200 - 5ms
+GET /api/health - 200 - 4ms
+GET /api/health - 200 - 4ms
+GET /api/health - 200 - 3ms
+GET /api/health - 200 - 3ms

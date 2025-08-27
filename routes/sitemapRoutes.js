@@ -57,30 +57,9 @@ Allow: /
 # Sitemap location
 Sitemap: ${baseUrl}/api/sitemap.xml
 
-# Allow crawling of all pages
-Allow: /index.html
-Allow: /about.html
-Allow: /sell.html
-Allow: /history.html
-Allow: /referral.html
-Allow: /notification.html
-Allow: /blog/
-Allow: /how-to-withdraw-telegram-stars/
-Allow: /knowledge-base/
-
-# Allow crawling of static assets
-Allow: /css/
-Allow: /js/
-Allow: /images/
-
-# Allow crawling of public API endpoints (for SEO purposes)
-Allow: /api/sitemap.xml
-Allow: /api/robots.txt
-Allow: /api/health
-
 # Disallow sensitive API endpoints
 Disallow: /api/admin/
-Disallow: /api/user/
+Disallow: /api/users/
 Disallow: /api/notifications/
 Disallow: /api/orders/
 Disallow: /api/referrals/

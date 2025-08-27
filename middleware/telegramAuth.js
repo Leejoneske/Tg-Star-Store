@@ -32,12 +32,7 @@ function verifyTelegramAuth(initData) {
 function isTelegramUser(req) {
   const initData = req.headers['x-telegram-init-data'] || req.query.tgWebAppData;
   if (initData && verifyTelegramWebAppData(initData)) return true;
-  
-  const ua = req.headers['user-agent'] || '';
-  if (ua.includes('Telegram')) return true;
-  
-  return (req.headers['x-telegram-bot-api-secret-token'] || 
-          req.headers.referer || '').includes('t.me');
+  return false;
 }
 
 function requireTelegramAuth(req, res, next) {

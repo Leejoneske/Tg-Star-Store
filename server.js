@@ -12,10 +12,14 @@ const securityConfig = require('./config/security');
 // Load environment variables
 require('dotenv').config();
 
-// Validate required environment variables
+// Optional development skips
+const SKIP_DB = process.env.SKIP_DB === '1';
+const SKIP_TELEGRAM = process.env.SKIP_TELEGRAM === '1';
+
+// Validate required environment variables (conditional in dev)
 const requiredEnvVars = [
-    'TELEGRAM_BOT_TOKEN',
-    'MONGODB_URI'
+    ...(SKIP_TELEGRAM ? [] : ['TELEGRAM_BOT_TOKEN']),
+    ...(SKIP_DB ? [] : ['MONGODB_URI'])
 ];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -29,8 +33,23 @@ process.env.WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://localhost:8080';
 process.env.API_KEY = process.env.API_KEY || 'default-api-key-' + Math.random().toString(36).substring(7);
 process.env.WALLET_ADDRESS = process.env.WALLET_ADDRESS || 'UQDefaultWalletAddress';
 process.env.ADMIN_IDS = process.env.ADMIN_IDS || '';
+process.env.TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'dev-webhook-secret');
 
 console.log('✅ Environment variables configured with defaults where needed');
+
+// Additional env validation in production
+if ((process.env.NODE_ENV || '').toLowerCase() === 'production') {
+    const prodErrors = [];
+    if (!process.env.PROVIDER_TOKEN) prodErrors.push('PROVIDER_TOKEN');
+    if (!process.env.API_KEY || process.env.API_KEY.startsWith('default-api-key-')) prodErrors.push('API_KEY');
+    if (!process.env.WALLET_ADDRESS || process.env.WALLET_ADDRESS === 'UQDefaultWalletAddress') prodErrors.push('WALLET_ADDRESS');
+    if (!process.env.WEBHOOK_URL || process.env.WEBHOOK_URL.includes('localhost')) prodErrors.push('WEBHOOK_URL');
+    if (!process.env.TELEGRAM_WEBHOOK_SECRET && !SKIP_TELEGRAM) prodErrors.push('TELEGRAM_WEBHOOK_SECRET');
+    if (prodErrors.length) {
+        console.error('❌ Missing or insecure production env vars:', prodErrors);
+        process.exit(1);
+    }
+}
 // Import models
 const { User, BuyOrder, SellOrder, Referral } = require('./models');
 
@@ -66,8 +85,11 @@ app.use(helmet({
     frameguard: securityConfig.frameguard,
     hsts: securityConfig.hsts,
     noSniff: true,
-    xssFilter: false // Disable deprecated X-XSS-Protection
+    xssFilter: false
 }));
+
+// Remove X-Powered-By header entirely
+app.disable('x-powered-by');
 
 app.use(compression());
 
@@ -76,14 +98,9 @@ app.use('/api/', apiLimiter);
 
 // Apply stricter rate limiting to sensitive endpoints
 app.use('/api/admin/', sensitiveApiLimiter);
-app.use('/api/user/', sensitiveApiLimiter);
+app.use('/api/users/', sensitiveApiLimiter);
 
-// Additional security headers (only for non-helmet headers)
-app.use((req, res, next) => {
-    // Add any custom headers that helmet doesn't cover
-    res.setHeader('X-Powered-By', 'StarStore'); // Custom header for branding
-    next();
-});
+// No custom branding headers
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
@@ -101,29 +118,45 @@ app.use((req, res, next) => {
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
 const WEBHOOK_PATH = `/webhook/${TELEGRAM_BOT_TOKEN}`;
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 // Admin configuration
 const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').filter(Boolean) : [];
 
 // Initialize bot with error handling
 let bot;
-try {
-    bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {
-        polling: false, // Disable polling since we're using webhooks
-        webHook: {
-            port: process.env.PORT || 8080
-        }
-    });
-    console.log('✅ Telegram bot initialized successfully');
-} catch (error) {
-    console.error('❌ Failed to initialize Telegram bot:', error);
-    process.exit(1);
+if (SKIP_TELEGRAM) {
+    bot = {
+        processUpdate: () => {},
+        getMe: async () => ({ ok: true }),
+        setWebHook: async () => ({ ok: true })
+    };
+    console.log('⚠️  Telegram bot initialization skipped (SKIP_TELEGRAM=1)');
+} else {
+    try {
+        bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {
+            polling: false, // Disable polling since we're using webhooks
+            webHook: {
+                port: process.env.PORT || 8080
+            }
+        });
+        console.log('✅ Telegram bot initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize Telegram bot:', error);
+        process.exit(1);
+    }
 }
 
 // Set webhook with error handling
 async function setupWebhook() {
+    if (SKIP_TELEGRAM) {
+        console.log('⚠️  Skipping webhook setup (SKIP_TELEGRAM=1)');
+        return;
+    }
     try {
-        await bot.setWebHook(`${WEBHOOK_URL}${WEBHOOK_PATH}`);
+        await bot.setWebHook(`${WEBHOOK_URL}${WEBHOOK_PATH}`, {
+            secret_token: TELEGRAM_WEBHOOK_SECRET || undefined
+        });
         console.log('✅ Webhook set successfully');
     } catch (error) {
         console.error('❌ Failed to set webhook:', error);
@@ -136,6 +169,10 @@ async function connectToMongoDB() {
     const maxRetries = 5;
     let retries = 0;
     
+    if (SKIP_DB) {
+        console.log('⚠️  Skipping MongoDB connection (SKIP_DB=1)');
+        return true;
+    }
     while (retries < maxRetries) {
         try {
             await mongoose.connect(process.env.MONGODB_URI, {
@@ -163,6 +200,10 @@ async function connectToMongoDB() {
 // Initialize managers with proper error handling
 async function initializeManagers() {
     try {
+        if (SKIP_TELEGRAM) {
+            console.log('⚠️  Skipping managers initialization (SKIP_TELEGRAM=1)');
+            return {};
+        }
         const managers = {
             paymentManager: new PaymentManager(bot),
             adminManager: new AdminManager(bot, adminIds),
@@ -210,9 +251,11 @@ initializeApp();
 
 // API routes with logging
 app.use('/api', apiLogger, apiRoutes);
-app.use('/api/notifications', apiLogger, notificationRoutes);
+app.use('/api', apiLogger, notificationRoutes);
 app.use('/api', apiLogger, referralRoutes);
-app.use('/api', apiLogger, orderRoutes);
+// Order routes require bot instance
+const createOrderRoutes = require('./routes/orderRoutes');
+app.use('/api', apiLogger, createOrderRoutes(bot));
 app.use('/api/users', apiLogger, userRoutes);
 app.use('/api', apiLogger, refundRoutes);
 app.use('/api', apiLogger, stickerRoutes);
@@ -338,7 +381,13 @@ app.use((err, req, res, next) => {
 
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
-  bot.processUpdate(req.body);
+  if (!SKIP_TELEGRAM) {
+    const headerSecret = req.headers['x-telegram-bot-api-secret-token'];
+    if (TELEGRAM_WEBHOOK_SECRET && headerSecret !== TELEGRAM_WEBHOOK_SECRET) {
+      return res.status(403).json({ error: 'Invalid webhook secret' });
+    }
+    bot.processUpdate(req.body);
+  }
   res.sendStatus(200);
 });
 
@@ -352,5 +401,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 Webhook set to: ${WEBHOOK_URL}${WEBHOOK_PATH}`);
+  // Do not log full webhook path to avoid leaking the token
+  console.log(`📡 Webhook configured`);
 });

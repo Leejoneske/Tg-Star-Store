@@ -1,3 +1,20 @@
+// Basic security configuration for Helmet and related headers
+module.exports = {
+  csp: false, // Use defaults unless you craft a strict CSP for inline-heavy pages
+  referrerPolicy: { policy: 'no-referrer' },
+  permissionsPolicy: {
+    features: {
+      geolocation: ["'none'"],
+      microphone: ["'none'"],
+      camera: ["'none'"],
+      fullscreen: ["*"],
+      payment: ["'none'"],
+    }
+  },
+  frameguard: { action: 'deny' },
+  hsts: { maxAge: 15552000, includeSubDomains: true, preload: false }
+};
+
 module.exports = {
     // Content Security Policy configuration
     csp: {

@@ -21,7 +21,12 @@ router.get('/sticker/:sticker_id/json', trackUserActivity, async (req, res) => {
       return res.status(404).json({ error: 'Sticker not found or not animated' });
     }
 
-    const telegramUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${sticker.file_path}`;
+    // Constrain Telegram file path format to expected pattern
+    const safePath = sticker.file_path;
+    if (!/^file\/[A-Za-z0-9_\/-]+\.(tgs|webp|mp4)$/.test(safePath)) {
+      return res.status(400).json({ error: 'Invalid sticker file path' });
+    }
+    const telegramUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${safePath}`;
     const tgRes = await fetch(telegramUrl);
     
     if (!tgRes.ok) {
@@ -233,7 +238,11 @@ router.get('/sticker/:id/file', trackUserActivity, async (req, res) => {
       return res.status(404).json({ error: 'Sticker not found' });
     }
 
-    const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${sticker.file_path}`;
+    const safePath = sticker.file_path;
+    if (!/^file\/[A-Za-z0-9_\/-]+\.(tgs|webp|mp4)$/.test(safePath)) {
+      return res.status(400).json({ error: 'Invalid sticker file path' });
+    }
+    const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${safePath}`;
     
     res.json({
       file_id: sticker.file_id,
