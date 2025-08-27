@@ -58,12 +58,16 @@ bot.setWebHook(WEBHOOK_URL)
     process.exit(1);
   });
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected successfully'))
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
-    process.exit(1);
-  });
+if (process.env.SKIP_DB === '1') {
+  console.log('⚠️  Skipping MongoDB connection (SKIP_DB=1)');
+} else {
+  mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('✅ MongoDB connected successfully'))
+    .catch(err => {
+      console.error('❌ MongoDB connection error:', err.message);
+      process.exit(1);
+    });
+}
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
   if (process.env.WEBHOOK_SECRET && 

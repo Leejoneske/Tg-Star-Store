@@ -57,8 +57,7 @@
     <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" as="script">
     
-    <!-- API Utility Script -->
-    <script src="/js/api.js"></script>
+
 
 <style>
     body {
@@ -739,6 +738,7 @@
 
     <script src="js/translations.js"></script>
     <script src="js/loading.js"></script>
+    <script src="js/api.js"></script>
     <script>
 
 let tonConnectUI = null;
@@ -751,10 +751,7 @@ let isTelegramEnv = false;
 let updateUserInterfaceRetryCount = 0;
 let isInitialized = false;
 
-// Ensure API is globally available
-if (typeof API !== 'undefined' && !window.API) {
-    window.API = new API();
-}
+// API will be initialized after the API class is loaded
 
 const stickerCache = new Map();
 const CACHE_DURATION = 40 * 60 * 1000; 
@@ -2633,7 +2630,7 @@ async function handlePurchase(item) {
                 recipients: recipients.map(r => r.username)
             };
             
-            const response = await API.createOrder(orderData);
+            const response = await window.API.createOrder(orderData);
             
             if (response && response.success) {
                 // Close loading before showing success
