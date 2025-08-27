@@ -263,6 +263,21 @@ app.use('/api', apiLogger, refundRoutes);
 app.use('/api', apiLogger, stickerRoutes);
 app.use('/api', apiLogger, sitemapRoutes);
 
+// Webhook handler - MUST be before static middleware
+app.post(WEBHOOK_PATH, (req, res) => {
+  console.log(`📡 Webhook received at ${WEBHOOK_PATH}`);
+  if (!SKIP_TELEGRAM) {
+    const headerSecret = req.headers['x-telegram-bot-api-secret-token'];
+    if (TELEGRAM_WEBHOOK_SECRET && headerSecret !== TELEGRAM_WEBHOOK_SECRET) {
+      console.log('❌ Invalid webhook secret');
+      return res.status(403).json({ error: 'Invalid webhook secret' });
+    }
+    console.log('✅ Processing Telegram update');
+    bot.processUpdate(req.body);
+  }
+  res.sendStatus(200);
+});
+
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
     try {
@@ -381,20 +396,7 @@ app.use((err, req, res, next) => {
     res.status(500).type('txt').send('Internal server error');
 });
 
-// Webhook handler
-app.post(WEBHOOK_PATH, (req, res) => {
-  console.log(`📡 Webhook received at ${WEBHOOK_PATH}`);
-  if (!SKIP_TELEGRAM) {
-    const headerSecret = req.headers['x-telegram-bot-api-secret-token'];
-    if (TELEGRAM_WEBHOOK_SECRET && headerSecret !== TELEGRAM_WEBHOOK_SECRET) {
-      console.log('❌ Invalid webhook secret');
-      return res.status(403).json({ error: 'Invalid webhook secret' });
-    }
-    console.log('✅ Processing Telegram update');
-    bot.processUpdate(req.body);
-  }
-  res.sendStatus(200);
-});
+
 
 // Error handling
 app.use((err, req, res, next) => {
