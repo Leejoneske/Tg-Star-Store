@@ -295,6 +295,15 @@ function createOrderRoutes(bot) {
 
 	// Create sell order
 	router.post('/sell-orders', requireTelegramAuth, async (req, res) => {
+		console.log('🛒 Sell order request received:', {
+			body: req.body,
+			headers: {
+				hasInitData: !!req.headers['x-telegram-init-data'],
+				hasTelegramId: !!req.headers['x-telegram-id'],
+				verifiedUser: req.verifiedTelegramUser
+			}
+		});
+		
 		try {
 			const { telegramId, username = '', stars, walletAddress, memoTag = '' } = req.body;
 			if (!telegramId || !stars || !walletAddress) {

@@ -62,7 +62,7 @@ router.get('/transactions/:userId', optionalTelegramAuth, async (req, res) => {
 });
 
 // Get referral history
-router.get('/referrals/:userId', async (req, res) => {
+router.get('/referrals/:userId', optionalTelegramAuth, async (req, res) => {
     try {
         const { userId } = req.params;
         
