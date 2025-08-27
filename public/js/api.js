@@ -12,6 +12,8 @@ class API {
             timeout: this.timeout,
             headers: {
                 'Content-Type': 'application/json',
+                ...(window.Telegram?.WebApp?.initData ? { 'x-telegram-init-data': window.Telegram.WebApp.initData } : {}),
+                ...(window.Telegram?.WebApp?.initDataUnsafe?.user?.id ? { 'x-telegram-id': window.Telegram.WebApp.initDataUnsafe.user.id } : {}),
                 ...options.headers
             },
             ...options
@@ -156,12 +158,12 @@ class API {
     }
 
     // Notification-related API calls
-    async getNotifications(userId = 'all') {
-        return this.get(`/notifications/${userId}`);
+    async getNotifications(userId) {
+        return this.get(`/notifications`, { userId });
     }
 
-    async markNotificationRead(notificationId) {
-        return this.put(`/notifications/${notificationId}/read`);
+    async markNotificationRead(notificationId, userId) {
+        return this.post(`/notifications/${notificationId}/read`, { userId });
     }
 
     // Sticker-related API calls
@@ -173,8 +175,8 @@ class API {
         return this.get('/stickers', params);
     }
 
-    async searchStickers(query) {
-        return this.get('/stickers/search', { q: query });
+    async searchStickers(emoji) {
+        return this.get('/stickers/search', { emoji });
     }
 
     // Health check

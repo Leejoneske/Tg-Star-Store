@@ -1,11 +1,17 @@
 const express = require('express');
 const router = express.Router();
+const { requireTelegramAuth } = require('../middleware/telegramAuth');
 const { BuyOrder, SellOrder, Referral, User } = require('../models');
 
 // Get transaction history
-router.get('/transactions/:userId', async (req, res) => {
+router.get('/transactions/:userId', requireTelegramAuth, async (req, res) => {
     try {
         const { userId } = req.params;
+        const authHeader = req.headers['authorization'] || '';
+        const requesterId = req.headers['x-telegram-id'] || req.query.telegramId;
+        if (requesterId?.toString() !== userId.toString() && authHeader !== process.env.API_KEY) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         
         // Get both buy and sell orders for the user
         const buyOrders = await BuyOrder.find({ telegramId: userId })
@@ -38,7 +44,7 @@ router.get('/transactions/:userId', async (req, res) => {
             }))
         ];
 
-        res.json(transactions);
+        res.json({ success: true, transactions });
     } catch (error) {
         console.error('Error fetching transactions:', error);
         res.status(500).json({ error: 'Internal server error' });

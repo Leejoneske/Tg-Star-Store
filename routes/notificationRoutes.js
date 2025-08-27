@@ -1,10 +1,12 @@
 const express = require('express');
 const { Notification, User } = require('../models');
+const { requireAdminAuth } = require('../middleware/adminAuth');
+const { requireTelegramAuth } = require('../middleware/telegramAuth');
 
 const router = express.Router();
 
 // Get user notifications
-router.get('/notifications', async (req, res) => {
+router.get('/notifications', requireTelegramAuth, async (req, res) => {
     try {
         const { userId, limit = 20, skip = 0 } = req.query;
 
@@ -56,7 +58,7 @@ router.get('/notifications', async (req, res) => {
 });
 
 // Create notification (admin only)
-router.post('/notifications', async (req, res) => {
+router.post('/notifications', requireAdminAuth, async (req, res) => {
     try {
         const { userId, title, message, actionUrl, isGlobal, priority = 0, type = 'manual' } = req.body;
 
@@ -64,13 +66,7 @@ router.post('/notifications', async (req, res) => {
             return res.status(400).json({ error: "Valid message is required" });
         }
 
-        // Check if user is admin (you might want to implement proper authentication)
-        const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
-        const requestUserId = req.headers['x-user-id'] || req.body.requestUserId;
-        
-        if (!adminIds.includes(requestUserId)) {
-            return res.status(403).json({ error: "Unauthorized: Admin access required" });
-        }
+        const requestUserId = 'admin';
 
         const newNotification = await Notification.create({
             userId: isGlobal ? 'all' : userId,
@@ -95,7 +91,7 @@ router.post('/notifications', async (req, res) => {
 });
 
 // Mark notification as read
-router.post('/notifications/:id/read', async (req, res) => {
+router.post('/notifications/:id/read', requireTelegramAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
@@ -127,7 +123,7 @@ router.post('/notifications/:id/read', async (req, res) => {
 });
 
 // Mark all notifications as read
-router.post('/notifications/mark-all-read', async (req, res) => {
+router.post('/notifications/mark-all-read', requireTelegramAuth, async (req, res) => {
     try {
         const { userId } = req.body;
 
@@ -155,14 +151,9 @@ router.post('/notifications/mark-all-read', async (req, res) => {
 });
 
 // Get notification statistics (admin only)
-router.get('/notifications/stats', async (req, res) => {
+router.get('/notifications/stats', requireAdminAuth, async (req, res) => {
     try {
-        const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
-        const requestUserId = req.headers['x-user-id'] || req.query.requestUserId;
-        
-        if (!adminIds.includes(requestUserId)) {
-            return res.status(403).json({ error: "Unauthorized: Admin access required" });
-        }
+        const requestUserId = 'admin';
 
         const totalNotifications = await Notification.countDocuments();
         const unreadNotifications = await Notification.countDocuments({ read: false });
@@ -195,15 +186,10 @@ router.get('/notifications/stats', async (req, res) => {
 });
 
 // Delete notification (admin only)
-router.delete('/notifications/:id', async (req, res) => {
+router.delete('/notifications/:id', requireAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
-        const requestUserId = req.headers['x-user-id'] || req.body.requestUserId;
-        
-        if (!adminIds.includes(requestUserId)) {
-            return res.status(403).json({ error: "Unauthorized: Admin access required" });
-        }
+        const requestUserId = 'admin';
 
         const notification = await Notification.findByIdAndDelete(id);
         if (!notification) {
