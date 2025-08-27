@@ -107,8 +107,20 @@ router.get('/stats/:userId', requireTelegramAuth, trackUserActivity, async (req,
         const [buyOrders, sellOrders, referrals, activeReferrals] = await Promise.all([
             BuyOrder.find({ telegramId: userId }).lean(),
             SellOrder.find({ telegramId: userId }).lean(),
-            Referral.find({ referrerId: userId }).lean(),
-            Referral.find({ referrerId: userId, status: 'active' }).lean()
+            // Handle both old and new schema field names
+            Referral.find({ 
+                $or: [
+                    { referrerId: userId },      // New schema
+                    { referrerUserId: userId }   // Old schema
+                ]
+            }).lean(),
+            Referral.find({ 
+                $or: [
+                    { referrerId: userId },      // New schema
+                    { referrerUserId: userId }   // Old schema
+                ],
+                status: 'active' 
+            }).lean()
         ]);
 
         const stats = {

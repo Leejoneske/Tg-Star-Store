@@ -423,7 +423,13 @@ class UserInteractionManager {
             const referralLink = `https://t.me/TgStarStore_bot?start=ref_${userId}`;
 
             // Get user's referrals
-            const referrals = await Referral.find({ referrerId: userId }).sort({ dateCreated: -1 });
+            // Handle both old and new schema field names
+            const referrals = await Referral.find({ 
+                $or: [
+                    { referrerId: userId },      // New schema
+                    { referrerUserId: userId }   // Old schema
+                ]
+            }).sort({ dateCreated: -1 });
 
             let message = `📊 **Your Referral Status**\n\n`;
 
@@ -648,8 +654,12 @@ class UserInteractionManager {
         try {
             const { Referral } = require('../models');
             
+            // Handle both old and new schema field names
             const availableReferrals = await Referral.find({
-                referrerId: userId,
+                $or: [
+                    { referrerId: userId },      // New schema
+                    { referrerUserId: userId }   // Old schema
+                ],
                 status: { $in: ['completed', 'active'] },
                 withdrawn: { $ne: true }
             }).lean();
