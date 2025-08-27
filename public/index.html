@@ -869,51 +869,72 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isInitialized) return;
     isInitialized = true;
     
+    console.log('🚀 Starting StarStore initialization...');
+    
     detectTelegramEnvironment();
     
     const content = document.getElementById('content-container');
     
+    // Show loading briefly, then show content
     LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
     if (content) content.style.display = 'none';
+    
+    // Show content after a brief loading period
+    setTimeout(() => {
+        if (content) content.style.display = 'block';
+        LoadingComponent.hide('loading-container');
+    }, 500);
 
-    requestAnimationFrame(() => {
-        showContent();
+    // Ensure content is shown even if there are errors
+    const showContentWithFallback = () => {
+        try {
+            showContent();
+        } catch (error) {
+            console.error('Error in showContent:', error);
+            // Force show content even if there's an error
+            LoadingComponent.hide('loading-container');
+            if (content) content.style.display = 'block';
+        }
+    };
+
+    // Show content immediately and initialize components
+    console.log('🚀 Showing content immediately...');
+    
+    try {
         initTelegramApp();
         initWalletConnection();
         
+        // Initialize components after a short delay
         setTimeout(() => {
-            loadBottomNav()
-                .then(() => {
-                    initLanguageToggle();
-                    initSectionToggle();
-                    updateLanguage();
-                    initBuyButtons();
-                    initRecipientsUI();
-                    initCustomStars();
-                    updatePackagePrices(); // Initialize package prices
-                    initNotificationSystem();
-                    loadStickers();
-                    
-                    // Ensure API is properly initialized
-                    if (typeof API === 'undefined') {
-                        console.error('API class not loaded');
-                        return;
-                    }
-                    
-                    if (!window.API) {
-                        console.warn('API not initialized, creating new instance');
-                        window.API = new API();
-                    }
-                    
-                    window.currentUser = currentUser;
-                    window.currentWalletAddress = currentWalletAddress;
-                    window.isTelegramEnv = isTelegramEnv;
-                })
-                .catch(error => {
-                    console.error('Initialization error:', error);
-                });
-        }, 300);
-    });
+            try {
+                initLanguageToggle();
+                initSectionToggle();
+                updateLanguage();
+                initBuyButtons();
+                initRecipientsUI();
+                initCustomStars();
+                updatePackagePrices();
+                initNotificationSystem();
+                loadStickers();
+                
+                // Ensure API is properly initialized
+                if (typeof API !== 'undefined' && !window.API) {
+                    window.API = new API();
+                }
+                
+                window.currentUser = currentUser;
+                window.currentWalletAddress = currentWalletAddress;
+                window.isTelegramEnv = isTelegramEnv;
+                
+                console.log('✅ StarStore initialization completed');
+            } catch (error) {
+                console.error('Error in component initialization:', error);
+            }
+        }, 100);
+        
+    } catch (error) {
+        console.error('Error in initial setup:', error);
+    }
 });
 
 
@@ -1412,9 +1433,19 @@ function loadBottomNav() {
 }
 
 function showContent() {
-    LoadingComponent.hide('loading-container');
+    try {
+        LoadingComponent.hide('loading-container');
+    } catch (error) {
+        console.error('Error hiding loading component:', error);
+    }
+    
     const content = document.getElementById('content-container');
-    if (content) content.style.display = 'block';
+    if (content) {
+        content.style.display = 'block';
+        console.log('✅ Content container shown');
+    } else {
+        console.error('❌ Content container not found');
+    }
 }
 
 function initMenu() { /* side menu deprecated */ }
