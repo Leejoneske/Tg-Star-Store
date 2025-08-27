@@ -1,10 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { requireTelegramAuth } = require('../middleware/telegramAuth');
+const { requireTelegramAuth, optionalTelegramAuth } = require('../middleware/telegramAuth');
 const { BuyOrder, SellOrder, Referral, User } = require('../models');
 
 // Get transaction history
-router.get('/transactions/:userId', requireTelegramAuth, async (req, res) => {
+router.get('/transactions/:userId', optionalTelegramAuth, async (req, res) => {
+    console.log('📊 Fetching transactions for user:', req.params.userId);
+    console.log('🔐 Auth headers:', {
+        hasInitData: !!req.headers['x-telegram-init-data'],
+        hasTelegramId: !!req.headers['x-telegram-id'],
+        verifiedUser: req.verifiedTelegramUser
+    });
+    
     try {
         const { userId } = req.params;
         const { extractApiKey } = require('../utils/auth');
@@ -22,6 +29,8 @@ router.get('/transactions/:userId', requireTelegramAuth, async (req, res) => {
         const sellOrders = await SellOrder.find({ telegramId: userId })
             .sort({ dateCreated: -1 })
             .lean();
+            
+        console.log('📊 Found orders:', { buyOrders: buyOrders.length, sellOrders: sellOrders.length });
 
         // Combine and format the data
         const transactions = [
