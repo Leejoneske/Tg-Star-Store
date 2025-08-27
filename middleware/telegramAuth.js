@@ -81,6 +81,13 @@ function requireTelegramAuth(req, res, next) {
     }
     next();
   } else {
+    // Log authentication failure for debugging
+    console.log('🔐 Auth failed for:', req.path, {
+      hasInitData: !!req.headers['x-telegram-init-data'],
+      hasTelegramId: !!req.headers['x-telegram-id'],
+      userAgent: req.headers['user-agent']
+    });
+    
     res.status(403).json({ 
       error: 'Access denied', 
       message: 'This application can only be accessed through Telegram' 
@@ -88,9 +95,23 @@ function requireTelegramAuth(req, res, next) {
   }
 }
 
+// More flexible authentication for some routes
+function optionalTelegramAuth(req, res, next) {
+  if (isTelegramUser(req)) {
+    // If client sent x-telegram-id, ensure it matches verified user
+    const claimedId = (req.headers['x-telegram-id'] || req.query.telegramId || '').toString();
+    if (claimedId && req.verifiedTelegramUser?.id && claimedId !== req.verifiedTelegramUser.id) {
+      return res.status(403).json({ error: 'Telegram identity mismatch' });
+    }
+  }
+  // Always continue, even without authentication
+  next();
+}
+
 module.exports = { 
   verifyTelegramAuth, 
   verifyTelegramWebAppData,
   requireTelegramAuth, 
+  optionalTelegramAuth,
   isTelegramUser 
 };
