@@ -34,6 +34,33 @@ router.get('/referral-stats/:userId', optionalTelegramAuth, trackUserActivity, a
         const availableBalance = activeReferrals * 0.5;
         const totalEarned = totalEarnings[0]?.total || 0;
 
+        // Also get the actual referral list for the frontend
+        const referralList = await Referral.find({ 
+            $or: [
+                { referrerId: userId },      // New schema
+                { referrerUserId: userId }   // Old schema
+            ]
+        })
+        .sort({ dateCreated: -1 })
+        .limit(50)
+        .lean();
+
+        // Format referral list with user details
+        const formattedReferrals = await Promise.all(referralList.map(async referral => {
+            const referredUserId = referral.referredId || referral.referredUserId;
+            const referredUser = await User.findOne({ 
+                $or: [{ id: referredUserId }, { telegramId: referredUserId }] 
+            }).lean();
+            
+            return {
+                id: referral._id.toString(),
+                name: referredUser?.username || referredUser?.first_name || 'Unknown User',
+                status: referral.status.toLowerCase(),
+                date: referral.dateCreated,
+                userId: referredUserId
+            };
+        }));
+
         res.json({
             success: true,
             stats: {
@@ -42,7 +69,9 @@ router.get('/referral-stats/:userId', optionalTelegramAuth, trackUserActivity, a
                 availableBalance: availableBalance.toFixed(2),
                 totalEarned: totalEarned.toFixed(2),
                 pendingWithdrawals
-            }
+            },
+            referrals: formattedReferrals,
+            referralLink: `https://t.me/TgStarStore_bot?start=ref_${userId}`
         });
     } catch (error) {
         console.error('Referral stats error:', error);
