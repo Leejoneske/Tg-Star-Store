@@ -329,6 +329,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function initApp() {
+    // Add user debug info
+    const userDebug = document.createElement('div');
+    userDebug.style.cssText = 'background:green;color:white;padding:10px;margin:10px;border-radius:5px;font-size:14px;';
+    userDebug.innerHTML = `👤 User: ${user ? user.id : 'Not found'} | Name: ${user ? user.first_name : 'Unknown'}`;
+    const contentContainer = document.getElementById('content-container') || document.body;
+    contentContainer.insertBefore(userDebug, contentContainer.firstChild);
+    
     updateLanguage();
     setupEventListeners();
     loadTransactionHistory();
@@ -438,11 +445,19 @@ function loadTransactionHistory() {
         console.log('📊 Received transaction data:', data);
         console.log('📊 Data length:', data.length);
         
-        // Add visual debug indicator
+        // Add mobile-friendly debug indicator
         const debugDiv = document.createElement('div');
-        debugDiv.style.cssText = 'position:fixed;top:10px;right:10px;background:red;color:white;padding:10px;z-index:9999;font-size:12px;';
-        debugDiv.innerHTML = `Data: ${data.length} items`;
+        debugDiv.style.cssText = 'position:fixed;top:20px;left:20px;right:20px;background:red;color:white;padding:15px;z-index:9999;font-size:16px;text-align:center;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+        debugDiv.innerHTML = `📊 Received ${data.length} transactions<br><small>Tap to dismiss</small>`;
+        debugDiv.onclick = () => debugDiv.remove();
         document.body.appendChild(debugDiv);
+        
+        // Also add to the main content area
+        const contentDebug = document.createElement('div');
+        contentDebug.style.cssText = 'background:yellow;color:black;padding:10px;margin:10px;border-radius:5px;font-size:14px;';
+        contentDebug.innerHTML = `🔍 Debug: ${data.length} transactions loaded`;
+        const contentContainer = document.getElementById('content-container') || document.body;
+        contentContainer.insertBefore(contentDebug, contentContainer.firstChild);
         
         transactionHistory = data.map(item => {
             return {
@@ -492,6 +507,13 @@ function loadReferralHistory() {
     .then(data => {
         console.log('👥 Received referral data:', data);
         console.log('👥 Referral data length:', data.length);
+        
+        // Add mobile-friendly debug indicator for referrals
+        const referralDebug = document.createElement('div');
+        referralDebug.style.cssText = 'background:blue;color:white;padding:10px;margin:10px;border-radius:5px;font-size:14px;';
+        referralDebug.innerHTML = `👥 Debug: ${data.length} referrals loaded`;
+        const contentContainer = document.getElementById('content-container') || document.body;
+        contentContainer.insertBefore(referralDebug, contentContainer.firstChild);
         
         referralHistory = data.map(ref => {
             return {
