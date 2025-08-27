@@ -94,19 +94,7 @@ app.get('/health', (req, res) => {
 });
 
 
-const buyOrderSchema = new mongoose.Schema({
-    id: String,
-    telegramId: String,
-    username: String,
-    amount: Number,
-    stars: Number,
-    premiumDuration: Number,
-    walletAddress: String,
-    isPremium: Boolean,
-    status: String,
-    dateCreated: Date,
-    adminMessages: Array
-});
+// Schema definitions removed - models imported from models/index.js
 
 const sellOrderSchema = new mongoose.Schema({
     id: {
@@ -355,19 +343,22 @@ const stickerSchema = new mongoose.Schema({
   updated_at: { type: Date, default: Date.now }
 });
 
-const Sticker = mongoose.model('Sticker', stickerSchema);
-const Notification = mongoose.model('Notification', notificationSchema);
-const Warning = mongoose.model('Warning', warningSchema);
-const Reversal = mongoose.model('Reversal', reversalSchema);
-const Feedback = mongoose.model('Feedback', feedbackSchema);
-const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
-const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
-const Cache = mongoose.model('Cache', cacheSchema);
-const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
-const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
-const User = mongoose.model('User', userSchema);
-const Referral = mongoose.model('Referral', referralSchema);
-const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
+// Import models from models/index.js to avoid compilation conflicts
+const { 
+    Sticker, 
+    Notification, 
+    Warning, 
+    Reversal, 
+    Feedback, 
+    ReferralTracker, 
+    ReferralWithdrawal, 
+    Cache, 
+    BuyOrder, 
+    SellOrder, 
+    User, 
+    Referral, 
+    BannedUser 
+} = require('./models');
 
 
 const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());

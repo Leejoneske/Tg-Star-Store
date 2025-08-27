@@ -688,19 +688,20 @@ referralWithdrawalSchema.index({ userId: 1, createdAt: -1 });
 notificationSchema.index({ userId: 1, read: 1 });
 notificationSchema.index({ userId: 1, timestamp: -1 });
 
-const Sticker = mongoose.model('Sticker', stickerSchema);
-const Notification = mongoose.model('Notification', notificationSchema);
-const Warning = mongoose.model('Warning', warningSchema);
-const Reversal = mongoose.model('Reversal', reversalSchema);
-const Feedback = mongoose.model('Feedback', feedbackSchema);
-const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
-const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
-const Cache = mongoose.model('Cache', cacheSchema);
-const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
-const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
-const User = mongoose.model('User', userSchema);
-const Referral = mongoose.model('Referral', referralSchema);
-const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
+// Check if model already exists to prevent recompilation
+const Sticker = mongoose.models.Sticker || mongoose.model('Sticker', stickerSchema);
+const Notification = mongoose.models.Notification || mongoose.model('Notification', notificationSchema);
+const Warning = mongoose.models.Warning || mongoose.model('Warning', warningSchema);
+const Reversal = mongoose.models.Reversal || mongoose.model('Reversal', reversalSchema);
+const Feedback = mongoose.models.Feedback || mongoose.model('Feedback', feedbackSchema);
+const ReferralTracker = mongoose.models.ReferralTracker || mongoose.model('ReferralTracker', referralTrackerSchema);
+const ReferralWithdrawal = mongoose.models.ReferralWithdrawal || mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
+const Cache = mongoose.models.Cache || mongoose.model('Cache', cacheSchema);
+const BuyOrder = mongoose.models.BuyOrder || mongoose.model('BuyOrder', buyOrderSchema);
+const SellOrder = mongoose.models.SellOrder || mongoose.model('SellOrder', sellOrderSchema);
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+const Referral = mongoose.models.Referral || mongoose.model('Referral', referralSchema);
+const BannedUser = mongoose.models.BannedUser || mongoose.model('BannedUser', bannedUserSchema);
 
 module.exports = {
     Sticker,
