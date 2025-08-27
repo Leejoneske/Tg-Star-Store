@@ -197,7 +197,13 @@ router.get('/referrals/:userId', trackUserActivity, async (req, res) => {
         const limitNum = Math.min(parseInt(limit), 100);
         const offsetNum = Math.max(parseInt(offset), 0);
 
-        const referrals = await Referral.find({ referrerId: userId })
+        // Handle both old and new schema field names
+        const referrals = await Referral.find({ 
+            $or: [
+                { referrerId: userId },      // New schema
+                { referrerUserId: userId }   // Old schema
+            ]
+        })
             .sort({ dateCreated: -1 })
             .skip(offsetNum)
             .limit(limitNum)

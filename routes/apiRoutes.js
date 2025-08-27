@@ -57,13 +57,21 @@ router.get('/referrals/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
         
-        const referrals = await Referral.find({ referrerId: userId })
-            .sort({ dateCreated: -1 })
-            .lean();
+        // Handle both old and new schema field names
+        const referrals = await Referral.find({ 
+            $or: [
+                { referrerId: userId },      // New schema
+                { referrerUserId: userId }   // Old schema
+            ]
+        })
+        .sort({ dateCreated: -1 })
+        .lean();
         
         // Format referral data
         const formattedReferrals = await Promise.all(referrals.map(async referral => {
-            const referredUser = await User.findOne({ $or: [{ id: referral.referredId }, { telegramId: referral.referredId }] }).lean();
+            // Handle both old and new schema field names for referred user
+            const referredUserId = referral.referredId || referral.referredUserId;
+            const referredUser = await User.findOne({ $or: [{ id: referredUserId }, { telegramId: referredUserId }] }).lean();
             
             return {
                 id: referral._id.toString(),
