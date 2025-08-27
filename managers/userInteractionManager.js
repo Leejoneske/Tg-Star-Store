@@ -97,20 +97,23 @@ class UserInteractionManager {
                 user.isActive = true;
                 await user.save();
             } else {
-                // Create new user with referral
-                user = new User({
-                    id: userId,
-                    telegramId: userId,
-                    username: username,
-                    firstName: msg.from.first_name,
-                    lastName: msg.from.last_name,
-                    referredBy: referrerId,
-                    referralDate: new Date(),
-                    joinDate: new Date(),
-                    lastSeen: new Date(),
-                    isActive: true
-                });
-                await user.save();
+                // Create new user with referral using upsert to avoid duplicate key errors
+                user = await User.findOneAndUpdate(
+                    { $or: [{ id: userId }, { telegramId: userId }] },
+                    {
+                        id: userId,
+                        telegramId: userId,
+                        username: username,
+                        firstName: msg.from.first_name,
+                        lastName: msg.from.last_name,
+                        referredBy: referrerId,
+                        referralDate: new Date(),
+                        joinDate: new Date(),
+                        lastSeen: new Date(),
+                        isActive: true
+                    },
+                    { upsert: true, new: true, setDefaultsOnInsert: true }
+                );
             }
 
             // Create referral record and tracker using ReferralTrackingManager
@@ -145,25 +148,25 @@ class UserInteractionManager {
         const username = msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`;
 
         try {
-            let user = await User.findOne({ $or: [{ id: userId }, { telegramId: userId }] });
-            if (!user) {
-                user = new User({
+            // Use upsert to handle both new and existing users without duplicate key errors
+            let user = await User.findOneAndUpdate(
+                { $or: [{ id: userId }, { telegramId: userId }] },
+                {
                     id: userId,
                     telegramId: userId,
                     username: username,
                     firstName: msg.from.first_name,
                     lastName: msg.from.last_name,
-                    joinDate: new Date(),
                     lastSeen: new Date(),
-                    isActive: true
-                });
-                await user.save();
-            } else {
-                // Update lastSeen for existing user
-                user.lastSeen = new Date();
-                user.isActive = true;
-                await user.save();
-            }
+                    isActive: true,
+                    $setOnInsert: { joinDate: new Date() }
+                },
+                { 
+                    upsert: true, 
+                    new: true, 
+                    setDefaultsOnInsert: true
+                }
+            );
 
             const welcomeMessage = `🌟 Welcome to StarStore!\n\n` +
                 `Buy and sell Telegram stars with ease.\n\n` +
