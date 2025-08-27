@@ -417,6 +417,9 @@ function loadTransactionHistory() {
     if (!user || !user.id) {
         LoadingComponent.hide('transactionsLoading');
         document.getElementById('transactionsEmpty').style.display = 'flex';
+        // Render an empty chart so the UI doesn't look broken
+        transactionHistory = [];
+        updateTransactionChart();
         return;
     }
 
@@ -444,6 +447,9 @@ function loadTransactionHistory() {
     .catch(error => {
         LoadingComponent.hide('transactionsLoading');
         document.getElementById('transactionsEmpty').style.display = 'flex';
+        // Still show an empty chart on errors
+        transactionHistory = [];
+        updateTransactionChart();
     });
 }
 
