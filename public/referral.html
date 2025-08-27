@@ -510,11 +510,11 @@ async function loadReferralData() {
         if (!data.success) throw new Error(data.error || 'Failed to load referral data');
 
         state.referrals = data.referrals || [];
-        state.stats = data.stats || {
-            availableBalance: 0,
-            totalEarned: 0,
-            referralsCount: 0,
-            pendingAmount: 0
+        state.stats = {
+            availableBalance: parseFloat(data.stats?.availableBalance || 0),
+            totalEarned: parseFloat(data.stats?.totalEarned || 0),
+            referralsCount: parseInt(data.stats?.totalReferrals || 0),
+            pendingAmount: parseFloat(data.stats?.pendingWithdrawals || 0)
         };
         state.referralLink = data.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
 

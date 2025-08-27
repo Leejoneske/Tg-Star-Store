@@ -329,12 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function initApp() {
-    // Add user debug info
-    const userDebug = document.createElement('div');
-    userDebug.style.cssText = 'background:green;color:white;padding:10px;margin:10px;border-radius:5px;font-size:14px;';
-    userDebug.innerHTML = `👤 User: ${user ? user.id : 'Not found'} | Name: ${user ? user.first_name : 'Unknown'}`;
-    const contentContainer = document.getElementById('content-container') || document.body;
-    contentContainer.insertBefore(userDebug, contentContainer.firstChild);
+
     
     updateLanguage();
     setupEventListeners();
@@ -442,28 +437,8 @@ function loadTransactionHistory() {
         return response.json();
     })
     .then(data => {
-        console.log('📊 Received transaction data:', data);
-        
         // Handle both direct array and wrapped response
         const transactions = data.transactions || data;
-        const dataLength = Array.isArray(transactions) ? transactions.length : 0;
-        
-        console.log('📊 Data length:', dataLength);
-        console.log('📊 Raw data structure:', Object.keys(data));
-        
-        // Add mobile-friendly debug indicator
-        const debugDiv = document.createElement('div');
-        debugDiv.style.cssText = 'position:fixed;top:20px;left:20px;right:20px;background:red;color:white;padding:15px;z-index:9999;font-size:16px;text-align:center;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
-        debugDiv.innerHTML = `📊 Received ${dataLength} transactions<br><small>Tap to dismiss</small>`;
-        debugDiv.onclick = () => debugDiv.remove();
-        document.body.appendChild(debugDiv);
-        
-        // Also add to the main content area
-        const contentDebug = document.createElement('div');
-        contentDebug.style.cssText = 'background:yellow;color:black;padding:10px;margin:10px;border-radius:5px;font-size:14px;';
-        contentDebug.innerHTML = `🔍 Debug: ${dataLength} transactions loaded | Structure: ${Object.keys(data).join(',')}`;
-        const contentContainer = document.getElementById('content-container') || document.body;
-        contentContainer.insertBefore(contentDebug, contentContainer.firstChild);
         
         if (!Array.isArray(transactions)) {
             console.error('❌ Transactions is not an array:', transactions);
@@ -481,8 +456,7 @@ function loadTransactionHistory() {
             };
         });
         
-        console.log('📊 Processed transactionHistory:', transactionHistory);
-        console.log('📊 TransactionHistory length:', transactionHistory.length);
+
         
         updateTransactionList();
         updateTransactionChart();
@@ -519,15 +493,7 @@ function loadReferralHistory() {
         return response.json();
     })
     .then(data => {
-        console.log('👥 Received referral data:', data);
-        console.log('👥 Referral data length:', data.length);
-        
-        // Add mobile-friendly debug indicator for referrals
-        const referralDebug = document.createElement('div');
-        referralDebug.style.cssText = 'background:blue;color:white;padding:10px;margin:10px;border-radius:5px;font-size:14px;';
-        referralDebug.innerHTML = `👥 Debug: ${data.length} referrals loaded`;
-        const contentContainer = document.getElementById('content-container') || document.body;
-        contentContainer.insertBefore(referralDebug, contentContainer.firstChild);
+
         
         referralHistory = data.map(ref => {
             return {
@@ -537,8 +503,7 @@ function loadReferralHistory() {
             };
         });
         
-        console.log('👥 Processed referralHistory:', referralHistory);
-        console.log('👥 ReferralHistory length:', referralHistory.length);
+
         
         updateReferralList();
     })
@@ -573,10 +538,6 @@ function mapReferralStatus(status) {
 }
 
 function updateTransactionList() {
-    console.log('🔄 updateTransactionList called');
-    console.log('🔄 transactionHistory length:', transactionHistory.length);
-    console.log('🔄 currentTransactionFilter:', currentTransactionFilter);
-    console.log('🔄 currentTransactionSearch:', currentTransactionSearch);
     
     let filteredTransactions = transactionHistory.filter(txn => {
         if (currentTransactionFilter !== 'all' && txn.status !== currentTransactionFilter) return false;
@@ -597,8 +558,7 @@ function updateTransactionList() {
     const startIndex = (currentTransactionPage - 1) * itemsPerPage;
     const paginatedTransactions = filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
     
-    console.log('🔄 filteredTransactions length:', filteredTransactions.length);
-    console.log('🔄 paginatedTransactions length:', paginatedTransactions.length);
+
     
     updateTransactionCounts(filteredTransactions);
     LoadingComponent.hide('transactionsLoading');
@@ -770,7 +730,7 @@ function updateTransactionChart() {
         data: {
             labels: days,
             datasets: [{
-                label: TranslationUtils.get('total'),
+                label: TranslationUtils?.get('total') || 'Total',
                 data: data,
                 backgroundColor: 'rgba(79, 70, 229, 0.1)',
                 borderColor: 'rgba(79, 70, 229, 1)',
@@ -792,7 +752,7 @@ function updateTransactionChart() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return `${TranslationUtils.get('total')}: ${context.raw} ★`;
+                            return `${TranslationUtils?.get('total') || 'Total'}: ${context.raw} ★`;
                         }
                     }
                 }

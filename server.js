@@ -1,13 +1,6 @@
 
 require('dotenv').config();
 const express = require('express');
-
-// Debug environment variables
-console.log('🔧 Environment check:');
-console.log('BOT_TOKEN:', process.env.BOT_TOKEN ? 'Set' : 'Not set');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
-
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
@@ -18,15 +11,10 @@ const fetch = require('node-fetch');
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
-if (!process.env.BOT_TOKEN) {
-  console.error('❌ BOT_TOKEN environment variable is required!');
-  process.exit(1);
-}
-
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
-                   'starstore.site');
+                   'tg-star-store-production.up.railway.app');
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 // Import Telegram auth middleware (single import only)
@@ -62,17 +50,13 @@ app.use(cors({
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
-// Webhook setup (skip in development)
-if (process.env.NODE_ENV !== 'development') {
-  bot.setWebHook(WEBHOOK_URL)
-    .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
-    .catch(err => {
-      console.error('❌ Webhook setup failed:', err.message);
-      console.log('⚠️  Continuing without webhook setup...');
-    });
-} else {
-  console.log('⚠️  Skipping webhook setup in development mode');
-}
+// Webhook setup
+bot.setWebHook(WEBHOOK_URL)
+  .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
+  .catch(err => {
+    console.error('❌ Webhook setup failed:', err.message);
+    process.exit(1);
+  });
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected successfully'))
@@ -94,7 +78,19 @@ app.get('/health', (req, res) => {
 });
 
 
-// Schema definitions removed - models imported from models/index.js
+const buyOrderSchema = new mongoose.Schema({
+    id: String,
+    telegramId: String,
+    username: String,
+    amount: Number,
+    stars: Number,
+    premiumDuration: Number,
+    walletAddress: String,
+    isPremium: Boolean,
+    status: String,
+    dateCreated: Date,
+    adminMessages: Array
+});
 
 const sellOrderSchema = new mongoose.Schema({
     id: {
@@ -343,22 +339,19 @@ const stickerSchema = new mongoose.Schema({
   updated_at: { type: Date, default: Date.now }
 });
 
-// Import models from models/index.js to avoid compilation conflicts
-const { 
-    Sticker, 
-    Notification, 
-    Warning, 
-    Reversal, 
-    Feedback, 
-    ReferralTracker, 
-    ReferralWithdrawal, 
-    Cache, 
-    BuyOrder, 
-    SellOrder, 
-    User, 
-    Referral, 
-    BannedUser 
-} = require('./models');
+const Sticker = mongoose.model('Sticker', stickerSchema);
+const Notification = mongoose.model('Notification', notificationSchema);
+const Warning = mongoose.model('Warning', warningSchema);
+const Reversal = mongoose.model('Reversal', reversalSchema);
+const Feedback = mongoose.model('Feedback', feedbackSchema);
+const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
+const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
+const Cache = mongoose.model('Cache', cacheSchema);
+const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
+const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
+const User = mongoose.model('User', userSchema);
+const Referral = mongoose.model('Referral', referralSchema);
+const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
 
 
 const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
@@ -3551,6 +3544,8 @@ bot.onText(/\/users/, async (msg) => {
     }
 });
 
+
+
 // Load API routes
 const createOrderRoutes = require('./routes/orderRoutes');
 const apiRoutes = require('./routes/apiRoutes');
@@ -3563,8 +3558,6 @@ app.use('/api', apiRoutes);
 app.use('/api', referralRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api', userRoutes);
-
-
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
