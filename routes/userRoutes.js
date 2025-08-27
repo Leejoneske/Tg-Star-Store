@@ -1,18 +1,20 @@
 const express = require('express');
 const { User, BuyOrder, SellOrder, Referral } = require('../models');
 const { trackUserActivity } = require('../middleware/userActivity');
+const { requireTelegramAuth } = require('../middleware/telegramAuth');
 
 const router = express.Router();
 
 // Get user profile
-router.get('/profile/:userId', trackUserActivity, async (req, res) => {
+router.get('/profile/:userId', requireTelegramAuth, trackUserActivity, async (req, res) => {
     try {
         const { userId } = req.params;
-        const authHeader = req.headers['authorization'] || '';
-        const requesterId = req.headers['x-telegram-id'] || req.query.telegramId;
+        const rawAuth = req.headers['authorization'] || '';
+        const apiKey = rawAuth && rawAuth.toLowerCase().startsWith('bearer ') ? rawAuth.slice(7) : rawAuth;
+        const requesterId = req.verifiedTelegramUser?.id || req.headers['x-telegram-id'] || req.query.telegramId;
         
         // Require either matching owner or valid API key (admin)
-        if (requesterId?.toString() !== userId.toString() && authHeader !== process.env.API_KEY) {
+        if (requesterId?.toString() !== userId.toString() && apiKey !== process.env.API_KEY) {
             return res.status(403).json({ success: false, error: 'Forbidden' });
         }
 
@@ -57,11 +59,11 @@ router.get('/profile/:userId', trackUserActivity, async (req, res) => {
 });
 
 // Update user profile
-router.put('/profile/:userId', trackUserActivity, async (req, res) => {
+router.put('/profile/:userId', requireTelegramAuth, trackUserActivity, async (req, res) => {
     try {
         const { userId } = req.params;
         const { firstName, lastName } = req.body;
-        const requesterId = req.headers['x-telegram-id'] || req.query.telegramId;
+        const requesterId = req.verifiedTelegramUser?.id || req.headers['x-telegram-id'] || req.query.telegramId;
         
         // Only allow users to update their own profile
         if (requesterId?.toString() !== userId.toString()) {
@@ -90,14 +92,15 @@ router.put('/profile/:userId', trackUserActivity, async (req, res) => {
 });
 
 // Get user statistics
-router.get('/stats/:userId', trackUserActivity, async (req, res) => {
+router.get('/stats/:userId', requireTelegramAuth, trackUserActivity, async (req, res) => {
     try {
         const { userId } = req.params;
-        const authHeader = req.headers['authorization'] || '';
-        const requesterId = req.headers['x-telegram-id'] || req.query.telegramId;
+        const rawAuth = req.headers['authorization'] || '';
+        const apiKey = rawAuth && rawAuth.toLowerCase().startsWith('bearer ') ? rawAuth.slice(7) : rawAuth;
+        const requesterId = req.verifiedTelegramUser?.id || req.headers['x-telegram-id'] || req.query.telegramId;
         
         // Require either matching owner or valid API key (admin)
-        if (requesterId?.toString() !== userId.toString() && authHeader !== process.env.API_KEY) {
+        if (requesterId?.toString() !== userId.toString() && apiKey !== process.env.API_KEY) {
             return res.status(403).json({ success: false, error: 'Forbidden' });
         }
 

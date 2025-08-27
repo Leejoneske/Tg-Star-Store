@@ -18,8 +18,12 @@ function verifyTelegramWebAppData(initData) {
     const secret = crypto.createHmac('sha256', 'WebAppData')
       .update(process.env.TELEGRAM_BOT_TOKEN).digest();
     
-    return crypto.createHmac('sha256', secret)
-      .update(dataCheckString).digest('hex') === hash;
+    const calc = crypto.createHmac('sha256', secret)
+      .update(dataCheckString).digest('hex');
+    const hashBuf = Buffer.from(hash, 'hex');
+    const calcBuf = Buffer.from(calc, 'hex');
+    if (hashBuf.length !== calcBuf.length) return false;
+    return crypto.timingSafeEqual(hashBuf, calcBuf);
   } catch (e) {
     return false;
   }
@@ -29,14 +33,32 @@ function verifyTelegramAuth(initData) {
   return verifyTelegramWebAppData(initData);
 }
 
+function parseTelegramInitData(initData) {
+  const params = new URLSearchParams(initData);
+  const userJson = params.get('user');
+  try {
+    return userJson ? JSON.parse(userJson) : null;
+  } catch { return null; }
+}
+
 function isTelegramUser(req) {
   const initData = req.headers['x-telegram-init-data'] || req.query.tgWebAppData;
-  if (initData && verifyTelegramWebAppData(initData)) return true;
-  return false;
+  if (!initData) return false;
+  if (!verifyTelegramWebAppData(initData)) return false;
+  const user = parseTelegramInitData(initData);
+  if (user?.id) {
+    req.verifiedTelegramUser = { id: user.id.toString(), username: user.username };
+  }
+  return true;
 }
 
 function requireTelegramAuth(req, res, next) {
   if (isTelegramUser(req)) {
+    // If client sent x-telegram-id, ensure it matches verified user
+    const claimedId = (req.headers['x-telegram-id'] || req.query.telegramId || '').toString();
+    if (claimedId && req.verifiedTelegramUser?.id && claimedId !== req.verifiedTelegramUser.id) {
+      return res.status(403).json({ error: 'Telegram identity mismatch' });
+    }
     next();
   } else {
     res.status(403).json({ 

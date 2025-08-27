@@ -1,15 +1,36 @@
 ✅ Environment variables configured with defaults where needed
 ⚠️  Telegram bot initialization skipped (SKIP_TELEGRAM=1)
 ⚠️  Skipping webhook setup (SKIP_TELEGRAM=1)
-🚀 Server running on port 8080
-📡 Webhook configured
-⚠️  Skipping MongoDB connection (SKIP_DB=1)
-⚠️  Skipping managers initialization (SKIP_TELEGRAM=1)
-✅ Application initialized successfully
-GET /api/health - 200 - 5ms
-GET /api/health - 200 - 5ms
-GET /api/health - 200 - 5ms
-GET /api/health - 200 - 4ms
-GET /api/health - 200 - 4ms
-GET /api/health - 200 - 3ms
-GET /api/health - 200 - 3ms
+node:events:496
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::8080
+    at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+    at listenInCluster (node:net:1996:12)
+    at Server.listen (node:net:2101:7)
+    at Function.listen (/workspace/node_modules/express/lib/application.js:635:24)
+    at Object.<anonymous> (/workspace/server.jsGET /api/health - 200 - 1ms
+GET /api/health - 200 - 2ms
+GET /api/health - 200 - 2ms
+GET /api/health - 200 - 2ms
+GET /api/health - 200 - 2ms
+GET /api/health - 200 - 2ms
+GET /api/health - 200 - 2ms
+
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1975:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 8080
+}
+
+Node.js v22.16.0

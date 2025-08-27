@@ -1,20 +1,4 @@
-// Basic security configuration for Helmet and related headers
-module.exports = {
-  csp: false, // Use defaults unless you craft a strict CSP for inline-heavy pages
-  referrerPolicy: { policy: 'no-referrer' },
-  permissionsPolicy: {
-    features: {
-      geolocation: ["'none'"],
-      microphone: ["'none'"],
-      camera: ["'none'"],
-      fullscreen: ["*"],
-      payment: ["'none'"],
-    }
-  },
-  frameguard: { action: 'deny' },
-  hsts: { maxAge: 15552000, includeSubDomains: true, preload: false }
-};
-
+// Unified security configuration for Helmet and related headers
 module.exports = {
     // Content Security Policy configuration
     csp: {
@@ -66,26 +50,6 @@ module.exports = {
             fullscreen: [],
             pictureInPicture: [],
             syncXhr: []
-        }
-    },
-
-    // Rate limiting configuration
-    rateLimit: {
-        windowMs: 15 * 60 * 1000, // 15 minutes
-        max: 100, // limit each IP to 100 requests per windowMs
-        message: {
-            error: 'Too many requests from this IP, please try again later.',
-            retryAfter: '15 minutes'
-        }
-    },
-
-    // Sensitive endpoints rate limiting
-    sensitiveRateLimit: {
-        windowMs: 15 * 60 * 1000, // 15 minutes
-        max: 10, // limit each IP to 10 requests per windowMs
-        message: {
-            error: 'Too many requests to sensitive endpoint, please try again later.',
-            retryAfter: '15 minutes'
         }
     },
 
