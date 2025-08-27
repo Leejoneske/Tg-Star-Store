@@ -22,8 +22,18 @@ router.get('/referral-stats/:userId', optionalTelegramAuth, trackUserActivity, a
         }
 
         const [referrals, activeReferrals, totalEarnings, pendingWithdrawals] = await Promise.all([
-            Referral.countDocuments({ referrerId: userId }),
-            Referral.countDocuments({ referrerId: userId, status: 'active' }),
+            Referral.countDocuments({ 
+                $or: [
+                    { referrerId: userId },      // New schema
+                    { referrerUserId: userId }   // Old schema
+                ]
+            }),
+            Referral.countDocuments({ 
+                $or: [
+                    { referrerId: userId, status: 'active' },      // New schema
+                    { referrerUserId: userId, status: 'active' }   // Old schema
+                ]
+            }),
             ReferralWithdrawal.aggregate([
                 { $match: { userId: userId, status: 'completed' } },
                 { $group: { _id: null, total: { $sum: '$amount' } } }
@@ -209,7 +219,7 @@ router.post('/referral-withdrawals', trackUserActivity, async (req, res) => {
 });
 
 // Get referral history with pagination
-router.get('/referrals/:userId', trackUserActivity, async (req, res) => {
+router.get('/referrals/:userId', optionalTelegramAuth, trackUserActivity, async (req, res) => {
     try {
         const { userId } = req.params;
         const { limit = 20, offset = 0 } = req.query;
@@ -239,7 +249,12 @@ router.get('/referrals/:userId', trackUserActivity, async (req, res) => {
             .limit(limitNum)
             .lean();
 
-        const total = await Referral.countDocuments({ referrerId: userId });
+        const total = await Referral.countDocuments({ 
+            $or: [
+                { referrerId: userId },      // New schema
+                { referrerUserId: userId }   // Old schema
+            ]
+        });
 
         res.json({
             success: true,
@@ -258,7 +273,7 @@ router.get('/referrals/:userId', trackUserActivity, async (req, res) => {
 });
 
 // Get available balance
-router.get('/available-balance/:userId', trackUserActivity, async (req, res) => {
+router.get('/available-balance/:userId', optionalTelegramAuth, trackUserActivity, async (req, res) => {
     try {
         const { userId } = req.params;
         
@@ -272,7 +287,10 @@ router.get('/available-balance/:userId', trackUserActivity, async (req, res) => 
         }
 
         const availableReferrals = await Referral.find({
-            referrerId: userId,
+            $or: [
+                { referrerId: userId },      // New schema
+                { referrerUserId: userId }   // Old schema
+            ],
             status: { $in: ['completed', 'active'] },
             withdrawn: { $ne: true }
         }).lean();
