@@ -113,8 +113,14 @@ function createOrderRoutes(bot) {
 		}
 
 		if (typeof stars !== 'number') return null;
+		
+		// For predefined packages, use fixed prices
 		if (priceMap.regular[stars]) return priceMap.regular[stars];
-		if (stars >= 50) return Number((0.02 * stars).toFixed(2));
+		
+		// For custom amounts, calculate based on the actual input amount
+		// Use a consistent rate of 0.02 USDT per star for any amount
+		if (stars > 0) return Number((0.02 * stars).toFixed(2));
+		
 		return null;
 	}
 
@@ -135,13 +141,14 @@ function createOrderRoutes(bot) {
 	// Quote endpoint for client to fetch accurate pricing before payment
 	router.post('/quote', requireTelegramAuth, async (req, res) => {
 		try {
-			const { stars, isPremium, premiumDuration, recipientsCount } = req.body;
+			const { stars, isPremium, premiumDuration, recipientsCount, buyForMyself } = req.body;
 			
 			// Validate input
 			if (isPremium && (!premiumDuration || ![3, 6, 12].includes(premiumDuration))) {
 				return res.status(400).json({ success: false, error: 'Invalid premium duration. Must be 3, 6, or 12 months.' });
 			}
 			
+			// Always enforce 50 star minimum for manual input
 			if (!isPremium && (!stars || stars < 50)) {
 				return res.status(400).json({ success: false, error: 'Invalid stars amount. Minimum is 50 stars.' });
 			}

@@ -52,6 +52,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" as="script">
@@ -586,7 +587,7 @@
                     <div class="stars-card rounded-xl mb-8">
                         <h3 class="text-lg font-bold text-gray-800 mb-4" data-translate="chooseStarsPackage">Choose a Stars Package</h3>
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="package-option stars-package">
+                            <div class="package-option stars-package" data-stars="15">
                                 <div class="stars-amount">15 Stars</div>
                                 <div class="usdt-price">0.35 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
@@ -595,7 +596,7 @@
                                     <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
                                 </div>
                             </div>
-                            <div class="package-option stars-package">
+                            <div class="package-option stars-package" data-stars="25">
                                 <div class="stars-amount">25 Stars</div>
                                 <div class="usdt-price">0.60 USDT</div>
                                 <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
@@ -804,10 +805,63 @@ function detectTelegramEnvironment() {
 function showErrorToUser(message) {
     if (typeof Swal !== 'undefined') {
         Swal.fire({
-            title: TranslationUtils.get('error'),
+            title: TranslationUtils.get('error') || 'Oops!',
             text: message,
             icon: 'error',
-            confirmButtonText: TranslationUtils.get('ok')
+            confirmButtonText: TranslationUtils.get('ok') || 'OK',
+            confirmButtonColor: '#ef4444',
+            showClass: {
+                popup: 'animate__animated animate__fadeInDown'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutUp'
+            },
+            timer: 4000,
+            timerProgressBar: true
+        });
+    } else {
+        alert(message);
+    }
+}
+
+function showSuccessToUser(message, title = 'Success!') {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: title,
+            text: message,
+            icon: 'success',
+            confirmButtonText: TranslationUtils.get('ok') || 'OK',
+            confirmButtonColor: '#10b981',
+            showClass: {
+                popup: 'animate__animated animate__fadeInDown'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutUp'
+            },
+            timer: 3000,
+            timerProgressBar: true
+        });
+    } else {
+        alert(message);
+    }
+}
+
+function showInfoToUser(message, title = 'Info') {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: title,
+            text: message,
+            icon: 'info',
+            confirmButtonText: TranslationUtils.get('ok') || 'OK',
+            confirmButtonColor: '#3b82f6',
+            showClass: {
+                popup: 'animate__animated animate__fadeInDown'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutUp'
+            },
+            timer: 3500,
+            timerProgressBar: true
         });
     } else {
         alert(message);
@@ -2083,7 +2137,13 @@ function initCustomStars() {
                 return;
             }
             
-            const q = await window.API.getQuote({ stars: val, isPremium: false, recipientsCount });
+            const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+            const q = await window.API.getQuote({ 
+                stars: val, 
+                isPremium: false, 
+                recipientsCount,
+                buyForMyself: buyForValue === 'myself'
+            });
             if (q.success) {
                 const rate = await getRateCached();
                 const ton = rate ? (q.totalAmount / rate) : null;
@@ -2110,11 +2170,13 @@ function initCustomStars() {
         e.preventDefault();
         // Validate input and recipients then proceed to buy using custom stars
         const val = Number(input.value || 0);
+        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+        
+        // Manual input always requires 50+ stars regardless of "buy for myself"
         if (!val || val < 50) {
             showErrorToUser('Please enter at least 50 stars');
             return;
         }
-        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
         if (buyForValue === 'others') {
             const validation = await validateRecipients('recipientsContainer');
             const recipients = validation?.recipients || [];
@@ -2237,13 +2299,18 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
             return;
         }
         
+        // Get current "buy for" selection
+        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+        const buyForMyself = buyForValue === 'myself';
+        
         // Batch API calls for better performance
         const starsQuotes = await Promise.allSettled(
             starsPackages.map(pkg => 
                 window.API.getQuote({
                     stars: pkg.stars,
                     isPremium: false,
-                    recipientsCount: recipientsCount
+                    recipientsCount: recipientsCount,
+                    buyForMyself: buyForMyself
                 })
             )
         );
@@ -2269,7 +2336,8 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
                 window.API.getQuote({
                     isPremium: true,
                     premiumDuration: pkg.duration,
-                    recipientsCount: recipientsCount
+                    recipientsCount: recipientsCount,
+                    buyForMyself: buyForMyself
                 })
             )
         );
@@ -2427,6 +2495,15 @@ async function handlePurchase(item) {
             stars = customStarsVal;
         }
         
+        // Package validation: only allow <50 star packages when "buy for myself"
+        if (!item.isPremium && stars && stars < 50) {
+            const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+            if (buyForValue !== 'myself') {
+                showErrorToUser('Small packages (less than 50 stars) can only be purchased for yourself');
+                return;
+            }
+        }
+        
         // Collect and validate recipients based on section
         const inPremium = !!item.isPremium;
         const containerId = inPremium ? 'recipientsContainerPremium' : 'recipientsContainer';
@@ -2454,12 +2531,17 @@ async function handlePurchase(item) {
             window.API = new API();
         }
         
+        // Get current "buy for" selection
+        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+        const buyForMyself = buyForValue === 'myself';
+        
         // Fetch server quote for accurate amount per recipients
         const quote = await window.API.getQuote({
             isPremium: !!item.isPremium,
             premiumDuration: item.premiumDuration || null,
             stars: item.isPremium ? null : Number(stars),
-            recipientsCount: recipients.length
+            recipientsCount: recipients.length,
+            buyForMyself: buyForMyself
         });
         if (!quote.success) {
             throw new Error(quote.error || 'Failed to get quote');
@@ -2511,8 +2593,14 @@ async function handlePurchase(item) {
         const tonAmount = totalAmountUsdt / tonToUsdtRate;
         const nanoTonAmount = Math.round(tonAmount * 1e9);
         
+        // Ensure API is available
+        if (!window.API) {
+            console.warn('API not found, creating new instance');
+            window.API = new API();
+        }
+        
         // Get payment address
-        const walletResponse = await API.getWalletAddress();
+        const walletResponse = await window.API.getWalletAddress();
         if (!walletResponse.success || !walletResponse.walletAddress) {
             throw new Error('Failed to get payment address');
         }
