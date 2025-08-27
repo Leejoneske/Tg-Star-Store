@@ -875,8 +875,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const content = document.getElementById('content-container');
     
-    LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
-    if (content) content.style.display = 'none';
+    // Temporarily disable loading to test content visibility
+    // LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
+    // if (content) content.style.display = 'none';
+    
+    // Show content immediately for testing
+    if (content) content.style.display = 'block';
 
     // Ensure content is shown even if there are errors
     const showContentWithFallback = () => {
@@ -890,66 +894,44 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    requestAnimationFrame(() => {
-        showContentWithFallback();
+    // Show content immediately and initialize components
+    console.log('🚀 Showing content immediately...');
+    
+    try {
+        initTelegramApp();
+        initWalletConnection();
         
-        try {
-            initTelegramApp();
-            initWalletConnection();
-        } catch (error) {
-            console.error('Error in initial setup:', error);
-        }
-        
+        // Initialize components after a short delay
         setTimeout(() => {
-            loadBottomNav()
-                .then(() => {
-                    try {
-                        initLanguageToggle();
-                        initSectionToggle();
-                        updateLanguage();
-                        initBuyButtons();
-                        initRecipientsUI();
-                        initCustomStars();
-                        updatePackagePrices(); // Initialize package prices
-                        initNotificationSystem();
-                        loadStickers();
-                        
-                        // Ensure API is properly initialized
-                        if (typeof API === 'undefined') {
-                            console.error('API class not loaded');
-                            return;
-                        }
-                        
-                        if (!window.API) {
-                            console.warn('API not initialized, creating new instance');
-                            window.API = new API();
-                        }
-                        
-                        window.currentUser = currentUser;
-                        window.currentWalletAddress = currentWalletAddress;
-                        window.isTelegramEnv = isTelegramEnv;
-                        
-                        console.log('✅ StarStore initialization completed');
-                    } catch (error) {
-                        console.error('Error in component initialization:', error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Initialization error:', error);
-                    // Ensure content is shown even if there are errors
-                    showContentWithFallback();
-                });
-        }, 300);
-        
-        // Fallback timeout to ensure content is shown
-        setTimeout(() => {
-            const content = document.getElementById('content-container');
-            if (content && content.style.display === 'none') {
-                console.warn('⚠️ Fallback: Forcing content to show after timeout');
-                showContentWithFallback();
+            try {
+                initLanguageToggle();
+                initSectionToggle();
+                updateLanguage();
+                initBuyButtons();
+                initRecipientsUI();
+                initCustomStars();
+                updatePackagePrices();
+                initNotificationSystem();
+                loadStickers();
+                
+                // Ensure API is properly initialized
+                if (typeof API !== 'undefined' && !window.API) {
+                    window.API = new API();
+                }
+                
+                window.currentUser = currentUser;
+                window.currentWalletAddress = currentWalletAddress;
+                window.isTelegramEnv = isTelegramEnv;
+                
+                console.log('✅ StarStore initialization completed');
+            } catch (error) {
+                console.error('Error in component initialization:', error);
             }
-        }, 5000); // 5 second fallback
-    });
+        }, 100);
+        
+    } catch (error) {
+        console.error('Error in initial setup:', error);
+    }
 });
 
 
