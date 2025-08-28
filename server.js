@@ -526,8 +526,9 @@ app.post('/api/validate-usernames', (req, res) => {
             const name = raw.trim().replace(/^@/, '').toLowerCase();
             console.log('Processing username:', { raw, trimmed: name });
             
-            // Telegram username rules: 3-32 chars, letters, digits, underscore
-            const isValid = /^[a-z0-9_]{3,32}$/.test(name);
+            // Basic format validation: 1-32 chars, letters, digits, underscore
+            // Note: This only checks format, not if username actually exists on Telegram
+            const isValid = /^[a-z0-9_]{1,32}$/.test(name);
             console.log('Username validation result:', { name, isValid, length: name.length });
             
             if (!isValid) {
