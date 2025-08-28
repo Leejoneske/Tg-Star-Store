@@ -730,6 +730,7 @@
   gtag('config', 'G-3CFMZX0XGZ');
 </script>
     <!-- Load required libraries in head -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -818,7 +819,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const content = document.getElementById('content-container');
     
-    LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
+    if (window.LoadingComponent && typeof LoadingComponent.show === 'function') {
+        LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
+    } else {
+        const el = document.getElementById('loading-container');
+        if (el) el.style.display = 'block';
+    }
     if (content) content.style.display = 'none';
 
     requestAnimationFrame(() => {
@@ -1346,7 +1352,12 @@ function loadBottomNav() {
 }
 
 function showContent() {
-    LoadingComponent.hide('loading-container');
+    if (window.LoadingComponent && typeof LoadingComponent.hide === 'function') {
+        LoadingComponent.hide('loading-container');
+    } else {
+        const el = document.getElementById('loading-container');
+        if (el) el.style.display = 'none';
+    }
     const content = document.getElementById('content-container');
     if (content) content.style.display = 'block';
 }
