@@ -436,12 +436,23 @@ app.post('/api/quote', (req, res) => {
             return res.status(400).json({ success: false, error: 'Invalid stars amount (min 50)' });
         }
 
-        // Use exact package price when available; otherwise use linear rate 0.02 USDT per star
+        // For stars, charge the package price regardless of recipients (stars are distributed, not multiplied)
         const mapPrice = priceMap.regular[starsNum];
-        const unitAmount = typeof mapPrice === 'number' ? mapPrice : Number((starsNum * 0.02).toFixed(2));
-        const totalAmount = Number((unitAmount * quantity).toFixed(2));
-
-        return res.json({ success: true, totalAmount, unitAmount: Number(unitAmount.toFixed(2)), quantity });
+        if (typeof mapPrice === 'number') {
+            // Use exact package price - total amount is the package price
+            const totalAmount = Number(mapPrice.toFixed(2));
+            return res.json({ 
+                success: true, 
+                totalAmount, 
+                unitAmount: Number((totalAmount / quantity).toFixed(2)), 
+                quantity 
+            });
+        } else {
+            // Fallback to linear rate for custom amounts
+            const unitAmount = Number((starsNum * 0.02).toFixed(2));
+            const totalAmount = Number((unitAmount * quantity).toFixed(2));
+            return res.json({ success: true, totalAmount, unitAmount, quantity });
+        }
     } catch (error) {
         console.error('Quote error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
@@ -476,11 +487,23 @@ app.get('/api/quote', (req, res) => {
             return res.status(400).json({ success: false, error: 'Invalid stars amount (min 50)' });
         }
 
+        // For stars, charge the package price regardless of recipients (stars are distributed, not multiplied)
         const mapPrice = priceMap.regular[starsNum];
-        const unitAmount = typeof mapPrice === 'number' ? mapPrice : Number((starsNum * 0.02).toFixed(2));
-        const totalAmount = Number((unitAmount * quantity).toFixed(2));
-
-        return res.json({ success: true, totalAmount, unitAmount: Number(unitAmount.toFixed(2)), quantity });
+        if (typeof mapPrice === 'number') {
+            // Use exact package price - total amount is the package price
+            const totalAmount = Number(mapPrice.toFixed(2));
+            return res.json({ 
+                success: true, 
+                totalAmount, 
+                unitAmount: Number((totalAmount / quantity).toFixed(2)), 
+                quantity 
+            });
+        } else {
+            // Fallback to linear rate for custom amounts
+            const unitAmount = Number((starsNum * 0.02).toFixed(2));
+            const totalAmount = Number((unitAmount * quantity).toFixed(2));
+            return res.json({ success: true, totalAmount, unitAmount, quantity });
+        }
     } catch (error) {
         console.error('Quote (GET) error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
