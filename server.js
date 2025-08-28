@@ -515,7 +515,7 @@ app.post('/api/orders/create', async (req, res) => {
             } else {
                 adminMessage += `\nStars per recipient: ${starsPerRecipient}`;
             }
-            adminMessage += `\n\nRecipients: ${recipients.join(', ')}`;
+            adminMessage += `\n\nRecipients: ${recipients.map(r => `@${r}`).join(', ')}`;
         }
 
         const adminKeyboard = {
