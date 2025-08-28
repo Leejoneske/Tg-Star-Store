@@ -14,8 +14,16 @@ const zlib = require('zlib');
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
 
 
-// Import configuration
-const { SERVER_URL, WEBHOOK_PATH, WEBHOOK_URL } = require('./config');
+const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
+                   process.env.RAILWAY_PUBLIC_DOMAIN || 
+                   'tg-star-store-production.up.railway.app');
+const WEBHOOK_PATH = '/telegram-webhook';
+const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
+function sanitizeUsername(username) {
+    if (!username) return null;
+    return username.replace(/[^\w\d_]/g, '');
+}
+
 // Telegram auth middleware functions (defined inline since middleware folder was removed)
 const reversalRequests = new Map();
 // Middleware
@@ -49,12 +57,209 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// Mount API routes
-app.use('/api', apiRoutes);
 
-// Mount order handlers
-app.post('/api/orders/create', handleBuyOrder);
-app.post('/api/sell-orders', handleSellOrder);
+// Wallet Address Endpoint
+app.get('/api/get-wallet-address', (req, res) => {
+    try {
+        const walletAddress = process.env.WALLET_ADDRESS;
+        
+        if (!walletAddress) {
+            return res.status(500).json({
+                success: false,
+                error: 'Wallet address not configured'
+            });
+        }
+
+        res.json({
+            success: true,
+            walletAddress: walletAddress
+        });
+    } catch (error) {
+        console.error('Error getting wallet address:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Order Creation Endpoint
+app.post('/api/orders/create', async (req, res) => {
+    try {
+        const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
+
+        if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
+        if (bannedUser) {
+            return res.status(403).json({ error: 'You are banned from placing orders' });
+        }
+
+        const priceMap = {
+            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
+            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
+        };
+
+        let amount, packageType;
+        if (isPremium) {
+            packageType = 'premium';
+            amount = priceMap.premium[premiumDuration];
+        } else {
+            packageType = 'regular';
+            amount = priceMap.regular[stars];
+        }
+
+        if (!amount) {
+            return res.status(400).json({ error: 'Invalid selection' });
+        }
+
+        const order = new BuyOrder({
+            id: generateOrderId(),
+            telegramId,
+            username,
+            amount,
+            stars: isPremium ? null : stars,
+            premiumDuration: isPremium ? premiumDuration : null,
+            walletAddress,
+            isPremium,
+            status: 'pending',
+            dateCreated: new Date(),
+            adminMessages: []
+        });
+
+        await order.save();
+
+        const userMessage = isPremium ?
+            `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending` :
+            `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending`;
+
+        await bot.sendMessage(telegramId, userMessage);
+
+        const adminMessage = isPremium ?
+            `🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months` :
+            `🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}`;
+
+        const adminKeyboard = {
+            inline_keyboard: [[
+                { text: '✅ Complete', callback_data: `complete_buy_${order.id}` },
+                { text: '❌ Decline', callback_data: `decline_buy_${order.id}` }
+            ]]
+        };
+
+        for (const adminId of adminIds) {
+            try {
+                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+                order.adminMessages.push({ 
+                    adminId, 
+                    messageId: message.message_id,
+                    originalText: adminMessage 
+                });
+            } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
+            }
+        }
+
+        await order.save();
+        res.json({ success: true, order });
+    } catch (err) {
+        console.error('Order creation error:', err);
+        res.status(500).json({ error: 'Failed to create order' });
+    }
+});
+
+// Sell Orders Endpoint
+app.post("/api/sell-orders", async (req, res) => {
+    try {
+        const { 
+            telegramId, 
+            username = '', 
+            stars, 
+            walletAddress, 
+            memoTag = '' 
+        } = req.body;
+        
+        if (!telegramId || !stars || !walletAddress) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
+        if (bannedUser) {
+            return res.status(403).json({ error: "You are banned from placing orders" });
+        }
+
+        // Check for existing pending orders for this user
+        const existingOrder = await SellOrder.findOne({ 
+            telegramId: telegramId,
+            status: "pending",
+            sessionExpiry: { $gt: new Date() } 
+        });
+
+        if (existingOrder) {
+            return res.status(409).json({ 
+                error: "You already have a pending order. Please complete or wait for it to expire before creating a new one.",
+                existingOrderId: existingOrder.id
+            });
+        }
+
+        // Generate unique session token for this user and order
+        const sessionToken = generateSessionToken(telegramId);
+        const sessionExpiry = new Date(Date.now() + 15 * 60 * 1000); 
+
+        const order = new SellOrder({
+            id: generateOrderId(),
+            telegramId,
+            username: sanitizeUsername(username),
+            stars,
+            walletAddress,
+            memoTag,
+            status: "pending", 
+            telegram_payment_charge_id: "temp_" + Date.now(),
+            reversible: true,
+            dateCreated: new Date(),
+            adminMessages: [],
+            sessionToken: sessionToken, 
+            sessionExpiry: sessionExpiry, 
+            userLocked: telegramId 
+        });
+
+        const paymentLink = await createTelegramInvoice(
+            telegramId, 
+            order.id, 
+            stars, 
+            `Purchase of ${stars} Telegram Stars`,
+            sessionToken 
+        );
+        
+        if (!paymentLink) {
+            return res.status(500).json({ error: "Failed to generate payment link" });
+        }
+
+        await order.save();
+
+        const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
+        await bot.sendMessage(telegramId, userMessage);
+
+        res.json({ 
+            success: true, 
+            order, 
+            paymentLink,
+            expiresAt: sessionExpiry
+        });
+    } catch (err) {
+        console.error("Sell order creation error:", err);
+        res.status(500).json({ error: "Failed to create sell order" });
+    }
+});
+
+// Generate unique session token
+function generateSessionToken(telegramId) {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 15);
+    return `${telegramId}_${timestamp}_${random}`;
+}
+
 // Webhook setup
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
@@ -87,19 +292,285 @@ app.get('/health', (req, res) => {
 });
 
 
-// Import models and utilities from organized folders
-const { 
-    Sticker, Notification, Warning, Reversal, Feedback, 
-    ReferralTracker, ReferralWithdrawal, Cache, BuyOrder, 
-    SellOrder, User, Referral, BannedUser, generateOrderId 
-} = require('./models');
-const { adminIds } = require('./config');
+const buyOrderSchema = new mongoose.Schema({
+    id: String,
+    telegramId: String,
+    username: String,
+    amount: Number,
+    stars: Number,
+    premiumDuration: Number,
+    walletAddress: String,
+    isPremium: Boolean,
+    status: String,
+    dateCreated: Date,
+    adminMessages: Array
+});
 
-// Import API routes
-const apiRoutes = require('./routes/api');
+const sellOrderSchema = new mongoose.Schema({
+    id: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    telegramId: {
+        type: String,
+        required: true
+    },
+    username: String,
+    stars: {
+        type: Number,
+        required: true
+    },
+    walletAddress: String,
+    memoTag: String,
+    status: {
+        type: String,
+        enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed', 'expired'], 
+        default: 'pending'
+    },
+    telegram_payment_charge_id: {
+        type: String,
+        required: function() {
+            return this.dateCreated > new Date('2025-05-25'); 
+        },
+        default: null
+    },
+    reversible: {
+        type: Boolean,
+        default: true
+    },
+    // NEW FIELDS FOR SESSION MANAGEMENT
+    sessionToken: {
+        type: String,
+        default: null
+    },
+    sessionExpiry: {
+        type: Date,
+        default: null
+    },
+    userLocked: {
+        type: String, 
+        default: null
+    },
+    // END NEW FIELDS
+    reversalData: {
+        requested: Boolean,
+        reason: String,
+        status: {
+            type: String,
+            enum: ['none', 'requested', 'approved', 'rejected', 'processed'],
+            default: 'none'
+        },
+        adminId: String,
+        processedAt: Date
+    },
+    refundData: {
+        requested: Boolean,
+        reason: String,
+        status: {
+            type: String,
+            enum: ['none', 'requested', 'approved', 'rejected', 'processed'],
+            default: 'none'
+        },
+        adminId: String,
+        processedAt: Date,
+        chargeId: String
+    },
+    adminMessages: [{
+        adminId: String,
+        messageId: Number,
+        originalText: String,
+        messageType: {
+            type: String,
+            enum: ['order', 'refund', 'reversal']
+        }
+    }],
+    dateCreated: {
+        type: Date,
+        default: Date.now
+    },
+    dateCompleted: Date,
+    dateReversed: Date,
+    dateRefunded: Date,
+    datePaid: Date, 
+    dateDeclined: Date 
+});
 
-// Import order handlers
-const { handleBuyOrder, handleSellOrder, cleanupExpiredOrders, initializeHandlers } = require('./handlers/orderHandlers');
+const userSchema = new mongoose.Schema({
+    id: String,
+    username: String
+});
+
+const bannedUserSchema = new mongoose.Schema({
+    users: Array
+});
+
+const cacheSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    username: { type: String, required: true },
+    date: { type: Date, default: Date.now }
+});
+
+const referralSchema = new mongoose.Schema({
+    referrerUserId: { type: String, required: true },
+    referredUserId: { type: String, required: true },
+    status: { type: String, enum: ['pending', 'active', 'completed'], default: 'pending' },
+    withdrawn: { type: Boolean, default: false },
+    dateReferred: { type: Date, default: Date.now }
+});
+
+const referralWithdrawalSchema = new mongoose.Schema({
+    withdrawalId: {  
+        type: String,
+        required: true,
+        unique: true,
+        default: () => generateOrderId() 
+    },
+    userId: String,
+    username: String,
+    amount: Number,
+    walletAddress: String,
+    referralIds: [{ 
+        type: String, 
+        ref: 'Referral' 
+    }],
+    status: { 
+        type: String, 
+        enum: ['pending', 'completed', 'declined'], 
+        default: 'pending' 
+    },
+    createdAt: { 
+        type: Date, 
+        default: Date.now 
+    }
+});
+
+const referralTrackerSchema = new mongoose.Schema({
+    referral: { type: mongoose.Schema.Types.ObjectId, ref: 'Referral' },
+    referrerUserId: { type: String, required: true },
+    referredUserId: { type: String, required: true, unique: true },
+    referredUsername: String,
+    totalBoughtStars: { type: Number, default: 0 },
+    totalSoldStars: { type: Number, default: 0 },
+    premiumActivated: { type: Boolean, default: false },
+    status: { type: String, enum: ['pending', 'active'], default: 'pending' },
+    dateReferred: { type: Date, default: Date.now },
+    dateActivated: Date
+});
+
+// Add to your schemas section
+const feedbackSchema = new mongoose.Schema({
+    orderId: { type: String, required: true },
+    telegramId: { type: String, required: true },
+    username: String,
+    satisfaction: { type: Number, min: 1, max: 5 }, 
+    reasons: String, // Why they rated this way
+    suggestions: String, // What could be improved
+    additionalInfo: String, // Optional free-form feedback
+    dateSubmitted: { type: Date, default: Date.now }
+});
+
+const reversalSchema = new mongoose.Schema({
+    orderId: { type: String, required: true },
+    telegramId: { type: String, required: true },
+    username: String,
+    stars: { type: Number, required: true },
+    reason: { type: String, required: true },
+    status: { type: String, enum: ['pending', 'approved', 'rejected', 'processed'], default: 'pending' },
+    adminId: String,
+    adminUsername: String,
+    processedAt: Date
+});
+
+const warningSchema = new mongoose.Schema({
+    userId: { type: String, required: true },
+    type: { type: String, enum: ['warning', 'ban'], required: true },
+    reason: { type: String, required: true },
+    issuedBy: { type: String, required: true },
+    issuedAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date },
+    isActive: { type: Boolean, default: true },
+    autoRemove: { type: Boolean, default: false }
+});
+
+const notificationSchema = new mongoose.Schema({
+    userId: {
+        type: String,
+        default: 'all',
+        index: true // Add index for better performance
+    },
+    title: {
+        type: String,
+        required: true,
+        default: 'Notification'
+    },
+    message: {
+        type: String,
+        required: true
+    },
+    actionUrl: String, // Renamed from 'url' for clarity
+    icon: {
+        type: String,
+        default: 'bell' // Can be 'bell', 'warning', 'success', etc.
+    },
+    timestamp: {
+        type: Date,
+        default: Date.now,
+        index: true // Index for sorting
+    },
+    isGlobal: {
+        type: Boolean,
+        default: false
+    },
+    read: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+    createdBy: {
+        type: String,
+        default: 'system'
+    },
+    priority: {
+        type: Number,
+        default: 0, // 0 = normal, 1 = important, 2 = urgent
+        min: 0,
+        max: 2
+    }
+});
+
+const stickerSchema = new mongoose.Schema({
+  file_id: { type: String, required: true },
+  file_unique_id: { type: String, required: true, unique: true },
+  file_path: { type: String },
+  is_animated: { type: Boolean, default: false },
+  is_video: { type: Boolean, default: false },
+  emoji: { type: String },
+  set_name: { type: String },
+  created_at: { type: Date, default: Date.now },
+  updated_at: { type: Date, default: Date.now }
+});
+
+// Create models
+const Sticker = mongoose.model('Sticker', stickerSchema);
+const Notification = mongoose.model('Notification', notificationSchema);
+const Warning = mongoose.model('Warning', warningSchema);
+const Reversal = mongoose.model('Reversal', reversalSchema);
+const Feedback = mongoose.model('Feedback', feedbackSchema);
+const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
+const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
+const Cache = mongoose.model('Cache', cacheSchema);
+const BuyOrder = mongoose.model('BuyOrder', buyOrderSchema);
+const SellOrder = mongoose.model('SellOrder', sellOrderSchema);
+const User = mongoose.model('User', userSchema);
+const Referral = mongoose.model('Referral', referralSchema);
+const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
+
+const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
+
+function generateOrderId() {
+    return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
+}
 
 
 
@@ -543,8 +1014,78 @@ async function createTelegramInvoice(chatId, orderId, stars, description, sessio
     }
 }
 
-// Initialize order handlers with dependencies
-initializeHandlers(bot, createTelegramInvoice);
+// Background job to clean up expired orders - ENHANCED WITH USER NOTIFICATIONS
+async function cleanupExpiredOrders() {
+    try {
+        // Find expired orders first to notify users
+        const expiredOrders = await SellOrder.find({
+            status: "pending",
+            sessionExpiry: { $lt: new Date() }
+        });
+
+        // Notify users about expired orders
+        for (const order of expiredOrders) {
+            try {
+                await bot.sendMessage(
+                    order.telegramId,
+                    `⏰ Your sell order #${order.id} has expired.\n\n` +
+                    `Stars: ${order.stars}\n` +
+                    `You can create a new order if you still want to sell.`
+                );
+            } catch (err) {
+                console.error(`Failed to notify user ${order.telegramId} about expired order:`, err);
+            }
+        }
+
+        // Update expired orders in database
+        const updateResult = await SellOrder.updateMany(
+            { 
+                status: "pending",
+                sessionExpiry: { $lt: new Date() }
+            },
+            { 
+                status: "expired",
+                $unset: { sessionToken: 1, sessionExpiry: 1 }
+            }
+        );
+        
+        if (updateResult.modifiedCount > 0) {
+            // Send notification to admin channel or first admin instead of console
+            if (adminIds && adminIds.length > 0) {
+                try {
+                    await bot.sendMessage(
+                        adminIds[0], 
+                        `🧹 System Cleanup:\n\n` +
+                        `Cleaned up ${updateResult.modifiedCount} expired sell orders\n` +
+                        `Time: ${new Date().toLocaleString()}`
+                    );
+                } catch (err) {
+                    console.error('Failed to notify admin about cleanup:', err);
+                    // Fallback to console if admin notification fails
+                    console.log(`Cleaned up ${updateResult.modifiedCount} expired sell orders`);
+                }
+            } else {
+                console.log(`Cleaned up ${updateResult.modifiedCount} expired sell orders`);
+            }
+        }
+    } catch (error) {
+        console.error('Error cleaning up expired orders:', error);
+        // Notify admin about cleanup errors
+        if (adminIds && adminIds.length > 0) {
+            try {
+                await bot.sendMessage(
+                    adminIds[0],
+                    `❌ Cleanup Error:\n\n` +
+                    `Failed to clean up expired orders\n` +
+                    `Error: ${error.message}\n` +
+                    `Time: ${new Date().toLocaleString()}`
+                );
+            } catch (err) {
+                console.error('Failed to notify admin about cleanup error:', err);
+            }
+        }
+    }
+}
 
 // Run cleanup every 5 minutes
 setInterval(cleanupExpiredOrders, 5 * 60 * 1000);
