@@ -2513,12 +2513,21 @@ async function handlePurchase(item) {
         const nanoTonAmount = Math.round(tonAmount * 1e9);
         
         // Get payment address
-        console.log('API class available:', typeof API);
-        console.log('window.API available:', !!window.API);
-        console.log('window.API methods:', window.API ? Object.getOwnPropertyNames(Object.getPrototypeOf(window.API)) : 'N/A');
+        // Debug info - show on page for mobile users
+        let debugInfo = `API class: ${typeof API}, window.API: ${!!window.API}`;
+        if (window.API) {
+            debugInfo += `, Methods: ${Object.getOwnPropertyNames(Object.getPrototypeOf(window.API)).join(', ')}`;
+        }
         
-        if (typeof API === 'undefined' || !window.API) {
-            throw new Error('API not available');
+        // Show debug info in a visible way
+        if (typeof API === 'undefined') {
+            throw new Error(`API class not defined. Debug: ${debugInfo}`);
+        }
+        if (!window.API) {
+            throw new Error(`window.API not available. Debug: ${debugInfo}`);
+        }
+        if (typeof window.API.getWalletAddress !== 'function') {
+            throw new Error(`getWalletAddress not a function. Debug: ${debugInfo}`);
         }
         const walletResponse = await window.API.getWalletAddress();
         if (!walletResponse.success || !walletResponse.walletAddress) {
