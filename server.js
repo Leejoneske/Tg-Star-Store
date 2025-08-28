@@ -627,7 +627,7 @@ app.post('/api/orders/create', async (req, res) => {
             } else {
                 adminMessage += `\nStars per recipient: ${starsPerRecipient}`;
             }
-            adminMessage += `\n\nRecipients: ${recipients.join(', ')}`;
+            adminMessage += `\n\nRecipients: ${recipients.map(r => `@${r}`).join(', ')}`;
         }
 
         const adminKeyboard = {
@@ -1866,17 +1866,24 @@ app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) =>
 
         const totalReferrals = referrals.length;
         
-        // Get completed/active AND non-withdrawn referrals
+        // Get completed referrals that are available for withdrawal (not withdrawn)
         const availableReferrals = await Referral.find({
-            referrerUserId: userId,
-            status: { $in: ['completed', 'active'] },
-            withdrawn: { $ne: true } // Changed from false to $ne: true for better handling
+            referrerUserId: req.params.userId,
+            status: 'completed',
+            withdrawn: { $ne: true }
         }).countDocuments();
 
-        // Get all completed/active (regardless of withdrawal status)
+        // Get all completed referrals (regardless of withdrawal status)
         const completedReferrals = referrals.filter(r => 
-            ['completed', 'active'].includes(r.status)
+            r.status === 'completed'
         ).length;
+        
+        console.log(`Referral stats for user ${req.params.userId}:`, {
+            totalReferrals,
+            completedReferrals,
+            availableReferrals,
+            referrals: referrals.map(r => ({ status: r.status, withdrawn: r.withdrawn }))
+        });
 
         const responseData = {
             success: true,
@@ -1891,12 +1898,12 @@ app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) =>
                 availableBalance: availableReferrals * 0.5,
                 totalEarned: completedReferrals * 0.5,
                 referralsCount: totalReferrals,
-                pendingAmount: (totalReferrals - completedReferrals) * 0.5
+                pendingAmount: (completedReferrals - availableReferrals) * 0.5
             },
-            referralLink: `https://t.me/TgStarStore_bot?start=ref_${userId}`
+            referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`
         };
         
-        console.log(`Returning referral stats for ${userId}:`, responseData.stats);
+        console.log(`Returning referral stats for ${req.params.userId}:`, responseData.stats);
         res.json(responseData);
         
     } catch (error) {
@@ -2174,7 +2181,7 @@ async function handleReferralActivation(tracker) {
 
         if (tracker.referral) {
             await Referral.findByIdAndUpdate(tracker.referral, {
-                status: 'active',
+                status: 'completed',
                 dateActivated: new Date()
             });
         }
@@ -2230,6 +2237,16 @@ async function trackStars(userId, stars, type) {
         } else {
             await tracker.save();
         }
+        
+        // Also update the Referral status if it's still pending and conditions are met
+        if (tracker.referral && (totalStars >= 100 || tracker.premiumActivated)) {
+            const referral = await Referral.findById(tracker.referral);
+            if (referral && referral.status === 'pending') {
+                referral.status = 'completed';
+                referral.dateActivated = new Date();
+                await referral.save();
+            }
+        }
     } catch (error) {
         console.error('Tracking error:', error);
     }
@@ -2246,6 +2263,16 @@ async function trackPremiumActivation(userId) {
                 await handleReferralActivation(tracker);
             } else {
                 await tracker.save();
+            }
+            
+            // Also update the Referral status if it's still pending
+            if (tracker.referral) {
+                const referral = await Referral.findById(tracker.referral);
+                if (referral && referral.status === 'pending') {
+                    referral.status = 'completed';
+                    referral.dateActivated = new Date();
+                    await referral.save();
+                }
             }
         }
     } catch (error) {

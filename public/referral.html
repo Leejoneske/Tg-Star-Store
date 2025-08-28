@@ -528,6 +528,7 @@ async function loadReferralData() {
         
         const data = await response.json();
         console.log('Received data:', data);
+        console.log('Stats from API:', data.stats);
         
         if (!data.success) throw new Error(data.error || 'Failed to load referral data');
 
@@ -535,11 +536,17 @@ async function loadReferralData() {
         state.stats = {
             availableBalance: parseFloat(data.stats?.availableBalance || 0),
             totalEarned: parseFloat(data.stats?.totalEarned || 0),
-            referralsCount: parseInt(data.stats?.totalReferrals || 0),
-            pendingAmount: parseFloat(data.stats?.pendingWithdrawals || 0)
+            referralsCount: parseInt(data.stats?.referralsCount || 0),
+            pendingAmount: parseFloat(data.stats?.pendingAmount || 0)
         };
+        
+        // Ensure referralsCount is never undefined or null
+        if (isNaN(state.stats.referralsCount)) {
+            state.stats.referralsCount = 0;
+        }
         state.referralLink = data.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
 
+        console.log('Parsed stats:', state.stats);
         console.log('Updated state:', state);
         updateUI();
         applyTranslations();
@@ -597,11 +604,20 @@ async function loadWithdrawalHistory() {
 
 function updateUI() {
     console.log('Updating UI with stats:', state.stats);
-    document.getElementById('availableBalance').textContent = `${state.stats.availableBalance.toFixed(2)} USDT`;
-    document.getElementById('totalEarned').textContent = `${state.stats.totalEarned.toFixed(2)} USDT`;
-    document.getElementById('referralsCount').textContent = state.stats.referralsCount;
-    document.getElementById('pendingAmount').textContent = `${state.stats.pendingAmount.toFixed(2)} USDT`;
-    document.getElementById('referralLinkDisplay').textContent = state.referralLink;
+    
+    // Safely update each element
+    const availableBalanceEl = document.getElementById('availableBalance');
+    const totalEarnedEl = document.getElementById('totalEarned');
+    const referralsCountEl = document.getElementById('referralsCount');
+    const pendingAmountEl = document.getElementById('pendingAmount');
+    const referralLinkDisplayEl = document.getElementById('referralLinkDisplay');
+    
+    if (availableBalanceEl) availableBalanceEl.textContent = `${state.stats.availableBalance.toFixed(2)} USDT`;
+    if (totalEarnedEl) totalEarnedEl.textContent = `${state.stats.totalEarned.toFixed(2)} USDT`;
+    if (referralsCountEl) referralsCountEl.textContent = state.stats.referralsCount;
+    if (pendingAmountEl) pendingAmountEl.textContent = `${state.stats.pendingAmount.toFixed(2)} USDT`;
+    if (referralLinkDisplayEl) referralLinkDisplayEl.textContent = state.referralLink;
+    
     updateReferralsList();
     updateWithdrawalsList();
 }
