@@ -510,32 +510,10 @@ app.get('/api/quote', (req, res) => {
     }
 });
 
-// Helper function to check if bot has necessary permissions
-async function checkBotPermissions() {
+// Username validation endpoint (format validation only)
+// Note: Telegram Bot API cannot validate usernames without user interaction due to privacy restrictions
+app.post('/api/validate-usernames', (req, res) => {
     try {
-        // Try to get bot info to check if it's working
-        const botInfo = await bot.getMe();
-        console.log('Bot info:', botInfo);
-        return true;
-    } catch (error) {
-        console.error('Bot permission check failed:', error);
-        return false;
-    }
-}
-
-// Username validation endpoint with real Telegram API validation
-app.post('/api/validate-usernames', async (req, res) => {
-    try {
-        // Check bot permissions first
-        const botHasPermissions = await checkBotPermissions();
-        if (!botHasPermissions) {
-            console.error('Bot does not have necessary permissions for username validation');
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Bot configuration error. Please check bot token and permissions.' 
-            });
-        }
-        
         const usernames = Array.isArray(req.body?.usernames) ? req.body.usernames : [];
         console.log('Username validation request:', { usernames });
         
@@ -551,7 +529,8 @@ app.post('/api/validate-usernames', async (req, res) => {
             const name = raw.trim().replace(/^@/, '').toLowerCase();
             console.log('Processing username:', { raw, trimmed: name });
             
-            // Basic format validation: 1-32 chars, letters, digits, underscore
+            // Format validation: 1-32 chars, letters, digits, underscore
+            // This is the best we can do without user interaction due to Telegram privacy restrictions
             const isValid = /^[a-z0-9_]{1,32}$/.test(name);
             if (!isValid) {
                 console.log('Username failed format validation:', name);
@@ -563,33 +542,12 @@ app.post('/api/validate-usernames', async (req, res) => {
                 continue;
             }
             
-            try {
-                // Real Telegram API validation - check if username exists
-                const chatMember = await bot.getChat(`@${name}`);
-                if (chatMember && chatMember.id) {
-                    seen.add(name);
-                    recipients.push({ 
-                        username: name, 
-                        userId: chatMember.id.toString() 
-                    });
-                    console.log('Valid Telegram user found:', { username: name, userId: chatMember.id });
-                } else {
-                    console.log('Username not found on Telegram:', name);
-                }
-            } catch (telegramError) {
-                console.log('Telegram API error for username:', name, telegramError.message);
-                
-                // Check if it's a "chat not found" error (username doesn't exist)
-                if (telegramError.message.includes('chat not found') || 
-                    telegramError.message.includes('user not found') ||
-                    telegramError.code === 400) {
-                    console.log('Username confirmed not to exist on Telegram:', name);
-                } else {
-                    // For other errors (like bot permissions), we could fall back to format-only validation
-                    // But for now, we'll be strict and only accept confirmed valid usernames
-                    console.log('Skipping username due to Telegram API error:', name);
-                }
-            }
+            seen.add(name);
+            // Generate stable pseudo userId from hash (since we can't get real Telegram IDs)
+            const hash = crypto.createHash('md5').update(name).digest('hex').slice(0, 10);
+            const userId = parseInt(hash, 16).toString().slice(0, 10);
+            recipients.push({ username: name, userId });
+            console.log('Added valid recipient:', { username: name, userId });
         }
         
         console.log('Validation result:', { totalRequested: usernames.length, validRecipients: recipients.length });
