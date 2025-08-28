@@ -514,21 +514,39 @@ app.get('/api/quote', (req, res) => {
 app.post('/api/validate-usernames', (req, res) => {
     try {
         const usernames = Array.isArray(req.body?.usernames) ? req.body.usernames : [];
+        console.log('Username validation request:', { usernames });
+        
         const recipients = [];
         const seen = new Set();
         for (const raw of usernames) {
-            if (typeof raw !== 'string') continue;
+            if (typeof raw !== 'string') {
+                console.log('Skipping non-string username:', raw);
+                continue;
+            }
             const name = raw.trim().replace(/^@/, '').toLowerCase();
-            // Telegram username rules: 5-32 chars, letters, digits, underscore
-            const isValid = /^[a-z0-9_]{5,32}$/.test(name);
-            if (!isValid) continue;
-            if (seen.has(name)) continue;
+            console.log('Processing username:', { raw, trimmed: name });
+            
+            // Telegram username rules: 3-32 chars, letters, digits, underscore
+            const isValid = /^[a-z0-9_]{3,32}$/.test(name);
+            console.log('Username validation result:', { name, isValid, length: name.length });
+            
+            if (!isValid) {
+                console.log('Username failed validation:', name);
+                continue;
+            }
+            if (seen.has(name)) {
+                console.log('Duplicate username:', name);
+                continue;
+            }
             seen.add(name);
             // Derive a stable pseudo userId from hash
             const hash = crypto.createHash('md5').update(name).digest('hex').slice(0, 10);
             const userId = parseInt(hash, 16).toString().slice(0, 10);
             recipients.push({ username: name, userId });
+            console.log('Added valid recipient:', { username: name, userId });
         }
+        
+        console.log('Validation result:', { totalRequested: usernames.length, validRecipients: recipients.length });
         return res.json({ success: true, recipients });
     } catch (error) {
         console.error('validate-usernames error:', error);
