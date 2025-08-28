@@ -2555,7 +2555,14 @@ async function handlePurchase(item) {
         const approxTon = rate ? (totalAmountUsdt / rate) : null;
         const summaryLines = [];
         if (!item.isPremium) {
-            summaryLines.push(`Stars: ${Number(stars)}${recipients.length ? ` × ${recipients.length} recipient(s)` : ''}`);
+            if (recipients.length > 0) {
+                const starsPerRecipient = Math.floor(Number(stars) / recipients.length);
+                const remainingStars = Number(stars) % recipients.length;
+                summaryLines.push(`Stars Package: ${Number(stars)} stars`);
+                summaryLines.push(`Distribution: ${starsPerRecipient} stars each${remainingStars > 0 ? ` (+${remainingStars} bonus stars)` : ''}`);
+            } else {
+                summaryLines.push(`Stars: ${Number(stars)}`);
+            }
         } else {
             summaryLines.push(`Premium: ${item.premiumDuration} month(s)${recipients.length ? ` × ${recipients.length} recipient(s)` : ''}`);
         }
