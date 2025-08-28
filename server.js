@@ -12,6 +12,8 @@ const app = express();
 const path = require('path');  
 const zlib = require('zlib');
 const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
+
+
 // Import configuration
 const { SERVER_URL, WEBHOOK_PATH, WEBHOOK_URL } = require('./config');
 // Telegram auth middleware functions (defined inline since middleware folder was removed)
@@ -49,6 +51,10 @@ app.use(express.static('public'));
 
 // Mount API routes
 app.use('/api', apiRoutes);
+
+// Mount order handlers
+app.post('/api/orders/create', handleBuyOrder);
+app.post('/api/sell-orders', handleSellOrder);
 // Webhook setup
 bot.setWebHook(WEBHOOK_URL)
   .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
@@ -92,6 +98,8 @@ const { adminIds } = require('./config');
 // Import API routes
 const apiRoutes = require('./routes/api');
 
+// Import order handlers
+const { handleBuyOrder, handleSellOrder, cleanupExpiredOrders, initializeHandlers } = require('./handlers/orderHandlers');
 
 
 
@@ -125,92 +133,11 @@ const apiRoutes = require('./routes/api');
 
 
 
-app.post('/api/orders/create', async (req, res) => {
-    try {
-        const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
 
-        if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
 
-        const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
-        if (bannedUser) {
-            return res.status(403).json({ error: 'You are banned from placing orders' });
-        }
 
-        const priceMap = {
-            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
-            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
-        };
 
-        let amount, packageType;
-        if (isPremium) {
-            packageType = 'premium';
-            amount = priceMap.premium[premiumDuration];
-        } else {
-            packageType = 'regular';
-            amount = priceMap.regular[stars];
-        }
 
-        if (!amount) {
-            return res.status(400).json({ error: 'Invalid selection' });
-        }
-
-        const order = new BuyOrder({
-            id: generateOrderId(),
-            telegramId,
-            username,
-            amount,
-            stars: isPremium ? null : stars,
-            premiumDuration: isPremium ? premiumDuration : null,
-            walletAddress,
-            isPremium,
-            status: 'pending',
-            dateCreated: new Date(),
-            adminMessages: []
-        });
-
-        await order.save();
-
-        const userMessage = isPremium ?
-            `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending` :
-            `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending`;
-
-        await bot.sendMessage(telegramId, userMessage);
-
-        const adminMessage = isPremium ?
-            `🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months` :
-            `🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}`;
-
-        const adminKeyboard = {
-            inline_keyboard: [[
-                { text: '✅ Complete', callback_data: `complete_buy_${order.id}` },
-                { text: '❌ Decline', callback_data: `decline_buy_${order.id}` }
-            ]]
-        };
-
-        for (const adminId of adminIds) {
-            try {
-                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
-                order.adminMessages.push({ 
-                    adminId, 
-                    messageId: message.message_id,
-                    originalText: adminMessage 
-                });
-            } catch (err) {
-                console.error(`Failed to notify admin ${adminId}:`, err);
-            }
-        }
-
-        await order.save();
-        res.json({ success: true, order });
-    } catch (err) {
-        console.error('Order creation error:', err);
-        res.status(500).json({ error: 'Failed to create order' });
-    }
-});
-
-app.post("/api/sell-orders", async (req, res) => {
     try {
         const { 
             telegramId, 
@@ -293,12 +220,7 @@ app.post("/api/sell-orders", async (req, res) => {
     }
 });
 
-// Generate unique session token
-function generateSessionToken(telegramId) {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 15);
-    return `${telegramId}_${timestamp}_${random}`;
-}
+
 
 // Enhanced pre-checkout validation 
 bot.on('pre_checkout_query', async (query) => {
@@ -621,81 +543,13 @@ async function createTelegramInvoice(chatId, orderId, stars, description, sessio
     }
 }
 
-// Background job to clean up expired orders - ENHANCED WITH USER NOTIFICATIONS
-async function cleanupExpiredOrders() {
-    try {
-        // Find expired orders first to notify users
-        const expiredOrders = await SellOrder.find({
-            status: "pending",
-            sessionExpiry: { $lt: new Date() }
-        });
-
-        // Notify users about expired orders
-        for (const order of expiredOrders) {
-            try {
-                await bot.sendMessage(
-                    order.telegramId,
-                    `⏰ Your sell order #${order.id} has expired.\n\n` +
-                    `Stars: ${order.stars}\n` +
-                    `You can create a new order if you still want to sell.`
-                );
-            } catch (err) {
-                console.error(`Failed to notify user ${order.telegramId} about expired order:`, err);
-            }
-        }
-
-        // Update expired orders in database
-        const updateResult = await SellOrder.updateMany(
-            { 
-                status: "pending",
-                sessionExpiry: { $lt: new Date() }
-            },
-            { 
-                status: "expired",
-                $unset: { sessionToken: 1, sessionExpiry: 1 }
-            }
-        );
-        
-        if (updateResult.modifiedCount > 0) {
-            // Send notification to admin channel or first admin instead of console
-            if (adminIds && adminIds.length > 0) {
-                try {
-                    await bot.sendMessage(
-                        adminIds[0], 
-                        `🧹 System Cleanup:\n\n` +
-                        `Cleaned up ${updateResult.modifiedCount} expired sell orders\n` +
-                        `Time: ${new Date().toLocaleString()}`
-                    );
-                } catch (err) {
-                    console.error('Failed to notify admin about cleanup:', err);
-                    // Fallback to console if admin notification fails
-                    console.log(`Cleaned up ${updateResult.modifiedCount} expired sell orders`);
-                }
-            } else {
-                console.log(`Cleaned up ${updateResult.modifiedCount} expired sell orders`);
-            }
-        }
-    } catch (error) {
-        console.error('Error cleaning up expired orders:', error);
-        // Notify admin about cleanup errors
-        if (adminIds && adminIds.length > 0) {
-            try {
-                await bot.sendMessage(
-                    adminIds[0],
-                    `❌ Cleanup Error:\n\n` +
-                    `Failed to clean up expired orders\n` +
-                    `Error: ${error.message}\n` +
-                    `Time: ${new Date().toLocaleString()}`
-                );
-            } catch (err) {
-                console.error('Failed to notify admin about cleanup error:', err);
-            }
-        }
-    }
-}
+// Initialize order handlers with dependencies
+initializeHandlers(bot, createTelegramInvoice);
 
 // Run cleanup every 5 minutes
 setInterval(cleanupExpiredOrders, 5 * 60 * 1000);
+
+
 
 
 bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
