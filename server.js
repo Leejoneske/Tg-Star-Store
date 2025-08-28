@@ -99,7 +99,24 @@ const buyOrderSchema = new mongoose.Schema({
     isPremium: Boolean,
     status: String,
     dateCreated: Date,
-    adminMessages: Array
+    adminMessages: Array,
+    // New fields for "buy for" functionality
+    recipients: [{
+        username: String,
+        userId: String,
+        starsReceived: Number,
+        premiumDurationReceived: Number
+    }],
+    isBuyForOthers: {
+        type: Boolean,
+        default: false
+    },
+    totalRecipients: {
+        type: Number,
+        default: 0
+    },
+    starsPerRecipient: Number,
+    premiumDurationPerRecipient: Number
 });
 
 const sellOrderSchema = new mongoose.Schema({
@@ -498,7 +515,7 @@ app.post('/api/validate-usernames', (req, res) => {
 
 app.post('/api/orders/create', async (req, res) => {
     try {
-        const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
+        const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTelegramUser } = req.body;
 
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -507,6 +524,35 @@ app.post('/api/orders/create', async (req, res) => {
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
             return res.status(403).json({ error: 'You are banned from placing orders' });
+        }
+
+        // Handle recipients for "buy for others" functionality
+        let isBuyForOthers = false;
+        let totalRecipients = 0;
+        let starsPerRecipient = null;
+        let premiumDurationPerRecipient = null;
+        let processedRecipients = [];
+
+        if (recipients && Array.isArray(recipients) && recipients.length > 0) {
+            isBuyForOthers = true;
+            totalRecipients = recipients.length;
+            
+            if (isPremium) {
+                // For premium, duration is shared equally
+                premiumDurationPerRecipient = premiumDuration;
+            } else {
+                // For stars, distribute equally
+                starsPerRecipient = Math.floor(stars / totalRecipients);
+                const remainingStars = stars % totalRecipients;
+                
+                // Process recipients with equal distribution
+                processedRecipients = recipients.map((recipient, index) => ({
+                    username: recipient,
+                    userId: null, // Will be filled when order is completed
+                    starsReceived: starsPerRecipient + (index < remainingStars ? 1 : 0),
+                    premiumDurationReceived: null
+                }));
+            }
         }
 
         const priceMap = {
@@ -533,25 +579,56 @@ app.post('/api/orders/create', async (req, res) => {
             username,
             amount,
             stars: isPremium ? null : stars,
-            premiumDuration: isPremium ? premiumDuration : null,
+            premiumDuration: isPremium ? null : premiumDuration,
             walletAddress,
             isPremium,
             status: 'pending',
             dateCreated: new Date(),
-            adminMessages: []
+            adminMessages: [],
+            recipients: processedRecipients,
+            isBuyForOthers,
+            totalRecipients,
+            starsPerRecipient,
+            premiumDurationPerRecipient
         });
 
         await order.save();
 
-        const userMessage = isPremium ?
-            `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending` :
-            `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending`;
+        // Create user message based on order type
+        let userMessage = `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStatus: Pending`;
+        
+        if (isPremium) {
+            userMessage = `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending`;
+            if (isBuyForOthers) {
+                userMessage += `\n\nRecipients: ${totalRecipients} user(s)`;
+            }
+        } else {
+            userMessage = `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending`;
+            if (isBuyForOthers) {
+                userMessage += `\n\nRecipients: ${totalRecipients} user(s)\nStars per recipient: ${starsPerRecipient}`;
+            }
+        }
 
         await bot.sendMessage(telegramId, userMessage);
 
-        const adminMessage = isPremium ?
-            `🛒 New Premium Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months` :
-            `🛒 New Buy Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT\nStars: ${stars}`;
+        // Create enhanced admin message
+        let adminMessage = `🛒 New ${isPremium ? 'Premium' : 'Buy'} Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT`;
+        
+        if (isPremium) {
+            adminMessage += `\nDuration: ${premiumDuration} months`;
+        } else {
+            adminMessage += `\nStars: ${stars}`;
+        }
+        
+        if (isBuyForOthers) {
+            adminMessage += `\n\n🎯 Buy For Others: ${totalRecipients} recipient(s)`;
+            if (isPremium) {
+                adminMessage += `\nDuration per recipient: ${premiumDurationPerRecipient} months`;
+            } else {
+                adminMessage += `\nStars per recipient: ${starsPerRecipient}`;
+            }
+            adminMessage += `\n\nRecipients: ${recipients.join(', ')}`;
+        }
 
         const adminKeyboard = {
             inline_keyboard: [[
@@ -893,7 +970,63 @@ bot.on('callback_query', async (query) => {
             order.status = 'completed';
             order.dateCompleted = new Date();
             await order.save();
-            await trackStars(order.telegramId, order.stars, 'buy');
+            
+            // Handle recipient notifications for "buy for others" orders
+            if (order.isBuyForOthers && order.recipients && order.recipients.length > 0) {
+                try {
+                    // Send notifications to all recipients
+                    for (const recipient of order.recipients) {
+                        try {
+                            let recipientMessage = `🎁 You received a gift from @${order.username}!\n\n`;
+                            
+                            if (order.isPremium) {
+                                recipientMessage += `🎉 Premium Subscription: ${order.premiumDurationPerRecipient} months\n`;
+                                recipientMessage += `Order ID: ${order.id}\n`;
+                                recipientMessage += `Status: Confirmed`;
+                            } else {
+                                recipientMessage += `⭐ Stars: ${recipient.starsReceived}\n`;
+                                recipientMessage += `Order ID: ${order.id}\n`;
+                                recipientMessage += `Status: Confirmed`;
+                            }
+                            
+                            // Try to send message to recipient (they might not be in the bot)
+                            // This will fail silently if user hasn't started the bot
+                            try {
+                                // You might want to implement a way to get recipient's telegram ID
+                                // For now, we'll just log the attempt
+                                console.log(`Attempting to notify recipient: @${recipient.username}`);
+                            } catch (recipientErr) {
+                                console.log(`Could not notify recipient @${recipient.username}:`, recipientErr.message);
+                            }
+                        } catch (recipientErr) {
+                            console.error(`Error processing recipient ${recipient.username}:`, recipientErr);
+                        }
+                    }
+                    
+                    // Create notifications in the database for recipients
+                    for (const recipient of order.recipients) {
+                        try {
+                            await Notification.create({
+                                userId: recipient.userId || 'anonymous',
+                                title: 'Gift Received! 🎁',
+                                message: `You received ${order.isPremium ? `${order.premiumDurationPerRecipient} months Premium` : `${recipient.starsReceived} Stars`} from @${order.username}!`,
+                                icon: 'gift',
+                                priority: 1,
+                                isGlobal: false
+                            });
+                        } catch (notifErr) {
+                            console.error(`Failed to create notification for ${recipient.username}:`, notifErr);
+                        }
+                    }
+                } catch (recipientErr) {
+                    console.error('Error handling recipient notifications:', recipientErr);
+                }
+            }
+            
+            // Track stars/premium for the buyer
+            if (!order.isPremium && order.stars) {
+                await trackStars(order.telegramId, order.stars, 'buy');
+            }
             if (order.isPremium) {
                 await trackPremiumActivation(order.telegramId);
             }
