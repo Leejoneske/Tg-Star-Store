@@ -431,6 +431,45 @@ app.post('/api/quote', (req, res) => {
     }
 });
 
+// Optional GET variant for environments issuing GET requests
+app.get('/api/quote', (req, res) => {
+    try {
+        const isPremium = String(req.query.isPremium || 'false') === 'true';
+        const premiumDuration = req.query.premiumDuration ? Number(req.query.premiumDuration) : undefined;
+        const stars = req.query.stars ? Number(req.query.stars) : undefined;
+        const recipientsCount = req.query.recipientsCount ? Number(req.query.recipientsCount) : 0;
+        const quantity = Math.max(1, Number(recipientsCount) || 0);
+
+        const priceMap = {
+            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
+            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
+        };
+
+        if (isPremium) {
+            const unitAmount = priceMap.premium[Number(premiumDuration)];
+            if (!unitAmount) {
+                return res.status(400).json({ success: false, error: 'Invalid premium duration' });
+            }
+            const totalAmount = Number((unitAmount * quantity).toFixed(2));
+            return res.json({ success: true, totalAmount, unitAmount: Number(unitAmount.toFixed(2)), quantity });
+        }
+
+        const starsNum = Number(stars) || 0;
+        if (!starsNum || starsNum < 50) {
+            return res.status(400).json({ success: false, error: 'Invalid stars amount (min 50)' });
+        }
+
+        const mapPrice = priceMap.regular[starsNum];
+        const unitAmount = typeof mapPrice === 'number' ? mapPrice : Number((starsNum * 0.02).toFixed(2));
+        const totalAmount = Number((unitAmount * quantity).toFixed(2));
+
+        return res.json({ success: true, totalAmount, unitAmount: Number(unitAmount.toFixed(2)), quantity });
+    } catch (error) {
+        console.error('Quote (GET) error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 app.post('/api/orders/create', async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
