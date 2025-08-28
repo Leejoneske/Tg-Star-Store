@@ -738,6 +738,33 @@
     <script src="js/translations.js"></script>
     <script src="js/loading.js"></script>
     <script>
+    // Simple in-page error reporter
+    (function(){
+        function showErrorBanner(text){
+            try {
+                let banner = document.getElementById('error-banner');
+                if (!banner) {
+                    banner = document.createElement('div');
+                    banner.id = 'error-banner';
+                    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#fee2e2;color:#991b1b;padding:8px 12px;font:12px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;border-bottom:1px solid #fecaca;white-space:pre-wrap;';
+                    document.body.appendChild(banner);
+                }
+                banner.textContent = text;
+            } catch (_) {}
+        }
+        window.addEventListener('error', function(e){
+            var msg = '[Error] ' + (e.message || 'Unknown error');
+            if (e.filename) msg += ' at ' + e.filename + (e.lineno? ':'+e.lineno : '');
+            showErrorBanner(msg);
+        });
+        window.addEventListener('unhandledrejection', function(e){
+            var reason = e && e.reason;
+            var txt = '[PromiseRejection] ' + (reason && reason.message ? reason.message : String(reason));
+            showErrorBanner(txt);
+        });
+    })();
+    </script>
+    <script>
 
 let tonConnectUI = null;
 let currentLanguage = 'en'; // Will be properly initialized in initLanguageToggle()
