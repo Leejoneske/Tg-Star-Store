@@ -17,8 +17,7 @@ const SERVER_URL = (process.env.RAILWAY_STATIC_URL ||
                    'tg-star-store-production.up.railway.app');
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
-// Import Telegram auth middleware (single import only)
-const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
+// Telegram auth middleware functions (defined inline since middleware folder was removed)
 const reversalRequests = new Map();
 // Middleware
 app.use(cors({
@@ -3550,18 +3549,7 @@ bot.onText(/\/users/, async (msg) => {
 
 
 
-// Load API routes
-const createOrderRoutes = require('./routes/orderRoutes');
-const apiRoutes = require('./routes/apiRoutes');
-const referralRoutes = require('./routes/referralRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-const userRoutes = require('./routes/userRoutes');
-
-app.use('/api', createOrderRoutes(bot));
-app.use('/api', apiRoutes);
-app.use('/api', referralRoutes);
-app.use('/api', notificationRoutes);
-app.use('/api', userRoutes);
+// API routes are handled inline in server.js (routes folder was removed)
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
