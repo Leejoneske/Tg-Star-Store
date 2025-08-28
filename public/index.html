@@ -1947,13 +1947,23 @@ function initRecipientsUI() {
 
 function collectRecipients(containerId) {
     const container = document.getElementById(containerId);
-    if (!container) return [];
+    if (!container) {
+        console.log('Container not found:', containerId);
+        return [];
+    }
     const inputs = Array.from(container.querySelectorAll('input'));
-    return inputs.map(i => i.value.trim()).filter(Boolean);
+    console.log('Found inputs:', inputs.length);
+    const values = inputs.map(i => i.value.trim());
+    console.log('Input values:', values);
+    const filtered = values.filter(Boolean);
+    console.log('Filtered values:', filtered);
+    return filtered;
 }
 
 async function validateRecipients(containerId) {
+    console.log('Starting validation for container:', containerId);
     const usernames = collectRecipients(containerId);
+    console.log('Collected usernames:', usernames);
     const container = document.getElementById(containerId);
     if (!container) return null;
     const statusMap = new Map();
