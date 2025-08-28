@@ -752,8 +752,38 @@ let updateUserInterfaceRetryCount = 0;
 let isInitialized = false;
 
 // Ensure API is globally available
-if (typeof API !== 'undefined' && !window.API) {
-    window.API = new API();
+function ensureAPI() {
+    // Wait for API class to be available
+    if (typeof API === 'undefined') {
+        console.warn('API class not loaded yet, waiting...');
+        return null;
+    }
+    
+    if (!window.API) {
+        console.log('Creating new API instance');
+        window.API = new API();
+    }
+    
+    console.log('API instance available:', !!window.API, 'Methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(window.API)));
+    return window.API;
+}
+
+// Retry mechanism for API calls
+async function ensureAPIWithRetry(maxRetries = 3, delay = 100) {
+    for (let i = 0; i < maxRetries; i++) {
+        const api = ensureAPI();
+        if (api) {
+            return api;
+        }
+        
+        if (i < maxRetries - 1) {
+            console.log(`API not ready, retrying in ${delay}ms... (attempt ${i + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    
+    console.error('Failed to initialize API after retries');
+    return null;
 }
 
 const stickerCache = new Map();
@@ -845,14 +875,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadStickers();
                     
                     // Ensure API is properly initialized
-                    if (typeof API === 'undefined') {
-                        console.error('API class not loaded');
+                    const api = await ensureAPIWithRetry();
+                    if (!api) {
+                        console.error('API not available');
                         return;
-                    }
-                    
-                    if (!window.API) {
-                        console.warn('API not initialized, creating new instance');
-                        window.API = new API();
                     }
                     
                     window.currentUser = currentUser;
@@ -2073,18 +2099,19 @@ function initCustomStars() {
         
         try {
             // Ensure API is available
-            if (!window.API) {
-                console.warn('API not found, creating new instance');
-                window.API = new API();
+            const api = await ensureAPIWithRetry();
+            if (!api) {
+                quoteText.textContent = 'Quote service unavailable. Please refresh the page.';
+                return;
             }
             
-            if (typeof window.API.getQuote !== 'function') {
+            if (typeof api.getQuote !== 'function') {
                 console.error('API.getQuote is not available');
                 quoteText.textContent = 'Quote service unavailable. Please refresh the page.';
                 return;
             }
             
-            const q = await window.API.getQuote({ stars: val, isPremium: false, recipientsCount });
+            const q = await api.getQuote({ stars: val, isPremium: false, recipientsCount });
             if (q.success) {
                 const rate = await getRateCached();
                 const ton = rate ? (q.totalAmount / rate) : null;
@@ -2228,12 +2255,13 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         const cacheData = {};
         
         // Ensure API is available
-        if (!window.API) {
-            console.warn('API not found, creating new instance');
-            window.API = new API();
+        const api = await ensureAPIWithRetry();
+        if (!api) {
+            console.error('API not available');
+            return;
         }
         
-        if (typeof window.API.getQuote !== 'function') {
+        if (typeof api.getQuote !== 'function') {
             console.error('API.getQuote is not available');
             return;
         }
@@ -2241,7 +2269,7 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         // Batch API calls for better performance
         const starsQuotes = await Promise.allSettled(
             starsPackages.map(pkg => 
-                window.API.getQuote({
+                api.getQuote({
                     stars: pkg.stars,
                     isPremium: false,
                     recipientsCount: recipientsCount
@@ -2267,7 +2295,7 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         
         const premiumQuotes = await Promise.allSettled(
             premiumPackages.map(pkg => 
-                window.API.getQuote({
+                api.getQuote({
                     isPremium: true,
                     premiumDuration: pkg.duration,
                     recipientsCount: recipientsCount
@@ -2450,13 +2478,11 @@ async function handlePurchase(item) {
         }
 
         // Ensure API is available
-        if (!window.API) {
-            console.warn('API not found, creating new instance');
-            window.API = new API();
+        const api = await ensureAPIWithRetry();
+        if (!api) {
+            throw new Error('API not available');
         }
-        
-        // Fetch server quote for accurate amount per recipients
-        const quote = await window.API.getQuote({
+        const quote = await api.getQuote({
             isPremium: !!item.isPremium,
             premiumDuration: item.premiumDuration || null,
             stars: item.isPremium ? null : Number(stars),
@@ -2513,9 +2539,10 @@ async function handlePurchase(item) {
         const nanoTonAmount = Math.round(tonAmount * 1e9);
         
         // Get payment address
-        const walletResponse = await API.getWalletAddress();
-        if (!walletResponse.success || !walletResponse.walletAddress) {
-            throw new Error('Failed to get payment address');
+        const walletResponse = await api.getWalletAddress();
+        if (!walletResponse || !walletResponse.success || !walletResponse.walletAddress) {
+            console.error('Wallet response:', walletResponse);
+            throw new Error('Failed to get payment address from server');
         }
 
         // Prepare transaction
@@ -2523,7 +2550,7 @@ async function handlePurchase(item) {
             validUntil: Math.floor(Date.now() / 1000) + 300,
             messages: [
                 {
-                    address: walletResponse.data.walletAddress,
+                    address: walletResponse.walletAddress,
                     amount: nanoTonAmount.toString(),
                 }
             ]
@@ -2546,7 +2573,7 @@ async function handlePurchase(item) {
                 recipients: recipients.map(r => r.username)
             };
             
-            const response = await API.createOrder(orderData);
+            const response = await api.createOrder(orderData);
             
             if (response && response.success) {
                 // Close loading before showing success
