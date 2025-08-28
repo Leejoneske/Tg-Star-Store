@@ -1947,23 +1947,15 @@ function initRecipientsUI() {
 
 function collectRecipients(containerId) {
     const container = document.getElementById(containerId);
-    if (!container) {
-        console.log('Container not found:', containerId);
-        return [];
-    }
+    if (!container) return [];
     const inputs = Array.from(container.querySelectorAll('input'));
-    console.log('Found inputs:', inputs.length);
     const values = inputs.map(i => i.value.trim());
-    console.log('Input values:', values);
     const filtered = values.filter(Boolean);
-    console.log('Filtered values:', filtered);
     return filtered;
 }
 
 async function validateRecipients(containerId) {
-    console.log('Starting validation for container:', containerId);
     const usernames = collectRecipients(containerId);
-    console.log('Collected usernames:', usernames);
     const container = document.getElementById(containerId);
     if (!container) return null;
     const statusMap = new Map();
@@ -2038,9 +2030,9 @@ async function validateRecipients(containerId) {
                 const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
                 if (!statusEl) return;
                 const r = mapByName.get(name);
-                if (r?.valid && r.userId) {
+                if (r?.valid) {
                     valid.push({ username: r.username, userId: r.userId });
-                    statusEl.textContent = `ID: ${r.userId}`;
+                    statusEl.textContent = 'Valid';
                     statusEl.className = 'text-xs text-green-600';
                 } else {
                     statusEl.textContent = 'Invalid';
@@ -2075,8 +2067,7 @@ function updateValidationStatus(container, result) {
         const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
         if (!statusEl) return;
         if (mapByName.has(name)) {
-            const rec = mapByName.get(name);
-            statusEl.textContent = `ID: ${rec.userId}`;
+            statusEl.textContent = 'Valid';
             statusEl.className = 'text-xs text-green-600';
         } else {
             statusEl.textContent = 'Invalid';
