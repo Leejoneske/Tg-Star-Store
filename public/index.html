@@ -2631,7 +2631,8 @@ async function handlePurchase(item) {
                 walletAddress: currentWalletAddress,
                 transactionHash: result,
                 isTelegramUser: isTelegramEnv,
-                recipients: recipients.map(r => r.username)
+                recipients: recipients.map(r => r.username),
+                totalAmount: totalAmountUsdt
             };
             
             const response = await window.API.createOrder(orderData);

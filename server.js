@@ -515,7 +515,7 @@ app.post('/api/validate-usernames', (req, res) => {
 
 app.post('/api/orders/create', async (req, res) => {
     try {
-        const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTelegramUser } = req.body;
+        const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTelegramUser, totalAmount } = req.body;
 
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -532,6 +532,14 @@ app.post('/api/orders/create', async (req, res) => {
         let starsPerRecipient = null;
         let premiumDurationPerRecipient = null;
         let processedRecipients = [];
+        
+        console.log('Order creation - received data:', {
+            stars,
+            isPremium,
+            premiumDuration,
+            recipients: recipients?.length || 0,
+            totalAmount
+        });
 
         if (recipients && Array.isArray(recipients) && recipients.length > 0) {
             isBuyForOthers = true;
@@ -555,22 +563,30 @@ app.post('/api/orders/create', async (req, res) => {
             }
         }
 
-        const priceMap = {
-            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
-            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
-        };
-
+        // Use totalAmount from frontend if provided (for accurate multi-recipient pricing)
         let amount, packageType;
-        if (isPremium) {
-            packageType = 'premium';
-            amount = priceMap.premium[premiumDuration];
+        if (totalAmount && typeof totalAmount === 'number' && totalAmount > 0) {
+            // Use the accurate total amount from frontend quote
+            amount = totalAmount;
+            packageType = isPremium ? 'premium' : 'regular';
         } else {
-            packageType = 'regular';
-            amount = priceMap.regular[stars];
-        }
+            // Fallback to old pricing logic for backward compatibility
+            const priceMap = {
+                regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
+                premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
+            };
 
-        if (!amount) {
-            return res.status(400).json({ error: 'Invalid selection' });
+            if (isPremium) {
+                packageType = 'premium';
+                amount = priceMap.premium[premiumDuration];
+            } else {
+                packageType = 'regular';
+                amount = priceMap.regular[stars];
+            }
+
+            if (!amount) {
+                return res.status(400).json({ error: 'Invalid selection' });
+            }
         }
 
         const order = new BuyOrder({
@@ -593,6 +609,14 @@ app.post('/api/orders/create', async (req, res) => {
         });
 
         await order.save();
+        
+        console.log('Final order details:', {
+            orderId: order.id,
+            amount: amount,
+            isBuyForOthers,
+            totalRecipients,
+            starsPerRecipient
+        });
 
         // Create user message based on order type
         let userMessage = `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStatus: Pending`;
