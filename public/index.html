@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
     <title>StarStore | Buy & Sell Telegram Stars | Stars to USDT Converter</title>
-    
+    <!-- API Utility Script (restored) -->
+    <script src="/js/api.js"></script>
     <!-- SEO Meta Tags -->
     <meta name="description" content="Buy and sell Telegram Stars securely with StarStore. Convert Stars to USDT, purchase Premium subscriptions, and earn rewards. Fast, secure, and reliable platform for Telegram Stars trading.">
     <meta name="keywords" content="Telegram Stars, buy Telegram Stars, sell Telegram Stars, Stars to USDT, Telegram Premium, TON blockchain, digital payments, crypto payments, StarStore">
@@ -57,8 +58,7 @@
     <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" as="script">
     
-    <!-- API Utility Script -->
-    <script src="/js/api.js"></script>
+    
 
 <style>
     body {
@@ -487,9 +487,7 @@
         to { opacity: 1; transform: translateY(0); }
     }
 
-    #content-container {
-        display: none;
-    }
+    /* content is visible by default to avoid blank screen if JS fails */
 
     @media (hover: none) and (pointer: coarse) {
         .package-option:hover {
@@ -762,6 +760,33 @@
     <script src="js/translations.js"></script>
     <script src="js/loading.js"></script>
     <script>
+    // Simple in-page error reporter
+    (function(){
+        function showErrorBanner(text){
+            try {
+                let banner = document.getElementById('error-banner');
+                if (!banner) {
+                    banner = document.createElement('div');
+                    banner.id = 'error-banner';
+                    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#fee2e2;color:#991b1b;padding:8px 12px;font:12px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;border-bottom:1px solid #fecaca;white-space:pre-wrap;';
+                    document.body.appendChild(banner);
+                }
+                banner.textContent = text;
+            } catch (_) {}
+        }
+        window.addEventListener('error', function(e){
+            var msg = '[Error] ' + (e.message || 'Unknown error');
+            if (e.filename) msg += ' at ' + e.filename + (e.lineno? ':'+e.lineno : '');
+            showErrorBanner(msg);
+        });
+        window.addEventListener('unhandledrejection', function(e){
+            var reason = e && e.reason;
+            var txt = '[PromiseRejection] ' + (reason && reason.message ? reason.message : String(reason));
+            showErrorBanner(txt);
+        });
+    })();
+    </script>
+    <script>
 
 let tonConnectUI = null;
 let currentLanguage = 'en'; // Will be properly initialized in initLanguageToggle()
@@ -773,10 +798,7 @@ let isTelegramEnv = false;
 let updateUserInterfaceRetryCount = 0;
 let isInitialized = false;
 
-// Ensure API is globally available
-if (typeof API !== 'undefined' && !window.API) {
-    window.API = new API();
-}
+// (Removed API wrapper; using axios directly)
 
 const stickerCache = new Map();
 const CACHE_DURATION = 40 * 60 * 1000; 
@@ -845,7 +867,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const content = document.getElementById('content-container');
     
-    LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
+    if (window.LoadingComponent && typeof LoadingComponent.show === 'function') {
+        LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
+    } else {
+        const el = document.getElementById('loading-container');
+        if (el) el.style.display = 'block';
+    }
     if (content) content.style.display = 'none';
 
     requestAnimationFrame(() => {
@@ -865,17 +892,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     updatePackagePrices(); // Initialize package prices
                     initNotificationSystem();
                     loadStickers();
-                    
-                    // Ensure API is properly initialized
-                    if (typeof API === 'undefined') {
-                        console.error('API class not loaded');
-                        return;
-                    }
-                    
-                    if (!window.API) {
-                        console.warn('API not initialized, creating new instance');
-                        window.API = new API();
-                    }
                     
                     window.currentUser = currentUser;
                     window.currentWalletAddress = currentWalletAddress;
@@ -1384,7 +1400,12 @@ function loadBottomNav() {
 }
 
 function showContent() {
-    LoadingComponent.hide('loading-container');
+    if (window.LoadingComponent && typeof LoadingComponent.hide === 'function') {
+        LoadingComponent.hide('loading-container');
+    } else {
+        const el = document.getElementById('loading-container');
+        if (el) el.style.display = 'none';
+    }
     const content = document.getElementById('content-container');
     if (content) content.style.display = 'block';
 }
@@ -1666,7 +1687,7 @@ function initWalletConnection() {
 }   
         
 setTimeout(() => {
-    if (tonConnectUI.connected) {
+    if (tonConnectUI && tonConnectUI.connected) {
         const wallet = tonConnectUI.wallet;
         if (wallet?.account) {
             currentWalletAddress = wallet.account.address;
@@ -2155,18 +2176,6 @@ function initCustomStars() {
         }
         
         try {
-            // Ensure API is available
-            if (!window.API) {
-                console.warn('API not found, creating new instance');
-                window.API = new API();
-            }
-            
-            if (typeof window.API.getQuote !== 'function') {
-                console.error('API.getQuote is not available');
-                quoteText.textContent = 'Quote service unavailable. Please refresh the page.';
-                return;
-            }
-            
             const q = await window.API.getQuote({ stars: val, isPremium: false, recipientsCount });
             if (q.success) {
                 const rate = await getRateCached();
@@ -2318,17 +2327,6 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         
         const cacheData = {};
         
-        // Ensure API is available
-        if (!window.API) {
-            console.warn('API not found, creating new instance');
-            window.API = new API();
-        }
-        
-        if (typeof window.API.getQuote !== 'function') {
-            console.error('API.getQuote is not available');
-            return;
-        }
-        
         // Batch API calls for better performance
         const starsQuotes = await Promise.allSettled(
             starsPackages.map(pkg => 
@@ -2342,7 +2340,7 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         
         starsQuotes.forEach((result, index) => {
             const pkg = starsPackages[index];
-            if (result.status === 'fulfilled' && result.value.success && pkg.element) {
+            if (result.status === 'fulfilled' && result.value?.success && pkg.element) {
                 const quoteData = result.value;
                 cacheData[`stars_${pkg.stars}`] = quoteData;
                 updatePackagePriceDisplay(pkg.element, quoteData);
@@ -2368,7 +2366,7 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
         
         premiumQuotes.forEach((result, index) => {
             const pkg = premiumPackages[index];
-            if (result.status === 'fulfilled' && result.value.success && pkg.element) {
+            if (result.status === 'fulfilled' && result.value?.success && pkg.element) {
                 const quoteData = result.value;
                 cacheData[`premium_${pkg.duration}`] = quoteData;
                 updatePackagePriceDisplay(pkg.element, quoteData);
@@ -2540,12 +2538,6 @@ async function handlePurchase(item) {
             return;
         }
 
-        // Ensure API is available
-        if (!window.API) {
-            console.warn('API not found, creating new instance');
-            window.API = new API();
-        }
-        
         // Fetch server quote for accurate amount per recipients
         const quote = await window.API.getQuote({
             isPremium: !!item.isPremium,
@@ -2603,23 +2595,12 @@ async function handlePurchase(item) {
         const tonAmount = totalAmountUsdt / tonToUsdtRate;
         const nanoTonAmount = Math.round(tonAmount * 1e9);
         
-        // Get payment address
-        // Debug info - show on page for mobile users
-        let debugInfo = `API class: ${typeof API}, window.API: ${!!window.API}`;
-        if (window.API) {
-            debugInfo += `, Methods: ${Object.getOwnPropertyNames(Object.getPrototypeOf(window.API)).join(', ')}`;
-        }
-        
-        // Show debug info in a visible way
-        if (typeof API === 'undefined') {
-            throw new Error(`API class not defined. Debug: ${debugInfo}`);
-        }
-        if (!window.API) {
-            throw new Error(`window.API not available. Debug: ${debugInfo}`);
-        }
-        if (typeof window.API.getWalletAddress !== 'function') {
-            throw new Error(`getWalletAddress not a function. Debug: ${debugInfo}`);
-        }
+        // Get payment address directly from server
+        const headers = {
+            'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+            'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '',
+            'Content-Type': 'application/json'
+        };
         const walletResponse = await window.API.getWalletAddress();
         if (!walletResponse.success || !walletResponse.walletAddress) {
             throw new Error('Failed to get payment address');

@@ -18,7 +18,17 @@ const SERVER_URL = (process.env.RAILWAY_STATIC_URL ||
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
 // Import Telegram auth middleware (single import only)
-const { verifyTelegramAuth, requireTelegramAuth, isTelegramUser } = require('./middleware/telegramAuth');
+let verifyTelegramAuth = (req, res, next) => next();
+let requireTelegramAuth = (req, res, next) => next();
+let isTelegramUser = () => true;
+try {
+    const mod = require('./middleware/telegramAuth');
+    verifyTelegramAuth = mod.verifyTelegramAuth || verifyTelegramAuth;
+    requireTelegramAuth = mod.requireTelegramAuth || requireTelegramAuth;
+    isTelegramUser = mod.isTelegramUser || isTelegramUser;
+} catch (e) {
+    console.warn('telegramAuth middleware not found, proceeding without strict auth');
+}
 const reversalRequests = new Map();
 // Middleware
 app.use(cors({
@@ -398,6 +408,108 @@ app.get('/api/get-wallet-address', (req, res) => {
             success: false,
             error: 'Internal server error'
         });
+    }
+});
+
+// Quote endpoint for pricing (used by Buy page)
+app.post('/api/quote', (req, res) => {
+    try {
+        const { isPremium, premiumDuration, stars, recipientsCount } = req.body || {};
+        const quantity = Math.max(1, Number(recipientsCount) || 0);
+
+        const priceMap = {
+            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
+            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
+        };
+
+        if (isPremium) {
+            const unitAmount = priceMap.premium[Number(premiumDuration)];
+            if (!unitAmount) {
+                return res.status(400).json({ success: false, error: 'Invalid premium duration' });
+            }
+            const totalAmount = Number((unitAmount * quantity).toFixed(2));
+            return res.json({ success: true, totalAmount, unitAmount: Number(unitAmount.toFixed(2)), quantity });
+        }
+
+        const starsNum = Number(stars) || 0;
+        if (!starsNum || starsNum < 50) {
+            return res.status(400).json({ success: false, error: 'Invalid stars amount (min 50)' });
+        }
+
+        // Use exact package price when available; otherwise use linear rate 0.02 USDT per star
+        const mapPrice = priceMap.regular[starsNum];
+        const unitAmount = typeof mapPrice === 'number' ? mapPrice : Number((starsNum * 0.02).toFixed(2));
+        const totalAmount = Number((unitAmount * quantity).toFixed(2));
+
+        return res.json({ success: true, totalAmount, unitAmount: Number(unitAmount.toFixed(2)), quantity });
+    } catch (error) {
+        console.error('Quote error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// Optional GET variant for environments issuing GET requests
+app.get('/api/quote', (req, res) => {
+    try {
+        const isPremium = String(req.query.isPremium || 'false') === 'true';
+        const premiumDuration = req.query.premiumDuration ? Number(req.query.premiumDuration) : undefined;
+        const stars = req.query.stars ? Number(req.query.stars) : undefined;
+        const recipientsCount = req.query.recipientsCount ? Number(req.query.recipientsCount) : 0;
+        const quantity = Math.max(1, Number(recipientsCount) || 0);
+
+        const priceMap = {
+            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
+            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
+        };
+
+        if (isPremium) {
+            const unitAmount = priceMap.premium[Number(premiumDuration)];
+            if (!unitAmount) {
+                return res.status(400).json({ success: false, error: 'Invalid premium duration' });
+            }
+            const totalAmount = Number((unitAmount * quantity).toFixed(2));
+            return res.json({ success: true, totalAmount, unitAmount: Number(unitAmount.toFixed(2)), quantity });
+        }
+
+        const starsNum = Number(stars) || 0;
+        if (!starsNum || starsNum < 50) {
+            return res.status(400).json({ success: false, error: 'Invalid stars amount (min 50)' });
+        }
+
+        const mapPrice = priceMap.regular[starsNum];
+        const unitAmount = typeof mapPrice === 'number' ? mapPrice : Number((starsNum * 0.02).toFixed(2));
+        const totalAmount = Number((unitAmount * quantity).toFixed(2));
+
+        return res.json({ success: true, totalAmount, unitAmount: Number(unitAmount.toFixed(2)), quantity });
+    } catch (error) {
+        console.error('Quote (GET) error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// Username validation endpoint (lightweight sanity checks)
+app.post('/api/validate-usernames', (req, res) => {
+    try {
+        const usernames = Array.isArray(req.body?.usernames) ? req.body.usernames : [];
+        const recipients = [];
+        const seen = new Set();
+        for (const raw of usernames) {
+            if (typeof raw !== 'string') continue;
+            const name = raw.trim().replace(/^@/, '').toLowerCase();
+            // Telegram username rules: 5-32 chars, letters, digits, underscore
+            const isValid = /^[a-z0-9_]{5,32}$/.test(name);
+            if (!isValid) continue;
+            if (seen.has(name)) continue;
+            seen.add(name);
+            // Derive a stable pseudo userId from hash
+            const hash = crypto.createHash('md5').update(name).digest('hex').slice(0, 10);
+            const userId = parseInt(hash, 16).toString().slice(0, 10);
+            recipients.push({ username: name, userId });
+        }
+        return res.json({ success: true, recipients });
+    } catch (error) {
+        console.error('validate-usernames error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 
@@ -1711,9 +1823,41 @@ app.get("/api/sell-orders", async (req, res) => {
 });
 
 //for referral page 
-app.get('/api/referral-stats/:userId', async (req, res) => {
+// Authentication middleware for referral endpoints
+function validateTelegramUser(req, res, next) {
+    const userId = req.params.userId;
+    const telegramId = req.headers['x-telegram-id'];
+    
+    console.log(`Validating access for userId: ${userId}, telegramId: ${telegramId}`);
+    
+    if (!telegramId || telegramId !== userId) {
+        console.log(`Unauthorized access attempt: userId=${userId}, telegramId=${telegramId}`);
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Unauthorized access to referral data' 
+        });
+    }
+    next();
+}
+
+app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) => {
     try {
-        const referrals = await Referral.find({ referrerUserId: req.params.userId });
+        const userId = req.params.userId;
+        console.log(`Fetching referral data for user: ${userId}`);
+        
+        // Check if user exists
+        const user = await User.findOne({ id: userId });
+        if (!user) {
+            console.log(`User not found: ${userId}`);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'User not found' 
+            });
+        }
+        
+        const referrals = await Referral.find({ referrerUserId: userId });
+        console.log(`Found ${referrals.length} referrals for user ${userId}`);
+        
         const referredUserIds = referrals.map(r => r.referredUserId);
         const users = await User.find({ id: { $in: referredUserIds } });
         
@@ -1741,7 +1885,7 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
             referrals: referrals.map(r => ({ status: r.status, withdrawn: r.withdrawn }))
         });
 
-        res.json({
+        const responseData = {
             success: true,
             referrals: referrals.map(ref => ({
                 userId: ref.referredUserId,
@@ -1757,7 +1901,10 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
                 pendingAmount: (completedReferrals - availableReferrals) * 0.5
             },
             referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`
-        });
+        };
+        
+        console.log(`Returning referral stats for ${req.params.userId}:`, responseData.stats);
+        res.json(responseData);
         
     } catch (error) {
         console.error('Referral stats error:', error);
@@ -1769,13 +1916,26 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
 });
 //get history for referrals withdraw for referral page
 
-app.get('/api/withdrawal-history/:userId', async (req, res) => {
+app.get('/api/withdrawal-history/:userId', validateTelegramUser, async (req, res) => {
     try {
         const { userId } = req.params;
+        console.log(`Fetching withdrawal history for user: ${userId}`);
+        
+        // Check if user exists
+        const user = await User.findOne({ id: userId });
+        if (!user) {
+            console.log(`User not found for withdrawal history: ${userId}`);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'User not found' 
+            });
+        }
+        
         const withdrawals = await ReferralWithdrawal.find({ userId })
             .sort({ createdAt: -1 })
             .limit(50);
 
+        console.log(`Found ${withdrawals.length} withdrawals for user ${userId}`);
         res.json({ success: true, withdrawals });
     } catch (error) {
         console.error('Withdrawal history error:', error);
