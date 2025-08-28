@@ -2513,7 +2513,14 @@ async function handlePurchase(item) {
         const nanoTonAmount = Math.round(tonAmount * 1e9);
         
         // Get payment address
-        const walletResponse = await API.getWalletAddress();
+        console.log('API class available:', typeof API);
+        console.log('window.API available:', !!window.API);
+        console.log('window.API methods:', window.API ? Object.getOwnPropertyNames(Object.getPrototypeOf(window.API)) : 'N/A');
+        
+        if (typeof API === 'undefined' || !window.API) {
+            throw new Error('API not available');
+        }
+        const walletResponse = await window.API.getWalletAddress();
         if (!walletResponse.success || !walletResponse.walletAddress) {
             throw new Error('Failed to get payment address');
         }
@@ -2546,7 +2553,7 @@ async function handlePurchase(item) {
                 recipients: recipients.map(r => r.username)
             };
             
-            const response = await API.createOrder(orderData);
+            const response = await window.API.createOrder(orderData);
             
             if (response && response.success) {
                 // Close loading before showing success
