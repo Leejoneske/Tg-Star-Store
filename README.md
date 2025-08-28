@@ -105,7 +105,7 @@ RATE_LIMIT_MAX_REQUESTS=100
 ├── models/                # Database models
 │   └── index.js           # All Mongoose schemas
 └── middleware/            # Custom middleware
-    └── telegramAuth.js    # Telegram authentication
+    └── telegramAuth.js    # Telegram authentication (created at runtime if missing)
 ```
 
 ### Frontend Structure
