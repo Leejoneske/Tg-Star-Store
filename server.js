@@ -1690,9 +1690,41 @@ app.get("/api/sell-orders", async (req, res) => {
 });
 
 //for referral page 
-app.get('/api/referral-stats/:userId', async (req, res) => {
+// Authentication middleware for referral endpoints
+function validateTelegramUser(req, res, next) {
+    const userId = req.params.userId;
+    const telegramId = req.headers['x-telegram-id'];
+    
+    console.log(`Validating access for userId: ${userId}, telegramId: ${telegramId}`);
+    
+    if (!telegramId || telegramId !== userId) {
+        console.log(`Unauthorized access attempt: userId=${userId}, telegramId=${telegramId}`);
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Unauthorized access to referral data' 
+        });
+    }
+    next();
+}
+
+app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) => {
     try {
-        const referrals = await Referral.find({ referrerUserId: req.params.userId });
+        const userId = req.params.userId;
+        console.log(`Fetching referral data for user: ${userId}`);
+        
+        // Check if user exists
+        const user = await User.findOne({ id: userId });
+        if (!user) {
+            console.log(`User not found: ${userId}`);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'User not found' 
+            });
+        }
+        
+        const referrals = await Referral.find({ referrerUserId: userId });
+        console.log(`Found ${referrals.length} referrals for user ${userId}`);
+        
         const referredUserIds = referrals.map(r => r.referredUserId);
         const users = await User.find({ id: { $in: referredUserIds } });
         
@@ -1703,7 +1735,7 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
         
         // Get completed/active AND non-withdrawn referrals
         const availableReferrals = await Referral.find({
-            referrerUserId: req.params.userId,
+            referrerUserId: userId,
             status: { $in: ['completed', 'active'] },
             withdrawn: { $ne: true } // Changed from false to $ne: true for better handling
         }).countDocuments();
@@ -1713,7 +1745,7 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
             ['completed', 'active'].includes(r.status)
         ).length;
 
-        res.json({
+        const responseData = {
             success: true,
             referrals: referrals.map(ref => ({
                 userId: ref.referredUserId,
@@ -1728,8 +1760,11 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
                 referralsCount: totalReferrals,
                 pendingAmount: (totalReferrals - completedReferrals) * 0.5
             },
-            referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`
-        });
+            referralLink: `https://t.me/TgStarStore_bot?start=ref_${userId}`
+        };
+        
+        console.log(`Returning referral stats for ${userId}:`, responseData.stats);
+        res.json(responseData);
         
     } catch (error) {
         console.error('Referral stats error:', error);
@@ -1741,13 +1776,26 @@ app.get('/api/referral-stats/:userId', async (req, res) => {
 });
 //get history for referrals withdraw for referral page
 
-app.get('/api/withdrawal-history/:userId', async (req, res) => {
+app.get('/api/withdrawal-history/:userId', validateTelegramUser, async (req, res) => {
     try {
         const { userId } = req.params;
+        console.log(`Fetching withdrawal history for user: ${userId}`);
+        
+        // Check if user exists
+        const user = await User.findOne({ id: userId });
+        if (!user) {
+            console.log(`User not found for withdrawal history: ${userId}`);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'User not found' 
+            });
+        }
+        
         const withdrawals = await ReferralWithdrawal.find({ userId })
             .sort({ createdAt: -1 })
             .limit(50);
 
+        console.log(`Found ${withdrawals.length} withdrawals for user ${userId}`);
         res.json({ success: true, withdrawals });
     } catch (error) {
         console.error('Withdrawal history error:', error);
