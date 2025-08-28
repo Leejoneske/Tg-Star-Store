@@ -1878,9 +1878,21 @@ app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) =>
             r.status === 'completed'
         ).length;
         
+        // Get pending referrals (not yet completed)
+        const pendingReferrals = referrals.filter(r => 
+            r.status === 'pending'
+        ).length;
+        
+        // Get active referrals (in progress)
+        const activeReferrals = referrals.filter(r => 
+            r.status === 'active'
+        ).length;
+        
         console.log(`Referral stats for user ${req.params.userId}:`, {
             totalReferrals,
             completedReferrals,
+            activeReferrals,
+            pendingReferrals,
             availableReferrals,
             referrals: referrals.map(r => ({ status: r.status, withdrawn: r.withdrawn }))
         });
@@ -1898,7 +1910,9 @@ app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) =>
                 availableBalance: availableReferrals * 0.5,
                 totalEarned: completedReferrals * 0.5,
                 referralsCount: totalReferrals,
-                pendingAmount: (completedReferrals - availableReferrals) * 0.5
+                pendingAmount: (completedReferrals - availableReferrals) * 0.5,
+                pendingReferrals: pendingReferrals,
+                activeReferrals: activeReferrals
             },
             referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`
         };

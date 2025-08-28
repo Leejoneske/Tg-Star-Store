@@ -238,6 +238,24 @@
                         <div class="font-semibold" id="pendingAmount">0.00 USDT</div>
                     </div>
                 </div>
+                
+                <!-- Referral Status Section -->
+                <div class="mt-4 p-4 bg-gray-50 rounded-lg" id="referralStatusSection" style="display: none;">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Referral Progress</h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-blue-600" id="pendingReferralsCount">0</div>
+                            <div class="text-xs text-gray-500">Pending</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-green-600" id="activeReferralsCount">0</div>
+                            <div class="text-xs text-gray-500">Active</div>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-xs text-gray-600 text-center">
+                        Referrals become active when users reach 100+ stars or activate premium
+                    </div>
+                </div>
             </div>
 
             <div class="bg-white rounded-xl p-5 mb-6 border border-gray-100 shadow-sm">
@@ -287,10 +305,15 @@
                     <svg class="w-5 h-5 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <span data-translate="referralInfo">
-                        You will earn 0.5 USDT for each successful referral. 
-                        Earnings can be withdrawn to your TON wallet.
-                    </span>
+                    <div>
+                        <div class="mb-2">
+                            <strong>How it works:</strong> You will earn 0.5 USDT for each successful referral. 
+                            Earnings can be withdrawn to your TON wallet.
+                        </div>
+                        <div class="text-xs opacity-80">
+                            Referrals become active when users reach 100+ stars or activate premium subscription.
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -537,13 +560,17 @@ async function loadReferralData() {
             availableBalance: parseFloat(data.stats?.availableBalance || 0),
             totalEarned: parseFloat(data.stats?.totalEarned || 0),
             referralsCount: parseInt(data.stats?.referralsCount || 0),
-            pendingAmount: parseFloat(data.stats?.pendingAmount || 0)
+            pendingAmount: parseFloat(data.stats?.pendingAmount || 0),
+            pendingReferrals: parseInt(data.stats?.pendingReferrals || 0),
+            activeReferrals: parseInt(data.stats?.activeReferrals || 0)
         };
         
-        // Ensure referralsCount is never undefined or null
-        if (isNaN(state.stats.referralsCount)) {
-            state.stats.referralsCount = 0;
-        }
+        // Ensure all numeric values are valid
+        Object.keys(state.stats).forEach(key => {
+            if (isNaN(state.stats[key])) {
+                state.stats[key] = 0;
+            }
+        });
         state.referralLink = data.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
 
         console.log('Parsed stats:', state.stats);
@@ -557,7 +584,9 @@ async function loadReferralData() {
             availableBalance: 0,
             totalEarned: 0,
             referralsCount: 0,
-            pendingAmount: 0
+            pendingAmount: 0,
+            pendingReferrals: 0,
+            activeReferrals: 0
         };
         state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
         updateUI();
@@ -617,6 +646,21 @@ function updateUI() {
     if (referralsCountEl) referralsCountEl.textContent = state.stats.referralsCount;
     if (pendingAmountEl) pendingAmountEl.textContent = `${state.stats.pendingAmount.toFixed(2)} USDT`;
     if (referralLinkDisplayEl) referralLinkDisplayEl.textContent = state.referralLink;
+    
+    // Update referral status section
+    const referralStatusSection = document.getElementById('referralStatusSection');
+    const pendingReferralsCountEl = document.getElementById('pendingReferralsCount');
+    const activeReferralsCountEl = document.getElementById('activeReferralsCount');
+    
+    if (referralStatusSection && pendingReferralsCountEl && activeReferralsCountEl) {
+        if (state.stats.referralsCount > 0) {
+            referralStatusSection.style.display = 'block';
+            pendingReferralsCountEl.textContent = state.stats.pendingReferrals || 0;
+            activeReferralsCountEl.textContent = state.stats.activeReferrals || 0;
+        } else {
+            referralStatusSection.style.display = 'none';
+        }
+    }
     
     updateReferralsList();
     updateWithdrawalsList();
