@@ -198,6 +198,28 @@
     max-width: 100px; 
 }
 
+/* Disabled package button styles */
+.buy-button:disabled {
+    background: linear-gradient(135deg, #9ca3af, #6b7280);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.buy-button:disabled:hover {
+    background: linear-gradient(135deg, #9ca3af, #6b7280);
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.buy-button.opacity-50 {
+    opacity: 0.5;
+}
+
+.buy-button.cursor-not-allowed {
+    cursor: not-allowed;
+}
+
     .logo-header {
         font-size: 24px;
         font-weight: bold;
@@ -1737,10 +1759,27 @@ function initBuyButtons() {
     document.querySelectorAll('.buy-button').forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
+            
+            // Check if button is disabled
+            if (button.disabled) {
+                showErrorToUser('This package is not available for the selected purchase type');
+                return;
+            }
+            
             const itemData = this.getAttribute('data-item');
             if (itemData) {
                 try {
                     const item = JSON.parse(itemData);
+                    
+                    // Additional validation for "buy for others"
+                    if (item.stars && item.stars < 50) {
+                        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+                        if (buyForValue === 'others') {
+                            showErrorToUser('Packages under 50 stars are only available for self-purchase');
+                            return;
+                        }
+                    }
+                    
                     handlePurchase(item);
                 } catch (error) {
                     console.error('Purchase parse error:', error);
