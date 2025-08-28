@@ -1866,33 +1866,21 @@ app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) =>
 
         const totalReferrals = referrals.length;
         
-        // Get completed referrals that are available for withdrawal (not withdrawn)
+        // Get completed/active AND non-withdrawn referrals
         const availableReferrals = await Referral.find({
             referrerUserId: req.params.userId,
-            status: 'completed',
+            status: { $in: ['completed', 'active'] },
             withdrawn: { $ne: true }
         }).countDocuments();
 
-        // Get all completed referrals (regardless of withdrawal status)
+        // Get all completed/active (regardless of withdrawal status)
         const completedReferrals = referrals.filter(r => 
-            r.status === 'completed'
-        ).length;
-        
-        // Get pending referrals (not yet completed)
-        const pendingReferrals = referrals.filter(r => 
-            r.status === 'pending'
-        ).length;
-        
-        // Get active referrals (in progress)
-        const activeReferrals = referrals.filter(r => 
-            r.status === 'active'
+            ['completed', 'active'].includes(r.status)
         ).length;
         
         console.log(`Referral stats for user ${req.params.userId}:`, {
             totalReferrals,
             completedReferrals,
-            activeReferrals,
-            pendingReferrals,
             availableReferrals,
             referrals: referrals.map(r => ({ status: r.status, withdrawn: r.withdrawn }))
         });
@@ -1910,9 +1898,7 @@ app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) =>
                 availableBalance: availableReferrals * 0.5,
                 totalEarned: completedReferrals * 0.5,
                 referralsCount: totalReferrals,
-                pendingAmount: (completedReferrals - availableReferrals) * 0.5,
-                pendingReferrals: pendingReferrals,
-                activeReferrals: activeReferrals
+                pendingAmount: (completedReferrals - availableReferrals) * 0.5
             },
             referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`
         };
