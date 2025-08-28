@@ -574,7 +574,7 @@
                     <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
                         <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="customStars">Custom Stars</div>
                         <div class="flex items-center gap-2">
-                            <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50)" class="flex-1 px-3 py-2 border rounded-md text-sm" data-translate-placeholder="enterStars" />
+                            <input id="customStarsInput" type="number" min="1" step="1" placeholder="Enter stars (min 1 for self, min 50 for others)" class="flex-1 px-3 py-2 border rounded-md text-sm" data-translate-placeholder="enterStars" />
                             <button id="buyCustomStars" class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-indigo-600 text-white" data-translate="buy">Buy</button>
                         </div>
                         <div class="text-xs text-gray-500 mt-1" data-translate="ifSetOverrides">If set, this overrides the package selection.</div>
@@ -590,7 +590,7 @@
                             <div class="package-option stars-package">
                                 <div class="stars-amount">15 Stars</div>
                                 <div class="usdt-price">0.35 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Gift</button>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm package-btn" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Now</button>
                                 <div class="mt-2">
                         
                                     <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
@@ -599,7 +599,7 @@
                             <div class="package-option stars-package">
                                 <div class="stars-amount">25 Stars</div>
                                 <div class="usdt-price">0.60 USDT</div>
-                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Gift</button>
+                                <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm package-btn" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Now</button>
                                 <div class="mt-2">
                                     <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
                                 </div>
@@ -1846,6 +1846,43 @@ function initRecipientsUI() {
     }
     wireToggle('buyForStars', 'recipientsContainer', 'addRecipientBtn');
     wireToggle('buyForPremium', 'recipientsContainerPremium', 'addRecipientBtnPremium');
+    
+    // Update package button text and validation based on "buy for" selection
+    function updatePackageButtons() {
+        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+        const packageButtons = document.querySelectorAll('.package-btn');
+        
+        packageButtons.forEach(btn => {
+            const itemData = JSON.parse(btn.getAttribute('data-item'));
+            const stars = itemData.stars;
+            
+            if (buyForValue === 'others') {
+                // For buying for others, only allow packages >= 50 stars
+                if (stars < 50) {
+                    btn.disabled = true;
+                    btn.textContent = 'Min 50 for others';
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'Buy Gift';
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            } else {
+                // For self-purchase, allow all packages
+                btn.disabled = false;
+                btn.textContent = 'Buy Now';
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+    }
+    
+    // Initial update
+    updatePackageButtons();
+    
+    // Update when "buy for" selection changes
+    document.querySelectorAll('input[name="buyForStars"]').forEach(radio => {
+        radio.addEventListener('change', updatePackageButtons);
+    });
 }
 
 function collectRecipients(containerId) {
@@ -2031,10 +2068,26 @@ function initCustomStars() {
         const distributionDiv = document.getElementById('starsDistribution');
         const distributionList = document.getElementById('distributionList');
         
-        if (!val || val < 50) {
-            quoteText.textContent = '';
-            if (distributionDiv) distributionDiv.style.display = 'none';
-            return;
+        // Check minimum stars based on purchase type
+        if (buyForValue === 'others') {
+            // For buying for others, minimum 50 stars per recipient
+            if (!val || val < 50 * recipientsCount) {
+                if (recipientsCount > 0) {
+                    const minStars = 50 * recipientsCount;
+                    quoteText.textContent = `⚠️ Need at least ${minStars} stars for ${recipientsCount} recipient(s)`;
+                } else {
+                    quoteText.textContent = '';
+                }
+                if (distributionDiv) distributionDiv.style.display = 'none';
+                return;
+            }
+        } else {
+            // For self-purchase, minimum 1 star
+            if (!val || val < 1) {
+                quoteText.textContent = '';
+                if (distributionDiv) distributionDiv.style.display = 'none';
+                return;
+            }
         }
         
         // Show distribution for multiple recipients
@@ -2042,29 +2095,20 @@ function initCustomStars() {
             const starsPerRecipient = Math.floor(val / recipientsCount);
             const remainingStars = val % recipientsCount;
             
-            if (starsPerRecipient >= 50) {
-                // Show distribution
-                if (distributionDiv) distributionDiv.style.display = 'block';
-                if (distributionList) {
-                    let distributionHTML = '';
-                    recipients.forEach((recipient, index) => {
-                        const starsForThisRecipient = starsPerRecipient + (index < remainingStars ? 1 : 0);
-                        distributionHTML += `
-                            <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-600">@${recipient.username}:</span>
-                                <span class="font-semibold text-indigo-600">${starsForThisRecipient} stars</span>
-                            </div>
-                        `;
-                    });
-                    distributionList.innerHTML = distributionHTML;
-                }
-            } else {
-                // Not enough stars per recipient
-                if (distributionDiv) distributionDiv.style.display = 'none';
-                const minStars = 50 * recipientsCount;
-                const translatedText = TranslationUtils.format('needAtLeastStars', {stars: minStars, count: recipientsCount});
-                quoteText.textContent = `⚠️ ${translatedText}`;
-                return;
+            // Show distribution
+            if (distributionDiv) distributionDiv.style.display = 'block';
+            if (distributionList) {
+                let distributionHTML = '';
+                recipients.forEach((recipient, index) => {
+                    const starsForThisRecipient = starsPerRecipient + (index < remainingStars ? 1 : 0);
+                    distributionHTML += `
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-gray-600">@${recipient.username}:</span>
+                            <span class="font-semibold text-indigo-600">${starsForThisRecipient} stars</span>
+                        </div>
+                    `;
+                });
+                distributionList.innerHTML = distributionHTML;
             }
         } else {
             // Hide distribution for single recipient or no recipients
@@ -2111,16 +2155,24 @@ function initCustomStars() {
         e.preventDefault();
         // Validate input and recipients then proceed to buy using custom stars
         const val = Number(input.value || 0);
-        if (!val || val < 50) {
-            showErrorToUser('Please enter at least 50 stars');
-            return;
-        }
         const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+        
         if (buyForValue === 'others') {
+            // For buying for others, minimum 50 stars per recipient
             const validation = await validateRecipients('recipientsContainer');
             const recipients = validation?.recipients || [];
             if (recipients.length === 0) {
                 showErrorToUser('Please add at least one valid recipient');
+                return;
+            }
+            if (!val || val < 50 * recipients.length) {
+                showErrorToUser(`Please enter at least ${50 * recipients.length} stars for ${recipients.length} recipient(s)`);
+                return;
+            }
+        } else {
+            // For self-purchase, minimum 1 star
+            if (!val || val < 1) {
+                showErrorToUser('Please enter at least 1 star');
                 return;
             }
         }
