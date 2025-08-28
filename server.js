@@ -470,6 +470,32 @@ app.get('/api/quote', (req, res) => {
     }
 });
 
+// Username validation endpoint (lightweight sanity checks)
+app.post('/api/validate-usernames', (req, res) => {
+    try {
+        const usernames = Array.isArray(req.body?.usernames) ? req.body.usernames : [];
+        const recipients = [];
+        const seen = new Set();
+        for (const raw of usernames) {
+            if (typeof raw !== 'string') continue;
+            const name = raw.trim().replace(/^@/, '').toLowerCase();
+            // Telegram username rules: 5-32 chars, letters, digits, underscore
+            const isValid = /^[a-z0-9_]{5,32}$/.test(name);
+            if (!isValid) continue;
+            if (seen.has(name)) continue;
+            seen.add(name);
+            // Derive a stable pseudo userId from hash
+            const hash = crypto.createHash('md5').update(name).digest('hex').slice(0, 10);
+            const userId = parseInt(hash, 16).toString().slice(0, 10);
+            recipients.push({ username: name, userId });
+        }
+        return res.json({ success: true, recipients });
+    } catch (error) {
+        console.error('validate-usernames error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 app.post('/api/orders/create', async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration } = req.body;
