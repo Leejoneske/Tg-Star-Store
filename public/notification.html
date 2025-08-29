@@ -54,12 +54,8 @@
 
   // Get user ID from Telegram WebApp or localStorage
   function getCurrentUserId() {
-    if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
-      return window.Telegram.WebApp.initDataUnsafe.user.id.toString();
-    }
-    
-    // Fallback to localStorage or URL parameter
-    return localStorage.getItem('userId') || new URLSearchParams(window.location.search).get('userId');
+    // Client no longer sends userId; server derives from auth.
+    return window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() || localStorage.getItem('userId');
   }
 
   // Format timestamp
@@ -143,7 +139,7 @@
     }
 
     try {
-      const response = await fetch(`/api/notifications?userId=${currentUserId}&limit=10&skip=${page * 10}`, {
+      const response = await fetch(`/api/notifications?limit=10&skip=${page * 10}`, {
         headers: {
           'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
           'x-telegram-id': currentUserId,
@@ -183,7 +179,7 @@
           'x-telegram-id': currentUserId,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: currentUserId })
+        body: JSON.stringify({})
       });
 
       if (response.ok) {
@@ -216,7 +212,7 @@
           'x-telegram-id': currentUserId,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: currentUserId })
+        body: JSON.stringify({})
       });
 
       if (response.ok) {
@@ -241,7 +237,7 @@
   async function updateUnreadCount(count = null) {
     if (count === null) {
       try {
-        const response = await fetch(`/api/notifications/unread-count?userId=${currentUserId}`, {
+        const response = await fetch(`/api/notifications/unread-count`, {
           headers: {
             'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
             'x-telegram-id': currentUserId,

@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
@@ -41,6 +40,19 @@ try {
     isTelegramUser = mod.isTelegramUser || isTelegramUser;
 } catch (e) {
     console.warn('telegramAuth middleware not found, proceeding without strict auth');
+    // Lightweight local/dev fallback: derive user from x-telegram-id header
+    requireTelegramAuth = (req, res, next) => {
+        const telegramIdHeader = req.headers['x-telegram-id'];
+        if (telegramIdHeader) {
+            req.user = { id: telegramIdHeader.toString(), isAdmin: Array.isArray(adminIds) && adminIds.includes(telegramIdHeader.toString()) };
+            return next();
+        }
+        if (process.env.NODE_ENV === 'production') {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        req.user = { id: 'dev-user', isAdmin: false };
+        next();
+    };
 }
 const reversalRequests = new Map();
 // Middleware
@@ -68,7 +80,7 @@ app.use(cors({
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-telegram-id']
 }));
 app.use(express.json());
 app.use(bodyParser.json());
@@ -329,50 +341,25 @@ const warningSchema = new mongoose.Schema({
     autoRemove: { type: Boolean, default: false }
 });
 
-const notificationSchema = new mongoose.Schema({
-    userId: {
-        type: String,
-        default: 'all',
-        index: true // Add index for better performance
-    },
-    title: {
-        type: String,
-        required: true,
-        default: 'Notification'
-    },
-    message: {
-        type: String,
-        required: true
-    },
-    actionUrl: String, // Renamed from 'url' for clarity
-    icon: {
-        type: String,
-        default: 'fa-bell' // FontAwesome class expected by frontend
-    },
-    timestamp: {
-        type: Date,
-        default: Date.now,
-        index: true // Index for sorting
-    },
-    isGlobal: {
-        type: Boolean,
-        default: false
-    },
-    read: {
-        type: Boolean,
-        default: false,
-        index: true
-    },
-    createdBy: {
-        type: String,
-        default: 'system'
-    },
-    priority: {
-        type: Number,
-        default: 0, // 0 = normal, 1 = important, 2 = urgent
-        min: 0,
-        max: 2
-    }
+// New notification template (content & targeting)
+const notificationTemplateSchema = new mongoose.Schema({
+    title: { type: String, required: true, default: 'Notification' },
+    message: { type: String, required: true },
+    actionUrl: { type: String },
+    icon: { type: String, default: 'fa-bell' },
+    priority: { type: Number, default: 0, min: 0, max: 2 },
+    audience: { type: String, enum: ['global', 'user'], default: 'global', index: true },
+    targetUserId: { type: String, index: true },
+    createdBy: { type: String, default: 'system' },
+    createdAt: { type: Date, default: Date.now, index: true }
+});
+
+// Per-user notification state
+const userNotificationSchema = new mongoose.Schema({
+    userId: { type: String, index: true, required: true },
+    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'NotificationTemplate', index: true, required: true },
+    read: { type: Boolean, default: false, index: true },
+    createdAt: { type: Date, default: Date.now, index: true }
 });
 
 const stickerSchema = new mongoose.Schema({
@@ -388,7 +375,8 @@ const stickerSchema = new mongoose.Schema({
 });
 
 const Sticker = mongoose.model('Sticker', stickerSchema);
-const Notification = mongoose.model('Notification', notificationSchema);
+const NotificationTemplate = mongoose.model('NotificationTemplate', notificationTemplateSchema);
+const UserNotification = mongoose.model('UserNotification', userNotificationSchema);
 const Warning = mongoose.model('Warning', warningSchema);
 const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
@@ -2547,54 +2535,38 @@ bot.onText(/\/broadcast/, async (msg) => {
 });
 
 // Enhanced notification fetching with pagination and unread count
-app.get('/api/notifications', async (req, res) => {
+app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
     try {
-        const { userId, limit = 20, skip = 0 } = req.query;
-        
-        // Base query for notifications visible to this user
-        const query = {
-            $or: [
-                { userId: 'all' },
-                { isGlobal: true }
-            ]
-        };
+        const { limit = 20, skip = 0 } = req.query;
+        const userId = req.user.id;
 
-        // Add user-specific notifications if userId is provided and not anonymous
-        if (userId && userId !== 'anonymous') {
-            query.$or.push({ userId });
-        }
-
-        // Get notifications with pagination
-        const notifications = await Notification.find(query)
-            .sort({ priority: -1, timestamp: -1 }) // Sort by priority then time
+        const userNotifications = await UserNotification.find({ userId })
+            .sort({ createdAt: -1 })
             .skip(parseInt(skip))
             .limit(parseInt(limit))
             .lean();
 
-        // Get unread count for this user
-        const unreadCount = await Notification.countDocuments({
-            ...query,
-            read: false
+        const templateIds = userNotifications.map(n => n.templateId);
+        const templates = await NotificationTemplate.find({ _id: { $in: templateIds } }).lean();
+        const templateMap = new Map(templates.map(t => [t._id.toString(), t]));
+
+        const formattedNotifications = userNotifications.map(n => {
+            const t = templateMap.get(n.templateId.toString());
+            return {
+                id: n._id.toString(),
+                title: t?.title || 'Notification',
+                message: t?.message || '',
+                actionUrl: t?.actionUrl,
+                icon: t?.icon || 'fa-bell',
+                createdAt: n.createdAt,
+                read: n.read,
+                priority: t?.priority ?? 0
+            };
         });
 
-        // Format for frontend
-        const formattedNotifications = notifications.map(notification => ({
-            id: notification._id.toString(),
-            title: notification.title,
-            message: notification.message,
-            actionUrl: notification.actionUrl,
-            icon: notification.icon,
-            createdAt: notification.timestamp,
-            read: notification.read,
-            isGlobal: notification.isGlobal,
-            priority: notification.priority
-        }));
+        const unreadCount = await UserNotification.countDocuments({ userId, read: false });
 
-        res.json({
-            notifications: formattedNotifications,
-            unreadCount,
-            totalCount: await Notification.countDocuments(query)
-        });
+        res.json({ notifications: formattedNotifications, unreadCount, totalCount: await UserNotification.countDocuments({ userId }) });
     } catch (error) {
         console.error('Error fetching notifications:', error);
         res.status(500).json({ error: "Failed to fetch notifications" });
@@ -2602,24 +2574,10 @@ app.get('/api/notifications', async (req, res) => {
 });
 
 // Unread notifications count endpoint to support frontend polling
-app.get('/api/notifications/unread-count', async (req, res) => {
+app.get('/api/notifications/unread-count', requireTelegramAuth, async (req, res) => {
     try {
-        const { userId } = req.query;
-
-        const baseQuery = {
-            read: false,
-            $or: [
-                { userId: 'all' },
-                { isGlobal: true }
-            ]
-        };
-
-        if (userId && userId !== 'anonymous') {
-            baseQuery.$or.push({ userId });
-        }
-
-        const unreadCount = await Notification.countDocuments(baseQuery);
-
+        const userId = req.user.id;
+        const unreadCount = await UserNotification.countDocuments({ userId, read: false });
         res.json({ unreadCount });
     } catch (error) {
         console.error('Error fetching unread notifications count:', error);
@@ -2632,31 +2590,37 @@ if (process.env.NODE_ENV !== 'production') {
     app.post('/dev/seed-notifications', async (req, res) => {
         try {
             const { userId = 'test-user', count = 3 } = req.body || {};
-            const docs = [];
+            const templates = [];
             for (let i = 0; i < Number(count) || 0; i++) {
-                docs.push({
-                    userId,
+                templates.push({
                     title: `Test Notification ${i + 1}`,
                     message: `This is a test notification #${i + 1}`,
-                    isGlobal: false,
+                    audience: 'user',
+                    targetUserId: userId,
                     priority: i % 3,
                     icon: 'fa-bell',
-                    timestamp: new Date(Date.now() - i * 60000)
                 });
             }
-            // Also add a global announcement
-            docs.push({
-                userId: 'all',
+            templates.push({
                 title: 'Global Announcement',
                 message: 'This is a global message visible to all users',
-                isGlobal: true,
+                audience: 'global',
                 priority: 1,
-                icon: 'fa-bullhorn',
-                timestamp: new Date()
+                icon: 'fa-bullhorn'
             });
 
-            const created = await Notification.insertMany(docs);
-            res.json({ success: true, created: created.length });
+            const createdTemplates = await NotificationTemplate.insertMany(templates);
+
+            // Fan out user-scoped templates to UserNotification for that user
+            const directTemplates = createdTemplates.filter(t => t.audience === 'user');
+            const userNotifs = directTemplates.map(t => ({ userId, templateId: t._id }));
+
+            // For global, just create one example user mapping to verify UI for dev user
+            const globalTemplate = createdTemplates.find(t => t.audience === 'global');
+            if (globalTemplate) userNotifs.push({ userId, templateId: globalTemplate._id });
+
+            await UserNotification.insertMany(userNotifs);
+            res.json({ success: true, createdTemplates: createdTemplates.length, createdUserNotifications: userNotifs.length });
         } catch (error) {
             console.error('Error seeding notifications:', error);
             res.status(500).json({ error: 'Failed to seed notifications' });
@@ -2665,9 +2629,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Create notification with enhanced validation
-app.post('/api/notifications', async (req, res) => {
+app.post('/api/notifications', requireTelegramAuth, async (req, res) => {
     try {
-        const { userId, title, message, actionUrl, isGlobal, priority = 0 } = req.body;
+        const { targetUserId, title, message, actionUrl, audience = 'global', priority = 0 } = req.body;
         
         // Enhanced validation
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
@@ -2679,23 +2643,22 @@ app.post('/api/notifications', async (req, res) => {
             return res.status(403).json({ error: "Unauthorized: Admin access required" });
         }
 
-        const newNotification = await Notification.create({
-            userId: isGlobal ? 'all' : userId,
+        const template = await NotificationTemplate.create({
             title: title || 'Notification',
             message: message.trim(),
             actionUrl,
-            isGlobal: !!isGlobal,
-            priority: Math.min(2, Math.max(0, parseInt(priority) || 0))
+            audience: audience === 'user' ? 'user' : 'global',
+            targetUserId: audience === 'user' ? (targetUserId || '').toString() : undefined,
+            priority: Math.min(2, Math.max(0, parseInt(priority) || 0)),
+            createdBy: req.user.id
         });
 
-        // Real-time notification would go here (WebSocket, push, etc.)
-        // notifyClients(newNotification);
+        // Fan out: for user audience, create one UserNotification for that user.
+        if (template.audience === 'user' && template.targetUserId) {
+            await UserNotification.create({ userId: template.targetUserId, templateId: template._id });
+        }
 
-        res.status(201).json({
-            id: newNotification._id,
-            success: true,
-            message: "Notification created successfully"
-        });
+        res.status(201).json({ id: template._id, success: true, message: "Notification created successfully" });
     } catch (error) {
         console.error('Error creating notification:', error);
         res.status(500).json({ error: "Failed to create notification" });
@@ -2703,26 +2666,13 @@ app.post('/api/notifications', async (req, res) => {
 });
 
 // Enhanced mark as read endpoint
-app.post('/api/notifications/:id/read', async (req, res) => {
+app.post('/api/notifications/:id/read', requireTelegramAuth, async (req, res) => {
     try {
-        const { id } = req.params;
-        const { userId } = req.body; // Needed to verify ownership
-        
-        const notification = await Notification.findById(id);
-        
-        if (!notification) {
-            return res.status(404).json({ error: "Notification not found" });
-        }
+        const { id } = req.params; // this is UserNotification id now
+        const userId = req.user.id;
 
-        // Verify user can mark this notification as read
-        if (notification.userId !== 'all' && 
-            !notification.isGlobal && 
-            notification.userId !== userId) {
-            return res.status(403).json({ error: "Unauthorized to modify this notification" });
-        }
-
-        await Notification.findByIdAndUpdate(id, { read: true });
-        
+        const updated = await UserNotification.findOneAndUpdate({ _id: id, userId }, { $set: { read: true } });
+        if (!updated) return res.status(404).json({ error: 'Notification not found' });
         res.json({ success: true });
     } catch (error) {
         console.error('Error marking notification as read:', error);
@@ -2731,36 +2681,11 @@ app.post('/api/notifications/:id/read', async (req, res) => {
 });
 
 // Optimized mark all as read
-app.post('/api/notifications/mark-all-read', async (req, res) => {
+app.post('/api/notifications/mark-all-read', requireTelegramAuth, async (req, res) => {
     try {
-        const { userId } = req.body;
-        
-        if (!userId) {
-            return res.status(400).json({ error: "User ID is required" });
-        }
-
-        const query = {
-            read: false,
-            $or: [
-                { userId: 'all' },
-                { isGlobal: true }
-            ]
-        };
-
-        // Add user-specific notifications if userId is not 'anonymous'
-        if (userId !== 'anonymous') {
-            query.$or.push({ userId });
-        }
-
-        const result = await Notification.updateMany(
-            query,
-            { $set: { read: true } }
-        );
-        
-        res.json({
-            success: true,
-            markedCount: result.modifiedCount
-        });
+        const userId = req.user.id;
+        const result = await UserNotification.updateMany({ userId, read: false }, { $set: { read: true } });
+        res.json({ success: true, markedCount: result.modifiedCount });
     } catch (error) {
         console.error('Error marking all notifications as read:', error);
         res.status(500).json({ error: "Failed to mark all notifications as read" });
@@ -2768,26 +2693,25 @@ app.post('/api/notifications/mark-all-read', async (req, res) => {
 });
 
 // Enhanced notification deletion with ownership check
-app.delete('/api/notifications/:id', async (req, res) => {
+app.delete('/api/notifications/:id', requireTelegramAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body; // For ownership verification
-        
-        const notification = await Notification.findById(id);
-        
-        if (!notification) {
-            return res.status(404).json({ error: "Notification not found" });
+        const userId = req.user.id;
+
+        // Try delete as user-owned notification first
+        const deleted = await UserNotification.findOneAndDelete({ _id: id, userId });
+        if (deleted) return res.json({ success: true });
+
+        // If not found and user is admin, allow deleting template and cascade
+        if (req.user.isAdmin) {
+            const template = await NotificationTemplate.findById(id);
+            if (!template) return res.status(404).json({ error: 'Notification not found' });
+            await NotificationTemplate.deleteOne({ _id: id });
+            await UserNotification.deleteMany({ templateId: id });
+            return res.json({ success: true, deletedTemplate: true });
         }
 
-        // Only allow deletion by admins or the recipient (for personal notifications)
-        if (!req.user?.isAdmin && 
-            (notification.isGlobal || notification.userId === 'all')) {
-            return res.status(403).json({ error: "Unauthorized to delete this notification" });
-        }
-
-        await Notification.findByIdAndDelete(id);
-        
-        res.json({ success: true });
+        return res.status(404).json({ error: 'Notification not found' });
     } catch (error) {
         console.error('Error dismissing notification:', error);
         res.status(500).json({ error: "Failed to dismiss notification" });
