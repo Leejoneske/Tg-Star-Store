@@ -238,6 +238,8 @@
                         <div class="font-semibold" id="pendingAmount">0.00 USDT</div>
                     </div>
                 </div>
+                
+
             </div>
 
             <div class="bg-white rounded-xl p-5 mb-6 border border-gray-100 shadow-sm">
@@ -416,13 +418,21 @@ const BASE_API_URL = window.location.origin + '/api';
 
 let currentLanguage = localStorage.getItem('appLanguage') || 'en';
 let userId = 'default_user_id';
-if (tgUser?.id) userId = tgUser.id.toString();
+if (tgUser?.id) {
+    userId = tgUser.id.toString();
+    console.log('Using Telegram user ID:', userId);
+}
 
+// Store referrer information if present, but don't overwrite current user's ID
+let referrerUserId = null;
 if (tgWebApp?.initData) {
     const urlParams = new URLSearchParams(tgWebApp.initData);
     const startParam = urlParams.get('start');
     if (startParam?.startsWith('ref_')) {
-        userId = startParam.split('ref_')[1] || userId;
+        referrerUserId = startParam.split('ref_')[1];
+        console.log('Referrer detected:', referrerUserId);
+        // Note: This should be handled separately for referral tracking
+        // Don't overwrite the current user's ID with the referrer's ID
     }
 }
 
@@ -493,6 +503,12 @@ function init() {
 async function loadReferralData() {
     try {
         console.log('Loading referral data for userId:', state.userId);
+        
+        // Validate we have a proper user ID
+        if (!state.userId || state.userId === 'default_user_id') {
+            throw new Error('No valid Telegram user ID available');
+        }
+        
         const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`, {
             headers: {
                 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
@@ -502,10 +518,19 @@ async function loadReferralData() {
         });
         console.log('Response status:', response.status);
         
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (response.status === 403) {
+            throw new Error('Unauthorized access to referral data');
+        }
+        if (response.status === 404) {
+            throw new Error('User not found in system');
+        }
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
         const data = await response.json();
         console.log('Received data:', data);
+        console.log('Stats from API:', data.stats);
         
         if (!data.success) throw new Error(data.error || 'Failed to load referral data');
 
@@ -513,11 +538,17 @@ async function loadReferralData() {
         state.stats = {
             availableBalance: parseFloat(data.stats?.availableBalance || 0),
             totalEarned: parseFloat(data.stats?.totalEarned || 0),
-            referralsCount: parseInt(data.stats?.totalReferrals || 0),
-            pendingAmount: parseFloat(data.stats?.pendingWithdrawals || 0)
+            referralsCount: parseInt(data.stats?.referralsCount || 0),
+            pendingAmount: parseFloat(data.stats?.pendingAmount || 0)
         };
+        
+        // Ensure referralsCount is never undefined or null
+        if (isNaN(state.stats.referralsCount)) {
+            state.stats.referralsCount = 0;
+        }
         state.referralLink = data.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
 
+        console.log('Parsed stats:', state.stats);
         console.log('Updated state:', state);
         updateUI();
         applyTranslations();
@@ -539,6 +570,12 @@ async function loadReferralData() {
 
 async function loadWithdrawalHistory() {
     try {
+        // Validate we have a proper user ID
+        if (!state.userId || state.userId === 'default_user_id') {
+            console.log('No valid user ID for withdrawal history');
+            return;
+        }
+        
         const response = await fetch(`${BASE_API_URL}/withdrawal-history/${state.userId}`, {
             headers: {
                 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
@@ -546,6 +583,15 @@ async function loadWithdrawalHistory() {
                 'Content-Type': 'application/json'
             }
         });
+        
+        if (response.status === 403) {
+            console.error('Unauthorized access to withdrawal history');
+            return;
+        }
+        if (response.status === 404) {
+            console.log('User not found for withdrawal history');
+            return;
+        }
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const data = await response.json();
@@ -560,11 +606,20 @@ async function loadWithdrawalHistory() {
 
 function updateUI() {
     console.log('Updating UI with stats:', state.stats);
-    document.getElementById('availableBalance').textContent = `${state.stats.availableBalance.toFixed(2)} USDT`;
-    document.getElementById('totalEarned').textContent = `${state.stats.totalEarned.toFixed(2)} USDT`;
-    document.getElementById('referralsCount').textContent = state.stats.referralsCount;
-    document.getElementById('pendingAmount').textContent = `${state.stats.pendingAmount.toFixed(2)} USDT`;
-    document.getElementById('referralLinkDisplay').textContent = state.referralLink;
+    
+    // Safely update each element
+    const availableBalanceEl = document.getElementById('availableBalance');
+    const totalEarnedEl = document.getElementById('totalEarned');
+    const referralsCountEl = document.getElementById('referralsCount');
+    const pendingAmountEl = document.getElementById('pendingAmount');
+    const referralLinkDisplayEl = document.getElementById('referralLinkDisplay');
+    
+    if (availableBalanceEl) availableBalanceEl.textContent = `${state.stats.availableBalance.toFixed(2)} USDT`;
+    if (totalEarnedEl) totalEarnedEl.textContent = `${state.stats.totalEarned.toFixed(2)} USDT`;
+    if (referralsCountEl) referralsCountEl.textContent = state.stats.referralsCount;
+    if (pendingAmountEl) pendingAmountEl.textContent = `${state.stats.pendingAmount.toFixed(2)} USDT`;
+    if (referralLinkDisplayEl) referralLinkDisplayEl.textContent = state.referralLink;
+    
     updateReferralsList();
     updateWithdrawalsList();
 }
