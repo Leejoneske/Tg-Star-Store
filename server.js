@@ -2627,6 +2627,43 @@ app.get('/api/notifications/unread-count', async (req, res) => {
     }
 });
 
+// Dev-only: seed sample notifications for local verification
+if (process.env.NODE_ENV !== 'production') {
+    app.post('/dev/seed-notifications', async (req, res) => {
+        try {
+            const { userId = 'test-user', count = 3 } = req.body || {};
+            const docs = [];
+            for (let i = 0; i < Number(count) || 0; i++) {
+                docs.push({
+                    userId,
+                    title: `Test Notification ${i + 1}`,
+                    message: `This is a test notification #${i + 1}`,
+                    isGlobal: false,
+                    priority: i % 3,
+                    icon: 'fa-bell',
+                    timestamp: new Date(Date.now() - i * 60000)
+                });
+            }
+            // Also add a global announcement
+            docs.push({
+                userId: 'all',
+                title: 'Global Announcement',
+                message: 'This is a global message visible to all users',
+                isGlobal: true,
+                priority: 1,
+                icon: 'fa-bullhorn',
+                timestamp: new Date()
+            });
+
+            const created = await Notification.insertMany(docs);
+            res.json({ success: true, created: created.length });
+        } catch (error) {
+            console.error('Error seeding notifications:', error);
+            res.status(500).json({ error: 'Failed to seed notifications' });
+        }
+    });
+}
+
 // Create notification with enhanced validation
 app.post('/api/notifications', async (req, res) => {
     try {
