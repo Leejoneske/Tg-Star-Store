@@ -54,6 +54,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" as="script">
@@ -110,23 +111,47 @@
     .package-option {
         border: 1px solid #e5e7eb;
         border-radius: 12px;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         background: white;
-        will-change: transform, box-shadow;
+        will-change: transform, box-shadow, border-color;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .package-option::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.02), rgba(79, 70, 229, 0.05));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
     }
 
     .package-option:hover {
         border-color: #4f46e5;
-        transform: translateY(-4px);
-        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
+        transform: translateY(-6px);
+        box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    .package-option:hover::before {
+        opacity: 1;
+    }
+    
+    .package-option:active {
+        transform: translateY(-2px);
+        transition: transform 0.1s ease;
     }
 
     .buy-button {
         background: linear-gradient(135deg, #6366f1, #4f46e5);
         color: white;
         border-radius: 10px;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         font-weight: 600;
         letter-spacing: 0.5px;
         box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
@@ -134,13 +159,100 @@
         font-size: 14px;
         border: none;
         cursor: pointer;
-        will-change: transform;
+        will-change: transform, box-shadow;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .buy-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.6s ease;
+        pointer-events: none;
     }
 
     .buy-button:hover {
         background: linear-gradient(135deg, #5054c0, #3f3aaf);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 20px -3px rgba(79, 70, 229, 0.4);
+    }
+    
+    .buy-button:hover::before {
+        left: 100%;
+    }
+    
+    .buy-button:active {
+        transform: translateY(0);
+        transition: transform 0.1s ease;
+    }
+    
+    /* Enhanced animations for purchase flow */
+    .purchase-animation {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .purchase-animation:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Smooth loading transitions */
+    .loading-spinner {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Enhanced button hover effects */
+    .btn-enhanced {
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-enhanced::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+        pointer-events: none;
+    }
+    
+    .btn-enhanced:hover::before {
+        left: 100%;
+    }
+    
+    .btn-enhanced:hover {
         transform: translateY(-1px);
-        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Smooth modal transitions */
+    .modal-smooth {
+        animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
     }
 
     #connectWallet {
@@ -558,7 +670,7 @@
                 <div class="user-info-container">
                     <div class="user-details">
                         <div class="profile-image">
-                            <img id="profilePicture" src="https://via.placeholder.com/64" alt="User Profile" class="w-full h-full object-cover">
+                            <img id="profilePicture" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIyNCIgcj0iMTIiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTggNTZDMjQgNDggNDAgNDggNTYgNTZIMThaIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=" alt="User Profile" class="w-full h-full object-cover">
                         </div>
                         <div class="text-lg font-semibold text-gray-800" id="username">@username</div>
                         <div class="text-xs text-gray-500 flex items-center gap-2" id="userIdRow"><span id="userIdText"></span><button id="copyUserIdBtn" class="px-2 py-1 text-[10px] border rounded">Copy</button></div>
@@ -2551,44 +2663,152 @@ async function handlePurchase(item) {
         }
         const totalAmountUsdt = Number(quote.totalAmount);
 
-        // Confirm modal
+        // Enhanced confirmation modal with smooth animations
         const rate = await fetchCurrentRate();
         const approxTon = rate ? (totalAmountUsdt / rate) : null;
-        const summaryLines = [];
+        
+        // Enhanced logic for stars distribution among recipients
+        let starsDisplay = '';
+        let distributionInfo = '';
+        
         if (!item.isPremium) {
             if (recipients.length > 0) {
                 const starsPerRecipient = Math.floor(Number(stars) / recipients.length);
                 const remainingStars = Number(stars) % recipients.length;
-                summaryLines.push(`Stars Package: ${Number(stars)} stars`);
-                summaryLines.push(`Distribution: ${starsPerRecipient} stars each${remainingStars > 0 ? ` (+${remainingStars} bonus stars)` : ''}`);
+                starsDisplay = `${Number(stars)} Stars`;
+                distributionInfo = `${starsPerRecipient} stars each${remainingStars > 0 ? ` (+${remainingStars} bonus stars)` : ''}`;
             } else {
-                summaryLines.push(`Stars: ${Number(stars)}`);
+                starsDisplay = `${Number(stars)} Stars`;
+                distributionInfo = '';
             }
         } else {
-            summaryLines.push(`Premium: ${item.premiumDuration} month(s)${recipients.length ? ` × ${recipients.length} recipient(s)` : ''}`);
+            starsDisplay = `${item.premiumDuration} Month(s) Premium`;
+            distributionInfo = recipients.length ? `${recipients.length} recipient(s)` : '';
         }
-        summaryLines.push(`Total: ${totalAmountUsdt} USDT${approxTon ? ` (~${approxTon.toFixed(4)} TON)` : ''}`);
-        if (recipients.length) {
-            summaryLines.push(`Recipients: ${recipients.map(r => `@${r.username}`).join(', ')}`);
-        }
+        
+        // Create a more visually appealing confirmation dialog
         const confirm = await Swal.fire({
-            title: 'Confirm Purchase',
-            html: `<div style="text-align:left;white-space:pre-line">${summaryLines.join('\n')}</div>`,
+            title: '<div class="text-2xl font-bold text-gray-800 mb-2">Confirm Purchase</div>',
+            html: `
+                <div class="text-left space-y-4">
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <span class="text-lg font-semibold text-gray-800">
+                                ${starsDisplay}
+                            </span>
+                        </div>
+                        ${distributionInfo ? `
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM16 16a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a2 2 0 012-2h8a2 2 0 012 2v1z"/>
+                                </svg>
+                                <span class="text-sm text-gray-700">${distributionInfo}</span>
+                            </div>
+                        ` : ''}
+                        ${recipients.length > 0 ? `
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM16 16a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a2 2 0 012-2h8a2 2 0 012 2v1z"/>
+                                </svg>
+                                <span class="text-sm text-gray-700">${recipients.length} recipient(s)</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-600">Total Amount:</span>
+                            <span class="text-xl font-bold text-green-600">${totalAmountUsdt} USDT</span>
+                        </div>
+                        ${approxTon ? `
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-gray-500">Estimated TON:</span>
+                                <span class="text-gray-700 font-medium">~${approxTon.toFixed(4)} TON</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    ${recipients.length ? `
+                        <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <svg class="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M8 9a3 3 0 11-6 0 3 3 0 016 0zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z"/>
+                                </svg>
+                                <span class="text-sm font-medium text-yellow-800">Recipients</span>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                ${recipients.map(r => `
+                                    <span class="px-2 py-1 bg-white rounded-full text-xs font-medium text-gray-700 border border-yellow-200">
+                                        @${r.username}
+                                    </span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Confirm',
-            cancelButtonText: 'Cancel'
+            confirmButtonText: '<div class="flex items-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Confirm Purchase</span></div>',
+            cancelButtonText: '<div class="flex items-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 18L18 6M6 6l12 12"/></svg><span>Cancel</span></div>',
+            confirmButtonColor: '#10B981',
+            cancelButtonColor: '#6B7280',
+            showClass: {
+                popup: 'animate__animated animate__fadeInDown animate__faster'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutUp animate__faster'
+            },
+            customClass: {
+                popup: 'rounded-xl shadow-2xl',
+                confirmButton: 'rounded-lg px-6 py-3 text-white font-medium transition-all duration-200 hover:scale-105',
+                cancelButton: 'rounded-lg px-6 py-3 text-gray-700 font-medium transition-all duration-200 hover:scale-105'
+            }
         });
         if (!confirm.isConfirmed) return;
 
-        // Show loading indicator
+        // Enhanced loading indicator with smooth animations
         Swal.fire({
-            title: TranslationUtils.get('processing'),
-            text: TranslationUtils.get('preparingTransaction'),
+            title: '<div class="text-xl font-semibold text-gray-800 mb-3">Processing Purchase</div>',
+            html: `
+                <div class="space-y-4">
+                    <div class="flex justify-center">
+                        <div class="relative">
+                            <div class="w-16 h-16 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <svg class="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center space-y-2">
+                        <div class="text-gray-600 font-medium">${TranslationUtils.get('processing') || 'Processing...'}</div>
+                        <div class="text-sm text-gray-500">${TranslationUtils.get('preparingTransaction') || 'Preparing your transaction'}</div>
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <div class="flex items-center space-x-2 text-sm text-blue-700">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span>Please wait while we process your payment...</span>
+                        </div>
+                    </div>
+                </div>
+            `,
             allowOutsideClick: false,
             showConfirmButton: false,
-            didOpen: () => {
-                Swal.showLoading();
+            showClass: {
+                popup: 'animate__animated animate__fadeInUp animate__faster'
+            },
+            customClass: {
+                popup: 'rounded-xl shadow-2xl',
+                htmlContainer: 'text-left'
             }
         });
         loadingShown = true;
@@ -2653,10 +2873,35 @@ async function handlePurchase(item) {
                 }
                 
                 await Swal.fire({
-                    title: TranslationUtils.get('success'),
-                    text: TranslationUtils.get('orderCreated'),
+                    title: '<div class="text-2xl font-bold text-green-600 mb-2">🎉 Success!</div>',
+                    html: `
+                        <div class="space-y-4">
+                            <div class="flex justify-center">
+                                <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                                    <svg class="w-12 h-12 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-semibold text-gray-800 mb-2">${TranslationUtils.get('orderCreated') || 'Order Created Successfully!'}</div>
+                                <div class="text-sm text-gray-600">Your purchase has been processed and confirmed.</div>
+                            </div>
+                        </div>
+                    `,
                     icon: 'success',
-                    confirmButtonText: TranslationUtils.get('ok')
+                    confirmButtonText: '<div class="flex items-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${TranslationUtils.get('ok') || 'OK'}</span></div>',
+                    confirmButtonColor: '#10B981',
+                    showClass: {
+                        popup: 'animate__animated animate__fadeInDown animate__faster'
+                    },
+                    hideClass: {
+                        popup: 'animate__animated animate__fadeOutUp animate__faster'
+                    },
+                    customClass: {
+                        popup: 'rounded-xl shadow-2xl',
+                        confirmButton: 'rounded-lg px-6 py-3 text-white font-medium transition-all duration-200 hover:scale-105'
+                    }
                 });
             } else {
                 throw new Error(response?.error || TranslationUtils.get('orderFailed'));
@@ -2688,10 +2933,35 @@ async function handlePurchase(item) {
         }
         
         await Swal.fire({
-            title: TranslationUtils.get('error'),
-            text: errorMessage,
+            title: '<div class="text-2xl font-bold text-red-600 mb-2">⚠️ Error</div>',
+            html: `
+                <div class="space-y-4">
+                    <div class="flex justify-center">
+                        <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                            <svg class="w-12 h-12 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-lg font-semibold text-gray-800 mb-2">${TranslationUtils.get('error') || 'Something went wrong'}</div>
+                        <div class="text-sm text-gray-600 max-w-sm mx-auto">${errorMessage}</div>
+                    </div>
+                </div>
+            `,
             icon: 'error',
-            confirmButtonText: TranslationUtils.get('ok')
+            confirmButtonText: '<div class="flex items-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${TranslationUtils.get('ok') || 'OK'}</span></div>',
+            confirmButtonColor: '#EF4444',
+            showClass: {
+                popup: 'animate__animated animate__fadeInDown animate__faster'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutUp animate__faster'
+            },
+            customClass: {
+                popup: 'rounded-xl shadow-2xl',
+                confirmButton: 'rounded-lg px-6 py-3 text-white font-medium transition-all duration-200 hover:scale-105'
+            }
         });
     } finally {
         if (loadingShown) {
