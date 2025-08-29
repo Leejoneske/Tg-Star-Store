@@ -309,7 +309,7 @@ const notificationSchema = new mongoose.Schema({
     actionUrl: String, // Renamed from 'url' for clarity
     icon: {
         type: String,
-        default: 'bell' // Can be 'bell', 'warning', 'success', etc.
+        default: 'fa-bell' // FontAwesome class expected by frontend
     },
     timestamp: {
         type: Date,
@@ -2560,6 +2560,32 @@ app.get('/api/notifications', async (req, res) => {
     } catch (error) {
         console.error('Error fetching notifications:', error);
         res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+});
+
+// Unread notifications count endpoint to support frontend polling
+app.get('/api/notifications/unread-count', async (req, res) => {
+    try {
+        const { userId } = req.query;
+
+        const baseQuery = {
+            read: false,
+            $or: [
+                { userId: 'all' },
+                { isGlobal: true }
+            ]
+        };
+
+        if (userId && userId !== 'anonymous') {
+            baseQuery.$or.push({ userId });
+        }
+
+        const unreadCount = await Notification.countDocuments(baseQuery);
+
+        res.json({ unreadCount });
+    } catch (error) {
+        console.error('Error fetching unread notifications count:', error);
+        res.status(500).json({ error: 'Failed to fetch unread notifications count' });
     }
 });
 
