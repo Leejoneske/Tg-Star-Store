@@ -2575,6 +2575,25 @@ async function handlePurchase(item) {
         const rate = await fetchCurrentRate();
         const approxTon = rate ? (totalAmountUsdt / rate) : null;
         
+        // Enhanced logic for stars distribution among recipients
+        let starsDisplay = '';
+        let distributionInfo = '';
+        
+        if (!item.isPremium) {
+            if (recipients.length > 0) {
+                const starsPerRecipient = Math.floor(Number(stars) / recipients.length);
+                const remainingStars = Number(stars) % recipients.length;
+                starsDisplay = `${Number(stars)} Stars`;
+                distributionInfo = `${starsPerRecipient} stars each${remainingStars > 0 ? ` (+${remainingStars} bonus stars)` : ''}`;
+            } else {
+                starsDisplay = `${Number(stars)} Stars`;
+                distributionInfo = '';
+            }
+        } else {
+            starsDisplay = `${item.premiumDuration} Month(s) Premium`;
+            distributionInfo = recipients.length ? `${recipients.length} recipient(s)` : '';
+        }
+        
         // Create a more visually appealing confirmation dialog
         const confirm = await Swal.fire({
             title: '<div class="text-2xl font-bold text-gray-800 mb-2">Confirm Purchase</div>',
@@ -2588,10 +2607,18 @@ async function handlePurchase(item) {
                                 </svg>
                             </div>
                             <span class="text-lg font-semibold text-gray-800">
-                                ${!item.isPremium ? `${Number(stars)} Stars` : `${item.premiumDuration} Month(s) Premium`}
+                                ${starsDisplay}
                             </span>
                         </div>
-                        ${recipients.length ? `
+                        ${distributionInfo ? `
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM16 16a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a2 2 0 012-2h8a2 2 0 012 2v1z"/>
+                                </svg>
+                                <span class="text-sm text-gray-700">${distributionInfo}</span>
+                            </div>
+                        ` : ''}
+                        ${recipients.length > 0 ? `
                             <div class="flex items-center space-x-2">
                                 <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM16 16a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a2 2 0 012-2h8a2 2 0 012 2v1z"/>
