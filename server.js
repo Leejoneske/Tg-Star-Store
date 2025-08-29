@@ -11,7 +11,20 @@ const fetch = require('node-fetch');
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
-const bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
+// Create Telegram bot or a stub in local/dev if no token is provided
+let bot;
+if (process.env.BOT_TOKEN) {
+  bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
+} else {
+  console.warn('BOT_TOKEN not set. Using a no-op Telegram bot stub for local/dev.');
+  bot = {
+    setWebHook: async () => Promise.resolve(),
+    sendMessage: async () => Promise.resolve({}),
+    onText: () => {},
+    on: () => {},
+    processUpdate: () => {}
+  };
+}
 const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
                    process.env.RAILWAY_PUBLIC_DOMAIN || 
                    'tg-star-store-production.up.railway.app');
@@ -60,20 +73,45 @@ app.use(cors({
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
-// Webhook setup
-bot.setWebHook(WEBHOOK_URL)
-  .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
-  .catch(err => {
-    console.error('❌ Webhook setup failed:', err.message);
+// Webhook setup (only when real bot is configured)
+if (process.env.BOT_TOKEN) {
+  bot.setWebHook(WEBHOOK_URL)
+    .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
+    .catch(err => {
+      console.error('❌ Webhook setup failed:', err.message);
+      process.exit(1);
+    });
+}
+// MongoDB connection (use in-memory server if no URI is provided)
+async function connectDatabase() {
+  if (process.env.MONGODB_URI) {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI);
+      console.log('✅ MongoDB connected successfully');
+    } catch (err) {
+      console.error('❌ MongoDB connection error:', err.message);
+      process.exit(1);
+    }
+    return;
+  }
+
+  console.warn('MONGODB_URI not set. Starting in-memory MongoDB for local/dev.');
+  try {
+    const { MongoMemoryServer } = require('mongodb-memory-server');
+    const mongod = await MongoMemoryServer.create();
+    const uri = mongod.getUri();
+    await mongoose.connect(uri);
+    console.log('✅ In-memory MongoDB connected');
+    // Expose for graceful shutdown if needed
+    process.on('exit', async () => { try { await mongod.stop(); } catch (_) {} });
+  } catch (err) {
+    console.error('❌ Failed to start in-memory MongoDB:', err.message);
     process.exit(1);
-  });
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected successfully'))
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
-    process.exit(1);
-  });
+  }
+}
+
+// Kick off database connection immediately
+connectDatabase();
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
   if (process.env.WEBHOOK_SECRET && 
@@ -364,7 +402,7 @@ const Referral = mongoose.model('Referral', referralSchema);
 const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
 
 
-const adminIds = process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => id.trim());
+const adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
