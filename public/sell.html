@@ -625,9 +625,9 @@
                         </div>
                     </div>
                     
-                    <button class="flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-all duration-200">
+                    <button onclick="showWhy21Days()" class="flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-all duration-200 cursor-pointer">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0 18 0z" />
                         </svg>
                         Why 21 days?
                     </button>
@@ -748,6 +748,56 @@
         let currentWalletAddress = '';
         let currentLanguage = TranslationUtils.getCurrentLanguage();
         let rate = 0.009;
+
+        // Function to show why 21 days explanation
+        function showWhy21Days() {
+            Swal.fire({
+                title: '<div class="text-xl font-bold text-gray-800 mb-3">Why 21 Days?</div>',
+                html: `
+                    <div class="text-left space-y-4">
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="font-semibold text-blue-800">Processing Time</span>
+                            </div>
+                            <p class="text-sm text-blue-700">The 21-day processing period ensures proper verification and compliance with financial regulations.</p>
+                        </div>
+                        
+                        <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="font-semibold text-green-800">Security & Verification</span>
+                            </div>
+                            <p class="text-sm text-green-700">This timeframe allows us to verify the legitimacy of your stars and ensure secure processing of your payment.</p>
+                        </div>
+                        
+                        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <svg class="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="font-semibold text-yellow-800">Regulatory Compliance</span>
+                            </div>
+                            <p class="text-sm text-yellow-700">We follow international financial regulations and anti-money laundering (AML) requirements to ensure safe and compliant transactions.</p>
+                        </div>
+                    </div>
+                `,
+                icon: 'info',
+                confirmButtonText: 'Got it!',
+                confirmButtonColor: '#4F46E5',
+                showClass: {
+                    popup: 'animate__animated animate__fadeInDown animate__faster'
+                },
+                customClass: {
+                    popup: 'rounded-xl shadow-2xl',
+                    confirmButton: 'rounded-lg px-6 py-3 text-white font-medium transition-all duration-200 hover:scale-105'
+                }
+            });
+        }
 
         // DOM elements
         const connectWalletButton = document.getElementById('connectWallet');
