@@ -4570,6 +4570,14 @@ app.get('/api/me', (req, res) => {
 	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false });
 });
 
+app.get('/api/admin/csrf', (req, res) => {
+	const sess = getAdminSession(req);
+	if (!sess || !adminIds.includes(sess.payload.tgId)) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+	return res.json({ csrfToken: sess.payload.sid });
+});
+
 app.post('/api/admin/auth/send-otp', async (req, res) => {
 	try {
 		const tgId = (req.body?.tgId || '').toString().trim();
