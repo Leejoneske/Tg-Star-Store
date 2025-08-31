@@ -4163,17 +4163,38 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
 // List recent orders (buy + sell)
 app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 	try {
-		const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-		const status = req.query.status;
-		const buyQuery = status ? { status } : {};
-		const sellQuery = status ? { status } : {};
-		const buys = await BuyOrder.find(buyQuery).sort({ dateCreated: -1 }).limit(limit).lean();
-		const sells = await SellOrder.find(sellQuery).sort({ dateCreated: -1 }).limit(limit).lean();
-		const orders = [
+		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+		const page = Math.max(parseInt(req.query.page) || 1, 1);
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+
+		const textFilter = q ? { $or: [
+			{ id: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ telegramId: { $regex: q, $options: 'i' } }
+		] } : {};
+		const statusFilter = status ? { status } : {};
+
+		const [buyCount, sellCount] = await Promise.all([
+			BuyOrder.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0),
+			SellOrder.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0)
+		]);
+
+		const take = limit * page;
+		const [buys, sells] = await Promise.all([
+			BuyOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(take).lean(),
+			SellOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(take).lean()
+		]);
+
+		const merged = [
 			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
 			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
-		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated)).slice(0, limit);
-		res.json({ orders });
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
+
+		const start = (page - 1) * limit;
+		const orders = merged.slice(start, start + limit);
+		const total = buyCount + sellCount;
+		res.json({ orders, total });
 	} catch (e) {
 		res.status(500).json({ error: 'Failed to load orders' });
 	}
@@ -4310,11 +4331,23 @@ app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
 // List recent withdrawals
 app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
 	try {
-		const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-		const q = {};
-		if (req.query.status) q.status = req.query.status;
-		const withdrawals = await ReferralWithdrawal.find(q).sort({ createdAt: -1 }).limit(limit).lean();
-		res.json({ withdrawals });
+		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+		const page = Math.max(parseInt(req.query.page) || 1, 1);
+		const status = (req.query.status || '').toString().trim();
+		const qq = (req.query.q || '').toString().trim();
+		const statusFilter = status ? { status } : {};
+		const textFilter = qq ? { $or: [
+			{ userId: { $regex: qq, $options: 'i' } },
+			{ username: { $regex: qq, $options: 'i' } },
+			{ walletAddress: { $regex: qq, $options: 'i' } },
+		] } : {};
+		const total = await ReferralWithdrawal.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0);
+		const withdrawals = await ReferralWithdrawal.find({ ...statusFilter, ...textFilter })
+			.sort({ createdAt: -1 })
+			.skip((page - 1) * limit)
+			.limit(limit)
+			.lean();
+		res.json({ withdrawals, total });
 	} catch (e) {
 		res.status(500).json({ error: 'Failed to load withdrawals' });
 	}
