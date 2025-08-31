@@ -4153,8 +4153,11 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
 app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 	try {
 		const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-		const buys = await BuyOrder.find({}).sort({ dateCreated: -1 }).limit(limit).lean();
-		const sells = await SellOrder.find({}).sort({ dateCreated: -1 }).limit(limit).lean();
+		const status = req.query.status;
+		const buyQuery = status ? { status } : {};
+		const sellQuery = status ? { status } : {};
+		const buys = await BuyOrder.find(buyQuery).sort({ dateCreated: -1 }).limit(limit).lean();
+		const sells = await SellOrder.find(sellQuery).sort({ dateCreated: -1 }).limit(limit).lean();
 		const orders = [
 			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
 			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
@@ -4297,7 +4300,9 @@ app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
 app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
 	try {
 		const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-		const withdrawals = await ReferralWithdrawal.find({}).sort({ createdAt: -1 }).limit(limit).lean();
+		const q = {};
+		if (req.query.status) q.status = req.query.status;
+		const withdrawals = await ReferralWithdrawal.find(q).sort({ createdAt: -1 }).limit(limit).lean();
 		res.json({ withdrawals });
 	} catch (e) {
 		res.status(500).json({ error: 'Failed to load withdrawals' });
