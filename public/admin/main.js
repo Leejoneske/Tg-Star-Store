@@ -78,16 +78,47 @@
       const res = await fetch(API + '/admin/orders?limit=50', { headers: { 'x-telegram-id': state.adminId }});
       const data = await res.json();
       qs('#ordersCount').textContent = (data.orders?.length || 0) + ' items';
-      const rows = (data.orders || []).map(o => [
-        o.id,
-        o.type || '-',
-        o.username ? '@'+o.username : o.telegramId,
-        (o.amount || 0) + ' USDT',
-        o.status,
-        new Date(o.dateCreated || o.createdAt || Date.now()).toLocaleString(),
-      ]);
-      qs('#ordersTable').innerHTML = table(['Order ID','Type','User','Amount','Status','Created'], rows);
+      const rows = (data.orders || []).map(o => {
+        const actions = o.status === 'pending' || o.status === 'processing' ? `
+          <div class="space-x-2">
+            <button class="px-2 py-1 text-xs bg-green-600 text-white rounded" data-act="ord-complete" data-id="${o.id}">Complete</button>
+            ${o.type === 'sell' ? `<button class=\"px-2 py-1 text-xs bg-yellow-600 text-white rounded\" data-act=\"ord-refund\" data-id=\"${o.id}\">Refund</button>` : ''}
+            <button class="px-2 py-1 text-xs bg-red-600 text-white rounded" data-act="ord-decline" data-id="${o.id}">Decline</button>
+          </div>` : `<span class="text-gray-500 text-xs">—</span>`;
+        return [
+          o.id,
+          o.type || '-',
+          o.username ? '@'+o.username : o.telegramId,
+          (o.amount || 0) + ' USDT',
+          o.status,
+          new Date(o.dateCreated || o.createdAt || Date.now()).toLocaleString(),
+          actions
+        ];
+      });
+      qs('#ordersTable').innerHTML = table(['Order ID','Type','User','Amount','Status','Created','Actions'], rows);
+      wireOrderActions();
     } catch {}
+  }
+
+  function wireOrderActions(){
+    qsa('[data-act="ord-complete"]').forEach(b => b.addEventListener('click', async () => {
+      const id = b.dataset.id;
+      b.disabled = true;
+      await fetch(API + `/admin/orders/${id}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-telegram-id': state.adminId }});
+      await loadOrders();
+    }));
+    qsa('[data-act="ord-decline"]').forEach(b => b.addEventListener('click', async () => {
+      const id = b.dataset.id;
+      b.disabled = true;
+      await fetch(API + `/admin/orders/${id}/decline`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-telegram-id': state.adminId }});
+      await loadOrders();
+    }));
+    qsa('[data-act="ord-refund"]').forEach(b => b.addEventListener('click', async () => {
+      const id = b.dataset.id;
+      b.disabled = true;
+      await fetch(API + `/admin/orders/${id}/refund`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-telegram-id': state.adminId }});
+      await loadOrders();
+    }));
   }
 
   async function loadWithdrawals(){

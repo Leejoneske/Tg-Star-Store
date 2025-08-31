@@ -4165,6 +4165,134 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 	}
 });
 
+// Order actions
+app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        // Try buy first, then sell
+        let order = await BuyOrder.findOne({ id });
+        let orderType = 'buy';
+        if (!order) { order = await SellOrder.findOne({ id }); orderType = 'sell'; }
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        if (orderType === 'sell' && order.status !== 'processing') {
+            return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
+        if (orderType === 'buy' && order.status !== 'pending') {
+            return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
+
+        order.status = 'completed';
+        order.dateCompleted = new Date();
+        await order.save();
+
+        // Mirror side effects
+        if (orderType === 'sell') {
+            if (order.stars) { try { await trackStars(order.telegramId, order.stars, 'sell'); } catch {} }
+        } else {
+            if (!order.isPremium && order.stars) { try { await trackStars(order.telegramId, order.stars, 'buy'); } catch {} }
+            if (order.isPremium) { try { await trackPremiumActivation(order.telegramId); } catch {} }
+        }
+
+        // Collapse admin buttons
+        const statusText = '✅ Completed';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}${orderType === 'sell' ? '\n\nPayments have been transferred to the seller.' : ''}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        // Notify user
+        const userMessage = `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for choosing StarStore!'}`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to complete order' });
+    }
+});
+
+app.post('/api/admin/orders/:id/decline', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        let order = await BuyOrder.findOne({ id });
+        let orderType = 'buy';
+        if (!order) { order = await SellOrder.findOne({ id }); orderType = 'sell'; }
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        order.status = orderType === 'sell' ? 'failed' : 'declined';
+        order.dateDeclined = new Date();
+        await order.save();
+
+        const statusText = order.status === 'failed' ? '❌ Failed' : '❌ Declined';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        const userMessage = order.status === 'failed' 
+          ? `❌ Your sell order #${order.id} has failed.\n\nPlease try selling a lower amount or contact support if the issue persist.`
+          : `❌ Your buy order #${order.id} has been declined.\n\nPlease contact support if you believe this was a mistake.`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to decline order' });
+    }
+});
+
+app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        const order = await SellOrder.findOne({ id });
+        if (!order) return res.status(404).json({ error: 'Sell order not found' });
+
+        order.status = 'refunded';
+        order.dateRefunded = new Date();
+        await order.save();
+
+        const statusText = '💸 Refunded';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        const userMessage = `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to refund order' });
+    }
+});
+
 // List recent withdrawals
 app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
 	try {
