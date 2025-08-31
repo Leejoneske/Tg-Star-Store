@@ -55,10 +55,16 @@
             <main class="lg:col-span-3 space-y-6">
                 <section id="guard" class="bg-white rounded-lg shadow border p-6">
                     <h2 class="text-lg font-semibold mb-2">Admin Authentication</h2>
-                    <p class="text-sm text-gray-600 mb-4">Enter your Telegram ID (must be on admin list).</p>
-                    <div class="flex space-x-3">
-                        <input id="tgIdInput" class="border rounded px-3 py-2 flex-1" placeholder="Telegram ID">
-                        <button id="loginBtn" class="px-4 py-2 bg-indigo-600 text-white rounded">Login</button>
+                    <p class="text-sm text-gray-600 mb-4">Verify with your Telegram ID. We'll send a one-time code to your bot chat.</p>
+                    <div class="space-y-3">
+                        <div class="flex space-x-3">
+                            <input id="tgIdInput" class="border rounded px-3 py-2 flex-1" placeholder="Telegram ID">
+                            <button id="sendOtpBtn" class="px-4 py-2 bg-indigo-600 text-white rounded">Send Code</button>
+                        </div>
+                        <div class="flex space-x-3">
+                            <input id="otpInput" class="border rounded px-3 py-2 flex-1" placeholder="Enter 6-digit code">
+                            <button id="verifyOtpBtn" class="px-4 py-2 bg-green-600 text-white rounded">Verify</button>
+                        </div>
                     </div>
                     <p id="guardMsg" class="text-sm text-red-600 mt-3 hidden"></p>
                 </section>

@@ -4483,3 +4483,144 @@ app.post('/api/admin/notify', requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Failed to send notification' });
     }
 });
+
+function parseCookies(cookieHeader) {
+	const out = {};
+	if (!cookieHeader) return out;
+	cookieHeader.split(';').forEach(part => {
+		const idx = part.indexOf('=');
+		if (idx > -1) {
+			const k = part.slice(0, idx).trim();
+			const v = part.slice(idx + 1).trim();
+			out[k] = decodeURIComponent(v);
+		}
+	});
+	return out;
+}
+
+function base64url(input) {
+	return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function signAdminToken(payload, ttlMs) {
+	const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
+	const header = { alg: 'HS256', typ: 'JWT' };
+	const exp = Date.now() + (ttlMs || 12 * 60 * 60 * 1000);
+	const body = { ...payload, exp };
+	const h = base64url(JSON.stringify(header));
+	const b = base64url(JSON.stringify(body));
+	const sig = require('crypto').createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+	return `${h}.${b}.${sig}`;
+}
+
+function verifyAdminToken(token) {
+	try {
+		const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
+		const [h, b, sig] = token.split('.');
+		const expected = require('crypto').createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+		if (expected !== sig) return null;
+		const body = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+		if (!body || !body.exp || Date.now() > body.exp) return null;
+		return body;
+	} catch {
+		return null;
+	}
+}
+
+function getAdminSession(req) {
+	const cookies = parseCookies(req.headers.cookie || '');
+	const token = cookies['admin_session'];
+	if (!token) return null;
+	const payload = verifyAdminToken(token);
+	if (!payload || !payload.sid || !payload.tgId) return null;
+	return { token, payload };
+}
+
+function requireAdmin(req, res, next) {
+	// Backward-compatible GET-only header auth, or cookie session with CSRF for mutations
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+			const csrf = req.headers['x-csrf-token'];
+			if (!csrf || csrf.length < 10) {
+				return res.status(403).json({ error: 'CSRF check failed' });
+			}
+		}
+		req.user = { id: sess.payload.tgId, isAdmin: true };
+		return next();
+	}
+	try {
+		const tgId = (req.headers['x-telegram-id'] || '').toString();
+		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId) && (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS')) {
+			req.user = { id: tgId, isAdmin: true };
+			return next();
+		}
+		return res.status(403).json({ error: 'Forbidden' });
+	} catch (e) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+}
+
+app.get('/api/me', (req, res) => {
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		return res.json({ id: sess.payload.tgId, isAdmin: true });
+	}
+	const tgId = (req.headers['x-telegram-id'] || '').toString();
+	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false });
+});
+
+app.post('/api/admin/auth/send-otp', async (req, res) => {
+	try {
+		const tgId = (req.body?.tgId || '').toString().trim();
+		if (!tgId || !/^\d+$/.test(tgId)) return res.status(400).json({ error: 'Invalid Telegram ID' });
+		if (!adminIds.includes(tgId)) return res.status(403).json({ error: 'Not authorized' });
+		const code = (Math.floor(100000 + Math.random() * 900000)).toString();
+		const now = Date.now();
+		global.__adminOtpStore = global.__adminOtpStore || new Map();
+		const prev = global.__adminOtpStore.get(tgId);
+		if (prev && prev.nextAllowedAt && now < prev.nextAllowedAt) {
+			const waitSec = Math.ceil((prev.nextAllowedAt - now) / 1000);
+			return res.status(429).json({ error: `Please wait ${waitSec}s before requesting another code` });
+		}
+		global.__adminOtpStore.set(tgId, { code, expiresAt: now + 5 * 60 * 1000, nextAllowedAt: now + 60 * 1000 });
+		try {
+			await bot.sendMessage(tgId, `StarStore Admin Login Code\n\nYour code: ${code}\n\nThis code expires in 5 minutes.`);
+		} catch {
+			return res.status(500).json({ error: 'Failed to deliver OTP' });
+		}
+		return res.json({ success: true });
+	} catch {
+		return res.status(500).json({ error: 'Failed to send OTP' });
+	}
+});
+
+app.post('/api/admin/auth/verify-otp', (req, res) => {
+	try {
+		const tgId = (req.body?.tgId || '').toString().trim();
+		const code = (req.body?.code || '').toString().trim();
+		if (!tgId || !/^\d+$/.test(tgId) || !code) return res.status(400).json({ error: 'Invalid credentials' });
+		if (!adminIds.includes(tgId)) return res.status(403).json({ error: 'Not authorized' });
+		global.__adminOtpStore = global.__adminOtpStore || new Map();
+		const rec = global.__adminOtpStore.get(tgId);
+		if (!rec || rec.code !== code || Date.now() > rec.expiresAt) return res.status(401).json({ error: 'Invalid or expired code' });
+		global.__adminOtpStore.delete(tgId);
+		const sid = require('crypto').randomBytes(16).toString('hex');
+		const token = signAdminToken({ tgId, sid }, 12 * 60 * 60 * 1000);
+		const isProd = process.env.NODE_ENV === 'production';
+		const cookie = `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Strict${isProd ? '; Secure' : ''}; Max-Age=${12 * 60 * 60}`;
+		res.setHeader('Set-Cookie', cookie);
+		return res.json({ success: true, csrfToken: sid });
+	} catch {
+		return res.status(500).json({ error: 'Failed to verify OTP' });
+	}
+});
+
+app.post('/api/admin/logout', (req, res) => {
+	try {
+		res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0');
+		return res.json({ success: true });
+	} catch {
+		return res.json({ success: true });
+	}
+});
