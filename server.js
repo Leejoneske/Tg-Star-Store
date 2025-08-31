@@ -2095,21 +2095,20 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             console.error('Failed to send sticker:', stickerError);
         }
 
-        const userMessage = `Withdrawal Request Submitted\n\n` +
-                          `Amount: ${amountNum} USDT\n` +
-                          `Wallet: ${walletAddress}\n` +
-                          `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
-                          `Status: Pending approval`;
+        const userMessage = `✅ Withdrawal Request Submitted\n\n` +
+                          `💵 Amount: ${amountNum} USDT\n` +
+                          `👛 Wallet: ${walletAddress}\n` +
+                          `🆔 ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
+                          `⏳ Status: Pending approval`;
 
         await bot.sendMessage(userId, userMessage);
 
-        const adminMessage = `New Withdrawal Request\n\n` +
-                           `User: ${username}\n` +
-                           `ID: ${userId}\n` +
-                           `Amount: ${amountNum} USDT\n` +
-                           `Wallet: ${walletAddress}\n` +
-                           `Referrals: ${referralsNeeded}\n` +
-                           `WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
+        const adminMessage = `💸 Withdrawal Request\n\n` +
+                           `👤 User: @${username} (ID: ${userId})\n` +
+                           `💵 Amount: ${amountNum} USDT\n` +
+                           `👛 Wallet: ${walletAddress}\n` +
+                           `👥 Referrals: ${referralsNeeded}\n` +
+                           `🆔 WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
 
         const adminKeyboard = {
             inline_keyboard: [
