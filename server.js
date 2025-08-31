@@ -2699,7 +2699,7 @@ bot.onText(/\/help/, (msg) => {
     });
 });
 
-bot.onText(/\/reply\s+([0-9,\s]+)(?:\s+([\s\S]+))?/, async (msg, match) => {
+bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, match) => {
     try {
         // Verify admin (using your existing adminIds)
         if (!adminIds.includes(String(msg.from.id))) {
@@ -2708,6 +2708,7 @@ bot.onText(/\/reply\s+([0-9,\s]+)(?:\s+([\s\S]+))?/, async (msg, match) => {
 
         const recipientsRaw = match[1] || '';
         const textMessage = match[2] || '';
+        const hasText = (textMessage || '').trim().length > 0;
 
         const recipientIds = Array.from(new Set(
             recipientsRaw
@@ -2724,11 +2725,11 @@ bot.onText(/\/reply\s+([0-9,\s]+)(?:\s+([\s\S]+))?/, async (msg, match) => {
             return await bot.sendMessage(msg.chat.id, `❌ Too many recipients (${recipientIds.length}). Max allowed is ${REPLY_MAX_RECIPIENTS}.`);
         }
 
-        if (!msg.reply_to_message && !textMessage) {
+        if (!msg.reply_to_message && !hasText) {
             throw new Error('No message content provided');
         }
 
-        if (!msg.reply_to_message && textMessage && textMessage.length > 4000) {
+        if (!msg.reply_to_message && hasText && textMessage.length > 4000) {
             throw new Error('Message exceeds 4000 character limit');
         }
 
@@ -2742,33 +2743,33 @@ bot.onText(/\/reply\s+([0-9,\s]+)(?:\s+([\s\S]+))?/, async (msg, match) => {
                         await bot.sendPhoto(
                             userId,
                             mediaMsg.photo.slice(-1)[0].file_id,
-                            { caption: textMessage || '📨 Admin Reply' }
+                            { caption: hasText ? textMessage : '📨 Admin Reply' }
                         );
                     } else if (mediaMsg.document) {
                         await bot.sendDocument(
                             userId,
                             mediaMsg.document.file_id,
-                            { caption: textMessage || '📨 Admin Reply' }
+                            { caption: hasText ? textMessage : '📨 Admin Reply' }
                         );
                     } else if (mediaMsg.video) {
                         await bot.sendVideo(
                             userId,
                             mediaMsg.video.file_id,
-                            { caption: textMessage || '📨 Admin Reply' }
+                            { caption: hasText ? textMessage : '📨 Admin Reply' }
                         );
                     } else if (mediaMsg.audio) {
                         await bot.sendAudio(
                             userId,
                             mediaMsg.audio.file_id,
-                            { caption: textMessage || '📨 Admin Reply' }
+                            { caption: hasText ? textMessage : '📨 Admin Reply' }
                         );
                     } else if (mediaMsg.voice) {
                         await bot.sendVoice(
                             userId,
                             mediaMsg.voice.file_id,
-                            { caption: textMessage || '📨 Admin Reply' }
+                            { caption: hasText ? textMessage : '📨 Admin Reply' }
                         );
-                    } else if (textMessage) {
+                    } else if (hasText) {
                         await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
                     } else {
                         throw new Error('No message content found');
