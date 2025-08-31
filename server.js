@@ -4200,6 +4200,37 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 	}
 });
 
+app.get('/api/admin/orders/export', requireAdmin, async (req, res) => {
+	try {
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+		const textFilter = q ? { $or: [
+			{ id: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ telegramId: { $regex: q, $options: 'i' } }
+		] } : {};
+		const statusFilter = status ? { status } : {};
+		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
+		const [buys, sells] = await Promise.all([
+			BuyOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(limit).lean(),
+			SellOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(limit).lean()
+		]);
+		const rows = [
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
+		const csv = ['id,type,username,telegramId,amount,status,dateCreated']
+			.concat(rows.map(r => [r.id, r.type, r.username || '', r.telegramId || '', r.amount || 0, r.status || '', new Date(r.dateCreated || Date.now()).toISOString()]
+				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
+			.join('\n');
+		res.setHeader('Content-Type', 'text/csv');
+		res.setHeader('Content-Disposition', 'attachment; filename="orders.csv"');
+		return res.send(csv);
+	} catch (e) {
+		return res.status(500).send('Failed to export');
+	}
+});
+
 // Order actions
 app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
     try {
@@ -4350,6 +4381,34 @@ app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
 		res.json({ withdrawals, total });
 	} catch (e) {
 		res.status(500).json({ error: 'Failed to load withdrawals' });
+	}
+});
+
+app.get('/api/admin/withdrawals/export', requireAdmin, async (req, res) => {
+	try {
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+		const statusFilter = status ? { status } : {};
+		const textFilter = q ? { $or: [
+			{ userId: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ walletAddress: { $regex: q, $options: 'i' } }
+		] } : {};
+		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
+		const withdrawals = await ReferralWithdrawal
+			.find({ ...statusFilter, ...textFilter })
+			.sort({ createdAt: -1 })
+			.limit(limit)
+			.lean();
+		const csv = ['id,userId,username,amount,walletAddress,status,reason,createdAt']
+			.concat(withdrawals.map(w => [w._id, w.userId || '', w.username || '', w.amount || 0, w.walletAddress || '', w.status || '', w.declineReason || '', new Date(w.createdAt || Date.now()).toISOString()]
+				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
+			.join('\n');
+		res.setHeader('Content-Type', 'text/csv');
+		res.setHeader('Content-Disposition', 'attachment; filename="withdrawals.csv"');
+		return res.send(csv);
+	} catch (e) {
+		return res.status(500).send('Failed to export');
 	}
 });
 

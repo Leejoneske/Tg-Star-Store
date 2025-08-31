@@ -31,6 +31,11 @@
                     <span id="envBadge" class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">live</span>
                 </div>
                 <div class="flex items-center space-x-2">
+                    <div class="hidden md:flex items-center space-x-2">
+                        <input id="globalSearch" class="border rounded px-2 py-1 text-sm" placeholder="Search (#id, @user, id)">
+                        <button id="globalExportOrders" class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Export Orders</button>
+                        <button id="globalExportWithdrawals" class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Export Withdrawals</button>
+                    </div>
                     <button id="refreshBtn" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"><i class="fa-solid fa-rotate"></i> Refresh</button>
                     <button id="logoutBtn" class="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Logout</button>
                 </div>
@@ -53,20 +58,30 @@
             </aside>
 
             <main class="lg:col-span-3 space-y-6">
-                <section id="guard" class="bg-white rounded-lg shadow border p-6">
-                    <h2 class="text-lg font-semibold mb-2">Admin Authentication</h2>
-                    <p class="text-sm text-gray-600 mb-4">Verify with your Telegram ID. We'll send a one-time code to your bot chat.</p>
-                    <div class="space-y-3">
-                        <div class="flex space-x-3">
-                            <input id="tgIdInput" class="border rounded px-3 py-2 flex-1" placeholder="Telegram ID">
-                            <button id="sendOtpBtn" class="px-4 py-2 bg-indigo-600 text-white rounded">Send Code</button>
-                        </div>
-                        <div class="flex space-x-3">
-                            <input id="otpInput" class="border rounded px-3 py-2 flex-1" placeholder="Enter 6-digit code">
-                            <button id="verifyOtpBtn" class="px-4 py-2 bg-green-600 text-white rounded">Verify</button>
-                        </div>
+                <section id="guard" class="bg-white rounded-lg shadow border p-6 max-w-md mx-auto">
+                    <div class="text-center mb-4">
+                        <div class="inline-flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 mb-2"><i class="fa-solid fa-shield-halved"></i></div>
+                        <h2 class="text-lg font-semibold">Admin Authentication</h2>
+                        <p class="text-sm text-gray-600">Sign in with your Telegram ID. We'll send a one-time code.</p>
                     </div>
-                    <p id="guardMsg" class="text-sm text-red-600 mt-3 hidden"></p>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs text-gray-500">Telegram ID</label>
+                            <div class="flex space-x-3">
+                                <input id="tgIdInput" class="border rounded px-3 py-2 flex-1" placeholder="e.g. 123456789">
+                                <button id="sendOtpBtn" class="px-4 py-2 bg-indigo-600 text-white rounded">Send Code</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500">One-Time Code</label>
+                            <div class="flex space-x-3 items-center">
+                                <input id="otpInput" class="border rounded px-3 py-2 flex-1" placeholder="6-digit code" maxlength="6">
+                                <button id="verifyOtpBtn" class="px-4 py-2 bg-green-600 text-white rounded">Verify</button>
+                                <span id="otpTimer" class="text-xs text-gray-500 hidden"></span>
+                            </div>
+                        </div>
+                        <p id="guardMsg" class="text-sm mt-1 hidden"></p>
+                    </div>
                 </section>
 
                 <section id="dashboard" class="bg-white rounded-lg shadow border p-6 hidden">
@@ -87,6 +102,12 @@
                                 <option value="failed">Failed</option>
                                 <option value="refunded">Refunded</option>
                             </select>
+                            <input id="ordersQuery" class="border rounded px-2 py-1 text-sm" placeholder="Search orders">
+                            <div class="flex items-center">
+                                <button id="ordersPrev" class="px-2 py-1 border rounded text-sm">Prev</button>
+                                <span id="ordersPage" class="mx-2 text-xs text-gray-500">1</span>
+                                <button id="ordersNext" class="px-2 py-1 border rounded text-sm">Next</button>
+                            </div>
                             <div class="text-sm text-gray-500" id="ordersCount"></div>
                         </div>
                     </div>
@@ -103,6 +124,12 @@
                                 <option value="completed">Completed</option>
                                 <option value="declined">Declined</option>
                             </select>
+                            <input id="withdrawalsQuery" class="border rounded px-2 py-1 text-sm" placeholder="Search withdrawals">
+                            <div class="flex items-center">
+                                <button id="withdrawalsPrev" class="px-2 py-1 border rounded text-sm">Prev</button>
+                                <span id="withdrawalsPage" class="mx-2 text-xs text-gray-500">1</span>
+                                <button id="withdrawalsNext" class="px-2 py-1 border rounded text-sm">Next</button>
+                            </div>
                             <div class="text-sm text-gray-500" id="withdrawalsCount"></div>
                         </div>
                     </div>
