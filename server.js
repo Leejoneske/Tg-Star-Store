@@ -85,6 +85,13 @@ app.use(cors({
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
+app.get('/admin', (req, res) => {
+	try {
+		return res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
+	} catch (e) {
+		return res.status(404).send('Not found');
+	}
+});
 // Webhook setup (only when real bot is configured)
 if (process.env.BOT_TOKEN) {
   bot.setWebHook(WEBHOOK_URL)
@@ -4130,6 +4137,10 @@ function requireAdmin(req, res, next) {
 }
 
 app.get('/api/me', (req, res) => {
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		return res.json({ id: sess.payload.tgId, isAdmin: true });
+	}
 	const tgId = (req.headers['x-telegram-id'] || '').toString();
 	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false });
 });
