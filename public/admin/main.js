@@ -86,7 +86,9 @@
 
   async function loadOrders(){
     try {
-      const res = await fetch(API + '/admin/orders?limit=50', { headers: { 'x-telegram-id': state.adminId }});
+      const status = (qs('#ordersStatus')?.value || '').trim();
+      const url = API + '/admin/orders?limit=50' + (status ? `&status=${encodeURIComponent(status)}` : '');
+      const res = await fetch(url, { credentials: 'include' });
       const data = await res.json();
       qs('#ordersCount').textContent = (data.orders?.length || 0) + ' items';
       const rows = (data.orders || []).map(o => {
@@ -134,7 +136,9 @@
 
   async function loadWithdrawals(){
     try {
-      const res = await fetch(API + '/admin/withdrawals?limit=50', { headers: { 'x-telegram-id': state.adminId }});
+      const status = (qs('#withdrawalsStatus')?.value || '').trim();
+      const url = API + '/admin/withdrawals?limit=50' + (status ? `&status=${encodeURIComponent(status)}` : '');
+      const res = await fetch(url, { credentials: 'include' });
       const data = await res.json();
       qs('#withdrawalsCount').textContent = (data.withdrawals?.length || 0) + ' items';
       const rows = (data.withdrawals || []).map(w => {
@@ -193,6 +197,8 @@
       if (view === 'orders') loadOrders();
       if (view === 'withdrawals') loadWithdrawals();
     }));
+    const os = qs('#ordersStatus'); if (os) os.addEventListener('change', loadOrders);
+    const ws = qs('#withdrawalsStatus'); if (ws) ws.addEventListener('change', loadWithdrawals);
   }
 
   function wireAuth(){

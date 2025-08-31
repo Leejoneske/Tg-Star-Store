@@ -77,7 +77,18 @@
                 <section id="orders" class="bg-white rounded-lg shadow border p-6 hidden">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold">Orders</h2>
-                        <div class="text-sm text-gray-500" id="ordersCount"></div>
+                        <div class="flex items-center space-x-2">
+                            <select id="ordersStatus" class="border rounded px-2 py-1 text-sm">
+                                <option value="">All</option>
+                                <option value="pending">Pending</option>
+                                <option value="processing">Processing</option>
+                                <option value="completed">Completed</option>
+                                <option value="declined">Declined</option>
+                                <option value="failed">Failed</option>
+                                <option value="refunded">Refunded</option>
+                            </select>
+                            <div class="text-sm text-gray-500" id="ordersCount"></div>
+                        </div>
                     </div>
                     <div id="ordersTable" class="overflow-x-auto"></div>
                 </section>
@@ -85,7 +96,15 @@
                 <section id="withdrawals" class="bg-white rounded-lg shadow border p-6 hidden">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold">Withdrawals</h2>
-                        <div class="text-sm text-gray-500" id="withdrawalsCount"></div>
+                        <div class="flex items-center space-x-2">
+                            <select id="withdrawalsStatus" class="border rounded px-2 py-1 text-sm">
+                                <option value="">All</option>
+                                <option value="pending">Pending</option>
+                                <option value="completed">Completed</option>
+                                <option value="declined">Declined</option>
+                            </select>
+                            <div class="text-sm text-gray-500" id="withdrawalsCount"></div>
+                        </div>
                     </div>
                     <div id="withdrawalsTable" class="overflow-x-auto"></div>
                 </section>

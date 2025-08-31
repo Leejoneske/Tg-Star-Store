@@ -4542,7 +4542,7 @@ function requireAdmin(req, res, next) {
 	if (sess && adminIds.includes(sess.payload.tgId)) {
 		if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
 			const csrf = req.headers['x-csrf-token'];
-			if (!csrf || csrf.length < 10) {
+			if (!csrf || csrf !== sess.payload.sid) {
 				return res.status(403).json({ error: 'CSRF check failed' });
 			}
 		}
