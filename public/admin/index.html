@@ -856,17 +856,7 @@
                 });
             });
 
-            // Initialize dashboard view
-            const dashboardLink = document.querySelector('[data-view="dashboard"]');
-            if (dashboardLink) {
-                dashboardLink.click();
-            }
-
-            // Show admin interface (hide auth guard for demo)
-            document.getElementById('guard').classList.add('hidden');
-            document.getElementById('adminHeader').classList.remove('hidden');
-            document.getElementById('adminSidebar').classList.remove('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
+            // Initial view stays on login until verified
         });
     </script>
 </body>
