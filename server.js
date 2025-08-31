@@ -4115,3 +4115,63 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Webhook set to: ${WEBHOOK_URL}`);
 });
+
+function requireAdmin(req, res, next) {
+	try {
+		const tgId = (req.headers['x-telegram-id'] || '').toString();
+		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId)) {
+			req.user = { id: tgId, isAdmin: true };
+			return next();
+		}
+		return res.status(403).json({ error: 'Forbidden' });
+	} catch (e) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+}
+
+app.get('/api/me', (req, res) => {
+	const tgId = (req.headers['x-telegram-id'] || '').toString();
+	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false });
+});
+
+// Basic admin stats
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+	try {
+		const [totalOrders, pendingWithdrawals, totalUsers, revenueUsdt] = await Promise.all([
+			Promise.resolve(await BuyOrder.countDocuments({}).catch(()=>0) + await SellOrder.countDocuments({}).catch(()=>0)),
+			ReferralWithdrawal.countDocuments({ status: 'pending' }).catch(()=>0),
+			User.countDocuments({}).catch(()=>0),
+			Promise.resolve(0)
+		]);
+		res.json({ totalOrders, pendingWithdrawals, totalUsers, revenueUsdt });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load stats' });
+	}
+});
+
+// List recent orders (buy + sell)
+app.get('/api/admin/orders', requireAdmin, async (req, res) => {
+	try {
+		const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+		const buys = await BuyOrder.find({}).sort({ dateCreated: -1 }).limit(limit).lean();
+		const sells = await SellOrder.find({}).sort({ dateCreated: -1 }).limit(limit).lean();
+		const orders = [
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated)).slice(0, limit);
+		res.json({ orders });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load orders' });
+	}
+});
+
+// List recent withdrawals
+app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
+	try {
+		const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+		const withdrawals = await ReferralWithdrawal.find({}).sort({ createdAt: -1 }).limit(limit).lean();
+		res.json({ withdrawals });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load withdrawals' });
+	}
+});
