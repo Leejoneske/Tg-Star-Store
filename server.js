@@ -4696,12 +4696,16 @@ app.post('/api/admin/auth/send-otp', async (req, res) => {
 		}
 		global.__adminOtpStore.set(tgId, { code, expiresAt: now + 5 * 60 * 1000, nextAllowedAt: now + 60 * 1000 });
 		try {
+			console.log(`[ADMIN OTP] Sending code to ${tgId} ...`);
 			await bot.sendMessage(tgId, `StarStore Admin Login Code\n\nYour code: ${code}\n\nThis code expires in 5 minutes.`);
-		} catch {
-			return res.status(500).json({ error: 'Failed to deliver OTP' });
+			console.log(`[ADMIN OTP] Code delivered to ${tgId}`);
+		} catch (err) {
+			console.error(`[ADMIN OTP] Delivery failed to ${tgId}:`, err?.message || err);
+			return res.status(500).json({ error: 'Failed to deliver OTP. Ensure you have started the bot and try again.' });
 		}
 		return res.json({ success: true });
-	} catch {
+	} catch (e) {
+		console.error('[ADMIN OTP] Unexpected error:', e?.message || e);
 		return res.status(500).json({ error: 'Failed to send OTP' });
 	}
 });
