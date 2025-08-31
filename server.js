@@ -85,6 +85,13 @@ app.use(cors({
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(express.static('public'));
+app.get('/admin', (req, res) => {
+	try {
+		return res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
+	} catch (e) {
+		return res.status(404).send('Not found');
+	}
+});
 // Webhook setup (only when real bot is configured)
 if (process.env.BOT_TOKEN) {
   bot.setWebHook(WEBHOOK_URL)
@@ -4130,6 +4137,10 @@ function requireAdmin(req, res, next) {
 }
 
 app.get('/api/me', (req, res) => {
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		return res.json({ id: sess.payload.tgId, isAdmin: true });
+	}
 	const tgId = (req.headers['x-telegram-id'] || '').toString();
 	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false });
 });
@@ -4152,19 +4163,71 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
 // List recent orders (buy + sell)
 app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 	try {
-		const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-		const status = req.query.status;
-		const buyQuery = status ? { status } : {};
-		const sellQuery = status ? { status } : {};
-		const buys = await BuyOrder.find(buyQuery).sort({ dateCreated: -1 }).limit(limit).lean();
-		const sells = await SellOrder.find(sellQuery).sort({ dateCreated: -1 }).limit(limit).lean();
-		const orders = [
+		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+		const page = Math.max(parseInt(req.query.page) || 1, 1);
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+
+		const textFilter = q ? { $or: [
+			{ id: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ telegramId: { $regex: q, $options: 'i' } }
+		] } : {};
+		const statusFilter = status ? { status } : {};
+
+		const [buyCount, sellCount] = await Promise.all([
+			BuyOrder.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0),
+			SellOrder.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0)
+		]);
+
+		const take = limit * page;
+		const [buys, sells] = await Promise.all([
+			BuyOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(take).lean(),
+			SellOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(take).lean()
+		]);
+
+		const merged = [
 			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
 			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
-		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated)).slice(0, limit);
-		res.json({ orders });
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
+
+		const start = (page - 1) * limit;
+		const orders = merged.slice(start, start + limit);
+		const total = buyCount + sellCount;
+		res.json({ orders, total });
 	} catch (e) {
 		res.status(500).json({ error: 'Failed to load orders' });
+	}
+});
+
+app.get('/api/admin/orders/export', requireAdmin, async (req, res) => {
+	try {
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+		const textFilter = q ? { $or: [
+			{ id: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ telegramId: { $regex: q, $options: 'i' } }
+		] } : {};
+		const statusFilter = status ? { status } : {};
+		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
+		const [buys, sells] = await Promise.all([
+			BuyOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(limit).lean(),
+			SellOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(limit).lean()
+		]);
+		const rows = [
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
+		const csv = ['id,type,username,telegramId,amount,status,dateCreated']
+			.concat(rows.map(r => [r.id, r.type, r.username || '', r.telegramId || '', r.amount || 0, r.status || '', new Date(r.dateCreated || Date.now()).toISOString()]
+				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
+			.join('\n');
+		res.setHeader('Content-Type', 'text/csv');
+		res.setHeader('Content-Disposition', 'attachment; filename="orders.csv"');
+		return res.send(csv);
+	} catch (e) {
+		return res.status(500).send('Failed to export');
 	}
 });
 
@@ -4299,13 +4362,53 @@ app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
 // List recent withdrawals
 app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
 	try {
-		const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-		const q = {};
-		if (req.query.status) q.status = req.query.status;
-		const withdrawals = await ReferralWithdrawal.find(q).sort({ createdAt: -1 }).limit(limit).lean();
-		res.json({ withdrawals });
+		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+		const page = Math.max(parseInt(req.query.page) || 1, 1);
+		const status = (req.query.status || '').toString().trim();
+		const qq = (req.query.q || '').toString().trim();
+		const statusFilter = status ? { status } : {};
+		const textFilter = qq ? { $or: [
+			{ userId: { $regex: qq, $options: 'i' } },
+			{ username: { $regex: qq, $options: 'i' } },
+			{ walletAddress: { $regex: qq, $options: 'i' } },
+		] } : {};
+		const total = await ReferralWithdrawal.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0);
+		const withdrawals = await ReferralWithdrawal.find({ ...statusFilter, ...textFilter })
+			.sort({ createdAt: -1 })
+			.skip((page - 1) * limit)
+			.limit(limit)
+			.lean();
+		res.json({ withdrawals, total });
 	} catch (e) {
 		res.status(500).json({ error: 'Failed to load withdrawals' });
+	}
+});
+
+app.get('/api/admin/withdrawals/export', requireAdmin, async (req, res) => {
+	try {
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+		const statusFilter = status ? { status } : {};
+		const textFilter = q ? { $or: [
+			{ userId: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ walletAddress: { $regex: q, $options: 'i' } }
+		] } : {};
+		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
+		const withdrawals = await ReferralWithdrawal
+			.find({ ...statusFilter, ...textFilter })
+			.sort({ createdAt: -1 })
+			.limit(limit)
+			.lean();
+		const csv = ['id,userId,username,amount,walletAddress,status,reason,createdAt']
+			.concat(withdrawals.map(w => [w._id, w.userId || '', w.username || '', w.amount || 0, w.walletAddress || '', w.status || '', w.declineReason || '', new Date(w.createdAt || Date.now()).toISOString()]
+				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
+			.join('\n');
+		res.setHeader('Content-Type', 'text/csv');
+		res.setHeader('Content-Disposition', 'attachment; filename="withdrawals.csv"');
+		return res.send(csv);
+	} catch (e) {
+		return res.status(500).send('Failed to export');
 	}
 });
 

@@ -9,6 +9,8 @@
   const state = {
     authed: false,
     adminId: localStorage.getItem('admin_tg') || '',
+    orders: { page: 1, limit: 20, total: 0, status: '', q: '' },
+    withdrawals: { page: 1, limit: 20, total: 0, status: '', q: '' },
   };
 
   function show(sectionId){
@@ -86,24 +88,34 @@
 
   async function loadOrders(){
     try {
-      const status = (qs('#ordersStatus')?.value || '').trim();
-      const url = API + '/admin/orders?limit=50' + (status ? `&status=${encodeURIComponent(status)}` : '');
-      const res = await fetch(url, { credentials: 'include' });
+      state.orders.status = (qs('#ordersStatus')?.value || '').trim();
+      state.orders.q = (qs('#ordersQuery')?.value || '').trim();
+      const params = new URLSearchParams({ limit: String(state.orders.limit), page: String(state.orders.page) });
+      if (state.orders.status) params.set('status', state.orders.status);
+      if (state.orders.q) params.set('q', state.orders.q);
+      const res = await fetch(API + '/admin/orders?' + params.toString(), { credentials: 'include' });
       const data = await res.json();
-      qs('#ordersCount').textContent = (data.orders?.length || 0) + ' items';
+      state.orders.total = data.total || (data.orders?.length || 0);
+      qs('#ordersCount').textContent = `${data.orders?.length || 0} / ${state.orders.total}`;
+      const pageEl = qs('#ordersPage'); if (pageEl) pageEl.textContent = String(state.orders.page);
       const rows = (data.orders || []).map(o => {
-        const actions = o.status === 'pending' || o.status === 'processing' ? `
+        const badge = o.status === 'completed' ? '<span class="px-2 py-0.5 text-xs rounded bg-green-100 text-green-700">Completed</span>' :
+                      o.status === 'pending' ? '<span class="px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-700">Pending</span>' :
+                      o.status === 'processing' ? '<span class="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-700">Processing</span>' :
+                      o.status === 'refunded' ? '<span class="px-2 py-0.5 text-xs rounded bg-purple-100 text-purple-700">Refunded</span>' :
+                      '<span class="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">' + (o.status || 'Declined') + '</span>';
+        const actions = (o.status === 'pending' || o.status === 'processing') ? `
           <div class="space-x-2">
             <button class="px-2 py-1 text-xs bg-green-600 text-white rounded" data-act="ord-complete" data-id="${o.id}">Complete</button>
             ${o.type === 'sell' ? `<button class=\"px-2 py-1 text-xs bg-yellow-600 text-white rounded\" data-act=\"ord-refund\" data-id=\"${o.id}\">Refund</button>` : ''}
             <button class="px-2 py-1 text-xs bg-red-600 text-white rounded" data-act="ord-decline" data-id="${o.id}">Decline</button>
-          </div>` : `<span class="text-gray-500 text-xs">—</span>`;
+          </div>` : `<span class="text-gray-400 text-xs">—</span>`;
         return [
           o.id,
           o.type || '-',
           o.username ? '@'+o.username : o.telegramId,
           (o.amount || 0) + ' USDT',
-          o.status,
+          badge,
           new Date(o.dateCreated || o.createdAt || Date.now()).toLocaleString(),
           actions
         ];
@@ -136,13 +148,21 @@
 
   async function loadWithdrawals(){
     try {
-      const status = (qs('#withdrawalsStatus')?.value || '').trim();
-      const url = API + '/admin/withdrawals?limit=50' + (status ? `&status=${encodeURIComponent(status)}` : '');
-      const res = await fetch(url, { credentials: 'include' });
+      state.withdrawals.status = (qs('#withdrawalsStatus')?.value || '').trim();
+      state.withdrawals.q = (qs('#withdrawalsQuery')?.value || '').trim();
+      const params = new URLSearchParams({ limit: String(state.withdrawals.limit), page: String(state.withdrawals.page) });
+      if (state.withdrawals.status) params.set('status', state.withdrawals.status);
+      if (state.withdrawals.q) params.set('q', state.withdrawals.q);
+      const res = await fetch(API + '/admin/withdrawals?' + params.toString(), { credentials: 'include' });
       const data = await res.json();
-      qs('#withdrawalsCount').textContent = (data.withdrawals?.length || 0) + ' items';
+      state.withdrawals.total = data.total || (data.withdrawals?.length || 0);
+      qs('#withdrawalsCount').textContent = `${data.withdrawals?.length || 0} / ${state.withdrawals.total}`;
+      const pageEl = qs('#withdrawalsPage'); if (pageEl) pageEl.textContent = String(state.withdrawals.page);
       const rows = (data.withdrawals || []).map(w => {
         const wdId = 'WD' + (w._id || '').toString().slice(-8).toUpperCase();
+        const badge = w.status === 'completed' ? '<span class="px-2 py-0.5 text-xs rounded bg-green-100 text-green-700">Completed</span>' :
+                      w.status === 'pending' ? '<span class="px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-700">Pending</span>' :
+                      '<span class="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">Declined</span>';
         const actions = w.status === 'pending' ? `
           <div class="space-x-2">
             <button class="px-2 py-1 text-xs bg-green-600 text-white rounded" data-act="wd-complete" data-id="${w._id}">Complete</button>
@@ -155,12 +175,12 @@
                 <option value="Other">Other</option>
               </select>
             </div>
-          </div>` : `<span class="text-gray-500 text-xs">—</span>`;
+          </div>` : `<span class="text-gray-400 text-xs">—</span>`;
         return [
           wdId,
           (w.amount || 0) + ' USDT',
           w.walletAddress,
-          w.status + (w.declineReason ? ` <span class=\"text-gray-500\">(${w.declineReason})</span>` : ''),
+          badge + (w.declineReason ? ` <span class=\"text-gray-500\">(${w.declineReason})</span>` : ''),
           (w.username ? '@'+w.username : w.userId),
           new Date(w.createdAt || Date.now()).toLocaleString(),
           actions
@@ -197,8 +217,25 @@
       if (view === 'orders') loadOrders();
       if (view === 'withdrawals') loadWithdrawals();
     }));
-    const os = qs('#ordersStatus'); if (os) os.addEventListener('change', loadOrders);
-    const ws = qs('#withdrawalsStatus'); if (ws) ws.addEventListener('change', loadWithdrawals);
+    const os = qs('#ordersStatus'); if (os) os.addEventListener('change', () => { state.orders.page = 1; loadOrders(); });
+    const oq = qs('#ordersQuery'); if (oq) oq.addEventListener('keyup', (e) => { if (e.key === 'Enter') { state.orders.page = 1; loadOrders(); }});
+    const op = qs('#ordersPrev'); if (op) op.addEventListener('click', () => { state.orders.page = Math.max(1, state.orders.page - 1); loadOrders(); });
+    const on = qs('#ordersNext'); if (on) on.addEventListener('click', () => { const max = Math.max(1, Math.ceil(state.orders.total / state.orders.limit)); state.orders.page = Math.min(max, state.orders.page + 1); loadOrders(); });
+    const ws = qs('#withdrawalsStatus'); if (ws) ws.addEventListener('change', () => { state.withdrawals.page = 1; loadWithdrawals(); });
+    const wq = qs('#withdrawalsQuery'); if (wq) wq.addEventListener('keyup', (e) => { if (e.key === 'Enter') { state.withdrawals.page = 1; loadWithdrawals(); }});
+    const wp = qs('#withdrawalsPrev'); if (wp) wp.addEventListener('click', () => { state.withdrawals.page = Math.max(1, state.withdrawals.page - 1); loadWithdrawals(); });
+    const wn = qs('#withdrawalsNext'); if (wn) wn.addEventListener('click', () => { const max = Math.max(1, Math.ceil(state.withdrawals.total / state.withdrawals.limit)); state.withdrawals.page = Math.min(max, state.withdrawals.page + 1); loadWithdrawals(); });
+    const gs = qs('#globalSearch'); if (gs) gs.addEventListener('keyup', (e) => { if (e.key === 'Enter') { const q = gs.value.trim(); const oqi = qs('#ordersQuery'); if (oqi) oqi.value = q; const wqi = qs('#withdrawalsQuery'); if (wqi) wqi.value = q; state.orders.page = 1; state.withdrawals.page = 1; loadOrders(); loadWithdrawals(); }});
+    const exo = qs('#globalExportOrders'); if (exo) exo.addEventListener('click', () => {
+      const s = state.orders.status ? `&status=${encodeURIComponent(state.orders.status)}` : '';
+      const q = state.orders.q ? `&q=${encodeURIComponent(state.orders.q)}` : '';
+      window.open(API + '/admin/orders/export?limit=5000' + s + q, '_blank');
+    });
+    const exw = qs('#globalExportWithdrawals'); if (exw) exw.addEventListener('click', () => {
+      const s = state.withdrawals.status ? `&status=${encodeURIComponent(state.withdrawals.status)}` : '';
+      const q = state.withdrawals.q ? `&q=${encodeURIComponent(state.withdrawals.q)}` : '';
+      window.open(API + '/admin/withdrawals/export?limit=5000' + s + q, '_blank');
+    });
   }
 
   function wireAuth(){
@@ -206,7 +243,14 @@
       const tg = qs('#tgIdInput').value.trim();
       if (!tg) { qs('#guardMsg').textContent = 'Enter your Telegram ID'; qs('#guardMsg').classList.remove('hidden'); return; }
       qs('#guardMsg').classList.add('hidden');
-      try { await sendOtp(tg); qs('#guardMsg').textContent = 'Code sent to your bot chat.'; qs('#guardMsg').classList.remove('hidden'); }
+      try {
+        await sendOtp(tg);
+        qs('#guardMsg').textContent = 'Code sent. Check your Telegram.';
+        qs('#guardMsg').classList.remove('hidden');
+        let left = 60; const timer = qs('#otpTimer');
+        if (timer) { timer.classList.remove('hidden'); timer.textContent = `${left}s`; }
+        const iv = setInterval(() => { left -= 1; if (left <= 0) { clearInterval(iv); if (timer) timer.classList.add('hidden'); } else if (timer) { timer.textContent = `${left}s`; } }, 1000);
+      }
       catch (e) { qs('#guardMsg').textContent = e.message; qs('#guardMsg').classList.remove('hidden'); }
     });
     qs('#verifyOtpBtn').addEventListener('click', async () => {
