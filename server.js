@@ -408,6 +408,7 @@ const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
 
 
 const adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
+const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
@@ -2698,53 +2699,102 @@ bot.onText(/\/help/, (msg) => {
     });
 });
 
-bot.onText(/\/reply (\d+)(?:\s+(.+))?/, async (msg, match) => {
+bot.onText(/\/reply\s+([0-9,\s]+)(?:\s+([\s\S]+))?/, async (msg, match) => {
     try {
         // Verify admin (using your existing adminIds)
         if (!adminIds.includes(String(msg.from.id))) {
             return await bot.sendMessage(msg.chat.id, "❌ Unauthorized");
         }
 
-        const userId = match[1];
+        const recipientsRaw = match[1] || '';
         const textMessage = match[2] || '';
 
-        // Case 1: Text-only reply
-        if (textMessage && !msg.reply_to_message) {
-            if (textMessage.length > 4000) {
-                throw new Error("Message exceeds 4000 character limit");
-            }
-            await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
-        }
-        // Case 2: Media reply (when replying to a message)
-        else if (msg.reply_to_message) {
-            const mediaMsg = msg.reply_to_message;
-            
-            if (mediaMsg.photo) {
-                await bot.sendPhoto(
-                    userId, 
-                    mediaMsg.photo.slice(-1)[0].file_id,
-                    { caption: textMessage || '📨 Admin Reply' }
-                );
-            } 
-            else if (mediaMsg.document) {
-                await bot.sendDocument(
-                    userId,
-                    mediaMsg.document.file_id,
-                    { caption: textMessage || '📨 Admin Reply' }
-                );
-            }
-            else if (textMessage) {
-                await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
-            }
-            else {
-                throw new Error("No message content found");
-            }
-        }
-        else {
-            throw new Error("No message content provided");
+        const recipientIds = Array.from(new Set(
+            recipientsRaw
+                .split(/[\s,]+/)
+                .map(id => id.trim())
+                .filter(id => id && /^\d+$/.test(id))
+        ));
+
+        if (recipientIds.length === 0) {
+            return await bot.sendMessage(msg.chat.id, '❌ No valid user IDs provided. Use: /reply <id1,id2,...> <message>');
         }
 
-        await bot.sendMessage(msg.chat.id, "✅ Message delivered to user");
+        if (recipientIds.length > REPLY_MAX_RECIPIENTS) {
+            return await bot.sendMessage(msg.chat.id, `❌ Too many recipients (${recipientIds.length}). Max allowed is ${REPLY_MAX_RECIPIENTS}.`);
+        }
+
+        if (!msg.reply_to_message && !textMessage) {
+            throw new Error('No message content provided');
+        }
+
+        if (!msg.reply_to_message && textMessage && textMessage.length > 4000) {
+            throw new Error('Message exceeds 4000 character limit');
+        }
+
+        const mediaMsg = msg.reply_to_message || null;
+        const results = [];
+
+        for (const userId of recipientIds) {
+            try {
+                if (mediaMsg) {
+                    if (mediaMsg.photo) {
+                        await bot.sendPhoto(
+                            userId,
+                            mediaMsg.photo.slice(-1)[0].file_id,
+                            { caption: textMessage || '📨 Admin Reply' }
+                        );
+                    } else if (mediaMsg.document) {
+                        await bot.sendDocument(
+                            userId,
+                            mediaMsg.document.file_id,
+                            { caption: textMessage || '📨 Admin Reply' }
+                        );
+                    } else if (mediaMsg.video) {
+                        await bot.sendVideo(
+                            userId,
+                            mediaMsg.video.file_id,
+                            { caption: textMessage || '📨 Admin Reply' }
+                        );
+                    } else if (mediaMsg.audio) {
+                        await bot.sendAudio(
+                            userId,
+                            mediaMsg.audio.file_id,
+                            { caption: textMessage || '📨 Admin Reply' }
+                        );
+                    } else if (mediaMsg.voice) {
+                        await bot.sendVoice(
+                            userId,
+                            mediaMsg.voice.file_id,
+                            { caption: textMessage || '📨 Admin Reply' }
+                        );
+                    } else if (textMessage) {
+                        await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
+                    } else {
+                        throw new Error('No message content found');
+                    }
+                } else {
+                    await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
+                }
+
+                results.push({ userId, ok: true });
+            } catch (err) {
+                let reason = err && err.message ? err.message : 'Unknown error';
+                if (err && err.response && err.response.error_code === 403) {
+                    reason = "User has blocked the bot or doesn't exist";
+                } else if (reason.includes('chat not found')) {
+                    reason = "User hasn't started a chat with the bot";
+                }
+                results.push({ userId, ok: false, reason });
+            }
+        }
+
+        const successCount = results.filter(r => r.ok).length;
+        const failureCount = results.length - successCount;
+        let summary = `📬 Delivery report (${successCount} sent, ${failureCount} failed):\n\n`;
+        summary += results.map(r => r.ok ? `✅ ${r.userId}` : `❌ ${r.userId} — ${r.reason}`).join('\n');
+
+        await bot.sendMessage(msg.chat.id, summary);
     } 
     catch (error) {
         let errorMsg = `❌ Failed to send: ${error.message}`;
