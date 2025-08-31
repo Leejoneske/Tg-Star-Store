@@ -11,6 +11,7 @@
     adminId: localStorage.getItem('admin_tg') || '',
     orders: { page: 1, limit: 20, total: 0, status: '', q: '' },
     withdrawals: { page: 1, limit: 20, total: 0, status: '', q: '' },
+    csrfToken: '',
   };
 
   function show(sectionId){
@@ -44,6 +45,12 @@
       if (!res.ok || !data.isAdmin) throw new Error('Not admin');
       state.authed = true;
       state.adminId = data.id;
+      // fetch CSRF token for subsequent POSTs
+      try {
+        const csr = await fetch(API + '/admin/csrf', { credentials: 'include' });
+        const c = await csr.json();
+        if (csr.ok && c?.csrfToken) state.csrfToken = c.csrfToken;
+      } catch {}
       guard(false);
       show('dashboard');
       setActiveNav('dashboard');
@@ -73,7 +80,7 @@
 
   async function loadStats(){
     try {
-      const res = await fetch(API + '/admin/stats', { headers: { 'x-telegram-id': state.adminId }});
+      const res = await fetch(API + '/admin/stats', { credentials: 'include' });
       const data = await res.json();
       const stats = [
         { label: 'Total Orders', value: data.totalOrders || 0 },
@@ -140,19 +147,19 @@
     qsa('[data-act="ord-complete"]').forEach(b => b.addEventListener('click', async () => {
       const id = b.dataset.id;
       b.disabled = true;
-      await fetch(API + `/admin/orders/${id}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-telegram-id': state.adminId }});
+      await fetch(API + `/admin/orders/${id}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-csrf-token': state.csrfToken }, credentials: 'include' });
       await loadOrders();
     }));
     qsa('[data-act="ord-decline"]').forEach(b => b.addEventListener('click', async () => {
       const id = b.dataset.id;
       b.disabled = true;
-      await fetch(API + `/admin/orders/${id}/decline`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-telegram-id': state.adminId }});
+      await fetch(API + `/admin/orders/${id}/decline`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-csrf-token': state.csrfToken }, credentials: 'include' });
       await loadOrders();
     }));
     qsa('[data-act="ord-refund"]').forEach(b => b.addEventListener('click', async () => {
       const id = b.dataset.id;
       b.disabled = true;
-      await fetch(API + `/admin/orders/${id}/refund`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-telegram-id': state.adminId }});
+      await fetch(API + `/admin/orders/${id}/refund`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-csrf-token': state.csrfToken }, credentials: 'include' });
       await loadOrders();
     }));
   }
@@ -206,7 +213,7 @@
     qsa('[data-act="wd-complete"]').forEach(b => b.addEventListener('click', async () => {
       const id = b.dataset.id;
       b.disabled = true;
-      await fetch(API + `/admin/withdrawals/${id}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-telegram-id': state.adminId }});
+      await fetch(API + `/admin/withdrawals/${id}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-csrf-token': state.csrfToken }, credentials: 'include' });
       await loadWithdrawals();
     }));
     qsa('[data-act="wd-decline"]').forEach(b => b.addEventListener('click', async () => {
@@ -214,7 +221,7 @@
       const reasonSel = document.querySelector(`select[data-act="wd-reason"][data-id="${id}"]`);
       const reason = reasonSel && reasonSel.value ? reasonSel.value : 'Declined';
       b.disabled = true;
-      await fetch(API + `/admin/withdrawals/${id}/decline`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-telegram-id': state.adminId }, body: JSON.stringify({ reason }) });
+      await fetch(API + `/admin/withdrawals/${id}/decline`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-csrf-token': state.csrfToken }, credentials: 'include', body: JSON.stringify({ reason }) });
       await loadWithdrawals();
     }));
   }
