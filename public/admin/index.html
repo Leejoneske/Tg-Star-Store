@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - StarStore</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="/public/js/translations.js"></script>
+    <style>
+        body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
+    </style>
+    <script>
+        (function(){
+            const query = new URLSearchParams(window.location.search);
+            const token = query.get('token');
+            const tgId = query.get('tg');
+            if (token) localStorage.setItem('admin_token', token);
+            if (tgId) localStorage.setItem('admin_tg', tgId);
+        })();
+    </script>
+    <script defer src="./main.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="min-h-screen">
+        <div class="border-b bg-white">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="text-xl font-bold text-indigo-600">StarStore Admin</span>
+                    <span id="envBadge" class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">live</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="refreshBtn" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                    <button id="logoutBtn" class="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <aside class="lg:col-span-1">
+                <nav class="bg-white rounded-lg shadow border">
+                    <ul class="divide-y">
+                        <li><button data-view="dashboard" class="nav-link w-full text-left px-4 py-3 hover:bg-gray-50">Dashboard</button></li>
+                        <li><button data-view="orders" class="nav-link w-full text-left px-4 py-3 hover:bg-gray-50">Orders</button></li>
+                        <li><button data-view="withdrawals" class="nav-link w-full text-left px-4 py-3 hover:bg-gray-50">Withdrawals</button></li>
+                        <li><button data-view="referrals" class="nav-link w-full text-left px-4 py-3 hover:bg-gray-50">Referrals</button></li>
+                        <li><button data-view="users" class="nav-link w-full text-left px-4 py-3 hover:bg-gray-50">Users</button></li>
+                        <li><button data-view="notifications" class="nav-link w-full text-left px-4 py-3 hover:bg-gray-50">Notifications</button></li>
+                        <li><button data-view="settings" class="nav-link w-full text-left px-4 py-3 hover:bg-gray-50">Settings</button></li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <main class="lg:col-span-3 space-y-6">
+                <section id="guard" class="bg-white rounded-lg shadow border p-6">
+                    <h2 class="text-lg font-semibold mb-2">Admin Authentication</h2>
+                    <p class="text-sm text-gray-600 mb-4">Enter your Telegram ID (must be on admin list).</p>
+                    <div class="flex space-x-3">
+                        <input id="tgIdInput" class="border rounded px-3 py-2 flex-1" placeholder="Telegram ID">
+                        <button id="loginBtn" class="px-4 py-2 bg-indigo-600 text-white rounded">Login</button>
+                    </div>
+                    <p id="guardMsg" class="text-sm text-red-600 mt-3 hidden"></p>
+                </section>
+
+                <section id="dashboard" class="bg-white rounded-lg shadow border p-6 hidden">
+                    <h2 class="text-lg font-semibold mb-4">Dashboard</h2>
+                    <div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+                </section>
+
+                <section id="orders" class="bg-white rounded-lg shadow border p-6 hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold">Orders</h2>
+                        <div class="text-sm text-gray-500" id="ordersCount"></div>
+                    </div>
+                    <div id="ordersTable" class="overflow-x-auto"></div>
+                </section>
+
+                <section id="withdrawals" class="bg-white rounded-lg shadow border p-6 hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold">Withdrawals</h2>
+                        <div class="text-sm text-gray-500" id="withdrawalsCount"></div>
+                    </div>
+                    <div id="withdrawalsTable" class="overflow-x-auto"></div>
+                </section>
+
+                <section id="referrals" class="bg-white rounded-lg shadow border p-6 hidden">
+                    <h2 class="text-lg font-semibold mb-4">Referrals</h2>
+                    <div id="referralsTable" class="overflow-x-auto"></div>
+                </section>
+
+                <section id="users" class="bg-white rounded-lg shadow border p-6 hidden">
+                    <h2 class="text-lg font-semibold mb-4">Users</h2>
+                    <div id="usersTable" class="overflow-x-auto"></div>
+                </section>
+
+                <section id="notifications" class="bg-white rounded-lg shadow border p-6 hidden">
+                    <h2 class="text-lg font-semibold mb-4">Notifications</h2>
+                    <div class="space-y-3">
+                        <input id="notifyTarget" class="border rounded px-3 py-2 w-full" placeholder="all, @username or ID">
+                        <textarea id="notifyMessage" class="border rounded px-3 py-2 w-full" rows="3" placeholder="Message..."></textarea>
+                        <button id="notifySend" class="px-4 py-2 bg-indigo-600 text-white rounded">Send</button>
+                        <p id="notifyMsg" class="text-sm mt-2"></p>
+                    </div>
+                </section>
+
+                <section id="settings" class="bg-white rounded-lg shadow border p-6 hidden">
+                    <h2 class="text-lg font-semibold mb-4">Settings</h2>
+                    <div id="settingsForm" class="space-y-4"></div>
+                </section>
+            </main>
+        </div>
+    </div>
+</body>
+</html>
+

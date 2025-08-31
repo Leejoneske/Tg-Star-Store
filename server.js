@@ -4115,3 +4115,366 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Webhook set to: ${WEBHOOK_URL}`);
 });
+
+function requireAdmin(req, res, next) {
+	try {
+		const tgId = (req.headers['x-telegram-id'] || '').toString();
+		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId)) {
+			req.user = { id: tgId, isAdmin: true };
+			return next();
+		}
+		return res.status(403).json({ error: 'Forbidden' });
+	} catch (e) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+}
+
+app.get('/api/me', (req, res) => {
+	const tgId = (req.headers['x-telegram-id'] || '').toString();
+	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false });
+});
+
+// Basic admin stats
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+	try {
+		const [totalOrders, pendingWithdrawals, totalUsers, revenueUsdt] = await Promise.all([
+			Promise.resolve(await BuyOrder.countDocuments({}).catch(()=>0) + await SellOrder.countDocuments({}).catch(()=>0)),
+			ReferralWithdrawal.countDocuments({ status: 'pending' }).catch(()=>0),
+			User.countDocuments({}).catch(()=>0),
+			Promise.resolve(0)
+		]);
+		res.json({ totalOrders, pendingWithdrawals, totalUsers, revenueUsdt });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load stats' });
+	}
+});
+
+// List recent orders (buy + sell)
+app.get('/api/admin/orders', requireAdmin, async (req, res) => {
+	try {
+		const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+		const buys = await BuyOrder.find({}).sort({ dateCreated: -1 }).limit(limit).lean();
+		const sells = await SellOrder.find({}).sort({ dateCreated: -1 }).limit(limit).lean();
+		const orders = [
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated)).slice(0, limit);
+		res.json({ orders });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load orders' });
+	}
+});
+
+// Order actions
+app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        // Try buy first, then sell
+        let order = await BuyOrder.findOne({ id });
+        let orderType = 'buy';
+        if (!order) { order = await SellOrder.findOne({ id }); orderType = 'sell'; }
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        if (orderType === 'sell' && order.status !== 'processing') {
+            return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
+        if (orderType === 'buy' && order.status !== 'pending') {
+            return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
+
+        order.status = 'completed';
+        order.dateCompleted = new Date();
+        await order.save();
+
+        // Mirror side effects
+        if (orderType === 'sell') {
+            if (order.stars) { try { await trackStars(order.telegramId, order.stars, 'sell'); } catch {} }
+        } else {
+            if (!order.isPremium && order.stars) { try { await trackStars(order.telegramId, order.stars, 'buy'); } catch {} }
+            if (order.isPremium) { try { await trackPremiumActivation(order.telegramId); } catch {} }
+        }
+
+        // Collapse admin buttons
+        const statusText = '✅ Completed';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}${orderType === 'sell' ? '\n\nPayments have been transferred to the seller.' : ''}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        // Notify user
+        const userMessage = `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for choosing StarStore!'}`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to complete order' });
+    }
+});
+
+app.post('/api/admin/orders/:id/decline', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        let order = await BuyOrder.findOne({ id });
+        let orderType = 'buy';
+        if (!order) { order = await SellOrder.findOne({ id }); orderType = 'sell'; }
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        order.status = orderType === 'sell' ? 'failed' : 'declined';
+        order.dateDeclined = new Date();
+        await order.save();
+
+        const statusText = order.status === 'failed' ? '❌ Failed' : '❌ Declined';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        const userMessage = order.status === 'failed' 
+          ? `❌ Your sell order #${order.id} has failed.\n\nPlease try selling a lower amount or contact support if the issue persist.`
+          : `❌ Your buy order #${order.id} has been declined.\n\nPlease contact support if you believe this was a mistake.`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to decline order' });
+    }
+});
+
+app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        const order = await SellOrder.findOne({ id });
+        if (!order) return res.status(404).json({ error: 'Sell order not found' });
+
+        order.status = 'refunded';
+        order.dateRefunded = new Date();
+        await order.save();
+
+        const statusText = '💸 Refunded';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        const userMessage = `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to refund order' });
+    }
+});
+
+// List recent withdrawals
+app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
+	try {
+		const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+		const withdrawals = await ReferralWithdrawal.find({}).sort({ createdAt: -1 }).limit(limit).lean();
+		res.json({ withdrawals });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load withdrawals' });
+	}
+});
+
+// Complete a withdrawal
+app.post('/api/admin/withdrawals/:id/complete', requireAdmin, async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const id = req.params.id;
+        const admin = req.user?.id || 'admin';
+
+        const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(id), status: 'pending' },
+            { $set: { status: 'completed', processedBy: parseInt(admin, 10) || admin, processedAt: new Date() } },
+            { new: true, session }
+        );
+        if (!withdrawal) {
+            await session.abortTransaction();
+            return res.status(409).json({ error: 'Withdrawal not found or already processed' });
+        }
+
+        // Notify user
+        try {
+            await bot.sendMessage(withdrawal.userId, `✅ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Completed!\n\nAmount: ${withdrawal.amount} USDT\nWallet: ${withdrawal.walletAddress}\n\nFunds have been sent to your wallet.`);
+        } catch {}
+
+        // Update admin messages to collapsed status
+        const statusText = '✅ Completed';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (withdrawal.adminMessages?.length) {
+            await Promise.all(withdrawal.adminMessages.map(async (adminMsg) => {
+                if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\nStatus: ${statusText}\n${processedBy}\nProcessed at: ${new Date().toLocaleString()}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] }
+                    });
+                } catch {
+                    try {
+                        await bot.editMessageReplyMarkup(
+                            { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] },
+                            { chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId, message_id: adminMsg.messageId }
+                        );
+                    } catch {}
+                }
+            }));
+        }
+
+        await session.commitTransaction();
+        return res.json({ success: true });
+    } catch (e) {
+        await session.abortTransaction();
+        return res.status(500).json({ error: 'Failed to complete withdrawal' });
+    } finally {
+        session.endSession();
+    }
+});
+
+// Decline a withdrawal with reason
+app.post('/api/admin/withdrawals/:id/decline', requireAdmin, async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const id = req.params.id;
+        const { reason } = req.body || {};
+        const admin = req.user?.id || 'admin';
+
+        const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(id), status: 'pending' },
+            { $set: { status: 'declined', processedBy: parseInt(admin, 10) || admin, processedAt: new Date(), declineReason: reason || 'Declined' } },
+            { new: true, session }
+        );
+        if (!withdrawal) {
+            await session.abortTransaction();
+            return res.status(409).json({ error: 'Withdrawal not found or already processed' });
+        }
+
+        // Revert referral withdrawn flags
+        await Referral.updateMany(
+            { _id: { $in: withdrawal.referralIds } },
+            { $set: { withdrawn: false } },
+            { session }
+        );
+
+        // Notify user with reason
+        try {
+            await bot.sendMessage(withdrawal.userId, `❌ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Declined\nReason: ${withdrawal.declineReason}\n\nAmount: ${withdrawal.amount} USDT\nContact support for more information.`);
+        } catch {}
+
+        // Update admin messages
+        const statusText = '❌ Declined';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (withdrawal.adminMessages?.length) {
+            await Promise.all(withdrawal.adminMessages.map(async (adminMsg) => {
+                if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\nStatus: ${statusText}\nReason: ${withdrawal.declineReason}\n${processedBy}\nProcessed at: ${new Date().toLocaleString()}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] }
+                    });
+                } catch {
+                    try {
+                        await bot.editMessageReplyMarkup(
+                            { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] },
+                            { chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId, message_id: adminMsg.messageId }
+                        );
+                    } catch {}
+                }
+            }));
+        }
+
+        await session.commitTransaction();
+        return res.json({ success: true });
+    } catch (e) {
+        await session.abortTransaction();
+        return res.status(500).json({ error: 'Failed to decline withdrawal' });
+    } finally {
+        session.endSession();
+    }
+});
+
+// List referrals for admin
+app.get('/api/admin/referrals', requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const referrals = await Referral.find({}).sort({ dateReferred: -1 }).limit(limit).lean();
+        res.json({ referrals });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load referrals' });
+    }
+});
+
+// List users for admin
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const users = await User.find({}).sort({ createdAt: -1 }).limit(limit).lean();
+        res.json({ users });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load users' });
+    }
+});
+
+// Send a notification (basic)
+app.post('/api/admin/notify', requireAdmin, async (req, res) => {
+    try {
+        const { target, message } = req.body || {};
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ error: 'Message required' });
+        }
+        const sent = [];
+        if (!target || target === 'all') {
+            const users = await User.find({}, { id: 1 }).limit(5000);
+            for (const u of users) {
+                try { await bot.sendMessage(u.id, message); sent.push(u.id); } catch {}
+            }
+        } else if (/^@/.test(target)) {
+            const username = target.replace(/^@/, '');
+            const user = await User.findOne({ username });
+            if (!user) return res.status(404).json({ error: 'User not found' });
+            await bot.sendMessage(user.id, message); sent.push(user.id);
+        } else if (/^\d+$/.test(target)) {
+            await bot.sendMessage(target, message); sent.push(target);
+        } else {
+            return res.status(400).json({ error: 'Invalid target' });
+        }
+        res.json({ success: true, sent: sent.length });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to send notification' });
+    }
+});
