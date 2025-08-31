@@ -303,6 +303,14 @@ const referralWithdrawalSchema = new mongoose.Schema({
         enum: ['pending', 'completed', 'declined'], 
         default: 'pending' 
     },
+    adminMessages: [{
+        adminId: String,
+        messageId: Number,
+        originalText: String
+    }],
+    processedBy: { type: Number },
+    processedAt: { type: Date },
+    declineReason: { type: String },
     createdAt: { 
         type: Date, 
         default: Date.now 
@@ -2166,15 +2174,58 @@ bot.on('callback_query', async (query) => {
             return;
         }
 
-        const action = data.startsWith('complete_withdrawal_') ? 'complete' : 'decline';
-        const withdrawalId = data.split('_')[2];
+        // Support decline reason selection flow
+        let action = data.startsWith('complete_withdrawal_') ? 'complete'
+                    : data.startsWith('decline_withdrawal_') ? 'decline'
+                    : data.startsWith('decline_reason_') ? 'decline_reason'
+                    : 'unknown';
+        const parts = data.split('_');
+        const withdrawalId = parts[parts.length - 1];
 
         if (!withdrawalId) {
             await bot.answerCallbackQuery(query.id, { text: "❌ Invalid withdrawal ID" });
             return;
         }
 
-        await bot.answerCallbackQuery(query.id, { text: `⏳ Processing ${action}...` });
+        // If decline selected, show reason selector and return without processing DB yet
+        if (action === 'decline') {
+            const reasonKeyboard = {
+                inline_keyboard: [[
+                    { text: 'Wrong wallet address', callback_data: `decline_reason_wrongwallet_${withdrawalId}` }
+                ],[
+                    { text: 'Not approved', callback_data: `decline_reason_notapproved_${withdrawalId}` }
+                ],[
+                    { text: 'Other', callback_data: `decline_reason_other_${withdrawalId}` }
+                ]]
+            };
+
+            try {
+                await bot.editMessageReplyMarkup(reasonKeyboard, { chat_id: query.message.chat.id, message_id: query.message.message_id });
+            } catch (editErr) {
+                // Fallback: send a separate message for reason selection
+                await bot.sendMessage(query.message.chat.id, 'Select decline reason:', { reply_markup: reasonKeyboard });
+            }
+            await bot.answerCallbackQuery(query.id, { text: 'Choose a reason' });
+            return; // stop here until a reason is chosen
+        }
+
+        if (action === 'decline_reason') {
+            // Map reason code to human text
+            const reasonCode = parts[2]; // decline, reason, <code>, <id>
+            const reasonMap = {
+                wrongwallet: 'Wrong wallet address',
+                notapproved: 'Not approved',
+                other: 'Other'
+            };
+            const declineReason = reasonMap[reasonCode] || 'Declined';
+            await bot.answerCallbackQuery(query.id, { text: `⏳ Processing decline...` });
+
+            // Proceed with decline in DB below using declineReason
+            action = 'decline_final';
+            query.declineReason = declineReason;
+        } else {
+            await bot.answerCallbackQuery(query.id, { text: `⏳ Processing ${action}...` });
+        }
 
         const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
             { _id: new mongoose.Types.ObjectId(withdrawalId), status: 'pending' },
@@ -2194,7 +2245,8 @@ bot.on('callback_query', async (query) => {
             return;
         }
 
-        if (action === 'decline') {
+        const finalDecline = action === 'decline' || action === 'decline_final';
+        if (finalDecline) {
             await Referral.updateMany(
                 { _id: { $in: withdrawal.referralIds } },
                 { $set: { withdrawn: false } },
@@ -2202,12 +2254,13 @@ bot.on('callback_query', async (query) => {
             );
         }
 
+        const declineReasonText = query.declineReason ? `\nReason: ${query.declineReason}` : '';
         const userMessage = action === 'complete'
             ? `✅ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Completed!\n\n` +
               `Amount: ${withdrawal.amount} USDT\n` +
               `Wallet: ${withdrawal.walletAddress}\n\n` +
               `Funds have been sent to your wallet.`
-            : `❌ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Declined\n\n` +
+            : `❌ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Declined${declineReasonText}\n\n` +
               `Amount: ${withdrawal.amount} USDT\n` +
               `Contact support for more information.`;
 
@@ -2216,29 +2269,71 @@ bot.on('callback_query', async (query) => {
         const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
         const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
 
-        if (withdrawal.adminMessages?.length) {
-            await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
-                if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+        // Ensure adminMessages contains at least the clicking admin's message
+        const clickedChatId = query.message?.chat?.id?.toString();
+        const clickedMessageId = query.message?.message_id;
+        const clickedOriginalText = query.message?.text || '';
 
+        if (!Array.isArray(withdrawal.adminMessages)) {
+            withdrawal.adminMessages = [];
+        }
+
+        const hasClickedInList = withdrawal.adminMessages.some(m => m && m.adminId?.toString() === clickedChatId && m.messageId === clickedMessageId);
+        if (!hasClickedInList && clickedChatId && clickedMessageId) {
+            withdrawal.adminMessages.push({ adminId: clickedChatId, messageId: clickedMessageId, originalText: clickedOriginalText });
+            try {
+                await ReferralWithdrawal.updateOne(
+                    { _id: withdrawal._id },
+                    { $set: { adminMessages: withdrawal.adminMessages } },
+                    { session }
+                );
+            } catch (saveAdminMsgsErr) {
+                console.warn('Could not persist adminMessages for withdrawal:', saveAdminMsgsErr.message);
+            }
+        }
+
+        const updateSingleMessage = async (adminMsg) => {
+            if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+            const baseText = adminMsg.originalText || clickedOriginalText || '';
+            const updatedText = `${baseText}\n\n` +
+                                `Status: ${statusText}\n` +
+                                (query.declineReason ? `Reason: ${query.declineReason}\n` : '') +
+                                `${processedBy}\n` +
+                                `Processed at: ${new Date().toLocaleString()}`;
+            try {
+                await bot.editMessageText(updatedText, {
+                    chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId,
+                    message_id: adminMsg.messageId,
+                    reply_markup: {
+                        inline_keyboard: [[
+                            { text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }
+                        ]]
+                    }
+                });
+            } catch (err) {
+                // Fallback: try editing only reply markup
                 try {
-                    const updatedText = `${adminMsg.originalText}\n\n` +
-                                      `Status: ${statusText}\n` +
-                                      `${processedBy}\n` +
-                                      `Processed at: ${new Date().toLocaleString()}`;
-
-                    await bot.editMessageText(updatedText, {
-                        chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId,
-                        reply_markup: {
-                            inline_keyboard: [[
-                                { text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }
-                            ]]
-                        }
-                    });
-                } catch (err) {
-                    console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
+                    await bot.editMessageReplyMarkup(
+                        { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] },
+                        { chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId, message_id: adminMsg.messageId }
+                    );
+                } catch (fallbackErr) {
+                    console.error(`Failed to update admin ${adminMsg.adminId}:`, fallbackErr.message);
                 }
-            }));
+            }
+        };
+
+        // Always update the clicked admin's message first for immediate feedback
+        if (clickedChatId && clickedMessageId) {
+            await updateSingleMessage({ adminId: clickedChatId, messageId: clickedMessageId, originalText: clickedOriginalText });
+        }
+
+        // Then update all stored admin messages (skip the one we already updated)
+        if (withdrawal.adminMessages?.length) {
+            await Promise.all(withdrawal.adminMessages
+                .filter(m => !(m.adminId?.toString() === clickedChatId && m.messageId === clickedMessageId))
+                .map(updateSingleMessage)
+            );
         }
 
         await session.commitTransaction();
