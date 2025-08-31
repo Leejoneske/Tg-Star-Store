@@ -24,7 +24,17 @@
   }
 
   function guard(on){
-    if (on) { show('guard'); } else { qs('#guard').classList.add('hidden'); }
+    const header = qs('#adminHeader');
+    const sidebar = qs('#adminSidebar');
+    if (on) {
+      show('guard');
+      if (header) header.classList.add('hidden');
+      if (sidebar) sidebar.classList.add('hidden');
+    } else {
+      qs('#guard').classList.add('hidden');
+      if (header) header.classList.remove('hidden');
+      if (sidebar) sidebar.classList.remove('hidden');
+    }
   }
 
   async function checkAuth(){

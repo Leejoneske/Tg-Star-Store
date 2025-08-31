@@ -24,7 +24,7 @@
 </head>
 <body class="bg-gray-50">
     <div id="app" class="min-h-screen">
-        <div class="border-b bg-white">
+        <div id="adminHeader" class="border-b bg-white hidden">
             <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
                 <div class="flex items-center space-x-3">
                     <span class="text-xl font-bold text-indigo-600">StarStore Admin</span>
@@ -43,7 +43,7 @@
         </div>
 
         <div class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <aside class="lg:col-span-1">
+            <aside id="adminSidebar" class="lg:col-span-1 hidden">
                 <nav class="bg-white rounded-lg shadow border">
                     <ul class="divide-y">
                         <li><button data-view="dashboard" class="nav-link w-full text-left px-4 py-3 hover:bg-gray-50">Dashboard</button></li>
