@@ -2216,11 +2216,11 @@ bot.on('callback_query', async (query) => {
 
         const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
         const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
-        
+
         if (withdrawal.adminMessages?.length) {
             await Promise.all(withdrawal.adminMessages.map(async adminMsg => {
                 if (!adminMsg?.adminId || !adminMsg?.messageId) return;
-                
+
                 try {
                     const updatedText = `${adminMsg.originalText}\n\n` +
                                       `Status: ${statusText}\n` +
@@ -2229,7 +2229,12 @@ bot.on('callback_query', async (query) => {
 
                     await bot.editMessageText(updatedText, {
                         chat_id: adminMsg.adminId,
-                        message_id: adminMsg.messageId
+                        message_id: adminMsg.messageId,
+                        reply_markup: {
+                            inline_keyboard: [[
+                                { text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }
+                            ]]
+                        }
                     });
                 } catch (err) {
                     console.error(`Failed to update admin ${adminMsg.adminId}:`, err.message);
