@@ -95,16 +95,51 @@
       const res = await fetch(API + '/admin/withdrawals?limit=50', { headers: { 'x-telegram-id': state.adminId }});
       const data = await res.json();
       qs('#withdrawalsCount').textContent = (data.withdrawals?.length || 0) + ' items';
-      const rows = (data.withdrawals || []).map(w => [
-        'WD' + (w._id || '').toString().slice(-8).toUpperCase(),
-        (w.amount || 0) + ' USDT',
-        w.walletAddress,
-        w.status,
-        w.username ? '@'+w.username : w.userId,
-        new Date(w.createdAt || Date.now()).toLocaleString(),
-      ]);
-      qs('#withdrawalsTable').innerHTML = table(['WDID','Amount','Wallet','Status','User','Created'], rows);
+      const rows = (data.withdrawals || []).map(w => {
+        const wdId = 'WD' + (w._id || '').toString().slice(-8).toUpperCase();
+        const actions = w.status === 'pending' ? `
+          <div class="space-x-2">
+            <button class="px-2 py-1 text-xs bg-green-600 text-white rounded" data-act="wd-complete" data-id="${w._id}">Complete</button>
+            <div class="inline-block relative">
+              <button class="px-2 py-1 text-xs bg-red-600 text-white rounded" data-act="wd-decline" data-id="${w._id}">Decline</button>
+              <select class="ml-2 text-xs border rounded px-1 py-1 align-middle" data-act="wd-reason" data-id="${w._id}">
+                <option value="" disabled selected>Reason…</option>
+                <option value="Wrong wallet address">Wrong wallet address</option>
+                <option value="Not approved">Not approved</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>` : `<span class="text-gray-500 text-xs">—</span>`;
+        return [
+          wdId,
+          (w.amount || 0) + ' USDT',
+          w.walletAddress,
+          w.status + (w.declineReason ? ` <span class=\"text-gray-500\">(${w.declineReason})</span>` : ''),
+          (w.username ? '@'+w.username : w.userId),
+          new Date(w.createdAt || Date.now()).toLocaleString(),
+          actions
+        ];
+      });
+      qs('#withdrawalsTable').innerHTML = table(['WDID','Amount','Wallet','Status','User','Created','Actions'], rows);
+      wireWithdrawalActions();
     } catch {}
+  }
+
+  function wireWithdrawalActions(){
+    qsa('[data-act="wd-complete"]').forEach(b => b.addEventListener('click', async () => {
+      const id = b.dataset.id;
+      b.disabled = true;
+      await fetch(API + `/admin/withdrawals/${id}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-telegram-id': state.adminId }});
+      await loadWithdrawals();
+    }));
+    qsa('[data-act="wd-decline"]').forEach(b => b.addEventListener('click', async () => {
+      const id = b.dataset.id;
+      const reasonSel = document.querySelector(`select[data-act="wd-reason"][data-id="${id}"]`);
+      const reason = reasonSel && reasonSel.value ? reasonSel.value : 'Declined';
+      b.disabled = true;
+      await fetch(API + `/admin/withdrawals/${id}/decline`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-telegram-id': state.adminId }, body: JSON.stringify({ reason }) });
+      await loadWithdrawals();
+    }));
   }
 
   function wireNav(){
