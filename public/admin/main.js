@@ -27,14 +27,11 @@
 
   async function checkAuth(){
     try {
-      const tg = localStorage.getItem('admin_tg') || state.adminId;
-      if (!tg) throw new Error('No Telegram ID');
-      const res = await fetch(API + '/me', { headers: { 'x-telegram-id': tg }});
+      const res = await fetch(API + '/me', { credentials: 'include' });
       const data = await res.json();
       if (!res.ok || !data.isAdmin) throw new Error('Not admin');
       state.authed = true;
-      state.adminId = tg;
-      localStorage.setItem('admin_tg', tg);
+      state.adminId = data.id;
       guard(false);
       show('dashboard');
       setActiveNav('dashboard');
@@ -45,6 +42,20 @@
       qs('#guardMsg').textContent = 'Access denied';
       qs('#guardMsg').classList.remove('hidden');
     }
+  }
+
+  async function sendOtp(tgId){
+    const res = await fetch(API + '/admin/auth/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tgId }) });
+    if (!res.ok) {
+      const d = await res.json().catch(()=>({}));
+      throw new Error(d.error || 'Failed to send code');
+    }
+  }
+
+  async function verifyOtp(tgId, code){
+    const res = await fetch(API + '/admin/auth/verify-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tgId, code }), credentials: 'include' });
+    const d = await res.json().catch(()=>({}));
+    if (!res.ok || !d.success) throw new Error(d.error || 'Invalid code');
   }
 
   async function loadStats(){
@@ -75,7 +86,9 @@
 
   async function loadOrders(){
     try {
-      const res = await fetch(API + '/admin/orders?limit=50', { headers: { 'x-telegram-id': state.adminId }});
+      const status = (qs('#ordersStatus')?.value || '').trim();
+      const url = API + '/admin/orders?limit=50' + (status ? `&status=${encodeURIComponent(status)}` : '');
+      const res = await fetch(url, { credentials: 'include' });
       const data = await res.json();
       qs('#ordersCount').textContent = (data.orders?.length || 0) + ' items';
       const rows = (data.orders || []).map(o => {
@@ -123,7 +136,9 @@
 
   async function loadWithdrawals(){
     try {
-      const res = await fetch(API + '/admin/withdrawals?limit=50', { headers: { 'x-telegram-id': state.adminId }});
+      const status = (qs('#withdrawalsStatus')?.value || '').trim();
+      const url = API + '/admin/withdrawals?limit=50' + (status ? `&status=${encodeURIComponent(status)}` : '');
+      const res = await fetch(url, { credentials: 'include' });
       const data = await res.json();
       qs('#withdrawalsCount').textContent = (data.withdrawals?.length || 0) + ' items';
       const rows = (data.withdrawals || []).map(w => {
@@ -182,17 +197,28 @@
       if (view === 'orders') loadOrders();
       if (view === 'withdrawals') loadWithdrawals();
     }));
+    const os = qs('#ordersStatus'); if (os) os.addEventListener('change', loadOrders);
+    const ws = qs('#withdrawalsStatus'); if (ws) ws.addEventListener('change', loadWithdrawals);
   }
 
   function wireAuth(){
-    qs('#loginBtn').addEventListener('click', () => {
+    qs('#sendOtpBtn').addEventListener('click', async () => {
       const tg = qs('#tgIdInput').value.trim();
-      if (!tg) return;
-      localStorage.setItem('admin_tg', tg);
-      checkAuth();
+      if (!tg) { qs('#guardMsg').textContent = 'Enter your Telegram ID'; qs('#guardMsg').classList.remove('hidden'); return; }
+      qs('#guardMsg').classList.add('hidden');
+      try { await sendOtp(tg); qs('#guardMsg').textContent = 'Code sent to your bot chat.'; qs('#guardMsg').classList.remove('hidden'); }
+      catch (e) { qs('#guardMsg').textContent = e.message; qs('#guardMsg').classList.remove('hidden'); }
     });
-    qs('#logoutBtn').addEventListener('click', () => {
-      localStorage.removeItem('admin_tg');
+    qs('#verifyOtpBtn').addEventListener('click', async () => {
+      const tg = qs('#tgIdInput').value.trim();
+      const code = qs('#otpInput').value.trim();
+      if (!tg || !code) { qs('#guardMsg').textContent = 'Enter Telegram ID and the code'; qs('#guardMsg').classList.remove('hidden'); return; }
+      qs('#guardMsg').classList.add('hidden');
+      try { await verifyOtp(tg, code); await checkAuth(); }
+      catch (e) { qs('#guardMsg').textContent = e.message; qs('#guardMsg').classList.remove('hidden'); }
+    });
+    qs('#logoutBtn').addEventListener('click', async () => {
+      await fetch(API + '/admin/logout', { method: 'POST', credentials: 'include' });
       state.authed = false;
       guard(true);
       show('guard');
