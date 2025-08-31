@@ -62,6 +62,7 @@
       const d = await res.json().catch(()=>({}));
       throw new Error(d.error || 'Failed to send code');
     }
+    return true;
   }
 
   async function verifyOtp(tgId, code){
@@ -254,14 +255,15 @@
       if (!tg) { qs('#guardMsg').textContent = 'Enter your Telegram ID'; qs('#guardMsg').classList.remove('hidden'); return; }
       qs('#guardMsg').classList.add('hidden');
       try {
+        const btn = qs('#sendOtpBtn'); if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
         await sendOtp(tg);
-        qs('#guardMsg').textContent = 'Code sent. Check your Telegram.';
-        qs('#guardMsg').classList.remove('hidden');
+        const msg = qs('#guardMsg');
+        if (msg) { msg.textContent = '✅ Code sent. Check your Telegram.'; msg.classList.remove('hidden'); msg.classList.remove('text-red-600'); msg.classList.add('text-green-600'); }
         let left = 60; const timer = qs('#otpTimer');
         if (timer) { timer.classList.remove('hidden'); timer.textContent = `${left}s`; }
-        const iv = setInterval(() => { left -= 1; if (left <= 0) { clearInterval(iv); if (timer) timer.classList.add('hidden'); } else if (timer) { timer.textContent = `${left}s`; } }, 1000);
+        const iv = setInterval(() => { left -= 1; if (left <= 0) { clearInterval(iv); if (timer) timer.classList.add('hidden'); if (btn) { btn.disabled = false; btn.textContent = 'Send Code'; } } else if (timer) { timer.textContent = `${left}s`; } }, 1000);
       }
-      catch (e) { qs('#guardMsg').textContent = e.message; qs('#guardMsg').classList.remove('hidden'); }
+      catch (e) { const msg = qs('#guardMsg'); if (msg) { msg.textContent = e.message; msg.classList.remove('hidden'); msg.classList.remove('text-green-600'); msg.classList.add('text-red-600'); } const btn = qs('#sendOtpBtn'); if (btn) { btn.disabled = false; btn.textContent = 'Send Code'; } }
     });
     qs('#verifyOtpBtn').addEventListener('click', async () => {
       const tg = qs('#tgIdInput').value.trim();
