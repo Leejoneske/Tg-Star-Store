@@ -850,13 +850,11 @@ function isValidTONAddress(address) {
  
 async function showWithdrawPopup() {
     try {
-        await loadReferralData();
+        // Refresh in background for recency, but don't block popup showing
+        loadReferralData().catch(() => {});
         
-        const activeReferrals = state.referrals.filter(r => 
-            ['completed', 'active'].includes(r.status) && !r.withdrawn
-        );
-        
-        const availableBalance = activeReferrals.length * 0.5;
+        const availableBalance = parseFloat(state.stats?.availableBalance || 0);
+        const activeReferralsCount = Math.floor(availableBalance / 0.5);
 
         if (availableBalance < 0.5) {
             await Swal.fire({
@@ -881,11 +879,12 @@ async function showWithdrawPopup() {
                     <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
                     <input type="number" id="withdrawAmount" 
                            min="0.5" max="${availableBalance}" 
-                           step="0.01" value="${Math.min(0.5, availableBalance).toFixed(2)}"
+                           inputmode="decimal" step="0.01" value="${Math.min(0.5, availableBalance).toFixed(2)}"
                            class="w-full p-2 border rounded" required>
-                    <p class="text-xs text-gray-500 mt-1">
-                        Available: ${availableBalance.toFixed(2)} USDT
-                    </p>
+                    <div class="flex items-center justify-between mt-1">
+                        <p class="text-xs text-gray-500">Available: ${availableBalance.toFixed(2)} USDT (${activeReferralsCount} referrals)</p>
+                        <button type="button" id="withdrawAllBtn" class="text-xs text-indigo-600 hover:underline font-medium">Withdraw All</button>
+                    </div>
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
@@ -894,9 +893,28 @@ async function showWithdrawPopup() {
                            placeholder="EQ..." required>
                 </div>`,
             focusConfirm: false,
+            returnFocus: false,
             showCancelButton: true,
+            confirmButtonText: 'Withdraw',
+            cancelButtonText: 'Cancel',
+            showClass: {
+                popup: 'animate__animated animate__fadeIn animate__faster'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOut animate__faster'
+            },
+            didOpen: () => {
+                const allBtn = document.getElementById('withdrawAllBtn');
+                const amountInput = document.getElementById('withdrawAmount');
+                if (allBtn && amountInput) {
+                    allBtn.addEventListener('click', () => {
+                        amountInput.value = `${availableBalance.toFixed(2)}`;
+                    });
+                }
+            },
             preConfirm: () => {
-                const amount = parseFloat(document.getElementById('withdrawAmount').value);
+                const amountRaw = document.getElementById('withdrawAmount').value;
+                const amount = parseFloat(amountRaw);
                 const wallet = document.getElementById('withdrawWallet').value.trim();
 
                 if (!amount || amount < 0.5) {
@@ -906,6 +924,13 @@ async function showWithdrawPopup() {
 
                 if (amount > availableBalance) {
                     Swal.showValidationMessage(`Maximum withdrawal is ${availableBalance.toFixed(2)} USDT`);
+                    return false;
+                }
+
+                // Enforce 0.5 USDT increments
+                const isHalfIncrement = Math.abs((amount * 100) % 50) < 1e-6;
+                if (!isHalfIncrement) {
+                    Swal.showValidationMessage('Amount must be in increments of 0.5 USDT');
                     return false;
                 }
 
