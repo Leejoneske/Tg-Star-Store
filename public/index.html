@@ -1004,6 +1004,52 @@ document.addEventListener('DOMContentLoaded', function() {
                     initNotificationSystem();
                     loadStickers();
                     
+                    // Ensure package buttons are properly initialized
+                    setTimeout(() => {
+                        const updatePackageButtons = () => {
+                            const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value || 'self';
+                            const packageButtons = document.querySelectorAll('.package-btn');
+                            
+                            packageButtons.forEach(btn => {
+                                try {
+                                    const itemData = JSON.parse(btn.getAttribute('data-item'));
+                                    const stars = itemData.stars;
+                                    
+                                    if (buyForValue === 'others') {
+                                        // For buying for others, only allow packages >= 50 stars
+                                        if (stars < 50) {
+                                            btn.disabled = true;
+                                            btn.textContent = 'Min 50 for others';
+                                            btn.classList.add('opacity-50', 'cursor-not-allowed');
+                                        } else {
+                                            btn.disabled = false;
+                                            btn.textContent = 'Buy Gift';
+                                            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                                        }
+                                    } else {
+                                        // For self-purchase, allow all packages
+                                        btn.disabled = false;
+                                        btn.textContent = 'Buy Now';
+                                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                                    }
+                                } catch (error) {
+                                    console.error('Error updating package button:', error);
+                                    // Default to enabled state for self-purchase
+                                    btn.disabled = false;
+                                    btn.textContent = 'Buy Now';
+                                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                                }
+                            });
+                        };
+                        
+                        updatePackageButtons();
+                        
+                        // Update when "buy for" selection changes
+                        document.querySelectorAll('input[name="buyForStars"]').forEach(radio => {
+                            radio.addEventListener('change', updatePackageButtons);
+                        });
+                    }, 100);
+                    
                     window.currentUser = currentUser;
                     window.currentWalletAddress = currentWalletAddress;
                     window.isTelegramEnv = isTelegramEnv;
@@ -2020,26 +2066,34 @@ function initRecipientsUI() {
     
     // Update package button text and validation based on "buy for" selection
     function updatePackageButtons() {
-        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value || 'self';
         const packageButtons = document.querySelectorAll('.package-btn');
         
         packageButtons.forEach(btn => {
-            const itemData = JSON.parse(btn.getAttribute('data-item'));
-            const stars = itemData.stars;
-            
-            if (buyForValue === 'others') {
-                // For buying for others, only allow packages >= 50 stars
-                if (stars < 50) {
-                    btn.disabled = true;
-                    btn.textContent = 'Min 50 for others';
-                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+            try {
+                const itemData = JSON.parse(btn.getAttribute('data-item'));
+                const stars = itemData.stars;
+                
+                if (buyForValue === 'others') {
+                    // For buying for others, only allow packages >= 50 stars
+                    if (stars < 50) {
+                        btn.disabled = true;
+                        btn.textContent = 'Min 50 for others';
+                        btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        btn.disabled = false;
+                        btn.textContent = 'Buy Gift';
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
                 } else {
+                    // For self-purchase, allow all packages
                     btn.disabled = false;
-                    btn.textContent = 'Buy Gift';
+                    btn.textContent = 'Buy Now';
                     btn.classList.remove('opacity-50', 'cursor-not-allowed');
                 }
-            } else {
-                // For self-purchase, allow all packages
+            } catch (error) {
+                console.error('Error updating package button:', error);
+                // Default to enabled state for self-purchase
                 btn.disabled = false;
                 btn.textContent = 'Buy Now';
                 btn.classList.remove('opacity-50', 'cursor-not-allowed');
