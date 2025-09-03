@@ -10,8 +10,8 @@
 </head>
 <body>
     <!-- Authentication Screen -->
-    <div id="auth-screen" class="flex items-center justify-center min-h-screen bg-gray-50">
-        <div class="card" style="max-width: 400px; width: 100%;">
+    <div id="auth-screen" class="fixed inset-0 flex items-center justify-center bg-gray-50 z-50">
+        <div class="card" style="max-width: 400px; width: 100%; margin: 20px;">
             <div class="card-header text-center">
                 <div class="flex items-center justify-center mb-4">
                     <div class="stat-icon primary">
@@ -49,6 +49,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Mobile Overlay -->
+    <div id="mobileOverlay" class="mobile-overlay"></div>
 
     <!-- Main Admin Interface -->
     <div id="admin-interface" class="hidden">
@@ -419,6 +422,14 @@
 
                 // Mobile menu
                 document.getElementById('mobileMenuBtn')?.addEventListener('click', () => this.toggleMobileMenu());
+                document.getElementById('mobileOverlay')?.addEventListener('click', () => this.closeMobileMenu());
+                
+                // Keyboard events
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        this.closeMobileMenu();
+                    }
+                });
 
                 // Refresh
                 document.getElementById('refreshBtn')?.addEventListener('click', () => this.refreshCurrentView());
@@ -531,11 +542,15 @@
             showAuthInterface() {
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('admin-interface').classList.add('hidden');
+                // Close mobile menu if open
+                this.closeMobileMenu();
             }
 
             showAdminInterface() {
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('admin-interface').classList.remove('hidden');
+                // Close mobile menu if open
+                this.closeMobileMenu();
             }
 
             navigateTo(view) {
@@ -558,6 +573,9 @@
                 // Show/hide views
                 document.querySelectorAll('[id$="-view"]').forEach(v => v.classList.add('hidden'));
                 document.getElementById(`${view}-view`).classList.remove('hidden');
+                
+                // Close mobile menu on navigation
+                this.closeMobileMenu();
                 
                 // Load data for the view
                 this.loadViewData(view);
@@ -851,7 +869,22 @@
 
             toggleMobileMenu() {
                 const sidebar = document.querySelector('.sidebar');
-                sidebar.classList.toggle('open');
+                const overlay = document.getElementById('mobileOverlay');
+                
+                if (sidebar.classList.contains('open')) {
+                    this.closeMobileMenu();
+                } else {
+                    sidebar.classList.add('open');
+                    overlay.classList.add('open');
+                }
+            }
+
+            closeMobileMenu() {
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.getElementById('mobileOverlay');
+                
+                sidebar.classList.remove('open');
+                overlay.classList.remove('open');
             }
 
             debounce(func, wait) {

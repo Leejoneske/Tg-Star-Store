@@ -682,6 +682,69 @@
         }
     }
 
+    /* Tablet and smaller desktop */
+    @media (max-width: 1024px) {
+        .app-container {
+            max-width: 100%;
+        }
+        
+        .grid.grid-cols-2 {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .user-info-container {
+            gap: 16px;
+        }
+    }
+    
+    /* Mobile landscape */
+    @media (max-width: 768px) {
+        .grid.grid-cols-2 {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        
+        .section-toggle {
+            gap: 8px;
+        }
+        
+        .toggle-button {
+            padding: 10px 16px;
+            font-size: 14px;
+        }
+        
+        .user-info-container {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .logo-header {
+            font-size: 22px;
+            padding: 14px;
+        }
+        
+        .profile-image {
+            width: 52px;
+            height: 52px;
+        }
+        
+        .package-option {
+            padding: 14px;
+        }
+        
+        .recipient-item {
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .recipient-item input {
+            width: 100%;
+        }
+    }
+    
+    /* Small mobile */
     @media (max-width: 480px) {
         .section-toggle {
             gap: 6px;
@@ -689,7 +752,7 @@
         
         .toggle-button {
             padding: 8px 12px;
-            font-size: 14px;
+            font-size: 13px;
         }
         
         .user-info-container {
@@ -710,6 +773,41 @@
         
         .package-option {
             padding: 12px;
+        }
+        
+        .package-option h3 {
+            font-size: 16px;
+        }
+        
+        .package-option .price {
+            font-size: 18px;
+        }
+        
+        .buy-button {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+    }
+    
+    /* Extra small mobile */
+    @media (max-width: 360px) {
+        .logo-header {
+            font-size: 18px;
+            padding: 10px;
+        }
+        
+        .toggle-button {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        
+        .package-option {
+            padding: 10px;
+        }
+        
+        .buy-button {
+            padding: 6px 12px;
+            font-size: 13px;
         }
     }
 </style>
