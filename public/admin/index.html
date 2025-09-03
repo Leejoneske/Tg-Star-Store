@@ -484,6 +484,17 @@
                     if (user.isAdmin) {
                         this.currentUser = user;
                         this.showAdminInterface();
+                        // Load CSRF for session-backed requests
+                        try {
+                            const csrfRes = await fetch('/api/admin/csrf');
+                            if (csrfRes.ok) {
+                                const csrfData = await csrfRes.json();
+                                this.csrfToken = csrfData.csrfToken;
+                            }
+                        } catch {}
+                        // Remove auth overlay to avoid any overlap
+                        const authEl = document.getElementById('auth-screen');
+                        if (authEl && authEl.parentNode) authEl.parentNode.removeChild(authEl);
                         await this.loadDashboard();
                     } else {
                         this.showAuthInterface();

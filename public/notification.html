@@ -133,8 +133,10 @@
     isLoading = true;
     currentUserId = getCurrentUserId();
     
-    if (!currentUserId) {
-      showError('User ID not found. Please refresh the page.');
+    // Guard: require Telegram context to resolve user; otherwise show friendly hint
+    if (!window.Telegram?.WebApp?.initData) {
+      showError('Notifications require opening in Telegram. Please open this in the Telegram app.');
+      isLoading = false;
       return;
     }
 
@@ -142,7 +144,6 @@
       const response = await fetch(`/api/notifications?limit=10&skip=${page * 10}`, {
         headers: {
           'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-          'x-telegram-id': currentUserId,
           'Content-Type': 'application/json'
         }
       });
@@ -163,7 +164,10 @@
       
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      showError('Failed to load notifications. Please try again.');
+      const message = error?.message?.includes('401') || error?.message?.includes('403')
+        ? 'Authentication required. Please open in Telegram again.'
+        : 'Failed to load notifications. Please try again.';
+      showError(message);
     } finally {
       isLoading = false;
     }
