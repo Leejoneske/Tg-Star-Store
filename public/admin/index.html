@@ -743,130 +743,778 @@
     </div>
 
     <script>
-        // Enhanced JavaScript for improved functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            // Mobile menu functionality
-            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-            const mobileSidebar = document.getElementById('mobileSidebar');
-            const closeMobileMenu = document.getElementById('closeMobileMenu');
-            const mobileOverlay = document.getElementById('mobileOverlay');
-
-            function toggleMobileMenu() {
-                mobileSidebar.classList.toggle('open');
-                mobileOverlay.classList.toggle('hidden');
+        // Admin Dashboard - Fully Functional
+        class AdminDashboard {
+            constructor() {
+                this.currentUser = null;
+                this.csrfToken = null;
+                this.currentView = 'dashboard';
+                this.ordersPage = 1;
+                this.withdrawalsPage = 1;
+                this.init();
             }
 
-            mobileMenuToggle?.addEventListener('click', toggleMobileMenu);
-            closeMobileMenu?.addEventListener('click', toggleMobileMenu);
-            mobileOverlay?.addEventListener('click', toggleMobileMenu);
+            async init() {
+                this.setupEventListeners();
+                await this.checkAuth();
+            }
 
-            // Enhanced navigation
-            const navLinks = document.querySelectorAll('.nav-link');
-            const sections = document.querySelectorAll('section');
+            setupEventListeners() {
+                // Mobile menu
+                const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+                const mobileSidebar = document.getElementById('mobileSidebar');
+                const closeMobileMenu = document.getElementById('closeMobileMenu');
+                const mobileOverlay = document.getElementById('mobileOverlay');
 
-            navLinks.forEach(link => {
-                link.addEventListener('click', function() {
-                    const view = this.getAttribute('data-view');
-                    
-                    // Remove active class from all links
-                    navLinks.forEach(l => l.classList.remove('active'));
-                    // Add active class to clicked link
-                    this.classList.add('active');
-                    
-                    // Hide all sections
-                    sections.forEach(section => section.classList.add('hidden'));
-                    // Show selected section
-                    const targetSection = document.getElementById(view);
-                    if (targetSection) {
-                        targetSection.classList.remove('hidden');
-                    }
-                    
-                    // Close mobile menu if open
-                    if (window.innerWidth < 1024) {
-                        toggleMobileMenu();
-                    }
+                mobileMenuToggle?.addEventListener('click', () => this.toggleMobileMenu());
+                closeMobileMenu?.addEventListener('click', () => this.toggleMobileMenu());
+                mobileOverlay?.addEventListener('click', () => this.toggleMobileMenu());
+
+                // Navigation
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        const view = e.currentTarget.getAttribute('data-view');
+                        this.navigateTo(view);
+                    });
                 });
-            });
 
-            // Message length counter
-            const messageTextarea = document.getElementById('notifyMessage');
-            const messageLength = document.getElementById('messageLength');
-            
-            messageTextarea?.addEventListener('input', function() {
-                const length = this.value.length;
-                messageLength.textContent = length;
-                
-                if (length > 450) {
-                    messageLength.classList.add('text-red-500');
-                } else if (length > 350) {
-                    messageLength.classList.add('text-yellow-500');
-                } else {
-                    messageLength.classList.remove('text-red-500', 'text-yellow-500');
+                // Authentication
+                document.getElementById('sendOtpBtn')?.addEventListener('click', () => this.sendOTP());
+                document.getElementById('verifyOtpBtn')?.addEventListener('click', () => this.verifyOTP());
+                document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
+
+                // Orders
+                document.getElementById('ordersStatus')?.addEventListener('change', () => this.loadOrders());
+                document.getElementById('ordersQuery')?.addEventListener('input', this.debounce(() => this.loadOrders(), 500));
+                document.getElementById('ordersPrev')?.addEventListener('click', () => this.changeOrdersPage(-1));
+                document.getElementById('ordersNext')?.addEventListener('click', () => this.changeOrdersPage(1));
+
+                // Withdrawals
+                document.getElementById('withdrawalsStatus')?.addEventListener('change', () => this.loadWithdrawals());
+                document.getElementById('withdrawalsQuery')?.addEventListener('input', this.debounce(() => this.loadWithdrawals(), 500));
+                document.getElementById('withdrawalsPrev')?.addEventListener('click', () => this.changeWithdrawalsPage(-1));
+                document.getElementById('withdrawalsNext')?.addEventListener('click', () => this.changeWithdrawalsPage(1));
+
+                // Notifications
+                document.getElementById('notifyMessage')?.addEventListener('input', (e) => this.updateMessageLength(e));
+                document.getElementById('notifySend')?.addEventListener('click', () => this.sendNotification());
+
+                // Global search
+                document.getElementById('globalSearch')?.addEventListener('input', this.debounce(() => this.globalSearch(), 500));
+
+                // Export buttons
+                document.getElementById('globalExportOrders')?.addEventListener('click', () => this.exportOrders());
+                document.getElementById('globalExportWithdrawals')?.addEventListener('click', () => this.exportWithdrawals());
+
+                // Refresh button
+                document.getElementById('refreshBtn')?.addEventListener('click', () => this.refreshCurrentView());
+            }
+
+            async checkAuth() {
+                try {
+                    const response = await fetch('/api/me');
+                    const user = await response.json();
+                    
+                    if (user.isAdmin) {
+                        this.currentUser = user;
+                        this.showAdminInterface();
+                        await this.loadDashboard();
+                    } else {
+                        this.showAuthInterface();
+                    }
+                } catch (error) {
+                    console.error('Auth check failed:', error);
+                    this.showAuthInterface();
                 }
-            });
+            }
 
-            // Auto-refresh timestamp
-            function updateTimestamp() {
+            async sendOTP() {
+                const tgId = document.getElementById('tgIdInput').value.trim();
+                if (!tgId) {
+                    this.showMessage('Please enter your Telegram ID', 'error');
+                    return;
+                }
+
+                const btn = document.getElementById('sendOtpBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Sending...';
+
+                try {
+                    const response = await fetch('/api/admin/auth/send-otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tgId })
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.showMessage('Verification code sent to your Telegram!', 'success');
+                        this.startOTPTimer();
+                        document.getElementById('otpInput').focus();
+                    } else {
+                        this.showMessage(result.error || 'Failed to send code', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('Network error. Please try again.', 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>Send Verification Code';
+                }
+            }
+
+            async verifyOTP() {
+                const tgId = document.getElementById('tgIdInput').value.trim();
+                const code = document.getElementById('otpInput').value.trim();
+                
+                if (!code) {
+                    this.showMessage('Please enter the verification code', 'error');
+                    return;
+                }
+
+                const btn = document.getElementById('verifyOtpBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Verifying...';
+
+                try {
+                    const response = await fetch('/api/admin/auth/verify-otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tgId, code })
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.csrfToken = result.csrfToken;
+                        this.currentUser = { id: tgId, isAdmin: true };
+                        this.showMessage('Login successful!', 'success');
+                        this.showAdminInterface();
+                        await this.loadDashboard();
+                    } else {
+                        this.showMessage(result.error || 'Invalid code', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('Network error. Please try again.', 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Verify';
+                }
+            }
+
+            async logout() {
+                try {
+                    await fetch('/api/admin/logout', { method: 'POST' });
+                    this.currentUser = null;
+                    this.csrfToken = null;
+                    this.showAuthInterface();
+                    this.showMessage('Logged out successfully', 'success');
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+            }
+
+            showAuthInterface() {
+                document.getElementById('guard').classList.remove('hidden');
+                document.getElementById('adminHeader').classList.add('hidden');
+                document.getElementById('adminSidebar').classList.add('hidden');
+                document.querySelectorAll('section[id!="guard"]').forEach(s => s.classList.add('hidden'));
+            }
+
+            showAdminInterface() {
+                document.getElementById('guard').classList.add('hidden');
+                document.getElementById('adminHeader').classList.remove('hidden');
+                document.getElementById('adminSidebar').classList.remove('hidden');
+            }
+
+            navigateTo(view) {
+                this.currentView = view;
+                
+                // Update navigation
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                document.querySelector(`[data-view="${view}"]`).classList.add('active');
+                
+                // Show/hide sections
+                document.querySelectorAll('section[id!="guard"]').forEach(s => s.classList.add('hidden'));
+                document.getElementById(view).classList.remove('hidden');
+                
+                // Close mobile menu
+                this.toggleMobileMenu();
+                
+                // Load data for the view
+                this.loadViewData(view);
+            }
+
+            async loadViewData(view) {
+                switch (view) {
+                    case 'dashboard':
+                        await this.loadDashboard();
+                        break;
+                    case 'orders':
+                        await this.loadOrders();
+                        break;
+                    case 'withdrawals':
+                        await this.loadWithdrawals();
+                        break;
+                    case 'referrals':
+                        await this.loadReferrals();
+                        break;
+                    case 'users':
+                        await this.loadUsers();
+                        break;
+                }
+            }
+
+            async loadDashboard() {
+                try {
+                    const response = await fetch('/api/admin/stats');
+                    const stats = await response.json();
+                    
+                    // Update stats display
+                    this.updateStatsDisplay(stats);
+                    this.updateTimestamp();
+                } catch (error) {
+                    console.error('Failed to load dashboard:', error);
+                }
+            }
+
+            updateStatsDisplay(stats) {
+                // Update the stats cards with real data
+                const statsContainer = document.getElementById('stats');
+                if (statsContainer) {
+                    statsContainer.innerHTML = `
+                        <div class="stat-card rounded-2xl p-6 shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 mb-1">Total Orders</p>
+                                    <p class="text-3xl font-bold text-gray-900">${stats.totalOrders || 0}</p>
+                                </div>
+                                <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <i class="fa-solid fa-shopping-cart text-blue-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card rounded-2xl p-6 shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 mb-1">Pending Withdrawals</p>
+                                    <p class="text-3xl font-bold text-gray-900">${stats.pendingWithdrawals || 0}</p>
+                                </div>
+                                <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                                    <i class="fa-solid fa-credit-card text-green-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card rounded-2xl p-6 shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 mb-1">Total Users</p>
+                                    <p class="text-3xl font-bold text-gray-900">${stats.totalUsers || 0}</p>
+                                </div>
+                                <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                                    <i class="fa-solid fa-users text-purple-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card rounded-2xl p-6 shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 mb-1">Revenue (USDT)</p>
+                                    <p class="text-3xl font-bold text-gray-900">${stats.revenueUsdt || 0}</p>
+                                </div>
+                                <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+                                    <i class="fa-solid fa-dollar-sign text-orange-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            async loadOrders() {
+                const status = document.getElementById('ordersStatus').value;
+                const query = document.getElementById('ordersQuery').value;
+                
+                try {
+                    const params = new URLSearchParams({
+                        page: this.ordersPage,
+                        limit: 20,
+                        ...(status && { status }),
+                        ...(query && { q: query })
+                    });
+
+                    const response = await fetch(`/api/admin/orders?${params}`);
+                    const data = await response.json();
+                    
+                    this.renderOrdersTable(data.orders || []);
+                    this.updateOrdersPagination(data.total || 0);
+                } catch (error) {
+                    console.error('Failed to load orders:', error);
+                    this.showMessage('Failed to load orders', 'error');
+                }
+            }
+
+            renderOrdersTable(orders) {
+                const table = document.getElementById('ordersTable');
+                if (!table) return;
+
+                if (orders.length === 0) {
+                    table.innerHTML = `
+                        <div class="p-8 text-center text-gray-500">
+                            <i class="fa-solid fa-shopping-cart text-4xl mb-4 text-gray-300"></i>
+                            <p>No orders found</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const tableHTML = `
+                    <table class="table-modern w-full">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${orders.map(order => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order.id}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.type === 'buy' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                                            ${order.type.toUpperCase()}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@${order.username}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${order.amount} USDT</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="status-badge status-${order.status}">${order.status}</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(order.dateCreated).toLocaleDateString()}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button onclick="adminDashboard.viewOrder('${order.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">View</button>
+                                        ${order.status === 'pending' ? `
+                                            <button onclick="adminDashboard.completeOrder('${order.id}')" class="text-green-600 hover:text-green-900 mr-2">Complete</button>
+                                            <button onclick="adminDashboard.declineOrder('${order.id}')" class="text-red-600 hover:text-red-900">Decline</button>
+                                        ` : ''}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                table.innerHTML = tableHTML;
+            }
+
+            async loadWithdrawals() {
+                const status = document.getElementById('withdrawalsStatus').value;
+                const query = document.getElementById('withdrawalsQuery').value;
+                
+                try {
+                    const params = new URLSearchParams({
+                        page: this.withdrawalsPage,
+                        limit: 20,
+                        ...(status && { status }),
+                        ...(query && { q: query })
+                    });
+
+                    const response = await fetch(`/api/admin/withdrawals?${params}`);
+                    const data = await response.json();
+                    
+                    this.renderWithdrawalsTable(data.withdrawals || []);
+                    this.updateWithdrawalsPagination(data.total || 0);
+                } catch (error) {
+                    console.error('Failed to load withdrawals:', error);
+                    this.showMessage('Failed to load withdrawals', 'error');
+                }
+            }
+
+            renderWithdrawalsTable(withdrawals) {
+                const table = document.getElementById('withdrawalsTable');
+                if (!table) return;
+
+                if (withdrawals.length === 0) {
+                    table.innerHTML = `
+                        <div class="p-8 text-center text-gray-500">
+                            <i class="fa-solid fa-credit-card text-4xl mb-4 text-gray-300"></i>
+                            <p>No withdrawals found</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const tableHTML = `
+                    <table class="table-modern w-full">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${withdrawals.map(withdrawal => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${withdrawal.id}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@${withdrawal.username}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${withdrawal.amount} USDT</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="status-badge status-${withdrawal.status}">${withdrawal.status}</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(withdrawal.dateCreated).toLocaleDateString()}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button onclick="adminDashboard.viewWithdrawal('${withdrawal.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">View</button>
+                                        ${withdrawal.status === 'pending' ? `
+                                            <button onclick="adminDashboard.completeWithdrawal('${withdrawal.id}')" class="text-green-600 hover:text-green-900 mr-2">Complete</button>
+                                            <button onclick="adminDashboard.declineWithdrawal('${withdrawal.id}')" class="text-red-600 hover:text-red-900">Decline</button>
+                                        ` : ''}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                table.innerHTML = tableHTML;
+            }
+
+            async loadReferrals() {
+                try {
+                    const response = await fetch('/api/admin/referrals');
+                    const data = await response.json();
+                    
+                    const table = document.getElementById('referralsTable');
+                    if (table) {
+                        table.innerHTML = `
+                            <div class="p-8 text-center text-gray-500">
+                                <i class="fa-solid fa-users text-4xl mb-4 text-gray-300"></i>
+                                <p>Referral system coming soon</p>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('Failed to load referrals:', error);
+                }
+            }
+
+            async loadUsers() {
+                try {
+                    const response = await fetch('/api/admin/users');
+                    const data = await response.json();
+                    
+                    const table = document.getElementById('usersTable');
+                    if (table) {
+                        table.innerHTML = `
+                            <div class="p-8 text-center text-gray-500">
+                                <i class="fa-solid fa-user-friends text-4xl mb-4 text-gray-300"></i>
+                                <p>User management coming soon</p>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('Failed to load users:', error);
+                }
+            }
+
+            async sendNotification() {
+                const target = document.getElementById('notifyTarget').value.trim();
+                const message = document.getElementById('notifyMessage').value.trim();
+                
+                if (!target || !message) {
+                    this.showMessage('Please fill in all fields', 'error');
+                    return;
+                }
+
+                const btn = document.getElementById('notifySend');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Sending...';
+
+                try {
+                    const response = await fetch('/api/admin/notify', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-csrf-token': this.csrfToken
+                        },
+                        body: JSON.stringify({ target, message })
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.showMessage('Notification sent successfully!', 'success');
+                        document.getElementById('notifyMessage').value = '';
+                        document.getElementById('notifyTarget').value = '';
+                    } else {
+                        this.showMessage(result.error || 'Failed to send notification', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('Network error. Please try again.', 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>Send Message';
+                }
+            }
+
+            // Utility methods
+            showMessage(message, type = 'info') {
+                const msgElement = document.getElementById('guardMsg');
+                if (msgElement) {
+                    msgElement.textContent = message;
+                    msgElement.className = `text-sm text-center ${type === 'error' ? 'text-red-600' : type === 'success' ? 'text-green-600' : 'text-blue-600'}`;
+                    msgElement.classList.remove('hidden');
+                    
+                    setTimeout(() => {
+                        msgElement.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+
+            updateMessageLength(event) {
+                const length = event.target.value.length;
+                const lengthElement = document.getElementById('messageLength');
+                if (lengthElement) {
+                    lengthElement.textContent = length;
+                    lengthElement.className = `text-xs ${length > 450 ? 'text-red-500' : length > 350 ? 'text-yellow-500' : 'text-gray-400'}`;
+                }
+            }
+
+            updateTimestamp() {
                 const timestamp = document.getElementById('lastUpdate');
                 if (timestamp) {
                     const now = new Date();
-                    const timeString = now.toLocaleTimeString();
-                    timestamp.textContent = `Last updated: ${timeString}`;
+                    timestamp.textContent = `Last updated: ${now.toLocaleTimeString()}`;
                 }
             }
 
-            // Update timestamp every minute
-            setInterval(updateTimestamp, 60000);
-            
-            // Smooth scroll for better UX
-            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-                anchor.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const target = document.querySelector(this.getAttribute('href'));
-                    if (target) {
-                        target.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'start'
-                        });
-                    }
-                });
-            });
-
-            // Enhanced button interactions
-            const buttons = document.querySelectorAll('.btn-primary');
-            buttons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    // Create ripple effect
-                    const ripple = document.createElement('span');
-                    const rect = this.getBoundingClientRect();
-                    const size = Math.max(rect.width, rect.height);
-                    const x = e.clientX - rect.left - size / 2;
-                    const y = e.clientY - rect.top - size / 2;
-                    
-                    ripple.style.width = ripple.style.height = size + 'px';
-                    ripple.style.left = x + 'px';
-                    ripple.style.top = y + 'px';
-                    ripple.classList.add('absolute', 'bg-white', 'bg-opacity-30', 'rounded-full', 'animate-ping');
-                    
-                    this.appendChild(ripple);
-                    
-                    setTimeout(() => {
-                        ripple.remove();
-                    }, 600);
-                });
-            });
-
-            // Initialize dashboard view
-            const dashboardLink = document.querySelector('[data-view="dashboard"]');
-            if (dashboardLink) {
-                dashboardLink.click();
+            startOTPTimer() {
+                const timerElement = document.getElementById('otpTimer');
+                if (timerElement) {
+                    timerElement.classList.remove('hidden');
+                    let seconds = 60;
+                    const interval = setInterval(() => {
+                        timerElement.textContent = `Resend available in ${seconds}s`;
+                        seconds--;
+                        if (seconds < 0) {
+                            clearInterval(interval);
+                            timerElement.classList.add('hidden');
+                        }
+                    }, 1000);
+                }
             }
 
-            // Show admin interface (hide auth guard for demo)
-            document.getElementById('guard').classList.add('hidden');
-            document.getElementById('adminHeader').classList.remove('hidden');
-            document.getElementById('adminSidebar').classList.remove('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
+            toggleMobileMenu() {
+                const mobileSidebar = document.getElementById('mobileSidebar');
+                const mobileOverlay = document.getElementById('mobileOverlay');
+                if (mobileSidebar && mobileOverlay) {
+                    mobileSidebar.classList.toggle('open');
+                    mobileOverlay.classList.toggle('hidden');
+                }
+            }
+
+            debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
+            changeOrdersPage(delta) {
+                this.ordersPage = Math.max(1, this.ordersPage + delta);
+                this.loadOrders();
+            }
+
+            changeWithdrawalsPage(delta) {
+                this.withdrawalsPage = Math.max(1, this.withdrawalsPage + delta);
+                this.loadWithdrawals();
+            }
+
+            updateOrdersPagination(total) {
+                const pageElement = document.getElementById('ordersPage');
+                const countElement = document.getElementById('ordersCount');
+                if (pageElement) pageElement.textContent = this.ordersPage;
+                if (countElement) countElement.textContent = `${total} orders`;
+            }
+
+            updateWithdrawalsPagination(total) {
+                const pageElement = document.getElementById('withdrawalsPage');
+                const countElement = document.getElementById('withdrawalsCount');
+                if (pageElement) pageElement.textContent = this.withdrawalsPage;
+                if (countElement) countElement.textContent = `${total} withdrawals`;
+            }
+
+            async refreshCurrentView() {
+                await this.loadViewData(this.currentView);
+            }
+
+            async exportOrders() {
+                try {
+                    const response = await fetch('/api/admin/orders/export');
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'orders-export.csv';
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } catch (error) {
+                    this.showMessage('Failed to export orders', 'error');
+                }
+            }
+
+            async exportWithdrawals() {
+                try {
+                    const response = await fetch('/api/admin/withdrawals/export');
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'withdrawals-export.csv';
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } catch (error) {
+                    this.showMessage('Failed to export withdrawals', 'error');
+                }
+            }
+
+            globalSearch() {
+                const query = document.getElementById('globalSearch').value.trim();
+                if (query) {
+                    // Implement global search functionality
+                    console.log('Global search:', query);
+                }
+            }
+
+            // Order actions
+            async viewOrder(orderId) {
+                // Implement order details view
+                console.log('View order:', orderId);
+            }
+
+            async completeOrder(orderId) {
+                if (!confirm('Are you sure you want to complete this order?')) return;
+                
+                try {
+                    const response = await fetch(`/api/admin/orders/${orderId}/complete`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-csrf-token': this.csrfToken
+                        }
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.showMessage('Order completed successfully!', 'success');
+                        this.loadOrders();
+                    } else {
+                        this.showMessage(result.error || 'Failed to complete order', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('Network error. Please try again.', 'error');
+                }
+            }
+
+            async declineOrder(orderId) {
+                if (!confirm('Are you sure you want to decline this order?')) return;
+                
+                try {
+                    const response = await fetch(`/api/admin/orders/${orderId}/decline`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-csrf-token': this.csrfToken
+                        }
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.showMessage('Order declined successfully!', 'success');
+                        this.loadOrders();
+                    } else {
+                        this.showMessage(result.error || 'Failed to decline order', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('Network error. Please try again.', 'error');
+                }
+            }
+
+            // Withdrawal actions
+            async viewWithdrawal(withdrawalId) {
+                // Implement withdrawal details view
+                console.log('View withdrawal:', withdrawalId);
+            }
+
+            async completeWithdrawal(withdrawalId) {
+                if (!confirm('Are you sure you want to complete this withdrawal?')) return;
+                
+                try {
+                    const response = await fetch(`/api/admin/withdrawals/${withdrawalId}/complete`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-csrf-token': this.csrfToken
+                        }
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.showMessage('Withdrawal completed successfully!', 'success');
+                        this.loadWithdrawals();
+                    } else {
+                        this.showMessage(result.error || 'Failed to complete withdrawal', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('Network error. Please try again.', 'error');
+                }
+            }
+
+            async declineWithdrawal(withdrawalId) {
+                if (!confirm('Are you sure you want to decline this withdrawal?')) return;
+                
+                try {
+                    const response = await fetch(`/api/admin/withdrawals/${withdrawalId}/decline`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-csrf-token': this.csrfToken
+                        }
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.showMessage('Withdrawal declined successfully!', 'success');
+                        this.loadWithdrawals();
+                    } else {
+                        this.showMessage(result.error || 'Failed to decline withdrawal', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('Network error. Please try again.', 'error');
+                }
+            }
+        }
+
+        // Initialize admin dashboard
+        let adminDashboard;
+        document.addEventListener('DOMContentLoaded', function() {
+            adminDashboard = new AdminDashboard();
         });
     </script>
 </body>
