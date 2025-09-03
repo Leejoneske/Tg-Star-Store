@@ -327,9 +327,77 @@
     opacity: 0.5;
 }
 
-.buy-button.cursor-not-allowed {
-    cursor: not-allowed;
-}
+    .buy-button.cursor-not-allowed {
+        cursor: not-allowed;
+    }
+
+    /* Smooth transitions for better UX */
+    .package-option {
+        transition: all 0.3s ease;
+    }
+    
+    .package-option:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .buy-button {
+        transition: all 0.2s ease;
+    }
+    
+    .buy-button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+    
+    .buy-button:active:not(:disabled) {
+        transform: translateY(0);
+    }
+    
+    /* Smooth section transitions */
+    .section-content {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    
+    .section-content:not(.active) {
+        opacity: 0;
+        transform: translateY(10px);
+        pointer-events: none;
+    }
+    
+    .section-content.active {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    /* Smooth toggle button transitions */
+    .toggle-button {
+        transition: all 0.2s ease;
+    }
+    
+    .toggle-button:hover {
+        transform: translateY(-1px);
+    }
+    
+    /* Smooth radio button transitions */
+    input[type="radio"] {
+        transition: all 0.2s ease;
+    }
+    
+    /* Smooth input transitions */
+    input, button, select {
+        transition: all 0.2s ease;
+    }
+    
+    /* Loading animation improvements */
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
 
     .logo-header {
         font-size: 24px;
@@ -960,10 +1028,21 @@ function detectTelegramEnvironment() {
 function showErrorToUser(message) {
     if (typeof Swal !== 'undefined') {
         Swal.fire({
-            title: TranslationUtils.get('error'),
+            title: 'Error',
             text: message,
             icon: 'error',
-            confirmButtonText: TranslationUtils.get('ok')
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#EF4444',
+            showClass: {
+                popup: 'animate__animated animate__fadeInUp animate__faster'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutDown animate__faster'
+            },
+            customClass: {
+                popup: 'rounded-xl shadow-lg',
+                confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105'
+            }
         });
     } else {
         alert(message);
@@ -2740,119 +2819,49 @@ async function handlePurchase(item) {
             distributionInfo = recipients.length ? `${recipients.length} recipient(s)` : '';
         }
         
-        // Create a more visually appealing confirmation dialog
+        // Simplified confirmation dialog
         const confirm = await Swal.fire({
-            title: '<div class="text-2xl font-bold text-gray-800 mb-2">Confirm Purchase</div>',
+            title: 'Confirm Purchase',
             html: `
-                <div class="text-left space-y-4">
-                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-                        <div class="flex items-center space-x-3 mb-3">
-                            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0 18 0z"/>
-                                </svg>
-                            </div>
-                            <span class="text-lg font-semibold text-gray-800">
-                                ${starsDisplay}
-                            </span>
-                        </div>
-                        ${distributionInfo ? `
-                            <div class="flex items-center space-x-2">
-                                <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM16 16a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a2 2 0 012-2h8a2 2 0 012 2v1z"/>
-                                </svg>
-                                <span class="text-sm text-gray-700">${distributionInfo}</span>
-                            </div>
-                        ` : ''}
-                        ${recipients.length > 0 ? `
-                            <div class="flex items-center space-x-2">
-                                <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM16 16a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a2 2 0 012-2h8a2 2 0 012 2v1z"/>
-                                </svg>
-                                <span class="text-sm text-gray-700">${recipients.length} recipient(s)</span>
-                            </div>
-                        ` : ''}
-                    </div>
-                    
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-gray-600">Total Amount:</span>
-                            <span class="text-xl font-bold text-green-600">${totalAmountUsdt} USDT</span>
-                        </div>
-                        ${approxTon ? `
-                            <div class="flex justify-between items-center text-sm">
-                                <span class="text-gray-500">Estimated TON:</span>
-                                <span class="text-gray-700 font-medium">~${approxTon.toFixed(4)} TON</span>
-                            </div>
-                        ` : ''}
-                    </div>
-                    
+                <div class="text-center space-y-3">
+                    <div class="text-2xl font-bold text-gray-800">${starsDisplay}</div>
+                    ${distributionInfo ? `<div class="text-sm text-gray-600">${distributionInfo}</div>` : ''}
+                    <div class="text-xl font-bold text-green-600">${totalAmountUsdt} USDT</div>
+                    ${approxTon ? `<div class="text-sm text-gray-500">~${approxTon.toFixed(4)} TON</div>` : ''}
                     ${recipients.length ? `
-                        <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                            <div class="flex items-center space-x-2 mb-2">
-                                <svg class="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M8 9a3 3 0 11-6 0 3 3 0 016 0zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z"/>
-                                </svg>
-                                <span class="text-sm font-medium text-yellow-800">Recipients</span>
-                            </div>
-                            <div class="flex flex-wrap gap-2">
-                                ${recipients.map(r => `
-                                    <span class="px-2 py-1 bg-white rounded-full text-xs font-medium text-gray-700 border border-yellow-200">
-                                        @${r.username}
-                                    </span>
-                                `).join('')}
-                            </div>
+                        <div class="text-xs text-gray-500">
+                            ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}
                         </div>
                     ` : ''}
                 </div>
             `,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: '<div class="flex items-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0 18 0z"/></svg><span>Confirm Purchase</span></div>',
-            cancelButtonText: '<div class="flex items-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 18L18 6M6 6l12 12"/></svg><span>Cancel</span></div>',
+            confirmButtonText: 'Confirm',
+            cancelButtonText: 'Cancel',
             confirmButtonColor: '#10B981',
             cancelButtonColor: '#6B7280',
             showClass: {
-                popup: 'animate__animated animate__fadeInDown animate__faster'
+                popup: 'animate__animated animate__fadeInUp animate__faster'
             },
             hideClass: {
-                popup: 'animate__animated animate__fadeOutUp animate__faster'
+                popup: 'animate__animated animate__fadeOutDown animate__faster'
             },
             customClass: {
-                popup: 'rounded-xl shadow-2xl',
-                confirmButton: 'rounded-lg px-6 py-3 text-white font-medium transition-all duration-200 hover:scale-105',
-                cancelButton: 'rounded-lg px-6 py-3 text-gray-700 font-medium transition-all duration-200 hover:scale-105'
+                popup: 'rounded-xl shadow-lg',
+                confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105',
+                cancelButton: 'rounded-lg px-6 py-2 text-gray-700 font-medium transition-all duration-200 hover:scale-105'
             }
         });
         if (!confirm.isConfirmed) return;
 
-        // Enhanced loading indicator with smooth animations
+        // Simplified loading indicator
         Swal.fire({
-            title: '<div class="text-xl font-semibold text-gray-800 mb-3">Processing Purchase</div>',
+            title: 'Processing...',
             html: `
-                <div class="space-y-4">
-                    <div class="flex justify-center">
-                        <div class="relative">
-                            <div class="w-16 h-16 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
-                            <div class="absolute inset-0 flex items-center justify-center">
-                                <svg class="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0 18 0z"/>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="text-center space-y-2">
-                        <div class="text-gray-600 font-medium">${TranslationUtils.get('processing') || 'Processing...'}</div>
-                        <div class="text-sm text-gray-500">${TranslationUtils.get('preparingTransaction') || 'Preparing your transaction'}</div>
-                    </div>
-                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                        <div class="flex items-center space-x-2 text-sm text-blue-700">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0 18 0z"/>
-                            </svg>
-                            <span>Please wait while we process your payment...</span>
-                        </div>
-                    </div>
+                <div class="text-center space-y-3">
+                    <div class="w-12 h-12 border-3 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto"></div>
+                    <div class="text-sm text-gray-600">Preparing your transaction</div>
                 </div>
             `,
             allowOutsideClick: false,
@@ -2861,8 +2870,7 @@ async function handlePurchase(item) {
                 popup: 'animate__animated animate__fadeInUp animate__faster'
             },
             customClass: {
-                popup: 'rounded-xl shadow-2xl',
-                htmlContainer: 'text-left'
+                popup: 'rounded-xl shadow-lg'
             }
         });
         loadingShown = true;
@@ -2927,34 +2935,20 @@ async function handlePurchase(item) {
                 }
                 
                 await Swal.fire({
-                    title: '<div class="text-2xl font-bold text-green-600 mb-2">🎉 Success!</div>',
-                    html: `
-                        <div class="space-y-4">
-                            <div class="flex justify-center">
-                                <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                                    <svg class="w-12 h-12 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                    </svg>
-                                </div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-lg font-semibold text-gray-800 mb-2">${TranslationUtils.get('orderCreated') || 'Order Created Successfully!'}</div>
-                                <div class="text-sm text-gray-600">Your purchase has been processed and confirmed.</div>
-                            </div>
-                        </div>
-                    `,
+                    title: 'Success!',
+                    text: 'Your order has been created successfully!',
                     icon: 'success',
-                    confirmButtonText: '<div class="flex items-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0 18 0z"/></svg><span>${TranslationUtils.get("ok") || "OK"}</span></div>',
+                    confirmButtonText: 'OK',
                     confirmButtonColor: '#10B981',
                     showClass: {
-                        popup: 'animate__animated animate__fadeInDown animate__faster'
+                        popup: 'animate__animated animate__fadeInUp animate__faster'
                     },
                     hideClass: {
-                        popup: 'animate__animated animate__fadeOutUp animate__faster'
+                        popup: 'animate__animated animate__fadeOutDown animate__faster'
                     },
                     customClass: {
-                        popup: 'rounded-xl shadow-2xl',
-                        confirmButton: 'rounded-lg px-6 py-3 text-white font-medium transition-all duration-200 hover:scale-105'
+                        popup: 'rounded-xl shadow-lg',
+                        confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105'
                     }
                 });
             } else {
@@ -2987,34 +2981,20 @@ async function handlePurchase(item) {
         }
         
         await Swal.fire({
-            title: '<div class="text-2xl font-bold text-red-600 mb-2">⚠️ Error</div>',
-            html: `
-                <div class="space-y-4">
-                    <div class="flex justify-center">
-                        <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
-                            <svg class="w-12 h-12 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0 16 0zm-7 4a1 1 0 11-2 0 1 1 0 0 12 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-lg font-semibold text-gray-800 mb-2">${TranslationUtils.get('error') || 'Something went wrong'}</div>
-                        <div class="text-sm text-gray-600 max-w-sm mx-auto">${errorMessage}</div>
-                    </div>
-                </div>
-            `,
+            title: 'Error',
+            text: errorMessage,
             icon: 'error',
-            confirmButtonText: '<div class="flex items-center space-x-2"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0 18 0z"/></svg><span>${TranslationUtils.get("ok") || "OK"}</span></div>',
+            confirmButtonText: 'OK',
             confirmButtonColor: '#EF4444',
             showClass: {
-                popup: 'animate__animated animate__fadeInDown animate__faster'
+                popup: 'animate__animated animate__fadeInUp animate__faster'
             },
             hideClass: {
-                popup: 'animate__animated animate__fadeOutUp animate__faster'
+                popup: 'animate__animated animate__fadeOutDown animate__faster'
             },
             customClass: {
-                popup: 'rounded-xl shadow-2xl',
-                confirmButton: 'rounded-lg px-6 py-3 text-white font-medium transition-all duration-200 hover:scale-105'
+                popup: 'rounded-xl shadow-lg',
+                confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105'
             }
         });
     } finally {
