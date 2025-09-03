@@ -2709,7 +2709,8 @@ async function handlePurchase(item) {
             isPremium: !!item.isPremium,
             premiumDuration: item.premiumDuration || null,
             stars: item.isPremium ? null : Number(stars),
-            recipientsCount: recipients.length
+            recipientsCount: recipients.length,
+            isBuyForOthers: recipients.length > 0
         });
         if (!quote.success) {
             throw new Error(quote.error || 'Failed to get quote');
