@@ -688,11 +688,7 @@
             max-width: 100%;
         }
         
-        .grid.grid-cols-2 {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-        }
-        
+        /* keep spacing improvements without overriding grid templates */
         .user-info-container {
             gap: 16px;
         }
@@ -700,11 +696,6 @@
     
     /* Mobile landscape */
     @media (max-width: 768px) {
-        .grid.grid-cols-2 {
-            grid-template-columns: 1fr;
-            gap: 10px;
-        }
-        
         .section-toggle {
             gap: 8px;
         }
