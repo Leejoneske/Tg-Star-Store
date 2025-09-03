@@ -267,8 +267,10 @@ const sellOrderSchema = new mongoose.Schema({
 });
 
 const userSchema = new mongoose.Schema({
-    id: String,
-    username: String
+    id: { type: String, index: true },
+    username: { type: String, index: true },
+    createdAt: { type: Date, default: Date.now, index: true },
+    lastActive: { type: Date, default: Date.now, index: true }
 });
 
 const bannedUserSchema = new mongoose.Schema({
@@ -2757,6 +2759,9 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     try {
         let user = await User.findOne({ id: chatId });
         if (!user) user = await User.create({ id: chatId, username });
+        else {
+            try { await User.updateOne({ id: chatId }, { $set: { username, lastActive: new Date() } }); } catch {}
+        }
         
         try {
             await bot.sendSticker(chatId, 'CAACAgIAAxkBAAEOfYRoJQbAGJ_uoVDJp5O3xyvEPR77BAACbgUAAj-VzAqGOtldiLy3NTYE');
@@ -4183,6 +4188,7 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
 		const page = Math.max(parseInt(req.query.page) || 1, 1);
 		const status = (req.query.status || '').toString().trim();
+		const type = (req.query.type || 'all').toString().trim();
 		const q = (req.query.q || '').toString().trim();
 
 		const textFilter = q ? { $or: [
@@ -4192,15 +4198,19 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 		] } : {};
 		const statusFilter = status ? { status } : {};
 
+		const buyQuery = { ...statusFilter, ...textFilter };
+		const sellQuery = { ...statusFilter, ...textFilter };
+		const needBuy = type === 'all' || type === 'buy';
+		const needSell = type === 'all' || type === 'sell';
 		const [buyCount, sellCount] = await Promise.all([
-			BuyOrder.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0),
-			SellOrder.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0)
+			needBuy ? BuyOrder.countDocuments(buyQuery).catch(()=>0) : Promise.resolve(0),
+			needSell ? SellOrder.countDocuments(sellQuery).catch(()=>0) : Promise.resolve(0)
 		]);
 
 		const take = limit * page;
 		const [buys, sells] = await Promise.all([
-			BuyOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(take).lean(),
-			SellOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(take).lean()
+			needBuy ? BuyOrder.find(buyQuery).sort({ dateCreated: -1 }).limit(take).lean() : Promise.resolve([]),
+			needSell ? SellOrder.find(sellQuery).sort({ dateCreated: -1 }).limit(take).lean() : Promise.resolve([])
 		]);
 
 		const merged = [
@@ -4568,8 +4578,13 @@ app.get('/api/admin/referrals', requireAdmin, async (req, res) => {
 app.get('/api/admin/users', requireAdmin, async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 100, 500);
-        const users = await User.find({}).sort({ createdAt: -1 }).limit(limit).lean();
-        res.json({ users });
+        const filter = {};
+        const activeSinceMin = parseInt(req.query.activeMinutes || '0', 10);
+        if (activeSinceMin > 0) {
+            filter.lastActive = { $gte: new Date(Date.now() - activeSinceMin * 60 * 1000) };
+        }
+        const users = await User.find(filter).sort({ lastActive: -1 }).limit(limit).lean();
+        res.json({ users, total: await User.countDocuments(filter).catch(()=>0) });
     } catch (e) {
         res.status(500).json({ error: 'Failed to load users' });
     }
@@ -4585,6 +4600,13 @@ app.post('/api/admin/notify', requireAdmin, async (req, res) => {
         const sent = [];
         if (!target || target === 'all') {
             const users = await User.find({}, { id: 1 }).limit(5000);
+            for (const u of users) {
+                try { await bot.sendMessage(u.id, message); sent.push(u.id); } catch {}
+            }
+        } else if (target === 'active') {
+            // Active users in last 24h
+            const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const users = await User.find({ lastActive: { $gte: since } }, { id: 1 }).limit(5000);
             for (const u of users) {
                 try { await bot.sendMessage(u.id, message); sent.push(u.id); } catch {}
             }
