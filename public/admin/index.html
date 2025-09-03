@@ -590,6 +590,7 @@
                     this.updateTimestamp();
                 } catch (error) {
                     console.error('Failed to load dashboard:', error);
+                    this.showNotification('Failed to load dashboard data', 'error');
                 }
             }
 
