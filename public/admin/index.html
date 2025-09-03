@@ -83,6 +83,12 @@
                     </button>
                 </div>
                 <div class="sidebar-nav-item">
+                    <button class="nav-link w-full text-left" data-view="users">
+                        <i class="fas fa-users"></i>
+                        Users
+                    </button>
+                </div>
+                <div class="sidebar-nav-item">
                     <button class="nav-link w-full text-left" data-view="withdrawals">
                         <i class="fas fa-credit-card"></i>
                         Withdrawals
@@ -217,6 +223,11 @@
                         <div class="flex items-center justify-between">
                             <h3 class="font-semibold">Orders Management</h3>
                             <div class="flex items-center gap-3">
+                                <select id="ordersType" class="form-select" style="width: auto;">
+                                    <option value="all">All Types</option>
+                                    <option value="buy">Buy Orders</option>
+                                    <option value="sell">Sell Orders</option>
+                                </select>
                                 <select id="ordersStatus" class="form-select" style="width: auto;">
                                     <option value="">All Status</option>
                                     <option value="pending">Pending</option>
@@ -328,6 +339,28 @@
                 </div>
             </div>
 
+            <!-- Users View -->
+            <div id="users-view" class="main-body hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold">Users</h3>
+                            <div class="flex items-center gap-3">
+                                <select id="usersActiveWindow" class="form-select" style="width: auto;">
+                                    <option value="0">All Users</option>
+                                    <option value="15">Active in last 15 min</option>
+                                    <option value="60">Active in last 1 hour</option>
+                                    <option value="1440">Active in last 24 hours</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="usersTable" class="overflow-x-auto"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Settings View -->
             <div id="settings-view" class="main-body hidden">
                 <div class="card">
@@ -430,6 +463,14 @@
                         this.closeMobileMenu();
                     }
                 });
+
+                // Orders filters
+                document.getElementById('ordersType')?.addEventListener('change', () => { this.ordersPage = 1; this.loadOrders(); });
+                document.getElementById('ordersStatus')?.addEventListener('change', () => { this.ordersPage = 1; this.loadOrders(); });
+                document.getElementById('ordersSearch')?.addEventListener('input', this.debounce(() => { this.ordersPage = 1; this.loadOrders(); }, 400));
+
+                // Users filters
+                document.getElementById('usersActiveWindow')?.addEventListener('change', () => { this.usersPage = 1; this.loadUsers(); });
 
                 // Refresh
                 document.getElementById('refreshBtn')?.addEventListener('click', () => this.refreshCurrentView());
@@ -597,6 +638,9 @@
                     case 'orders':
                         await this.loadOrders();
                         break;
+                    case 'users':
+                        await this.loadUsers();
+                        break;
                     case 'withdrawals':
                         await this.loadWithdrawals();
                         break;
@@ -622,6 +666,7 @@
 
             async loadOrders() {
                 const status = document.getElementById('ordersStatus').value;
+                const type = document.getElementById('ordersType')?.value || 'all';
                 const query = document.getElementById('ordersSearch').value;
                 
                 try {
@@ -629,6 +674,7 @@
                         page: this.ordersPage,
                         limit: 20,
                         ...(status && { status }),
+                        ...(type && { type }),
                         ...(query && { q: query })
                     });
 
@@ -706,6 +752,52 @@
                 `;
 
                 table.innerHTML = tableHTML;
+            }
+
+            async loadUsers() {
+                try {
+                    const minutes = parseInt(document.getElementById('usersActiveWindow').value || '0', 10) || 0;
+                    const params = new URLSearchParams({ limit: 200, ...(minutes > 0 && { activeMinutes: minutes }) });
+                    const response = await fetch(`/api/admin/users?${params}`);
+                    const data = await response.json();
+                    this.renderUsersTable(data.users || [], data.total || 0);
+                } catch (error) {
+                    console.error('Failed to load users:', error);
+                    this.showNotification('Failed to load users', 'error');
+                }
+            }
+
+            renderUsersTable(users, total) {
+                const el = document.getElementById('usersTable');
+                if (!el) return;
+                if (!users.length) {
+                    el.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon"><i class="fas fa-users"></i></div>
+                            <p>No users found</p>
+                        </div>`;
+                    return;
+                }
+                el.innerHTML = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Username</th>
+                                <th>Last Active</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.map(u => `
+                                <tr>
+                                    <td>${u.id}</td>
+                                    <td>${u.username ? '@'+u.username : '-'}</td>
+                                    <td>${u.lastActive ? new Date(u.lastActive).toLocaleString() : '-'}</td>
+                                    <td>${u.createdAt ? new Date(u.createdAt).toLocaleString() : '-'}</td>
+                                </tr>`).join('')}
+                        </tbody>
+                    </table>`;
             }
 
             async loadWithdrawals() {
