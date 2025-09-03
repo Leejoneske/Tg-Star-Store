@@ -174,15 +174,10 @@
   // Mark notification as read
   async function markAsRead(notificationId) {
     try {
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'POST',
-        headers: {
-          'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-          'x-telegram-id': currentUserId,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({})
-      });
+      const headers = { 'Content-Type': 'application/json' };
+      if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+      else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
+      const response = await fetch(`/api/notifications/${notificationId}/read`, { method: 'POST', headers, body: JSON.stringify({}) });
 
       if (response.ok) {
         // Update UI
@@ -207,15 +202,10 @@
   // Mark all notifications as read
   async function markAllAsRead() {
     try {
-      const response = await fetch('/api/notifications/mark-all-read', {
-        method: 'POST',
-        headers: {
-          'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-          'x-telegram-id': currentUserId,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({})
-      });
+      const headers = { 'Content-Type': 'application/json' };
+      if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+      else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
+      const response = await fetch('/api/notifications/mark-all-read', { method: 'POST', headers, body: JSON.stringify({}) });
 
       if (response.ok) {
         // Update UI
@@ -263,7 +253,10 @@
   // Get unread count
   async function getUnreadCount() {
     try {
-      const response = await fetch(`/api/notifications/unread-count?userId=${currentUserId}`);
+      const headers = {};
+      if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+      else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
+      const response = await fetch(`/api/notifications/unread-count`, { headers });
       if (response.ok) {
         const data = await response.json();
         return data.unreadCount;
