@@ -3174,6 +3174,25 @@ app.delete('/api/notifications/:id', requireTelegramAuth, async (req, res) => {
     }
 });
 
+// Active heartbeat: update user's lastActive from web or Telegram
+app.post('/api/active-ping', async (req, res) => {
+    try {
+        // Prefer authenticated user (Telegram WebApp), otherwise fallback to explicit header
+        const authUserId = req.user?.id;
+        const headerId = (req.headers['x-telegram-id'] || '').toString().trim();
+        const userId = authUserId || (headerId || null);
+        if (!userId) return res.status(400).json({ error: 'Missing user id' });
+        await User.updateOne(
+            { id: userId },
+            { $set: { lastActive: new Date() }, $setOnInsert: { username: '', createdAt: new Date() } },
+            { upsert: true }
+        );
+        return res.json({ success: true });
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to update activity' });
+    }
+});
+
 // Enhanced Telegram bot command handler with more options
 bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
