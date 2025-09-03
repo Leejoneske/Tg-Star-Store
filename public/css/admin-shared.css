@@ -419,6 +419,15 @@ p {
     box-shadow: var(--shadow-lg);
 }
 
+/* Auth overlay: ensure perfect centering and topmost stacking */
+#auth-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-lg);
+    z-index: 1100; /* higher than sidebar (1000) and overlay (999) */
+}
+
 .sidebar-header {
     padding: var(--spacing-lg);
     border-bottom: 1px solid var(--gray-200);

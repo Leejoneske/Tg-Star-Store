@@ -515,6 +515,13 @@
                         this.currentUser = { id: tgId, isAdmin: true };
                         this.showNotification('Login successful!', 'success');
                         this.showAdminInterface();
+                        // Hard remove auth overlay from DOM to prevent overlap
+                        const authEl = document.getElementById('auth-screen');
+                        if (authEl) {
+                            authEl.parentNode && authEl.parentNode.removeChild(authEl);
+                        }
+                        // Ensure mobile menu/overlay are closed
+                        this.closeMobileMenu();
                         await this.loadDashboard();
                     } else {
                         this.showNotification(result.error || 'Invalid code', 'error');
@@ -547,7 +554,8 @@
             }
 
             showAdminInterface() {
-                document.getElementById('auth-screen').classList.add('hidden');
+                const auth = document.getElementById('auth-screen');
+                if (auth) auth.classList.add('hidden');
                 document.getElementById('admin-interface').classList.remove('hidden');
                 // Close mobile menu if open
                 this.closeMobileMenu();
