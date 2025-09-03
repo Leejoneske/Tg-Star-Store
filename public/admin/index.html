@@ -4,746 +4,374 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - StarStore</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
-        body { 
-            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-
-        .glass-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .sidebar-glass {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .nav-link {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .nav-link::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent);
-            transition: left 0.5s;
-        }
-
-        .nav-link:hover::before {
-            left: 100%;
-        }
-
-        .nav-link.active {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: white;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-primary::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            transition: all 0.3s ease;
-            transform: translate(-50%, -50%);
-        }
-
-        .btn-primary:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
-        }
-
-        .stat-card {
-            background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-
-        .floating-search {
-            position: sticky;
-            top: 20px;
-            z-index: 10;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-
-        .table-modern {
-            border-collapse: separate;
-            border-spacing: 0;
-        }
-
-        .table-modern thead th {
-            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-            position: sticky;
-            top: 0;
-            z-index: 5;
-        }
-
-        .table-modern tbody tr {
-            transition: all 0.2s ease;
-        }
-
-        .table-modern tbody tr:hover {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
-            transform: scale(1.01);
-        }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .status-pending { background: #fef3c7; color: #92400e; }
-        .status-processing { background: #dbeafe; color: #1e40af; }
-        .status-completed { background: #d1fae5; color: #065f46; }
-        .status-declined { background: #fee2e2; color: #991b1b; }
-        .status-failed { background: #fecaca; color: #dc2626; }
-
-        .animate-pulse-soft {
-            animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
-        @keyframes pulse-soft {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
-        }
-
-        .loading-shimmer {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        .mobile-nav {
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-        }
-
-        .mobile-nav.open {
-            transform: translateX(0);
-        }
-    </style>
+    <title>Admin Dashboard - StarStore</title>
+    <link rel="stylesheet" href="/css/admin-shared.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-    <div id="app" class="min-h-screen">
-        <!-- Enhanced Header -->
-        <div id="adminHeader" class="glass-card border-0 shadow-lg hidden">
-            <div class="max-w-7xl mx-auto px-4 py-4">
+    <!-- Authentication Screen -->
+    <div id="auth-screen" class="flex items-center justify-center min-h-screen bg-gray-50">
+        <div class="card" style="max-width: 400px; width: 100%;">
+            <div class="card-header text-center">
+                <div class="flex items-center justify-center mb-4">
+                    <div class="stat-icon primary">
+                        <i class="fas fa-shield-alt text-xl"></i>
+                    </div>
+                </div>
+                <h2 class="text-xl font-bold">Admin Login</h2>
+                <p class="text-sm text-gray-600">Enter your Telegram ID to access the admin panel</p>
+            </div>
+            
+            <div class="card-body">
+                <div class="form-group">
+                    <label class="form-label">Telegram ID</label>
+                    <input type="text" id="tgIdInput" class="form-input" placeholder="Enter your Telegram ID">
+                </div>
+                
+                <button id="sendOtpBtn" class="btn btn-primary w-full mb-4">
+                    <i class="fas fa-paper-plane"></i>
+                    Send Verification Code
+                </button>
+                
+                <div class="form-group">
+                    <label class="form-label">Verification Code</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="otpInput" class="form-input" placeholder="000000" maxlength="6">
+                        <button id="verifyOtpBtn" class="btn btn-success">
+                            <i class="fas fa-check"></i>
+                            Verify
+                        </button>
+                    </div>
+                    <div id="otpTimer" class="text-xs text-gray-500 mt-2 hidden"></div>
+                </div>
+                
+                <div id="authMessage" class="text-sm text-center hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Admin Interface -->
+    <div id="admin-interface" class="hidden">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="flex items-center gap-3">
+                    <div class="stat-icon primary">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold">StarStore</h3>
+                        <p class="text-xs text-gray-600">Admin Panel</p>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="sidebar-nav-item">
+                    <button class="nav-link w-full text-left active" data-view="dashboard">
+                        <i class="fas fa-chart-line"></i>
+                        Dashboard
+                    </button>
+                </div>
+                <div class="sidebar-nav-item">
+                    <button class="nav-link w-full text-left" data-view="orders">
+                        <i class="fas fa-shopping-cart"></i>
+                        Orders
+                    </button>
+                </div>
+                <div class="sidebar-nav-item">
+                    <button class="nav-link w-full text-left" data-view="withdrawals">
+                        <i class="fas fa-credit-card"></i>
+                        Withdrawals
+                    </button>
+                </div>
+                <div class="sidebar-nav-item">
+                    <button class="nav-link w-full text-left" data-view="notifications">
+                        <i class="fas fa-bell"></i>
+                        Notifications
+                    </button>
+                </div>
+                <div class="sidebar-nav-item">
+                    <button class="nav-link w-full text-left" data-view="settings">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </button>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
                 <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-4">
-                        <button id="mobileMenuToggle" class="lg:hidden p-2 rounded-lg hover:bg-white/20">
-                            <i class="fa-solid fa-bars text-indigo-600"></i>
+                    <div class="flex items-center gap-4">
+                        <button id="mobileMenuBtn" class="btn btn-secondary lg:hidden">
+                            <i class="fas fa-bars"></i>
                         </button>
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                                <i class="fa-solid fa-star text-white text-lg"></i>
-                            </div>
-                            <div>
-                                <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">StarStore</h1>
-                                <p class="text-xs text-gray-500">Admin Dashboard</p>
-                            </div>
-                        </div>
-                        <span id="envBadge" class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                            <i class="fa-solid fa-circle text-green-500 text-xs mr-1"></i>Live
-                        </span>
+                        <h1 id="pageTitle" class="text-xl font-bold">Dashboard</h1>
                     </div>
-
-                    <div class="hidden md:flex items-center space-x-3">
-                        <div class="floating-search px-4 py-2">
-                            <div class="flex items-center space-x-2">
-                                <i class="fa-solid fa-search text-gray-400"></i>
-                                <input id="globalSearch" class="bg-transparent border-0 outline-0 placeholder-gray-400 text-sm" placeholder="Search orders, users, #id...">
+                    
+                    <div class="flex items-center gap-3">
+                        <button id="refreshBtn" class="btn btn-secondary">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                <i class="fas fa-user text-sm"></i>
                             </div>
+                            <span class="text-sm font-medium">Admin</span>
                         </div>
-                        <button id="globalExportOrders" class="btn-primary px-4 py-2 text-sm text-white rounded-lg relative z-10">
-                            <i class="fa-solid fa-download mr-2"></i>Orders
-                        </button>
-                        <button id="globalExportWithdrawals" class="btn-primary px-4 py-2 text-sm text-white rounded-lg relative z-10">
-                            <i class="fa-solid fa-file-export mr-2"></i>Withdrawals
-                        </button>
-                    </div>
-
-                    <div class="flex items-center space-x-3">
-                        <button id="refreshBtn" class="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-300">
-                            <i class="fa-solid fa-rotate text-indigo-600"></i>
-                        </button>
-                        <div class="flex items-center space-x-2 text-sm text-gray-600">
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center">
-                                <i class="fa-solid fa-user text-white text-xs"></i>
-                            </div>
-                            <span class="hidden sm:inline">Admin</span>
-                        </div>
-                        <button id="logoutBtn" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-white/30 rounded-lg transition-all duration-300">
-                            <i class="fa-solid fa-sign-out-alt mr-1"></i>Logout
+                        <button id="logoutBtn" class="btn btn-outline">
+                            <i class="fas fa-sign-out-alt"></i>
+                            Logout
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </header>
 
-        <div class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <!-- Enhanced Sidebar -->
-            <aside id="adminSidebar" class="lg:col-span-1 hidden">
-                <nav class="sidebar-glass rounded-2xl shadow-xl overflow-hidden sticky top-6">
-                    <div class="p-4 border-b border-white/20">
-                        <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Navigation</h3>
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="main-body">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="stat-value" id="totalOrders">0</div>
+                        <div class="stat-label">Total Orders</div>
                     </div>
-                    <ul class="py-2">
-                        <li><button data-view="dashboard" class="nav-link w-full text-left px-6 py-4 flex items-center space-x-3 text-gray-700 hover:text-indigo-600">
-                            <i class="fa-solid fa-chart-line w-5"></i>
-                            <span class="font-medium">Dashboard</span>
-                        </button></li>
-                        <li><button data-view="orders" class="nav-link w-full text-left px-6 py-4 flex items-center space-x-3 text-gray-700 hover:text-indigo-600">
-                            <i class="fa-solid fa-shopping-cart w-5"></i>
-                            <span class="font-medium">Orders</span>
-                            <span class="ml-auto bg-indigo-100 text-indigo-600 text-xs px-2 py-1 rounded-full">24</span>
-                        </button></li>
-                        <li><button data-view="withdrawals" class="nav-link w-full text-left px-6 py-4 flex items-center space-x-3 text-gray-700 hover:text-indigo-600">
-                            <i class="fa-solid fa-credit-card w-5"></i>
-                            <span class="font-medium">Withdrawals</span>
-                        </button></li>
-                        <li><button data-view="referrals" class="nav-link w-full text-left px-6 py-4 flex items-center space-x-3 text-gray-700 hover:text-indigo-600">
-                            <i class="fa-solid fa-users w-5"></i>
-                            <span class="font-medium">Referrals</span>
-                        </button></li>
-                        <li><button data-view="users" class="nav-link w-full text-left px-6 py-4 flex items-center space-x-3 text-gray-700 hover:text-indigo-600">
-                            <i class="fa-solid fa-user-friends w-5"></i>
-                            <span class="font-medium">Users</span>
-                        </button></li>
-                        <li><button data-view="notifications" class="nav-link w-full text-left px-6 py-4 flex items-center space-x-3 text-gray-700 hover:text-indigo-600">
-                            <i class="fa-solid fa-bell w-5"></i>
-                            <span class="font-medium">Notifications</span>
-                        </button></li>
-                        <li><button data-view="settings" class="nav-link w-full text-left px-6 py-4 flex items-center space-x-3 text-gray-700 hover:text-indigo-600">
-                            <i class="fa-solid fa-cog w-5"></i>
-                            <span class="font-medium">Settings</span>
-                        </button></li>
-                    </ul>
-                </nav>
-            </aside>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="fas fa-credit-card"></i>
+                        </div>
+                        <div class="stat-value" id="pendingWithdrawals">0</div>
+                        <div class="stat-label">Pending Withdrawals</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon info">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-value" id="totalUsers">0</div>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-value" id="revenue">$0</div>
+                        <div class="stat-label">Total Revenue</div>
+                    </div>
+                </div>
 
-            <!-- Mobile Sidebar -->
-            <div id="mobileSidebar" class="mobile-nav fixed inset-y-0 left-0 z-50 w-64 lg:hidden">
-                <div class="sidebar-glass h-full">
-                    <div class="p-4 border-b border-white/20 flex items-center justify-between">
-                        <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Menu</h3>
-                        <button id="closeMobileMenu" class="p-1 rounded hover:bg-white/20">
-                            <i class="fa-solid fa-times text-gray-600"></i>
-                        </button>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="font-semibold">Quick Actions</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="grid grid-cols-2 gap-4">
+                                <button class="btn btn-primary" onclick="adminDashboard.exportOrders()">
+                                    <i class="fas fa-download"></i>
+                                    Export Orders
+                                </button>
+                                <button class="btn btn-primary" onclick="adminDashboard.exportWithdrawals()">
+                                    <i class="fas fa-file-export"></i>
+                                    Export Withdrawals
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <ul class="py-2">
-                        <li><button data-view="dashboard" class="nav-link mobile-nav-link w-full text-left px-6 py-4 flex items-center space-x-3 text-gray-700">
-                            <i class="fa-solid fa-chart-line w-5"></i>
-                            <span class="font-medium">Dashboard</span>
-                        </button></li>
-                        <!-- Add other nav items similarly -->
-                    </ul>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="font-semibold">System Status</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-sm">Database</span>
+                                <span class="badge badge-success">Connected</span>
+                            </div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-sm">Bot Status</span>
+                                <span class="badge badge-success">Active</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm">Last Updated</span>
+                                <span class="text-sm text-gray-600" id="lastUpdate">Just now</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <main class="lg:col-span-4 space-y-6">
-                <!-- Enhanced Authentication Guard -->
-                <section id="guard" class="glass-card rounded-2xl shadow-2xl p-8 max-w-md mx-auto">
-                    <div class="text-center mb-8">
-                        <div class="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white mb-4 shadow-lg">
-                            <i class="fa-solid fa-shield-halved text-2xl"></i>
-                        </div>
-                        <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-                        <p class="text-gray-600">Secure admin access via Telegram verification</p>
-                    </div>
-                    
-                    <div class="space-y-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Telegram ID</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fa-brands fa-telegram text-indigo-400"></i>
-                                </div>
-                                <input id="tgIdInput" class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300" placeholder="Enter your Telegram ID">
-                            </div>
-                            <button id="sendOtpBtn" class="btn-primary w-full mt-3 py-3 text-white font-medium rounded-xl relative z-10">
-                                <i class="fa-solid fa-paper-plane mr-2"></i>Send Verification Code
-                            </button>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
-                            <div class="flex space-x-3">
-                                <div class="relative flex-1">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <i class="fa-solid fa-key text-indigo-400"></i>
-                                    </div>
-                                    <input id="otpInput" class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 text-center tracking-widest" placeholder="000000" maxlength="6">
-                                </div>
-                                <button id="verifyOtpBtn" class="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-300">
-                                    <i class="fa-solid fa-check mr-2"></i>Verify
-                                </button>
-                            </div>
-                            <div class="flex items-center justify-between mt-2">
-                                <span id="otpTimer" class="text-sm text-gray-500 hidden"></span>
-                            </div>
-                        </div>
-                        
-                        <p id="guardMsg" class="text-sm text-center hidden"></p>
-                    </div>
-                </section>
-
-                <!-- Enhanced Dashboard -->
-                <section id="dashboard" class="hidden">
-                    <div class="glass-card rounded-2xl shadow-xl p-8">
-                        <div class="flex items-center justify-between mb-8">
-                            <div>
-                                <h2 class="text-2xl font-bold text-gray-900">Dashboard Overview</h2>
-                                <p class="text-gray-600">Monitor your store's performance at a glance</p>
-                            </div>
-                            <div class="flex items-center space-x-2 text-sm text-gray-500">
-                                <i class="fa-solid fa-clock"></i>
-                                <span id="lastUpdate">Last updated: Just now</span>
-                            </div>
-                        </div>
-                        
-                        <div id="stats" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-                            <!-- Demo stats -->
-                            <div class="stat-card rounded-2xl p-6 shadow-lg">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-600 mb-1">Total Orders</p>
-                                        <p class="text-3xl font-bold text-gray-900">1,247</p>
-                                        <p class="text-sm text-green-600 flex items-center mt-1">
-                                            <i class="fa-solid fa-arrow-up mr-1"></i>+12.5%
-                                        </p>
-                                    </div>
-                                    <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                                        <i class="fa-solid fa-shopping-cart text-blue-600"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="stat-card rounded-2xl p-6 shadow-lg">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-600 mb-1">Revenue</p>
-                                        <p class="text-3xl font-bold text-gray-900">$24,590</p>
-                                        <p class="text-sm text-green-600 flex items-center mt-1">
-                                            <i class="fa-solid fa-arrow-up mr-1"></i>+8.2%
-                                        </p>
-                                    </div>
-                                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                                        <i class="fa-solid fa-dollar-sign text-green-600"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="stat-card rounded-2xl p-6 shadow-lg">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-600 mb-1">Active Users</p>
-                                        <p class="text-3xl font-bold text-gray-900">892</p>
-                                        <p class="text-sm text-red-600 flex items-center mt-1">
-                                            <i class="fa-solid fa-arrow-down mr-1"></i>-2.1%
-                                        </p>
-                                    </div>
-                                    <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                                        <i class="fa-solid fa-users text-purple-600"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="stat-card rounded-2xl p-6 shadow-lg">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-600 mb-1">Conversion Rate</p>
-                                        <p class="text-3xl font-bold text-gray-900">3.47%</p>
-                                        <p class="text-sm text-green-600 flex items-center mt-1">
-                                            <i class="fa-solid fa-arrow-up mr-1"></i>+0.3%
-                                        </p>
-                                    </div>
-                                    <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
-                                        <i class="fa-solid fa-chart-line text-orange-600"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Quick Actions -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="glass-card rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300">
-                                <div class="w-12 h-12 rounded-full bg-indigo-100 mx-auto mb-4 flex items-center justify-center">
-                                    <i class="fa-solid fa-plus text-indigo-600"></i>
-                                </div>
-                                <h3 class="font-semibold text-gray-900 mb-2">New Order</h3>
-                                <p class="text-sm text-gray-600 mb-4">Create a new order manually</p>
-                                <button class="btn-primary px-4 py-2 text-sm text-white rounded-lg relative z-10 w-full">Create Order</button>
-                            </div>
-                            
-                            <div class="glass-card rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300">
-                                <div class="w-12 h-12 rounded-full bg-purple-100 mx-auto mb-4 flex items-center justify-center">
-                                    <i class="fa-solid fa-bell text-purple-600"></i>
-                                </div>
-                                <h3 class="font-semibold text-gray-900 mb-2">Send Notification</h3>
-                                <p class="text-sm text-gray-600 mb-4">Broadcast to all users</p>
-                                <button class="btn-primary px-4 py-2 text-sm text-white rounded-lg relative z-10 w-full">Send Message</button>
-                            </div>
-                            
-                            <div class="glass-card rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300">
-                                <div class="w-12 h-12 rounded-full bg-green-100 mx-auto mb-4 flex items-center justify-center">
-                                    <i class="fa-solid fa-download text-green-600"></i>
-                                </div>
-                                <h3 class="font-semibold text-gray-900 mb-2">Export Data</h3>
-                                <p class="text-sm text-gray-600 mb-4">Download reports</p>
-                                <button class="btn-primary px-4 py-2 text-sm text-white rounded-lg relative z-10 w-full">Export All</button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Enhanced Orders Section -->
-                <section id="orders" class="glass-card rounded-2xl shadow-xl p-6 hidden">
-                    <div class="flex flex-col lg:flex-row lg:items-center justify-between mb-6 space-y-4 lg:space-y-0">
-                        <div>
-                            <h2 class="text-2xl font-bold text-gray-900">Orders Management</h2>
-                            <p class="text-gray-600">Track and manage all customer orders</p>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-3">
-                            <select id="ordersStatus" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                                <option value="">All Status</option>
-                                <option value="pending">Pending</option>
-                                <option value="processing">Processing</option>
-                                <option value="completed">Completed</option>
-                                <option value="declined">Declined</option>
-                                <option value="failed">Failed</option>
-                                <option value="refunded">Refunded</option>
-                            </select>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fa-solid fa-search text-gray-400"></i>
-                                </div>
-                                <input id="ordersQuery" class="border border-gray-200 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Search orders...">
-                            </div>
-                            <div class="flex items-center bg-gray-50 rounded-lg">
-                                <button id="ordersPrev" class="px-3 py-2 text-sm hover:bg-gray-100 rounded-l-lg transition-colors">
-                                    <i class="fa-solid fa-chevron-left mr-1"></i>Prev
-                                </button>
-                                <span id="ordersPage" class="px-3 py-2 text-sm font-medium text-gray-600">1</span>
-                                <button id="ordersNext" class="px-3 py-2 text-sm hover:bg-gray-100 rounded-r-lg transition-colors">
-                                    Next<i class="fa-solid fa-chevron-right ml-1"></i>
-                                </button>
-                            </div>
-                            <div class="text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-lg" id="ordersCount">Loading...</div>
-                        </div>
-                    </div>
-                    
-                    <div id="ordersTable" class="overflow-hidden rounded-xl border border-gray-200"></div>
-                </section>
-
-                <!-- Enhanced Withdrawals Section -->
-                <section id="withdrawals" class="glass-card rounded-2xl shadow-xl p-6 hidden">
-                    <div class="flex flex-col lg:flex-row lg:items-center justify-between mb-6 space-y-4 lg:space-y-0">
-                        <div>
-                            <h2 class="text-2xl font-bold text-gray-900">Withdrawals Management</h2>
-                            <p class="text-gray-600">Process and track withdrawal requests</p>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-3">
-                            <select id="withdrawalsStatus" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                                <option value="">All Status</option>
-                                <option value="pending">Pending</option>
-                                <option value="completed">Completed</option>
-                                <option value="declined">Declined</option>
-                            </select>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fa-solid fa-search text-gray-400"></i>
-                                </div>
-                                <input id="withdrawalsQuery" class="border border-gray-200 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Search withdrawals...">
-                            </div>
-                            <div class="flex items-center bg-gray-50 rounded-lg">
-                                <button id="withdrawalsPrev" class="px-3 py-2 text-sm hover:bg-gray-100 rounded-l-lg transition-colors">
-                                    <i class="fa-solid fa-chevron-left mr-1"></i>Prev
-                                </button>
-                                <span id="withdrawalsPage" class="px-3 py-2 text-sm font-medium text-gray-600">1</span>
-                                <button id="withdrawalsNext" class="px-3 py-2 text-sm hover:bg-gray-100 rounded-r-lg transition-colors">
-                                    Next<i class="fa-solid fa-chevron-right ml-1"></i>
-                                </button>
-                            </div>
-                            <div class="text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-lg" id="withdrawalsCount">Loading...</div>
-                        </div>
-                    </div>
-                    <div id="withdrawalsTable" class="overflow-hidden rounded-xl border border-gray-200">
-                        <!-- Withdrawals table will be populated by JavaScript -->
-                        <div class="p-8 text-center text-gray-500">
-                            <i class="fa-solid fa-credit-card text-4xl mb-4 text-gray-300"></i>
-                            <p>Withdrawals data will be loaded here</p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Enhanced Referrals Section -->
-                <section id="referrals" class="glass-card rounded-2xl shadow-xl p-6 hidden">
-                    <div class="mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900">Referral System</h2>
-                        <p class="text-gray-600">Track referral performance and payouts</p>
-                    </div>
-                    <div id="referralsTable" class="overflow-hidden rounded-xl border border-gray-200">
-                        <div class="p-8 text-center text-gray-500">
-                            <i class="fa-solid fa-users text-4xl mb-4 text-gray-300"></i>
-                            <p>Referral data will be loaded here</p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Enhanced Users Section -->
-                <section id="users" class="glass-card rounded-2xl shadow-xl p-6 hidden">
-                    <div class="mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900">User Management</h2>
-                        <p class="text-gray-600">Manage user accounts and permissions</p>
-                    </div>
-                    <div id="usersTable" class="overflow-hidden rounded-xl border border-gray-200">
-                        <div class="p-8 text-center text-gray-500">
-                            <i class="fa-solid fa-user-friends text-4xl mb-4 text-gray-300"></i>
-                            <p>User data will be loaded here</p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Enhanced Notifications Section -->
-                <section id="notifications" class="glass-card rounded-2xl shadow-xl p-6 hidden">
-                    <div class="mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900">Send Notifications</h2>
-                        <p class="text-gray-600">Broadcast messages to users via Telegram</p>
-                    </div>
-                    
-                    <div class="space-y-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Target Audience</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fa-solid fa-bullseye text-indigo-400"></i>
-                                </div>
-                                <input id="notifyTarget" class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="all, @username, or specific user ID">
-                            </div>
-                            <div class="flex flex-wrap gap-2 mt-2">
-                                <button class="px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors" onclick="document.getElementById('notifyTarget').value='all'">All Users</button>
-                                <button class="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition-colors" onclick="document.getElementById('notifyTarget').value='active'">Active Users</button>
-                                <button class="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors" onclick="document.getElementById('notifyTarget').value='premium'">Premium Users</button>
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Message</label>
-                            <div class="relative">
-                                <textarea id="notifyMessage" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none" rows="4" placeholder="Write your message here..."></textarea>
-                                <div class="absolute bottom-3 right-3 text-xs text-gray-400">
-                                    <span id="messageLength">0</span>/500
-                                </div>
-                            </div>
-                        </div>
-                        
+            <!-- Orders View -->
+            <div id="orders-view" class="main-body hidden">
+                <div class="card">
+                    <div class="card-header">
                         <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-4">
-                                <label class="flex items-center">
-                                    <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500">
-                                    <span class="ml-2 text-sm text-gray-600">Send immediately</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500">
-                                    <span class="ml-2 text-sm text-gray-600">Enable formatting</span>
-                                </label>
+                            <h3 class="font-semibold">Orders Management</h3>
+                            <div class="flex items-center gap-3">
+                                <select id="ordersStatus" class="form-select" style="width: auto;">
+                                    <option value="">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="processing">Processing</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="declined">Declined</option>
+                                </select>
+                                <input type="text" id="ordersSearch" class="form-input" placeholder="Search orders..." style="width: 200px;">
                             </div>
-                            <button id="notifySend" class="btn-primary px-6 py-3 text-white font-medium rounded-xl relative z-10">
-                                <i class="fa-solid fa-paper-plane mr-2"></i>Send Message
-                            </button>
                         </div>
-                        
-                        <p id="notifyMsg" class="text-sm text-center hidden"></p>
-                    </div>
-                </section>
-
-                <!-- Enhanced Settings Section -->
-                <section id="settings" class="glass-card rounded-2xl shadow-xl p-6 hidden">
-                    <div class="mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900">System Settings</h2>
-                        <p class="text-gray-600">Configure store settings and preferences</p>
                     </div>
                     
-                    <div id="settingsForm" class="space-y-8">
-                        <!-- General Settings -->
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                <i class="fa-solid fa-cog text-indigo-600 mr-2"></i>General Settings
-                            </h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Store Name</label>
-                                    <input type="text" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent" value="StarStore" placeholder="Enter store name">
+                    <div class="card-body">
+                        <div id="ordersTable" class="overflow-x-auto">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-shopping-cart"></i>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Store Currency</label>
-                                    <select class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                                        <option value="USD">USD ($)</option>
-                                        <option value="EUR">EUR (€)</option>
-                                        <option value="GBP">GBP (£)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Minimum Order Amount</label>
-                                    <input type="number" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent" value="10.00" placeholder="0.00">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Tax Rate (%)</label>
-                                    <input type="number" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent" value="8.5" placeholder="0.0" step="0.1">
-                                </div>
+                                <p>No orders found</p>
                             </div>
                         </div>
-
-                        <!-- Payment Settings -->
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                <i class="fa-solid fa-credit-card text-green-600 mr-2"></i>Payment Settings
-                            </h3>
-                            <div class="space-y-4">
-                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                            <i class="fa-brands fa-paypal text-blue-600"></i>
-                                        </div>
-                                        <div>
-                                            <p class="font-medium text-gray-900">PayPal</p>
-                                            <p class="text-sm text-gray-600">Accept PayPal payments</p>
-                                        </div>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                                    </label>
-                                </div>
-                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                            <i class="fa-brands fa-stripe text-purple-600"></i>
-                                        </div>
-                                        <div>
-                                            <p class="font-medium text-gray-900">Stripe</p>
-                                            <p class="text-sm text-gray-600">Accept credit card payments</p>
-                                        </div>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                                    </label>
-                                </div>
+                    </div>
+                    
+                    <div class="card-footer">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm text-gray-600" id="ordersCount">0 orders</div>
+                            <div class="flex items-center gap-2">
+                                <button id="ordersPrev" class="btn btn-secondary btn-sm">Previous</button>
+                                <span id="ordersPage" class="text-sm font-medium">1</span>
+                                <button id="ordersNext" class="btn btn-secondary btn-sm">Next</button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
 
-                        <!-- Notification Settings -->
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                <i class="fa-solid fa-bell text-yellow-600 mr-2"></i>Notification Settings
-                            </h3>
-                            <div class="space-y-4">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="font-medium text-gray-900">Order Notifications</p>
-                                        <p class="text-sm text-gray-600">Get notified of new orders</p>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                                    </label>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="font-medium text-gray-900">Withdrawal Alerts</p>
-                                        <p class="text-sm text-gray-600">Get notified of withdrawal requests</p>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                                    </label>
-                                </div>
+            <!-- Withdrawals View -->
+            <div id="withdrawals-view" class="main-body hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold">Withdrawals Management</h3>
+                            <div class="flex items-center gap-3">
+                                <select id="withdrawalsStatus" class="form-select" style="width: auto;">
+                                    <option value="">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="declined">Declined</option>
+                                </select>
+                                <input type="text" id="withdrawalsSearch" class="form-input" placeholder="Search withdrawals..." style="width: 200px;">
                             </div>
                         </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div id="withdrawalsTable" class="overflow-x-auto">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-credit-card"></i>
+                                </div>
+                                <p>No withdrawals found</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm text-gray-600" id="withdrawalsCount">0 withdrawals</div>
+                            <div class="flex items-center gap-2">
+                                <button id="withdrawalsPrev" class="btn btn-secondary btn-sm">Previous</button>
+                                <span id="withdrawalsPage" class="text-sm font-medium">1</span>
+                                <button id="withdrawalsNext" class="btn btn-secondary btn-sm">Next</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                        <!-- Save Button -->
-                        <div class="flex justify-end pt-6 border-t border-gray-200">
-                            <button class="btn-primary px-8 py-3 text-white font-medium rounded-xl relative z-10">
-                                <i class="fa-solid fa-save mr-2"></i>Save Settings
+            <!-- Notifications View -->
+            <div id="notifications-view" class="main-body hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-semibold">Send Notifications</h3>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Target Audience</label>
+                            <input type="text" id="notifyTarget" class="form-input" placeholder="all, @username, or specific user ID">
+                            <div class="flex gap-2 mt-2">
+                                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('notifyTarget').value='all'">All Users</button>
+                                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('notifyTarget').value='active'">Active Users</button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Message</label>
+                            <textarea id="notifyMessage" class="form-input" rows="4" placeholder="Write your message here..."></textarea>
+                            <div class="text-xs text-gray-500 mt-1">
+                                <span id="messageLength">0</span>/500 characters
+                            </div>
+                        </div>
+                        
+                        <button id="notifySend" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                            Send Message
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings View -->
+            <div id="settings-view" class="main-body hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-semibold">System Settings</h3>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="form-group">
+                                <label class="form-label">Store Name</label>
+                                <input type="text" class="form-input" value="StarStore">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Minimum Order Amount</label>
+                                <input type="number" class="form-input" value="10.00">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Admin Telegram IDs</label>
+                                <input type="text" class="form-input" value="123456789" placeholder="Comma separated IDs">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Environment</label>
+                                <select class="form-select">
+                                    <option value="development">Development</option>
+                                    <option value="production">Production</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end mt-6">
+                            <button class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                Save Settings
                             </button>
                         </div>
                     </div>
-                </section>
-            </main>
-        </div>
-
-        <!-- Mobile Menu Overlay -->
-        <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden hidden"></div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script>
-        // Admin Dashboard - Fully Functional
+        // Admin Dashboard - Clean WhatsApp-Inspired Design
         class AdminDashboard {
             constructor() {
                 this.currentUser = null;
@@ -760,15 +388,10 @@
             }
 
             setupEventListeners() {
-                // Mobile menu
-                const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-                const mobileSidebar = document.getElementById('mobileSidebar');
-                const closeMobileMenu = document.getElementById('closeMobileMenu');
-                const mobileOverlay = document.getElementById('mobileOverlay');
-
-                mobileMenuToggle?.addEventListener('click', () => this.toggleMobileMenu());
-                closeMobileMenu?.addEventListener('click', () => this.toggleMobileMenu());
-                mobileOverlay?.addEventListener('click', () => this.toggleMobileMenu());
+                // Authentication
+                document.getElementById('sendOtpBtn')?.addEventListener('click', () => this.sendOTP());
+                document.getElementById('verifyOtpBtn')?.addEventListener('click', () => this.verifyOTP());
+                document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
 
                 // Navigation
                 document.querySelectorAll('.nav-link').forEach(link => {
@@ -778,20 +401,15 @@
                     });
                 });
 
-                // Authentication
-                document.getElementById('sendOtpBtn')?.addEventListener('click', () => this.sendOTP());
-                document.getElementById('verifyOtpBtn')?.addEventListener('click', () => this.verifyOTP());
-                document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
-
                 // Orders
                 document.getElementById('ordersStatus')?.addEventListener('change', () => this.loadOrders());
-                document.getElementById('ordersQuery')?.addEventListener('input', this.debounce(() => this.loadOrders(), 500));
+                document.getElementById('ordersSearch')?.addEventListener('input', this.debounce(() => this.loadOrders(), 500));
                 document.getElementById('ordersPrev')?.addEventListener('click', () => this.changeOrdersPage(-1));
                 document.getElementById('ordersNext')?.addEventListener('click', () => this.changeOrdersPage(1));
 
                 // Withdrawals
                 document.getElementById('withdrawalsStatus')?.addEventListener('change', () => this.loadWithdrawals());
-                document.getElementById('withdrawalsQuery')?.addEventListener('input', this.debounce(() => this.loadWithdrawals(), 500));
+                document.getElementById('withdrawalsSearch')?.addEventListener('input', this.debounce(() => this.loadWithdrawals(), 500));
                 document.getElementById('withdrawalsPrev')?.addEventListener('click', () => this.changeWithdrawalsPage(-1));
                 document.getElementById('withdrawalsNext')?.addEventListener('click', () => this.changeWithdrawalsPage(1));
 
@@ -799,14 +417,10 @@
                 document.getElementById('notifyMessage')?.addEventListener('input', (e) => this.updateMessageLength(e));
                 document.getElementById('notifySend')?.addEventListener('click', () => this.sendNotification());
 
-                // Global search
-                document.getElementById('globalSearch')?.addEventListener('input', this.debounce(() => this.globalSearch(), 500));
+                // Mobile menu
+                document.getElementById('mobileMenuBtn')?.addEventListener('click', () => this.toggleMobileMenu());
 
-                // Export buttons
-                document.getElementById('globalExportOrders')?.addEventListener('click', () => this.exportOrders());
-                document.getElementById('globalExportWithdrawals')?.addEventListener('click', () => this.exportWithdrawals());
-
-                // Refresh button
+                // Refresh
                 document.getElementById('refreshBtn')?.addEventListener('click', () => this.refreshCurrentView());
             }
 
@@ -831,13 +445,13 @@
             async sendOTP() {
                 const tgId = document.getElementById('tgIdInput').value.trim();
                 if (!tgId) {
-                    this.showMessage('Please enter your Telegram ID', 'error');
+                    this.showNotification('Please enter your Telegram ID', 'error');
                     return;
                 }
 
                 const btn = document.getElementById('sendOtpBtn');
                 btn.disabled = true;
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Sending...';
+                btn.innerHTML = '<i class="spinner"></i> Sending...';
 
                 try {
                     const response = await fetch('/api/admin/auth/send-otp', {
@@ -849,17 +463,17 @@
                     const result = await response.json();
                     
                     if (result.success) {
-                        this.showMessage('Verification code sent to your Telegram!', 'success');
+                        this.showNotification('Verification code sent to your Telegram!', 'success');
                         this.startOTPTimer();
                         document.getElementById('otpInput').focus();
                     } else {
-                        this.showMessage(result.error || 'Failed to send code', 'error');
+                        this.showNotification(result.error || 'Failed to send code', 'error');
                     }
                 } catch (error) {
-                    this.showMessage('Network error. Please try again.', 'error');
+                    this.showNotification('Network error. Please try again.', 'error');
                 } finally {
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>Send Verification Code';
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Verification Code';
                 }
             }
 
@@ -868,13 +482,13 @@
                 const code = document.getElementById('otpInput').value.trim();
                 
                 if (!code) {
-                    this.showMessage('Please enter the verification code', 'error');
+                    this.showNotification('Please enter the verification code', 'error');
                     return;
                 }
 
                 const btn = document.getElementById('verifyOtpBtn');
                 btn.disabled = true;
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Verifying...';
+                btn.innerHTML = '<i class="spinner"></i> Verifying...';
 
                 try {
                     const response = await fetch('/api/admin/auth/verify-otp', {
@@ -888,17 +502,17 @@
                     if (result.success) {
                         this.csrfToken = result.csrfToken;
                         this.currentUser = { id: tgId, isAdmin: true };
-                        this.showMessage('Login successful!', 'success');
+                        this.showNotification('Login successful!', 'success');
                         this.showAdminInterface();
                         await this.loadDashboard();
                     } else {
-                        this.showMessage(result.error || 'Invalid code', 'error');
+                        this.showNotification(result.error || 'Invalid code', 'error');
                     }
                 } catch (error) {
-                    this.showMessage('Network error. Please try again.', 'error');
+                    this.showNotification('Network error. Please try again.', 'error');
                 } finally {
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Verify';
+                    btn.innerHTML = '<i class="fas fa-check"></i> Verify';
                 }
             }
 
@@ -908,23 +522,20 @@
                     this.currentUser = null;
                     this.csrfToken = null;
                     this.showAuthInterface();
-                    this.showMessage('Logged out successfully', 'success');
+                    this.showNotification('Logged out successfully', 'success');
                 } catch (error) {
                     console.error('Logout error:', error);
                 }
             }
 
             showAuthInterface() {
-                document.getElementById('guard').classList.remove('hidden');
-                document.getElementById('adminHeader').classList.add('hidden');
-                document.getElementById('adminSidebar').classList.add('hidden');
-                document.querySelectorAll('section[id!="guard"]').forEach(s => s.classList.add('hidden'));
+                document.getElementById('auth-screen').classList.remove('hidden');
+                document.getElementById('admin-interface').classList.add('hidden');
             }
 
             showAdminInterface() {
-                document.getElementById('guard').classList.add('hidden');
-                document.getElementById('adminHeader').classList.remove('hidden');
-                document.getElementById('adminSidebar').classList.remove('hidden');
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('admin-interface').classList.remove('hidden');
             }
 
             navigateTo(view) {
@@ -934,12 +545,19 @@
                 document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
                 document.querySelector(`[data-view="${view}"]`).classList.add('active');
                 
-                // Show/hide sections
-                document.querySelectorAll('section[id!="guard"]').forEach(s => s.classList.add('hidden'));
-                document.getElementById(view).classList.remove('hidden');
+                // Update page title
+                const titles = {
+                    dashboard: 'Dashboard',
+                    orders: 'Orders',
+                    withdrawals: 'Withdrawals',
+                    notifications: 'Notifications',
+                    settings: 'Settings'
+                };
+                document.getElementById('pageTitle').textContent = titles[view] || 'Dashboard';
                 
-                // Close mobile menu
-                this.toggleMobileMenu();
+                // Show/hide views
+                document.querySelectorAll('[id$="-view"]').forEach(v => v.classList.add('hidden'));
+                document.getElementById(`${view}-view`).classList.remove('hidden');
                 
                 // Load data for the view
                 this.loadViewData(view);
@@ -956,12 +574,6 @@
                     case 'withdrawals':
                         await this.loadWithdrawals();
                         break;
-                    case 'referrals':
-                        await this.loadReferrals();
-                        break;
-                    case 'users':
-                        await this.loadUsers();
-                        break;
                 }
             }
 
@@ -970,73 +582,21 @@
                     const response = await fetch('/api/admin/stats');
                     const stats = await response.json();
                     
-                    // Update stats display
-                    this.updateStatsDisplay(stats);
+                    document.getElementById('totalOrders').textContent = stats.totalOrders || 0;
+                    document.getElementById('pendingWithdrawals').textContent = stats.pendingWithdrawals || 0;
+                    document.getElementById('totalUsers').textContent = stats.totalUsers || 0;
+                    document.getElementById('revenue').textContent = `$${stats.revenueUsdt || 0}`;
+                    
                     this.updateTimestamp();
                 } catch (error) {
                     console.error('Failed to load dashboard:', error);
-                }
-            }
-
-            updateStatsDisplay(stats) {
-                // Update the stats cards with real data
-                const statsContainer = document.getElementById('stats');
-                if (statsContainer) {
-                    statsContainer.innerHTML = `
-                        <div class="stat-card rounded-2xl p-6 shadow-lg">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-600 mb-1">Total Orders</p>
-                                    <p class="text-3xl font-bold text-gray-900">${stats.totalOrders || 0}</p>
-                                </div>
-                                <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <i class="fa-solid fa-shopping-cart text-blue-600"></i>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="stat-card rounded-2xl p-6 shadow-lg">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-600 mb-1">Pending Withdrawals</p>
-                                    <p class="text-3xl font-bold text-gray-900">${stats.pendingWithdrawals || 0}</p>
-                                </div>
-                                <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                                    <i class="fa-solid fa-credit-card text-green-600"></i>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="stat-card rounded-2xl p-6 shadow-lg">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-600 mb-1">Total Users</p>
-                                    <p class="text-3xl font-bold text-gray-900">${stats.totalUsers || 0}</p>
-                                </div>
-                                <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                                    <i class="fa-solid fa-users text-purple-600"></i>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="stat-card rounded-2xl p-6 shadow-lg">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-600 mb-1">Revenue (USDT)</p>
-                                    <p class="text-3xl font-bold text-gray-900">${stats.revenueUsdt || 0}</p>
-                                </div>
-                                <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
-                                    <i class="fa-solid fa-dollar-sign text-orange-600"></i>
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    this.showNotification('Failed to load dashboard data', 'error');
                 }
             }
 
             async loadOrders() {
                 const status = document.getElementById('ordersStatus').value;
-                const query = document.getElementById('ordersQuery').value;
+                const query = document.getElementById('ordersSearch').value;
                 
                 try {
                     const params = new URLSearchParams({
@@ -1053,7 +613,7 @@
                     this.updateOrdersPagination(data.total || 0);
                 } catch (error) {
                     console.error('Failed to load orders:', error);
-                    this.showMessage('Failed to load orders', 'error');
+                    this.showNotification('Failed to load orders', 'error');
                 }
             }
 
@@ -1063,8 +623,10 @@
 
                 if (orders.length === 0) {
                     table.innerHTML = `
-                        <div class="p-8 text-center text-gray-500">
-                            <i class="fa-solid fa-shopping-cart text-4xl mb-4 text-gray-300"></i>
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-shopping-cart"></i>
+                            </div>
                             <p>No orders found</p>
                         </div>
                     `;
@@ -1072,39 +634,44 @@
                 }
 
                 const tableHTML = `
-                    <table class="table-modern w-full">
+                    <table class="table">
                         <thead>
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th>Order ID</th>
+                                <th>Type</th>
+                                <th>User</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody>
                             ${orders.map(order => `
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order.id}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.type === 'buy' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                                <tr>
+                                    <td class="font-medium">${order.id}</td>
+                                    <td>
+                                        <span class="badge ${order.type === 'buy' ? 'badge-info' : 'badge-success'}">
                                             ${order.type.toUpperCase()}
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@${order.username}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${order.amount} USDT</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="status-badge status-${order.status}">${order.status}</span>
+                                    <td>@${order.username}</td>
+                                    <td>${order.amount} USDT</td>
+                                    <td>
+                                        <span class="badge badge-${order.status}">${order.status}</span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(order.dateCreated).toLocaleDateString()}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button onclick="adminDashboard.viewOrder('${order.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">View</button>
-                                        ${order.status === 'pending' ? `
-                                            <button onclick="adminDashboard.completeOrder('${order.id}')" class="text-green-600 hover:text-green-900 mr-2">Complete</button>
-                                            <button onclick="adminDashboard.declineOrder('${order.id}')" class="text-red-600 hover:text-red-900">Decline</button>
-                                        ` : ''}
+                                    <td class="text-sm">${new Date(order.dateCreated).toLocaleDateString()}</td>
+                                    <td>
+                                        <div class="flex gap-2">
+                                            ${order.status === 'pending' ? `
+                                                <button onclick="adminDashboard.completeOrder('${order.id}')" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                                <button onclick="adminDashboard.declineOrder('${order.id}')" class="btn btn-danger btn-sm">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            ` : ''}
+                                        </div>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1117,7 +684,7 @@
 
             async loadWithdrawals() {
                 const status = document.getElementById('withdrawalsStatus').value;
-                const query = document.getElementById('withdrawalsQuery').value;
+                const query = document.getElementById('withdrawalsSearch').value;
                 
                 try {
                     const params = new URLSearchParams({
@@ -1134,7 +701,7 @@
                     this.updateWithdrawalsPagination(data.total || 0);
                 } catch (error) {
                     console.error('Failed to load withdrawals:', error);
-                    this.showMessage('Failed to load withdrawals', 'error');
+                    this.showNotification('Failed to load withdrawals', 'error');
                 }
             }
 
@@ -1144,8 +711,10 @@
 
                 if (withdrawals.length === 0) {
                     table.innerHTML = `
-                        <div class="p-8 text-center text-gray-500">
-                            <i class="fa-solid fa-credit-card text-4xl mb-4 text-gray-300"></i>
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-credit-card"></i>
+                            </div>
                             <p>No withdrawals found</p>
                         </div>
                     `;
@@ -1153,33 +722,38 @@
                 }
 
                 const tableHTML = `
-                    <table class="table-modern w-full">
+                    <table class="table">
                         <thead>
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th>ID</th>
+                                <th>User</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody>
                             ${withdrawals.map(withdrawal => `
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${withdrawal.id}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">@${withdrawal.username}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${withdrawal.amount} USDT</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="status-badge status-${withdrawal.status}">${withdrawal.status}</span>
+                                <tr>
+                                    <td class="font-medium">${withdrawal.id}</td>
+                                    <td>@${withdrawal.username}</td>
+                                    <td>${withdrawal.amount} USDT</td>
+                                    <td>
+                                        <span class="badge badge-${withdrawal.status}">${withdrawal.status}</span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(withdrawal.dateCreated).toLocaleDateString()}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button onclick="adminDashboard.viewWithdrawal('${withdrawal.id}')" class="text-indigo-600 hover:text-indigo-900 mr-2">View</button>
-                                        ${withdrawal.status === 'pending' ? `
-                                            <button onclick="adminDashboard.completeWithdrawal('${withdrawal.id}')" class="text-green-600 hover:text-green-900 mr-2">Complete</button>
-                                            <button onclick="adminDashboard.declineWithdrawal('${withdrawal.id}')" class="text-red-600 hover:text-red-900">Decline</button>
-                                        ` : ''}
+                                    <td class="text-sm">${new Date(withdrawal.dateCreated).toLocaleDateString()}</td>
+                                    <td>
+                                        <div class="flex gap-2">
+                                            ${withdrawal.status === 'pending' ? `
+                                                <button onclick="adminDashboard.completeWithdrawal('${withdrawal.id}')" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                                <button onclick="adminDashboard.declineWithdrawal('${withdrawal.id}')" class="btn btn-danger btn-sm">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            ` : ''}
+                                        </div>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1190,56 +764,18 @@
                 table.innerHTML = tableHTML;
             }
 
-            async loadReferrals() {
-                try {
-                    const response = await fetch('/api/admin/referrals');
-                    const data = await response.json();
-                    
-                    const table = document.getElementById('referralsTable');
-                    if (table) {
-                        table.innerHTML = `
-                            <div class="p-8 text-center text-gray-500">
-                                <i class="fa-solid fa-users text-4xl mb-4 text-gray-300"></i>
-                                <p>Referral system coming soon</p>
-                            </div>
-                        `;
-                    }
-                } catch (error) {
-                    console.error('Failed to load referrals:', error);
-                }
-            }
-
-            async loadUsers() {
-                try {
-                    const response = await fetch('/api/admin/users');
-                    const data = await response.json();
-                    
-                    const table = document.getElementById('usersTable');
-                    if (table) {
-                        table.innerHTML = `
-                            <div class="p-8 text-center text-gray-500">
-                                <i class="fa-solid fa-user-friends text-4xl mb-4 text-gray-300"></i>
-                                <p>User management coming soon</p>
-                            </div>
-                        `;
-                    }
-                } catch (error) {
-                    console.error('Failed to load users:', error);
-                }
-            }
-
             async sendNotification() {
                 const target = document.getElementById('notifyTarget').value.trim();
                 const message = document.getElementById('notifyMessage').value.trim();
                 
                 if (!target || !message) {
-                    this.showMessage('Please fill in all fields', 'error');
+                    this.showNotification('Please fill in all fields', 'error');
                     return;
                 }
 
                 const btn = document.getElementById('notifySend');
                 btn.disabled = true;
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Sending...';
+                btn.innerHTML = '<i class="spinner"></i> Sending...';
 
                 try {
                     const response = await fetch('/api/admin/notify', {
@@ -1254,32 +790,30 @@
                     const result = await response.json();
                     
                     if (result.success) {
-                        this.showMessage('Notification sent successfully!', 'success');
+                        this.showNotification('Notification sent successfully!', 'success');
                         document.getElementById('notifyMessage').value = '';
                         document.getElementById('notifyTarget').value = '';
                     } else {
-                        this.showMessage(result.error || 'Failed to send notification', 'error');
+                        this.showNotification(result.error || 'Failed to send notification', 'error');
                     }
                 } catch (error) {
-                    this.showMessage('Network error. Please try again.', 'error');
+                    this.showNotification('Network error. Please try again.', 'error');
                 } finally {
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>Send Message';
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Message';
                 }
             }
 
             // Utility methods
-            showMessage(message, type = 'info') {
-                const msgElement = document.getElementById('guardMsg');
-                if (msgElement) {
-                    msgElement.textContent = message;
-                    msgElement.className = `text-sm text-center ${type === 'error' ? 'text-red-600' : type === 'success' ? 'text-green-600' : 'text-blue-600'}`;
-                    msgElement.classList.remove('hidden');
-                    
-                    setTimeout(() => {
-                        msgElement.classList.add('hidden');
-                    }, 5000);
-                }
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 5000);
             }
 
             updateMessageLength(event) {
@@ -1287,7 +821,7 @@
                 const lengthElement = document.getElementById('messageLength');
                 if (lengthElement) {
                     lengthElement.textContent = length;
-                    lengthElement.className = `text-xs ${length > 450 ? 'text-red-500' : length > 350 ? 'text-yellow-500' : 'text-gray-400'}`;
+                    lengthElement.className = `text-xs ${length > 450 ? 'text-red-500' : length > 350 ? 'text-yellow-500' : 'text-gray-500'}`;
                 }
             }
 
@@ -1295,7 +829,7 @@
                 const timestamp = document.getElementById('lastUpdate');
                 if (timestamp) {
                     const now = new Date();
-                    timestamp.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+                    timestamp.textContent = now.toLocaleTimeString();
                 }
             }
 
@@ -1316,12 +850,8 @@
             }
 
             toggleMobileMenu() {
-                const mobileSidebar = document.getElementById('mobileSidebar');
-                const mobileOverlay = document.getElementById('mobileOverlay');
-                if (mobileSidebar && mobileOverlay) {
-                    mobileSidebar.classList.toggle('open');
-                    mobileOverlay.classList.toggle('hidden');
-                }
+                const sidebar = document.querySelector('.sidebar');
+                sidebar.classList.toggle('open');
             }
 
             debounce(func, wait) {
@@ -1374,8 +904,9 @@
                     a.download = 'orders-export.csv';
                     a.click();
                     window.URL.revokeObjectURL(url);
+                    this.showNotification('Orders exported successfully', 'success');
                 } catch (error) {
-                    this.showMessage('Failed to export orders', 'error');
+                    this.showNotification('Failed to export orders', 'error');
                 }
             }
 
@@ -1389,25 +920,13 @@
                     a.download = 'withdrawals-export.csv';
                     a.click();
                     window.URL.revokeObjectURL(url);
+                    this.showNotification('Withdrawals exported successfully', 'success');
                 } catch (error) {
-                    this.showMessage('Failed to export withdrawals', 'error');
-                }
-            }
-
-            globalSearch() {
-                const query = document.getElementById('globalSearch').value.trim();
-                if (query) {
-                    // Implement global search functionality
-                    console.log('Global search:', query);
+                    this.showNotification('Failed to export withdrawals', 'error');
                 }
             }
 
             // Order actions
-            async viewOrder(orderId) {
-                // Implement order details view
-                console.log('View order:', orderId);
-            }
-
             async completeOrder(orderId) {
                 if (!confirm('Are you sure you want to complete this order?')) return;
                 
@@ -1422,13 +941,13 @@
 
                     const result = await response.json();
                     if (result.success) {
-                        this.showMessage('Order completed successfully!', 'success');
+                        this.showNotification('Order completed successfully!', 'success');
                         this.loadOrders();
                     } else {
-                        this.showMessage(result.error || 'Failed to complete order', 'error');
+                        this.showNotification(result.error || 'Failed to complete order', 'error');
                     }
                 } catch (error) {
-                    this.showMessage('Network error. Please try again.', 'error');
+                    this.showNotification('Network error. Please try again.', 'error');
                 }
             }
 
@@ -1446,22 +965,17 @@
 
                     const result = await response.json();
                     if (result.success) {
-                        this.showMessage('Order declined successfully!', 'success');
+                        this.showNotification('Order declined successfully!', 'success');
                         this.loadOrders();
                     } else {
-                        this.showMessage(result.error || 'Failed to decline order', 'error');
+                        this.showNotification(result.error || 'Failed to decline order', 'error');
                     }
                 } catch (error) {
-                    this.showMessage('Network error. Please try again.', 'error');
+                    this.showNotification('Network error. Please try again.', 'error');
                 }
             }
 
             // Withdrawal actions
-            async viewWithdrawal(withdrawalId) {
-                // Implement withdrawal details view
-                console.log('View withdrawal:', withdrawalId);
-            }
-
             async completeWithdrawal(withdrawalId) {
                 if (!confirm('Are you sure you want to complete this withdrawal?')) return;
                 
@@ -1476,13 +990,13 @@
 
                     const result = await response.json();
                     if (result.success) {
-                        this.showMessage('Withdrawal completed successfully!', 'success');
+                        this.showNotification('Withdrawal completed successfully!', 'success');
                         this.loadWithdrawals();
                     } else {
-                        this.showMessage(result.error || 'Failed to complete withdrawal', 'error');
+                        this.showNotification(result.error || 'Failed to complete withdrawal', 'error');
                     }
                 } catch (error) {
-                    this.showMessage('Network error. Please try again.', 'error');
+                    this.showNotification('Network error. Please try again.', 'error');
                 }
             }
 
@@ -1500,13 +1014,13 @@
 
                     const result = await response.json();
                     if (result.success) {
-                        this.showMessage('Withdrawal declined successfully!', 'success');
+                        this.showNotification('Withdrawal declined successfully!', 'success');
                         this.loadWithdrawals();
                     } else {
-                        this.showMessage(result.error || 'Failed to decline withdrawal', 'error');
+                        this.showNotification(result.error || 'Failed to decline withdrawal', 'error');
                     }
                 } catch (error) {
-                    this.showMessage('Network error. Please try again.', 'error');
+                    this.showNotification('Network error. Please try again.', 'error');
                 }
             }
         }
