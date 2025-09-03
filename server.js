@@ -456,7 +456,7 @@ app.get('/api/get-wallet-address', (req, res) => {
 // Quote endpoint for pricing (used by Buy page)
 app.post('/api/quote', (req, res) => {
     try {
-        const { isPremium, premiumDuration, stars, recipientsCount } = req.body || {};
+        const { isPremium, premiumDuration, stars, recipientsCount, isBuyForOthers } = req.body || {};
         const quantity = Math.max(1, Number(recipientsCount) || 0);
 
         const priceMap = {
@@ -474,8 +474,16 @@ app.post('/api/quote', (req, res) => {
         }
 
         const starsNum = Number(stars) || 0;
-        if (!starsNum || starsNum < 50) {
-            return res.status(400).json({ success: false, error: 'Invalid stars amount (min 50)' });
+        const buyForOthers = Boolean(isBuyForOthers);
+        
+        // For buying for others, require minimum 50 stars
+        if (buyForOthers && (!starsNum || starsNum < 50)) {
+            return res.status(400).json({ success: false, error: 'Invalid stars amount (min 50 for others)' });
+        }
+        
+        // For self-purchase, require minimum 1 star
+        if (!buyForOthers && (!starsNum || starsNum < 1)) {
+            return res.status(400).json({ success: false, error: 'Invalid stars amount (min 1 for self)' });
         }
 
         // For stars, charge the package price regardless of recipients (stars are distributed, not multiplied)
@@ -508,6 +516,7 @@ app.get('/api/quote', (req, res) => {
         const premiumDuration = req.query.premiumDuration ? Number(req.query.premiumDuration) : undefined;
         const stars = req.query.stars ? Number(req.query.stars) : undefined;
         const recipientsCount = req.query.recipientsCount ? Number(req.query.recipientsCount) : 0;
+        const isBuyForOthers = String(req.query.isBuyForOthers || 'false') === 'true';
         const quantity = Math.max(1, Number(recipientsCount) || 0);
 
         const priceMap = {
@@ -525,8 +534,16 @@ app.get('/api/quote', (req, res) => {
         }
 
         const starsNum = Number(stars) || 0;
-        if (!starsNum || starsNum < 50) {
-            return res.status(400).json({ success: false, error: 'Invalid stars amount (min 50)' });
+        const buyForOthers = Boolean(isBuyForOthers);
+        
+        // For buying for others, require minimum 50 stars
+        if (buyForOthers && (!starsNum || starsNum < 50)) {
+            return res.status(400).json({ success: false, error: 'Invalid stars amount (min 50 for others)' });
+        }
+        
+        // For self-purchase, require minimum 1 star
+        if (!buyForOthers && (!starsNum || starsNum < 1)) {
+            return res.status(400).json({ success: false, error: 'Invalid stars amount (min 1 for self)' });
         }
 
         // For stars, charge the package price regardless of recipients (stars are distributed, not multiplied)
