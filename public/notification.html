@@ -133,20 +133,18 @@
     isLoading = true;
     currentUserId = getCurrentUserId();
     
-    // Guard: require Telegram context to resolve user; otherwise show friendly hint
-    if (!window.Telegram?.WebApp?.initData) {
-      showError('Notifications require opening in Telegram. Please open this in the Telegram app.');
+    // Guard: require Telegram context or header fallback
+    if (!window.Telegram?.WebApp?.initData && !currentUserId) {
+      showError('Notifications require Telegram or a linked session. Please open in Telegram.');
       isLoading = false;
       return;
     }
 
     try {
-      const response = await fetch(`/api/notifications?limit=10&skip=${page * 10}`, {
-        headers: {
-          'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-          'Content-Type': 'application/json'
-        }
-      });
+      const headers = { 'Content-Type': 'application/json' };
+      if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+      else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
+      const response = await fetch(`/api/notifications?limit=10&skip=${page * 10}`, { headers });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

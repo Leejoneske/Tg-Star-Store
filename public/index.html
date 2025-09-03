@@ -1699,6 +1699,19 @@ function initNotificationSystem() {
         updateNotificationBadge();
     }, 30000);
 
+    // Activity heartbeat: update lastActive every 60s
+    setInterval(() => {
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (window.Telegram?.WebApp?.initData) {
+                headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+            } else if (window.currentUserId) {
+                headers['x-telegram-id'] = String(window.currentUserId);
+            }
+            fetch('/api/active-ping', { method: 'POST', headers });
+        } catch {}
+    }, 60000);
+
     // Cleanup
     return () => {
         window.removeEventListener('message', handleMessage);
