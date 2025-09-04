@@ -1560,6 +1560,24 @@ bot.on('message', async (msg) => {
     const request = reversalRequests.get(chatId);
     if (!request || !msg.text || msg.text.startsWith('/')) return;
     
+    // Additional rate limit check: ensure no recent requests in database
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentRequest = await Reversal.findOne({
+        telegramId: userId,
+        createdAt: { $gte: thirtyDaysAgo },
+        status: { $in: ['pending', 'processing'] }
+    });
+    if (recentRequest) {
+        reversalRequests.delete(chatId);
+        const nextAllowedDate = new Date(recentRequest.createdAt);
+        nextAllowedDate.setDate(nextAllowedDate.getDate() + 30);
+        return bot.sendMessage(chatId, 
+            `❌ You can only request one refund per month.\n` +
+            `Next refund available: ${nextAllowedDate.toDateString()}`
+        );
+    }
+    
     if (Date.now() - request.timestamp > 300000) {
         reversalRequests.delete(chatId);
         return bot.sendMessage(chatId, "⌛ Session expired. Please start over with /reverse or /paysupport");
