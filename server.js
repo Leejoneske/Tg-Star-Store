@@ -424,7 +424,9 @@ const Referral = mongoose.model('Referral', referralSchema);
 const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
 
 
-const adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
+let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
+// Deduplicate to avoid duplicate notifications per admin
+adminIds = Array.from(new Set(adminIds));
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
 function generateOrderId() {
@@ -1483,6 +1485,18 @@ bot.onText(/^\/refundtx (.+) (.+)/i, async (msg, match) => {
     }
 });
 
+// Admin helper: find order by ID and show details
+bot.onText(/^\/findorder\s+([A-Z0-9]{6,})/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
+    const orderId = match[1].trim();
+    const order = await SellOrder.findOne({ id: orderId }) || await BuyOrder.findOne({ id: orderId });
+    if (!order) return bot.sendMessage(chatId, "❌ Order not found");
+    const type = order.stars != null || order.status === 'processing' ? 'SELL' : 'BUY';
+    const info = `📄 Order ${order.id}\nType: ${type}\nUser: ${order.username || '-'} (ID: ${order.telegramId})\nStatus: ${order.status}\nStars: ${order.stars || '-'}\nAmount: ${order.amount || '-'}\nWallet: ${order.walletAddress || '-'}\nTX: ${order.telegram_payment_charge_id || '-'}\nCreated: ${order.dateCreated ? order.dateCreated.toISOString() : '-'}\nCompleted: ${order.dateCompleted ? order.dateCompleted.toISOString() : '-'}`;
+    await bot.sendMessage(chatId, info);
+});
+
 bot.onText(/^\/getpayment (.+)/i, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
@@ -1659,7 +1673,7 @@ bot.on('message', async (msg) => {
             } catch (err) {
                 console.error(`Failed to send to admin ${adminId}:`, err.message);
                 try {
-                    await bot.sendMessage(parseInt(adminId), adminMsg, {
+                    const fallbackMsg = await bot.sendMessage(parseInt(adminId), adminMsg, {
                         reply_markup: {
                             inline_keyboard: [
                                 [
@@ -1669,11 +1683,7 @@ bot.on('message', async (msg) => {
                             ]
                         }
                     });
-                    requestDoc.adminMessages.push({ 
-                        adminId: adminId, 
-                        messageId: message.message_id,
-                        messageType: 'refund'
-                    });
+                    requestDoc.adminMessages.push({ adminId: adminId, messageId: fallbackMsg.message_id, messageType: 'refund' });
                 } catch (fallbackErr) {
                     console.error(`Fallback send to admin ${adminId} also failed:`, fallbackErr.message);
                 }
