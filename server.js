@@ -358,10 +358,17 @@ const reversalSchema = new mongoose.Schema({
     username: String,
     stars: { type: Number, required: true },
     reason: { type: String, required: true },
-    status: { type: String, enum: ['pending', 'approved', 'rejected', 'processed'], default: 'pending' },
+    status: { type: String, enum: ['pending', 'approved', 'rejected', 'processed', 'completed', 'declined'], default: 'pending' },
     adminId: String,
     adminUsername: String,
-    processedAt: Date
+    processedAt: Date,
+    adminMessages: [{
+        adminId: String,
+        messageId: Number,
+        messageType: String,
+        originalText: String
+    }],
+    errorMessage: String
 });
 
 const warningSchema = new mongoose.Schema({
@@ -1638,7 +1645,8 @@ bot.on('message', async (msg) => {
             username: msg.from.username || `${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}`,
             stars: order.stars,
             reason: reason,
-            status: 'pending'
+            status: 'pending',
+            adminMessages: []
         });
         await requestDoc.save();
 
