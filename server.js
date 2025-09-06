@@ -439,6 +439,11 @@ const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 
 // Track processing callbacks to prevent duplicates
 const processingCallbacks = new Set();
 
+// Clean up old processing entries every 5 minutes
+setInterval(() => {
+    console.log(`Processing callbacks: ${processingCallbacks.size}`);
+}, 5 * 60 * 1000);
+
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
@@ -1792,8 +1797,8 @@ bot.on('callback_query', async (query) => {
         if (data.startsWith('req_approve_') || data.startsWith('req_reject_')) {
             console.log(`Processing refund callback: ${data}`);
             
-            // Check for duplicate processing
-            const callbackKey = `${data}_${query.id}`;
+            // Check for duplicate processing (use just the callback data)
+            const callbackKey = data;
             if (processingCallbacks.has(callbackKey)) {
                 console.log(`Duplicate callback detected: ${callbackKey}`);
                 await bot.answerCallbackQuery(query.id, { text: "⏳ Already processing..." });
@@ -1820,6 +1825,16 @@ bot.on('callback_query', async (query) => {
             
             // Mark as processing
             processingCallbacks.add(callbackKey);
+            
+            // Double-check database status after acquiring lock
+            const freshRequest = await Reversal.findOne({ orderId });
+            if (!freshRequest || freshRequest.status !== 'pending') {
+                console.log(`Request ${orderId} was processed by another instance`);
+                processingCallbacks.delete(callbackKey);
+                const statusMsg = freshRequest ? `already ${freshRequest.status}` : 'not found';
+                await bot.answerCallbackQuery(query.id, { text: `❌ Request ${statusMsg}` });
+                return;
+            }
 
             if (action === 'approve') {
                 try {
@@ -1896,7 +1911,7 @@ bot.on('callback_query', async (query) => {
         
         // Clean up processing set on error
         if (query.data && (query.data.startsWith('req_approve_') || query.data.startsWith('req_reject_'))) {
-            const callbackKey = `${query.data}_${query.id}`;
+            const callbackKey = query.data;
             processingCallbacks.delete(callbackKey);
         }
     }
