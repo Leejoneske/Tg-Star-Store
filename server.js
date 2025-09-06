@@ -1579,7 +1579,12 @@ bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const userId = chatId.toString();
     const request = reversalRequests.get(chatId);
+    
+    // Skip if no reversal request in progress, no text, or if it's a command (handled by onText)
     if (!request || !msg.text || msg.text.startsWith('/')) return;
+    
+    // Skip if this message was already processed by onText handler
+    if (msg.text.match(/^\/(reverse|paysupport)/i)) return;
     
     // Additional rate limit check: ensure no recent requests in database
     const thirtyDaysAgo = new Date();
@@ -1778,15 +1783,23 @@ bot.on('callback_query', async (query) => {
         const data = query.data;
         const adminId = query.from.id.toString();
         
+        console.log(`Callback received: ${data} from admin: ${adminId}`);
+        
         // Check if this is a refund request callback
         if (data.startsWith('req_approve_') || data.startsWith('req_reject_')) {
+            console.log(`Processing refund callback: ${data}`);
+            
             if (!adminIds.includes(adminId)) {
+                console.log(`Access denied for admin: ${adminId}`);
                 await bot.answerCallbackQuery(query.id, { text: "❌ Access denied" });
                 return;
             }
 
             const [_, action, orderId] = data.split('_');
+            console.log(`Action: ${action}, OrderId: ${orderId}`);
+            
             const request = await Reversal.findOne({ orderId });
+            console.log(`Found request:`, request ? `Status: ${request.status}` : 'Not found');
             
             if (!request || request.status !== 'pending') {
                 await bot.answerCallbackQuery(query.id, { text: "❌ Request not found or already processed" });
@@ -1861,10 +1874,18 @@ bot.on('callback_query', async (query) => {
 });
 
 async function updateAdminMessages(request, statusText) {
-    if (!request.adminMessages || request.adminMessages.length === 0) return;
+    console.log(`Updating admin messages for request ${request.orderId} with status: ${statusText}`);
+    console.log(`Admin messages:`, request.adminMessages);
+    
+    if (!request.adminMessages || request.adminMessages.length === 0) {
+        console.log('No admin messages to update');
+        return;
+    }
     
     for (const msg of request.adminMessages) {
         try {
+            console.log(`Updating message ${msg.messageId} for admin ${msg.adminId}`);
+            
             // Update the message text and buttons
             const updatedText = `${msg.originalText || '🔄 Reversal Request'}\n\n${statusText}`;
             
@@ -1875,6 +1896,7 @@ async function updateAdminMessages(request, statusText) {
                     inline_keyboard: [[{ text: statusText, callback_data: 'processed_done' }]]
                 }
             });
+            console.log(`Successfully updated message ${msg.messageId} for admin ${msg.adminId}`);
         } catch (err) {
             console.error(`Failed to update admin message for ${msg.adminId}:`, err.message);
             // Fallback: just update the buttons
@@ -1883,6 +1905,7 @@ async function updateAdminMessages(request, statusText) {
                     { inline_keyboard: [[{ text: statusText, callback_data: 'processed_done' }]] },
                     { chat_id: parseInt(msg.adminId), message_id: msg.messageId }
                 );
+                console.log(`Fallback update successful for admin ${msg.adminId}`);
             } catch (fallbackErr) {
                 console.error(`Fallback update also failed for ${msg.adminId}:`, fallbackErr.message);
             }
