@@ -979,16 +979,26 @@ async function exportTransactions() {
         
         if (window.Telegram?.WebApp?.initData) {
             headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+            console.log('Using x-telegram-init-data header');
         } else if (user?.id) {
             headers['x-telegram-id'] = user.id;
+            console.log('Using x-telegram-id header:', user.id);
+        } else {
+            console.log('No authentication headers available');
         }
+        
+        console.log('Export headers:', headers);
 
         const response = await fetch(`${BASE_API_URL}/export-transactions`, {
             method: 'POST',
             headers: headers
         });
 
+        console.log('Export response status:', response.status);
+        console.log('Export response headers:', response.headers);
+        
         const result = await response.json();
+        console.log('Export result:', result);
 
         if (result.success) {
             Swal.fire({
