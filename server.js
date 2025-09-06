@@ -1817,9 +1817,41 @@ bot.on('callback_query', async (query) => {
             const request = await Reversal.findOne({ orderId });
             console.log(`Found request:`, request ? `Status: ${request.status}` : 'Not found');
             
-            if (!request || request.status !== 'pending') {
-                const statusMsg = request ? `already ${request.status}` : 'not found';
-                await bot.answerCallbackQuery(query.id, { text: `❌ Request ${statusMsg}` });
+            if (!request) {
+                await bot.answerCallbackQuery(query.id, { text: `❌ Request not found` });
+                return;
+            }
+            
+            // If request is already processed, just update the buttons and notify
+            if (request.status !== 'pending') {
+                console.log(`Request ${orderId} already ${request.status}, updating buttons only`);
+                
+                let statusText = '';
+                let adminMessage = '';
+                let userMessage = '';
+                
+                if (request.status === 'completed') {
+                    statusText = '✅ REFUNDED';
+                    adminMessage = `✅ Refund was already processed for ${orderId}`;
+                    userMessage = `💸 Your refund for order ${orderId} was already processed`;
+                } else if (request.status === 'declined') {
+                    statusText = '❌ REJECTED';
+                    adminMessage = `❌ Refund request was already rejected for ${orderId}`;
+                    userMessage = `❌ Your refund request for order ${orderId} was already rejected`;
+                }
+                
+                // Update buttons
+                await updateAdminMessages(request, statusText);
+                
+                // Send notifications
+                await bot.sendMessage(query.from.id, adminMessage);
+                try {
+                    await bot.sendMessage(parseInt(request.telegramId), userMessage);
+                } catch (userError) {
+                    console.error('Failed to notify user:', userError.message);
+                }
+                
+                await bot.answerCallbackQuery(query.id, { text: `✅ Buttons updated` });
                 return;
             }
             
