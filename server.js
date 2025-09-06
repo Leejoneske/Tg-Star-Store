@@ -3477,6 +3477,97 @@ app.get('/api/transactions/:userId', async (req, res) => {
     }
 });
 
+// Export transactions as CSV via Telegram
+app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        // Get both buy and sell orders for the user
+        const buyOrders = await BuyOrder.find({ telegramId: userId })
+            .sort({ dateCreated: -1 })
+            .lean();
+        
+        const sellOrders = await SellOrder.find({ telegramId: userId })
+            .sort({ dateCreated: -1 })
+            .lean();
+
+        // Combine and format the data
+        const transactions = [
+            ...buyOrders.map(order => ({
+                id: order.id,
+                type: 'Buy Stars',
+                amount: order.stars,
+                status: order.status.toLowerCase(),
+                date: order.dateCreated,
+                details: `Buy order for ${order.stars} stars`,
+                usdtValue: order.amount
+            })),
+            ...sellOrders.map(order => ({
+                id: order.id,
+                type: 'Sell Stars',
+                amount: order.stars,
+                status: order.status.toLowerCase(),
+                date: order.dateCreated,
+                details: `Sell order for ${order.stars} stars`,
+                usdtValue: order.amount
+            }))
+        ];
+
+        // Generate CSV content
+        let csv = 'ID,Type,Amount (Stars),USDT Value,Status,Date,Details\n';
+        transactions.forEach(txn => {
+            const dateStr = new Date(txn.date).toISOString().split('T')[0];
+            csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.usdtValue}","${txn.status}","${dateStr}","${txn.details}"\n`;
+        });
+
+        // Send CSV file via Telegram bot
+        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        const buffer = Buffer.from(csv, 'utf8');
+        
+        await bot.sendDocument(userId, buffer, {
+            filename: filename,
+            caption: `📊 Your transaction history (${transactions.length} transactions)\n\nGenerated on: ${new Date().toLocaleString()}`
+        });
+
+        res.json({ success: true, message: 'CSV file sent to your Telegram' });
+    } catch (error) {
+        console.error('Error exporting transactions:', error);
+        res.status(500).json({ error: 'Failed to export transactions' });
+    }
+});
+
+// Export referrals as CSV via Telegram
+app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
+        
+        // Generate CSV content
+        let csv = 'ID,Referred User,Amount,Status,Date,Details\n';
+        referrals.forEach(ref => {
+            const dateStr = new Date(ref.dateReferred).toISOString().split('T')[0];
+            csv += `"${ref.id}","${ref.referredUsername || 'Unknown'}","${ref.amount}","${ref.status}","${dateStr}","${ref.details || 'Referral bonus"}\n`;
+        });
+
+        // Send CSV file via Telegram bot
+        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        const buffer = Buffer.from(csv, 'utf8');
+        
+        await bot.sendDocument(userId, buffer, {
+            filename: filename,
+            caption: `👥 Your referral history (${referrals.length} referrals)\n\nGenerated on: ${new Date().toLocaleString()}`
+        });
+
+        res.json({ success: true, message: 'CSV file sent to your Telegram' });
+    } catch (error) {
+        console.error('Error exporting referrals:', error);
+        res.status(500).json({ error: 'Failed to export referrals' });
+    }
+});
+
 // Get referral history
 app.get('/api/referrals/:userId', async (req, res) => {
     try {

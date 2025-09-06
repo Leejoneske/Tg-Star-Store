@@ -965,84 +965,110 @@ function showReferralDetails(referral) {
     });
 }
 
-function exportTransactions() {
-    let filteredTransactions = transactionHistory.filter(txn => {
-        if (currentTransactionFilter !== 'all' && txn.status !== currentTransactionFilter) return false;
-        if (currentTransactionSearch) {
-            const searchLower = currentTransactionSearch.toLowerCase();
-            return (
-                txn.id.toLowerCase().includes(searchLower) ||
-                txn.type.toLowerCase().includes(searchLower) ||
-                txn.amount.toString().includes(searchLower) ||
-                txn.status.toLowerCase().includes(searchLower) ||
-                txn.details.toLowerCase().includes(searchLower)
-            );
+async function exportTransactions() {
+    try {
+        // Show loading state
+        const exportBtn = document.getElementById('exportTransactions');
+        const originalText = exportBtn.innerHTML;
+        exportBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generating CSV...';
+        exportBtn.disabled = true;
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        if (window.Telegram?.WebApp?.initData) {
+            headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+        } else if (user?.id) {
+            headers['x-telegram-id'] = user.id;
         }
-        return true;
-    });
-    
-    let csv = 'ID,Type,Amount,Status,Date,Details\n';
-    filteredTransactions.forEach(txn => {
-        csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.status}","${formatDate(txn.date, true)}","${txn.details}"\n`;
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `transactions_${new Date().toISOString().slice(0, 10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    Swal.fire({
-        title: TranslationUtils.get('success'),
-        text: TranslationUtils.get('exportTransactions'),
-        icon: 'success',
-        confirmButtonText: TranslationUtils.get('close'),
-        confirmButtonColor: '#4f46e5'
-    });
+
+        const response = await fetch(`${BASE_API_URL}/export-transactions`, {
+            method: 'POST',
+            headers: headers
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            Swal.fire({
+                title: TranslationUtils.get('success'),
+                text: '📊 CSV file has been sent to your Telegram!',
+                icon: 'success',
+                confirmButtonText: TranslationUtils.get('close'),
+                confirmButtonColor: '#4f46e5'
+            });
+        } else {
+            throw new Error(result.error || 'Export failed');
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        Swal.fire({
+            title: TranslationUtils.get('error'),
+            text: 'Failed to export transactions. Please try again.',
+            icon: 'error',
+            confirmButtonText: TranslationUtils.get('close'),
+            confirmButtonColor: '#dc2626'
+        });
+    } finally {
+        // Restore button state
+        const exportBtn = document.getElementById('exportTransactions');
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+    }
 }
 
-function exportReferrals() {
-    let filteredReferrals = referralHistory.filter(ref => {
-        if (currentReferralFilter !== 'all' && ref.status !== currentReferralFilter) return false;
-        if (currentReferralSearch) {
-            const searchLower = currentReferralSearch.toLowerCase();
-            return (
-                ref.id.toLowerCase().includes(searchLower) ||
-                ref.name.toLowerCase().includes(searchLower) ||
-                ref.amount.toString().includes(searchLower) ||
-                ref.status.toLowerCase().includes(searchLower) ||
-                ref.details.toLowerCase().includes(searchLower)
-            );
+async function exportReferrals() {
+    try {
+        // Show loading state
+        const exportBtn = document.getElementById('exportReferrals');
+        const originalText = exportBtn.innerHTML;
+        exportBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generating CSV...';
+        exportBtn.disabled = true;
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        if (window.Telegram?.WebApp?.initData) {
+            headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+        } else if (user?.id) {
+            headers['x-telegram-id'] = user.id;
         }
-        return true;
-    });
-    
-    let csv = 'ID,Name,Amount,Status,Date,Details\n';
-    filteredReferrals.forEach(ref => {
-        csv += `"${ref.id}","${ref.name}","${ref.amount}","${ref.status}","${formatDate(ref.date, true)}","${ref.details}"\n`;
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `referrals_${new Date().toISOString().slice(0, 10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    Swal.fire({
-        title: TranslationUtils.get('success'),
-        text: TranslationUtils.get('exportReferrals'),
-        icon: 'success',
-        confirmButtonText: TranslationUtils.get('close'),
-        confirmButtonColor: '#4f46e5'
-    });
+
+        const response = await fetch(`${BASE_API_URL}/export-referrals`, {
+            method: 'POST',
+            headers: headers
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            Swal.fire({
+                title: TranslationUtils.get('success'),
+                text: '👥 CSV file has been sent to your Telegram!',
+                icon: 'success',
+                confirmButtonText: TranslationUtils.get('close'),
+                confirmButtonColor: '#4f46e5'
+            });
+        } else {
+            throw new Error(result.error || 'Export failed');
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        Swal.fire({
+            title: TranslationUtils.get('error'),
+            text: 'Failed to export referrals. Please try again.',
+            icon: 'error',
+            confirmButtonText: TranslationUtils.get('close'),
+            confirmButtonColor: '#dc2626'
+        });
+    } finally {
+        // Restore button state
+        const exportBtn = document.getElementById('exportReferrals');
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+    }
 }
 
 
