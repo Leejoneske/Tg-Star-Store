@@ -1686,12 +1686,14 @@ bot.on('message', async (msg) => {
                     },
                     parse_mode: 'MarkdownV2'
                 });
-                requestDoc.adminMessages.push({ 
+                const adminMsgData = { 
                     adminId: adminId, 
                     messageId: message.message_id,
                     messageType: 'refund',
                     originalText: adminMsg
-                });
+                };
+                requestDoc.adminMessages.push(adminMsgData);
+                console.log(`Added admin message for ${adminId}:`, adminMsgData);
             } catch (err) {
                 console.error(`Failed to send to admin ${adminId}:`, err.message);
                 try {
@@ -1705,18 +1707,22 @@ bot.on('message', async (msg) => {
                             ]
                         }
                     });
-                    requestDoc.adminMessages.push({ 
+                    const fallbackMsgData = { 
                         adminId: adminId, 
                         messageId: fallbackMsg.message_id, 
                         messageType: 'refund',
                         originalText: adminMsg
-                    });
+                    };
+                    requestDoc.adminMessages.push(fallbackMsgData);
+                    console.log(`Added fallback admin message for ${adminId}:`, fallbackMsgData);
                 } catch (fallbackErr) {
                     console.error(`Fallback send to admin ${adminId} also failed:`, fallbackErr.message);
                 }
             }
         }
+        console.log(`Saving request with ${requestDoc.adminMessages.length} admin messages:`, requestDoc.adminMessages);
         await requestDoc.save();
+        console.log(`Request saved successfully with admin messages`);
         bot.sendMessage(chatId, `📨 Reversal request submitted for order ${request.orderId}\nYou will be notified once reviewed.`);
         reversalRequests.delete(chatId);
     }
@@ -1954,7 +1960,8 @@ async function updateAdminMessages(request, statusText) {
     console.log(`Admin messages:`, request.adminMessages);
     
     if (!request.adminMessages || request.adminMessages.length === 0) {
-        console.log('No admin messages to update');
+        console.log('No admin messages to update - adminMessages array is empty');
+        console.log('This suggests the adminMessages were not properly saved when the request was created');
         return;
     }
     
