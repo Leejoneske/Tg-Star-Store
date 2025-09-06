@@ -19,6 +19,10 @@ if (process.env.BOT_TOKEN) {
   bot = {
     setWebHook: async () => Promise.resolve(),
     sendMessage: async () => Promise.resolve({}),
+    sendDocument: async () => Promise.resolve({}),
+    editMessageText: async () => Promise.resolve({}),
+    editMessageReplyMarkup: async () => Promise.resolve({}),
+    answerCallbackQuery: async () => Promise.resolve({}),
     onText: () => {},
     on: () => {},
     processUpdate: () => {}
