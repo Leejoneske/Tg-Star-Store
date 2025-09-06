@@ -43,10 +43,28 @@ try {
     // Lightweight local/dev fallback: derive user from x-telegram-id header
     requireTelegramAuth = (req, res, next) => {
         const telegramIdHeader = req.headers['x-telegram-id'];
+        const telegramInitData = req.headers['x-telegram-init-data'];
+        
         if (telegramIdHeader) {
             req.user = { id: telegramIdHeader.toString(), isAdmin: Array.isArray(adminIds) && adminIds.includes(telegramIdHeader.toString()) };
             return next();
         }
+        
+        // Try to extract user ID from init data if available
+        if (telegramInitData) {
+            try {
+                const urlParams = new URLSearchParams(telegramInitData);
+                const userParam = urlParams.get('user');
+                if (userParam) {
+                    const user = JSON.parse(userParam);
+                    req.user = { id: user.id.toString(), username: user.username, isAdmin: Array.isArray(adminIds) && adminIds.includes(user.id.toString()) };
+                    return next();
+                }
+            } catch (e) {
+                console.error('Error parsing telegram init data:', e);
+            }
+        }
+        
         if (process.env.NODE_ENV === 'production') {
             return res.status(401).json({ error: 'Unauthorized' });
         }
@@ -3478,6 +3496,7 @@ app.get('/api/transactions/:userId', async (req, res) => {
 // Export transactions as CSV via Telegram
 app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
     try {
+        console.log('Export transactions request received:', req.user);
         const userId = req.user.id;
         
         // Get both buy and sell orders for the user
@@ -3546,7 +3565,9 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         res.json({ success: true, message: 'CSV file sent to your Telegram' });
     } catch (error) {
         console.error('Error exporting transactions:', error);
-        res.status(500).json({ error: 'Failed to export transactions' });
+        console.error('Error details:', error.message);
+        console.error('Stack trace:', error.stack);
+        res.status(500).json({ error: 'Failed to export transactions: ' + error.message });
     }
 });
 
