@@ -3513,8 +3513,24 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             }))
         ];
 
-        // Generate CSV content
-        let csv = 'ID,Type,Amount (Stars),USDT Value,Status,Date,Details\n';
+        // Generate CSV content with header information
+        const userInfo = req.user;
+        const generationDate = new Date().toLocaleString();
+        const totalTransactions = transactions.length;
+        const completedCount = transactions.filter(t => t.status === 'completed').length;
+        const processingCount = transactions.filter(t => t.status === 'processing').length;
+        const declinedCount = transactions.filter(t => t.status === 'declined').length;
+        
+        let csv = `# StarStore - Transaction History Export\n`;
+        csv += `# Generated on: ${generationDate}\n`;
+        csv += `# User ID: ${userId}\n`;
+        csv += `# Username: @${userInfo.username || 'Unknown'}\n`;
+        csv += `# Total Transactions: ${totalTransactions}\n`;
+        csv += `# Completed: ${completedCount} | Processing: ${processingCount} | Declined: ${declinedCount}\n`;
+        csv += `# Website: https://starstore.site\n`;
+        csv += `# Export Type: Transaction History\n`;
+        csv += `#\n`;
+        csv += `ID,Type,Amount (Stars),USDT Value,Status,Date,Details\n`;
         transactions.forEach(txn => {
             const dateStr = new Date(txn.date).toISOString().split('T')[0];
             csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.usdtValue}","${txn.status}","${dateStr}","${txn.details}"\n`;
@@ -3545,8 +3561,23 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
             .sort({ dateReferred: -1 })
             .lean();
         
-        // Generate CSV content
-        let csv = 'ID,Referred User,Amount,Status,Date,Details\n';
+        // Generate CSV content with header information
+        const userInfo = req.user;
+        const generationDate = new Date().toLocaleString();
+        const totalReferrals = referrals.length;
+        const activeCount = referrals.filter(r => r.status === 'active').length;
+        const processingCount = referrals.filter(r => r.status === 'processing').length;
+        
+        let csv = `# StarStore - Referral History Export\n`;
+        csv += `# Generated on: ${generationDate}\n`;
+        csv += `# User ID: ${userId}\n`;
+        csv += `# Username: @${userInfo.username || 'Unknown'}\n`;
+        csv += `# Total Referrals: ${totalReferrals}\n`;
+        csv += `# Active: ${activeCount} | Processing: ${processingCount}\n`;
+        csv += `# Website: https://starstore.site\n`;
+        csv += `# Export Type: Referral History\n`;
+        csv += `#\n`;
+        csv += `ID,Referred User,Amount,Status,Date,Details\n`;
         referrals.forEach(ref => {
             const dateStr = new Date(ref.dateReferred).toISOString().split('T')[0];
             csv += `"${ref.id}","${ref.referredUsername || 'Unknown'}","${ref.amount}","${ref.status}","${dateStr}","${ref.details || 'Referral bonus"}\n`;
