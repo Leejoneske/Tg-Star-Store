@@ -1861,6 +1861,9 @@ bot.on('callback_query', async (query) => {
                 return;
             }
             
+            // Answer callback immediately to prevent timeout
+            await bot.answerCallbackQuery(query.id, { text: "⏳ Processing..." });
+            
             // Mark as processing
             processingCallbacks.add(callbackKey);
             
@@ -1869,8 +1872,6 @@ bot.on('callback_query', async (query) => {
             if (!freshRequest || freshRequest.status !== 'pending') {
                 console.log(`Request ${orderId} was processed by another instance`);
                 processingCallbacks.delete(callbackKey);
-                const statusMsg = freshRequest ? `already ${freshRequest.status}` : 'not found';
-                await bot.answerCallbackQuery(query.id, { text: `❌ Request ${statusMsg}` });
                 return;
             }
 
@@ -1903,7 +1904,6 @@ bot.on('callback_query', async (query) => {
 
                     // Update all admin messages with success status
                     await updateAdminMessages(request, "✅ REFUNDED");
-                    await bot.answerCallbackQuery(query.id, { text: "✅ Refund approved and processed" });
 
                 } catch (refundError) {
                     request.status = 'declined';
@@ -1912,7 +1912,6 @@ bot.on('callback_query', async (query) => {
                     
                     await bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}\nError: ${refundError.message}`);
                     await updateAdminMessages(request, "❌ FAILED");
-                    await bot.answerCallbackQuery(query.id, { text: "❌ Refund processing failed" });
                 } finally {
                     // Remove from processing set
                     processingCallbacks.delete(callbackKey);
@@ -1932,7 +1931,6 @@ bot.on('callback_query', async (query) => {
                     }
 
                     await updateAdminMessages(request, "❌ REJECTED");
-                    await bot.answerCallbackQuery(query.id, { text: "❌ Refund request rejected" });
                 } finally {
                     // Remove from processing set
                     processingCallbacks.delete(callbackKey);
@@ -3580,7 +3578,7 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
         csv += `ID,Referred User,Amount,Status,Date,Details\n`;
         referrals.forEach(ref => {
             const dateStr = new Date(ref.dateReferred).toISOString().split('T')[0];
-            csv += `"${ref.id}","${ref.referredUsername || 'Unknown'}","${ref.amount}","${ref.status}","${dateStr}","${ref.details || 'Referral bonus"}\n`;
+            csv += `"${ref.id}","${ref.referredUsername || 'Unknown'}","${ref.amount}","${ref.status}","${dateStr}","${ref.details || 'Referral bonus'}"\n`;
         });
 
         // Send CSV file via Telegram bot
