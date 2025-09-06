@@ -436,6 +436,9 @@ let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').s
 adminIds = Array.from(new Set(adminIds));
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
+// Track processing callbacks to prevent duplicates
+const processingCallbacks = new Set();
+
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
@@ -1789,6 +1792,14 @@ bot.on('callback_query', async (query) => {
         if (data.startsWith('req_approve_') || data.startsWith('req_reject_')) {
             console.log(`Processing refund callback: ${data}`);
             
+            // Check for duplicate processing
+            const callbackKey = `${data}_${query.id}`;
+            if (processingCallbacks.has(callbackKey)) {
+                console.log(`Duplicate callback detected: ${callbackKey}`);
+                await bot.answerCallbackQuery(query.id, { text: "⏳ Already processing..." });
+                return;
+            }
+            
             if (!adminIds.includes(adminId)) {
                 console.log(`Access denied for admin: ${adminId}`);
                 await bot.answerCallbackQuery(query.id, { text: "❌ Access denied" });
@@ -1802,9 +1813,13 @@ bot.on('callback_query', async (query) => {
             console.log(`Found request:`, request ? `Status: ${request.status}` : 'Not found');
             
             if (!request || request.status !== 'pending') {
-                await bot.answerCallbackQuery(query.id, { text: "❌ Request not found or already processed" });
+                const statusMsg = request ? `already ${request.status}` : 'not found';
+                await bot.answerCallbackQuery(query.id, { text: `❌ Request ${statusMsg}` });
                 return;
             }
+            
+            // Mark as processing
+            processingCallbacks.add(callbackKey);
 
             if (action === 'approve') {
                 try {
@@ -1845,22 +1860,30 @@ bot.on('callback_query', async (query) => {
                     await bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}\nError: ${refundError.message}`);
                     await updateAdminMessages(request, "❌ FAILED");
                     await bot.answerCallbackQuery(query.id, { text: "❌ Refund processing failed" });
+                } finally {
+                    // Remove from processing set
+                    processingCallbacks.delete(callbackKey);
                 }
             } else if (action === 'reject') {
-                request.status = 'declined';
-                request.processedAt = new Date();
-                await request.save();
-                
-                await bot.sendMessage(query.from.id, `❌ Refund request rejected for ${orderId}`);
-                
                 try {
-                    await bot.sendMessage(parseInt(request.telegramId), `❌ Your refund request for order ${orderId} has been rejected.`);
-                } catch (userError) {
-                    console.error('Failed to notify user of rejection:', userError.message);
-                }
+                    request.status = 'declined';
+                    request.processedAt = new Date();
+                    await request.save();
+                    
+                    await bot.sendMessage(query.from.id, `❌ Refund request rejected for ${orderId}`);
+                    
+                    try {
+                        await bot.sendMessage(parseInt(request.telegramId), `❌ Your refund request for order ${orderId} has been rejected.`);
+                    } catch (userError) {
+                        console.error('Failed to notify user of rejection:', userError.message);
+                    }
 
-                await updateAdminMessages(request, "❌ REJECTED");
-                await bot.answerCallbackQuery(query.id, { text: "❌ Refund request rejected" });
+                    await updateAdminMessages(request, "❌ REJECTED");
+                    await bot.answerCallbackQuery(query.id, { text: "❌ Refund request rejected" });
+                } finally {
+                    // Remove from processing set
+                    processingCallbacks.delete(callbackKey);
+                }
             }
         } else {
             // Handle other callback queries (existing logic)
@@ -1870,6 +1893,12 @@ bot.on('callback_query', async (query) => {
     } catch (error) {
         console.error('Callback processing error:', error);
         await bot.answerCallbackQuery(query.id, { text: "❌ Processing error occurred" });
+        
+        // Clean up processing set on error
+        if (query.data && (query.data.startsWith('req_approve_') || query.data.startsWith('req_reject_'))) {
+            const callbackKey = `${query.data}_${query.id}`;
+            processingCallbacks.delete(callbackKey);
+        }
     }
 });
 
