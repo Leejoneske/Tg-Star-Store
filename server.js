@@ -1115,9 +1115,14 @@ bot.on('callback_query', async (query) => {
                 return;
             }
 
-            order.status = 'refunded';
-            order.dateRefunded = new Date();
-            await order.save();
+            try {
+                const result = await processRefund(order.id);
+                order = await SellOrder.findOne({ id: order.id });
+                await bot.answerCallbackQuery(query.id, { text: result.alreadyRefunded ? '✅ Already refunded' : '✅ Refunded' });
+            } catch (err) {
+                await bot.answerCallbackQuery(query.id, { text: `❌ Refund failed: ${err.message}` });
+                return;
+            }
         }
         else if (data.startsWith('complete_buy_')) {
             actionType = 'complete';
@@ -4706,16 +4711,20 @@ app.post('/api/admin/orders/:id/decline', requireAdmin, async (req, res) => {
 app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
     try {
         const id = req.params.id;
-        const order = await SellOrder.findOne({ id });
+        let order = await SellOrder.findOne({ id });
         if (!order) return res.status(404).json({ error: 'Sell order not found' });
 
-        order.status = 'refunded';
-        order.dateRefunded = new Date();
-        await order.save();
+        // Only allow refunds for processing orders with a charge id
+        if (order.status !== 'processing' || !order.telegram_payment_charge_id) {
+            return res.status(400).json({ error: 'Order not eligible for refund' });
+        }
+
+        const result = await processRefund(order.id);
+        order = await SellOrder.findOne({ id });
 
         const statusText = '💸 Refunded';
         const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
-        if (order.adminMessages?.length) {
+        if (order?.adminMessages?.length) {
             await Promise.all(order.adminMessages.map(async (adminMsg) => {
                 const baseText = adminMsg.originalText || '';
                 const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
@@ -4729,11 +4738,13 @@ app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
             }));
         }
 
-        const userMessage = `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`;
+        const userMessage = result.alreadyRefunded
+            ? `💸 Your sell order #${order.id} was already refunded.\n\nTX ID: ${result.chargeId}`
+            : `💸 Your sell order #${order.id} has been refunded.\n\nTX ID: ${result.chargeId}`;
         try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
-        res.json({ success: true });
+        res.json({ success: true, alreadyRefunded: !!result.alreadyRefunded, chargeId: result.chargeId });
     } catch (e) {
-        res.status(500).json({ error: 'Failed to refund order' });
+        res.status(500).json({ error: e.message || 'Failed to refund order' });
     }
 });
 
