@@ -1403,7 +1403,7 @@ bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     if (!orderId) {
         const welcomeMsg = `🔄 Welcome to Sell Order Pay Support\n\n` +
             `You are about to request a cancellation and refund for your order. ` +
-            `Please note that refund requests are limited to once per month.\n\n` +
+            `Please note that refund requests are limited to once per month and can only be made within 5 days of order creation.\n\n` +
             `Please enter your Order ID:`;
         
         reversalRequests.set(chatId, { 
@@ -1417,6 +1417,13 @@ bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     
     if (!order) return bot.sendMessage(chatId, "❌ Order not found or doesn't belong to you");
     if (order.status !== 'processing') return bot.sendMessage(chatId, `❌ Order is ${order.status} - cannot be reversed`);
+    
+    // Check if order is within 5-day refund window
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    if (order.dateCreated < fiveDaysAgo) {
+        return bot.sendMessage(chatId, `❌ Refund requests can only be made within 5 days of order creation. This order was created on ${order.dateCreated.toDateString()}.`);
+    }
     
     reversalRequests.set(chatId, { 
         step: 'waiting_reason',
@@ -1648,6 +1655,13 @@ bot.on('message', async (msg) => {
         }
         if (order.status !== 'processing') {
             return bot.sendMessage(chatId, `❌ Order ${orderId} is ${order.status} - cannot be reversed. Please enter a different Order ID:`);
+        }
+        
+        // Check if order is within 5-day refund window
+        const fiveDaysAgo = new Date();
+        fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+        if (order.dateCreated < fiveDaysAgo) {
+            return bot.sendMessage(chatId, `❌ Refund requests can only be made within 5 days of order creation. This order was created on ${order.dateCreated.toDateString()}. Please enter a different Order ID:`);
         }
         
         request.step = 'waiting_reason';
