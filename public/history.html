@@ -1002,26 +1002,59 @@ async function exportTransactions() {
 
         console.log('Export response status:', response.status);
         console.log('Export response headers:', response.headers);
+        console.log('Response content-type:', response.headers.get('content-type'));
         
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Export response error:', errorText);
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
+            let errorMessage = 'Export failed';
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                errorMessage = errorText || errorMessage;
+            }
+            throw new Error(`HTTP ${response.status}: ${errorMessage}`);
         }
         
-        const result = await response.json();
-        console.log('Export result:', result);
-
-        if (result && result.success) {
+        // Check if response is CSV (direct download)
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/csv')) {
+            // Handle direct CSV download
+            const csvData = await response.text();
+            const blob = new Blob([csvData], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transactions_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
             Swal.fire({
                 title: TranslationUtils.get('success'),
-                text: '📊 CSV file has been sent to your Telegram!',
+                text: '📊 CSV file has been downloaded!',
                 icon: 'success',
                 confirmButtonText: TranslationUtils.get('close'),
                 confirmButtonColor: '#4f46e5'
             });
         } else {
-            throw new Error(result?.error || 'Export failed - no success response');
+            // Handle JSON response (Telegram sent)
+            const result = await response.json();
+            console.log('Export result:', result);
+
+            if (result && result.success) {
+                Swal.fire({
+                    title: TranslationUtils.get('success'),
+                    text: '📊 CSV file has been sent to your Telegram!',
+                    icon: 'success',
+                    confirmButtonText: TranslationUtils.get('close'),
+                    confirmButtonColor: '#4f46e5'
+                });
+            } else {
+                throw new Error(result?.error || 'Export failed - no success response');
+            }
         }
     } catch (error) {
         console.error('Export error:', error);
@@ -1063,18 +1096,56 @@ async function exportReferrals() {
             headers: headers
         });
 
-        const result = await response.json();
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Export referrals response error:', errorText);
+            let errorMessage = 'Export failed';
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                errorMessage = errorText || errorMessage;
+            }
+            throw new Error(`HTTP ${response.status}: ${errorMessage}`);
+        }
 
-        if (result.success) {
+        // Check if response is CSV (direct download)
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/csv')) {
+            // Handle direct CSV download
+            const csvData = await response.text();
+            const blob = new Blob([csvData], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `referrals_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
             Swal.fire({
                 title: TranslationUtils.get('success'),
-                text: '👥 CSV file has been sent to your Telegram!',
+                text: '👥 CSV file has been downloaded!',
                 icon: 'success',
                 confirmButtonText: TranslationUtils.get('close'),
                 confirmButtonColor: '#4f46e5'
             });
         } else {
-            throw new Error(result.error || 'Export failed');
+            // Handle JSON response (Telegram sent)
+            const result = await response.json();
+
+            if (result.success) {
+                Swal.fire({
+                    title: TranslationUtils.get('success'),
+                    text: '👥 CSV file has been sent to your Telegram!',
+                    icon: 'success',
+                    confirmButtonText: TranslationUtils.get('close'),
+                    confirmButtonColor: '#4f46e5'
+                });
+            } else {
+                throw new Error(result.error || 'Export failed');
+            }
         }
     } catch (error) {
         console.error('Export error:', error);
