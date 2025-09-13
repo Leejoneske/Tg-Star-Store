@@ -3514,19 +3514,42 @@ app.get('/api/transactions/:userId', async (req, res) => {
 // Export transactions as CSV via Telegram
 app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
     try {
-        console.log('Export transactions request received:', req.user);
+        console.log('=== CSV EXPORT DEBUG START ===');
+        console.log('Export transactions request received');
+        console.log('Request headers:', {
+            'x-telegram-init-data': req.headers['x-telegram-init-data'] ? 'present' : 'missing',
+            'x-telegram-id': req.headers['x-telegram-id'] || 'missing',
+            'content-type': req.headers['content-type']
+        });
+        console.log('Request user:', req.user);
+        console.log('Environment:', {
+            NODE_ENV: process.env.NODE_ENV,
+            BOT_TOKEN: process.env.BOT_TOKEN ? 'present' : 'missing'
+        });
+        
+        if (!req.user || !req.user.id) {
+            console.log('❌ No user ID found');
+            return res.status(401).json({ error: 'User ID not found. Please refresh and try again.' });
+        }
+        
         const userId = req.user.id;
+        console.log('Using user ID:', userId);
         
         // Get both buy and sell orders for the user
+        console.log('Fetching buy orders for user:', userId);
         const buyOrders = await BuyOrder.find({ telegramId: userId })
             .sort({ dateCreated: -1 })
             .lean();
+        console.log('Found buy orders:', buyOrders.length);
         
+        console.log('Fetching sell orders for user:', userId);
         const sellOrders = await SellOrder.find({ telegramId: userId })
             .sort({ dateCreated: -1 })
             .lean();
+        console.log('Found sell orders:', sellOrders.length);
 
         // Combine and format the data
+        console.log('Combining transaction data...');
         const transactions = [
             ...buyOrders.map(order => ({
                 id: order.id,
@@ -3547,14 +3570,17 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
                 usdtValue: order.amount
             }))
         ];
+        console.log('Total transactions combined:', transactions.length);
 
         // Generate CSV content with header information
+        console.log('Generating CSV content...');
         const userInfo = req.user;
         const generationDate = new Date().toLocaleString();
         const totalTransactions = transactions.length;
         const completedCount = transactions.filter(t => t.status === 'completed').length;
         const processingCount = transactions.filter(t => t.status === 'processing').length;
         const declinedCount = transactions.filter(t => t.status === 'declined').length;
+        console.log('Transaction counts:', { totalTransactions, completedCount, processingCount, declinedCount });
         
         let csv = `# StarStore - Transaction History Export\n`;
         csv += `# Generated on: ${generationDate}\n`;
@@ -3570,46 +3596,27 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             const dateStr = new Date(txn.date).toISOString().split('T')[0];
             csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.usdtValue}","${txn.status}","${dateStr}","${txn.details}"\n`;
         });
+        console.log('CSV generated, length:', csv.length, 'characters');
 
         // Send CSV file via Telegram bot
         const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
         const buffer = Buffer.from(csv, 'utf8');
+        console.log('CSV buffer created, size:', buffer.length, 'bytes');
         
-        // Check if bot is available (not in dev/stub mode)
-        if (!process.env.BOT_TOKEN) {
-            console.log('Bot token not available - providing CSV data directly');
-            // Return CSV data directly for download in dev mode
-            res.setHeader('Content-Type', 'text/csv');
-            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-            return res.send(csv);
-        }
-        
-        try {
-            // Create a readable stream from the buffer for better compatibility
-            const stream = require('stream');
-            const readable = new stream.Readable();
-            readable.push(buffer);
-            readable.push(null);
-            readable.path = filename; // Set filename for the stream
-            
-            await bot.sendDocument(userId, readable, {
-                caption: `📊 Your transaction history (${transactions.length} transactions)\n\nGenerated on: ${new Date().toLocaleString()}`
-            });
-        } catch (botError) {
-            console.error('Bot sendDocument failed, providing direct download:', botError.message);
-            // Fallback: provide CSV for direct download
-            res.setHeader('Content-Type', 'text/csv');
-            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-            return res.send(csv);
-        }
-
-        res.json({ success: true, message: 'CSV file sent to your Telegram' });
+        // For now, let's just provide direct CSV download to test
+        console.log('Providing CSV as direct download for testing');
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        console.log('✅ Sending CSV as direct download');
+        console.log('=== CSV EXPORT DEBUG END ===');
+        return res.send(csv);
     } catch (error) {
-        console.error('Error exporting transactions:', error);
+        console.error('❌ ERROR in CSV export:', error);
         console.error('Error details:', error.message);
         console.error('Stack trace:', error.stack);
         console.error('User ID:', req.user?.id);
         console.error('Bot token available:', !!process.env.BOT_TOKEN);
+        console.error('=== CSV EXPORT DEBUG END (ERROR) ===');
         res.status(500).json({ error: 'Failed to export transactions: ' + error.message });
     }
 });
