@@ -3575,16 +3575,41 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
         const buffer = Buffer.from(csv, 'utf8');
         
-        await bot.sendDocument(userId, buffer, {
-            filename: filename,
-            caption: `📊 Your transaction history (${transactions.length} transactions)\n\nGenerated on: ${new Date().toLocaleString()}`
-        });
+        // Check if bot is available (not in dev/stub mode)
+        if (!process.env.BOT_TOKEN) {
+            console.log('Bot token not available - providing CSV data directly');
+            // Return CSV data directly for download in dev mode
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            return res.send(csv);
+        }
+        
+        try {
+            // Create a readable stream from the buffer for better compatibility
+            const stream = require('stream');
+            const readable = new stream.Readable();
+            readable.push(buffer);
+            readable.push(null);
+            readable.path = filename; // Set filename for the stream
+            
+            await bot.sendDocument(userId, readable, {
+                caption: `📊 Your transaction history (${transactions.length} transactions)\n\nGenerated on: ${new Date().toLocaleString()}`
+            });
+        } catch (botError) {
+            console.error('Bot sendDocument failed, providing direct download:', botError.message);
+            // Fallback: provide CSV for direct download
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            return res.send(csv);
+        }
 
         res.json({ success: true, message: 'CSV file sent to your Telegram' });
     } catch (error) {
         console.error('Error exporting transactions:', error);
         console.error('Error details:', error.message);
         console.error('Stack trace:', error.stack);
+        console.error('User ID:', req.user?.id);
+        console.error('Bot token available:', !!process.env.BOT_TOKEN);
         res.status(500).json({ error: 'Failed to export transactions: ' + error.message });
     }
 });
@@ -3624,15 +3649,42 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
         const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
         const buffer = Buffer.from(csv, 'utf8');
         
-        await bot.sendDocument(userId, buffer, {
-            filename: filename,
-            caption: `👥 Your referral history (${referrals.length} referrals)\n\nGenerated on: ${new Date().toLocaleString()}`
-        });
+        // Check if bot is available (not in dev/stub mode)
+        if (!process.env.BOT_TOKEN) {
+            console.log('Bot token not available - providing CSV data directly');
+            // Return CSV data directly for download in dev mode
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            return res.send(csv);
+        }
+        
+        try {
+            // Create a readable stream from the buffer for better compatibility
+            const stream = require('stream');
+            const readable = new stream.Readable();
+            readable.push(buffer);
+            readable.push(null);
+            readable.path = filename; // Set filename for the stream
+            
+            await bot.sendDocument(userId, readable, {
+                caption: `👥 Your referral history (${referrals.length} referrals)\n\nGenerated on: ${new Date().toLocaleString()}`
+            });
+        } catch (botError) {
+            console.error('Bot sendDocument failed, providing direct download:', botError.message);
+            // Fallback: provide CSV for direct download
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            return res.send(csv);
+        }
 
         res.json({ success: true, message: 'CSV file sent to your Telegram' });
     } catch (error) {
         console.error('Error exporting referrals:', error);
-        res.status(500).json({ error: 'Failed to export referrals' });
+        console.error('Error details:', error.message);
+        console.error('Stack trace:', error.stack);
+        console.error('User ID:', req.user?.id);
+        console.error('Bot token available:', !!process.env.BOT_TOKEN);
+        res.status(500).json({ error: 'Failed to export referrals: ' + error.message });
     }
 });
 
