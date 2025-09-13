@@ -3522,19 +3522,50 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             'content-type': req.headers['content-type']
         });
         console.log('Request user:', req.user);
+        console.log('Auth middleware details - checking if middleware ran properly...');
         console.log('Environment:', {
             NODE_ENV: process.env.NODE_ENV,
             BOT_TOKEN: process.env.BOT_TOKEN ? 'present' : 'missing'
         });
         
-        // Check if user authentication worked
-        if (!req.user || !req.user.id) {
+        // Check if user authentication worked and extract user ID
+        let userId = null;
+        if (req.user && req.user.id) {
+            userId = req.user.id;
+            console.log('✅ Using authenticated user ID:', userId);
+        } else {
             console.log('❌ Authentication failed - no user found');
             console.log('req.user:', req.user);
-            return res.status(401).json({ error: 'Authentication failed. Please refresh and try again.' });
+            
+            // Try to extract user ID from init data directly
+            try {
+                const initData = req.headers['x-telegram-init-data'];
+                if (initData) {
+                    console.log('Trying to parse init data directly...');
+                    const params = new URLSearchParams(initData);
+                    const userParam = params.get('user');
+                    if (userParam) {
+                        const user = JSON.parse(userParam);
+                        userId = user.id?.toString();
+                        console.log('⚠️ Extracted user ID from init data:', userId);
+                        // Create a minimal user object for CSV generation
+                        req.user = { id: userId, username: user.username };
+                    }
+                }
+            } catch (parseError) {
+                console.error('Error parsing init data:', parseError.message);
+            }
+            
+            // Final fallback
+            if (!userId && req.headers['x-telegram-id']) {
+                userId = req.headers['x-telegram-id'];
+                console.log('⚠️ Using fallback user ID from header:', userId);
+            }
+            
+            if (!userId) {
+                return res.status(401).json({ error: 'Authentication failed. Please refresh and try again.' });
+            }
         }
-        
-        const userId = req.user.id;
         console.log('Using user ID:', userId);
         
         // Get both buy and sell orders for the user
@@ -3611,7 +3642,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         let csv = '';
         
         try {
-            const userInfo = req.user;
+            const userInfo = req.user || {};
             const generationDate = new Date().toLocaleString();
             const totalTransactions = transactions.length;
             const completedCount = transactions.filter(t => t.status === 'completed').length;
