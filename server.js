@@ -1055,169 +1055,82 @@ bot.on("successful_payment", async (msg) => {
     }
 });
 
-bot.on('callback_query', async (query) => {
+// Helper function to show confirmation buttons for admin actions
+async function showConfirmationButtons(query, originalAction) {
+    const actionType = originalAction.split('_')[0];
+    const orderType = originalAction.split('_')[1];
+    const orderId = originalAction.split('_')[2];
+    
+    // Create action-specific confirmation message
+    let actionText = '';
+    let actionEmoji = '';
+    
+    switch (actionType) {
+        case 'complete':
+            actionText = orderType === 'sell' ? 'complete this sell order' : 'complete this buy order';
+            actionEmoji = '✅';
+            break;
+        case 'decline':
+            actionText = orderType === 'sell' ? 'fail this sell order' : 'decline this buy order';
+            actionEmoji = '❌';
+            break;
+        case 'refund':
+            actionText = 'refund this sell order';
+            actionEmoji = '💸';
+            break;
+    }
+    
+    const confirmationKeyboard = {
+        inline_keyboard: [
+            [
+                { text: `${actionEmoji} Yes, ${actionText}`, callback_data: `confirm_${originalAction}` },
+                { text: "🚫 Cancel", callback_data: `cancel_${originalAction}` }
+            ]
+        ]
+    };
+    
     try {
-        const data = query.data;
-        const adminUsername = query.from.username ? query.from.username : `User_${query.from.id}`;
+        await bot.editMessageReplyMarkup(confirmationKeyboard, {
+            chat_id: query.message.chat.id,
+            message_id: query.message.message_id
+        });
+        
+        await bot.answerCallbackQuery(query.id, { 
+            text: `Are you sure you want to ${actionText}?` 
+        });
+    } catch (error) {
+        console.error('Error showing confirmation buttons:', error.message);
+        await bot.answerCallbackQuery(query.id, { text: "Error showing confirmation" });
+    }
+}
 
-        let order, actionType, orderType;
-
-        if (data.startsWith('complete_sell_')) {
-            actionType = 'complete';
-            orderType = 'sell';
-            order = await SellOrder.findOne({ id: data.split('_')[2] });
-
-            if (!order) {
-                await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
-                return;
-            }
-
-            if (order.status !== 'processing') {
-                await bot.answerCallbackQuery(query.id, { 
-                    text: `Order is ${order.status} - cannot complete` 
-                });
-                return;
-            }
-
-            if (!order.telegram_payment_charge_id && order.dateCreated > new Date('2025-05-25')) {
-                await bot.answerCallbackQuery(query.id, { 
-                    text: "Cannot complete - missing payment reference" 
-                });
-                return;
-            }
-
-            order.status = 'completed';
-            order.dateCompleted = new Date();
-            await order.save();
-            await trackStars(order.telegramId, order.stars, 'sell');
-        } 
-        else if (data.startsWith('decline_sell_')) {
-            actionType = 'decline';
-            orderType = 'sell';
-            order = await SellOrder.findOne({ id: data.split('_')[2] });
-
-            if (!order) {
-                await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
-                return;
-            }
-
-            order.status = 'failed';
-            order.dateDeclined = new Date();
-            await order.save();
+// Helper function to handle confirmed admin actions
+async function handleConfirmedAction(query, data, adminUsername) {
+    // Remove 'confirm_' prefix to get original action
+    const originalAction = data.replace('confirm_', '');
+    const actionType = originalAction.split('_')[0];
+    const orderType = originalAction.split('_')[1];
+    const orderId = originalAction.split('_')[2];
+    
+    let order;
+    
+    try {
+        // Find the order
+        if (orderType === 'sell') {
+            order = await SellOrder.findOne({ id: orderId });
+        } else {
+            order = await BuyOrder.findOne({ id: orderId });
         }
-        else if (data.startsWith('refund_sell_')) {
-            actionType = 'refund';
-            orderType = 'sell';
-            order = await SellOrder.findOne({ id: data.split('_')[2] });
-
-            if (!order) {
-                await bot.answerCallbackQuery(query.id, { text: "Sell order not found" });
-                return;
-            }
-
-            order.status = 'refunded';
-            order.dateRefunded = new Date();
-            await order.save();
+        
+        if (!order) {
+            await bot.answerCallbackQuery(query.id, { text: `${orderType} order not found` });
+            return;
         }
-        else if (data.startsWith('complete_buy_')) {
-            actionType = 'complete';
-            orderType = 'buy';
-            order = await BuyOrder.findOne({ id: data.split('_')[2] });
-
-            if (!order) {
-                await bot.answerCallbackQuery(query.id, { text: "Buy order not found" });
-                return;
-            }
-
-            if (order.status !== 'pending') {
-                await bot.answerCallbackQuery(query.id, { 
-                    text: `Order is ${order.status} - cannot complete` 
-                });
-                return;
-            }
-
-            order.status = 'completed';
-            order.dateCompleted = new Date();
-            await order.save();
-            
-            // Handle recipient notifications for "buy for others" orders
-            if (order.isBuyForOthers && order.recipients && order.recipients.length > 0) {
-                try {
-                    // Send notifications to all recipients
-                    for (const recipient of order.recipients) {
-                        try {
-                            let recipientMessage = `🎁 You received a gift from @${order.username}!\n\n`;
-                            
-                            if (order.isPremium) {
-                                recipientMessage += `🎉 Premium Subscription: ${order.premiumDurationPerRecipient} months\n`;
-                                recipientMessage += `Order ID: ${order.id}\n`;
-                                recipientMessage += `Status: Confirmed`;
-                            } else {
-                                recipientMessage += `⭐ Stars: ${recipient.starsReceived}\n`;
-                                recipientMessage += `Order ID: ${order.id}\n`;
-                                recipientMessage += `Status: Confirmed`;
-                            }
-                            
-                            // Try to send message to recipient (they might not be in the bot)
-                            // This will fail silently if user hasn't started the bot
-                            try {
-                                // You might want to implement a way to get recipient's telegram ID
-                                // For now, we'll just log the attempt
-                                console.log(`Attempting to notify recipient: @${recipient.username}`);
-                            } catch (recipientErr) {
-                                console.log(`Could not notify recipient @${recipient.username}:`, recipientErr.message);
-                            }
-                        } catch (recipientErr) {
-                            console.error(`Error processing recipient ${recipient.username}:`, recipientErr);
-                        }
-                    }
-                    
-                    // Create notifications in the database for recipients
-                    for (const recipient of order.recipients) {
-                        try {
-                            await Notification.create({
-                                userId: recipient.userId || 'anonymous',
-                                title: 'Gift Received! 🎁',
-                                message: `You received ${order.isPremium ? `${order.premiumDurationPerRecipient} months Premium` : `${recipient.starsReceived} Stars`} from @${order.username}!`,
-                                icon: 'gift',
-                                priority: 1,
-                                isGlobal: false
-                            });
-                        } catch (notifErr) {
-                            console.error(`Failed to create notification for ${recipient.username}:`, notifErr);
-                        }
-                    }
-                } catch (recipientErr) {
-                    console.error('Error handling recipient notifications:', recipientErr);
-                }
-            }
-            
-            // Track stars/premium for the buyer
-            if (!order.isPremium && order.stars) {
-                await trackStars(order.telegramId, order.stars, 'buy');
-            }
-            if (order.isPremium) {
-                await trackPremiumActivation(order.telegramId);
-            }
-        }
-        else if (data.startsWith('decline_buy_')) {
-            actionType = 'decline';
-            orderType = 'buy';
-            order = await BuyOrder.findOne({ id: data.split('_')[2] });
-
-            if (!order) {
-                await bot.answerCallbackQuery(query.id, { text: "Buy order not found" });
-                return;
-            }
-
-            order.status = 'declined';
-            order.dateDeclined = new Date();
-            await order.save();
-        }
-        else {
-            return await bot.answerCallbackQuery(query.id);
-        }
-
+        
+        // Execute the confirmed action
+        await executeAdminAction(order, actionType, orderType, adminUsername);
+        
+        // Update the message with the result
         const statusText = order.status === 'completed' ? '✅ Completed' : 
                           order.status === 'failed' ? '❌ Failed' : 
                           order.status === 'refunded' ? '💸 Refunded' : '❌ Declined';
@@ -1252,6 +1165,7 @@ bot.on('callback_query', async (query) => {
 
         await Promise.allSettled(updatePromises);
 
+        // Send notification to user
         const userMessage = order.status === 'completed' 
             ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your choosing StarStore!'}`
             : order.status === 'failed'
@@ -1263,8 +1177,169 @@ bot.on('callback_query', async (query) => {
         await bot.sendMessage(order.telegramId, userMessage);
 
         await bot.answerCallbackQuery(query.id, { 
-            text: `${orderType} order ${order.status}` 
+            text: `${statusText.replace(/[✅❌💸]/g, '').trim()} successfully!` 
         });
+
+    } catch (error) {
+        console.error('Error handling confirmed action:', error);
+        await bot.answerCallbackQuery(query.id, { text: "Error processing action" });
+    }
+}
+
+// Helper function to execute the actual admin action
+async function executeAdminAction(order, actionType, orderType, adminUsername) {
+    if (orderType === 'sell') {
+        if (actionType === 'complete') {
+            if (order.status !== 'processing') {
+                throw new Error(`Order is ${order.status} - cannot complete`);
+            }
+            if (!order.telegram_payment_charge_id && order.dateCreated > new Date('2025-05-25')) {
+                throw new Error("Cannot complete - missing payment reference");
+            }
+            order.status = 'completed';
+            order.dateCompleted = new Date();
+            await order.save();
+            await trackStars(order.telegramId, order.stars, 'sell');
+        } else if (actionType === 'decline') {
+            order.status = 'failed';
+            order.dateDeclined = new Date();
+            await order.save();
+        } else if (actionType === 'refund') {
+            order.status = 'refunded';
+            order.dateRefunded = new Date();
+            await order.save();
+        }
+    } else { // buy order
+        if (actionType === 'complete') {
+            if (order.status !== 'pending') {
+                throw new Error(`Order is ${order.status} - cannot complete`);
+            }
+            order.status = 'completed';
+            order.dateCompleted = new Date();
+            await order.save();
+            
+            // Handle recipient notifications for "buy for others" orders
+            if (order.isBuyForOthers && order.recipients && order.recipients.length > 0) {
+                try {
+                    // Send notifications to all recipients
+                    for (const recipient of order.recipients) {
+                        try {
+                            let recipientMessage = `🎁 You received a gift from @${order.username}!\n\n`;
+                            
+                            if (order.isPremium) {
+                                recipientMessage += `🎉 Premium Subscription: ${order.premiumDurationPerRecipient} months\n`;
+                                recipientMessage += `Order ID: ${order.id}\n`;
+                                recipientMessage += `Status: Confirmed`;
+                            } else {
+                                recipientMessage += `⭐ Stars: ${recipient.starsReceived}\n`;
+                                recipientMessage += `Order ID: ${order.id}\n`;
+                                recipientMessage += `Status: Confirmed`;
+                            }
+                            
+                            console.log(`Attempting to notify recipient: @${recipient.username}`);
+                        } catch (recipientErr) {
+                            console.log(`Could not notify recipient @${recipient.username}:`, recipientErr.message);
+                        }
+                    }
+                    
+                    // Create notifications in the database for recipients
+                    for (const recipient of order.recipients) {
+                        try {
+                            await Notification.create({
+                                userId: recipient.userId || 'anonymous',
+                                title: 'Gift Received! 🎁',
+                                message: `You received ${order.isPremium ? `${order.premiumDurationPerRecipient} months Premium` : `${recipient.starsReceived} Stars`} from @${order.username}!`,
+                                icon: 'gift',
+                                priority: 1,
+                                isGlobal: false
+                            });
+                        } catch (notifErr) {
+                            console.error(`Failed to create notification for ${recipient.username}:`, notifErr);
+                        }
+                    }
+                } catch (recipientErr) {
+                    console.error('Error handling recipient notifications:', recipientErr);
+                }
+            }
+            
+            // Track stars/premium for the buyer
+            if (!order.isPremium && order.stars) {
+                await trackStars(order.telegramId, order.stars, 'buy');
+            }
+            if (order.isPremium) {
+                await trackPremiumActivation(order.telegramId);
+            }
+        } else if (actionType === 'decline') {
+            order.status = 'declined';
+            order.dateDeclined = new Date();
+            await order.save();
+        }
+    }
+}
+
+bot.on('callback_query', async (query) => {
+    try {
+        const data = query.data;
+        const adminUsername = query.from.username ? query.from.username : `User_${query.from.id}`;
+
+        // Handle confirmation callbacks first
+        if (data.startsWith('confirm_')) {
+            return await handleConfirmedAction(query, data, adminUsername);
+        }
+
+        // Handle cancel callbacks
+        if (data.startsWith('cancel_')) {
+            const originalAction = data.replace('cancel_', '');
+            await bot.answerCallbackQuery(query.id, { text: "Action cancelled" });
+            
+            // Restore original buttons
+            const orderId = originalAction.split('_')[2];
+            const actionType = originalAction.split('_')[0];
+            const orderType = originalAction.split('_')[1];
+            
+            let originalKeyboard;
+            if (orderType === 'sell') {
+                originalKeyboard = {
+                    inline_keyboard: [
+                        [
+                            { text: "✅ Complete", callback_data: `complete_sell_${orderId}` },
+                            { text: "❌ Fail", callback_data: `decline_sell_${orderId}` },
+                            { text: "💸 Refund", callback_data: `refund_sell_${orderId}` }
+                        ]
+                    ]
+                };
+            } else {
+                originalKeyboard = {
+                    inline_keyboard: [[
+                        { text: '✅ Complete', callback_data: `complete_buy_${orderId}` },
+                        { text: '❌ Decline', callback_data: `decline_buy_${orderId}` }
+                    ]]
+                };
+            }
+            
+            try {
+                await bot.editMessageReplyMarkup(originalKeyboard, {
+                    chat_id: query.message.chat.id,
+                    message_id: query.message.message_id
+                });
+            } catch (editError) {
+                console.error('Error restoring original buttons:', editError.message);
+            }
+            return;
+        }
+
+        let order, actionType, orderType;
+
+        // Check if this is an admin action that needs confirmation
+        const adminActions = ['complete_sell_', 'decline_sell_', 'refund_sell_', 'complete_buy_', 'decline_buy_'];
+        const needsConfirmation = adminActions.some(action => data.startsWith(action));
+        
+        if (needsConfirmation) {
+            return await showConfirmationButtons(query, data);
+        }
+
+        // All admin actions now go through confirmation, so this is just fallback
+        return await bot.answerCallbackQuery(query.id);
 
     } catch (err) {
         console.error('Order processing error:', err);
