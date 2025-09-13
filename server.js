@@ -3511,29 +3511,8 @@ app.get('/api/transactions/:userId', async (req, res) => {
     }
 });
 
-// Simple test endpoint for CSV export
-app.post('/api/test-csv', async (req, res) => {
-    try {
-        console.log('=== TEST CSV ENDPOINT ===');
-        console.log('Headers:', req.headers);
-        
-        const testCSV = `# Test CSV Export
-Date,Type,Amount
-2024-01-01,Test Transaction,100
-2024-01-02,Another Test,200`;
-        
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename="test.csv"');
-        console.log('Sending test CSV...');
-        return res.send(testCSV);
-    } catch (error) {
-        console.error('Test CSV error:', error);
-        res.status(500).json({ error: 'Test failed: ' + error.message });
-    }
-});
-
 // Export transactions as CSV via Telegram
-app.post('/api/export-transactions', async (req, res) => {
+app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
     try {
         console.log('=== CSV EXPORT DEBUG START ===');
         console.log('Export transactions request received');
@@ -3548,81 +3527,130 @@ app.post('/api/export-transactions', async (req, res) => {
             BOT_TOKEN: process.env.BOT_TOKEN ? 'present' : 'missing'
         });
         
-        // Try to get user ID from various sources
-        let userId = null;
-        if (req.user && req.user.id) {
-            userId = req.user.id;
-        } else if (req.headers['x-telegram-id']) {
-            userId = req.headers['x-telegram-id'];
-        } else {
-            // Fallback for testing
-            userId = 'test-user';
-            console.log('⚠️ Using fallback user ID for testing');
+        // Check if user authentication worked
+        if (!req.user || !req.user.id) {
+            console.log('❌ Authentication failed - no user found');
+            console.log('req.user:', req.user);
+            return res.status(401).json({ error: 'Authentication failed. Please refresh and try again.' });
         }
+        
+        const userId = req.user.id;
         console.log('Using user ID:', userId);
         
         // Get both buy and sell orders for the user
         console.log('Fetching buy orders for user:', userId);
-        const buyOrders = await BuyOrder.find({ telegramId: userId })
-            .sort({ dateCreated: -1 })
-            .lean();
-        console.log('Found buy orders:', buyOrders.length);
+        let buyOrders = [];
+        let sellOrders = [];
         
-        console.log('Fetching sell orders for user:', userId);
-        const sellOrders = await SellOrder.find({ telegramId: userId })
-            .sort({ dateCreated: -1 })
-            .lean();
-        console.log('Found sell orders:', sellOrders.length);
+        try {
+            buyOrders = await BuyOrder.find({ telegramId: userId })
+                .sort({ dateCreated: -1 })
+                .lean();
+            console.log('✅ Found buy orders:', buyOrders.length);
+        } catch (buyError) {
+            console.error('❌ Error fetching buy orders:', buyError.message);
+            buyOrders = [];
+        }
+        
+        try {
+            sellOrders = await SellOrder.find({ telegramId: userId })
+                .sort({ dateCreated: -1 })
+                .lean();
+            console.log('✅ Found sell orders:', sellOrders.length);
+        } catch (sellError) {
+            console.error('❌ Error fetching sell orders:', sellError.message);
+            sellOrders = [];
+        }
 
         // Combine and format the data
         console.log('Combining transaction data...');
-        const transactions = [
-            ...buyOrders.map(order => ({
-                id: order.id,
-                type: 'Buy Stars',
-                amount: order.stars,
-                status: order.status.toLowerCase(),
-                date: order.dateCreated,
-                details: `Buy order for ${order.stars} stars`,
-                usdtValue: order.amount
-            })),
-            ...sellOrders.map(order => ({
-                id: order.id,
-                type: 'Sell Stars',
-                amount: order.stars,
-                status: order.status.toLowerCase(),
-                date: order.dateCreated,
-                details: `Sell order for ${order.stars} stars`,
-                usdtValue: order.amount
-            }))
-        ];
+        const transactions = [];
+        
+        // Safely map buy orders
+        if (buyOrders && buyOrders.length > 0) {
+            buyOrders.forEach(order => {
+                try {
+                    transactions.push({
+                        id: order.id || 'N/A',
+                        type: 'Buy Stars',
+                        amount: order.stars || 0,
+                        status: (order.status || 'unknown').toLowerCase(),
+                        date: order.dateCreated || new Date(),
+                        details: `Buy order for ${order.stars || 0} stars`,
+                        usdtValue: order.amount || 0
+                    });
+                } catch (orderError) {
+                    console.error('Error processing buy order:', orderError.message);
+                }
+            });
+        }
+        
+        // Safely map sell orders
+        if (sellOrders && sellOrders.length > 0) {
+            sellOrders.forEach(order => {
+                try {
+                    transactions.push({
+                        id: order.id || 'N/A',
+                        type: 'Sell Stars',
+                        amount: order.stars || 0,
+                        status: (order.status || 'unknown').toLowerCase(),
+                        date: order.dateCreated || new Date(),
+                        details: `Sell order for ${order.stars || 0} stars`,
+                        usdtValue: order.amount || 0
+                    });
+                } catch (orderError) {
+                    console.error('Error processing sell order:', orderError.message);
+                }
+            });
+        }
+        
         console.log('Total transactions combined:', transactions.length);
 
         // Generate CSV content with header information
         console.log('Generating CSV content...');
-        const userInfo = req.user;
-        const generationDate = new Date().toLocaleString();
-        const totalTransactions = transactions.length;
-        const completedCount = transactions.filter(t => t.status === 'completed').length;
-        const processingCount = transactions.filter(t => t.status === 'processing').length;
-        const declinedCount = transactions.filter(t => t.status === 'declined').length;
-        console.log('Transaction counts:', { totalTransactions, completedCount, processingCount, declinedCount });
+        let csv = '';
         
-        let csv = `# StarStore - Transaction History Export\n`;
-        csv += `# Generated on: ${generationDate}\n`;
-        csv += `# User ID: ${userId}\n`;
-        csv += `# Username: @${userInfo.username || 'Unknown'}\n`;
-        csv += `# Total Transactions: ${totalTransactions}\n`;
-        csv += `# Completed: ${completedCount} | Processing: ${processingCount} | Declined: ${declinedCount}\n`;
-        csv += `# Website: https://starstore.site\n`;
-        csv += `# Export Type: Transaction History\n`;
-        csv += `#\n`;
-        csv += `ID,Type,Amount (Stars),USDT Value,Status,Date,Details\n`;
-        transactions.forEach(txn => {
-            const dateStr = new Date(txn.date).toISOString().split('T')[0];
-            csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.usdtValue}","${txn.status}","${dateStr}","${txn.details}"\n`;
-        });
-        console.log('CSV generated, length:', csv.length, 'characters');
+        try {
+            const userInfo = req.user;
+            const generationDate = new Date().toLocaleString();
+            const totalTransactions = transactions.length;
+            const completedCount = transactions.filter(t => t.status === 'completed').length;
+            const processingCount = transactions.filter(t => t.status === 'processing').length;
+            const declinedCount = transactions.filter(t => t.status === 'declined').length;
+            console.log('Transaction counts:', { totalTransactions, completedCount, processingCount, declinedCount });
+            
+            // Build CSV header
+            csv = `# StarStore - Transaction History Export\n`;
+            csv += `# Generated on: ${generationDate}\n`;
+            csv += `# User ID: ${userId}\n`;
+            csv += `# Username: @${userInfo.username || 'Unknown'}\n`;
+            csv += `# Total Transactions: ${totalTransactions}\n`;
+            csv += `# Completed: ${completedCount} | Processing: ${processingCount} | Declined: ${declinedCount}\n`;
+            csv += `# Website: https://starstore.site\n`;
+            csv += `# Export Type: Transaction History\n`;
+            csv += `#\n`;
+            csv += `ID,Type,Amount (Stars),USDT Value,Status,Date,Details\n`;
+            
+            // Add transaction data
+            if (transactions.length > 0) {
+                transactions.forEach(txn => {
+                    try {
+                        const dateStr = new Date(txn.date).toISOString().split('T')[0];
+                        csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.usdtValue}","${txn.status}","${dateStr}","${txn.details}"\n`;
+                    } catch (rowError) {
+                        console.error('Error processing transaction row:', rowError.message);
+                        csv += `"Error","Error","0","0","error","${new Date().toISOString().split('T')[0]}","Error processing transaction"\n`;
+                    }
+                });
+            } else {
+                csv += `"No Data","No transactions found","0","0","none","${new Date().toISOString().split('T')[0]}","No transactions available for this user"\n`;
+            }
+            
+            console.log('✅ CSV generated successfully, length:', csv.length, 'characters');
+        } catch (csvError) {
+            console.error('❌ Error generating CSV:', csvError.message);
+            csv = `# StarStore - Transaction History Export (Error)\n# Error: ${csvError.message}\nID,Type,Amount,Status,Date,Details\n"Error","CSV Generation Failed","0","error","${new Date().toISOString().split('T')[0]}","${csvError.message}"`;
+        }
 
         // Send CSV file via Telegram bot
         const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;

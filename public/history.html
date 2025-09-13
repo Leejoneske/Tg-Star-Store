@@ -235,10 +235,6 @@
                 
                 <div id="transactionsPagination" class="flex justify-center items-center gap-2 mb-6"></div>
                 
-                <button id="testCSV" class="w-full py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors mb-4 flex justify-center items-center">
-                    <span>Test CSV Download</span>
-                </button>
-                
                 <button id="exportTransactions" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors mb-8 flex justify-center items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -388,7 +384,6 @@ function setupEventListeners() {
         currentReferralPage = 1;
         updateReferralList();
     });
-    document.getElementById('testCSV').addEventListener('click', testCSVDownload);
     document.getElementById('exportTransactions').addEventListener('click', exportTransactions);
     document.getElementById('exportReferrals').addEventListener('click', exportReferrals);
 }
@@ -970,55 +965,6 @@ function showReferralDetails(referral) {
     });
 }
 
-async function testCSVDownload() {
-    try {
-        console.log('Testing CSV download...');
-        
-        const response = await fetch(`${BASE_API_URL}/test-csv`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        console.log('Test CSV response status:', response.status);
-        console.log('Test CSV response headers:', response.headers);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Test CSV error:', errorText);
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-        
-        const csvData = await response.text();
-        console.log('Test CSV data:', csvData);
-        
-        const blob = new Blob([csvData], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'test.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        Swal.fire({
-            title: 'Success',
-            text: 'Test CSV downloaded successfully!',
-            icon: 'success',
-            confirmButtonText: 'Close'
-        });
-    } catch (error) {
-        console.error('Test CSV error:', error);
-        Swal.fire({
-            title: 'Error',
-            text: 'Test CSV failed: ' + error.message,
-            icon: 'error',
-            confirmButtonText: 'Close'
-        });
-    }
-}
 
 async function exportTransactions() {
     try {
