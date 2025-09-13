@@ -1017,45 +1017,38 @@ async function exportTransactions() {
             throw new Error(`HTTP ${response.status}: ${errorMessage}`);
         }
         
-        // Check if response is CSV (direct download)
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('text/csv')) {
-            // Handle direct CSV download
-            const csvData = await response.text();
-            const blob = new Blob([csvData], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `transactions_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            
-            Swal.fire({
-                title: TranslationUtils.get('success'),
-                text: '📊 CSV file has been downloaded!',
-                icon: 'success',
-                confirmButtonText: TranslationUtils.get('close'),
-                confirmButtonColor: '#4f46e5'
-            });
-        } else {
-            // Handle JSON response (Telegram sent)
-            const result = await response.json();
-            console.log('Export result:', result);
-
-            if (result && result.success) {
-                Swal.fire({
-                    title: TranslationUtils.get('success'),
-                    text: '📊 CSV file has been sent to your Telegram!',
-                    icon: 'success',
-                    confirmButtonText: TranslationUtils.get('close'),
-                    confirmButtonColor: '#4f46e5'
-                });
-            } else {
-                throw new Error(result?.error || 'Export failed - no success response');
+        // For now, assume all responses are CSV downloads
+        console.log('Handling response as CSV download...');
+        const csvData = await response.text();
+        console.log('CSV data length:', csvData.length);
+        
+        // Check if it's actually JSON error
+        if (csvData.startsWith('{') || csvData.startsWith('[')) {
+            try {
+                const errorData = JSON.parse(csvData);
+                throw new Error(errorData.error || 'Export failed');
+            } catch (parseError) {
+                // If it's not valid JSON, treat as CSV
             }
         }
+        
+        const blob = new Blob([csvData], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `transactions_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        Swal.fire({
+            title: TranslationUtils.get('success'),
+            text: '📊 CSV file has been downloaded!',
+            icon: 'success',
+            confirmButtonText: TranslationUtils.get('close'),
+            confirmButtonColor: '#4f46e5'
+        });
     } catch (error) {
         console.error('Export error:', error);
         Swal.fire({
