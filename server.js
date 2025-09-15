@@ -1724,21 +1724,23 @@ bot.on('callback_query', async (query) => {
 
 async function createTelegramInvoice(chatId, orderId, stars, description, sessionToken) {
     try {
-        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/createInvoiceLink`, {
-            chat_id: chatId,
-            provider_token: process.env.PROVIDER_TOKEN,
-            title: `Purchase of ${stars} Telegram Stars`,
+        const amountInt = Number.isFinite(Number(stars)) ? Math.floor(Number(stars)) : 0;
+        const body = {
+            title: `Purchase of ${amountInt} Telegram Stars`,
             description: description,
             payload: orderId,
             currency: 'XTR',
             prices: [
                 {
-                    label: `${stars} Telegram Stars`,  
-                    amount: stars * 1
+                    label: `${amountInt} Telegram Stars`,
+                    amount: amountInt
                 }
             ],
-            start_parameter: sessionToken?.substring(0, 64) 
-        });
+            start_parameter: sessionToken?.substring(0, 64)
+        };
+        // For Stars (XTR), provider_token must not be sent
+        // chat_id is not a parameter for createInvoiceLink
+        const response = await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/createInvoiceLink`, body);
         return response.data.result;
     } catch (error) {
         console.error('Error creating invoice:', error);
