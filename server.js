@@ -178,6 +178,7 @@ const buyOrderSchema = new mongoose.Schema({
     stars: Number,
     premiumDuration: Number,
     walletAddress: String,
+    userMessageId: Number,
     isPremium: Boolean,
     status: String,
     dateCreated: Date,
@@ -218,6 +219,7 @@ const sellOrderSchema = new mongoose.Schema({
     },
     walletAddress: String,
     memoTag: String,
+    userMessageId: Number,
     status: {
         type: String,
         enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed', 'expired'], 
@@ -1610,12 +1612,26 @@ bot.on('callback_query', async (query) => {
                             order.walletAddress = reqDoc.newWalletAddress;
                             if (reqDoc.newMemoTag) order.memoTag = reqDoc.newMemoTag;
                             await order.save();
+                            // Try to edit user's original order message if tracked
+                            if (order.userMessageId) {
+                                const text = `Your sell order has been updated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+                                try { await bot.editMessageText(text, { chat_id: order.telegramId, message_id: order.userMessageId }); } catch (_) {}
+                            }
+                            // Edit admin messages stored on the order if present
+                            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                                await Promise.all(order.adminMessages.map(async (m) => {
+                                    const base = m.originalText || `Sell Order Updated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}`;
+                                    const final = `${base}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}`;
+                                    try { await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId }); } catch (_) {}
+                                }));
+                            }
                         }
                     } else {
                         const wd = await ReferralWithdrawal.findOne({ withdrawalId: reqDoc.orderId });
                         if (wd) {
                             wd.walletAddress = reqDoc.newWalletAddress;
                             await wd.save();
+                            // If we tracked a message id on withdrawals in future, we would edit here similarly
                         }
                     }
                 }
