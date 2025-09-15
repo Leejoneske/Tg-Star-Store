@@ -464,6 +464,7 @@ const walletUpdateRequestSchema = new mongoose.Schema({
     orderId: { type: String, required: true },
     oldWalletAddress: String,
     newWalletAddress: { type: String, required: true },
+    newMemoTag: { type: String },
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
     reason: String,
     adminId: String,
@@ -1329,15 +1330,18 @@ bot.on('callback_query', async (query) => {
             const chatId = query.message.chat.id;
 
             await bot.answerCallbackQuery(query.id);
-            await bot.sendMessage(chatId, `Please send the new wallet address for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId} (TRC-20 USDT recommended).`);
+            await bot.sendMessage(chatId, `Please send the new wallet address${orderType === 'sell' ? ' and memo (if required)' : ''} for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}.\n\nFormat: <wallet>[, <memo>]`);
 
             const onMessage = async (msg) => {
                 if (msg.chat.id !== chatId) return;
                 bot.removeListener('message', onMessage);
-                const newAddress = (msg.text || '').trim();
-                if (!newAddress || newAddress.length < 10) {
+                const input = (msg.text || '').trim();
+                if (!input || input.length < 10) {
                     return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
                 }
+                const [newAddressRaw, memoRaw] = input.split(',');
+                const newAddress = (newAddressRaw || '').trim();
+                const newMemoTag = (memoRaw || '').trim();
 
                 try {
                     let oldWallet = '';
@@ -1358,6 +1362,7 @@ bot.on('callback_query', async (query) => {
                         orderId,
                         oldWalletAddress: oldWallet,
                         newWalletAddress: newAddress,
+                        newMemoTag: newMemoTag || undefined,
                         adminMessages: []
                     });
 
@@ -1372,7 +1377,7 @@ bot.on('callback_query', async (query) => {
                         `Type: ${orderType}\n`+
                         `Order: ${orderId}\n`+
                         `Old: ${oldWallet || 'N/A'}\n`+
-                        `New: ${newAddress}`;
+                        `New: ${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
 
                     const sentMsgs = [];
                     for (const adminId of adminIds) {
@@ -1493,6 +1498,7 @@ bot.on('callback_query', async (query) => {
                         const order = await SellOrder.findOne({ id: reqDoc.orderId });
                         if (order) {
                             order.walletAddress = reqDoc.newWalletAddress;
+                            if (reqDoc.newMemoTag) order.memoTag = reqDoc.newMemoTag;
                             await order.save();
                         }
                     } else {
@@ -3316,7 +3322,7 @@ bot.onText(/\/(wallet|withdrawal\-menu)/i, async (msg) => {
         if (sellOrders?.length) {
             lines.push('🛒 Processing Sell Orders:');
             sellOrders.forEach(o => {
-                lines.push(`• ${o.id} — ${o.stars} ★ — wallet: ${o.walletAddress || 'N/A'}`);
+                lines.push(`• ${o.id} — ${o.stars} ★ — wallet: ${o.walletAddress || 'N/A'}${o.memoTag ? ` — memo: ${o.memoTag}` : ''}`);
             });
         }
         if (withdrawals?.length) {
@@ -4345,10 +4351,10 @@ bot.on('message', async (msg) => {
         const order = await SellOrder.findOne({ id: orderId });
 
         if (order) {
-            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(order.telegramId, userOrderDetails);
 
-            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(chatId, adminOrderDetails);
 
             const confirmButton = {
@@ -4431,10 +4437,10 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
         const order = await BuyOrder.findOne({ id: orderId });
 
         if (order) {
-            const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(order.telegramId, userOrderDetails);
 
-            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(chatId, adminOrderDetails);
 
             const confirmButton = {
@@ -4531,7 +4537,7 @@ bot.on('callback_query', async (query) => {
                 order.dateConfirmed = new Date();
                 await order.save();
 
-                const userOrderDetails = `Your sell order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                const userOrderDetails = `Your sell order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 try {
                     await bot.sendMessage(order.telegramId, userOrderDetails);
                 } catch (err) {
@@ -4540,7 +4546,7 @@ bot.on('callback_query', async (query) => {
                     if (!forbidden) throw err;
                 }
 
-                const adminOrderDetails = `Sell Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                const adminOrderDetails = `Sell Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 bot.sendMessage(adminChatId, adminOrderDetails);
 
                 const disabledButton = {
@@ -4559,7 +4565,7 @@ bot.on('callback_query', async (query) => {
                 order.dateConfirmed = new Date();
                 await order.save();
 
-                const userOrderDetails = `Your buy order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                const userOrderDetails = `Your buy order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 try {
                     await bot.sendMessage(order.telegramId, userOrderDetails);
                 } catch (err) {
@@ -4568,7 +4574,7 @@ bot.on('callback_query', async (query) => {
                     if (!forbidden) throw err;
                 }
 
-                const adminOrderDetails = `Buy Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                const adminOrderDetails = `Buy Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 bot.sendMessage(adminChatId, adminOrderDetails);
 
                 const disabledButton = {
