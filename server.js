@@ -1087,16 +1087,19 @@ bot.on("successful_payment", async (msg) => {
     order.sessionExpiry = null; 
     await order.save();
 
-    await bot.sendMessage(
-        order.telegramId,
-        `✅ Payment successful!\n\n` +
-        `Order ID: ${order.id}\n` +
-        `Stars: ${order.stars}\n` +
-        `Wallet: ${order.walletAddress}\n` +
-        `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
-        `\nStatus: Processing (21-day hold)\n\n` +
-        `Funds will be released to your wallet after the hold period.`
-    );
+    try {
+        const sent = await bot.sendMessage(
+            order.telegramId,
+            `✅ Payment successful!\n\n` +
+            `Order ID: ${order.id}\n` +
+            `Stars: ${order.stars}\n` +
+            `Wallet: ${order.walletAddress}\n` +
+            `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
+            `\nStatus: Processing (21-day hold)\n\n` +
+            `Funds will be released to your wallet after the hold period.`
+        );
+        try { order.userMessageId = sent?.message_id || order.userMessageId; await order.save(); } catch (_) {}
+    } catch (_) {}
   
     const userDisplayName = await getUserDisplayName(order.telegramId);
     
@@ -1644,9 +1647,20 @@ bot.on('callback_query', async (query) => {
                 if (Array.isArray(reqDoc.adminMessages) && reqDoc.adminMessages.length) {
                     await Promise.all(reqDoc.adminMessages.map(async (m) => {
                         const base = m.originalText || 'Wallet Update Request';
+                        // Preserve original keyboard for sell order actions when present
+                        let reply_markup;
+                        if (reqDoc.orderType === 'sell') {
+                            reply_markup = {
+                                inline_keyboard: [[
+                                    { text: "✅ Complete", callback_data: `complete_sell_${reqDoc.orderId}` },
+                                    { text: "❌ Fail", callback_data: `decline_sell_${reqDoc.orderId}` },
+                                    { text: "💸 Refund", callback_data: `refund_sell_${reqDoc.orderId}` }
+                                ]]
+                            };
+                        }
                         const final = `${base}\n\n${approve ? '✅ Approved' : '❌ Rejected'} by @${adminName}`;
                         try {
-                            await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                            await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup });
                         } catch (_) {}
                     }));
                 }
