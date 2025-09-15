@@ -455,6 +455,31 @@ const User = mongoose.model('User', userSchema);
 const Referral = mongoose.model('Referral', referralSchema);
 const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
 
+// Wallet update request schema: track request state and message IDs for updates
+const walletUpdateRequestSchema = new mongoose.Schema({
+    requestId: { type: String, required: true, unique: true, default: () => generateOrderId() },
+    userId: { type: String, required: true, index: true },
+    username: String,
+    orderType: { type: String, enum: ['sell', 'withdrawal'], required: true },
+    orderId: { type: String, required: true },
+    oldWalletAddress: String,
+    newWalletAddress: { type: String, required: true },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
+    reason: String,
+    adminId: String,
+    adminUsername: String,
+    userMessageId: Number,
+    adminMessages: [{
+        adminId: String,
+        messageId: Number,
+        originalText: String
+    }],
+    createdAt: { type: Date, default: Date.now },
+    processedAt: Date
+});
+
+const WalletUpdateRequest = mongoose.model('WalletUpdateRequest', walletUpdateRequestSchema);
+
 
 let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 // Deduplicate to avoid duplicate notifications per admin
@@ -1296,6 +1321,81 @@ bot.on('callback_query', async (query) => {
         const data = query.data;
         const adminUsername = query.from.username ? query.from.username : `User_${query.from.id}`;
 
+        // Wallet update flow: user clicked from /wallet
+        if (data.startsWith('wallet_update_')) {
+            const parts = data.split('_');
+            const orderType = parts[2]; // 'sell' | 'withdrawal'
+            const orderId = parts.slice(3).join('_');
+            const chatId = query.message.chat.id;
+
+            await bot.answerCallbackQuery(query.id);
+            await bot.sendMessage(chatId, `Please send the new wallet address for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId} (TRC-20 USDT recommended).`);
+
+            const onMessage = async (msg) => {
+                if (msg.chat.id !== chatId) return;
+                bot.removeListener('message', onMessage);
+                const newAddress = (msg.text || '').trim();
+                if (!newAddress || newAddress.length < 10) {
+                    return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
+                }
+
+                try {
+                    let oldWallet = '';
+                    if (orderType === 'sell') {
+                        const order = await SellOrder.findOne({ id: orderId, telegramId: msg.from.id.toString() });
+                        if (!order) return bot.sendMessage(chatId, '❌ Order not found.');
+                        oldWallet = order.walletAddress || '';
+                    } else {
+                        const wd = await ReferralWithdrawal.findOne({ withdrawalId: orderId, userId: msg.from.id.toString() });
+                        if (!wd) return bot.sendMessage(chatId, '❌ Withdrawal not found.');
+                        oldWallet = wd.walletAddress || '';
+                    }
+
+                    const requestDoc = await WalletUpdateRequest.create({
+                        userId: msg.from.id.toString(),
+                        username: msg.from.username || '',
+                        orderType,
+                        orderId,
+                        oldWalletAddress: oldWallet,
+                        newWalletAddress: newAddress,
+                        adminMessages: []
+                    });
+
+                    const adminKeyboard = {
+                        inline_keyboard: [[
+                            { text: '✅ Approve', callback_data: `wallet_approve_${requestDoc.requestId}` },
+                            { text: '❌ Reject', callback_data: `wallet_reject_${requestDoc.requestId}` }
+                        ]]
+                    };
+                    const adminText = `🔄 Wallet Update Request\n\n`+
+                        `User: @${requestDoc.username || msg.from.id} (ID: ${requestDoc.userId})\n`+
+                        `Type: ${orderType}\n`+
+                        `Order: ${orderId}\n`+
+                        `Old: ${oldWallet || 'N/A'}\n`+
+                        `New: ${newAddress}`;
+
+                    const sentMsgs = [];
+                    for (const adminId of adminIds) {
+                        try {
+                            const m = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+                            sentMsgs.push({ adminId, messageId: m.message_id, originalText: adminText });
+                        } catch (_) {}
+                    }
+                    if (sentMsgs.length) {
+                        requestDoc.adminMessages = sentMsgs;
+                        await requestDoc.save();
+                    }
+
+                    const ack = await bot.sendMessage(chatId, '✅ Request submitted. An admin will review your new wallet address.');
+                    try { await WalletUpdateRequest.updateOne({ _id: requestDoc._id }, { $set: { userMessageId: ack.message_id } }); } catch (_) {}
+                } catch (e) {
+                    await bot.sendMessage(chatId, '❌ Failed to submit request. Please try again later.');
+                }
+            };
+            bot.on('message', onMessage);
+            return;
+        }
+
         // Handle confirmation callbacks first
         if (data.startsWith('confirm_')) {
             return await handleConfirmedAction(query, data, adminUsername);
@@ -1350,6 +1450,81 @@ bot.on('callback_query', async (query) => {
         
         if (needsConfirmation) {
             return await showConfirmationButtons(query, data);
+        }
+
+        // Admin approve/reject handlers for wallet update requests
+        if (data.startsWith('wallet_approve_') || data.startsWith('wallet_reject_')) {
+            const approve = data.startsWith('wallet_approve_');
+            const requestId = data.replace('wallet_approve_', '').replace('wallet_reject_', '');
+            const adminChatId = query.from.id.toString();
+            const adminName = adminUsername;
+
+            try {
+                const reqDoc = await WalletUpdateRequest.findOne({ requestId });
+                if (!reqDoc) {
+                    await bot.answerCallbackQuery(query.id, { text: 'Request not found' });
+                    return;
+                }
+                if (reqDoc.status !== 'pending') {
+                    await bot.answerCallbackQuery(query.id, { text: `Already ${reqDoc.status}` });
+                    return;
+                }
+
+                reqDoc.status = approve ? 'approved' : 'rejected';
+                reqDoc.adminId = adminChatId;
+                reqDoc.adminUsername = adminName;
+                reqDoc.processedAt = new Date();
+                await reqDoc.save();
+
+                // Update admin messages (all) to reflect final status
+                if (Array.isArray(reqDoc.adminMessages) && reqDoc.adminMessages.length) {
+                    await Promise.all(reqDoc.adminMessages.map(async (m) => {
+                        const base = m.originalText || 'Wallet Update Request';
+                        const final = `${base}\n\n${approve ? '✅ Approved' : '❌ Rejected'} by @${adminName}`;
+                        try {
+                            await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                        } catch (_) {}
+                    }));
+                }
+
+                if (approve) {
+                    // Apply to DB
+                    if (reqDoc.orderType === 'sell') {
+                        const order = await SellOrder.findOne({ id: reqDoc.orderId });
+                        if (order) {
+                            order.walletAddress = reqDoc.newWalletAddress;
+                            await order.save();
+                        }
+                    } else {
+                        const wd = await ReferralWithdrawal.findOne({ withdrawalId: reqDoc.orderId });
+                        if (wd) {
+                            wd.walletAddress = reqDoc.newWalletAddress;
+                            await wd.save();
+                        }
+                    }
+                }
+
+                // Update user acknowledgement message, if any
+                if (reqDoc.userMessageId) {
+                    const suffix = approve ? '✅ Your new wallet address has been approved and updated.' : '❌ Your wallet update request was rejected.';
+                    try {
+                        await bot.editMessageText(`Request ${approve ? 'approved' : 'rejected'}. ${suffix}`, { chat_id: reqDoc.userId, message_id: reqDoc.userMessageId });
+                    } catch (_) {
+                        try {
+                            await bot.sendMessage(reqDoc.userId, suffix);
+                        } catch (_) {}
+                    }
+                } else {
+                    try {
+                        await bot.sendMessage(reqDoc.userId, approve ? '✅ Wallet address updated successfully.' : '❌ Wallet update request rejected.');
+                    } catch (_) {}
+                }
+
+                await bot.answerCallbackQuery(query.id, { text: approve ? 'Approved' : 'Rejected' });
+            } catch (err) {
+                await bot.answerCallbackQuery(query.id, { text: 'Error processing request' });
+            }
+            return;
         }
 
         // All admin actions now go through confirmation, so this is just fallback
@@ -3117,6 +3292,55 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         }
     } catch (error) {
         console.error('Start command error:', error);
+    }
+});
+
+// /wallet command: show processing orders and allow wallet update request
+bot.onText(/\/(wallet|withdrawal\-menu)/i, async (msg) => {
+    try {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id.toString();
+        const username = msg.from.username || '';
+
+        // Fetch user's processing sell orders and pending referral withdrawals
+        const [sellOrders, withdrawals] = await Promise.all([
+            SellOrder.find({ telegramId: userId, status: 'processing' }).sort({ dateCreated: -1 }).limit(5),
+            ReferralWithdrawal.find({ userId: userId, status: 'pending' }).sort({ createdAt: -1 }).limit(5)
+        ]);
+
+        if ((!sellOrders || sellOrders.length === 0) && (!withdrawals || withdrawals.length === 0)) {
+            return bot.sendMessage(chatId, 'ℹ️ You have no processing orders.');
+        }
+
+        const lines = [];
+        if (sellOrders?.length) {
+            lines.push('🛒 Processing Sell Orders:');
+            sellOrders.forEach(o => {
+                lines.push(`• ${o.id} — ${o.stars} ★ — wallet: ${o.walletAddress || 'N/A'}`);
+            });
+        }
+        if (withdrawals?.length) {
+            lines.push('💳 Pending Withdrawals:');
+            withdrawals.forEach(w => {
+                lines.push(`• ${w.withdrawalId} — ${w.amount} — wallet: ${w.walletAddress || 'N/A'}`);
+            });
+        }
+
+        const keyboard = { inline_keyboard: [] };
+        sellOrders.forEach(o => {
+            keyboard.inline_keyboard.push([
+                { text: `Update wallet for Sell ${o.id}`, callback_data: `wallet_update_sell_${o.id}` }
+            ]);
+        });
+        withdrawals.forEach(w => {
+            keyboard.inline_keyboard.push([
+                { text: `Update wallet for WD ${w.withdrawalId}`, callback_data: `wallet_update_withdrawal_${w.withdrawalId}` }
+            ]);
+        });
+
+        await bot.sendMessage(chatId, lines.join('\n'), { reply_markup: keyboard });
+    } catch (err) {
+        await bot.sendMessage(msg.chat.id, '❌ Failed to load your orders. Please try again later.');
     }
 });
 
