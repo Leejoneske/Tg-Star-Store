@@ -1022,37 +1022,39 @@ function isValidWalletAddress(address) {
       
 // Stars amount handling
 function incrementStars() {
-    const currentValue = parseInt(starsInput.value) || 0;
-    starsInput.value = Math.min(currentValue + 5, 80000);
-    calculateTonAmount();
+    const currentValue = parseInt(starsInput.value) || 0;
+    const isAdmin = Boolean(Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
+    starsInput.value = isAdmin ? currentValue + 5 : Math.min(currentValue + 5, 80000);
+    calculateTonAmount();
 }
 
 function decrementStars() {
-    const currentValue = parseInt(starsInput.value) || 0;
-    starsInput.value = Math.max(currentValue - 5, 50);
-    calculateTonAmount();
+    const currentValue = parseInt(starsInput.value) || 0;
+    const isAdmin = Boolean(Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
+    starsInput.value = isAdmin ? Math.max(currentValue - 5, 0) : Math.max(currentValue - 5, 50);
+    calculateTonAmount();
 }
 
 function calculateTonAmount() {
-    // Ensure value stays within bounds
-    let stars = parseInt(starsInput.value) || 0;
-    if (stars < 50) {
-        stars = 50;
-        starsInput.value = 50;
-    } else if (stars > 80000) {
-        stars = 80000;
-        starsInput.value = 80000;
-    }
-    
-    const tonAmount = (stars * rate).toFixed(3);
-    tonAmountDisplay.textContent = `${tonAmount} USDT`;
-    return tonAmount;
+    // Ensure value stays within bounds unless admin
+    let stars = parseInt(starsInput.value) || 0;
+    const isAdmin = Boolean(Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
+    if (!isAdmin) {
+        if (stars < 50) { stars = 50; starsInput.value = 50; }
+        else if (stars > 80000) { stars = 80000; starsInput.value = 80000; }
+    } else {
+        if (stars < 0) { stars = 0; starsInput.value = 0; }
+    }
+    const tonAmount = (stars * rate).toFixed(3);
+    tonAmountDisplay.textContent = `${tonAmount} USDT`;
+    return tonAmount;
 }
 
 // Update the input field attributes to reflect new limits
+// Defaults for non-admin; may be relaxed after admin check
 starsInput.min = "50";
 starsInput.max = "80000";
-starsInput.value = "50"; 
+starsInput.value = "50"; 
 
 calculateTonAmount();
 
@@ -1604,7 +1606,7 @@ const fetchTransactions = async () => {
 };
 
 // Initialize the app
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Initialize TranslationUtils and get current language
     if (typeof TranslationUtils !== 'undefined') {
         TranslationUtils.init();
@@ -1640,6 +1642,25 @@ document.addEventListener('DOMContentLoaded', () => {
         
         console.log('Telegram Mini App mode enabled');
     }
+
+    // Check admin status to relax UI limits for admins
+    try {
+        const tgId = Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        if (tgId) {
+            const resp = await fetch(`/api/whoami?t=${Date.now()}`, {
+                headers: { 'x-telegram-id': tgId }
+            });
+            const me = await resp.json();
+            if (me?.isAdmin) {
+                window.__isAdmin = true;
+                starsInput.min = "0";
+                starsInput.removeAttribute('max');
+                // Update UI hint
+                const badge = document.querySelector('[data-translate="minimumSell"]');
+                if (badge) badge.textContent = 'Admin: no min/max';
+            }
+        }
+    } catch (_) {}
 
     // Load shared bottom nav
     fetch('bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { 

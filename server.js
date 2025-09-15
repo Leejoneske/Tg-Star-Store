@@ -169,6 +169,17 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+// Simple whoami endpoint to expose admin flag to frontend
+app.get('/api/whoami', (req, res) => {
+  try {
+    const tgId = String(req.headers['x-telegram-id'] || '').trim();
+    if (!tgId) return res.json({ id: null, isAdmin: false });
+    return res.json({ id: tgId, isAdmin: Array.isArray(adminIds) && adminIds.includes(tgId) });
+  } catch (_) {
+    return res.json({ id: null, isAdmin: false });
+  }
+});
+
 
 const buyOrderSchema = new mongoose.Schema({
     id: String,
@@ -876,13 +887,25 @@ app.post("/api/sell-orders", async (req, res) => {
             memoTag = '' 
         } = req.body;
         
-        if (!telegramId || !stars || !walletAddress) {
+        if (!telegramId || stars === undefined || stars === null || !walletAddress) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
             return res.status(403).json({ error: "You are banned from placing orders" });
+        }
+
+        // Admin bypass for amount limits (50 - 80000)
+        const isAdmin = Array.isArray(adminIds) && adminIds.includes(String(telegramId));
+        if (!isAdmin) {
+            const numericStars = Number(stars);
+            if (!Number.isFinite(numericStars)) {
+                return res.status(400).json({ error: "Invalid stars amount" });
+            }
+            if (numericStars < 50 || numericStars > 80000) {
+                return res.status(400).json({ error: "Stars amount must be between 50 and 80000" });
+            }
         }
 
         // Check for existing pending orders for this user
@@ -4141,7 +4164,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             console.log('✅ CSV generated successfully, length:', csv.length, 'characters');
         } catch (csvError) {
             console.error('❌ Error generating CSV:', csvError.message);
-            csv = `# StarStore - Transaction History Export (Error)\n# Error: ${csvError.message}\nID,Type,Amount,Status,Date,Details\n"Error","CSV Generation Failed","0","error","${new Date().toISOString().split('T')[0]}","${csvError.message}"`;
+            csv = `# StarStore - Transaction History Export (Error)\n# Error: ${csvError.message}\nID,Type,Amount,Status,Date,Details\n"Error","Error","0","error","${new Date().toISOString().split('T')[0]}","${csvError.message}"`;
         }
 
         // Send CSV file via Telegram bot when possible, otherwise provide direct download
