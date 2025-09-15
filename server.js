@@ -1657,23 +1657,13 @@ bot.on('callback_query', async (query) => {
                         const base = m.originalText || 'Wallet Update Request';
                         const final = `${base}\n\n${approve ? '✅ Approved' : '❌ Rejected'} by @${adminName}`;
                         try {
-                            // First edit text without removing existing keyboard
                             await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
                         } catch (_) {}
-
-                        // Then ensure the sell action buttons are restored for sell orders
-                        if (reqDoc.orderType === 'sell') {
-                            const sellButtons = {
-                                inline_keyboard: [[
-                                    { text: "✅ Complete", callback_data: `complete_sell_${reqDoc.orderId}` },
-                                    { text: "❌ Fail", callback_data: `decline_sell_${reqDoc.orderId}` },
-                                    { text: "💸 Refund", callback_data: `refund_sell_${reqDoc.orderId}` }
-                                ]]
-                            };
-                            try {
-                                await bot.editMessageReplyMarkup(sellButtons, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
-                            } catch (_) {}
-                        }
+                        // Clear or show status-only keyboard on the wallet request message to avoid action duplication
+                        const statusKeyboard = { inline_keyboard: [[{ text: approve ? '✅ Approved' : '❌ Rejected', callback_data: `wallet_status_${reqDoc.requestId}`}]] };
+                        try {
+                            await bot.editMessageReplyMarkup(statusKeyboard, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                        } catch (_) {}
                     }));
                 }
 
@@ -1712,11 +1702,9 @@ bot.on('callback_query', async (query) => {
                                     // Replace only wallet and memo lines in the original admin message if present
                                     let text = m.originalText || '';
                                     if (text) {
-                                        // Update Wallet: line
                                         if (text.includes('\nWallet: ')) {
                                             text = text.replace(/\nWallet:.*?(\n|$)/, `\nWallet: ${order.walletAddress}$1`);
                                         }
-                                        // Update Memo: line (ensure present)
                                         if (order.memoTag) {
                                             if (text.includes('\nMemo:')) {
                                                 text = text.replace(/\nMemo:.*?(\n|$)/, `\nMemo: ${order.memoTag}$1`);
@@ -1727,7 +1715,14 @@ bot.on('callback_query', async (query) => {
                                     } else {
                                         text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username || order.telegramId}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
                                     }
-                                    try { await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId }); } catch (_) {}
+                                    const sellButtons = {
+                                        inline_keyboard: [[
+                                            { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                                            { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                                            { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                                        ]]
+                                    };
+                                    try { await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: sellButtons }); } catch (_) {}
                                 }));
                             }
                         }
