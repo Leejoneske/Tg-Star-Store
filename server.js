@@ -89,7 +89,8 @@ app.use(cors({
             /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
             /^https:\/\/.*\.vercel\.app$/,
             /^https:\/\/(www\.)?starstore\.site$/,
-            /^https:\/\/(www\.)?walletbot\.me$/
+            /^https:\/\/(www\.)?walletbot\.me$/,
+            /^https:\/\/.*\.railway\.app$/
         ];
         
         const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
