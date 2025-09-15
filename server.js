@@ -4490,7 +4490,7 @@ bot.on('message', async (msg) => {
 
         if (order) {
             const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-            bot.sendMessage(order.telegramId, userOrderDetails);
+            try { const sent = await bot.sendMessage(order.telegramId, userOrderDetails); try { order.userMessageId = sent?.message_id || order.userMessageId; await order.save(); } catch (_) {} } catch (_) {}
 
             const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(chatId, adminOrderDetails);
@@ -4537,7 +4537,7 @@ bot.on('message', async (msg) => {
                             await newOrder.save();
 
                             const userOrderDetails = `Your sell order has been recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
-                            bot.sendMessage(telegramId, userOrderDetails);
+                            try { const sent = await bot.sendMessage(telegramId, userOrderDetails); try { newOrder.userMessageId = sent?.message_id || newOrder.userMessageId; await newOrder.save(); } catch (_) {} } catch (_) {}
 
                             const adminOrderDetails = `Sell Order Recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
                             bot.sendMessage(chatId, adminOrderDetails);
@@ -4677,7 +4677,11 @@ bot.on('callback_query', async (query) => {
 
                 const userOrderDetails = `Your sell order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 try {
-                    await bot.sendMessage(order.telegramId, userOrderDetails);
+                    const sent = await bot.sendMessage(order.telegramId, userOrderDetails);
+                    try {
+                        order.userMessageId = sent?.message_id || order.userMessageId;
+                        await order.save();
+                    } catch (_) {}
                 } catch (err) {
                     const message = String(err && err.message || '');
                     const forbidden = (err && err.response && err.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
