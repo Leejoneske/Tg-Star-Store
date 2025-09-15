@@ -1430,8 +1430,18 @@ bot.on('callback_query', async (query) => {
 
                 try {
                     // Create one request per selected item
+                    const skipped = [];
+                    const created = [];
                     for (const key of bucket) {
                         const [kind, id] = key.split(':');
+                        const orderTypeForReq = kind === 'sell' ? 'sell' : 'withdrawal';
+                        // Prevent duplicate requests per order
+                        const existingReq = await WalletUpdateRequest.findOne({
+                            userId: msg.from.id.toString(),
+                            orderType: orderTypeForReq,
+                            orderId: id
+                        });
+                        if (existingReq) { skipped.push(id); continue; }
                         let oldWallet = '';
                         if (kind === 'sell') {
                             const order = await SellOrder.findOne({ id, telegramId: msg.from.id.toString() });
@@ -1445,13 +1455,14 @@ bot.on('callback_query', async (query) => {
                         const requestDoc = await WalletUpdateRequest.create({
                             userId: msg.from.id.toString(),
                             username: msg.from.username || '',
-                            orderType: kind === 'sell' ? 'sell' : 'withdrawal',
+                            orderType: orderTypeForReq,
                             orderId: id,
                             oldWalletAddress: oldWallet,
                             newWalletAddress: newAddress,
                             newMemoTag: newMemoTag || undefined,
                             adminMessages: []
                         });
+                        created.push(id);
 
                         const adminKeyboard = {
                             inline_keyboard: [[
@@ -1479,7 +1490,10 @@ bot.on('callback_query', async (query) => {
                     }
 
                     walletSelections.set(userId, new Set());
-                    await bot.sendMessage(chatId, '✅ Requests submitted. Admins will review your new wallet address.');
+                    const parts = [];
+                    if (created.length) parts.push(`✅ Submitted: ${created.join(', ')}`);
+                    if (skipped.length) parts.push(`⛔ Skipped (already requested): ${skipped.join(', ')}`);
+                    await bot.sendMessage(chatId, parts.length ? parts.join('\n') : 'Nothing to submit.');
                 } catch (e) {
                     await bot.sendMessage(chatId, '❌ Failed to submit requests. Please try again later.');
                 }
@@ -1514,6 +1528,16 @@ bot.on('callback_query', async (query) => {
                 const newMemoTag = (memoRaw || '').trim();
 
                 try {
+                    // Disallow more than one wallet update request per order
+                    const existingReq = await WalletUpdateRequest.findOne({
+                        userId: msg.from.id.toString(),
+                        orderType,
+                        orderId
+                    });
+                    if (existingReq) {
+                        return bot.sendMessage(chatId, '❌ You have already submitted a wallet update request for this order.');
+                    }
+
                     let oldWallet = '';
                     if (orderType === 'sell') {
                         const order = await SellOrder.findOne({ id: orderId, telegramId: msg.from.id.toString() });
