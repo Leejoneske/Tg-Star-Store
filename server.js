@@ -3772,12 +3772,35 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             csv = `# StarStore - Transaction History Export (Error)\n# Error: ${csvError.message}\nID,Type,Amount,Status,Date,Details\n"Error","CSV Generation Failed","0","error","${new Date().toISOString().split('T')[0]}","${csvError.message}"`;
         }
 
-        // Send CSV file via Telegram bot
+        // Send CSV file via Telegram bot when possible, otherwise provide direct download
         const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
         const buffer = Buffer.from(csv, 'utf8');
         console.log('CSV buffer created, size:', buffer.length, 'bytes');
-        
-        // Provide direct CSV download
+
+        if (process.env.BOT_TOKEN) {
+            try {
+                // Prefer Buffer with filename to avoid filesystem usage
+                await bot.sendDocument(userId, buffer, {
+                    caption: '📊 Your StarStore transaction history CSV'
+                }, {
+                    filename: filename,
+                    contentType: 'text/csv'
+                });
+                console.log('✅ CSV sent to user via Telegram');
+                console.log('=== CSV EXPORT DEBUG END ===');
+                return res.json({ success: true, message: 'CSV file sent to your Telegram' });
+            } catch (botError) {
+                const message = String(botError && botError.message || '');
+                const forbidden = (botError && botError.response && botError.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
+                if (forbidden) {
+                    console.warn('⚠️ Telegram sendDocument forbidden, falling back to direct download');
+                } else {
+                    console.error('Bot sendDocument failed, falling back to direct download:', botError.message);
+                }
+                // Fall through to direct download
+            }
+        }
+
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Cache-Control', 'no-store');

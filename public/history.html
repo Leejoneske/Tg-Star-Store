@@ -1004,7 +1004,7 @@ async function exportTransactions() {
 
         console.log('Export response status:', response.status);
         console.log('Export response headers:', response.headers);
-        console.log('Response content-type:', response.headers.get('content-type'));
+        const respContentType = response.headers.get('content-type') || '';
         
         if (!response.ok) {
             const errorText = await response.text();
@@ -1019,10 +1019,26 @@ async function exportTransactions() {
             throw new Error(`HTTP ${response.status}: ${errorMessage}`);
         }
         
+        // If server sent via Telegram, it returns JSON { success: true }
+        if (respContentType.includes('application/json')) {
+            const result = await response.json();
+            if (result && result.success) {
+                Swal.fire({
+                    title: TranslationUtils.get('success'),
+                    text: '📬 CSV file has been sent to your Telegram!',
+                    icon: 'success',
+                    confirmButtonText: TranslationUtils.get('close'),
+                    confirmButtonColor: '#4f46e5'
+                });
+                return;
+            }
+            throw new Error(result && result.error || 'Export failed');
+        }
+
         // Prefer blob downloads for better compatibility
         console.log('Handling response as CSV download...');
         let blob;
-        const contentType = response.headers.get('content-type') || '';
+        const contentType = respContentType;
         if (contentType.includes('text/csv')) {
             blob = await response.blob();
         } else {
