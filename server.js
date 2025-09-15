@@ -943,14 +943,38 @@ app.post("/api/sell-orders", async (req, res) => {
             userLocked: telegramId 
         });
 
-        const paymentLink = await createTelegramInvoice(
-            telegramId, 
-            order.id, 
-            stars, 
-            `Purchase of ${stars} Telegram Stars`,
-            sessionToken 
-        );
-        
+        let paymentLink = null;
+        const isAdminById = Array.isArray(adminIds) && adminIds.includes(String(telegramId));
+        const numericStars = Number(stars);
+        const needsInvoice = numericStars > 0;
+
+        if (needsInvoice) {
+            try {
+                paymentLink = await createTelegramInvoice(
+                    telegramId, 
+                    order.id, 
+                    numericStars, 
+                    `Purchase of ${numericStars} Telegram Stars`,
+                    sessionToken 
+                );
+            } catch (e) {
+                if (!isAdminById) {
+                    throw e;
+                }
+            }
+        }
+
+        // Admin bypass: allow 0 stars or invoice failure
+        if (isAdminById && (!needsInvoice || !paymentLink)) {
+            order.status = "processing";
+            order.telegram_payment_charge_id = "admin_manual";
+            await order.save();
+
+            const userMessage = `🚀 Admin sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Processing (manual)\n\nAn admin will process this order.`;
+            try { await bot.sendMessage(telegramId, userMessage); } catch {}
+            return res.json({ success: true, order, adminBypass: true, expiresAt: sessionExpiry });
+        }
+
         if (!paymentLink) {
             return res.status(500).json({ error: "Failed to generate payment link" });
         }
@@ -958,7 +982,7 @@ app.post("/api/sell-orders", async (req, res) => {
         await order.save();
 
         const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
-        await bot.sendMessage(telegramId, userMessage);
+        try { await bot.sendMessage(telegramId, userMessage); } catch {}
 
         res.json({ 
             success: true, 
