@@ -178,6 +178,7 @@ const buyOrderSchema = new mongoose.Schema({
     stars: Number,
     premiumDuration: Number,
     walletAddress: String,
+    userMessageId: Number,
     isPremium: Boolean,
     status: String,
     dateCreated: Date,
@@ -218,6 +219,7 @@ const sellOrderSchema = new mongoose.Schema({
     },
     walletAddress: String,
     memoTag: String,
+    userMessageId: Number,
     status: {
         type: String,
         enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed', 'expired'], 
@@ -455,6 +457,32 @@ const User = mongoose.model('User', userSchema);
 const Referral = mongoose.model('Referral', referralSchema);
 const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
 
+// Wallet update request schema: track request state and message IDs for updates
+const walletUpdateRequestSchema = new mongoose.Schema({
+    requestId: { type: String, required: true, unique: true, default: () => generateOrderId() },
+    userId: { type: String, required: true, index: true },
+    username: String,
+    orderType: { type: String, enum: ['sell', 'withdrawal'], required: true },
+    orderId: { type: String, required: true },
+    oldWalletAddress: String,
+    newWalletAddress: { type: String, required: true },
+    newMemoTag: { type: String },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
+    reason: String,
+    adminId: String,
+    adminUsername: String,
+    userMessageId: Number,
+    adminMessages: [{
+        adminId: String,
+        messageId: Number,
+        originalText: String
+    }],
+    createdAt: { type: Date, default: Date.now },
+    processedAt: Date
+});
+
+const WalletUpdateRequest = mongoose.model('WalletUpdateRequest', walletUpdateRequestSchema);
+
 
 let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 // Deduplicate to avoid duplicate notifications per admin
@@ -468,6 +496,9 @@ const processingCallbacks = new Set();
 setInterval(() => {
     console.log(`Processing callbacks: ${processingCallbacks.size}`);
 }, 5 * 60 * 1000);
+
+// Wallet multi-select sessions per user: Map<userId, Set<key>> where key is `sell:ORDERID` or `wd:WITHDRAWALID`
+const walletSelections = new Map();
 
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
@@ -1296,6 +1327,192 @@ bot.on('callback_query', async (query) => {
         const data = query.data;
         const adminUsername = query.from.username ? query.from.username : `User_${query.from.id}`;
 
+        // Wallet multi-select toggles
+        if (data.startsWith('wallet_sel_')) {
+            const chatId = query.message.chat.id;
+            const userId = query.from.id.toString();
+            const bucket = walletSelections.get(userId) || new Set();
+            if (data === 'wallet_sel_all') {
+                // naive: cannot enumerate here; user can select individually before
+                await bot.answerCallbackQuery(query.id, { text: 'Select items individually, then Continue.' });
+                return;
+            }
+            if (data === 'wallet_sel_clear') {
+                walletSelections.set(userId, new Set());
+                await bot.answerCallbackQuery(query.id, { text: 'Selection cleared' });
+                return;
+            }
+            const parts = data.split('_');
+            const type = parts[2];
+            const id = parts.slice(3).join('_');
+            const key = type === 'sell' ? `sell:${id}` : `wd:${id}`;
+            if (bucket.has(key)) bucket.delete(key); else bucket.add(key);
+            walletSelections.set(userId, bucket);
+            await bot.answerCallbackQuery(query.id, { text: `Selected: ${bucket.size}` });
+            return;
+        }
+
+        if (data === 'wallet_continue_selected') {
+            const chatId = query.message.chat.id;
+            const userId = query.from.id.toString();
+            const bucket = walletSelections.get(userId) || new Set();
+            if (!bucket.size) {
+                await bot.answerCallbackQuery(query.id, { text: 'No items selected' });
+                return;
+            }
+            await bot.answerCallbackQuery(query.id);
+            await bot.sendMessage(chatId, `Please send the new wallet address and optional memo for ${bucket.size} selected item(s).\n\nFormat: <wallet>[, <memo>]`);
+
+            const onMessage = async (msg) => {
+                if (msg.chat.id !== chatId) return;
+                bot.removeListener('message', onMessage);
+                const input = (msg.text || '').trim();
+                if (!input || input.length < 10) {
+                    return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
+                }
+                const [newAddressRaw, memoRaw] = input.split(',');
+                const newAddress = (newAddressRaw || '').trim();
+                const newMemoTag = (memoRaw || '').trim();
+
+                try {
+                    // Create one request per selected item
+                    for (const key of bucket) {
+                        const [kind, id] = key.split(':');
+                        let oldWallet = '';
+                        if (kind === 'sell') {
+                            const order = await SellOrder.findOne({ id, telegramId: msg.from.id.toString() });
+                            if (!order) continue;
+                            oldWallet = order.walletAddress || '';
+                        } else {
+                            const wd = await ReferralWithdrawal.findOne({ withdrawalId: id, userId: msg.from.id.toString() });
+                            if (!wd) continue;
+                            oldWallet = wd.walletAddress || '';
+                        }
+                        const requestDoc = await WalletUpdateRequest.create({
+                            userId: msg.from.id.toString(),
+                            username: msg.from.username || '',
+                            orderType: kind === 'sell' ? 'sell' : 'withdrawal',
+                            orderId: id,
+                            oldWalletAddress: oldWallet,
+                            newWalletAddress: newAddress,
+                            newMemoTag: newMemoTag || undefined,
+                            adminMessages: []
+                        });
+
+                        const adminKeyboard = {
+                            inline_keyboard: [[
+                                { text: '✅ Approve', callback_data: `wallet_approve_${requestDoc.requestId}` },
+                                { text: '❌ Reject', callback_data: `wallet_reject_${requestDoc.requestId}` }
+                            ]]
+                        };
+                        const adminText = `🔄 Wallet Update Request\n\n`+
+                            `User: @${requestDoc.username || msg.from.id} (ID: ${requestDoc.userId})\n`+
+                            `Type: ${requestDoc.orderType}\n`+
+                            `Order: ${id}\n`+
+                            `Old: ${oldWallet || 'N/A'}\n`+
+                            `New: ${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
+                        const sentMsgs = [];
+                        for (const adminId of adminIds) {
+                            try {
+                                const m = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+                                sentMsgs.push({ adminId, messageId: m.message_id, originalText: adminText });
+                            } catch (_) {}
+                        }
+                        if (sentMsgs.length) {
+                            requestDoc.adminMessages = sentMsgs;
+                            await requestDoc.save();
+                        }
+                    }
+
+                    walletSelections.set(userId, new Set());
+                    await bot.sendMessage(chatId, '✅ Requests submitted. Admins will review your new wallet address.');
+                } catch (e) {
+                    await bot.sendMessage(chatId, '❌ Failed to submit requests. Please try again later.');
+                }
+            };
+            bot.on('message', onMessage);
+            return;
+        }
+
+        // Wallet update flow: user clicked from /wallet
+        if (data.startsWith('wallet_update_')) {
+            const parts = data.split('_');
+            const orderType = parts[2]; // 'sell' | 'withdrawal'
+            const orderId = parts.slice(3).join('_');
+            const chatId = query.message.chat.id;
+
+            await bot.answerCallbackQuery(query.id);
+            await bot.sendMessage(chatId, `Please send the new wallet address${orderType === 'sell' ? ' and memo (if required)' : ''} for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}.\n\nFormat: <wallet>[, <memo>]`);
+
+            const onMessage = async (msg) => {
+                if (msg.chat.id !== chatId) return;
+                bot.removeListener('message', onMessage);
+                const input = (msg.text || '').trim();
+                if (!input || input.length < 10) {
+                    return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
+                }
+                const [newAddressRaw, memoRaw] = input.split(',');
+                const newAddress = (newAddressRaw || '').trim();
+                const newMemoTag = (memoRaw || '').trim();
+
+                try {
+                    let oldWallet = '';
+                    if (orderType === 'sell') {
+                        const order = await SellOrder.findOne({ id: orderId, telegramId: msg.from.id.toString() });
+                        if (!order) return bot.sendMessage(chatId, '❌ Order not found.');
+                        oldWallet = order.walletAddress || '';
+                    } else {
+                        const wd = await ReferralWithdrawal.findOne({ withdrawalId: orderId, userId: msg.from.id.toString() });
+                        if (!wd) return bot.sendMessage(chatId, '❌ Withdrawal not found.');
+                        oldWallet = wd.walletAddress || '';
+                    }
+
+                    const requestDoc = await WalletUpdateRequest.create({
+                        userId: msg.from.id.toString(),
+                        username: msg.from.username || '',
+                        orderType,
+                        orderId,
+                        oldWalletAddress: oldWallet,
+                        newWalletAddress: newAddress,
+                        newMemoTag: newMemoTag || undefined,
+                        adminMessages: []
+                    });
+
+                    const adminKeyboard = {
+                        inline_keyboard: [[
+                            { text: '✅ Approve', callback_data: `wallet_approve_${requestDoc.requestId}` },
+                            { text: '❌ Reject', callback_data: `wallet_reject_${requestDoc.requestId}` }
+                        ]]
+                    };
+                    const adminText = `🔄 Wallet Update Request\n\n`+
+                        `User: @${requestDoc.username || msg.from.id} (ID: ${requestDoc.userId})\n`+
+                        `Type: ${orderType}\n`+
+                        `Order: ${orderId}\n`+
+                        `Old: ${oldWallet || 'N/A'}\n`+
+                        `New: ${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
+
+                    const sentMsgs = [];
+                    for (const adminId of adminIds) {
+                        try {
+                            const m = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+                            sentMsgs.push({ adminId, messageId: m.message_id, originalText: adminText });
+                        } catch (_) {}
+                    }
+                    if (sentMsgs.length) {
+                        requestDoc.adminMessages = sentMsgs;
+                        await requestDoc.save();
+                    }
+
+                    const ack = await bot.sendMessage(chatId, '✅ Request submitted. An admin will review your new wallet address.');
+                    try { await WalletUpdateRequest.updateOne({ _id: requestDoc._id }, { $set: { userMessageId: ack.message_id } }); } catch (_) {}
+                } catch (e) {
+                    await bot.sendMessage(chatId, '❌ Failed to submit request. Please try again later.');
+                }
+            };
+            bot.on('message', onMessage);
+            return;
+        }
+
         // Handle confirmation callbacks first
         if (data.startsWith('confirm_')) {
             return await handleConfirmedAction(query, data, adminUsername);
@@ -1350,6 +1567,100 @@ bot.on('callback_query', async (query) => {
         
         if (needsConfirmation) {
             return await showConfirmationButtons(query, data);
+        }
+
+        // Admin approve/reject handlers for wallet update requests
+        if (data.startsWith('wallet_approve_') || data.startsWith('wallet_reject_')) {
+            const approve = data.startsWith('wallet_approve_');
+            const requestId = data.replace('wallet_approve_', '').replace('wallet_reject_', '');
+            const adminChatId = query.from.id.toString();
+            const adminName = adminUsername;
+
+            try {
+                const reqDoc = await WalletUpdateRequest.findOne({ requestId });
+                if (!reqDoc) {
+                    await bot.answerCallbackQuery(query.id, { text: 'Request not found' });
+                    return;
+                }
+                if (reqDoc.status !== 'pending') {
+                    await bot.answerCallbackQuery(query.id, { text: `Already ${reqDoc.status}` });
+                    return;
+                }
+
+                reqDoc.status = approve ? 'approved' : 'rejected';
+                reqDoc.adminId = adminChatId;
+                reqDoc.adminUsername = adminName;
+                reqDoc.processedAt = new Date();
+                await reqDoc.save();
+
+                // Update admin messages (all) to reflect final status
+                if (Array.isArray(reqDoc.adminMessages) && reqDoc.adminMessages.length) {
+                    await Promise.all(reqDoc.adminMessages.map(async (m) => {
+                        const base = m.originalText || 'Wallet Update Request';
+                        const final = `${base}\n\n${approve ? '✅ Approved' : '❌ Rejected'} by @${adminName}`;
+                        try {
+                            await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                        } catch (_) {}
+                    }));
+                }
+
+                if (approve) {
+                    // Apply to DB
+                    if (reqDoc.orderType === 'sell') {
+                        const order = await SellOrder.findOne({ id: reqDoc.orderId });
+                        if (order) {
+                            order.walletAddress = reqDoc.newWalletAddress;
+                            if (reqDoc.newMemoTag) order.memoTag = reqDoc.newMemoTag;
+                            await order.save();
+                            // Try to edit user's original order message if tracked
+                            if (order.userMessageId) {
+                                const text = `Your sell order has been updated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+                                try { await bot.editMessageText(text, { chat_id: order.telegramId, message_id: order.userMessageId }); } catch (_) {}
+                            } else {
+                                // Fallback: send a new summary if original message cannot be edited
+                                const text = `Your sell order has been updated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+                                try { await bot.sendMessage(order.telegramId, text); } catch (_) {}
+                            }
+                            // Edit admin messages stored on the order if present
+                            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                                await Promise.all(order.adminMessages.map(async (m) => {
+                                    const base = m.originalText || `Sell Order Updated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}`;
+                                    const final = `${base}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}`;
+                                    try { await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId }); } catch (_) {}
+                                }));
+                            }
+                        }
+                    } else {
+                        const wd = await ReferralWithdrawal.findOne({ withdrawalId: reqDoc.orderId });
+                        if (wd) {
+                            wd.walletAddress = reqDoc.newWalletAddress;
+                            await wd.save();
+                            // If we tracked a message id on withdrawals in future, we would edit here similarly
+                        }
+                    }
+                }
+
+                // Update user acknowledgement message, if any
+                if (reqDoc.userMessageId) {
+                    const suffix = approve ? '✅ Your new wallet address has been approved and updated.' : '❌ Your wallet update request was rejected.';
+                    try {
+                        await bot.editMessageText(`Request ${approve ? 'approved' : 'rejected'}. ${suffix}`, { chat_id: reqDoc.userId, message_id: reqDoc.userMessageId });
+                    } catch (_) {
+                        try {
+                            await bot.sendMessage(reqDoc.userId, suffix);
+                        } catch (_) {}
+                    }
+                } else {
+                    try {
+                        await bot.sendMessage(reqDoc.userId, approve ? '✅ Wallet address updated successfully.' : '❌ Wallet update request rejected.');
+                    } catch (_) {}
+                }
+
+                await bot.answerCallbackQuery(query.id, { text: approve ? 'Approved' : 'Rejected' });
+            } catch (err) {
+                await bot.answerCallbackQuery(query.id, { text: 'Error processing request' });
+            }
+            return;
         }
 
         // All admin actions now go through confirmation, so this is just fallback
@@ -3120,6 +3431,67 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     }
 });
 
+// /wallet command: show processing orders and allow wallet update request
+bot.onText(/\/(wallet|withdrawal\-menu)/i, async (msg) => {
+    try {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id.toString();
+        const username = msg.from.username || '';
+
+        // Fetch user's processing sell orders and pending referral withdrawals
+        const [sellOrders, withdrawals] = await Promise.all([
+            SellOrder.find({ telegramId: userId, status: 'processing' }).sort({ dateCreated: -1 }).limit(5),
+            ReferralWithdrawal.find({ userId: userId, status: 'pending' }).sort({ createdAt: -1 }).limit(5)
+        ]);
+
+        if ((!sellOrders || sellOrders.length === 0) && (!withdrawals || withdrawals.length === 0)) {
+            return bot.sendMessage(chatId, 'ℹ️ You have no processing orders.');
+        }
+
+        const lines = [];
+        if (sellOrders?.length) {
+            lines.push('🛒 Processing Sell Orders:');
+            sellOrders.forEach(o => {
+                lines.push(`• ${o.id} — ${o.stars} ★ — wallet: ${o.walletAddress || 'N/A'}${o.memoTag ? ` — memo: ${o.memoTag}` : ''}`);
+            });
+        }
+        if (withdrawals?.length) {
+            lines.push('💳 Pending Withdrawals:');
+            withdrawals.forEach(w => {
+                lines.push(`• ${w.withdrawalId} — ${w.amount} — wallet: ${w.walletAddress || 'N/A'}`);
+            });
+        }
+
+        const keyboard = { inline_keyboard: [] };
+        // Initialize selection bucket
+        walletSelections.set(userId, new Set());
+
+        sellOrders.forEach(o => {
+            keyboard.inline_keyboard.push([
+                { text: `☑️ ${o.id}`, callback_data: `wallet_sel_sell_${o.id}` },
+                { text: '🔄 Update this', callback_data: `wallet_update_sell_${o.id}` }
+            ]);
+        });
+        withdrawals.forEach(w => {
+            keyboard.inline_keyboard.push([
+                { text: `☑️ ${w.withdrawalId}`, callback_data: `wallet_sel_withdrawal_${w.withdrawalId}` },
+                { text: '🔄 Update this', callback_data: `wallet_update_withdrawal_${w.withdrawalId}` }
+            ]);
+        });
+        keyboard.inline_keyboard.push([
+            { text: 'Select All', callback_data: 'wallet_sel_all' },
+            { text: 'Clear', callback_data: 'wallet_sel_clear' }
+        ]);
+        keyboard.inline_keyboard.push([
+            { text: '✅ Continue with selected', callback_data: 'wallet_continue_selected' }
+        ]);
+
+        await bot.sendMessage(chatId, lines.join('\n') + `\n\nSelect one or more items, then tap "Continue with selected".`, { reply_markup: keyboard });
+    } catch (err) {
+        await bot.sendMessage(msg.chat.id, '❌ Failed to load your orders. Please try again later.');
+    }
+});
+
 
 bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
@@ -3772,12 +4144,35 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             csv = `# StarStore - Transaction History Export (Error)\n# Error: ${csvError.message}\nID,Type,Amount,Status,Date,Details\n"Error","CSV Generation Failed","0","error","${new Date().toISOString().split('T')[0]}","${csvError.message}"`;
         }
 
-        // Send CSV file via Telegram bot
+        // Send CSV file via Telegram bot when possible, otherwise provide direct download
         const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
         const buffer = Buffer.from(csv, 'utf8');
         console.log('CSV buffer created, size:', buffer.length, 'bytes');
-        
-        // Provide direct CSV download
+
+        if (process.env.BOT_TOKEN) {
+            try {
+                // Prefer Buffer with filename to avoid filesystem usage
+                await bot.sendDocument(userId, buffer, {
+                    caption: '📊 Your StarStore transaction history CSV'
+                }, {
+                    filename: filename,
+                    contentType: 'text/csv'
+                });
+                console.log('✅ CSV sent to user via Telegram');
+                console.log('=== CSV EXPORT DEBUG END ===');
+                return res.json({ success: true, message: 'CSV file sent to your Telegram' });
+            } catch (botError) {
+                const message = String(botError && botError.message || '');
+                const forbidden = (botError && botError.response && botError.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
+                if (forbidden) {
+                    console.warn('⚠️ Telegram sendDocument forbidden, falling back to direct download');
+                } else {
+                    console.error('Bot sendDocument failed, falling back to direct download:', botError.message);
+                }
+                // Fall through to direct download
+            }
+        }
+
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Cache-Control', 'no-store');
@@ -3792,6 +4187,88 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         console.error('Bot token available:', !!process.env.BOT_TOKEN);
         console.error('=== CSV EXPORT DEBUG END (ERROR) ===');
         res.status(500).json({ error: 'Failed to export transactions: ' + error.message });
+    }
+});
+
+// Direct-download variant for environments where programmatic downloads are restricted
+app.get('/api/export-transactions-download', async (req, res) => {
+    try {
+        let userId = null;
+        // Prefer init data if provided (Telegram signed payload)
+        const initData = req.query.init || req.query.init_data;
+        if (initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userParam = params.get('user');
+                if (userParam) userId = JSON.parse(userParam).id?.toString();
+            } catch (_) {}
+        }
+        // Fallback: explicit tg_id
+        if (!userId && req.query.tg_id) {
+            userId = String(req.query.tg_id);
+        }
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const [buyOrders, sellOrders] = await Promise.all([
+            BuyOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).lean().catch(() => []),
+            SellOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).lean().catch(() => [])
+        ]);
+
+        const transactions = [];
+        (buyOrders || []).forEach(order => {
+            transactions.push({
+                id: order.id || 'N/A',
+                type: 'Buy Stars',
+                amount: order.stars || 0,
+                status: (order.status || 'unknown').toLowerCase(),
+                date: order.dateCreated || new Date(),
+                details: `Buy order for ${order.stars || 0} stars`,
+                usdtValue: order.amount || 0
+            });
+        });
+        (sellOrders || []).forEach(order => {
+            transactions.push({
+                id: order.id || 'N/A',
+                type: 'Sell Stars',
+                amount: order.stars || 0,
+                status: (order.status || 'unknown').toLowerCase(),
+                date: order.dateCreated || new Date(),
+                details: `Sell order for ${order.stars || 0} stars`,
+                usdtValue: order.amount || 0
+            });
+        });
+
+        const generationDate = new Date().toLocaleString();
+        const totalTransactions = transactions.length;
+        const completedCount = transactions.filter(t => t.status === 'completed').length;
+        const processingCount = transactions.filter(t => t.status === 'processing').length;
+        const declinedCount = transactions.filter(t => t.status === 'declined').length;
+        let csv = '';
+        csv = `# StarStore - Transaction History Export\n`;
+        csv += `# Generated on: ${generationDate}\n`;
+        csv += `# User ID: ${userId}\n`;
+        csv += `# Total Transactions: ${totalTransactions}\n`;
+        csv += `# Completed: ${completedCount} | Processing: ${processingCount} | Declined: ${declinedCount}\n`;
+        csv += `# Website: https://starstore.site\n`;
+        csv += `# Export Type: Transaction History\n`;
+        csv += `#\n`;
+        csv += `ID,Type,Amount (Stars),USDT Value,Status,Date,Details\n`;
+        if (transactions.length > 0) {
+            transactions.forEach(txn => {
+                const dateStr = new Date(txn.date).toISOString().split('T')[0];
+                csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.usdtValue}","${txn.status}","${dateStr}","${txn.details}"\n`;
+            });
+        } else {
+            csv += `"No Data","No transactions found","0","0","none","${new Date().toISOString().split('T')[0]}","No transactions available for this user"\n`;
+        }
+
+        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(csv);
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to export' });
     }
 });
 
@@ -3868,6 +4345,54 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
         console.error('User ID:', req.user?.id);
         console.error('Bot token available:', !!process.env.BOT_TOKEN);
         res.status(500).json({ error: 'Failed to export referrals: ' + error.message });
+    }
+});
+
+// Direct-download variant for referrals
+app.get('/api/export-referrals-download', async (req, res) => {
+    try {
+        let userId = null;
+        const initData = req.query.init || req.query.init_data;
+        if (initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userParam = params.get('user');
+                if (userParam) userId = JSON.parse(userParam).id?.toString();
+            } catch (_) {}
+        }
+        if (!userId && req.query.tg_id) userId = String(req.query.tg_id);
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
+
+        const generationDate = new Date().toLocaleString();
+        const totalReferrals = referrals.length;
+        const activeCount = referrals.filter(r => r.status === 'active').length;
+        const processingCount = referrals.filter(r => r.status === 'processing').length;
+        let csv = '';
+        csv = `# StarStore - Referral History Export\n`;
+        csv += `# Generated on: ${generationDate}\n`;
+        csv += `# User ID: ${userId}\n`;
+        csv += `# Total Referrals: ${totalReferrals}\n`;
+        csv += `# Active: ${activeCount} | Processing: ${processingCount}\n`;
+        csv += `# Website: https://starstore.site\n`;
+        csv += `# Export Type: Referral History\n`;
+        csv += `#\n`;
+        csv += `ID,Referred User,Amount,Status,Date,Details\n`;
+        referrals.forEach(ref => {
+            const dateStr = new Date(ref.dateReferred).toISOString().split('T')[0];
+            csv += `"${ref.id}","${ref.referredUsername || 'Unknown'}","${ref.amount}","${ref.status}","${dateStr}","${ref.details || 'Referral bonus'}"\n`;
+        });
+
+        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(csv);
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to export' });
     }
 });
 
@@ -3968,10 +4493,10 @@ bot.on('message', async (msg) => {
         const order = await SellOrder.findOne({ id: orderId });
 
         if (order) {
-            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-            bot.sendMessage(order.telegramId, userOrderDetails);
+            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            try { const sent = await bot.sendMessage(order.telegramId, userOrderDetails); try { order.userMessageId = sent?.message_id || order.userMessageId; await order.save(); } catch (_) {} } catch (_) {}
 
-            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(chatId, adminOrderDetails);
 
             const confirmButton = {
@@ -4016,7 +4541,7 @@ bot.on('message', async (msg) => {
                             await newOrder.save();
 
                             const userOrderDetails = `Your sell order has been recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
-                            bot.sendMessage(telegramId, userOrderDetails);
+                            try { const sent = await bot.sendMessage(telegramId, userOrderDetails); try { newOrder.userMessageId = sent?.message_id || newOrder.userMessageId; await newOrder.save(); } catch (_) {} } catch (_) {}
 
                             const adminOrderDetails = `Sell Order Recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
                             bot.sendMessage(chatId, adminOrderDetails);
@@ -4054,10 +4579,10 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
         const order = await BuyOrder.findOne({ id: orderId });
 
         if (order) {
-            const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(order.telegramId, userOrderDetails);
 
-            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(chatId, adminOrderDetails);
 
             const confirmButton = {
@@ -4154,16 +4679,20 @@ bot.on('callback_query', async (query) => {
                 order.dateConfirmed = new Date();
                 await order.save();
 
-                const userOrderDetails = `Your sell order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                const userOrderDetails = `Your sell order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 try {
-                    await bot.sendMessage(order.telegramId, userOrderDetails);
+                    const sent = await bot.sendMessage(order.telegramId, userOrderDetails);
+                    try {
+                        order.userMessageId = sent?.message_id || order.userMessageId;
+                        await order.save();
+                    } catch (_) {}
                 } catch (err) {
                     const message = String(err && err.message || '');
                     const forbidden = (err && err.response && err.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
                     if (!forbidden) throw err;
                 }
 
-                const adminOrderDetails = `Sell Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                const adminOrderDetails = `Sell Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 bot.sendMessage(adminChatId, adminOrderDetails);
 
                 const disabledButton = {
@@ -4182,7 +4711,7 @@ bot.on('callback_query', async (query) => {
                 order.dateConfirmed = new Date();
                 await order.save();
 
-                const userOrderDetails = `Your buy order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                const userOrderDetails = `Your buy order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 try {
                     await bot.sendMessage(order.telegramId, userOrderDetails);
                 } catch (err) {
@@ -4191,7 +4720,7 @@ bot.on('callback_query', async (query) => {
                     if (!forbidden) throw err;
                 }
 
-                const adminOrderDetails = `Buy Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                const adminOrderDetails = `Buy Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 bot.sendMessage(adminChatId, adminOrderDetails);
 
                 const disabledButton = {
