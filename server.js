@@ -1412,12 +1412,12 @@ bot.on('callback_query', async (query) => {
             }
             await bot.answerCallbackQuery(query.id);
             await bot.sendMessage(chatId, `Please send the new wallet address and optional memo for ${bucket.size} selected item(s).\n\nFormat: <wallet>[, <memo>]\n\nThis request will time out in 10 minutes.`);
+            const selectionAt = Date.now();
 
-            const startedAt = Date.now();
             const onMessage = async (msg) => {
                 if (msg.chat.id !== chatId) return;
                 bot.removeListener('message', onMessage);
-                if (Date.now() - startedAt > 10 * 60 * 1000) {
+                if (Date.now() - selectionAt > 10 * 60 * 1000) {
                     return bot.sendMessage(chatId, '⌛ Wallet update timed out. Please run /wallet again.');
                 }
                 const input = (msg.text || '').trim();
