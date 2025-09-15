@@ -1715,14 +1715,10 @@ bot.on('callback_query', async (query) => {
                                     } else {
                                         text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username || order.telegramId}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
                                     }
-                                    const sellButtons = {
-                                        inline_keyboard: [[
-                                            { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
-                                            { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
-                                            { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
-                                        ]]
-                                    };
-                                    try { await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: sellButtons }); } catch (_) {}
+                                    // Edit only text; keep existing buttons/markup intact
+                                    try {
+                                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                                    } catch (_) {}
                                 }));
                             }
                         }
