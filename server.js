@@ -1459,8 +1459,8 @@ bot.on('callback_query', async (query) => {
                             `User: @${requestDoc.username || msg.from.id} (ID: ${requestDoc.userId})\n`+
                             `Type: ${requestDoc.orderType}\n`+
                             `Order: ${id}\n`+
-                            `Old: ${oldWallet || 'N/A'}\n`+
-                            `New: ${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
+                            `Old wallet:\n${oldWallet || 'N/A'}\n\n`+
+                            `New wallet:\n${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
                         const sentMsgs = [];
                         for (const adminId of adminIds) {
                             try {
@@ -1538,8 +1538,8 @@ bot.on('callback_query', async (query) => {
                         `User: @${requestDoc.username || msg.from.id} (ID: ${requestDoc.userId})\n`+
                         `Type: ${orderType}\n`+
                         `Order: ${orderId}\n`+
-                        `Old: ${oldWallet || 'N/A'}\n`+
-                        `New: ${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
+                        `Old wallet:\n${oldWallet || 'N/A'}\n\n`+
+                        `New wallet:\n${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
 
                     const sentMsgs = [];
                     for (const adminId of adminIds) {
@@ -1647,21 +1647,25 @@ bot.on('callback_query', async (query) => {
                 if (Array.isArray(reqDoc.adminMessages) && reqDoc.adminMessages.length) {
                     await Promise.all(reqDoc.adminMessages.map(async (m) => {
                         const base = m.originalText || 'Wallet Update Request';
-                        // Preserve original keyboard for sell order actions when present
-                        let reply_markup;
+                        const final = `${base}\n\n${approve ? '✅ Approved' : '❌ Rejected'} by @${adminName}`;
+                        try {
+                            // First edit text without removing existing keyboard
+                            await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                        } catch (_) {}
+
+                        // Then ensure the sell action buttons are restored for sell orders
                         if (reqDoc.orderType === 'sell') {
-                            reply_markup = {
+                            const sellButtons = {
                                 inline_keyboard: [[
                                     { text: "✅ Complete", callback_data: `complete_sell_${reqDoc.orderId}` },
                                     { text: "❌ Fail", callback_data: `decline_sell_${reqDoc.orderId}` },
                                     { text: "💸 Refund", callback_data: `refund_sell_${reqDoc.orderId}` }
                                 ]]
                             };
+                            try {
+                                await bot.editMessageReplyMarkup(sellButtons, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                            } catch (_) {}
                         }
-                        const final = `${base}\n\n${approve ? '✅ Approved' : '❌ Rejected'} by @${adminName}`;
-                        try {
-                            await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup });
-                        } catch (_) {}
                     }));
                 }
 
