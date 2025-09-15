@@ -3795,6 +3795,88 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
     }
 });
 
+// Direct-download variant for environments where programmatic downloads are restricted
+app.get('/api/export-transactions-download', async (req, res) => {
+    try {
+        let userId = null;
+        // Prefer init data if provided (Telegram signed payload)
+        const initData = req.query.init || req.query.init_data;
+        if (initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userParam = params.get('user');
+                if (userParam) userId = JSON.parse(userParam).id?.toString();
+            } catch (_) {}
+        }
+        // Fallback: explicit tg_id
+        if (!userId && req.query.tg_id) {
+            userId = String(req.query.tg_id);
+        }
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const [buyOrders, sellOrders] = await Promise.all([
+            BuyOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).lean().catch(() => []),
+            SellOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).lean().catch(() => [])
+        ]);
+
+        const transactions = [];
+        (buyOrders || []).forEach(order => {
+            transactions.push({
+                id: order.id || 'N/A',
+                type: 'Buy Stars',
+                amount: order.stars || 0,
+                status: (order.status || 'unknown').toLowerCase(),
+                date: order.dateCreated || new Date(),
+                details: `Buy order for ${order.stars || 0} stars`,
+                usdtValue: order.amount || 0
+            });
+        });
+        (sellOrders || []).forEach(order => {
+            transactions.push({
+                id: order.id || 'N/A',
+                type: 'Sell Stars',
+                amount: order.stars || 0,
+                status: (order.status || 'unknown').toLowerCase(),
+                date: order.dateCreated || new Date(),
+                details: `Sell order for ${order.stars || 0} stars`,
+                usdtValue: order.amount || 0
+            });
+        });
+
+        const generationDate = new Date().toLocaleString();
+        const totalTransactions = transactions.length;
+        const completedCount = transactions.filter(t => t.status === 'completed').length;
+        const processingCount = transactions.filter(t => t.status === 'processing').length;
+        const declinedCount = transactions.filter(t => t.status === 'declined').length;
+        let csv = '';
+        csv = `# StarStore - Transaction History Export\n`;
+        csv += `# Generated on: ${generationDate}\n`;
+        csv += `# User ID: ${userId}\n`;
+        csv += `# Total Transactions: ${totalTransactions}\n`;
+        csv += `# Completed: ${completedCount} | Processing: ${processingCount} | Declined: ${declinedCount}\n`;
+        csv += `# Website: https://starstore.site\n`;
+        csv += `# Export Type: Transaction History\n`;
+        csv += `#\n`;
+        csv += `ID,Type,Amount (Stars),USDT Value,Status,Date,Details\n`;
+        if (transactions.length > 0) {
+            transactions.forEach(txn => {
+                const dateStr = new Date(txn.date).toISOString().split('T')[0];
+                csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.usdtValue}","${txn.status}","${dateStr}","${txn.details}"\n`;
+            });
+        } else {
+            csv += `"No Data","No transactions found","0","0","none","${new Date().toISOString().split('T')[0]}","No transactions available for this user"\n`;
+        }
+
+        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(csv);
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to export' });
+    }
+});
+
 // Export referrals as CSV via Telegram
 app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
     try {
@@ -3868,6 +3950,54 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
         console.error('User ID:', req.user?.id);
         console.error('Bot token available:', !!process.env.BOT_TOKEN);
         res.status(500).json({ error: 'Failed to export referrals: ' + error.message });
+    }
+});
+
+// Direct-download variant for referrals
+app.get('/api/export-referrals-download', async (req, res) => {
+    try {
+        let userId = null;
+        const initData = req.query.init || req.query.init_data;
+        if (initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userParam = params.get('user');
+                if (userParam) userId = JSON.parse(userParam).id?.toString();
+            } catch (_) {}
+        }
+        if (!userId && req.query.tg_id) userId = String(req.query.tg_id);
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
+
+        const generationDate = new Date().toLocaleString();
+        const totalReferrals = referrals.length;
+        const activeCount = referrals.filter(r => r.status === 'active').length;
+        const processingCount = referrals.filter(r => r.status === 'processing').length;
+        let csv = '';
+        csv = `# StarStore - Referral History Export\n`;
+        csv += `# Generated on: ${generationDate}\n`;
+        csv += `# User ID: ${userId}\n`;
+        csv += `# Total Referrals: ${totalReferrals}\n`;
+        csv += `# Active: ${activeCount} | Processing: ${processingCount}\n`;
+        csv += `# Website: https://starstore.site\n`;
+        csv += `# Export Type: Referral History\n`;
+        csv += `#\n`;
+        csv += `ID,Referred User,Amount,Status,Date,Details\n`;
+        referrals.forEach(ref => {
+            const dateStr = new Date(ref.dateReferred).toISOString().split('T')[0];
+            csv += `"${ref.id}","${ref.referredUsername || 'Unknown'}","${ref.amount}","${ref.status}","${dateStr}","${ref.details || 'Referral bonus'}"\n`;
+        });
+
+        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(csv);
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to export' });
     }
 });
 

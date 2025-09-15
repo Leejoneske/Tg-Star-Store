@@ -1019,22 +1019,25 @@ async function exportTransactions() {
             throw new Error(`HTTP ${response.status}: ${errorMessage}`);
         }
         
-        // For now, assume all responses are CSV downloads
+        // Prefer blob downloads for better compatibility
         console.log('Handling response as CSV download...');
-        const csvData = await response.text();
-        console.log('CSV data length:', csvData.length);
-        
-        // Check if it's actually JSON error
-        if (csvData.startsWith('{') || csvData.startsWith('[')) {
-            try {
-                const errorData = JSON.parse(csvData);
-                throw new Error(errorData.error || 'Export failed');
-            } catch (parseError) {
-                // If it's not valid JSON, treat as CSV
+        let blob;
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('text/csv')) {
+            blob = await response.blob();
+        } else {
+            const csvText = await response.text();
+            // If server accidentally returned JSON, bubble it as error
+            if (csvText.trim().startsWith('{') || csvText.trim().startsWith('[')) {
+                try {
+                    const errorData = JSON.parse(csvText);
+                    throw new Error(errorData.error || 'Export failed');
+                } catch (_) {
+                    // fall through to treat as CSV
+                }
             }
+            blob = new Blob([csvText], { type: 'text/csv; charset=utf-8' });
         }
-        
-        const blob = new Blob([csvData], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -1042,7 +1045,16 @@ async function exportTransactions() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        
+        // Fallback for strict webviews: navigate to a GET endpoint
+        setTimeout(() => {
+            try {
+                const init = window.Telegram?.WebApp?.initData || '';
+                const fallbackUrl = `${BASE_API_URL}/export-transactions-download?init=${encodeURIComponent(init)}&tg_id=${encodeURIComponent(user?.id || '')}`;
+                window.location.href = fallbackUrl;
+            } catch (_) {}
+        }, 700);
         
         Swal.fire({
             title: TranslationUtils.get('success'),
@@ -1111,9 +1123,8 @@ async function exportReferrals() {
         // Check if response is CSV (direct download)
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('text/csv')) {
-            // Handle direct CSV download
-            const csvData = await response.text();
-            const blob = new Blob([csvData], { type: 'text/csv' });
+            // Handle direct CSV download using blob
+            const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -1121,15 +1132,16 @@ async function exportReferrals() {
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
+            setTimeout(() => window.URL.revokeObjectURL(url), 1000);
             
-            Swal.fire({
-                title: TranslationUtils.get('success'),
-                text: '👥 CSV file has been downloaded!',
-                icon: 'success',
-                confirmButtonText: TranslationUtils.get('close'),
-                confirmButtonColor: '#4f46e5'
-            });
+            // Fallback for strict webviews: navigate to GET endpoint
+            setTimeout(() => {
+                try {
+                    const init = window.Telegram?.WebApp?.initData || '';
+                    const fallbackUrl = `${BASE_API_URL}/export-referrals-download?init=${encodeURIComponent(init)}&tg_id=${encodeURIComponent(user?.id || '')}`;
+                    window.location.href = fallbackUrl;
+                } catch (_) {}
+            }, 700);
         } else {
             // Handle JSON response (Telegram sent)
             const result = await response.json();
