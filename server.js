@@ -495,6 +495,9 @@ setInterval(() => {
     console.log(`Processing callbacks: ${processingCallbacks.size}`);
 }, 5 * 60 * 1000);
 
+// Wallet multi-select sessions per user: Map<userId, Set<key>> where key is `sell:ORDERID` or `wd:WITHDRAWALID`
+const walletSelections = new Map();
+
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
@@ -1321,6 +1324,113 @@ bot.on('callback_query', async (query) => {
     try {
         const data = query.data;
         const adminUsername = query.from.username ? query.from.username : `User_${query.from.id}`;
+
+        // Wallet multi-select toggles
+        if (data.startsWith('wallet_sel_')) {
+            const chatId = query.message.chat.id;
+            const userId = query.from.id.toString();
+            const bucket = walletSelections.get(userId) || new Set();
+            if (data === 'wallet_sel_all') {
+                // naive: cannot enumerate here; user can select individually before
+                await bot.answerCallbackQuery(query.id, { text: 'Select items individually, then Continue.' });
+                return;
+            }
+            if (data === 'wallet_sel_clear') {
+                walletSelections.set(userId, new Set());
+                await bot.answerCallbackQuery(query.id, { text: 'Selection cleared' });
+                return;
+            }
+            const parts = data.split('_');
+            const type = parts[2];
+            const id = parts.slice(3).join('_');
+            const key = type === 'sell' ? `sell:${id}` : `wd:${id}`;
+            if (bucket.has(key)) bucket.delete(key); else bucket.add(key);
+            walletSelections.set(userId, bucket);
+            await bot.answerCallbackQuery(query.id, { text: `Selected: ${bucket.size}` });
+            return;
+        }
+
+        if (data === 'wallet_continue_selected') {
+            const chatId = query.message.chat.id;
+            const userId = query.from.id.toString();
+            const bucket = walletSelections.get(userId) || new Set();
+            if (!bucket.size) {
+                await bot.answerCallbackQuery(query.id, { text: 'No items selected' });
+                return;
+            }
+            await bot.answerCallbackQuery(query.id);
+            await bot.sendMessage(chatId, `Please send the new wallet address and optional memo for ${bucket.size} selected item(s).\n\nFormat: <wallet>[, <memo>]`);
+
+            const onMessage = async (msg) => {
+                if (msg.chat.id !== chatId) return;
+                bot.removeListener('message', onMessage);
+                const input = (msg.text || '').trim();
+                if (!input || input.length < 10) {
+                    return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
+                }
+                const [newAddressRaw, memoRaw] = input.split(',');
+                const newAddress = (newAddressRaw || '').trim();
+                const newMemoTag = (memoRaw || '').trim();
+
+                try {
+                    // Create one request per selected item
+                    for (const key of bucket) {
+                        const [kind, id] = key.split(':');
+                        let oldWallet = '';
+                        if (kind === 'sell') {
+                            const order = await SellOrder.findOne({ id, telegramId: msg.from.id.toString() });
+                            if (!order) continue;
+                            oldWallet = order.walletAddress || '';
+                        } else {
+                            const wd = await ReferralWithdrawal.findOne({ withdrawalId: id, userId: msg.from.id.toString() });
+                            if (!wd) continue;
+                            oldWallet = wd.walletAddress || '';
+                        }
+                        const requestDoc = await WalletUpdateRequest.create({
+                            userId: msg.from.id.toString(),
+                            username: msg.from.username || '',
+                            orderType: kind === 'sell' ? 'sell' : 'withdrawal',
+                            orderId: id,
+                            oldWalletAddress: oldWallet,
+                            newWalletAddress: newAddress,
+                            newMemoTag: newMemoTag || undefined,
+                            adminMessages: []
+                        });
+
+                        const adminKeyboard = {
+                            inline_keyboard: [[
+                                { text: '✅ Approve', callback_data: `wallet_approve_${requestDoc.requestId}` },
+                                { text: '❌ Reject', callback_data: `wallet_reject_${requestDoc.requestId}` }
+                            ]]
+                        };
+                        const adminText = `🔄 Wallet Update Request\n\n`+
+                            `User: @${requestDoc.username || msg.from.id} (ID: ${requestDoc.userId})\n`+
+                            `Type: ${requestDoc.orderType}\n`+
+                            `Order: ${id}\n`+
+                            `Old: ${oldWallet || 'N/A'}\n`+
+                            `New: ${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
+                        const sentMsgs = [];
+                        for (const adminId of adminIds) {
+                            try {
+                                const m = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+                                sentMsgs.push({ adminId, messageId: m.message_id, originalText: adminText });
+                            } catch (_) {}
+                        }
+                        if (sentMsgs.length) {
+                            requestDoc.adminMessages = sentMsgs;
+                            await requestDoc.save();
+                        }
+                    }
+
+                    walletSelections.set(userId, new Set());
+                    await bot.sendMessage(chatId, '✅ Requests submitted. Admins will review your new wallet address.');
+                } catch (e) {
+                    await bot.sendMessage(chatId, '❌ Failed to submit requests. Please try again later.');
+                }
+            };
+            bot.on('message', onMessage);
+            return;
+        }
 
         // Wallet update flow: user clicked from /wallet
         if (data.startsWith('wallet_update_')) {
@@ -3333,18 +3443,30 @@ bot.onText(/\/(wallet|withdrawal\-menu)/i, async (msg) => {
         }
 
         const keyboard = { inline_keyboard: [] };
+        // Initialize selection bucket
+        walletSelections.set(userId, new Set());
+
         sellOrders.forEach(o => {
             keyboard.inline_keyboard.push([
-                { text: `Update wallet for Sell ${o.id}`, callback_data: `wallet_update_sell_${o.id}` }
+                { text: `☑️ ${o.id}`, callback_data: `wallet_sel_sell_${o.id}` },
+                { text: '🔄 Update this', callback_data: `wallet_update_sell_${o.id}` }
             ]);
         });
         withdrawals.forEach(w => {
             keyboard.inline_keyboard.push([
-                { text: `Update wallet for WD ${w.withdrawalId}`, callback_data: `wallet_update_withdrawal_${w.withdrawalId}` }
+                { text: `☑️ ${w.withdrawalId}`, callback_data: `wallet_sel_withdrawal_${w.withdrawalId}` },
+                { text: '🔄 Update this', callback_data: `wallet_update_withdrawal_${w.withdrawalId}` }
             ]);
         });
+        keyboard.inline_keyboard.push([
+            { text: 'Select All', callback_data: 'wallet_sel_all' },
+            { text: 'Clear', callback_data: 'wallet_sel_clear' }
+        ]);
+        keyboard.inline_keyboard.push([
+            { text: '✅ Continue with selected', callback_data: 'wallet_continue_selected' }
+        ]);
 
-        await bot.sendMessage(chatId, lines.join('\n'), { reply_markup: keyboard });
+        await bot.sendMessage(chatId, lines.join('\n') + `\n\nSelect one or more items, then tap "Continue with selected".`, { reply_markup: keyboard });
     } catch (err) {
         await bot.sendMessage(msg.chat.id, '❌ Failed to load your orders. Please try again later.');
     }
