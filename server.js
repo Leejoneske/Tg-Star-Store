@@ -83,12 +83,13 @@ app.use(cors({
         // Allow requests with no origin (mobile apps, etc.)
         if (!origin) return callback(null, true);
         
-        // Allow localhost
+        // Allow localhost and approved production domains
         const allowedPatterns = [
             /^https?:\/\/localhost(:\d+)?$/,
             /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
             /^https:\/\/.*\.vercel\.app$/,
-            /^https:\/\/(www\.)?starstore\.site$/
+            /^https:\/\/(www\.)?starstore\.site$/,
+            /^https:\/\/(www\.)?walletbot\.me$/
         ];
         
         const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
@@ -102,7 +103,8 @@ app.use(cors({
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-telegram-id']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-telegram-id'],
+    exposedHeaders: ['Content-Disposition']
 }));
 app.use(express.json());
 app.use(bodyParser.json());
@@ -1174,7 +1176,18 @@ async function handleConfirmedAction(query, data, adminUsername) {
             ? `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`
             : `❌ Your buy order #${order.id} has been declined.\n\nPlease contact support if you believe this was a mistake.`;
 
-        await bot.sendMessage(order.telegramId, userMessage);
+        // Safe Telegram send: handle deactivated/blocked users gracefully
+        try {
+            await bot.sendMessage(order.telegramId, userMessage);
+        } catch (err) {
+            const message = String(err && err.message || '');
+            const forbidden = (err && err.response && err.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
+            if (forbidden) {
+                console.warn(`Telegram send skipped: user ${order.telegramId} is deactivated or blocked`);
+            } else {
+                throw err;
+            }
+        }
 
         await bot.answerCallbackQuery(query.id, { 
             text: `${statusText.replace(/[✅❌💸]/g, '').trim()} successfully!` 
@@ -3763,10 +3776,10 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         const buffer = Buffer.from(csv, 'utf8');
         console.log('CSV buffer created, size:', buffer.length, 'bytes');
         
-        // For now, let's just provide direct CSV download to test
-        console.log('Providing CSV as direct download for testing');
-        res.setHeader('Content-Type', 'text/csv');
+        // Provide direct CSV download
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
         console.log('✅ Sending CSV as direct download');
         console.log('=== CSV EXPORT DEBUG END ===');
         return res.send(csv);
@@ -3820,8 +3833,9 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
         if (!process.env.BOT_TOKEN) {
             console.log('Bot token not available - providing CSV data directly');
             // Return CSV data directly for download in dev mode
-            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
             res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.setHeader('Cache-Control', 'no-store');
             return res.send(csv);
         }
         
@@ -3839,8 +3853,9 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
         } catch (botError) {
             console.error('Bot sendDocument failed, providing direct download:', botError.message);
             // Fallback: provide CSV for direct download
-            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
             res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.setHeader('Cache-Control', 'no-store');
             return res.send(csv);
         }
 
@@ -4139,7 +4154,13 @@ bot.on('callback_query', async (query) => {
                 await order.save();
 
                 const userOrderDetails = `Your sell order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
-                bot.sendMessage(order.telegramId, userOrderDetails);
+                try {
+                    await bot.sendMessage(order.telegramId, userOrderDetails);
+                } catch (err) {
+                    const message = String(err && err.message || '');
+                    const forbidden = (err && err.response && err.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
+                    if (!forbidden) throw err;
+                }
 
                 const adminOrderDetails = `Sell Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 bot.sendMessage(adminChatId, adminOrderDetails);
@@ -4161,7 +4182,13 @@ bot.on('callback_query', async (query) => {
                 await order.save();
 
                 const userOrderDetails = `Your buy order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
-                bot.sendMessage(order.telegramId, userOrderDetails);
+                try {
+                    await bot.sendMessage(order.telegramId, userOrderDetails);
+                } catch (err) {
+                    const message = String(err && err.message || '');
+                    const forbidden = (err && err.response && err.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
+                    if (!forbidden) throw err;
+                }
 
                 const adminOrderDetails = `Buy Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
                 bot.sendMessage(adminChatId, adminOrderDetails);
@@ -4834,8 +4861,9 @@ app.get('/api/admin/orders/export', requireAdmin, async (req, res) => {
 			.concat(rows.map(r => [r.id, r.type, r.username || '', r.telegramId || '', r.amount || 0, r.status || '', new Date(r.dateCreated || Date.now()).toISOString()]
 				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
 			.join('\n');
-		res.setHeader('Content-Type', 'text/csv');
+		res.setHeader('Content-Type', 'text/csv; charset=utf-8');
 		res.setHeader('Content-Disposition', 'attachment; filename="orders.csv"');
+		res.setHeader('Cache-Control', 'no-store');
 		return res.send(csv);
 	} catch (e) {
 		return res.status(500).send('Failed to export');
@@ -5015,8 +5043,9 @@ app.get('/api/admin/withdrawals/export', requireAdmin, async (req, res) => {
 			.concat(withdrawals.map(w => [w._id, w.userId || '', w.username || '', w.amount || 0, w.walletAddress || '', w.status || '', w.declineReason || '', new Date(w.createdAt || Date.now()).toISOString()]
 				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
 			.join('\n');
-		res.setHeader('Content-Type', 'text/csv');
+		res.setHeader('Content-Type', 'text/csv; charset=utf-8');
 		res.setHeader('Content-Disposition', 'attachment; filename="withdrawals.csv"');
+		res.setHeader('Cache-Control', 'no-store');
 		return res.send(csv);
 	} catch (e) {
 		return res.status(500).send('Failed to export');
