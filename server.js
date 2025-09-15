@@ -1411,11 +1411,15 @@ bot.on('callback_query', async (query) => {
                 return;
             }
             await bot.answerCallbackQuery(query.id);
-            await bot.sendMessage(chatId, `Please send the new wallet address and optional memo for ${bucket.size} selected item(s).\n\nFormat: <wallet>[, <memo>]`);
+            await bot.sendMessage(chatId, `Please send the new wallet address and optional memo for ${bucket.size} selected item(s).\n\nFormat: <wallet>[, <memo>]\n\nThis request will time out in 10 minutes.`);
 
+            const startedAt = Date.now();
             const onMessage = async (msg) => {
                 if (msg.chat.id !== chatId) return;
                 bot.removeListener('message', onMessage);
+                if (Date.now() - startedAt > 10 * 60 * 1000) {
+                    return bot.sendMessage(chatId, '⌛ Wallet update timed out. Please run /wallet again.');
+                }
                 const input = (msg.text || '').trim();
                 if (!input || input.length < 10) {
                     return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
@@ -1492,11 +1496,15 @@ bot.on('callback_query', async (query) => {
             const chatId = query.message.chat.id;
 
             await bot.answerCallbackQuery(query.id);
-            await bot.sendMessage(chatId, `Please send the new wallet address${orderType === 'sell' ? ' and memo (if required)' : ''} for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}.\n\nFormat: <wallet>[, <memo>]`);
+            await bot.sendMessage(chatId, `Please send the new wallet address${orderType === 'sell' ? ' and memo (if required)' : ''} for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}.\n\nFormat: <wallet>[, <memo>]\n\nThis request will time out in 10 minutes.`);
 
+            const startedAtSingle = Date.now();
             const onMessage = async (msg) => {
                 if (msg.chat.id !== chatId) return;
                 bot.removeListener('message', onMessage);
+                if (Date.now() - startedAtSingle > 10 * 60 * 1000) {
+                    return bot.sendMessage(chatId, '⌛ Wallet update timed out. Please run /wallet again.');
+                }
                 const input = (msg.text || '').trim();
                 if (!input || input.length < 10) {
                     return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
@@ -1677,21 +1685,49 @@ bot.on('callback_query', async (query) => {
                             order.walletAddress = reqDoc.newWalletAddress;
                             if (reqDoc.newMemoTag) order.memoTag = reqDoc.newMemoTag;
                             await order.save();
-                            // Try to edit user's original order message if tracked
+                            // Try to edit user's original order message if tracked (preserve original format)
                             if (order.userMessageId) {
-                                const text = `Your sell order has been updated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-                                try { await bot.editMessageText(text, { chat_id: order.telegramId, message_id: order.userMessageId }); } catch (_) {}
+                                const originalText = `✅ Payment successful!\n\n` +
+                                    `Order ID: ${order.id}\n` +
+                                    `Stars: ${order.stars}\n` +
+                                    `Wallet: ${order.walletAddress}\n` +
+                                    `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
+                                    `\nStatus: Processing (21-day hold)\n\n` +
+                                    `Funds will be released to your wallet after the hold period.`;
+                                try { await bot.editMessageText(originalText, { chat_id: order.telegramId, message_id: order.userMessageId }); } catch (_) {}
                             } else {
                                 // Fallback: send a new summary if original message cannot be edited
-                                const text = `Your sell order has been updated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-                                try { await bot.sendMessage(order.telegramId, text); } catch (_) {}
+                                const originalText = `✅ Payment successful!\n\n` +
+                                    `Order ID: ${order.id}\n` +
+                                    `Stars: ${order.stars}\n` +
+                                    `Wallet: ${order.walletAddress}\n` +
+                                    `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
+                                    `\nStatus: Processing (21-day hold)\n\n` +
+                                    `Funds will be released to your wallet after the hold period.`;
+                                try { await bot.sendMessage(order.telegramId, originalText); } catch (_) {}
                             }
                             // Edit admin messages stored on the order if present
                             if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
                                 await Promise.all(order.adminMessages.map(async (m) => {
-                                    const base = m.originalText || `Sell Order Updated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}`;
-                                    const final = `${base}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}`;
-                                    try { await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId }); } catch (_) {}
+                                    // Replace only wallet and memo lines in the original admin message if present
+                                    let text = m.originalText || '';
+                                    if (text) {
+                                        // Update Wallet: line
+                                        if (text.includes('\nWallet: ')) {
+                                            text = text.replace(/\nWallet:.*?(\n|$)/, `\nWallet: ${order.walletAddress}$1`);
+                                        }
+                                        // Update Memo: line (ensure present)
+                                        if (order.memoTag) {
+                                            if (text.includes('\nMemo:')) {
+                                                text = text.replace(/\nMemo:.*?(\n|$)/, `\nMemo: ${order.memoTag}$1`);
+                                            } else {
+                                                text += `\nMemo: ${order.memoTag}`;
+                                            }
+                                        }
+                                    } else {
+                                        text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username || order.telegramId}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
+                                    }
+                                    try { await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId }); } catch (_) {}
                                 }));
                             }
                         }
