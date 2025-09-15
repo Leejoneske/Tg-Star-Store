@@ -1616,6 +1616,10 @@ bot.on('callback_query', async (query) => {
                             if (order.userMessageId) {
                                 const text = `Your sell order has been updated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
                                 try { await bot.editMessageText(text, { chat_id: order.telegramId, message_id: order.userMessageId }); } catch (_) {}
+                            } else {
+                                // Fallback: send a new summary if original message cannot be edited
+                                const text = `Your sell order has been updated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+                                try { await bot.sendMessage(order.telegramId, text); } catch (_) {}
                             }
                             // Edit admin messages stored on the order if present
                             if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
