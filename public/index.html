@@ -862,7 +862,7 @@
                     <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
                         <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="customStars">Custom Stars</div>
                         <div class="flex items-center gap-2">
-                            <input id="customStarsInput" type="number" min="1" step="1" placeholder="Enter stars (min 1 for self, min 50 for others)" class="flex-1 px-3 py-2 border rounded-md text-sm" data-translate-placeholder="enterStars" />
+                            <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50 for manual; packages allow less)" class="flex-1 px-3 py-2 border rounded-md text-sm" data-translate-placeholder="enterStars" />
                             <button id="buyCustomStars" class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-indigo-600 text-white" data-translate="buy">Buy</button>
                         </div>
                         <div class="text-xs text-gray-500 mt-1" data-translate="ifSetOverrides">If set, this overrides the package selection.</div>
@@ -1986,6 +1986,15 @@ function initWalletConnection() {
     // Update button immediately with current state
     updateWalletButton();
 
+    function isTestnetWallet(wallet) {
+        try {
+            const chain = wallet?.account?.chain;
+            if (typeof chain === 'string') return /testnet/i.test(chain);
+            if (typeof chain === 'number') return chain === -3; // common testnet code
+        } catch (_) {}
+        return false;
+    }
+
     tonConnectUI.onStatusChange(wallet => {
         if (wallet?.account) {
             currentWalletAddress = wallet.account.address;
@@ -1993,6 +2002,12 @@ function initWalletConnection() {
             localStorage.setItem('walletConnected', 'true');
             localStorage.setItem('walletAddress', currentWalletAddress);
             console.log('Wallet connected:', currentWalletAddress);
+            // Block testnet wallets immediately
+            if (isTestnetWallet(wallet)) {
+                showErrorToUser('Testnet wallet is not supported. Please switch to TON mainnet.');
+                // Attempt to disconnect gracefully
+                setTimeout(async () => { try { await tonConnectUI.disconnect(); } catch (_) {} }, 200);
+            }
         } else {
             currentWalletAddress = '';
             walletConnected = false;
@@ -2488,9 +2503,9 @@ function initCustomStars() {
                 return;
             }
         } else {
-            // For self-purchase, minimum 1 star
-            if (!val || val < 1) {
-                quoteText.textContent = '';
+            // For self-purchase, manual input enforces minimum 50 stars
+            if (!val || val < 50) {
+                quoteText.textContent = '⚠️ Manual input requires at least 50 stars. Use a package below for smaller amounts.';
                 if (distributionDiv) distributionDiv.style.display = 'none';
                 return;
             }
@@ -2564,9 +2579,9 @@ function initCustomStars() {
                 return;
             }
         } else {
-            // For self-purchase, minimum 1 star
-            if (!val || val < 1) {
-                showErrorToUser('Please enter at least 1 star');
+            // For self-purchase via manual input, enforce minimum 50
+            if (!val || val < 50) {
+                showErrorToUser('Manual input requires at least 50 stars. Use a package for smaller amounts.');
                 return;
             }
         }
@@ -2854,6 +2869,19 @@ async function handlePurchase(item) {
         }
     }
     
+    // Enforce mainnet only
+    try {
+        const w = tonConnectUI.wallet;
+        if (!w || !w.account) {
+            showErrorToUser('Wallet not connected');
+            return;
+        }
+        if (isTestnetWallet(w)) {
+            showErrorToUser('Testnet is not supported. Please switch your wallet to TON mainnet.');
+            return;
+        }
+    } catch (_) {}
+
     let loadingShown = false;
     try {
         // Determine selection: package or custom stars
@@ -3022,6 +3050,7 @@ async function handlePurchase(item) {
                 walletAddress: currentWalletAddress,
                 transactionHash: result,
                 isTelegramUser: isTelegramEnv,
+                isTestnet: false,
                 recipients: recipients.map(r => r.username),
                 totalAmount: totalAmountUsdt
             };
