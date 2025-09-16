@@ -705,7 +705,7 @@ app.post('/api/validate-usernames', (req, res) => {
 
 app.post('/api/orders/create', async (req, res) => {
     try {
-        const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTelegramUser, totalAmount } = req.body;
+        const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTelegramUser, totalAmount, isTestnet } = req.body;
 
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -714,6 +714,11 @@ app.post('/api/orders/create', async (req, res) => {
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
             return res.status(403).json({ error: 'You are banned from placing orders' });
+        }
+
+        // Reject testnet orders
+        if (isTestnet === true) {
+            return res.status(400).json({ error: 'Testnet is not supported. Please switch your wallet to TON mainnet.' });
         }
 
         // Handle recipients for "buy for others" functionality
