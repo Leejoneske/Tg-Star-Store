@@ -862,7 +862,7 @@
                     <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
                         <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="customStars">Custom Stars</div>
                         <div class="flex items-center gap-2">
-                            <input id="customStarsInput" type="number" min="1" step="1" placeholder="Enter stars (min 1 for self, min 50 for others)" class="flex-1 px-3 py-2 border rounded-md text-sm" data-translate-placeholder="enterStars" />
+                            <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50 for manual; packages allow less)" class="flex-1 px-3 py-2 border rounded-md text-sm" data-translate-placeholder="enterStars" />
                             <button id="buyCustomStars" class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-indigo-600 text-white" data-translate="buy">Buy</button>
                         </div>
                         <div class="text-xs text-gray-500 mt-1" data-translate="ifSetOverrides">If set, this overrides the package selection.</div>
@@ -2488,9 +2488,9 @@ function initCustomStars() {
                 return;
             }
         } else {
-            // For self-purchase, minimum 1 star
-            if (!val || val < 1) {
-                quoteText.textContent = '';
+            // For self-purchase, manual input enforces minimum 50 stars
+            if (!val || val < 50) {
+                quoteText.textContent = '⚠️ Manual input requires at least 50 stars. Use a package below for smaller amounts.';
                 if (distributionDiv) distributionDiv.style.display = 'none';
                 return;
             }
@@ -2564,9 +2564,9 @@ function initCustomStars() {
                 return;
             }
         } else {
-            // For self-purchase, minimum 1 star
-            if (!val || val < 1) {
-                showErrorToUser('Please enter at least 1 star');
+            // For self-purchase via manual input, enforce minimum 50
+            if (!val || val < 50) {
+                showErrorToUser('Manual input requires at least 50 stars. Use a package for smaller amounts.');
                 return;
             }
         }
