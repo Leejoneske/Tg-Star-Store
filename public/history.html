@@ -1063,12 +1063,16 @@ async function exportTransactions() {
         document.body.removeChild(a);
         setTimeout(() => window.URL.revokeObjectURL(url), 1000);
         
-        // Fallback for strict webviews: navigate to a GET endpoint
+        // Fallback for strict webviews: open link using Telegram API
         setTimeout(() => {
             try {
                 const init = window.Telegram?.WebApp?.initData || '';
                 const fallbackUrl = `${BASE_API_URL}/export-transactions-download?init=${encodeURIComponent(init)}&tg_id=${encodeURIComponent(user?.id || '')}`;
-                window.location.href = fallbackUrl;
+                if (window.Telegram?.WebApp?.openLink) {
+                    window.Telegram.WebApp.openLink(fallbackUrl);
+                } else {
+                    window.location.href = fallbackUrl;
+                }
             } catch (_) {}
         }, 700);
         
@@ -1150,12 +1154,16 @@ async function exportReferrals() {
             document.body.removeChild(a);
             setTimeout(() => window.URL.revokeObjectURL(url), 1000);
             
-            // Fallback for strict webviews: navigate to GET endpoint
+            // Fallback for strict webviews: open link using Telegram API
             setTimeout(() => {
                 try {
                     const init = window.Telegram?.WebApp?.initData || '';
                     const fallbackUrl = `${BASE_API_URL}/export-referrals-download?init=${encodeURIComponent(init)}&tg_id=${encodeURIComponent(user?.id || '')}`;
-                    window.location.href = fallbackUrl;
+                    if (window.Telegram?.WebApp?.openLink) {
+                        window.Telegram.WebApp.openLink(fallbackUrl);
+                    } else {
+                        window.location.href = fallbackUrl;
+                    }
                 } catch (_) {}
             }, 700);
         } else {
