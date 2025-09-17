@@ -3041,6 +3041,9 @@ async function handlePurchase(item) {
         
         if (result) {
             // Create order record
+            // Detect testnet from connected wallet chain info
+            const chain = tonConnectUI?.wallet?.account?.chain;
+            const isTestnetDetected = (typeof chain === 'string') ? /testnet/i.test(chain) : ((typeof chain === 'number') ? chain === -3 : false);
             const orderData = {
                 telegramId: user.id,
                 username: user.username || user.first_name || 'Unknown',
@@ -3050,7 +3053,7 @@ async function handlePurchase(item) {
                 walletAddress: currentWalletAddress,
                 transactionHash: result,
                 isTelegramUser: isTelegramEnv,
-                isTestnet: false,
+                isTestnet: isTestnetDetected,
                 recipients: recipients.map(r => r.username),
                 totalAmount: totalAmountUsdt
             };
