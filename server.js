@@ -109,7 +109,59 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(express.static('public'));
+// Serve static with sensible defaults for SEO and caching
+app.use(express.static('public', {
+  extensions: ['html'],
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    } else if (/(?:\.css|\.js|\.png|\.jpg|\.jpeg|\.svg|\.webp|\.ico|\.woff2?)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
+}));
+
+// Ensure directories with index.html return 200 (no 302/redirects)
+app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars'], (req, res, next) => {
+  try {
+    const map = {
+      '/': 'index.html',
+      '/about': 'about.html',
+      '/sell': 'sell.html',
+      '/history': 'history.html',
+      '/blog': 'blog/index.html',
+      '/knowledge-base': 'knowledge-base/index.html',
+      '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html'
+    };
+    const file = map[req.path];
+    if (file) return res.status(200).sendFile(path.join(__dirname, 'public', file));
+    return next();
+  } catch (e) { return next(); }
+});
+
+// Sitemap generation
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const base = 'https://starstore.site';
+    const urls = [
+      '/',
+      '/about',
+      '/sell',
+      '/history',
+      '/blog/',
+      '/knowledge-base/',
+      '/how-to-withdraw-telegram-stars/'
+    ];
+    const now = new Date().toISOString();
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+      urls.map(u => `\n  <url><loc>${base}${u}</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>`).join('') +
+      `\n</urlset>`;
+    res.type('application/xml').status(200).send(xml);
+  } catch (e) {
+    res.status(500).send('');
+  }
+});
 app.get('/admin', (req, res) => {
 	try {
 		return res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
