@@ -7,17 +7,8 @@ const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
 const fetch = require('node-fetch');
-// Optional sharp import - will use fallback if not available
-let sharp;
-try {
-  sharp = require('sharp');
-} catch (error) {
-  console.warn('Sharp not available, using fallback thumbnail generation');
-  sharp = null;
-}
 const app = express();
 const path = require('path');  
-const fs = require('fs');
 const zlib = require('zlib');
 // Create Telegram bot or a stub in local/dev if no token is provided
 let bot;
@@ -454,12 +445,6 @@ const stickerSchema = new mongoose.Schema({
   file_id: { type: String, required: true },
   file_unique_id: { type: String, required: true, unique: true },
   file_path: { type: String },
-  // Telegram-provided thumbnail (PhotoSize)
-  thumb_file_id: { type: String },
-  thumb_file_unique_id: { type: String },
-  thumb_file_path: { type: String },
-  // Local cached thumbnail we generated or downloaded
-  thumbnail_path: { type: String },
   is_animated: { type: Boolean, default: false },
   is_video: { type: Boolean, default: false },
   emoji: { type: String },
@@ -472,137 +457,6 @@ const Sticker = mongoose.model('Sticker', stickerSchema);
 const NotificationTemplate = mongoose.model('NotificationTemplate', notificationTemplateSchema);
 const UserNotification = mongoose.model('UserNotification', userNotificationSchema);
 const Warning = mongoose.model('Warning', warningSchema);
-
-// Ensure thumbnails directory exists
-const thumbnailsDir = path.join(__dirname, 'public', 'thumbnails');
-if (!fs.existsSync(thumbnailsDir)) {
-  fs.mkdirSync(thumbnailsDir, { recursive: true });
-}
-
-// Thumbnail generation functions
-async function generateThumbnail(stickerData, stickerId) {
-  try {
-    const thumbnailPath = path.join(thumbnailsDir, `${stickerId}.webp`);
-    
-    // If thumbnail already exists, return the path
-    if (fs.existsSync(thumbnailPath)) {
-      return `/thumbnails/${stickerId}.webp`;
-    }
-
-    // If Sharp is not available, use fallback method
-    if (!sharp) {
-      return generateFallbackThumbnail(stickerData, stickerId, thumbnailPath);
-    }
-
-    if (stickerData.is_animated) {
-      // For animated stickers (TGS), we'll use the first frame
-      // This is a simplified approach - in production you might want to use a TGS parser
-      const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${stickerData.file_path}`;
-      const response = await fetch(telegramUrl);
-      const buffer = await response.arrayBuffer();
-      
-      // For now, we'll create a placeholder thumbnail for animated stickers
-      // In a full implementation, you'd extract the first frame from the TGS file
-      const placeholderBuffer = await sharp({
-        create: {
-          width: 72,
-          height: 72,
-          channels: 4,
-          background: { r: 240, g: 240, b: 240, alpha: 1 }
-        }
-      })
-      .webp({ quality: 80 })
-      .toBuffer();
-      
-      fs.writeFileSync(thumbnailPath, placeholderBuffer);
-      return `/thumbnails/${stickerId}.webp`;
-      
-    } else if (stickerData.is_video) {
-      // For video stickers, extract first frame
-      const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${stickerData.file_path}`;
-      const response = await fetch(telegramUrl);
-      const buffer = await response.arrayBuffer();
-      
-      // For video stickers, we'll create a placeholder for now
-      // In production, you'd use ffmpeg or similar to extract first frame
-      const placeholderBuffer = await sharp({
-        create: {
-          width: 72,
-          height: 72,
-          channels: 4,
-          background: { r: 200, g: 200, b: 255, alpha: 1 }
-        }
-      })
-      .webp({ quality: 80 })
-      .toBuffer();
-      
-      fs.writeFileSync(thumbnailPath, placeholderBuffer);
-      return `/thumbnails/${stickerId}.webp`;
-      
-    } else {
-      // For static WebP stickers, create a thumbnail
-      const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${stickerData.file_path}`;
-      const response = await fetch(telegramUrl);
-      const buffer = await response.arrayBuffer();
-      
-      const thumbnailBuffer = await sharp(Buffer.from(buffer))
-        .resize(72, 72, { 
-          fit: 'inside',
-          withoutEnlargement: true
-        })
-        .webp({ quality: 80 })
-        .toBuffer();
-      
-      fs.writeFileSync(thumbnailPath, thumbnailBuffer);
-      return `/thumbnails/${stickerId}.webp`;
-    }
-  } catch (error) {
-    console.error('Error generating thumbnail:', error);
-    return generateFallbackThumbnail(stickerData, stickerId, thumbnailPath);
-  }
-}
-
-// Fallback thumbnail generation without Sharp
-async function generateFallbackThumbnail(stickerData, stickerId, thumbnailPath) {
-  try {
-    // Create a simple SVG placeholder as fallback
-    const svgContent = createPlaceholderSVG(stickerData);
-    const svgPath = path.join(thumbnailsDir, `${stickerId}.svg`);
-    
-    fs.writeFileSync(svgPath, svgContent);
-    return `/thumbnails/${stickerId}.svg`;
-  } catch (error) {
-    console.error('Error generating fallback thumbnail:', error);
-    return null;
-  }
-}
-
-// Create SVG placeholder based on sticker type
-function createPlaceholderSVG(stickerData) {
-  const width = 72;
-  const height = 72;
-  const emoji = stickerData.emoji || '🎭';
-  
-  let bgColor = '#f0f0f0';
-  let textColor = '#666';
-  
-  if (stickerData.is_animated) {
-    bgColor = '#e3f2fd';
-    textColor = '#1976d2';
-  } else if (stickerData.is_video) {
-    bgColor = '#f3e5f5';
-    textColor = '#7b1fa2';
-  }
-  
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${width}" height="${height}" fill="${bgColor}" rx="8"/>
-  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" 
-        font-family="Arial, sans-serif" font-size="24" fill="${textColor}">
-    ${emoji}
-  </text>
-</svg>`;
-}
 const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
 const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
@@ -2757,23 +2611,9 @@ bot.on('sticker', async (msg) => {
     const fileInfo = await bot.getFile(sticker.file_id);
     if (!fileInfo.file_path) return;
 
-    // Get Telegram-provided thumbnail file info if available
-    let thumbInfo = null;
-    if (sticker.thumbnail || sticker.thumb) {
-      const t = sticker.thumbnail || sticker.thumb; // some libs use .thumbnail
-      if (t?.file_id) {
-        try {
-          thumbInfo = await bot.getFile(t.file_id);
-        } catch (_) {}
-      }
-    }
-
-    const stickerData = {
+    const updateData = {
       file_id: sticker.file_id,
       file_path: fileInfo.file_path,
-      thumb_file_id: (sticker.thumbnail || sticker.thumb)?.file_id || undefined,
-      thumb_file_unique_id: (sticker.thumbnail || sticker.thumb)?.file_unique_id || undefined,
-      thumb_file_path: thumbInfo?.file_path || undefined,
       is_animated: sticker.is_animated || false,
       is_video: sticker.is_video || false,
       emoji: sticker.emoji || '',
@@ -2781,31 +2621,9 @@ bot.on('sticker', async (msg) => {
       updated_at: new Date()
     };
 
-    // Prefer Telegram real thumbnail if available; cache locally once
-    let thumbnailPath = null;
-    if (stickerData.thumb_file_path) {
-      try {
-        const tgThumbUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${stickerData.thumb_file_path}`;
-        const resp = await fetch(tgThumbUrl);
-        if (resp.ok) {
-          const buff = await resp.arrayBuffer();
-          const localThumbPath = path.join(thumbnailsDir, `${sticker.file_unique_id}.webp`);
-          fs.writeFileSync(localThumbPath, Buffer.from(buff));
-          thumbnailPath = `/thumbnails/${sticker.file_unique_id}.webp`;
-        }
-      } catch (_) {}
-    }
-    // If Telegram thumbnail unavailable, fallback to our generator
-    if (!thumbnailPath) {
-      thumbnailPath = await generateThumbnail(stickerData, sticker.file_unique_id);
-    }
-    if (thumbnailPath) {
-      stickerData.thumbnail_path = thumbnailPath;
-    }
-
     await Sticker.updateOne(
       { file_unique_id: sticker.file_unique_id },
-      { $set: stickerData, $setOnInsert: { created_at: new Date() } },
+      { $set: updateData, $setOnInsert: { created_at: new Date() } },
       { upsert: true }
     );
 
@@ -2881,174 +2699,6 @@ app.get('/api/stickers', async (req, res) => {
     
     res.json(stickers);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Main sticker file serving endpoint
-app.get('/api/sticker/:id', async (req, res) => {
-  try {
-    const sticker = await Sticker.findOne({ file_unique_id: req.params.id });
-    if (!sticker || !sticker.file_path) {
-      return res.status(404).json({ error: 'Sticker not found' });
-    }
-
-    const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.file_path}`;
-    const response = await fetch(telegramUrl);
-    
-    if (!response.ok) {
-      return res.status(404).json({ error: 'Sticker file not found' });
-    }
-
-    // Set appropriate content type based on file extension
-    const fileExtension = sticker.file_path.split('.').pop().toLowerCase();
-    let contentType = 'application/octet-stream';
-    
-    switch (fileExtension) {
-      case 'webp':
-        contentType = 'image/webp';
-        break;
-      case 'tgs':
-        contentType = 'application/gzip';
-        break;
-      case 'webm':
-        contentType = 'video/webm';
-        break;
-      case 'mp4':
-        contentType = 'video/mp4';
-        break;
-    }
-
-    res.set({
-      'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=31536000', // 1 year cache
-      'ETag': `"${sticker.file_unique_id}"`
-    });
-
-    const buffer = await response.arrayBuffer();
-    res.send(Buffer.from(buffer));
-  } catch (error) {
-    console.error('Error serving sticker file:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Thumbnail serving endpoint
-app.get('/api/sticker/:id/thumbnail', async (req, res) => {
-  try {
-    const sticker = await Sticker.findOne({ file_unique_id: req.params.id });
-    if (!sticker) {
-      return res.status(404).json({ error: 'Sticker not found' });
-    }
-
-    // If local cached thumbnail exists, serve it
-    if (sticker.thumbnail_path) {
-      const thumbnailPath = path.join(__dirname, 'public', sticker.thumbnail_path);
-      if (fs.existsSync(thumbnailPath)) {
-        const isSvg = thumbnailPath.endsWith('.svg');
-        res.set({
-          'Content-Type': isSvg ? 'image/svg+xml' : 'image/webp',
-          'Cache-Control': 'public, max-age=31536000', // 1 year cache
-          'ETag': `"${sticker.file_unique_id}-thumb"`
-        });
-        return res.sendFile(thumbnailPath);
-      }
-    }
-
-    // If Telegram-provided thumbnail path exists, proxy it and cache
-    if (sticker.thumb_file_path) {
-      try {
-        const tgThumbUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.thumb_file_path}`;
-        const tgResp = await fetch(tgThumbUrl);
-        if (tgResp.ok) {
-          const arr = await tgResp.arrayBuffer();
-          const localThumbRel = `/thumbnails/${sticker.file_unique_id}.webp`;
-          const localThumbAbs = path.join(__dirname, 'public', localThumbRel);
-          fs.writeFileSync(localThumbAbs, Buffer.from(arr));
-          await Sticker.updateOne({ file_unique_id: sticker.file_unique_id }, { $set: { thumbnail_path: localThumbRel } });
-          res.set({
-            'Content-Type': 'image/webp',
-            'Cache-Control': 'public, max-age=31536000',
-            'ETag': `"${sticker.file_unique_id}-thumb"`
-          });
-          return res.sendFile(localThumbAbs);
-        }
-      } catch (_) {}
-    }
-
-    // Generate thumbnail on demand if it doesn't exist
-    const thumbnailPath = await generateThumbnail(sticker, sticker.file_unique_id);
-    if (thumbnailPath) {
-      // Update the database with the thumbnail path
-      await Sticker.updateOne(
-        { file_unique_id: sticker.file_unique_id },
-        { $set: { thumbnail_path: thumbnailPath } }
-      );
-      
-      const fullThumbnailPath = path.join(__dirname, 'public', thumbnailPath);
-      const isSvg = thumbnailPath.endsWith('.svg');
-      res.set({
-        'Content-Type': isSvg ? 'image/svg+xml' : 'image/webp',
-        'Cache-Control': 'public, max-age=31536000',
-        'ETag': `"${sticker.file_unique_id}-thumb"`
-      });
-      return res.sendFile(fullThumbnailPath);
-    }
-
-    // Fallback: return a placeholder
-    res.status(404).json({ error: 'Thumbnail not available' });
-  } catch (error) {
-    console.error('Error serving thumbnail:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Animation-only endpoint (for on-demand loading)
-app.get('/api/sticker/:id/animation', async (req, res) => {
-  try {
-    const sticker = await Sticker.findOne({ file_unique_id: req.params.id });
-    if (!sticker) {
-      return res.status(404).json({ error: 'Sticker not found' });
-    }
-
-    if (!sticker.is_animated && !sticker.is_video) {
-      return res.status(400).json({ error: 'Sticker is not animated' });
-    }
-
-    if (sticker.is_animated) {
-      // Return Lottie JSON for animated stickers
-      if (!sticker.file_path.endsWith('.tgs')) {
-        return res.status(404).json({ error: 'Animated sticker not found' });
-      }
-
-      const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.file_path}`;
-      const tgRes = await fetch(telegramUrl);
-      const buffer = await tgRes.arrayBuffer();
-
-      zlib.unzip(Buffer.from(buffer), (err, jsonBuffer) => {
-        if (err) {
-          console.error('Decompression error:', err);
-          return res.status(500).json({ error: 'Failed to decode sticker' });
-        }
-
-        try {
-          const json = JSON.parse(jsonBuffer.toString());
-          res.set({
-            'Content-Type': 'application/json',
-            'Cache-Control': 'public, max-age=31536000',
-            'ETag': `"${sticker.file_unique_id}-anim"`
-          });
-          res.json(json);
-        } catch (e) {
-          res.status(500).json({ error: 'Invalid JSON' });
-        }
-      });
-    } else if (sticker.is_video) {
-      // For video stickers, redirect to the main file endpoint
-      res.redirect(`/api/sticker/${sticker.file_unique_id}`);
-    }
-  } catch (error) {
-    console.error('Error serving animation:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
