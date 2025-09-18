@@ -153,19 +153,62 @@ app.get('/sitemap.xml', async (req, res) => {
   try {
     // Derive base from configured server domain; fallback to starstore.site
     const base = `https://${SERVER_URL || 'starstore.site'}`;
-    const urls = [
-      '/',
-      '/about',
-      '/sell',
-      '/history',
-      '/blog/',
-      '/knowledge-base/',
-      '/how-to-withdraw-telegram-stars/'
-    ];
-    const now = new Date().toISOString();
+    const root = path.join(__dirname, 'public');
+
+    // Collect HTML files recursively (bounded)
+    const maxEntries = 2000;
+    const urls = [];
+    const skipDirs = new Set(['admin', 'js', 'css', 'images', 'img', 'fonts', 'private', 'temp']);
+
+    function walk(dir, rel = '') {
+      if (urls.length >= maxEntries) return;
+      const entries = require('fs').readdirSync(dir, { withFileTypes: true });
+      for (const ent of entries) {
+        if (urls.length >= maxEntries) break;
+        const name = ent.name;
+        if (name.startsWith('.')) continue;
+        const relPath = rel ? `${rel}/${name}` : name;
+        const absPath = path.join(dir, name);
+        if (ent.isDirectory()) {
+          if (skipDirs.has(name)) continue;
+          walk(absPath, relPath);
+        } else if (ent.isFile() && name.toLowerCase().endsWith('.html')) {
+          // Normalize URL paths: index.html => directory URL; others keep filename
+          let urlPath;
+          if (name.toLowerCase() === 'index.html') {
+            const dirUrl = rel.replace(/\/index\.html$/i, '').replace(/\/$/, '');
+            urlPath = `/${rel.replace(/\/index\.html$/i, '')}`;
+            if (!urlPath.endsWith('/')) urlPath += '/';
+            if (urlPath === '//') urlPath = '/';
+          } else {
+            urlPath = `/${relPath}`;
+          }
+          // Compute lastmod from file mtime
+          let lastmod;
+          try {
+            const st = require('fs').statSync(absPath);
+            lastmod = st.mtime.toISOString();
+          } catch (_) {
+            lastmod = new Date().toISOString();
+          }
+          urls.push({ loc: `${base}${urlPath}`, lastmod });
+        }
+      }
+    }
+
+    walk(root, '');
+
+    // Fallback to core URLs if traversal found nothing
+    if (urls.length === 0) {
+      const now = new Date().toISOString();
+      ['/','/about','/sell','/history','/blog/','/knowledge-base/','/how-to-withdraw-telegram-stars/']
+        .forEach(u => urls.push({ loc: `${base}${u}`, lastmod: now }));
+    }
+
+    // Build XML
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
-      urls.map(u => `\n  <url><loc>${base}${u}</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>`).join('') +
+      urls.map(u => `\n  <url><loc>${u.loc}</loc><lastmod>${u.lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>`).join('') +
       `\n</urlset>`;
     res.type('application/xml').status(200).send(xml);
   } catch (e) {
