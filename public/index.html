@@ -1060,6 +1060,33 @@ let tonConnectUI = null;
 let currentLanguage = 'en'; // Will be properly initialized in initLanguageToggle()
 let walletConnected = false;
 let currentWalletAddress = '';
+
+// Global function for robust testnet detection using official TON chain IDs
+function isTestnetWallet(wallet) {
+    try {
+        const chain = wallet?.account?.chain;
+        
+        // Official TON blockchain chain ID values
+        // Mainnet: -239 (0xFFFFFF11)
+        // Testnet: -3 (0xFFFFFFFD)
+        if (typeof chain === 'string') {
+            // Handle string values (some wallets return string representations)
+            const chainNum = parseInt(chain, 10);
+            return chainNum === -3; // TON testnet chain ID
+        }
+        if (typeof chain === 'number') {
+            return chain === -3; // TON testnet chain ID
+        }
+        
+        // Fallback: check if chain contains testnet indicators
+        if (typeof chain === 'string' && /testnet/i.test(chain)) {
+            return true;
+        }
+    } catch (error) {
+        console.warn('Error detecting wallet chain:', error);
+    }
+    return false;
+}
 let lastUserData = null;
 let currentUser = null;
 let isTelegramEnv = false;
@@ -1985,15 +2012,6 @@ function initWalletConnection() {
 
     // Update button immediately with current state
     updateWalletButton();
-
-    function isTestnetWallet(wallet) {
-        try {
-            const chain = wallet?.account?.chain;
-            if (typeof chain === 'string') return /testnet/i.test(chain);
-            if (typeof chain === 'number') return chain === -3; // common testnet code
-        } catch (_) {}
-        return false;
-    }
 
     tonConnectUI.onStatusChange(wallet => {
         if (wallet?.account) {
@@ -3041,9 +3059,8 @@ async function handlePurchase(item) {
         
         if (result) {
             // Create order record
-            // Detect testnet from connected wallet chain info
-            const chain = tonConnectUI?.wallet?.account?.chain;
-            const isTestnetDetected = (typeof chain === 'string') ? /testnet/i.test(chain) : ((typeof chain === 'number') ? chain === -3 : false);
+            // Detect testnet using robust method with official TON chain IDs
+            const isTestnetDetected = isTestnetWallet(tonConnectUI?.wallet);
             const orderData = {
                 telegramId: user.id,
                 username: user.username || user.first_name || 'Unknown',
