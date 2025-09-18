@@ -3029,7 +3029,7 @@ async function handlePurchase(item) {
         loadingShown = true;
 
         // Get current exchange rate (already fetched above if needed)
-        const tonToUsdtRate = rate || await fetchCurrentRate();
+        const tonToUsdtRate = rateQuick || await fetchCurrentRate();
         if (!tonToUsdtRate || tonToUsdtRate <= 0) {
             throw new Error('Failed to fetch current exchange rate');
         }
