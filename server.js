@@ -6072,3 +6072,34 @@ app.post('/api/admin/logout', (req, res) => {
 		return res.json({ success: true });
 	}
 });
+
+// Newsletter subscription (simple backend)
+const NewsletterSubscriberSchema = new mongoose.Schema({
+    email: { type: String, required: true, unique: true, index: true },
+    createdAt: { type: Date, default: Date.now }
+});
+const NewsletterSubscriber = mongoose.model('NewsletterSubscriber', NewsletterSubscriberSchema);
+
+app.post('/api/newsletter/subscribe', async (req, res) => {
+    try {
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ success: false, error: 'Invalid email' });
+        }
+        const existing = await NewsletterSubscriber.findOne({ email });
+        if (existing) {
+            return res.json({ success: true, message: 'Already subscribed' });
+        }
+        await NewsletterSubscriber.create({ email });
+
+        // Notify admins in real-time via Telegram
+        const text = `📬 New newsletter subscriber: ${email}`;
+        for (const adminId of adminIds) {
+            try { await bot.sendMessage(adminId, text); } catch (_) {}
+        }
+
+        return res.json({ success: true });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: 'Server error' });
+    }
+});

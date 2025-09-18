@@ -86,7 +86,7 @@
 </head>
 <body>
 <div class="app-container">
-    <div class="p-4 flex justify-between items-center bg-white shadow-sm">
+    <div class="p-4 flex justify-between items-center bg-white shadow-sm" style="max-width: 100%;">
         <div class="logo-header">StarStore</div>
         <div class="flex items-center space-x-4">
             <button id="languageToggle" class="language-toggle">🇬🇧</button>
@@ -95,7 +95,7 @@
 
 
 <div id="bottomnav-container"></div>
-    <div class="p-4 md:p-6 max-w-4xl mx-auto">
+    <div class="p-4 md:p-6 max-w-4xl mx-auto" style="width: 100%;">
         <div class="text-center mb-8 md:mb-12 animate__animated animate__fadeIn">
             <h1 class="text-2xl md:text-4xl font-bold text-gray-900 mb-4">
                 <span data-translate="welcome">Welcome to</span> <span class="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">StarStore</span>
@@ -218,6 +218,7 @@
                     <form id="newsletterForm" class="flex w-full md:w-auto">
                         <input type="email" id="newsletterEmail" placeholder="Your email" class="flex-1 md:w-80 px-4 py-3 border border-gray-300 rounded-l-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none" required>
                         <button class="px-5 py-3 bg-indigo-600 text-white rounded-r-xl font-semibold hover:bg-indigo-700">Subscribe</button>
+                        <span id="newsletterMsg" class="ml-3 text-sm"></span>
                     </form>
                 </div>
             </div>
@@ -291,16 +292,36 @@
         }
     });
     
-    // Simple newsletter handler (no backend; just acknowledge)
-    document.getElementById('newsletterForm')?.addEventListener('submit', function(e) {
+    // Newsletter handler (backend)
+    document.getElementById('newsletterForm')?.addEventListener('submit', async function(e) {
         e.preventDefault();
         const email = document.getElementById('newsletterEmail').value.trim();
+        const msg = document.getElementById('newsletterMsg');
+        msg.textContent = '';
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            alert('Please enter a valid email');
+            msg.textContent = 'Please enter a valid email';
+            msg.className = 'ml-3 text-sm text-red-600';
             return;
         }
-        alert('Thanks! You will receive our updates.');
-        this.reset();
+        try {
+            const resp = await fetch('/api/newsletter/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await resp.json();
+            if (resp.ok && data.success) {
+                msg.textContent = data.message || 'Subscribed successfully!';
+                msg.className = 'ml-3 text-sm text-green-600';
+                this.reset();
+            } else {
+                msg.textContent = data.error || 'Subscription failed';
+                msg.className = 'ml-3 text-sm text-red-600';
+            }
+        } catch (_) {
+            msg.textContent = 'Network error';
+            msg.className = 'ml-3 text-sm text-red-600';
+        }
     });
 </script>
 </body>
