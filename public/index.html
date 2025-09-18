@@ -628,6 +628,36 @@
         object-fit: contain;
     }
 
+    .sticker-thumbnail {
+        transition: opacity 0.3s ease;
+        cursor: pointer;
+    }
+
+    .sticker-thumbnail:hover {
+        opacity: 0.8;
+    }
+
+    .sticker-container {
+        position: relative;
+    }
+
+    .sticker-container::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+    }
+
+    .sticker-container:hover::after {
+        opacity: 1;
+    }
+
     .premium-package {
         padding: 20px;
         position: relative;
@@ -1354,16 +1384,7 @@ async function loadStickers() {
       return Promise.resolve();
     }
 
-    // For low-end devices, prefer static stickers
-    if (isLowEndDevice()) {
-      if (info.is_animated || info.is_video) {
-        return loadStaticSticker(container, stickerId);
-      } else {
-        return loadStaticSticker(container, stickerId);
-      }
-    }
-
-    // For high-end devices, load appropriate type
+    // Always load thumbnails first for instant display
     if (info.is_animated) {
       return loadAnimatedSticker(container, stickerId)
         .catch(() => loadStaticSticker(container, stickerId));
@@ -1383,15 +1404,18 @@ async function loadStickers() {
 
 function loadStaticSticker(container, stickerId) {
   return new Promise((resolve, reject) => {
+    const startTime = performance.now();
     const img = new Image();
     img.width = 72;
     img.height = 72;
     img.alt = 'Sticker';
     img.loading = 'lazy';
     img.style.objectFit = 'contain';
+    img.className = 'sticker-thumbnail';
     
     img.onload = () => {
       container.replaceChildren(img);
+      trackThumbnailLoad(startTime);
       resolve();
     };
     
@@ -1400,34 +1424,67 @@ function loadStaticSticker(container, stickerId) {
       reject(new Error('Failed to load static sticker'));
     };
     
-    img.src = `/api/sticker/${stickerId}`;
+    // Load thumbnail first for instant display
+    img.src = `/api/sticker/${stickerId}/thumbnail`;
   });
 }
 
 function loadVideoSticker(container, stickerId) {
   return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    video.width = 72;
-    video.height = 72;
-    video.autoplay = false; 
-    video.loop = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.style.objectFit = 'contain';
-    video.preload = 'metadata';
+    // First, show thumbnail immediately
+    const thumbnailImg = new Image();
+    thumbnailImg.width = 72;
+    thumbnailImg.height = 72;
+    thumbnailImg.alt = 'Sticker';
+    thumbnailImg.style.objectFit = 'contain';
+    thumbnailImg.className = 'sticker-thumbnail';
+    thumbnailImg.src = `/api/sticker/${stickerId}/thumbnail`;
     
-    video.onloadedmetadata = () => {
-      container.replaceChildren(video);
-      container._videoElement = video;
-      resolve();
+    container.innerHTML = '';
+    container.style.width = '72px';
+    container.style.height = '72px';
+    container.appendChild(thumbnailImg);
+    
+    // Load video on demand
+    const loadVideo = async () => {
+      if (container._videoElement) return; // Already loaded
+      
+      const video = document.createElement('video');
+      video.width = 72;
+      video.height = 72;
+      video.autoplay = false; 
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.style.objectFit = 'contain';
+      video.preload = 'metadata';
+      
+      video.onloadedmetadata = () => {
+        container.replaceChildren(video);
+        container._videoElement = video;
+        // Start playing after a short delay
+        setTimeout(() => {
+          video.play().catch(() => {
+            // Autoplay might be blocked, ignore error
+          });
+        }, 100);
+      };
+      
+      video.onerror = () => {
+        console.warn('Failed to load video, keeping thumbnail');
+      };
+      
+      video.src = `/api/sticker/${stickerId}`;
     };
     
-    video.onerror = () => {
-      loadPlaceholder(container);
-      reject(new Error('Failed to load video sticker'));
-    };
+    // Load video on hover or click
+    container.addEventListener('mouseenter', loadVideo, { once: true });
+    container.addEventListener('click', loadVideo, { once: true });
     
-    video.src = `/api/sticker/${stickerId}`;
+    // For mobile, load video on touch
+    container.addEventListener('touchstart', loadVideo, { once: true });
+    
+    resolve();
   });
 }
 
@@ -1437,29 +1494,65 @@ async function loadAnimatedSticker(container, stickerId) {
   }
 
   try {
-    const response = await fetch(`/api/sticker/${stickerId}/json`);
-    if (!response.ok) throw new Error('Failed to fetch animation');
+    // First, show thumbnail immediately
+    const thumbnailImg = new Image();
+    thumbnailImg.width = 72;
+    thumbnailImg.height = 72;
+    thumbnailImg.alt = 'Sticker';
+    thumbnailImg.style.objectFit = 'contain';
+    thumbnailImg.className = 'sticker-thumbnail';
+    thumbnailImg.src = `/api/sticker/${stickerId}/thumbnail`;
     
-    const animationData = await response.json();
     container.innerHTML = '';
     container.style.width = '72px';
     container.style.height = '72px';
+    container.appendChild(thumbnailImg);
     
-    const animation = lottie.loadAnimation({
-      container: container,
-      renderer: 'svg',
-      loop: true,
-      autoplay: false, // Don't autoplay yet
-      animationData: animationData
-    });
+    // Add hover effect to load animation on demand
+    const loadAnimation = async () => {
+      if (container._lottieAnimation) return; // Already loaded
+      
+      const startTime = performance.now();
+      try {
+        const response = await fetch(`/api/sticker/${stickerId}/animation`);
+        if (!response.ok) throw new Error('Failed to fetch animation');
+        
+        const animationData = await response.json();
+        container.innerHTML = '';
+        container.style.width = '72px';
+        container.style.height = '72px';
+        
+        const animation = lottie.loadAnimation({
+          container: container,
+          renderer: 'svg',
+          loop: true,
+          autoplay: false,
+          animationData: animationData
+        });
+        
+        container._lottieAnimation = animation;
+        trackAnimationLoad(startTime);
+        
+        // Start animation after a short delay
+        setTimeout(() => {
+          if (container._lottieAnimation) {
+            container._lottieAnimation.goToAndPlay(0);
+          }
+        }, 100);
+        
+      } catch (error) {
+        console.warn('Failed to load animation, keeping thumbnail:', error);
+      }
+    };
     
-    container._lottieAnimation = animation;
+    // Load animation on hover or click
+    container.addEventListener('mouseenter', loadAnimation, { once: true });
+    container.addEventListener('click', loadAnimation, { once: true });
     
-    return new Promise((resolve) => {
-      animation.addEventListener('DOMLoaded', () => {
-        resolve();
-      });
-    });
+    // For mobile, load animation on touch
+    container.addEventListener('touchstart', loadAnimation, { once: true });
+    
+    return Promise.resolve();
   } catch (error) {
     throw error;
   }
@@ -1564,7 +1657,67 @@ setInterval(() => {
       stickerCache.delete(key);
     }
   }
-}, 5 * 60 * 1000); // Clean up every 5 minutes        
+}, 5 * 60 * 1000); // Clean up every 5 minutes
+
+// Preload thumbnails for better performance
+function preloadThumbnails() {
+  const containers = document.querySelectorAll('.sticker-container[data-sticker-id]');
+  containers.forEach(container => {
+    const stickerId = container.getAttribute('data-sticker-id');
+    if (stickerId) {
+      // Preload thumbnail
+      const img = new Image();
+      img.src = `/api/sticker/${stickerId}/thumbnail`;
+    }
+  });
+}
+
+// Initialize preloading after DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(preloadThumbnails, 1000); // Preload after 1 second
+});
+
+// Enhanced performance monitoring
+const performanceMetrics = {
+  thumbnailLoadTimes: [],
+  animationLoadTimes: [],
+  cacheHitRate: 0
+};
+
+// Track thumbnail load performance
+function trackThumbnailLoad(startTime) {
+  const loadTime = performance.now() - startTime;
+  performanceMetrics.thumbnailLoadTimes.push(loadTime);
+  
+  // Keep only last 100 measurements
+  if (performanceMetrics.thumbnailLoadTimes.length > 100) {
+    performanceMetrics.thumbnailLoadTimes.shift();
+  }
+}
+
+// Track animation load performance
+function trackAnimationLoad(startTime) {
+  const loadTime = performance.now() - startTime;
+  performanceMetrics.animationLoadTimes.push(loadTime);
+  
+  // Keep only last 50 measurements
+  if (performanceMetrics.animationLoadTimes.length > 50) {
+    performanceMetrics.animationLoadTimes.shift();
+  }
+}
+
+// Log performance metrics periodically
+setInterval(() => {
+  if (performanceMetrics.thumbnailLoadTimes.length > 0) {
+    const avgThumbnailTime = performanceMetrics.thumbnailLoadTimes.reduce((a, b) => a + b, 0) / performanceMetrics.thumbnailLoadTimes.length;
+    console.log(`Average thumbnail load time: ${avgThumbnailTime.toFixed(2)}ms`);
+  }
+  
+  if (performanceMetrics.animationLoadTimes.length > 0) {
+    const avgAnimationTime = performanceMetrics.animationLoadTimes.reduce((a, b) => a + b, 0) / performanceMetrics.animationLoadTimes.length;
+    console.log(`Average animation load time: ${avgAnimationTime.toFixed(2)}ms`);
+  }
+}, 30000); // Log every 30 seconds        
 
 
         

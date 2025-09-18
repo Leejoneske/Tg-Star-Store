@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
 const fetch = require('node-fetch');
+const sharp = require('sharp');
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
@@ -445,6 +446,7 @@ const stickerSchema = new mongoose.Schema({
   file_id: { type: String, required: true },
   file_unique_id: { type: String, required: true, unique: true },
   file_path: { type: String },
+  thumbnail_path: { type: String }, // Path to generated thumbnail
   is_animated: { type: Boolean, default: false },
   is_video: { type: Boolean, default: false },
   emoji: { type: String },
@@ -457,6 +459,90 @@ const Sticker = mongoose.model('Sticker', stickerSchema);
 const NotificationTemplate = mongoose.model('NotificationTemplate', notificationTemplateSchema);
 const UserNotification = mongoose.model('UserNotification', userNotificationSchema);
 const Warning = mongoose.model('Warning', warningSchema);
+
+// Ensure thumbnails directory exists
+const thumbnailsDir = path.join(__dirname, 'public', 'thumbnails');
+if (!fs.existsSync(thumbnailsDir)) {
+  fs.mkdirSync(thumbnailsDir, { recursive: true });
+}
+
+// Thumbnail generation functions
+async function generateThumbnail(stickerData, stickerId) {
+  try {
+    const thumbnailPath = path.join(thumbnailsDir, `${stickerId}.webp`);
+    
+    // If thumbnail already exists, return the path
+    if (fs.existsSync(thumbnailPath)) {
+      return `/thumbnails/${stickerId}.webp`;
+    }
+
+    if (stickerData.is_animated) {
+      // For animated stickers (TGS), we'll use the first frame
+      // This is a simplified approach - in production you might want to use a TGS parser
+      const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${stickerData.file_path}`;
+      const response = await fetch(telegramUrl);
+      const buffer = await response.arrayBuffer();
+      
+      // For now, we'll create a placeholder thumbnail for animated stickers
+      // In a full implementation, you'd extract the first frame from the TGS file
+      const placeholderBuffer = await sharp({
+        create: {
+          width: 72,
+          height: 72,
+          channels: 4,
+          background: { r: 240, g: 240, b: 240, alpha: 1 }
+        }
+      })
+      .webp({ quality: 80 })
+      .toBuffer();
+      
+      fs.writeFileSync(thumbnailPath, placeholderBuffer);
+      return `/thumbnails/${stickerId}.webp`;
+      
+    } else if (stickerData.is_video) {
+      // For video stickers, extract first frame
+      const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${stickerData.file_path}`;
+      const response = await fetch(telegramUrl);
+      const buffer = await response.arrayBuffer();
+      
+      // For video stickers, we'll create a placeholder for now
+      // In production, you'd use ffmpeg or similar to extract first frame
+      const placeholderBuffer = await sharp({
+        create: {
+          width: 72,
+          height: 72,
+          channels: 4,
+          background: { r: 200, g: 200, b: 255, alpha: 1 }
+        }
+      })
+      .webp({ quality: 80 })
+      .toBuffer();
+      
+      fs.writeFileSync(thumbnailPath, placeholderBuffer);
+      return `/thumbnails/${stickerId}.webp`;
+      
+    } else {
+      // For static WebP stickers, create a thumbnail
+      const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${stickerData.file_path}`;
+      const response = await fetch(telegramUrl);
+      const buffer = await response.arrayBuffer();
+      
+      const thumbnailBuffer = await sharp(Buffer.from(buffer))
+        .resize(72, 72, { 
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .webp({ quality: 80 })
+        .toBuffer();
+      
+      fs.writeFileSync(thumbnailPath, thumbnailBuffer);
+      return `/thumbnails/${stickerId}.webp`;
+    }
+  } catch (error) {
+    console.error('Error generating thumbnail:', error);
+    return null;
+  }
+}
 const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
 const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
@@ -2611,7 +2697,7 @@ bot.on('sticker', async (msg) => {
     const fileInfo = await bot.getFile(sticker.file_id);
     if (!fileInfo.file_path) return;
 
-    const updateData = {
+    const stickerData = {
       file_id: sticker.file_id,
       file_path: fileInfo.file_path,
       is_animated: sticker.is_animated || false,
@@ -2621,9 +2707,15 @@ bot.on('sticker', async (msg) => {
       updated_at: new Date()
     };
 
+    // Generate thumbnail for the sticker
+    const thumbnailPath = await generateThumbnail(stickerData, sticker.file_unique_id);
+    if (thumbnailPath) {
+      stickerData.thumbnail_path = thumbnailPath;
+    }
+
     await Sticker.updateOne(
       { file_unique_id: sticker.file_unique_id },
-      { $set: updateData, $setOnInsert: { created_at: new Date() } },
+      { $set: stickerData, $setOnInsert: { created_at: new Date() } },
       { upsert: true }
     );
 
@@ -2699,6 +2791,151 @@ app.get('/api/stickers', async (req, res) => {
     
     res.json(stickers);
   } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Main sticker file serving endpoint
+app.get('/api/sticker/:id', async (req, res) => {
+  try {
+    const sticker = await Sticker.findOne({ file_unique_id: req.params.id });
+    if (!sticker || !sticker.file_path) {
+      return res.status(404).json({ error: 'Sticker not found' });
+    }
+
+    const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.file_path}`;
+    const response = await fetch(telegramUrl);
+    
+    if (!response.ok) {
+      return res.status(404).json({ error: 'Sticker file not found' });
+    }
+
+    // Set appropriate content type based on file extension
+    const fileExtension = sticker.file_path.split('.').pop().toLowerCase();
+    let contentType = 'application/octet-stream';
+    
+    switch (fileExtension) {
+      case 'webp':
+        contentType = 'image/webp';
+        break;
+      case 'tgs':
+        contentType = 'application/gzip';
+        break;
+      case 'webm':
+        contentType = 'video/webm';
+        break;
+      case 'mp4':
+        contentType = 'video/mp4';
+        break;
+    }
+
+    res.set({
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=31536000', // 1 year cache
+      'ETag': `"${sticker.file_unique_id}"`
+    });
+
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error('Error serving sticker file:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Thumbnail serving endpoint
+app.get('/api/sticker/:id/thumbnail', async (req, res) => {
+  try {
+    const sticker = await Sticker.findOne({ file_unique_id: req.params.id });
+    if (!sticker) {
+      return res.status(404).json({ error: 'Sticker not found' });
+    }
+
+    // If thumbnail exists, serve it
+    if (sticker.thumbnail_path) {
+      const thumbnailPath = path.join(__dirname, 'public', sticker.thumbnail_path);
+      if (fs.existsSync(thumbnailPath)) {
+        res.set({
+          'Content-Type': 'image/webp',
+          'Cache-Control': 'public, max-age=31536000', // 1 year cache
+          'ETag': `"${sticker.file_unique_id}-thumb"`
+        });
+        return res.sendFile(thumbnailPath);
+      }
+    }
+
+    // Generate thumbnail on demand if it doesn't exist
+    const thumbnailPath = await generateThumbnail(sticker, sticker.file_unique_id);
+    if (thumbnailPath) {
+      // Update the database with the thumbnail path
+      await Sticker.updateOne(
+        { file_unique_id: sticker.file_unique_id },
+        { $set: { thumbnail_path: thumbnailPath } }
+      );
+      
+      const fullThumbnailPath = path.join(__dirname, 'public', thumbnailPath);
+      res.set({
+        'Content-Type': 'image/webp',
+        'Cache-Control': 'public, max-age=31536000',
+        'ETag': `"${sticker.file_unique_id}-thumb"`
+      });
+      return res.sendFile(fullThumbnailPath);
+    }
+
+    // Fallback: return a placeholder
+    res.status(404).json({ error: 'Thumbnail not available' });
+  } catch (error) {
+    console.error('Error serving thumbnail:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Animation-only endpoint (for on-demand loading)
+app.get('/api/sticker/:id/animation', async (req, res) => {
+  try {
+    const sticker = await Sticker.findOne({ file_unique_id: req.params.id });
+    if (!sticker) {
+      return res.status(404).json({ error: 'Sticker not found' });
+    }
+
+    if (!sticker.is_animated && !sticker.is_video) {
+      return res.status(400).json({ error: 'Sticker is not animated' });
+    }
+
+    if (sticker.is_animated) {
+      // Return Lottie JSON for animated stickers
+      if (!sticker.file_path.endsWith('.tgs')) {
+        return res.status(404).json({ error: 'Animated sticker not found' });
+      }
+
+      const telegramUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.file_path}`;
+      const tgRes = await fetch(telegramUrl);
+      const buffer = await tgRes.arrayBuffer();
+
+      zlib.unzip(Buffer.from(buffer), (err, jsonBuffer) => {
+        if (err) {
+          console.error('Decompression error:', err);
+          return res.status(500).json({ error: 'Failed to decode sticker' });
+        }
+
+        try {
+          const json = JSON.parse(jsonBuffer.toString());
+          res.set({
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=31536000',
+            'ETag': `"${sticker.file_unique_id}-anim"`
+          });
+          res.json(json);
+        } catch (e) {
+          res.status(500).json({ error: 'Invalid JSON' });
+        }
+      });
+    } else if (sticker.is_video) {
+      // For video stickers, redirect to the main file endpoint
+      res.redirect(`/api/sticker/${sticker.file_unique_id}`);
+    }
+  } catch (error) {
+    console.error('Error serving animation:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
