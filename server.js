@@ -6162,6 +6162,28 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
 
         await NewsletterSubscriber.create({ email, ip, userAgent, country: geo.country, city: geo.city });
 
+        // Send welcome email automatically if SMTP is configured
+        try {
+            if (smtpTransport) {
+                const welcomeSubject = process.env.NEWSLETTER_WELCOME_SUBJECT || 'Welcome to StarStore Updates';
+                const welcomeHtml = process.env.NEWSLETTER_WELCOME_HTML || `
+                    <div style="font-family: Arial, sans-serif; color:#111;">
+                        <h2 style="margin:0 0 12px;">Welcome to StarStore 🎉</h2>
+                        <p style="margin:0 0 12px;">Thanks for subscribing. You will receive updates about new features, pricing and promotions.</p>
+                        <p style="margin:0 0 12px;">If you didn't subscribe, you can ignore this email.</p>
+                        <p style="margin:24px 0 0; font-size:12px; color:#666;">StarStore</p>
+                    </div>`;
+                await smtpTransport.sendMail({
+                    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                    to: email,
+                    subject: welcomeSubject,
+                    html: welcomeHtml
+                });
+            }
+        } catch (err) {
+            console.error('Welcome email failed:', err?.message || err);
+        }
+
         // Notify admins in real-time via Telegram
         const text = `📬 New newsletter subscriber: ${email}`;
         for (const adminId of adminIds) {
