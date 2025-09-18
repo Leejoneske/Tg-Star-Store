@@ -25,6 +25,7 @@
     "mongoose": "^8.0.3",
     "node-fetch": "^2.7.0",
     "node-telegram-bot-api": "^0.66.0",
+    "sharp": "^0.33.5",
     "sweetalert2": "^11.17.2"
   },
   "devDependencies": {
