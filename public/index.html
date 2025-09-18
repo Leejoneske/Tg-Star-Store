@@ -2013,6 +2013,11 @@ function initWalletConnection() {
     // Update button immediately with current state
     updateWalletButton();
 
+    // Determine if current user is admin
+    let currentUserIsAdmin = false;
+    fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '' } })
+        .then(r => r.json()).then(d => { currentUserIsAdmin = !!d?.isAdmin; }).catch(() => { currentUserIsAdmin = false; });
+
     tonConnectUI.onStatusChange(wallet => {
         if (wallet?.account) {
             currentWalletAddress = wallet.account.address;
@@ -2021,7 +2026,7 @@ function initWalletConnection() {
             localStorage.setItem('walletAddress', currentWalletAddress);
             console.log('Wallet connected:', currentWalletAddress);
             // Block testnet wallets immediately
-            if (isTestnetWallet(wallet)) {
+            if (isTestnetWallet(wallet) && !currentUserIsAdmin) {
                 showErrorToUser('Testnet wallet is not supported. Please switch to TON mainnet.');
                 // Attempt to disconnect gracefully
                 setTimeout(async () => { try { await tonConnectUI.disconnect(); } catch (_) {} }, 200);
@@ -2887,14 +2892,20 @@ async function handlePurchase(item) {
         }
     }
     
-    // Enforce mainnet only
+    // Enforce mainnet only (except admins)
     try {
         const w = tonConnectUI.wallet;
         if (!w || !w.account) {
             showErrorToUser('Wallet not connected');
             return;
         }
-        if (isTestnetWallet(w)) {
+        // Check admin status via whoami
+        let allowTestnet = false;
+        try {
+            const who = await fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '' } }).then(r => r.json());
+            allowTestnet = !!who?.isAdmin;
+        } catch (_) {}
+        if (isTestnetWallet(w) && !allowTestnet) {
             showErrorToUser('Testnet is not supported. Please switch your wallet to TON mainnet.');
             return;
         }
