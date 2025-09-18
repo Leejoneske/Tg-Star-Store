@@ -716,8 +716,9 @@ app.post('/api/orders/create', async (req, res) => {
             return res.status(403).json({ error: 'You are banned from placing orders' });
         }
 
-        // Reject testnet orders
-        if (isTestnet === true) {
+        // Reject testnet orders for non-admins; allow for admins
+        const requesterIsAdmin = Boolean(req.user?.isAdmin);
+        if (isTestnet === true && !requesterIsAdmin) {
             return res.status(400).json({ error: 'Testnet is not supported. Please switch your wallet to TON mainnet.' });
         }
         

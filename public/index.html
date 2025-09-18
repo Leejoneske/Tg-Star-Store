@@ -810,7 +810,7 @@
         <div id="content-container">
             <div id="bottomnav-container"></div>
             <div class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm relative">
-                <div class="logo-header" data-translate="appName">StarStore</div>
+                <div class="logo-header" data-translate="appName" style="font-size:24px;">StarStore</div>
                 <div class="flex items-center space-x-4">
                     <button class="notification-button relative p-2 rounded-full hover:bg-gray-100 transition-colors" id="notificationButton">
                         <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -856,7 +856,7 @@
                         <div class="space-y-2" id="recipientsContainer"></div>
                         <div class="flex items-center gap-2 mt-2">
                             <button id="addRecipientBtn" class="px-3 py-2 text-sm rounded-md border border-gray-300" data-translate="addRecipient">Add Recipient</button>
-                            <span class="text-xs text-gray-500" id="recipientHelp" data-translate="enterTelegramUsernames">Enter Telegram usernames. They will be validated and IDs shown.</span>
+                                    <span class="text-xs text-gray-500" id="recipientHelp" data-translate="enterTelegramUsernames">Enter Telegram usernames.</span>
                         </div>
                     </div>
                     <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
@@ -941,7 +941,7 @@
                         <div class="space-y-2" id="recipientsContainerPremium"></div>
                         <div class="flex items-center gap-2 mt-2">
                             <button id="addRecipientBtnPremium" class="px-3 py-2 text-sm rounded-md border border-gray-300" data-translate="addRecipient">Add Recipient</button>
-                            <span class="text-xs text-gray-500" id="recipientHelpPremium" data-translate="enterTelegramUsernames">Enter Telegram usernames. They will be validated and IDs shown.</span>
+                                    <span class="text-xs text-gray-500" id="recipientHelpPremium" data-translate="enterTelegramUsernames">Enter Telegram usernames.</span>
                         </div>
                     </div>
                     <div class="premium-card rounded-xl mb-6">
@@ -2013,6 +2013,11 @@ function initWalletConnection() {
     // Update button immediately with current state
     updateWalletButton();
 
+    // Determine if current user is admin
+    let currentUserIsAdmin = false;
+    fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '' } })
+        .then(r => r.json()).then(d => { currentUserIsAdmin = !!d?.isAdmin; }).catch(() => { currentUserIsAdmin = false; });
+
     tonConnectUI.onStatusChange(wallet => {
         if (wallet?.account) {
             currentWalletAddress = wallet.account.address;
@@ -2021,7 +2026,7 @@ function initWalletConnection() {
             localStorage.setItem('walletAddress', currentWalletAddress);
             console.log('Wallet connected:', currentWalletAddress);
             // Block testnet wallets immediately
-            if (isTestnetWallet(wallet)) {
+            if (isTestnetWallet(wallet) && !currentUserIsAdmin) {
                 showErrorToUser('Testnet wallet is not supported. Please switch to TON mainnet.');
                 // Attempt to disconnect gracefully
                 setTimeout(async () => { try { await tonConnectUI.disconnect(); } catch (_) {} }, 200);
@@ -2887,14 +2892,20 @@ async function handlePurchase(item) {
         }
     }
     
-    // Enforce mainnet only
+    // Enforce mainnet only (except admins)
     try {
         const w = tonConnectUI.wallet;
         if (!w || !w.account) {
             showErrorToUser('Wallet not connected');
             return;
         }
-        if (isTestnetWallet(w)) {
+        // Check admin status via whoami
+        let allowTestnet = false;
+        try {
+            const who = await fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '' } }).then(r => r.json());
+            allowTestnet = !!who?.isAdmin;
+        } catch (_) {}
+        if (isTestnetWallet(w) && !allowTestnet) {
             showErrorToUser('Testnet is not supported. Please switch your wallet to TON mainnet.');
             return;
         }
