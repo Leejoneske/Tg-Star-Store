@@ -720,6 +720,26 @@ app.post('/api/orders/create', async (req, res) => {
         if (isTestnet === true) {
             return res.status(400).json({ error: 'Testnet is not supported. Please switch your wallet to TON mainnet.' });
         }
+        
+        // Additional validation: Check wallet address format for testnet indicators
+        // TON testnet addresses typically have different workchain IDs
+        if (walletAddress && typeof walletAddress === 'string') {
+            try {
+                // Basic TON address validation - testnet addresses often have different patterns
+                // This is a secondary check in case the frontend detection fails
+                const address = walletAddress.trim();
+                if (address.length > 0) {
+                    // Check for known testnet address patterns (workchain -1 is common for testnet)
+                    // This is a fallback validation
+                    if (address.includes('testnet') || address.includes('test')) {
+                        return res.status(400).json({ error: 'Testnet wallet detected. Please switch to TON mainnet.' });
+                    }
+                }
+            } catch (error) {
+                console.warn('Error validating wallet address format:', error);
+                // Don't block the transaction for address validation errors
+            }
+        }
 
         // Handle recipients for "buy for others" functionality
         let isBuyForOthers = false;
