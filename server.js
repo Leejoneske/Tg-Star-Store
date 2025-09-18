@@ -6073,9 +6073,65 @@ app.post('/api/admin/logout', (req, res) => {
 	}
 });
 
+// Simple SMTP email sender for newsletter (admin-only)
+let smtpTransport = null;
+try {
+    const nodemailer = require('nodemailer');
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        smtpTransport = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: parseInt(process.env.SMTP_PORT || '587', 10),
+            secure: process.env.SMTP_SECURE === 'true',
+            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        });
+    }
+} catch (_) {
+    console.warn('Nodemailer not available; email sending disabled');
+}
+
+// Admin send newsletter email to all subscribers
+app.post('/api/newsletter/send', async (req, res) => {
+    try {
+        if (!req.user?.isAdmin) return res.status(403).json({ success: false, error: 'Forbidden' });
+        if (!smtpTransport) return res.status(500).json({ success: false, error: 'Email service not configured' });
+        const subject = String(req.body?.subject || '').trim();
+        const html = String(req.body?.html || '').trim();
+        if (!subject || !html) return res.status(400).json({ success: false, error: 'Subject and HTML are required.' });
+
+        const subscribers = await NewsletterSubscriber.find({}, { email: 1, _id: 0 });
+        if (!subscribers.length) return res.json({ success: true, sent: 0 });
+
+        // Send in batches to avoid provider limits
+        const batchSize = 50;
+        let sentCount = 0;
+        for (let i = 0; i < subscribers.length; i += batchSize) {
+            const batch = subscribers.slice(i, i + batchSize);
+            const toList = batch.map(s => s.email).join(',');
+            try {
+                await smtpTransport.sendMail({
+                    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                    to: toList,
+                    subject,
+                    html
+                });
+                sentCount += batch.length;
+            } catch (err) {
+                console.error('Email batch failed:', err?.message || err);
+            }
+        }
+        return res.json({ success: true, sent: sentCount });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: 'Failed to send emails' });
+    }
+});
+
 // Newsletter subscription (simple backend)
 const NewsletterSubscriberSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true, index: true },
+    ip: { type: String },
+    country: { type: String },
+    city: { type: String },
+    userAgent: { type: String },
     createdAt: { type: Date, default: Date.now }
 });
 const NewsletterSubscriber = mongoose.model('NewsletterSubscriber', NewsletterSubscriberSchema);
@@ -6084,13 +6140,27 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
     try {
         const email = String(req.body?.email || '').trim().toLowerCase();
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            return res.status(400).json({ success: false, error: 'Invalid email' });
+            return res.status(400).json({ success: false, error: 'Please enter a valid email address.' });
         }
         const existing = await NewsletterSubscriber.findOne({ email });
         if (existing) {
-            return res.json({ success: true, message: 'Already subscribed' });
+            return res.status(409).json({ success: false, error: 'This email is already subscribed.' });
         }
-        await NewsletterSubscriber.create({ email });
+
+        // Capture requester details
+        const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+        const userAgent = (req.headers['user-agent'] || '').toString();
+        let geo = { country: undefined, city: undefined };
+        try {
+            const geoResp = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { timeout: 4000 });
+            if (geoResp.ok) {
+                const g = await geoResp.json();
+                geo.country = g?.country_name || g?.country || undefined;
+                geo.city = g?.city || undefined;
+            }
+        } catch (_) {}
+
+        await NewsletterSubscriber.create({ email, ip, userAgent, country: geo.country, city: geo.city });
 
         // Notify admins in real-time via Telegram
         const text = `📬 New newsletter subscriber: ${email}`;
@@ -6098,8 +6168,8 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
             try { await bot.sendMessage(adminId, text); } catch (_) {}
         }
 
-        return res.json({ success: true });
+        return res.json({ success: true, message: 'Subscribed successfully.' });
     } catch (e) {
-        return res.status(500).json({ success: false, error: 'Server error' });
+        return res.status(500).json({ success: false, error: 'Something went wrong. Please try again later.' });
     }
 });
