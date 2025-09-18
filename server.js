@@ -114,7 +114,8 @@ app.use(express.static('public', {
   extensions: ['html'],
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
+      // Avoid caching HTML to ensure freshness across deployments
+      res.setHeader('Cache-Control', 'no-store');
     } else if (/(?:\.css|\.js|\.png|\.jpg|\.jpeg|\.svg|\.webp|\.ico|\.woff2?)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     }
@@ -134,7 +135,15 @@ app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-t
       '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html'
     };
     const file = map[req.path];
-    if (file) return res.status(200).sendFile(path.join(__dirname, 'public', file));
+    if (file) {
+      const abs = path.join(__dirname, 'public', file);
+      return res.status(200).sendFile(abs, (err) => {
+        if (err) {
+          // If the mapped file is missing, return 404 for clarity
+          return res.status(404).send('Not found');
+        }
+      });
+    }
     return next();
   } catch (e) { return next(); }
 });
@@ -142,7 +151,8 @@ app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-t
 // Sitemap generation
 app.get('/sitemap.xml', async (req, res) => {
   try {
-    const base = 'https://starstore.site';
+    // Derive base from configured server domain; fallback to starstore.site
+    const base = `https://${SERVER_URL || 'starstore.site'}`;
     const urls = [
       '/',
       '/about',
