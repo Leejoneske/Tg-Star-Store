@@ -7,9 +7,17 @@ const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
 const fetch = require('node-fetch');
-const sharp = require('sharp');
+// Optional sharp import - will use fallback if not available
+let sharp;
+try {
+  sharp = require('sharp');
+} catch (error) {
+  console.warn('Sharp not available, using fallback thumbnail generation');
+  sharp = null;
+}
 const app = express();
 const path = require('path');  
+const fs = require('fs');
 const zlib = require('zlib');
 // Create Telegram bot or a stub in local/dev if no token is provided
 let bot;
@@ -476,6 +484,11 @@ async function generateThumbnail(stickerData, stickerId) {
       return `/thumbnails/${stickerId}.webp`;
     }
 
+    // If Sharp is not available, use fallback method
+    if (!sharp) {
+      return generateFallbackThumbnail(stickerData, stickerId, thumbnailPath);
+    }
+
     if (stickerData.is_animated) {
       // For animated stickers (TGS), we'll use the first frame
       // This is a simplified approach - in production you might want to use a TGS parser
@@ -540,8 +553,50 @@ async function generateThumbnail(stickerData, stickerId) {
     }
   } catch (error) {
     console.error('Error generating thumbnail:', error);
+    return generateFallbackThumbnail(stickerData, stickerId, thumbnailPath);
+  }
+}
+
+// Fallback thumbnail generation without Sharp
+async function generateFallbackThumbnail(stickerData, stickerId, thumbnailPath) {
+  try {
+    // Create a simple SVG placeholder as fallback
+    const svgContent = createPlaceholderSVG(stickerData);
+    const svgPath = path.join(thumbnailsDir, `${stickerId}.svg`);
+    
+    fs.writeFileSync(svgPath, svgContent);
+    return `/thumbnails/${stickerId}.svg`;
+  } catch (error) {
+    console.error('Error generating fallback thumbnail:', error);
     return null;
   }
+}
+
+// Create SVG placeholder based on sticker type
+function createPlaceholderSVG(stickerData) {
+  const width = 72;
+  const height = 72;
+  const emoji = stickerData.emoji || '🎭';
+  
+  let bgColor = '#f0f0f0';
+  let textColor = '#666';
+  
+  if (stickerData.is_animated) {
+    bgColor = '#e3f2fd';
+    textColor = '#1976d2';
+  } else if (stickerData.is_video) {
+    bgColor = '#f3e5f5';
+    textColor = '#7b1fa2';
+  }
+  
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${width}" height="${height}" fill="${bgColor}" rx="8"/>
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" 
+        font-family="Arial, sans-serif" font-size="24" fill="${textColor}">
+    ${emoji}
+  </text>
+</svg>`;
 }
 const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
@@ -2855,8 +2910,9 @@ app.get('/api/sticker/:id/thumbnail', async (req, res) => {
     if (sticker.thumbnail_path) {
       const thumbnailPath = path.join(__dirname, 'public', sticker.thumbnail_path);
       if (fs.existsSync(thumbnailPath)) {
+        const isSvg = thumbnailPath.endsWith('.svg');
         res.set({
-          'Content-Type': 'image/webp',
+          'Content-Type': isSvg ? 'image/svg+xml' : 'image/webp',
           'Cache-Control': 'public, max-age=31536000', // 1 year cache
           'ETag': `"${sticker.file_unique_id}-thumb"`
         });
@@ -2874,8 +2930,9 @@ app.get('/api/sticker/:id/thumbnail', async (req, res) => {
       );
       
       const fullThumbnailPath = path.join(__dirname, 'public', thumbnailPath);
+      const isSvg = thumbnailPath.endsWith('.svg');
       res.set({
-        'Content-Type': 'image/webp',
+        'Content-Type': isSvg ? 'image/svg+xml' : 'image/webp',
         'Cache-Control': 'public, max-age=31536000',
         'ETag': `"${sticker.file_unique_id}-thumb"`
       });
