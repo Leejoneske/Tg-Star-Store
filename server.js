@@ -454,7 +454,12 @@ const stickerSchema = new mongoose.Schema({
   file_id: { type: String, required: true },
   file_unique_id: { type: String, required: true, unique: true },
   file_path: { type: String },
-  thumbnail_path: { type: String }, // Path to generated thumbnail
+  // Telegram-provided thumbnail (PhotoSize)
+  thumb_file_id: { type: String },
+  thumb_file_unique_id: { type: String },
+  thumb_file_path: { type: String },
+  // Local cached thumbnail we generated or downloaded
+  thumbnail_path: { type: String },
   is_animated: { type: Boolean, default: false },
   is_video: { type: Boolean, default: false },
   emoji: { type: String },
@@ -2752,9 +2757,23 @@ bot.on('sticker', async (msg) => {
     const fileInfo = await bot.getFile(sticker.file_id);
     if (!fileInfo.file_path) return;
 
+    // Get Telegram-provided thumbnail file info if available
+    let thumbInfo = null;
+    if (sticker.thumbnail || sticker.thumb) {
+      const t = sticker.thumbnail || sticker.thumb; // some libs use .thumbnail
+      if (t?.file_id) {
+        try {
+          thumbInfo = await bot.getFile(t.file_id);
+        } catch (_) {}
+      }
+    }
+
     const stickerData = {
       file_id: sticker.file_id,
       file_path: fileInfo.file_path,
+      thumb_file_id: (sticker.thumbnail || sticker.thumb)?.file_id || undefined,
+      thumb_file_unique_id: (sticker.thumbnail || sticker.thumb)?.file_unique_id || undefined,
+      thumb_file_path: thumbInfo?.file_path || undefined,
       is_animated: sticker.is_animated || false,
       is_video: sticker.is_video || false,
       emoji: sticker.emoji || '',
@@ -2762,8 +2781,24 @@ bot.on('sticker', async (msg) => {
       updated_at: new Date()
     };
 
-    // Generate thumbnail for the sticker
-    const thumbnailPath = await generateThumbnail(stickerData, sticker.file_unique_id);
+    // Prefer Telegram real thumbnail if available; cache locally once
+    let thumbnailPath = null;
+    if (stickerData.thumb_file_path) {
+      try {
+        const tgThumbUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${stickerData.thumb_file_path}`;
+        const resp = await fetch(tgThumbUrl);
+        if (resp.ok) {
+          const buff = await resp.arrayBuffer();
+          const localThumbPath = path.join(thumbnailsDir, `${sticker.file_unique_id}.webp`);
+          fs.writeFileSync(localThumbPath, Buffer.from(buff));
+          thumbnailPath = `/thumbnails/${sticker.file_unique_id}.webp`;
+        }
+      } catch (_) {}
+    }
+    // If Telegram thumbnail unavailable, fallback to our generator
+    if (!thumbnailPath) {
+      thumbnailPath = await generateThumbnail(stickerData, sticker.file_unique_id);
+    }
     if (thumbnailPath) {
       stickerData.thumbnail_path = thumbnailPath;
     }
@@ -2906,7 +2941,7 @@ app.get('/api/sticker/:id/thumbnail', async (req, res) => {
       return res.status(404).json({ error: 'Sticker not found' });
     }
 
-    // If thumbnail exists, serve it
+    // If local cached thumbnail exists, serve it
     if (sticker.thumbnail_path) {
       const thumbnailPath = path.join(__dirname, 'public', sticker.thumbnail_path);
       if (fs.existsSync(thumbnailPath)) {
@@ -2918,6 +2953,27 @@ app.get('/api/sticker/:id/thumbnail', async (req, res) => {
         });
         return res.sendFile(thumbnailPath);
       }
+    }
+
+    // If Telegram-provided thumbnail path exists, proxy it and cache
+    if (sticker.thumb_file_path) {
+      try {
+        const tgThumbUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${sticker.thumb_file_path}`;
+        const tgResp = await fetch(tgThumbUrl);
+        if (tgResp.ok) {
+          const arr = await tgResp.arrayBuffer();
+          const localThumbRel = `/thumbnails/${sticker.file_unique_id}.webp`;
+          const localThumbAbs = path.join(__dirname, 'public', localThumbRel);
+          fs.writeFileSync(localThumbAbs, Buffer.from(arr));
+          await Sticker.updateOne({ file_unique_id: sticker.file_unique_id }, { $set: { thumbnail_path: localThumbRel } });
+          res.set({
+            'Content-Type': 'image/webp',
+            'Cache-Control': 'public, max-age=31536000',
+            'ETag': `"${sticker.file_unique_id}-thumb"`
+          });
+          return res.sendFile(localThumbAbs);
+        }
+      } catch (_) {}
     }
 
     // Generate thumbnail on demand if it doesn't exist
