@@ -299,8 +299,7 @@
         const msg = document.getElementById('newsletterMsg');
         msg.textContent = '';
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            msg.textContent = 'Please enter a valid email';
-            msg.className = 'ml-3 text-sm text-red-600';
+            showToast('Please enter a valid email', 'error');
             return;
         }
         try {
@@ -311,18 +310,35 @@
             });
             const data = await resp.json();
             if (resp.ok && data.success) {
-                msg.textContent = data.message || 'Subscribed successfully!';
-                msg.className = 'ml-3 text-sm text-green-600';
+                showToast(data.message || 'Subscribed successfully!', 'success');
                 this.reset();
             } else {
-                msg.textContent = data.error || 'Subscription failed';
-                msg.className = 'ml-3 text-sm text-red-600';
+                showToast(data.error || 'Subscription failed', 'error');
             }
         } catch (_) {
-            msg.textContent = 'Network error';
-            msg.className = 'ml-3 text-sm text-red-600';
+            showToast('Network error', 'error');
         }
     });
+
+    // Simple toast
+    function showToast(text, type) {
+        const t = document.createElement('div');
+        t.textContent = text;
+        t.style.position = 'fixed';
+        t.style.bottom = '16px';
+        t.style.left = '50%';
+        t.style.transform = 'translateX(-50%)';
+        t.style.padding = '10px 16px';
+        t.style.borderRadius = '10px';
+        t.style.fontSize = '14px';
+        t.style.color = '#fff';
+        t.style.zIndex = '9999';
+        t.style.boxShadow = '0 6px 18px rgba(0,0,0,0.15)';
+        t.style.background = type === 'success' ? '#16a34a' : '#dc2626';
+        document.body.appendChild(t);
+        setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .4s'; }, 1800);
+        setTimeout(() => { t.remove(); }, 2300);
+    }
 </script>
 </body>
 </html>
