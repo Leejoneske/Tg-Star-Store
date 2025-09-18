@@ -305,7 +305,7 @@ const translations = {
         // History page specific
         overview: "Overview",
         all: "All",
-        searchTransactions: "Search transactions...",
+        searchTransactions: "Search Transactions...",
         searchReferrals: "Search referrals...",
         noTransactions: "No transactions found",
         noReferrals: "No referrals found",
