@@ -157,6 +157,16 @@ app.get('/api/page/:page', (req, res) => {
   });
 });
 
+// Fallback for SPA - serve app.html for any unmatched routes
+app.get('*', (req, res) => {
+  // Only serve app.html for HTML requests, not for API calls or static assets
+  if (req.accepts('html')) {
+    res.sendFile(path.join(__dirname, 'public', 'app.html'));
+  } else {
+    res.status(404).send('Not found');
+  }
+});
+
 // Sitemap generation
 app.get('/sitemap.xml', async (req, res) => {
   try {
