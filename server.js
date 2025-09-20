@@ -122,30 +122,39 @@ app.use(express.static('public', {
   }
 }));
 
-// Ensure directories with index.html return 200 (no 302/redirects)
-app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars'], (req, res, next) => {
-  try {
-    const map = {
-      '/': 'index.html',
-      '/about': 'about.html',
-      '/sell': 'sell.html',
-      '/history': 'history.html',
-      '/blog': 'blog/index.html',
-      '/knowledge-base': 'knowledge-base/index.html',
-      '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html'
-    };
-    const file = map[req.path];
-    if (file) {
-      const abs = path.join(__dirname, 'public', file);
-      return res.status(200).sendFile(abs, (err) => {
-        if (err) {
-          // If the mapped file is missing, return 404 for clarity
-          return res.status(404).send('Not found');
-        }
-      });
+// SPA Routes - serve app.html for main navigation
+app.get(['/', '/sell', '/history', '/referral', '/about', '/blog', '/knowledge-base'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'app.html'));
+});
+
+// Legacy routes for specific pages (for direct access and SEO)
+app.get('/how-to-withdraw-telegram-stars', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'how-to-withdraw-telegram-stars', 'index.html'));
+});
+
+// API route for fetching individual pages (for SPA)
+app.get('/api/page/:page', (req, res) => {
+  const pageMap = {
+    'home': 'index.html',
+    'sell': 'sell.html', 
+    'history': 'history.html',
+    'referral': 'referral.html',
+    'about': 'about.html',
+    'blog': 'blog/index.html',
+    'knowledge-base': 'knowledge-base/index.html'
+  };
+  
+  const file = pageMap[req.params.page];
+  if (!file) {
+    return res.status(404).json({ error: 'Page not found' });
+  }
+  
+  const filePath = path.join(__dirname, 'public', file);
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      res.status(404).json({ error: 'File not found' });
     }
-    return next();
-  } catch (e) { return next(); }
+  });
 });
 
 // Sitemap generation
