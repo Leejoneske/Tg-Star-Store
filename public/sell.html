@@ -784,7 +784,7 @@
 
         
         // TonConnect UI setup
-const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+window.tonConnectUI = window.tonConnectUI || new TON_CONNECT_UI.TonConnectUI({
     manifestUrl: 'https://starstore.site/tonconnect-manifest.json'
         });
 
