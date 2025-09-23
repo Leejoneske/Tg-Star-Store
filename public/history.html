@@ -329,7 +329,7 @@ let currentReferralFilter = 'all';
 let currentTransactionSearch = '';
 let currentReferralSearch = '';
 const itemsPerPage = 5;
-let currentLanguage = TranslationUtils.getCurrentLanguage();
+window.currentLanguage = window.currentLanguage || (typeof TranslationUtils !== 'undefined' ? TranslationUtils.getCurrentLanguage() : 'en');
 let transactionChart = null;
 
 // Initialize translations
