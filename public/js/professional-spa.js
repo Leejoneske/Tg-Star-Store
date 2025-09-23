@@ -211,6 +211,11 @@ class ProfessionalSPA {
             normalized = '/';
         }
         
+        // Treat /app as root for SPA shell
+        if (normalized === '/app') {
+            normalized = '/';
+        }
+        
         return normalized;
     }
 
@@ -247,6 +252,10 @@ class ProfessionalSPA {
             '/blog': 'blog/index.html',
             '/knowledge-base': 'knowledge-base/index.html'
         };
+        // Support app shell
+        if (path === '/app') {
+            path = '/';
+        }
         
         const file = fileMap[path];
         if (!file) {

@@ -127,7 +127,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/@tonconnect/ui@2.0.0/dist/tonconnect-ui.min.js"></script>
     <script src="/js/translations.js"></script>
-    <script src="/js/spa-router.js"></script>
+    <script src="/js/professional-spa.js"></script>
     
     <!-- Initialize SPA -->
     <script>
@@ -136,10 +136,9 @@
             // Load bottom navigation
             loadBottomNavigation();
             
-            // Initialize SPA router
-            if (window.spaRouter) {
-                // Router is already initialized
-                console.log('SPA Router initialized');
+            // Confirm Professional SPA initialized
+            if (window.professionalSPA) {
+                console.log('Professional SPA initialized');
             }
             
             // Add loaded class to prevent flash
