@@ -1085,7 +1085,7 @@
     </script>
     <script>
 
-let tonConnectUI = null;
+window.tonConnectUI = window.tonConnectUI || null;
 let currentLanguage = 'en'; // Will be properly initialized in initLanguageToggle()
 let walletConnected = false;
 let currentWalletAddress = '';
@@ -2030,7 +2030,7 @@ function initWalletConnection() {
         return;
     }
     
-    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ 
+    window.tonConnectUI = window.tonConnectUI || new TON_CONNECT_UI.TonConnectUI({
         manifestUrl: 'https://starstore.site/tonconnect-manifest.json',
         language: currentLanguage === 'ru' ? 'ru' : 'en',
         restoreConnection: true, 

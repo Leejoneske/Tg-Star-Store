@@ -14,6 +14,7 @@ class ProfessionalSPA {
         this.isPreloading = false;
         this.scriptCache = new Map();
         this.loadedScriptSrcs = new Set();
+        this.executedInlineForPath = new Set();
         this.performanceMetrics = {
             navigationTimes: [],
             cacheHitRate: 0,
@@ -356,6 +357,9 @@ class ProfessionalSPA {
     async executeEmbeddedScripts(path) {
         const scripts = this.scriptCache.get(path) || [];
         if (!scripts.length) return;
+
+        // Avoid re-executing inline scripts for the same path
+        const isFirstInlineExecForPath = !this.executedInlineForPath.has(path);
         
         for (const s of scripts) {
             try {
@@ -371,6 +375,21 @@ class ProfessionalSPA {
                         document.body.appendChild(el);
                     });
                 } else if (s.content && (!s.type || s.type === 'text/javascript')) {
+                    // Run inline scripts only once per path to avoid global redeclaration errors
+                    if (!isFirstInlineExecForPath) continue;
+
+                    // Skip known global duplicate declarations
+                    const knownGlobals = ['tonConnectUI','currentLanguage','walletConnected','currentWalletAddress','lastUserData','currentUser','isTelegramEnv','isInitialized'];
+                    let shouldSkip = false;
+                    for (const name of knownGlobals) {
+                        const declRe = new RegExp(`\\b(let|const|var)\\s+${name}\\b`);
+                        if (declRe.test(s.content) && typeof window[name] !== 'undefined') {
+                            shouldSkip = true;
+                            break;
+                        }
+                    }
+                    if (shouldSkip) continue;
+
                     const el = document.createElement('script');
                     el.textContent = s.content;
                     document.body.appendChild(el);
@@ -379,6 +398,9 @@ class ProfessionalSPA {
                 console.warn('Embedded script execution failed:', err);
             }
         }
+
+        // Mark inline scripts for this path as executed
+        this.executedInlineForPath.add(path);
     }
 
     async ensureBottomNav(currentPath) {
