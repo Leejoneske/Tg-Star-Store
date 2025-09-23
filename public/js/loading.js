@@ -44,49 +44,6 @@ const LoadingComponent = {
     }
 };
 
-(function(){
-	const once = (fn) => {
-		let called = false;
-		return function(...args) {
-			if (called) return;
-			called = true;
-			return fn.apply(this, args);
-		};
-	};
-
-	window.initializeTranslations = window.initializeTranslations || async function initializeTranslations() {
-		return Promise.resolve();
-	};
-
-	window.initializeCommon = window.initializeCommon || once(function initializeCommon() {
-		// Hook up any common listeners if needed
-	});
-
-	window.initializeHomePage = window.initializeHomePage || once(function initializeHomePage() {
-		// Home page specific bootstrapping
-	});
-
-	window.initializeSellPage = window.initializeSellPage || once(function initializeSellPage() {
-		// Sell page specific bootstrapping
-	});
-
-	window.initializeHistoryPage = window.initializeHistoryPage || once(function initializeHistoryPage() {
-		// History page specific bootstrapping
-	});
-
-	window.initializeAboutPage = window.initializeAboutPage || once(function initializeAboutPage() {
-		// About page specific bootstrapping
-	});
-
-	window.initializeBlogPage = window.initializeBlogPage || once(function initializeBlogPage() {
-		// Blog page specific bootstrapping
-	});
-
-	window.initializeKnowledgeBasePage = window.initializeKnowledgeBasePage || once(function initializeKnowledgeBasePage() {
-		// Knowledge base page specific bootstrapping
-	});
-})();
-
 // Auto-initialize when DOM is loaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {

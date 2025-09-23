@@ -53,13 +53,6 @@ cp .env.example .env
 npm start
 ```
 
-### SPA Shell
-- Visit `/app.html` for the SPA shell with WhatsApp-like navigation
-- Preloading enabled via `public/js/professional-spa.js`
-
-### Tests
-- SPA smoke test: `npm run test:spa`
-
 ## 📋 Environment Variables
 
 ### Required Variables

@@ -21,7 +21,6 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="js/translations.js"></script>
     <script src="js/loading.js"></script>
-    
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
@@ -255,7 +254,7 @@
         TranslationUtils.init();
     }
 
-    window.currentLanguage = window.currentLanguage || (typeof TranslationUtils !== 'undefined' ? TranslationUtils.getCurrentLanguage() : 'en');
+    let currentLanguage = TranslationUtils.getCurrentLanguage();
     
     document.addEventListener('DOMContentLoaded', () => {
         updateLanguage();

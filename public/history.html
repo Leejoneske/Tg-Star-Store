@@ -26,7 +26,6 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="js/translations.js"></script>
     <script src="js/loading.js"></script>
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         body {
@@ -329,7 +328,7 @@ let currentReferralFilter = 'all';
 let currentTransactionSearch = '';
 let currentReferralSearch = '';
 const itemsPerPage = 5;
-window.currentLanguage = window.currentLanguage || (typeof TranslationUtils !== 'undefined' ? TranslationUtils.getCurrentLanguage() : 'en');
+let currentLanguage = TranslationUtils.getCurrentLanguage();
 let transactionChart = null;
 
 // Initialize translations
