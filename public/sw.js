@@ -20,7 +20,6 @@ const STATIC_FILES = [
     '/js/translations.js',
     '/js/loading.js',
     '/js/api.js',
-    '/css/tailwind.css',
     '/favicon.png'
 ];
 
