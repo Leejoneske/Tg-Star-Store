@@ -12,6 +12,8 @@ class ProfessionalSPA {
         this.maxHistorySize = 50;
         this.preloadQueue = [];
         this.isPreloading = false;
+        this.scriptCache = new Map();
+        this.loadedScriptSrcs = new Set();
         this.performanceMetrics = {
             navigationTimes: [],
             cacheHitRate: 0,
@@ -281,6 +283,27 @@ class ProfessionalSPA {
         
         const mainContent = doc.querySelector('main') || doc.body;
         
+        // Collect embedded scripts inside main content so we can execute them after injection
+        const embeddedScripts = Array.from(mainContent.querySelectorAll('script')).map((script) => ({
+            src: script.getAttribute('src'),
+            type: (script.getAttribute('type') || '').trim(),
+            content: script.textContent || ''
+        })).filter((s) => !s.type || s.type === 'text/javascript' || s.type === 'module');
+        
+        // Compute base path for resolving relative script src values
+        const lastSlashIndex = file.lastIndexOf('/');
+        const basePath = lastSlashIndex >= 0 ? file.slice(0, lastSlashIndex + 1) : '';
+        
+        // Normalize relative script srcs
+        const normalizedScripts = embeddedScripts.map((s) => {
+            if (s.src && !s.src.startsWith('http') && !s.src.startsWith('//') && !s.src.startsWith('/')) {
+                return { ...s, src: `/${basePath}${s.src}`.replace(/\\+/g, '/') };
+            }
+            return s;
+        });
+        
+        this.scriptCache.set(path, normalizedScripts);
+        
         return mainContent.innerHTML;
     }
 
@@ -312,7 +335,10 @@ class ProfessionalSPA {
             // Update content
             mainElement.innerHTML = content;
             
-            // Re-initialize page-specific scripts
+            // Execute embedded scripts captured from the fetched page
+            await this.executeEmbeddedScripts(path);
+            
+            // Re-initialize page-specific scripts (should be idempotent)
             await this.initializePageScripts(path);
             
             // Fade in
@@ -322,6 +348,34 @@ class ProfessionalSPA {
         
         // Update current page
         this.currentPage = path;
+    }
+
+    async executeEmbeddedScripts(path) {
+        const scripts = this.scriptCache.get(path) || [];
+        if (!scripts.length) return;
+        
+        for (const s of scripts) {
+            try {
+                if (s.src) {
+                    if (this.loadedScriptSrcs.has(s.src)) continue;
+                    await new Promise((resolve, reject) => {
+                        const el = document.createElement('script');
+                        if (s.type === 'module') el.type = 'module';
+                        el.src = s.src;
+                        el.async = true;
+                        el.onload = () => { this.loadedScriptSrcs.add(s.src); resolve(); };
+                        el.onerror = () => reject(new Error(`Failed to load script: ${s.src}`));
+                        document.body.appendChild(el);
+                    });
+                } else if (s.content && (!s.type || s.type === 'text/javascript')) {
+                    const el = document.createElement('script');
+                    el.textContent = s.content;
+                    document.body.appendChild(el);
+                }
+            } catch (err) {
+                console.warn('Embedded script execution failed:', err);
+            }
+        }
     }
 
     async initializePageScripts(path) {
