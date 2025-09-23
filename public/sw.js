@@ -3,13 +3,14 @@
  * Provides offline support, caching, and background sync
  */
 const CACHE_NAME = 'starstore-spa-v1';
-const STATIC_CACHE = 'starstore-static-v1';
-const DYNAMIC_CACHE = 'starstore-dynamic-v1';
+const STATIC_CACHE = 'starstore-static-v2';
+const DYNAMIC_CACHE = 'starstore-dynamic-v2';
 
 // Files to cache immediately
 const STATIC_FILES = [
     '/',
     '/index.html',
+    '/app.html',
     '/sell.html',
     '/history.html',
     '/about.html',

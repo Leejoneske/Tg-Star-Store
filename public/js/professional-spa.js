@@ -341,6 +341,9 @@ class ProfessionalSPA {
             // Re-initialize page-specific scripts (should be idempotent)
             await this.initializePageScripts(path);
             
+            // Ensure bottom navigation is present and up to date
+            await this.ensureBottomNav(path);
+            
             // Fade in
             mainElement.style.opacity = '1';
             mainElement.style.transform = 'translateY(0)';
@@ -375,6 +378,27 @@ class ProfessionalSPA {
             } catch (err) {
                 console.warn('Embedded script execution failed:', err);
             }
+        }
+    }
+
+    async ensureBottomNav(currentPath) {
+        try {
+            // Prefer global shell container; fallback to page-local container
+            let container = document.getElementById('bottom-nav-container') || document.getElementById('bottomnav-container');
+            if (!container) return;
+            
+            const hasNav = container.querySelector('nav') || container.querySelector('.nav-link');
+            if (!hasNav) {
+                const resp = await fetch('/bottomnav.html', { cache: 'no-cache' });
+                if (resp.ok) {
+                    const html = await resp.text();
+                    container.innerHTML = html;
+                }
+            }
+            // Update active state
+            this.updateNavigationState(currentPath);
+        } catch (_) {
+            // noop
         }
     }
 
