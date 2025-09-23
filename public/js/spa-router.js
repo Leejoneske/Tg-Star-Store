@@ -182,9 +182,11 @@ class SPARouter {
         }
         
         try {
-            // Use API endpoint for SPA pages
-            const apiPath = `/api/page/${route.component}`;
-            const response = await fetch(apiPath);
+            // Fetch the static HTML file directly
+            const response = await fetch(route.file, {
+                cache: 'no-cache',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
