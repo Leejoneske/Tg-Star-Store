@@ -255,7 +255,7 @@
         TranslationUtils.init();
     }
 
-    let currentLanguage = TranslationUtils.getCurrentLanguage();
+    window.currentLanguage = window.currentLanguage || (typeof TranslationUtils !== 'undefined' ? TranslationUtils.getCurrentLanguage() : 'en');
     
     document.addEventListener('DOMContentLoaded', () => {
         updateLanguage();

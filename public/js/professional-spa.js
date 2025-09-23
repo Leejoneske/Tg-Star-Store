@@ -284,6 +284,24 @@ class ProfessionalSPA {
         
         const mainContent = doc.querySelector('main') || doc.body;
         
+        // Ensure page CSS is present in head (bring over link[rel=stylesheet] from fetched doc head)
+        try {
+            const headLinks = Array.from(doc.querySelectorAll('head link[rel="stylesheet"]'));
+            const existingHrefs = new Set(Array.from(document.querySelectorAll('head link[rel="stylesheet"]')).map(l => l.href));
+            for (const link of headLinks) {
+                const href = link.getAttribute('href');
+                if (!href) continue;
+                const abs = new URL(href, window.location.origin).href;
+                if (!existingHrefs.has(abs)) {
+                    const el = document.createElement('link');
+                    el.rel = 'stylesheet';
+                    el.href = href;
+                    document.head.appendChild(el);
+                    existingHrefs.add(abs);
+                }
+            }
+        } catch (_) {}
+        
         // Collect embedded scripts inside main content so we can execute them after injection
         const embeddedScripts = Array.from(mainContent.querySelectorAll('script')).map((script) => ({
             src: script.getAttribute('src'),

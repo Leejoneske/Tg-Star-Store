@@ -761,7 +761,7 @@
         let currentWalletMemo = '';
         let currentWalletType = '';
         let currentWalletAddress = '';
-        let currentLanguage = TranslationUtils.getCurrentLanguage();
+        window.currentLanguage = window.currentLanguage || (typeof TranslationUtils !== 'undefined' ? TranslationUtils.getCurrentLanguage() : 'en');
         let rate = 0.009;
 
 
