@@ -1055,7 +1055,6 @@
 
     <script src="js/translations.js"></script>
     <script src="js/loading.js"></script>
-    
     <script>
     // Simple in-page error reporter
     (function(){
@@ -1085,8 +1084,8 @@
     </script>
     <script>
 
-window.tonConnectUI = window.tonConnectUI || null;
-window.currentLanguage = window.currentLanguage || 'en'; // Will be properly initialized in initLanguageToggle()
+let tonConnectUI = null;
+let currentLanguage = 'en'; // Will be properly initialized in initLanguageToggle()
 let walletConnected = false;
 let currentWalletAddress = '';
 
@@ -2030,7 +2029,7 @@ function initWalletConnection() {
         return;
     }
     
-    window.tonConnectUI = window.tonConnectUI || new TON_CONNECT_UI.TonConnectUI({
+    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ 
         manifestUrl: 'https://starstore.site/tonconnect-manifest.json',
         language: currentLanguage === 'ru' ? 'ru' : 'en',
         restoreConnection: true, 

@@ -755,13 +755,12 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="js/translations.js"></script>
     <script src="js/loading.js"></script>
-    
     <script>
         // Global variables
         let currentWalletMemo = '';
         let currentWalletType = '';
         let currentWalletAddress = '';
-        window.currentLanguage = window.currentLanguage || (typeof TranslationUtils !== 'undefined' ? TranslationUtils.getCurrentLanguage() : 'en');
+        let currentLanguage = TranslationUtils.getCurrentLanguage();
         let rate = 0.009;
 
 
@@ -784,7 +783,7 @@
 
         
         // TonConnect UI setup
-window.tonConnectUI = window.tonConnectUI || new TON_CONNECT_UI.TonConnectUI({
+const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
     manifestUrl: 'https://starstore.site/tonconnect-manifest.json'
         });
 
