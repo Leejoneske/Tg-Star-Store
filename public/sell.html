@@ -544,7 +544,7 @@
                                    onblur="if(!this.value) this.placeholder = ' '">
                             <label for="manualWalletMemo" data-translate="memoTag">Memo/Tag (if required)</label>
                         </div>
-                        <p class="text-sm text-gray-600 mt-1 px-2" data-translate="memoNote">Only required for certain exchanges like Binance, OKX</p>
+                        <p class="text-sm text-gray-600 mt-1 px-2" data-translate="memoNote">Only required for certain exchanges. Binance: No memo/tag required.</p>
                     </div>
                 </div>
                 
@@ -851,8 +851,8 @@ const walletConfigs = {
     binance: {
         icon: 'https://cdn.simpleicons.org/binance/F0B90B',
         name: 'Binance',
-        requiresMemo: true,
-        memoNote: 'Binance requires a memo/tag for USDT TON deposits'
+        requiresMemo: false,
+        memoNote: 'Binance: No memo/tag required for USDT TON deposits'
     },
     okx: {
         icon: 'https://cdn.simpleicons.org/okx/000000',
