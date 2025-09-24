@@ -88,6 +88,8 @@
 
     <!-- CSS & Fonts -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
@@ -832,25 +834,26 @@
 </style>
 </head>
 <body>
-    <main class="app-container">
+    <div id="header-container"></div>
+    <main class="app-container" role="main" aria-live="polite">
         <div id="loading-container"></div>
 
         <div id="content-container">
             <div id="bottomnav-container"></div>
-            <div class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm relative">
+            <div class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm relative" role="region" aria-label="Top bar">
                 <div class="logo-header" data-translate="appName">StarStore</div>
                 <div class="flex items-center space-x-4">
-                    <button class="notification-button relative p-2 rounded-full hover:bg-gray-100 transition-colors" id="notificationButton">
+                    <button class="notification-button relative p-2 rounded-full hover:bg-gray-100 transition-colors" id="notificationButton" aria-label="Notifications">
                         <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                         </svg>
                         <div class="notification-badge hidden" id="notificationBadge">0</div>
                     </button>
-                    <button id="languageToggle" class="language-toggle">🇬🇧</button>
+                    <button id="languageToggle" class="language-toggle" aria-label="Toggle language">🇬🇧</button>
                 </div>
             </div>
 
-            <div class="px-6 pt-4 pb-2">
+            <div class="px-6 pt-4 pb-2" role="region" aria-label="User information">
                 <div class="user-info-container">
                     <div class="user-details">
                         <div class="profile-image">
@@ -1054,6 +1057,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 
     <script src="js/translations.js"></script>
+    <script src="js/common.js"></script>
     <script src="js/loading.js"></script>
     <script>
     // Simple in-page error reporter
@@ -1194,6 +1198,9 @@ function showErrorToUser(message) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+            if (window.CommonUI) {
+                CommonUI.loadHeader();
+            }
     if (isInitialized) return;
     isInitialized = true;
     

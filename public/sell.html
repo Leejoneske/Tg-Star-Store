@@ -21,6 +21,8 @@
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -487,6 +489,7 @@
 </style>
 </head>
 <body>
+    <div id="header-container"></div>
     <!-- Notice Modal -->
     <div id="noticeModal" class="notice-modal" style="display: none;">
         <div class="notice-content">
@@ -496,7 +499,7 @@
                 This period is required for security verification and compliance purposes. 
                 By clicking "Continue", you acknowledge and agree to these terms.
             </div>
-            <button id="continueButton" class="notice-button" data-translate="continue">Continue</button>
+            <button id="continueButton" class="notice-button" data-translate="continue" aria-label="Acknowledge notice and continue">Continue</button>
         </div>
     </div>
 
@@ -507,14 +510,14 @@
         <div id="bottomnav-container"></div>
          
         <!-- Header -->
-        <header class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm">
+        <header class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm" role="banner" aria-label="Page header">
             <div class="p-2"></div>
             <div class="logo-header">StarStore</div>
             <div></div>
         </header>
         
         <!-- Main Content -->
-        <main>
+        <main role="main" aria-live="polite">
             <!-- Wallet Status Section -->
             <section class="wallet-status">
                 <div class="mb-6">
@@ -751,10 +754,11 @@
    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="js/translations.js"></script>
-    <script src="js/loading.js"></script>
+    <script defer src="js/translations.js"></script>
+    <script defer src="js/loading.js"></script>
+    <script defer src="js/common.js"></script>
     <script>
         // Global variables
         let currentWalletMemo = '';
