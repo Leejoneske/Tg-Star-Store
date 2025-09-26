@@ -413,7 +413,17 @@ const translations = {
         forbidden: "Access forbidden",
         notFound: "Not found",
         internalError: "Internal server error",
-        serviceUnavailable: "Service unavailable"
+        serviceUnavailable: "Service unavailable",
+
+        // UI dynamic labels used in JS (ensure translatability)
+        min50ForOthers: "Min 50 for others",
+        buyGiftCta: "Buy Gift",
+        buyNowCta: "Buy Now",
+        valid: "Valid",
+        invalid: "Invalid",
+        manualMinStarsInfo: "Manual input requires at least 50 stars. Use a package below for smaller amounts.",
+        totalSummary: "Total: {total} USDT (~{ton} TON) for {qty} recipients (Unit: {unit} USDT)",
+        totalSummaryNoTon: "Total: {total} USDT for {qty} recipients (Unit: {unit} USDT)"
     },
     ru: {
         // Common UI elements
@@ -828,7 +838,17 @@ const translations = {
         forbidden: "Доступ запрещен",
         notFound: "Не найдено",
         internalError: "Внутренняя ошибка сервера",
-        serviceUnavailable: "Сервис недоступен"
+        serviceUnavailable: "Сервис недоступен",
+
+        // UI dynamic labels used in JS (ensure translatability)
+        min50ForOthers: "Минимум 50 для других",
+        buyGiftCta: "Купить подарок",
+        buyNowCta: "Купить сейчас",
+        valid: "Действительный",
+        invalid: "Недействительный",
+        manualMinStarsInfo: "Ручной ввод требует как минимум 50 звезд. Используйте пакеты ниже для меньших сумм.",
+        totalSummary: "Итого: {total} USDT (~{ton} TON) для {qty} получателей (За единицу: {unit} USDT)",
+        totalSummaryNoTon: "Итого: {total} USDT для {qty} получателей (За единицу: {unit} USDT)"
     }
 };
 
@@ -841,7 +861,46 @@ try {
         english: "अंग्रेज़ी",
         russian: "रूसी",
         hindi: "हिंदी",
-        arabic: "अरबी"
+        arabic: "अरबी",
+        appName: "स्टारस्टोर",
+        menu: "मेनू",
+        home: "होम",
+        sell: "बेचें",
+        history: "इतिहास",
+        referral: "रेफरल",
+        about: "हमारे बारे में",
+        error: "त्रुटि",
+        success: "सफलता",
+        ok: "ओके",
+        warning: "चेतावनी",
+        continue: "जारी रखें",
+        cancel: "रद्द करें",
+        loading: "लोड हो रहा है...",
+        processing: "प्रोसेस हो रहा है...",
+        connectWallet: "वॉलेट कनेक्ट करें",
+        buyStars: "स्टार्स खरीदें",
+        telegramPremium: "टेलीग्राम प्रीमियम",
+        buyFor: "किसके लिए खरीदें",
+        myself: "स्वयं",
+        someoneElse: "किसी और के लिए",
+        recipients: "प्राप्तकर्ता (अधिकतम 5)",
+        addRecipient: "प्राप्तकर्ता जोड़ें",
+        customStars: "कस्टम स्टार्स",
+        chooseStarsPackage: "स्टार्स पैकेज चुनें",
+        buy: "खरीदें",
+        buyNow: "अभी खरीदें",
+        buygift: "गिफ्ट खरीदें",
+        enterTelegramUsernames: "टेलीग्राम उपयोगकर्ता नाम दर्ज करें।",
+        ifSetOverrides: "यदि सेट किया गया, तो यह पैकेज चयन को ओवरराइड करेगा।",
+        starsDistribution: "स्टार्स वितरण:",
+        minimumSell: "न्यूनतम बिक्री: 50 स्टार्स",
+        enterStars: "स्टार्स दर्ज करें (न्यूनतम 50)",
+        min50ForOthers: "दूसरों के लिए कम से कम 50",
+        buyGiftCta: "गिफ्ट खरीदें",
+        buyNowCta: "अभी खरीदें",
+        valid: "मान्य",
+        invalid: "अमान्य",
+        manualMinStarsInfo: "मैन्युअल इनपुट के लिए कम से कम 50 स्टार्स आवश्यक। छोटे amounts के लिए नीचे पैकेज का उपयोग करें।"
     });
 
     translations.ar = JSON.parse(JSON.stringify(translations.en));
@@ -850,7 +909,46 @@ try {
         english: "الإنجليزية",
         russian: "الروسية",
         hindi: "الهندية",
-        arabic: "العربية"
+        arabic: "العربية",
+        appName: "ستارستور",
+        menu: "القائمة",
+        home: "الرئيسية",
+        sell: "بيع",
+        history: "السجل",
+        referral: "الإحالات",
+        about: "من نحن",
+        error: "خطأ",
+        success: "نجاح",
+        ok: "حسناً",
+        warning: "تحذير",
+        continue: "متابعة",
+        cancel: "إلغاء",
+        loading: "جاري التحميل...",
+        processing: "جاري المعالجة...",
+        connectWallet: "اتصال بالمحفظة",
+        buyStars: "شراء النجوم",
+        telegramPremium: "تيليجرام بريميوم",
+        buyFor: "الشراء لصالح",
+        myself: "نفسي",
+        someoneElse: "شخص آخر",
+        recipients: "المستلمون (حتى 5)",
+        addRecipient: "إضافة مستلم",
+        customStars: "نجوم مخصصة",
+        chooseStarsPackage: "اختر باقة النجوم",
+        buy: "شراء",
+        buyNow: "اشترِ الآن",
+        buygift: "شراء هدية",
+        enterTelegramUsernames: "أدخل أسماء مستخدمي تيليجرام.",
+        ifSetOverrides: "عند التعيين، سيتم تجاوز اختيار الباقة.",
+        starsDistribution: "توزيع النجوم:",
+        minimumSell: "الحد الأدنى للبيع: 50 نجمة",
+        enterStars: "أدخل النجوم (الحد الأدنى 50)",
+        min50ForOthers: "بحد أدنى 50 للآخرين",
+        buyGiftCta: "شراء هدية",
+        buyNowCta: "اشترِ الآن",
+        valid: "صالح",
+        invalid: "غير صالح",
+        manualMinStarsInfo: "يتطلب الإدخال اليدوي 50 نجمة على الأقل. استخدم الباقات أدناه للكميات الصغيرة."
     });
 } catch (_) {}
 
@@ -858,14 +956,17 @@ try {
 const TranslationUtils = {
     // Get current language
     getCurrentLanguage() {
-        return localStorage.getItem('appLanguage') || 'en';
+        try { if (typeof localStorage !== 'undefined') return localStorage.getItem('appLanguage') || 'en'; } catch (_) {}
+        return 'en';
     },
 
     // Set current language
     setCurrentLanguage(language) {
-        localStorage.setItem('appLanguage', language);
+        try { if (typeof localStorage !== 'undefined') localStorage.setItem('appLanguage', language); } catch(_) {}
         this.applyLanguageAttributes(language);
-        this.applyTranslations();
+        if (typeof document !== 'undefined') {
+            this.applyTranslations();
+        }
     },
 
     // Apply HTML lang and text direction based on language
@@ -959,12 +1060,14 @@ const TranslationUtils = {
 };
 
 // Auto-initialize when DOM is loaded
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            TranslationUtils.init();
+        });
+    } else {
         TranslationUtils.init();
-    });
-} else {
-    TranslationUtils.init();
+    }
 }
 
 // Export for use in other scripts
