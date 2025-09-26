@@ -643,7 +643,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0 18 0z" />
                         </svg>
-                        Why 21 days?
+                        <span data-translate="why21Days">Why 21 days?</span>
                     </a>
                     
                     <div class="transaction-history">
@@ -940,8 +940,8 @@ function saveWalletDetails() {
     if (!isValidWalletAddress(address)) {
         Swal.fire({
             icon: 'error',
-            title: 'Invalid Address',
-            text: 'Please enter a valid wallet address (minimum 10 characters)'
+            title: TranslationUtils.get('invalidAddressTitle') || 'Invalid Address',
+            text: TranslationUtils.get('enterValidWallet') || 'Please enter a valid wallet address (minimum 10 characters)'
         });
         return;
     }
@@ -1089,8 +1089,8 @@ sellStarsBtn.addEventListener('click', () => {
     if (walletType && walletConfigs[walletType]?.requiresMemo && !manualWalletMemo.value.trim()) {
         Swal.fire({
             icon: 'error',
-            title: 'Memo Required',
-            text: 'This wallet type requires a memo/tag for USDT TON deposits'
+            title: TranslationUtils.get('memoRequiredTitle') || 'Memo Required',
+            text: TranslationUtils.get('memoRequiredText') || 'This wallet type requires a memo/tag for USDT TON deposits'
         });
         return;
     }
@@ -1126,8 +1126,8 @@ confirmPaymentBtn.addEventListener('click', async () => {
     if (!Telegram.WebApp.initDataUnsafe?.user?.id) {
         Swal.fire({
             icon: 'error',
-            title: 'Authentication Error',
-            text: 'Please open this page through Telegram to proceed.'
+            title: TranslationUtils.get('error') || 'Error',
+            text: TranslationUtils.get('tryInTelegram') || 'Please open this page through Telegram to proceed.'
         });
         return;
     }

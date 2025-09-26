@@ -286,6 +286,12 @@ const translations = {
         date: "Date",
         active: "Active",
         openTelegram: "Open in Telegram",
+        progress: "Progress",
+        estCompletion: "Est. completion:",
+        why21Days: "Why 21 days?",
+        invalidAddressTitle: "Invalid Address",
+        memoRequiredTitle: "Memo Required",
+        memoRequiredText: "This wallet requires a memo/tag for USDT TON deposits",
         getInTouch: "Get in Touch",
         getInTouchText: "Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.",
         contactText: "Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.",
@@ -721,6 +727,12 @@ const translations = {
         date: "Дата",
         active: "Активен",
         openTelegram: "Открыть в Telegram",
+        progress: "Прогресс",
+        estCompletion: "Ожид. завершение:",
+        why21Days: "Почему 21 день?",
+        invalidAddressTitle: "Неверный адрес",
+        memoRequiredTitle: "Требуется мемо",
+        memoRequiredText: "Для этой кошелька требуется мемо/тег для депозитов USDT TON",
         
         // Community Section
         communityTitle: "Присоединяйтесь к нашему сообществу",
@@ -912,7 +924,13 @@ try {
         transactions: "लेन-देन",
         date: "तारीख",
         active: "सक्रिय",
-        openTelegram: "टेलीग्राम खोलें"
+        openTelegram: "टेलीग्राम खोलें",
+        progress: "प्रगति",
+        estCompletion: "अनुमानित पूर्णता:",
+        why21Days: "क्यों 21 दिन?",
+        invalidAddressTitle: "अमान्य पता",
+        memoRequiredTitle: "मेमो आवश्यक",
+        memoRequiredText: "इस वॉलेट के लिए USDT TON जमा हेतु मेमो/टैग आवश्यक है"
     });
 
     translations.ar = JSON.parse(JSON.stringify(translations.en));
@@ -964,7 +982,13 @@ try {
         transactions: "المعاملات",
         date: "التاريخ",
         active: "نشط",
-        openTelegram: "افتح تيليجرام"
+        openTelegram: "افتح تيليجرام",
+        progress: "التقدم",
+        estCompletion: "الانتهاء المقدر:",
+        why21Days: "لماذا 21 يومًا؟",
+        invalidAddressTitle: "عنوان غير صالح",
+        memoRequiredTitle: "مطلوب مذكرة",
+        memoRequiredText: "هذه المحفظة تتطلب مذكرة/وسم لإيداعات USDT على شبكة TON"
     });
 } catch (_) {}
 
