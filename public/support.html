@@ -48,11 +48,21 @@
             opacity: 0 !important;
         }
     </style>
+    <script src="js/translations.js"></script>
 </head>
 <body class="loading">
     <div class="loading-overlay" id="loadingScreen">
         <div class="spinner"></div>
                         <div class="loading-text" data-translate="connectingToSupport">Connecting to StarStore support...</div>
+    </div>
+
+    <div style="position: absolute; top: 8px; right: 8px; z-index: 10000;">
+        <select id="languageSelectSupport" class="language-toggle" style="padding: 6px 10px; border: 1px solid #4f46e5; border-radius: 8px;">
+            <option value="en">English</option>
+            <option value="ru">Русский</option>
+            <option value="hi">हिंदी</option>
+            <option value="ar">العربية</option>
+        </select>
     </div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -115,10 +125,7 @@
                 document.body.classList.remove('loading');
                 loadingScreen.style.display = 'none';
                 
-                if (window.tidioChatApi) {
-                    window.tidioChatApi.show();
-                    window.tidioChatApi.open();
-                }
+                // Nothing else
             }, 300);
         }
 
@@ -129,6 +136,18 @@
         }, 5000);
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize translations and language select
+            if (typeof TranslationUtils !== 'undefined') {
+                TranslationUtils.init();
+                const select = document.getElementById('languageSelectSupport');
+                if (select) {
+                    select.value = TranslationUtils.getCurrentLanguage();
+                    select.addEventListener('change', function() {
+                        TranslationUtils.setCurrentLanguage(this.value);
+                        localStorage.setItem('appLanguage', this.value);
+                    });
+                }
+            }
             setupSmartsupp();
         });
     </script>
