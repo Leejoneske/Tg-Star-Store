@@ -263,6 +263,8 @@ const translations = {
         language: "Language",
         english: "English",
         russian: "Russian",
+        hindi: "Hindi",
+        arabic: "Arabic",
         
         // Additional keys used in pages
         welcome: "Welcome to",
@@ -676,6 +678,8 @@ const translations = {
         language: "Язык",
         english: "Английский",
         russian: "Русский",
+        hindi: "Хинди",
+        arabic: "Арабский",
         
         // Additional keys used in pages
         welcome: "Добро пожаловать в",
@@ -828,6 +832,28 @@ const translations = {
     }
 };
 
+// Add Hindi and Arabic locales by cloning English to ensure full key coverage
+// Override a few common labels to native names
+try {
+    translations.hi = JSON.parse(JSON.stringify(translations.en));
+    Object.assign(translations.hi, {
+        language: "भाषा",
+        english: "अंग्रेज़ी",
+        russian: "रूसी",
+        hindi: "हिंदी",
+        arabic: "अरबी"
+    });
+
+    translations.ar = JSON.parse(JSON.stringify(translations.en));
+    Object.assign(translations.ar, {
+        language: "اللغة",
+        english: "الإنجليزية",
+        russian: "الروسية",
+        hindi: "الهندية",
+        arabic: "العربية"
+    });
+} catch (_) {}
+
 // Translation utility functions
 const TranslationUtils = {
     // Get current language
@@ -838,7 +864,18 @@ const TranslationUtils = {
     // Set current language
     setCurrentLanguage(language) {
         localStorage.setItem('appLanguage', language);
+        this.applyLanguageAttributes(language);
         this.applyTranslations();
+    },
+
+    // Apply HTML lang and text direction based on language
+    applyLanguageAttributes(language = null) {
+        const lang = language || this.getCurrentLanguage();
+        const isRtl = (l) => ['ar', 'fa', 'he', 'ur'].includes(l);
+        if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute('lang', lang);
+            document.documentElement.setAttribute('dir', isRtl(lang) ? 'rtl' : 'ltr');
+        }
     },
 
     // Get translation for a key
@@ -857,6 +894,7 @@ const TranslationUtils = {
     // Apply translations to all elements with data-translate attribute
     applyTranslations() {
         const currentLang = this.getCurrentLanguage();
+        this.applyLanguageAttributes(currentLang);
         
         document.querySelectorAll('[data-translate]').forEach(element => {
             const key = element.getAttribute('data-translate');

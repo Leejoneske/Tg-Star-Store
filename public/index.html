@@ -846,7 +846,12 @@
                         </svg>
                         <div class="notification-badge hidden" id="notificationBadge">0</div>
                     </button>
-                    <button id="languageToggle" class="language-toggle">🇬🇧</button>
+                    <select id="languageSelect" class="language-toggle">
+                        <option value="en">English</option>
+                        <option value="ru">Русский</option>
+                        <option value="hi">हिंदी</option>
+                        <option value="ar">العربية</option>
+                    </select>
                 </div>
             </div>
 
@@ -2118,46 +2123,29 @@ setTimeout(() => {
 //end of ton connect
 
 function initLanguageToggle() {
-    const languageToggle = document.getElementById('languageToggle');
-    if (!languageToggle) {
-        console.warn('Language toggle button not found');
+    const languageSelect = document.getElementById('languageSelect');
+    if (!languageSelect) {
+        console.warn('Language select not found');
         return;
     }
     
-    // Initialize TranslationUtils
     if (typeof TranslationUtils !== 'undefined') {
         TranslationUtils.init();
     }
     
-    // Initialize
     currentLanguage = TranslationUtils.getCurrentLanguage();
-    updateLanguage(); // Initial update
-    
-    languageToggle.addEventListener('click', () => {
-        // Toggle language using TranslationUtils
-        const newLanguage = currentLanguage === 'en' ? 'ru' : 'en';
+    updateLanguage();
+
+    // Set initial select value
+    languageSelect.value = currentLanguage;
+
+    languageSelect.addEventListener('change', () => {
+        const newLanguage = languageSelect.value;
         TranslationUtils.setCurrentLanguage(newLanguage);
         currentLanguage = newLanguage;
-        
-        // Persist and notify
         localStorage.setItem('appLanguage', currentLanguage);
         window.dispatchEvent(new CustomEvent('languageChanged'));
-        
-        // Update UI
         updateLanguage();
-        
-        // Update wallet button if exists
-        const connectWalletButton = document.getElementById('connectWallet');
-        if (connectWalletButton) {
-            if (walletConnected && currentWalletAddress) {
-                const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
-                connectWalletButton.innerHTML = `<span class="wallet-address">${shortAddress}</span>`;
-            } else {
-                connectWalletButton.textContent = TranslationUtils.get('connectWallet');
-            }
-        }
-        
-        // Update TON Connect UI if available
         if (tonConnectUI?.setLanguage) {
             tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
         }
@@ -2166,13 +2154,10 @@ function initLanguageToggle() {
 
 // Make sure this exists!
 function updateLanguage() {
-    // Update toggle button
-    const languageToggle = document.getElementById('languageToggle');
-    if (languageToggle) {
-        languageToggle.textContent = currentLanguage === 'en' ? '🇷🇺' : '🇬🇧';
+    const languageSelect = document.getElementById('languageSelect');
+    if (languageSelect) {
+        languageSelect.value = currentLanguage;
     }
-    
-    // Update all translatable elements using TranslationUtils
     if (typeof TranslationUtils !== 'undefined') {
         TranslationUtils.applyTranslations();
     }
