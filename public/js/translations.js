@@ -924,7 +924,13 @@ try {
         transactions: "लेन-देन",
         date: "तारीख",
         active: "सक्रिय",
-        openTelegram: "टेलीग्राम खोलें"
+        openTelegram: "टेलीग्राम खोलें",
+        progress: "प्रगति",
+        estCompletion: "अनुमानित पूर्णता:",
+        why21Days: "क्यों 21 दिन?",
+        invalidAddressTitle: "अमान्य पता",
+        memoRequiredTitle: "मेमो आवश्यक",
+        memoRequiredText: "इस वॉलेट के लिए USDT TON जमा हेतु मेमो/टैग आवश्यक है"
     });
 
     translations.ar = JSON.parse(JSON.stringify(translations.en));
@@ -976,7 +982,13 @@ try {
         transactions: "المعاملات",
         date: "التاريخ",
         active: "نشط",
-        openTelegram: "افتح تيليجرام"
+        openTelegram: "افتح تيليجرام",
+        progress: "التقدم",
+        estCompletion: "الانتهاء المقدر:",
+        why21Days: "لماذا 21 يومًا؟",
+        invalidAddressTitle: "عنوان غير صالح",
+        memoRequiredTitle: "مطلوب مذكرة",
+        memoRequiredText: "هذه المحفظة تتطلب مذكرة/وسم لإيداعات USDT على شبكة TON"
     });
 } catch (_) {}
 
