@@ -287,6 +287,17 @@ const translations = {
         contactBtn: "Contact Support",
         footerPowered: "Powered by",
         
+        // Community Section
+        communityTitle: "Join Our Community",
+        telegramChannel: "Telegram Channel",
+        telegramChannelDesc: "Announcements, updates, and exclusive offers",
+        communityForum: "Community Forum",
+        communityForumDesc: "Chat with users, share tips, and get help",
+        subscribeTitle: "Subscribe to updates",
+        subscribeDesc: "Get news on features, pricing and promos",
+        yourEmailPlaceholder: "Your email",
+        subscribeBtn: "Subscribe",
+        
         // Notification page specific
         notifications: "Notifications",
         markAllRead: "Mark All Read",
@@ -688,6 +699,17 @@ const translations = {
         contactSupport: "Связаться с поддержкой",
         contactBtn: "Связаться с поддержкой",
         footerPowered: "Работает на",
+        
+        // Community Section
+        communityTitle: "Присоединяйтесь к нашему сообществу",
+        telegramChannel: "Канал в Telegram",
+        telegramChannelDesc: "Анонсы, обновления и эксклюзивные предложения",
+        communityForum: "Сообщество",
+        communityForumDesc: "Общайтесь с пользователями, делитесь советами и получайте помощь",
+        subscribeTitle: "Подписаться на обновления",
+        subscribeDesc: "Получайте новости о функциях, ценах и акциях",
+        yourEmailPlaceholder: "Ваш email",
+        subscribeBtn: "Подписаться",
         
         // Notification page specific
         notifications: "Уведомления",
