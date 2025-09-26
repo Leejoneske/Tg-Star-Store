@@ -97,13 +97,19 @@
             color: #4f46e5;
             background-color: white;
             cursor: pointer;
-            transition: background-color 0.2s ease;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
             font-weight: 500;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            outline: none;
         }
 
         .language-toggle:hover {
             background-color: #f3f4f6;
+        }
+
+        .language-toggle:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
         }
     </style>
 </head>
@@ -112,7 +118,12 @@
     <div class="p-4 flex justify-between items-center bg-white shadow-sm" style="max-width: 100%;">
         <div class="logo-header">StarStore</div>
         <div class="flex items-center space-x-4">
-            <button id="languageToggle" class="language-toggle">🇬🇧</button>
+            <select id="languageSelectAbout" class="language-toggle">
+                <option value="en">English</option>
+                <option value="ru">Русский</option>
+                <option value="hi">हिंदी</option>
+                <option value="ar">العربية</option>
+            </select>
         </div>
     </div>
 
@@ -282,19 +293,18 @@
         }
     });
         
-        // Set up language toggle
-        const languageToggle = document.getElementById('languageToggle');
-        if (languageToggle) {
-            languageToggle.addEventListener('click', () => {
-                const newLanguage = currentLanguage === 'en' ? 'ru' : 'en';
+        // Set up language selector (parity with main app)
+        const languageSelect = document.getElementById('languageSelectAbout');
+        if (languageSelect) {
+            // Initialize from stored setting
+            languageSelect.value = currentLanguage;
+            languageSelect.addEventListener('change', () => {
+                const newLanguage = languageSelect.value;
                 TranslationUtils.setCurrentLanguage(newLanguage);
                 currentLanguage = newLanguage;
-                languageToggle.textContent = currentLanguage === 'en' ? '🇬🇧' : '🇷🇺';
+                try { localStorage.setItem('appLanguage', currentLanguage); } catch (_) {}
                 updateLanguage();
             });
-            
-            // Set initial language toggle state
-            languageToggle.textContent = currentLanguage === 'en' ? '🇬🇧' : '🇷🇺';
         }
     });
 
