@@ -510,7 +510,14 @@
         <header class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm">
             <div class="p-2"></div>
             <div class="logo-header">StarStore</div>
-            <div></div>
+            <div>
+                <select id="languageSelectSell" class="language-toggle" style="padding:6px 10px;border:1px solid #4f46e5;border-radius:8px;">
+                    <option value="en">English</option>
+                    <option value="ru">Русский</option>
+                    <option value="hi">हिंदी</option>
+                    <option value="ar">العربية</option>
+                </select>
+            </div>
         </header>
         
         <!-- Main Content -->
@@ -791,6 +798,21 @@ const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
         if (typeof TranslationUtils !== 'undefined') {
             TranslationUtils.init();
         }
+        // Initialize language select
+        (function(){
+            try {
+                var select = document.getElementById('languageSelectSell');
+                if (select) {
+                    select.value = currentLanguage;
+                    select.addEventListener('change', function(){
+                        TranslationUtils.setCurrentLanguage(this.value);
+                        currentLanguage = this.value;
+                        try { localStorage.setItem('appLanguage', currentLanguage); } catch(_) {}
+                        updateLanguageTexts();
+                    });
+                }
+            } catch(_) {}
+        })();
 // Check if the user has accepted the notice
 function checkNoticeStatus() {
     const noticeAccepted = localStorage.getItem('noticeAccepted');
