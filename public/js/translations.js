@@ -282,6 +282,10 @@ const translations = {
         users: "Active Users",
         success: "Success Rate",
         rating: "User Rating",
+        transactions: "Transactions",
+        date: "Date",
+        active: "Active",
+        openTelegram: "Open in Telegram",
         getInTouch: "Get in Touch",
         getInTouchText: "Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.",
         contactText: "Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.",
@@ -713,6 +717,10 @@ const translations = {
         contactSupport: "Связаться с поддержкой",
         contactBtn: "Связаться с поддержкой",
         footerPowered: "Работает на",
+        transactions: "Транзакции",
+        date: "Дата",
+        active: "Активен",
+        openTelegram: "Открыть в Telegram",
         
         // Community Section
         communityTitle: "Присоединяйтесь к нашему сообществу",
@@ -900,7 +908,11 @@ try {
         buyNowCta: "अभी खरीदें",
         valid: "मान्य",
         invalid: "अमान्य",
-        manualMinStarsInfo: "मैन्युअल इनपुट के लिए कम से कम 50 स्टार्स आवश्यक। छोटे amounts के लिए नीचे पैकेज का उपयोग करें।"
+        manualMinStarsInfo: "मैन्युअल इनपुट के लिए कम से कम 50 स्टार्स आवश्यक। छोटे amounts के लिए नीचे पैकेज का उपयोग करें।",
+        transactions: "लेन-देन",
+        date: "तारीख",
+        active: "सक्रिय",
+        openTelegram: "टेलीग्राम खोलें"
     });
 
     translations.ar = JSON.parse(JSON.stringify(translations.en));
@@ -948,7 +960,11 @@ try {
         buyNowCta: "اشترِ الآن",
         valid: "صالح",
         invalid: "غير صالح",
-        manualMinStarsInfo: "يتطلب الإدخال اليدوي 50 نجمة على الأقل. استخدم الباقات أدناه للكميات الصغيرة."
+        manualMinStarsInfo: "يتطلب الإدخال اليدوي 50 نجمة على الأقل. استخدم الباقات أدناه للكميات الصغيرة.",
+        transactions: "المعاملات",
+        date: "التاريخ",
+        active: "نشط",
+        openTelegram: "افتح تيليجرام"
     });
 } catch (_) {}
 
