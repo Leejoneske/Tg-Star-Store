@@ -464,7 +464,7 @@ function initLanguage() {
     const urlParams = new URLSearchParams(window.location.search);
     const urlLang = urlParams.get('lang');
     
-    if (urlLang && ['en', 'ru'].includes(urlLang)) {
+    if (urlLang && ['en', 'ru', 'hi', 'ar'].includes(urlLang)) {
         currentLanguage = urlLang;
         localStorage.setItem('appLanguage', currentLanguage);
     } else {
@@ -797,25 +797,25 @@ function copyReferralLink() {
 }
  
 function shareToFacebook() {
-    const text = `Check out StarStore! Use my referral link to get started: ${state.referralLink}`;
+    const text = `${TranslationUtils.get('shareTwText') || 'Check out StarStore! Use my referral link to get started:'} ${state.referralLink}`;
     const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(state.referralLink)}&quote=${encodeURIComponent(text)}`;
     window.open(shareUrl, '_blank', 'width=600,height=400');
 }
 
 function shareToTwitter() {
-    const text = `Check out StarStore! Use my referral link to get started: ${state.referralLink}`;
+    const text = `${TranslationUtils.get('shareTwText') || 'Check out StarStore! Use my referral link to get started:'} ${state.referralLink}`;
     const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(shareUrl, '_blank', 'width=600,height=300');
 }
 
 function shareToWhatsApp() {
-    const text = `Check out StarStore! Use my referral link to get started: ${state.referralLink}`;
+    const text = `${TranslationUtils.get('shareWaText') || 'Check out StarStore! Use my referral link to get started:'} ${state.referralLink}`;
     const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(shareUrl, '_blank', 'width=600,height=600');
 }
 
 function shareViaTelegram() {
-    const text = `Check out StarStore! Use my referral link to get started: ${state.referralLink}`;
+    const text = `${TranslationUtils.get('shareTgText') || 'Check out StarStore! Use my referral link to get started:'} ${state.referralLink}`;
     if (window.Telegram?.WebApp?.share) {
         window.Telegram.WebApp.share(text);
     } else {
@@ -858,36 +858,36 @@ async function showWithdrawPopup() {
 
         if (availableBalance < 0.5) {
             await Swal.fire({
-                title: 'Insufficient Balance',
+                title: TranslationUtils.get('insufficientBalanceTitle') || 'Insufficient Balance',
                 html: `<div class="text-center">
-                    <p>You need at least 1 completed referral (0.5 USDT) to withdraw.</p>
+                    <p>${TranslationUtils.get('insufficientBalanceText') || 'You need at least 1 completed referral (0.5 USDT) to withdraw.'}</p>
                     <p class="mt-2">
-                        <span class="font-semibold">Your balance:</span> 
-                        ${availableBalance.toFixed(2)} USDT (${activeReferralsCount} active referrals)
+                        <span class="font-semibold">${TranslationUtils.get('yourBalance') || 'Your balance:'}</span> 
+                        ${availableBalance.toFixed(2)} USDT (${activeReferralsCount} ${TranslationUtils.get('referrals') || 'Referrals'})
                     </p>
                 </div>`,
                 icon: 'error',
-                confirmButtonText: 'OK'
+                confirmButtonText: TranslationUtils.get('ok') || 'OK'
             });
             return;
         }
 
         const { value: formValues } = await Swal.fire({
-            title: 'Withdraw USDT (TON Network)',
+            title: TranslationUtils.get('withdraw') || 'Withdraw',
             html: `
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount (USDT)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">${TranslationUtils.get('amount') || 'Amount'} (USDT)</label>
                     <input type="number" id="withdrawAmount" 
                            min="0.5" max="${availableBalance}" 
                            inputmode="decimal" step="0.01" value="${Math.min(0.5, availableBalance).toFixed(2)}"
                            class="w-full p-2 border rounded" required>
                     <div class="flex items-center justify-between mt-1">
-                        <p class="text-xs text-gray-500">Available: ${availableBalance.toFixed(2)} USDT (${activeReferralsCount} referrals)</p>
-                        <button type="button" id="withdrawAllBtn" class="text-xs text-indigo-600 hover:underline font-medium">Withdraw All</button>
+                        <p class="text-xs text-gray-500">${TranslationUtils.get('availableBalance') || 'Available Balance'}: ${availableBalance.toFixed(2)} USDT (${activeReferralsCount} ${TranslationUtils.get('referrals') || 'Referrals'})</p>
+                        <button type="button" id="withdrawAllBtn" class="text-xs text-indigo-600 hover:underline font-medium">${TranslationUtils.get('withdraw') || 'Withdraw'} ${TranslationUtils.get('all') || 'All'}</button>
                     </div>
                 </div>
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">TON Wallet Address</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">${TranslationUtils.get('walletAddress') || 'TON Wallet Address'}</label>
                     <input type="text" id="withdrawWallet" 
                            class="w-full p-2 border rounded" 
                            placeholder="EQ..." required>
@@ -895,8 +895,8 @@ async function showWithdrawPopup() {
             focusConfirm: false,
             returnFocus: false,
             showCancelButton: true,
-            confirmButtonText: 'Withdraw',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: TranslationUtils.get('withdraw') || 'Withdraw',
+            cancelButtonText: TranslationUtils.get('cancel') || 'Cancel',
             showClass: {
                 popup: 'animate__animated animate__fadeIn animate__faster'
             },
@@ -918,12 +918,12 @@ async function showWithdrawPopup() {
                 const wallet = document.getElementById('withdrawWallet').value.trim();
 
                 if (!amount || amount < 0.5) {
-                    Swal.showValidationMessage('Minimum withdrawal is 0.5 USDT');
+                    Swal.showValidationMessage(TranslationUtils.get('minWithdraw') || 'Minimum withdrawal is 0.5 USDT');
                     return false;
                 }
 
                 if (amount > availableBalance) {
-                    Swal.showValidationMessage(`Maximum withdrawal is ${availableBalance.toFixed(2)} USDT`);
+                    Swal.showValidationMessage(`${TranslationUtils.get('maxWithdraw') || 'Maximum withdrawal is'} ${availableBalance.toFixed(2)} USDT`);
                     return false;
                 }
 
@@ -935,7 +935,7 @@ async function showWithdrawPopup() {
                 }
 
                 if (!isValidTONAddress(wallet)) {
-                    Swal.showValidationMessage('Invalid TON wallet address');
+                    Swal.showValidationMessage(TranslationUtils.get('invalidWallet') || 'Invalid TON wallet address');
                     return false;
                 }
 
