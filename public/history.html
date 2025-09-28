@@ -336,6 +336,20 @@ if (typeof TranslationUtils !== 'undefined') {
     TranslationUtils.init();
 }
 
+// Listen for language changes from other pages
+window.addEventListener('languageChanged', () => {
+    currentLanguage = TranslationUtils.getCurrentLanguage();
+    updateLanguage();
+});
+
+// Also listen for localStorage changes (when language is changed in another tab/page)
+window.addEventListener('storage', (e) => {
+    if (e.key === 'appLanguage') {
+        currentLanguage = TranslationUtils.getCurrentLanguage();
+        updateLanguage();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });

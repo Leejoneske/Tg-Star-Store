@@ -309,6 +309,20 @@
             TranslationUtils.init();
         }
         
+        // Listen for language changes from other pages
+        window.addEventListener('languageChanged', () => {
+            if (typeof TranslationUtils !== 'undefined') {
+                TranslationUtils.applyTranslations();
+            }
+        });
+        
+        // Also listen for localStorage changes
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'appLanguage' && typeof TranslationUtils !== 'undefined') {
+                TranslationUtils.applyTranslations();
+            }
+        });
+        
         // Initialize Telegram WebApp if available
         if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.ready();

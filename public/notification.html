@@ -607,5 +607,19 @@ if (typeof TranslationUtils !== 'undefined') {
     TranslationUtils.applyTranslations();
 }
 
+// Listen for language changes from other pages
+window.addEventListener('languageChanged', () => {
+    if (typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.applyTranslations();
+    }
+});
+
+// Also listen for localStorage changes (when language is changed in another tab/page)
+window.addEventListener('storage', (e) => {
+    if (e.key === 'appLanguage' && typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.applyTranslations();
+    }
+});
+
 
 </script>
