@@ -94,6 +94,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" as="script">
+    <link rel="icon" href="/favicon.png" type="image/png">
     
     
 
@@ -1765,12 +1766,11 @@ function initNotificationSystem() {
     setInterval(() => {
         try {
             const headers = { 'Content-Type': 'application/json' };
-            if (window.Telegram?.WebApp?.initData) {
-                headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
-            } else if (window.currentUserId) {
-                headers['x-telegram-id'] = String(window.currentUserId);
-            }
-            fetch('/api/active-ping', { method: 'POST', headers });
+            const hasTG = !!(window.Telegram?.WebApp?.initData);
+            const hasUser = !!window.currentUserId;
+            if (hasTG) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+            if (hasUser) headers['x-telegram-id'] = String(window.currentUserId);
+            if (hasTG || hasUser) fetch('/api/active-ping', { method: 'POST', headers });
         } catch {}
     }, 60000);
 
