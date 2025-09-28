@@ -655,6 +655,56 @@ setInterval(() => {
 // Wallet multi-select sessions per user: Map<userId, Set<key>> where key is `sell:ORDERID` or `wd:WITHDRAWALID`
 const walletSelections = new Map();
 
+// Clean wallet address by removing special characters and unwanted text
+function cleanWalletAddress(input) {
+    if (!input || typeof input !== 'string') return '';
+    
+    // Remove common special characters that users might add
+    let cleaned = input
+        .replace(/[<>$#+]/g, '') // Remove common special characters
+        .replace(/[^\w\-_]/g, '') // Keep only alphanumeric, hyphens, and underscores
+        .trim();
+    
+    // Remove common prefixes/suffixes users might add
+    const unwantedPrefixes = ['wallet:', 'address:', 'ton:', 'toncoin:', 'wallet address:', 'address is:'];
+    const unwantedSuffixes = ['wallet', 'address', 'ton', 'toncoin'];
+    
+    for (const prefix of unwantedPrefixes) {
+        if (cleaned.toLowerCase().startsWith(prefix.toLowerCase())) {
+            cleaned = cleaned.substring(prefix.length).trim();
+        }
+    }
+    
+    for (const suffix of unwantedSuffixes) {
+        if (cleaned.toLowerCase().endsWith(suffix.toLowerCase())) {
+            cleaned = cleaned.substring(0, cleaned.length - suffix.length).trim();
+        }
+    }
+    
+    return cleaned;
+}
+
+// Parse wallet input and extract address and memo
+function parseWalletInput(input) {
+    if (!input || typeof input !== 'string') return { address: '', memo: 'none' };
+    
+    const trimmed = input.trim();
+    let address, memo;
+    
+    if (trimmed.includes(',')) {
+        // Split by comma and clean each part
+        const parts = trimmed.split(',');
+        address = cleanWalletAddress(parts[0]);
+        memo = parts.slice(1).join(',').trim() || 'none';
+    } else {
+        // No comma found, treat entire input as address
+        address = cleanWalletAddress(trimmed);
+        memo = 'none';
+    }
+    
+    return { address, memo };
+}
+
 // TON address validation function
 function isValidTONAddress(address) {
     if (!address || typeof address !== 'string') return false;
@@ -1618,7 +1668,7 @@ bot.on('callback_query', async (query) => {
                 return;
             }
             await bot.answerCallbackQuery(query.id);
-            await bot.sendMessage(chatId, `Please send the new wallet address and optional memo for ${bucket.selections.size} selected item(s).\n\nFormat: <wallet>[, <memo>]\n\nThis request will time out in 10 minutes.`);
+            await bot.sendMessage(chatId, `Please send the new wallet address and optional memo for ${bucket.selections.size} selected item(s).\n\nFormat: <wallet>[, <memo>]\n\nNote: Special characters like < > $ # + will be automatically removed.\n\nThis request will time out in 10 minutes.`);
             const selectionAt = Date.now();
 
             const onMessage = async (msg) => {
@@ -1631,19 +1681,16 @@ bot.on('callback_query', async (query) => {
                 if (!input || input.length < 10) {
                     return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
                 }
-                // Improved parsing for wallet addresses with memos
-                let newAddress, newMemoTag;
+                // Parse wallet input with special character handling
+                const { address: newAddress, memo: newMemoTag } = parseWalletInput(input);
                 
-                if (input.includes(',')) {
-                    // Split by comma and take first part as address, rest as memo
-                    const parts = input.split(',');
-                    newAddress = parts[0].trim();
-                    newMemoTag = parts.slice(1).join(',').trim(); // Join remaining parts in case memo contains commas
-                } else {
-                    // No comma found, treat entire input as address
-                    newAddress = input;
-                    newMemoTag = '';
-                }
+                // Log the parsing result for debugging
+                console.log('Wallet input parsing:', {
+                    original: input,
+                    cleanedAddress: newAddress,
+                    memo: newMemoTag,
+                    userId: msg.from.id
+                });
 
                 try {
                     // Create one request per selected item
@@ -1727,7 +1774,7 @@ bot.on('callback_query', async (query) => {
             const chatId = query.message.chat.id;
 
             await bot.answerCallbackQuery(query.id);
-            await bot.sendMessage(chatId, `Please send the new wallet address${orderType === 'sell' ? ' and memo (if required)' : ''} for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}.\n\nFormat: <wallet>[, <memo>]\n\nThis request will time out in 10 minutes.`);
+            await bot.sendMessage(chatId, `Please send the new wallet address${orderType === 'sell' ? ' and memo (if required)' : ''} for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}.\n\nFormat: <wallet>[, <memo>]\n\nNote: Special characters like < > $ # + will be automatically removed.\n\nThis request will time out in 10 minutes.`);
 
             const startedAtSingle = Date.now();
             const onMessage = async (msg) => {
@@ -1740,19 +1787,16 @@ bot.on('callback_query', async (query) => {
                 if (!input || input.length < 10) {
                     return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
                 }
-                // Improved parsing for wallet addresses with memos
-                let newAddress, newMemoTag;
+                // Parse wallet input with special character handling
+                const { address: newAddress, memo: newMemoTag } = parseWalletInput(input);
                 
-                if (input.includes(',')) {
-                    // Split by comma and take first part as address, rest as memo
-                    const parts = input.split(',');
-                    newAddress = parts[0].trim();
-                    newMemoTag = parts.slice(1).join(',').trim(); // Join remaining parts in case memo contains commas
-                } else {
-                    // No comma found, treat entire input as address
-                    newAddress = input;
-                    newMemoTag = '';
-                }
+                // Log the parsing result for debugging
+                console.log('Wallet input parsing:', {
+                    original: input,
+                    cleanedAddress: newAddress,
+                    memo: newMemoTag,
+                    userId: msg.from.id
+                });
 
                 try {
                     // Disallow more than one wallet update request per order
@@ -3882,6 +3926,7 @@ bot.onText(/\/adminhelp/, (msg) => {
 **Wallet Management:**
 • /updatewallet <userId> <sell|withdrawal> <orderId> <newWalletAddress>
   - Directly update a user's wallet address
+  - Special characters (< > $ # +) are automatically removed
   - Example: /updatewallet 123456789 sell ABC123 UQAbc123...
 
 • /userwallet <userId>
@@ -3917,7 +3962,7 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
         const userId = match[1];
         const orderType = match[2];
         const orderId = match[3];
-        const newWalletAddress = match[4].trim();
+        const { address: newWalletAddress } = parseWalletInput(match[4]);
         
         // Validate wallet address
         if (!isValidTONAddress(newWalletAddress)) {
