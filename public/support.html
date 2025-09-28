@@ -115,6 +115,12 @@
 
             // Smartsupp does not expose a ready event in the same way; proceed to hide overlay shortly after load
             setTimeout(completeLoading, 300);
+
+            // Auto-expand chat bubble/widget after load
+            setTimeout(() => {
+                try { smartsupp('chat:open'); } catch(_) {}
+                try { smartsupp('widget:open'); } catch(_) {}
+            }, 350);
         }
 
         function completeLoading() {
