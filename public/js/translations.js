@@ -986,6 +986,19 @@ const translations = {
     }
 };
 
+// Ensure full key coverage for languages by backfilling from English
+// This guarantees pages like sell/about get translations for every key
+try {
+    ['hi', 'ar'].forEach((lang) => {
+        if (!translations[lang]) translations[lang] = {};
+        Object.keys(translations.en || {}).forEach((key) => {
+            if (typeof translations[lang][key] === 'undefined') {
+                translations[lang][key] = translations.en[key];
+            }
+        });
+    });
+} catch (_) {}
+
 
 // Translation utility functions
 const TranslationUtils = {
