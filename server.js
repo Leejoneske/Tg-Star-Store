@@ -655,6 +655,49 @@ setInterval(() => {
 // Wallet multi-select sessions per user: Map<userId, Set<key>> where key is `sell:ORDERID` or `wd:WITHDRAWALID`
 const walletSelections = new Map();
 
+// TON address validation function
+function isValidTONAddress(address) {
+    if (!address || typeof address !== 'string') return false;
+    
+    const trimmed = address.trim();
+    
+    // Basic TON address format validation
+    // TON addresses are typically 48 characters long and contain base64url characters
+    const tonAddressRegex = /^[A-Za-z0-9_-]{48}$/;
+    
+    // Check for testnet indicators
+    if (trimmed.toLowerCase().includes('testnet') || 
+        trimmed.toLowerCase().includes('test') ||
+        trimmed.toLowerCase().includes('sandbox')) {
+        return false;
+    }
+    
+    // Basic format check
+    if (!tonAddressRegex.test(trimmed)) {
+        return false;
+    }
+    
+    // Additional validation: check if it looks like a valid TON address
+    // TON addresses should start with specific patterns
+    const validPrefixes = ['UQ', 'EQ', 'kQ', '0Q'];
+    return validPrefixes.some(prefix => trimmed.startsWith(prefix));
+}
+
+// Cleanup function for wallet selections
+function cleanupWalletSelections() {
+    const now = Date.now();
+    const timeout = 30 * 60 * 1000; // 30 minutes
+    
+    for (const [userId, selection] of walletSelections.entries()) {
+        if (selection.timestamp && (now - selection.timestamp) > timeout) {
+            walletSelections.delete(userId);
+        }
+    }
+}
+
+// Run cleanup every 10 minutes
+setInterval(cleanupWalletSelections, 10 * 60 * 1000);
+
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
@@ -866,23 +909,10 @@ app.post('/api/orders/create', async (req, res) => {
             return res.status(400).json({ error: 'Testnet is not supported. Please switch your wallet to TON mainnet.' });
         }
         
-        // Additional validation: Check wallet address format for testnet indicators
-        // TON testnet addresses typically have different workchain IDs
+        // Additional validation: Check wallet address format
         if (walletAddress && typeof walletAddress === 'string') {
-            try {
-                // Basic TON address validation - testnet addresses often have different patterns
-                // This is a secondary check in case the frontend detection fails
-                const address = walletAddress.trim();
-                if (address.length > 0) {
-                    // Check for known testnet address patterns (workchain -1 is common for testnet)
-                    // This is a fallback validation
-                    if (address.includes('testnet') || address.includes('test')) {
-                        return res.status(400).json({ error: 'Testnet wallet detected. Please switch to TON mainnet.' });
-                    }
-                }
-            } catch (error) {
-                console.warn('Error validating wallet address format:', error);
-                // Don't block the transaction for address validation errors
+            if (!isValidTONAddress(walletAddress)) {
+                return res.status(400).json({ error: 'Invalid wallet address format. Please provide a valid TON mainnet address.' });
             }
         }
 
@@ -1551,14 +1581,20 @@ bot.on('callback_query', async (query) => {
         if (data.startsWith('wallet_sel_')) {
             const chatId = query.message.chat.id;
             const userId = query.from.id.toString();
-            const bucket = walletSelections.get(userId) || new Set();
+            let bucket = walletSelections.get(userId);
+            if (!bucket || !bucket.timestamp) {
+                bucket = { selections: new Set(), timestamp: Date.now() };
+                walletSelections.set(userId, bucket);
+            }
             if (data === 'wallet_sel_all') {
                 // naive: cannot enumerate here; user can select individually before
                 await bot.answerCallbackQuery(query.id, { text: 'Select items individually, then Continue.' });
                 return;
             }
             if (data === 'wallet_sel_clear') {
-                walletSelections.set(userId, new Set());
+                bucket.selections.clear();
+                bucket.timestamp = Date.now();
+                walletSelections.set(userId, bucket);
                 await bot.answerCallbackQuery(query.id, { text: 'Selection cleared' });
                 return;
             }
@@ -1566,22 +1602,23 @@ bot.on('callback_query', async (query) => {
             const type = parts[2];
             const id = parts.slice(3).join('_');
             const key = type === 'sell' ? `sell:${id}` : `wd:${id}`;
-            if (bucket.has(key)) bucket.delete(key); else bucket.add(key);
+            if (bucket.selections.has(key)) bucket.selections.delete(key); else bucket.selections.add(key);
+            bucket.timestamp = Date.now();
             walletSelections.set(userId, bucket);
-            await bot.answerCallbackQuery(query.id, { text: `Selected: ${bucket.size}` });
+            await bot.answerCallbackQuery(query.id, { text: `Selected: ${bucket.selections.size}` });
             return;
         }
 
         if (data === 'wallet_continue_selected') {
             const chatId = query.message.chat.id;
             const userId = query.from.id.toString();
-            const bucket = walletSelections.get(userId) || new Set();
-            if (!bucket.size) {
+            let bucket = walletSelections.get(userId);
+            if (!bucket || !bucket.selections || bucket.selections.size === 0) {
                 await bot.answerCallbackQuery(query.id, { text: 'No items selected' });
                 return;
             }
             await bot.answerCallbackQuery(query.id);
-            await bot.sendMessage(chatId, `Please send the new wallet address and optional memo for ${bucket.size} selected item(s).\n\nFormat: <wallet>[, <memo>]\n\nThis request will time out in 10 minutes.`);
+            await bot.sendMessage(chatId, `Please send the new wallet address and optional memo for ${bucket.selections.size} selected item(s).\n\nFormat: <wallet>[, <memo>]\n\nThis request will time out in 10 minutes.`);
             const selectionAt = Date.now();
 
             const onMessage = async (msg) => {
@@ -1594,15 +1631,25 @@ bot.on('callback_query', async (query) => {
                 if (!input || input.length < 10) {
                     return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
                 }
-                const [newAddressRaw, memoRaw] = input.split(',');
-                const newAddress = (newAddressRaw || '').trim();
-                const newMemoTag = (memoRaw || '').trim();
+                // Improved parsing for wallet addresses with memos
+                let newAddress, newMemoTag;
+                
+                if (input.includes(',')) {
+                    // Split by comma and take first part as address, rest as memo
+                    const parts = input.split(',');
+                    newAddress = parts[0].trim();
+                    newMemoTag = parts.slice(1).join(',').trim(); // Join remaining parts in case memo contains commas
+                } else {
+                    // No comma found, treat entire input as address
+                    newAddress = input;
+                    newMemoTag = '';
+                }
 
                 try {
                     // Create one request per selected item
                     const skipped = [];
                     const created = [];
-                    for (const key of bucket) {
+                    for (const key of bucket.selections) {
                         const [kind, id] = key.split(':');
                         const orderTypeForReq = kind === 'sell' ? 'sell' : 'withdrawal';
                         // Prevent duplicate requests per order
@@ -1693,9 +1740,19 @@ bot.on('callback_query', async (query) => {
                 if (!input || input.length < 10) {
                     return bot.sendMessage(chatId, '❌ That does not look like a valid address. Please run /wallet again.');
                 }
-                const [newAddressRaw, memoRaw] = input.split(',');
-                const newAddress = (newAddressRaw || '').trim();
-                const newMemoTag = (memoRaw || '').trim();
+                // Improved parsing for wallet addresses with memos
+                let newAddress, newMemoTag;
+                
+                if (input.includes(',')) {
+                    // Split by comma and take first part as address, rest as memo
+                    const parts = input.split(',');
+                    newAddress = parts[0].trim();
+                    newMemoTag = parts.slice(1).join(',').trim(); // Join remaining parts in case memo contains commas
+                } else {
+                    // No comma found, treat entire input as address
+                    newAddress = input;
+                    newMemoTag = '';
+                }
 
                 try {
                     // Disallow more than one wallet update request per order
@@ -3726,8 +3783,8 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     }
 });
 
-// /wallet command: show processing orders and allow wallet update request
-bot.onText(/\/(wallet|withdrawal\-menu)/i, async (msg) => {
+// /wallet and /orders commands: show processing orders and allow wallet update request
+bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
     try {
         const chatId = msg.chat.id;
         const userId = msg.from.id.toString();
@@ -3758,8 +3815,8 @@ bot.onText(/\/(wallet|withdrawal\-menu)/i, async (msg) => {
         }
 
         const keyboard = { inline_keyboard: [] };
-        // Initialize selection bucket
-        walletSelections.set(userId, new Set());
+        // Initialize selection bucket with timestamp
+        walletSelections.set(userId, { selections: new Set(), timestamp: Date.now() });
 
         sellOrders.forEach(o => {
             keyboard.inline_keyboard.push([
@@ -3783,6 +3840,12 @@ bot.onText(/\/(wallet|withdrawal\-menu)/i, async (msg) => {
 
         await bot.sendMessage(chatId, lines.join('\n') + `\n\nSelect one or more items, then tap "Continue with selected".`, { reply_markup: keyboard });
     } catch (err) {
+        console.error('Wallet command error:', {
+            userId: msg.from.id,
+            username: msg.from.username,
+            error: err.message,
+            stack: err.stack
+        });
         await bot.sendMessage(msg.chat.id, '❌ Failed to load your orders. Please try again later.');
     }
 });
@@ -3802,6 +3865,148 @@ bot.onText(/\/help/, (msg) => {
         });
         bot.sendMessage(chatId, "Your message has been sent to the admins. We will get back to you shortly.");
     });
+});
+
+// Admin help command
+bot.onText(/\/adminhelp/, (msg) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
+    // Verify admin
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, "❌ Unauthorized");
+    }
+    
+    const helpText = `🔧 Admin Commands Help:
+
+**Wallet Management:**
+• /updatewallet <userId> <sell|withdrawal> <orderId> <newWalletAddress>
+  - Directly update a user's wallet address
+  - Example: /updatewallet 123456789 sell ABC123 UQAbc123...
+
+• /userwallet <userId>
+  - View all orders and wallet addresses for a user
+  - Example: /userwallet 123456789
+
+**General Admin:**
+• /reply <userId1,userId2,...> <message>
+  - Send message to multiple users
+• /getorder <orderId>
+  - Get detailed order information
+• /getpayment <orderId>
+  - Get payment information for an order
+
+**Wallet Update Requests:**
+• Use the inline buttons on wallet update requests to approve/reject
+• All wallet changes require admin approval for security`;
+    
+    bot.sendMessage(chatId, helpText);
+});
+
+// Admin command to update user wallet addresses
+bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(.+)/, async (msg, match) => {
+    try {
+        const chatId = msg.chat.id;
+        const adminId = msg.from.id.toString();
+        
+        // Verify admin
+        if (!adminIds.includes(adminId)) {
+            return await bot.sendMessage(chatId, "❌ Unauthorized");
+        }
+        
+        const userId = match[1];
+        const orderType = match[2];
+        const orderId = match[3];
+        const newWalletAddress = match[4].trim();
+        
+        // Validate wallet address
+        if (!isValidTONAddress(newWalletAddress)) {
+            return await bot.sendMessage(chatId, "❌ Invalid wallet address format");
+        }
+        
+        let order, oldWallet = '';
+        
+        if (orderType === 'sell') {
+            order = await SellOrder.findOne({ id: orderId, telegramId: userId });
+            if (!order) {
+                return await bot.sendMessage(chatId, "❌ Sell order not found");
+            }
+            oldWallet = order.walletAddress || '';
+            order.walletAddress = newWalletAddress;
+            await order.save();
+        } else if (orderType === 'withdrawal') {
+            order = await ReferralWithdrawal.findOne({ withdrawalId: orderId, userId: userId });
+            if (!order) {
+                return await bot.sendMessage(chatId, "❌ Withdrawal not found");
+            }
+            oldWallet = order.walletAddress || '';
+            order.walletAddress = newWalletAddress;
+            await order.save();
+        } else {
+            return await bot.sendMessage(chatId, "❌ Invalid order type. Use 'sell' or 'withdrawal'");
+        }
+        
+        // Notify user
+        try {
+            await bot.sendMessage(userId, `🔧 Admin has updated your wallet address for ${orderType} order ${orderId}:\n\nOld: ${oldWallet || 'N/A'}\nNew: ${newWalletAddress}`);
+        } catch (e) {
+            console.warn('Failed to notify user of wallet update:', e);
+        }
+        
+        await bot.sendMessage(chatId, `✅ Wallet address updated successfully for ${orderType} order ${orderId}\n\nOld: ${oldWallet || 'N/A'}\nNew: ${newWalletAddress}`);
+        
+    } catch (error) {
+        console.error('Admin wallet update error:', error);
+        await bot.sendMessage(msg.chat.id, '❌ Failed to update wallet address');
+    }
+});
+
+// Admin command to view user's orders and wallets
+bot.onText(/\/userwallet\s+([0-9]+)/, async (msg, match) => {
+    try {
+        const chatId = msg.chat.id;
+        const adminId = msg.from.id.toString();
+        
+        // Verify admin
+        if (!adminIds.includes(adminId)) {
+            return await bot.sendMessage(chatId, "❌ Unauthorized");
+        }
+        
+        const userId = match[1];
+        
+        // Fetch user's orders and withdrawals
+        const [sellOrders, withdrawals] = await Promise.all([
+            SellOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).limit(10),
+            ReferralWithdrawal.find({ userId: userId }).sort({ createdAt: -1 }).limit(10)
+        ]);
+        
+        let response = `👤 User ${userId} Wallet Information:\n\n`;
+        
+        if (sellOrders.length > 0) {
+            response += `🛒 Sell Orders:\n`;
+            sellOrders.forEach(order => {
+                response += `• ${order.id} — ${order.stars} ★ — ${order.status} — Wallet: ${order.walletAddress || 'N/A'}\n`;
+            });
+            response += `\n`;
+        }
+        
+        if (withdrawals.length > 0) {
+            response += `💳 Withdrawals:\n`;
+            withdrawals.forEach(wd => {
+                response += `• ${wd.withdrawalId} — ${wd.amount} — ${wd.status} — Wallet: ${wd.walletAddress || 'N/A'}\n`;
+            });
+        }
+        
+        if (sellOrders.length === 0 && withdrawals.length === 0) {
+            response += `No orders or withdrawals found for this user.`;
+        }
+        
+        await bot.sendMessage(chatId, response);
+        
+    } catch (error) {
+        console.error('Admin user wallet view error:', error);
+        await bot.sendMessage(msg.chat.id, '❌ Failed to fetch user wallet information');
+    }
 });
 
 bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, match) => {
