@@ -433,7 +433,16 @@ const translations = {
         invalid: "Invalid",
         manualMinStarsInfo: "Manual input requires at least 50 stars. Use a package below for smaller amounts.",
         totalSummary: "Total: {total} USDT (~{ton} TON) for {qty} recipients (Unit: {unit} USDT)",
-        totalSummaryNoTon: "Total: {total} USDT for {qty} recipients (Unit: {unit} USDT)"
+        totalSummaryNoTon: "Total: {total} USDT for {qty} recipients (Unit: {unit} USDT)",
+        
+        // Dynamic content translations
+        generatingCsv: "Generating CSV...",
+        previous: "Previous",
+        next: "Next",
+        ellipsis: "...",
+        completedCount: "Completed",
+        processingCount: "Processing", 
+        declinedCount: "Declined"
     },
     ru: {
         // Common UI elements
@@ -868,7 +877,16 @@ const translations = {
         invalid: "Недействительный",
         manualMinStarsInfo: "Ручной ввод требует как минимум 50 звезд. Используйте пакеты ниже для меньших сумм.",
         totalSummary: "Итого: {total} USDT (~{ton} TON) для {qty} получателей (За единицу: {unit} USDT)",
-        totalSummaryNoTon: "Итого: {total} USDT для {qty} получателей (За единицу: {unit} USDT)"
+        totalSummaryNoTon: "Итого: {total} USDT для {qty} получателей (За единицу: {unit} USDT)",
+        
+        // Dynamic content translations
+        generatingCsv: "Генерация CSV...",
+        previous: "Предыдущий",
+        next: "Следующий",
+        ellipsis: "...",
+        completedCount: "Завершено",
+        processingCount: "Обработка",
+        declinedCount: "Отклонено"
     },
     hi: {
         // Hindi translations - override specific keys
