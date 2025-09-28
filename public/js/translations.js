@@ -869,14 +869,9 @@ const translations = {
         manualMinStarsInfo: "Ручной ввод требует как минимум 50 звезд. Используйте пакеты ниже для меньших сумм.",
         totalSummary: "Итого: {total} USDT (~{ton} TON) для {qty} получателей (За единицу: {unit} USDT)",
         totalSummaryNoTon: "Итого: {total} USDT для {qty} получателей (За единицу: {unit} USDT)"
-    }
-};
-
-// Add Hindi and Arabic locales by cloning English to ensure full key coverage
-// Override a few common labels to native names
-try {
-    translations.hi = JSON.parse(JSON.stringify(translations.en));
-    Object.assign(translations.hi, {
+    },
+    hi: {
+        // Hindi translations - override specific keys
         language: "भाषा",
         english: "अंग्रेज़ी",
         russian: "रूसी",
@@ -931,10 +926,9 @@ try {
         invalidAddressTitle: "अमान्य पता",
         memoRequiredTitle: "मेमो आवश्यक",
         memoRequiredText: "इस वॉलेट के लिए USDT TON जमा हेतु मेमो/टैग आवश्यक है"
-    });
-
-    translations.ar = JSON.parse(JSON.stringify(translations.en));
-    Object.assign(translations.ar, {
+    },
+    ar: {
+        // Arabic translations - override specific keys
         language: "اللغة",
         english: "الإنجليزية",
         russian: "الروسية",
@@ -989,8 +983,9 @@ try {
         invalidAddressTitle: "عنوان غير صالح",
         memoRequiredTitle: "مطلوب مذكرة",
         memoRequiredText: "هذه المحفظة تتطلب مذكرة/وسم لإيداعات USDT على شبكة TON"
-    });
-} catch (_) {}
+    }
+};
+
 
 // Translation utility functions
 const TranslationUtils = {
