@@ -1258,6 +1258,9 @@ const TranslationUtils = {
     normalize(language) {
         const map = { hindu: 'hi', hindi: 'hi', hind: 'hi', arabi: 'ar', arabic: 'ar', arab: 'ar' };
         const v = (language || '').toString().trim().toLowerCase();
+        if (!v) return 'en';
+        if (v.startsWith('hi')) return 'hi';
+        if (v.startsWith('ar')) return 'ar';
         return map[v] || v;
     },
     // Get current language
@@ -1294,14 +1297,9 @@ const TranslationUtils = {
     // Get translation for a key
     get(key, language = null) {
         const currentLang = language || this.getCurrentLanguage();
-        const langTranslations = translations[currentLang];
+        const langTranslations = translations[currentLang] || translations[this.normalize(currentLang)] || translations.en;
         
-        if (!langTranslations) {
-            console.warn(`Language '${currentLang}' not found, falling back to 'en'`);
-            return translations.en[key] || key;
-        }
-        
-        return langTranslations[key] || translations.en[key] || key;
+        return (langTranslations && langTranslations[key]) || translations.en[key] || key;
     },
 
     // Apply translations to all elements with data-translate attribute
