@@ -3994,6 +3994,65 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
             order.walletAddress = newWalletAddress;
             order.memoTag = newMemoTag || 'none';
             await order.save();
+            
+            // Update user's original order message if tracked
+            if (order.userMessageId) {
+                const originalText = `✅ Payment successful!\n\n` +
+                    `Order ID: ${order.id}\n` +
+                    `Stars: ${order.stars}\n` +
+                    `Wallet: ${order.walletAddress}\n` +
+                    `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
+                    `\nStatus: Processing (21-day hold)\n\n` +
+                    `Funds will be released to your wallet after the hold period.`;
+                try { 
+                    await bot.editMessageText(originalText, { 
+                        chat_id: order.telegramId, 
+                        message_id: order.userMessageId 
+                    }); 
+                } catch (e) {
+                    console.warn(`Failed to edit user message for order ${order.id}:`, e.message);
+                }
+            }
+            
+            // Update admin messages if present
+            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                await Promise.all(order.adminMessages.map(async (m) => {
+                    let text = m.originalText || '';
+                    if (text) {
+                        if (text.includes('\nWallet: ')) {
+                            text = text.replace(/\nWallet:.*?(\n|$)/, `\nWallet: ${order.walletAddress}$1`);
+                        }
+                        if (order.memoTag) {
+                            if (text.includes('\nMemo:')) {
+                                text = text.replace(/\nMemo:.*?(\n|$)/, `\nMemo: ${order.memoTag}$1`);
+                            } else {
+                                text += `\nMemo: ${order.memoTag}`;
+                            }
+                        }
+                    } else {
+                        text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username || order.telegramId}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
+                    }
+                    
+                    // Re-attach the original sell action buttons
+                    const sellButtons = {
+                        inline_keyboard: [[
+                            { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                            { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                            { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                        ]]
+                    };
+                    
+                    try {
+                        await bot.editMessageText(text, { 
+                            chat_id: parseInt(m.adminId, 10) || m.adminId, 
+                            message_id: m.messageId, 
+                            reply_markup: sellButtons 
+                        });
+                    } catch (e) {
+                        console.warn(`Failed to edit admin message for order ${order.id}:`, e.message);
+                    }
+                }));
+            }
         } else {
             order = await ReferralWithdrawal.findOne({ withdrawalId: orderId, userId: userId });
             if (!order) {
@@ -4004,6 +4063,34 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
             order.walletAddress = newWalletAddress;
             order.memoTag = newMemoTag || 'none';
             await order.save();
+            
+            // Update admin messages for withdrawal if present
+            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                await Promise.all(order.adminMessages.map(async (m) => {
+                    let text = m.originalText || '';
+                    if (text) {
+                        if (text.includes('\nWallet: ')) {
+                            text = text.replace(/\nWallet:.*?(\n|$)/, `\nWallet: ${order.walletAddress}$1`);
+                        }
+                        if (order.memoTag) {
+                            if (text.includes('\nMemo:')) {
+                                text = text.replace(/\nMemo:.*?(\n|$)/, `\nMemo: ${order.memoTag}$1`);
+                            } else {
+                                text += `\nMemo: ${order.memoTag}`;
+                            }
+                        }
+                    }
+                    
+                    try {
+                        await bot.editMessageText(text, { 
+                            chat_id: parseInt(m.adminId, 10) || m.adminId, 
+                            message_id: m.messageId
+                        });
+                    } catch (e) {
+                        console.warn(`Failed to edit admin message for withdrawal ${order.withdrawalId}:`, e.message);
+                    }
+                }));
+            }
         }
         
         // Notify user
