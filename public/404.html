@@ -95,6 +95,20 @@
             TranslationUtils.init();
         }
         
+        // Listen for language changes from other pages
+        window.addEventListener('languageChanged', () => {
+            if (typeof TranslationUtils !== 'undefined') {
+                TranslationUtils.applyTranslations();
+            }
+        });
+        
+        // Also listen for localStorage changes
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'appLanguage' && typeof TranslationUtils !== 'undefined') {
+                TranslationUtils.applyTranslations();
+            }
+        });
+        
         // Alternative JavaScript approach if needed
         document.querySelector('.link_404').addEventListener('click', function() {
             window.location.href = 'index.html';
