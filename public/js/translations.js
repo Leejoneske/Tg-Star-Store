@@ -1254,16 +1254,28 @@ try {
 
 // Translation utility functions
 const TranslationUtils = {
+    // Normalize various language aliases to supported codes
+    normalize(language) {
+        const map = { hindu: 'hi', hindi: 'hi', hind: 'hi', arabi: 'ar', arabic: 'ar', arab: 'ar' };
+        const v = (language || '').toString().trim().toLowerCase();
+        return map[v] || v;
+    },
     // Get current language
     getCurrentLanguage() {
-        try { if (typeof localStorage !== 'undefined') return localStorage.getItem('appLanguage') || 'en'; } catch (_) {}
+        try {
+            if (typeof localStorage !== 'undefined') {
+                const stored = localStorage.getItem('appLanguage') || 'en';
+                return this.normalize(stored) || 'en';
+            }
+        } catch (_) {}
         return 'en';
     },
 
     // Set current language
     setCurrentLanguage(language) {
-        try { if (typeof localStorage !== 'undefined') localStorage.setItem('appLanguage', language); } catch(_) {}
-        this.applyLanguageAttributes(language);
+        const normalized = this.normalize(language) || 'en';
+        try { if (typeof localStorage !== 'undefined') localStorage.setItem('appLanguage', normalized); } catch(_) {}
+        this.applyLanguageAttributes(normalized);
         if (typeof document !== 'undefined') {
             this.applyTranslations();
         }
