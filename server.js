@@ -3949,72 +3949,115 @@ bot.onText(/\/adminhelp/, (msg) => {
 });
 
 // Admin command to update user wallet addresses
-// /updatewallet <userId> <sell|withdrawal> <orderId> <newWalletAddress>[, <memo>]
+// Usage: /updatewallet <userId> <sell|withdrawal> <orderId> <walletAddress> [memo]
 bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
     try {
-        const chatId = msg.chat.id;
-        const adminId = msg.from.id.toString();
-        
         // Verify admin
         if (!adminIds.includes(adminId)) {
-            return await bot.sendMessage(chatId, "❌ Unauthorized");
+            return await bot.sendMessage(chatId, "❌ Unauthorized access");
         }
         
         const userId = match[1];
-        const orderType = match[2];
+        const orderType = match[2].toLowerCase();
         const orderId = match[3];
-        const { address: newWalletAddress, memo: newMemoTag } = parseWalletInput(match[4]);
+        const input = match[4].trim();
         
-        // Validate wallet address
+        // Parse wallet input
+        const { address: newWalletAddress, memo: newMemoTag } = parseWalletInput(input);
+        
+        // Validate inputs
+        if (!userId || !orderId || !newWalletAddress) {
+            return await bot.sendMessage(chatId, "❌ Missing required parameters\n\nUsage: /updatewallet <userId> <sell|withdrawal> <orderId> <walletAddress> [memo]");
+        }
+        
         if (!isValidTONAddress(newWalletAddress)) {
             return await bot.sendMessage(chatId, "❌ Invalid wallet address format");
         }
         
-        let order, oldWallet = '';
+        if (!['sell', 'withdrawal'].includes(orderType)) {
+            return await bot.sendMessage(chatId, "❌ Order type must be 'sell' or 'withdrawal'");
+        }
+        
+        // Find and update order
+        let order, oldWallet = '', orderDisplayId = '';
         
         if (orderType === 'sell') {
             order = await SellOrder.findOne({ id: orderId, telegramId: userId });
             if (!order) {
-                return await bot.sendMessage(chatId, "❌ Sell order not found");
+                return await bot.sendMessage(chatId, `❌ Sell order ${orderId} not found for user ${userId}`);
             }
+            orderDisplayId = order.id;
             oldWallet = order.walletAddress || '';
             order.walletAddress = newWalletAddress;
-            if (newMemoTag) {
-                order.memoTag = newMemoTag || 'none';
-            } else if (!order.memoTag) {
-                order.memoTag = 'none';
-            }
-            await order.save();
-        } else if (orderType === 'withdrawal') {
-            order = await ReferralWithdrawal.findOne({ withdrawalId: orderId, userId: userId });
-            if (!order) {
-                return await bot.sendMessage(chatId, "❌ Withdrawal not found");
-            }
-            oldWallet = order.walletAddress || '';
-            order.walletAddress = newWalletAddress;
-            if (newMemoTag) {
-                order.memoTag = newMemoTag || 'none';
-            } else if (!order.memoTag) {
-                order.memoTag = 'none';
-            }
+            order.memoTag = newMemoTag || 'none';
             await order.save();
         } else {
-            return await bot.sendMessage(chatId, "❌ Invalid order type. Use 'sell' or 'withdrawal'");
+            order = await ReferralWithdrawal.findOne({ withdrawalId: orderId, userId: userId });
+            if (!order) {
+                return await bot.sendMessage(chatId, `❌ Withdrawal ${orderId} not found for user ${userId}`);
+            }
+            orderDisplayId = order.withdrawalId;
+            oldWallet = order.walletAddress || '';
+            order.walletAddress = newWalletAddress;
+            order.memoTag = newMemoTag || 'none';
+            await order.save();
         }
         
         // Notify user
         try {
-            await bot.sendMessage(userId, `🔧 Admin has updated your wallet address for ${orderType} order ${orderId}:\n\nOld: ${oldWallet || 'N/A'}\nNew: ${newWalletAddress}`);
+            await bot.sendMessage(userId, `🔧 Admin updated your wallet for ${orderType} order ${orderDisplayId}:\n\nOld: ${oldWallet || 'N/A'}\nNew: ${newWalletAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`);
         } catch (e) {
-            console.warn('Failed to notify user of wallet update:', e);
+            console.warn(`Failed to notify user ${userId} of wallet update:`, e.message);
         }
         
-        await bot.sendMessage(chatId, `✅ Wallet address updated successfully for ${orderType} order ${orderId}\n\nOld: ${oldWallet || 'N/A'}\nNew: ${newWalletAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`);
+        // Confirm to admin
+        await bot.sendMessage(chatId, `✅ Wallet updated successfully!\n\nUser: ${userId}\nOrder: ${orderDisplayId} (${orderType})\nOld: ${oldWallet || 'N/A'}\nNew: ${newWalletAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`);
         
     } catch (error) {
         console.error('Admin wallet update error:', error);
-        await bot.sendMessage(msg.chat.id, '❌ Failed to update wallet address');
+        
+        // More specific error messages
+        if (error.name === 'ValidationError') {
+            await bot.sendMessage(chatId, '❌ Database validation error. Check the data format.');
+        } else if (error.name === 'CastError') {
+            await bot.sendMessage(chatId, '❌ Invalid data format. Check order ID and user ID.');
+        } else {
+            await bot.sendMessage(chatId, '❌ Failed to update wallet. Please try again.');
+        }
     }
+});
+
+// Admin help command for wallet management
+bot.onText(/\/adminwallethelp/, async (msg) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
+    if (!adminIds.includes(adminId)) {
+        return await bot.sendMessage(chatId, "❌ Unauthorized access");
+    }
+    
+    const helpText = `🔧 **Admin Wallet Commands**
+
+**Update User Wallet:**
+\`/updatewallet <userId> <sell|withdrawal> <orderId> <walletAddress> [memo]\`
+
+**Examples:**
+\`/updatewallet 123456789 sell ABC123 UQAbc123...xyz\`
+\`/updatewallet 123456789 withdrawal DEF456 UQDef456...xyz, memo123\`
+
+**View User Wallets:**
+\`/userwallet <userId>\`
+
+**Notes:**
+• Order types: \`sell\` or \`withdrawal\`
+• Memo is optional (defaults to 'none')
+• Invalid characters are automatically cleaned
+• User gets notified of changes`;
+    
+    await bot.sendMessage(chatId, helpText, { parse_mode: 'Markdown' });
 });
 
 // Admin command to view user's orders and wallets
