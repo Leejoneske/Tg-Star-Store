@@ -1699,13 +1699,13 @@ bot.on('callback_query', async (query) => {
                     for (const key of bucket.selections) {
                         const [kind, id] = key.split(':');
                         const orderTypeForReq = kind === 'sell' ? 'sell' : 'withdrawal';
-                        // Prevent duplicate requests per order
-                        const existingReq = await WalletUpdateRequest.findOne({
+                        // Allow up to 3 requests per order
+                        const reqCount = await WalletUpdateRequest.countDocuments({
                             userId: msg.from.id.toString(),
                             orderType: orderTypeForReq,
                             orderId: id
                         });
-                        if (existingReq) { skipped.push(id); continue; }
+                        if (reqCount >= 3) { skipped.push(id); continue; }
                         let oldWallet = '';
                         if (kind === 'sell') {
                             const order = await SellOrder.findOne({ id, telegramId: msg.from.id.toString() });
@@ -1723,7 +1723,7 @@ bot.on('callback_query', async (query) => {
                             orderId: id,
                             oldWalletAddress: oldWallet,
                             newWalletAddress: newAddress,
-                            newMemoTag: newMemoTag || undefined,
+                            newMemoTag: newMemoTag || 'none',
                             adminMessages: []
                         });
                         created.push(id);
@@ -1799,14 +1799,14 @@ bot.on('callback_query', async (query) => {
                 });
 
                 try {
-                    // Disallow more than one wallet update request per order
-                    const existingReq = await WalletUpdateRequest.findOne({
+                    // Allow up to 3 requests per order
+                    const existingCount = await WalletUpdateRequest.countDocuments({
                         userId: msg.from.id.toString(),
                         orderType,
                         orderId
                     });
-                    if (existingReq) {
-                        return bot.sendMessage(chatId, '❌ You have already submitted a wallet update request for this order.');
+                    if (existingCount >= 3) {
+                        return bot.sendMessage(chatId, '❌ You have reached the limit of 3 wallet update requests for this item.');
                     }
 
                     let oldWallet = '';
@@ -1827,7 +1827,7 @@ bot.on('callback_query', async (query) => {
                         orderId,
                         oldWalletAddress: oldWallet,
                         newWalletAddress: newAddress,
-                        newMemoTag: newMemoTag || undefined,
+                        newMemoTag: newMemoTag || 'none',
                         adminMessages: []
                     });
 
@@ -3949,6 +3949,7 @@ bot.onText(/\/adminhelp/, (msg) => {
 });
 
 // Admin command to update user wallet addresses
+// /updatewallet <userId> <sell|withdrawal> <orderId> <newWalletAddress>[, <memo>]
 bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(.+)/, async (msg, match) => {
     try {
         const chatId = msg.chat.id;
@@ -3962,7 +3963,7 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
         const userId = match[1];
         const orderType = match[2];
         const orderId = match[3];
-        const { address: newWalletAddress } = parseWalletInput(match[4]);
+        const { address: newWalletAddress, memo: newMemoTag } = parseWalletInput(match[4]);
         
         // Validate wallet address
         if (!isValidTONAddress(newWalletAddress)) {
@@ -3978,6 +3979,11 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
             }
             oldWallet = order.walletAddress || '';
             order.walletAddress = newWalletAddress;
+            if (newMemoTag) {
+                order.memoTag = newMemoTag || 'none';
+            } else if (!order.memoTag) {
+                order.memoTag = 'none';
+            }
             await order.save();
         } else if (orderType === 'withdrawal') {
             order = await ReferralWithdrawal.findOne({ withdrawalId: orderId, userId: userId });
@@ -3986,6 +3992,11 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
             }
             oldWallet = order.walletAddress || '';
             order.walletAddress = newWalletAddress;
+            if (newMemoTag) {
+                order.memoTag = newMemoTag || 'none';
+            } else if (!order.memoTag) {
+                order.memoTag = 'none';
+            }
             await order.save();
         } else {
             return await bot.sendMessage(chatId, "❌ Invalid order type. Use 'sell' or 'withdrawal'");
@@ -3998,7 +4009,7 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
             console.warn('Failed to notify user of wallet update:', e);
         }
         
-        await bot.sendMessage(chatId, `✅ Wallet address updated successfully for ${orderType} order ${orderId}\n\nOld: ${oldWallet || 'N/A'}\nNew: ${newWalletAddress}`);
+        await bot.sendMessage(chatId, `✅ Wallet address updated successfully for ${orderType} order ${orderId}\n\nOld: ${oldWallet || 'N/A'}\nNew: ${newWalletAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`);
         
     } catch (error) {
         console.error('Admin wallet update error:', error);
