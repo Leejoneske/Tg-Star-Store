@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+    <title>StarStore - Daily Rewards</title>
+    <link rel="canonical" href="https://starstore.site/daily">
+    <meta name="description" content="Daily rewards, streaks, weekly bonuses, and missions at StarStore.">
+    <meta property="og:title" content="StarStore - Daily Rewards">
+    <meta property="og:description" content="Earn daily check-ins, streak bonuses, and complete missions to win rewards.">
+    <meta property="og:url" content="https://starstore.site/daily">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f3f4f6; margin: 0; padding: 0; }
+        .app-container { max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-height: 100vh; position: relative; overflow: hidden; }
+        .telegram-fullscreen .app-container { max-width: 100%; width: 100%; margin: 0; box-shadow: none; border-radius: 0; }
+        .gradient-card { background-image: linear-gradient(to right, #eef2ff, #f5f3ff); }
+        .rounded-xl-strong { border-radius: 16px; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div id="bottomnav-container"></div>
+
+        <!-- Page Header -->
+        <header class="px-4 py-3 bg-white border-b border-gray-200">
+            <div class="flex items-center">
+                <h1 class="text-lg font-semibold text-gray-900" data-translate="dailyRewardsTitle">Daily Rewards</h1>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="px-4 py-4 space-y-6">
+
+            <!-- Streak + Summary -->
+            <section class="gradient-card rounded-2xl p-5 border border-indigo-100">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-indigo-700 font-medium" data-translate="currentStreak">Current Streak</div>
+                        <div class="text-3xl font-extrabold text-indigo-800"><span id="streakCount">0</span><span class="text-base font-semibold ml-1" data-translate="days">days</span></div>
+                        <div class="text-sm text-gray-600 mt-1" data-translate="nextRewardAt">Next reward at 7 days streak</div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="bg-white rounded-xl p-3 border border-indigo-100 text-center">
+                            <div class="text-xs text-gray-500" data-translate="dailyPoints">Daily</div>
+                            <div class="text-xl font-bold text-indigo-700" id="dailyPoints">10</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 border border-indigo-100 text-center">
+                            <div class="text-xs text-gray-500" data-translate="weeklyBonusShort">Weekly</div>
+                            <div class="text-xl font-bold text-indigo-700" id="weeklyBonus">50</div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 border border-indigo-100 text-center">
+                            <div class="text-xs text-gray-500" data-translate="totalPoints">Total</div>
+                            <div class="text-xl font-bold text-indigo-700" id="totalPoints">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button id="checkInBtn" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2.5 px-4 rounded-xl font-semibold transition-all duration-150 shadow hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span data-translate="checkInToday">Check-in today</span>
+                    </button>
+                    <div id="checkInStatus" class="text-sm text-gray-600 mt-2"></div>
+                </div>
+            </section>
+
+            <!-- Streak Calendar -->
+            <section class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-semibold text-gray-800" data-translate="streakCalendar">Streak Calendar</h2>
+                    <div class="text-sm text-gray-500" id="calendarMonth"></div>
+                </div>
+                <div class="grid grid-cols-7 gap-2" id="calendarGrid"></div>
+                <div class="text-xs text-gray-500 mt-3" data-translate="calendarLegend">Filled circles = checked-in days</div>
+            </section>
+
+            <!-- Missions / Tasks -->
+            <section class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-semibold text-gray-800" data-translate="missionsTitle">Missions</h2>
+                    <div class="text-sm text-gray-500" id="missionsSummary">0/4</div>
+                </div>
+                <div class="space-y-3" id="missionsList"></div>
+            </section>
+
+            <!-- Weekly Rewards -->
+            <section class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-semibold text-gray-800" data-translate="weeklyRewardsTitle">Weekly Rewards</h2>
+                    <div class="text-sm text-gray-500" id="weekProgress">0%</div>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2"><div id="weekBar" class="bg-indigo-600 h-2 rounded-full" style="width:0%"></div></div>
+                <ul class="mt-3 text-sm text-gray-700 list-disc pl-5 space-y-1">
+                    <li data-translate="weekReward1">Check-in 5 days to earn +25 bonus</li>
+                    <li data-translate="weekReward2">Complete all missions to earn +50 bonus</li>
+                </ul>
+            </section>
+
+            <!-- Leaderboard -->
+            <section class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-semibold text-gray-800" data-translate="leaderboardTitle">Leaderboard</h2>
+                    <button id="refreshLeaderboard" class="text-sm text-indigo-600 hover:text-indigo-700" data-translate="refresh">Refresh</button>
+                </div>
+                <div class="space-y-2" id="leaderboardList"></div>
+            </section>
+
+        </main>
+
+        <div class="h-16"></div>
+    </div>
+
+    <script src="/js/translations.js?v=2"></script>
+    <script>
+        (function initTheme() {
+            try {
+                const tg = window.Telegram && window.Telegram.WebApp;
+                if (tg && tg.colorScheme === 'dark') {
+                    document.body.classList.add('telegram-fullscreen');
+                }
+            } catch(_) {}
+        })();
+
+        // Translations init
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof TranslationUtils !== 'undefined') {
+                TranslationUtils.init();
+            }
+            buildCalendar(new Date());
+            seedMissions();
+            seedLeaderboard();
+            restoreState();
+            bindHandlers();
+        });
+
+        function bindHandlers() {
+            const btn = document.getElementById('checkInBtn');
+            btn.addEventListener('click', onCheckIn);
+            const refresh = document.getElementById('refreshLeaderboard');
+            refresh.addEventListener('click', seedLeaderboard);
+        }
+
+        function restoreState() {
+            const data = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
+            document.getElementById('streakCount').textContent = data.streak || 0;
+            document.getElementById('totalPoints').textContent = data.totalPoints || 0;
+            // Update calendar filled days
+            if (Array.isArray(data.checkedInDays)) {
+                const days = new Set(data.checkedInDays);
+                document.querySelectorAll('[data-day]').forEach(el => {
+                    const d = parseInt(el.getAttribute('data-day'), 10);
+                    if (days.has(d)) el.classList.add('bg-indigo-600','text-white');
+                });
+            }
+            // Week bar
+            const weekCount = data.weekCheckins || 0;
+            const pct = Math.min(100, Math.round((weekCount/7)*100));
+            document.getElementById('weekBar').style.width = pct + '%';
+            document.getElementById('weekProgress').textContent = pct + '%';
+            // Missions
+            const completed = (data.missionsCompleted || []).length;
+            const total = document.querySelectorAll('.mission-item').length;
+            document.getElementById('missionsSummary').textContent = `${completed}/${total}`;
+        }
+
+        function onCheckIn() {
+            const today = new Date();
+            const dayKey = today.getDate();
+            const store = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
+            const lastCheck = store.lastCheckIn ? new Date(store.lastCheckIn) : null;
+            const checkedInDays = new Set(store.checkedInDays || []);
+            if (lastCheck && lastCheck.toDateString() === today.toDateString()) {
+                return setStatus('checkInStatus', TranslationUtils.get('alreadyCheckedIn') || 'Already checked in today');
+            }
+            // Update streak
+            let streak = store.streak || 0;
+            if (lastCheck) {
+                const diff = Math.round((today - lastCheck)/(1000*60*60*24));
+                if (diff === 1) streak += 1; else streak = 1;
+            } else {
+                streak = 1;
+            }
+            checkedInDays.add(dayKey);
+            const daily = parseInt(document.getElementById('dailyPoints').textContent, 10) || 10;
+            const total = (store.totalPoints || 0) + daily;
+            const weekCheckins = Math.min(7, (store.weekCheckins || 0) + 1);
+            const newStore = { lastCheckIn: today.toISOString(), streak, checkedInDays: Array.from(checkedInDays), totalPoints: total, weekCheckins, missionsCompleted: store.missionsCompleted || [] };
+            localStorage.setItem('dailyRewards', JSON.stringify(newStore));
+            // Visual updates
+            document.getElementById('streakCount').textContent = streak;
+            document.getElementById('totalPoints').textContent = total;
+            document.querySelector(`[data-day='${dayKey}']`)?.classList.add('bg-indigo-600','text-white');
+            const pct = Math.min(100, Math.round((weekCheckins/7)*100));
+            document.getElementById('weekBar').style.width = pct + '%';
+            document.getElementById('weekProgress').textContent = pct + '%';
+            setStatus('checkInStatus', TranslationUtils.get('checkInSuccess') || 'Check-in successful! +10 points');
+        }
+
+        function setStatus(id, text) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            setTimeout(() => { el.textContent = ''; }, 3500);
+        }
+
+        function buildCalendar(date) {
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const monthName = date.toLocaleString('default', { month: 'long' });
+            document.getElementById('calendarMonth').textContent = `${monthName} ${year}`;
+            const startWeekday = firstDay.getDay();
+            const totalDays = lastDay.getDate();
+            for (let i = 0; i < startWeekday; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'h-10';
+                grid.appendChild(empty);
+            }
+            for (let d = 1; d <= totalDays; d++) {
+                const cell = document.createElement('button');
+                cell.className = 'h-10 w-10 rounded-full flex items-center justify-center text-gray-700 bg-gray-50 hover:bg-gray-100 transition';
+                cell.textContent = d;
+                cell.setAttribute('data-day', d);
+                grid.appendChild(cell);
+            }
+        }
+
+        function seedMissions() {
+            const list = document.getElementById('missionsList');
+            list.innerHTML = '';
+            const missions = [
+                { id: 'm1', title: TranslationUtils.get('missionConnectWallet') || 'Connect a wallet', points: 20 },
+                { id: 'm2', title: TranslationUtils.get('missionJoinChannel') || 'Join Telegram channel', points: 10 },
+                { id: 'm3', title: TranslationUtils.get('missionFirstOrder') || 'Complete your first order', points: 50 },
+                { id: 'm4', title: TranslationUtils.get('missionInviteFriend') || 'Invite a friend', points: 30 },
+            ];
+            const state = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
+            const done = new Set(state.missionsCompleted || []);
+            missions.forEach(m => {
+                const row = document.createElement('div');
+                row.className = 'mission-item flex items-center justify-between p-4 bg-gray-50 rounded-xl';
+                row.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-indigo-100 p-2 rounded-lg"><svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
+                        <div>
+                            <div class="text-sm font-medium text-gray-800">${m.title}</div>
+                            <div class="text-xs text-gray-500">+${m.points} pts</div>
+                        </div>
+                    </div>
+                    <button data-id="${m.id}" class="mission-btn text-sm font-semibold px-3 py-1.5 rounded-lg ${done.has(m.id) ? 'bg-green-100 text-green-700' : 'bg-indigo-600 text-white'}">${done.has(m.id) ? (TranslationUtils.get('completed') || 'Completed') : (TranslationUtils.get('complete') || 'Complete')}</button>
+                `;
+                list.appendChild(row);
+            });
+            list.addEventListener('click', (e) => {
+                const btn = e.target.closest('.mission-btn');
+                if (!btn) return;
+                const id = btn.getAttribute('data-id');
+                const state = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
+                const done = new Set(state.missionsCompleted || []);
+                if (done.has(id)) return;
+                done.add(id);
+                state.missionsCompleted = Array.from(done);
+                state.totalPoints = (state.totalPoints || 0) + 10; // base reward for demo
+                localStorage.setItem('dailyRewards', JSON.stringify(state));
+                seedMissions();
+                restoreState();
+            });
+        }
+
+        function seedLeaderboard() {
+            const el = document.getElementById('leaderboardList');
+            el.innerHTML = '';
+            const sample = [
+                { u: 'alice', pts: 1240 },
+                { u: 'bob', pts: 990 },
+                { u: 'carol', pts: 785 },
+                { u: 'dave', pts: 640 },
+            ];
+            sample.forEach((s, idx) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-xl';
+                row.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">${idx+1}</div>
+                        <div class="text-sm font-medium text-gray-800">@${s.u}</div>
+                    </div>
+                    <div class="text-sm font-semibold text-indigo-700">${s.pts} pts</div>
+                `;
+                el.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>

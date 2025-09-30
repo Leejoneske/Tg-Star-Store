@@ -378,6 +378,17 @@
                 </div>
             </div>
         </div>
+
+        <script>
+        (function() {
+            const link = document.getElementById('dailyLoginLink');
+            if (link) {
+                link.addEventListener('click', function () {
+                    window.location.href = '/daily.html';
+                });
+            }
+        })();
+        </script>
     </div>
 </div>
 <script>
