@@ -15,11 +15,274 @@
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link rel="icon" href="/favicon.png" type="image/png">
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f3f4f6; margin: 0; padding: 0; }
-        .app-container { max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-height: 100vh; position: relative; overflow: hidden; }
-        .telegram-fullscreen .app-container { max-width: 100%; width: 100%; margin: 0; box-shadow: none; border-radius: 0; }
-        .gradient-card { background-image: linear-gradient(to right, #eef2ff, #f5f3ff); }
-        .rounded-xl-strong { border-radius: 16px; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #f5f5f5; 
+            margin: 0; 
+            padding: 0; 
+        }
+        .app-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: #f5f5f5; 
+            min-height: 100vh; 
+            position: relative; 
+            overflow: hidden; 
+        }
+        .telegram-fullscreen .app-container { 
+            max-width: 100%; 
+            width: 100%; 
+            margin: 0; 
+            box-shadow: none; 
+            border-radius: 0; 
+        }
+        .clean-card { 
+            background: white; 
+            border-radius: 16px; 
+            padding: 20px;
+            margin-bottom: 12px;
+        }
+        .stat-box {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .stat-box:active {
+            transform: scale(0.97);
+        }
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.2s, transform 0.2s;
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-primary:active {
+            opacity: 0.8;
+            transform: scale(0.98);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .calendar-day {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f9f9f9;
+            color: #666;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .calendar-day.checked {
+            background: #007AFF;
+            color: white;
+        }
+        .calendar-day.today {
+            border: 2px solid #007AFF;
+        }
+        .calendar-day:active {
+            transform: scale(0.95);
+        }
+        .mission-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            background: #f9f9f9;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+        .mission-item:active {
+            background: #f0f0f0;
+        }
+        .mission-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .mission-btn.complete {
+            background: #007AFF;
+            color: white;
+        }
+        .mission-btn.completed {
+            background: #e8e8e8;
+            color: #999;
+            cursor: default;
+        }
+        .mission-btn:active:not(.completed) {
+            opacity: 0.7;
+            transform: scale(0.97);
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e8e8e8;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #007AFF;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            background: #f9f9f9;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            transition: background 0.2s, transform 0.2s;
+            cursor: pointer;
+        }
+        .leaderboard-item:active {
+            background: #f0f0f0;
+            transform: scale(0.99);
+        }
+        .leaderboard-item.top-3 {
+            background: linear-gradient(135deg, #fff9e6 0%, #fff 100%);
+        }
+        .leaderboard-item.current-user {
+            background: linear-gradient(135deg, #e6f3ff 0%, #fff 100%);
+            border: 1px solid #007AFF20;
+        }
+        .rank-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e8e8e8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            color: #666;
+            flex-shrink: 0;
+        }
+        .rank-badge.gold {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+        }
+        .rank-badge.silver {
+            background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(192, 192, 192, 0.3);
+        }
+        .rank-badge.bronze {
+            background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(205, 127, 50, 0.3);
+        }
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+        .streak-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #fff3e0;
+            color: #ff9800;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .achievement-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #e8f5e9;
+            color: #4caf50;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            background: #f0f0f0;
+            padding: 4px;
+            border-radius: 10px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: white;
+            color: #007AFF;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        .success-message {
+            background: #e8f5e9;
+            color: #4caf50;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -27,95 +290,129 @@
         <div id="bottomnav-container"></div>
 
         <!-- Page Header -->
-        <header class="px-4 py-3 bg-white border-b border-gray-200">
-            <div class="flex items-center">
-                <h1 class="text-lg font-semibold text-gray-900" data-translate="dailyRewardsTitle">Daily Rewards</h1>
-            </div>
+        <header style="padding: 16px 20px; background: #f5f5f5;">
+            <h1 style="font-size: 28px; font-weight: 700; color: #000; margin: 0;" data-translate="dailyRewardsTitle">Daily Rewards</h1>
+            <p style="font-size: 14px; color: #999; margin: 4px 0 0 0;">Keep your streak alive! 🔥</p>
         </header>
 
         <!-- Main Content -->
-        <main class="px-4 py-4 space-y-6">
+        <main style="padding: 0 16px 80px;">
 
             <!-- Streak + Summary -->
-            <section class="gradient-card rounded-2xl p-5 border border-indigo-100">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <div class="text-sm text-indigo-700 font-medium" data-translate="currentStreak">Current Streak</div>
-                        <div class="text-3xl font-extrabold text-indigo-800"><span id="streakCount">0</span><span class="text-base font-semibold ml-1" data-translate="days">days</span></div>
-                        <div class="text-sm text-gray-600 mt-1" data-translate="nextRewardAt">Next reward at 7 days streak</div>
+            <section class="clean-card">
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; color: #999; font-weight: 500; margin-bottom: 4px;" data-translate="currentStreak">Current Streak</div>
+                    <div style="font-size: 36px; font-weight: 700; color: #000; display: flex; align-items: baseline; gap: 6px;">
+                        <span id="streakCount">0</span>
+                        <span style="font-size: 18px; font-weight: 600; color: #666;" data-translate="days">days</span>
+                        <span id="streakEmoji" style="font-size: 24px; margin-left: 4px;">🔥</span>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="bg-white rounded-xl p-3 border border-indigo-100 text-center">
-                            <div class="text-xs text-gray-500" data-translate="dailyPoints">Daily</div>
-                            <div class="text-xl font-bold text-indigo-700" id="dailyPoints">10</div>
-                        </div>
-                        <div class="bg-white rounded-xl p-3 border border-indigo-100 text-center">
-                            <div class="text-xs text-gray-500" data-translate="weeklyBonusShort">Weekly</div>
-                            <div class="text-xl font-bold text-indigo-700" id="weeklyBonus">50</div>
-                        </div>
-                        <div class="bg-white rounded-xl p-3 border border-indigo-100 text-center">
-                            <div class="text-xs text-gray-500" data-translate="totalPoints">Total</div>
-                            <div class="text-xl font-bold text-indigo-700" id="totalPoints">0</div>
-                        </div>
+                    <div style="font-size: 13px; color: #999; margin-top: 4px;" data-translate="nextRewardAt">Next reward at 7 days streak</div>
+                    <div id="achievementBadge"></div>
+                </div>
+                
+                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <div class="stat-box" style="flex: 1;">
+                        <div style="font-size: 11px; color: #999; margin-bottom: 4px;" data-translate="dailyPoints">Daily</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #007AFF;" id="dailyPoints">10</div>
+                    </div>
+                    <div class="stat-box" style="flex: 1;">
+                        <div style="font-size: 11px; color: #999; margin-bottom: 4px;" data-translate="weeklyBonusShort">Weekly</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #007AFF;" id="weeklyBonus">50</div>
+                    </div>
+                    <div class="stat-box" style="flex: 1;">
+                        <div style="font-size: 11px; color: #999; margin-bottom: 4px;" data-translate="totalPoints">Total</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #007AFF;" id="totalPoints">0</div>
                     </div>
                 </div>
-                <div class="mt-4">
-                    <button id="checkInBtn" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2.5 px-4 rounded-xl font-semibold transition-all duration-150 shadow hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-300">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span data-translate="checkInToday">Check-in today</span>
-                    </button>
-                    <div id="checkInStatus" class="text-sm text-gray-600 mt-2"></div>
-                </div>
+                
+                <button id="checkInBtn" class="btn-primary">
+                    <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    <span data-translate="checkInToday">Check-in today</span>
+                </button>
+                <div id="checkInStatus"></div>
             </section>
 
             <!-- Streak Calendar -->
-            <section class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-lg font-semibold text-gray-800" data-translate="streakCalendar">Streak Calendar</h2>
-                    <div class="text-sm text-gray-500" id="calendarMonth"></div>
+            <section class="clean-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0;" data-translate="streakCalendar">Streak Calendar</h2>
+                    <div style="font-size: 13px; color: #999;" id="calendarMonth"></div>
                 </div>
-                <div class="grid grid-cols-7 gap-2" id="calendarGrid"></div>
-                <div class="text-xs text-gray-500 mt-3" data-translate="calendarLegend">Filled circles = checked-in days</div>
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px;">
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">S</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">M</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">T</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">W</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">T</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">F</div>
+                    <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">S</div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;" id="calendarGrid"></div>
+                <div style="font-size: 11px; color: #999; margin-top: 12px; text-align: center;" data-translate="calendarLegend">✓ = checked-in • Blue border = today</div>
             </section>
 
             <!-- Missions / Tasks -->
-            <section class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-lg font-semibold text-gray-800" data-translate="missionsTitle">Missions</h2>
-                    <div class="text-sm text-gray-500" id="missionsSummary">0/4</div>
+            <section class="clean-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0;" data-translate="missionsTitle">Daily Missions</h2>
+                    <div style="font-size: 13px; font-weight: 600; color: #007AFF;" id="missionsSummary">0/4</div>
                 </div>
-                <div class="space-y-3" id="missionsList"></div>
+                <div id="missionsList"></div>
             </section>
 
             <!-- Weekly Rewards -->
-            <section class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-lg font-semibold text-gray-800" data-translate="weeklyRewardsTitle">Weekly Rewards</h2>
-                    <div class="text-sm text-gray-500" id="weekProgress">0%</div>
+            <section class="clean-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0;" data-translate="weeklyRewardsTitle">Weekly Progress</h2>
+                    <div style="font-size: 13px; font-weight: 600; color: #007AFF;" id="weekProgress">0%</div>
                 </div>
-                <div class="w-full bg-gray-100 rounded-full h-2"><div id="weekBar" class="bg-indigo-600 h-2 rounded-full" style="width:0%"></div></div>
-                <ul class="mt-3 text-sm text-gray-700 list-disc pl-5 space-y-1">
+                <div class="progress-bar" style="margin-bottom: 12px;">
+                    <div id="weekBar" class="progress-fill" style="width:0%"></div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <div style="flex: 1; padding: 10px; background: #f9f9f9; border-radius: 10px; text-align: center;">
+                        <div style="font-size: 20px; font-weight: 700; color: #000;" id="daysThisWeek">0</div>
+                        <div style="font-size: 11px; color: #999; margin-top: 2px;">Days this week</div>
+                    </div>
+                    <div style="flex: 1; padding: 10px; background: #f9f9f9; border-radius: 10px; text-align: center;">
+                        <div style="font-size: 20px; font-weight: 700; color: #000;" id="weeklyEarned">0</div>
+                        <div style="font-size: 11px; color: #999; margin-top: 2px;">Bonus earned</div>
+                    </div>
+                </div>
+                <ul style="margin-top: 12px; padding-left: 20px; font-size: 13px; color: #666; line-height: 1.8;">
                     <li data-translate="weekReward1">Check-in 5 days to earn +25 bonus</li>
                     <li data-translate="weekReward2">Complete all missions to earn +50 bonus</li>
                 </ul>
             </section>
 
             <!-- Leaderboard -->
-            <section class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-lg font-semibold text-gray-800" data-translate="leaderboardTitle">Leaderboard</h2>
-                    <button id="refreshLeaderboard" class="text-sm text-indigo-600 hover:text-indigo-700" data-translate="refresh">Refresh</button>
+            <section class="clean-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0;" data-translate="leaderboardTitle">Leaderboard</h2>
+                    <button id="refreshLeaderboard" style="font-size: 13px; color: #007AFF; background: none; border: none; cursor: pointer; font-weight: 600;" data-translate="refresh">↻ Refresh</button>
                 </div>
-                <div class="space-y-2" id="leaderboardList"></div>
+                
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="global">🌍 Global</button>
+                    <button class="tab-btn" data-tab="friends">👥 Friends</button>
+                </div>
+                
+                <div id="leaderboardList"></div>
+                
+                <div style="margin-top: 12px; padding: 12px; background: #f9f9f9; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 13px; color: #666; margin-bottom: 6px;">Your Rank</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #007AFF;" id="userRank">#--</div>
+                </div>
             </section>
 
         </main>
-
-        <div class="h-16"></div>
     </div>
 
     <script src="/js/translations.js?v=2"></script>
     <script>
+        let currentLeaderboardTab = 'global';
+        
         (function initTheme() {
             try {
                 const tg = window.Telegram && window.Telegram.WebApp;
@@ -141,30 +438,69 @@
             const btn = document.getElementById('checkInBtn');
             btn.addEventListener('click', onCheckIn);
             const refresh = document.getElementById('refreshLeaderboard');
-            refresh.addEventListener('click', seedLeaderboard);
+            refresh.addEventListener('click', () => {
+                seedLeaderboard();
+                refresh.textContent = '✓ Refreshed';
+                setTimeout(() => {
+                    refresh.textContent = '↻ Refresh';
+                }, 1500);
+            });
+            
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentLeaderboardTab = btn.getAttribute('data-tab');
+                    seedLeaderboard();
+                });
+            });
         }
 
         function restoreState() {
             const data = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
-            document.getElementById('streakCount').textContent = data.streak || 0;
+            const streak = data.streak || 0;
+            document.getElementById('streakCount').textContent = streak;
             document.getElementById('totalPoints').textContent = data.totalPoints || 0;
+            
+            // Update streak emoji based on streak count
+            const emojiEl = document.getElementById('streakEmoji');
+            if (streak >= 30) emojiEl.textContent = '🏆';
+            else if (streak >= 14) emojiEl.textContent = '⭐';
+            else if (streak >= 7) emojiEl.textContent = '🔥';
+            else emojiEl.textContent = '💪';
+            
+            // Show achievement badge
+            const badgeEl = document.getElementById('achievementBadge');
+            if (streak >= 30) {
+                badgeEl.innerHTML = '<div class="achievement-badge">🏆 Streak Master - 30 Days!</div>';
+            } else if (streak >= 14) {
+                badgeEl.innerHTML = '<div class="achievement-badge">⭐ 2 Week Warrior!</div>';
+            } else if (streak >= 7) {
+                badgeEl.innerHTML = '<div class="achievement-badge">🔥 Week Streak!</div>';
+            }
+            
             // Update calendar filled days
             if (Array.isArray(data.checkedInDays)) {
                 const days = new Set(data.checkedInDays);
                 document.querySelectorAll('[data-day]').forEach(el => {
                     const d = parseInt(el.getAttribute('data-day'), 10);
-                    if (days.has(d)) el.classList.add('bg-indigo-600','text-white');
+                    if (days.has(d)) el.classList.add('checked');
                 });
             }
+            
             // Week bar
             const weekCount = data.weekCheckins || 0;
             const pct = Math.min(100, Math.round((weekCount/7)*100));
             document.getElementById('weekBar').style.width = pct + '%';
             document.getElementById('weekProgress').textContent = pct + '%';
+            document.getElementById('daysThisWeek').textContent = weekCount;
+            document.getElementById('weeklyEarned').textContent = Math.floor(weekCount * 5);
+            
             // Missions
             const completed = (data.missionsCompleted || []).length;
-            const total = document.querySelectorAll('.mission-item').length;
-            document.getElementById('missionsSummary').textContent = `${completed}/${total}`;
+            const total = 4; // Total missions
+            document.getElementById('missionsSummary').textContent = `${completed}/${total} completed`;
         }
 
         function onCheckIn() {
@@ -173,9 +509,15 @@
             const store = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
             const lastCheck = store.lastCheckIn ? new Date(store.lastCheckIn) : null;
             const checkedInDays = new Set(store.checkedInDays || []);
+            const btn = document.getElementById('checkInBtn');
+            
             if (lastCheck && lastCheck.toDateString() === today.toDateString()) {
-                return setStatus('checkInStatus', TranslationUtils.get('alreadyCheckedIn') || 'Already checked in today');
+                return setStatus('checkInStatus', '✓ Already checked in today!', 'success');
             }
+            
+            // Disable button during check-in
+            btn.disabled = true;
+            
             // Update streak
             let streak = store.streak || 0;
             if (lastCheck) {
@@ -188,22 +530,62 @@
             const daily = parseInt(document.getElementById('dailyPoints').textContent, 10) || 10;
             const total = (store.totalPoints || 0) + daily;
             const weekCheckins = Math.min(7, (store.weekCheckins || 0) + 1);
-            const newStore = { lastCheckIn: today.toISOString(), streak, checkedInDays: Array.from(checkedInDays), totalPoints: total, weekCheckins, missionsCompleted: store.missionsCompleted || [] };
+            const newStore = { 
+                lastCheckIn: today.toISOString(), 
+                streak, 
+                checkedInDays: Array.from(checkedInDays), 
+                totalPoints: total, 
+                weekCheckins, 
+                missionsCompleted: store.missionsCompleted || [] 
+            };
             localStorage.setItem('dailyRewards', JSON.stringify(newStore));
-            // Visual updates
+            
+            // Visual updates with animation
             document.getElementById('streakCount').textContent = streak;
             document.getElementById('totalPoints').textContent = total;
-            document.querySelector(`[data-day='${dayKey}']`)?.classList.add('bg-indigo-600','text-white');
+            const dayEl = document.querySelector(`[data-day='${dayKey}']`);
+            if (dayEl) {
+                dayEl.classList.add('checked', 'animate-in');
+            }
+            
             const pct = Math.min(100, Math.round((weekCheckins/7)*100));
             document.getElementById('weekBar').style.width = pct + '%';
             document.getElementById('weekProgress').textContent = pct + '%';
-            setStatus('checkInStatus', TranslationUtils.get('checkInSuccess') || 'Check-in successful! +10 points');
+            document.getElementById('daysThisWeek').textContent = weekCheckins;
+            document.getElementById('weeklyEarned').textContent = Math.floor(weekCheckins * 5);
+            
+            // Update emoji and badge
+            const emojiEl = document.getElementById('streakEmoji');
+            if (streak >= 30) emojiEl.textContent = '🏆';
+            else if (streak >= 14) emojiEl.textContent = '⭐';
+            else if (streak >= 7) emojiEl.textContent = '🔥';
+            else emojiEl.textContent = '💪';
+            
+            const badgeEl = document.getElementById('achievementBadge');
+            if (streak === 30) {
+                badgeEl.innerHTML = '<div class="achievement-badge animate-in">🏆 Streak Master - 30 Days!</div>';
+            } else if (streak === 14) {
+                badgeEl.innerHTML = '<div class="achievement-badge animate-in">⭐ 2 Week Warrior!</div>';
+            } else if (streak === 7) {
+                badgeEl.innerHTML = '<div class="achievement-badge animate-in">🔥 Week Streak!</div>';
+            }
+            
+            setStatus('checkInStatus', `🎉 Check-in successful! +${daily} points`, 'success');
+            
+            // Re-enable button after animation
+            setTimeout(() => {
+                btn.disabled = false;
+            }, 1000);
         }
 
-        function setStatus(id, text) {
+        function setStatus(id, text, type = 'info') {
             const el = document.getElementById(id);
-            el.textContent = text;
-            setTimeout(() => { el.textContent = ''; }, 3500);
+            if (type === 'success') {
+                el.innerHTML = `<div class="success-message animate-in">✓ ${text}</div>`;
+            } else {
+                el.innerHTML = `<div style="color: #666; font-size: 13px; margin-top: 8px;">${text}</div>`;
+            }
+            setTimeout(() => { el.innerHTML = ''; }, 4000);
         }
 
         function buildCalendar(date) {
@@ -217,14 +599,17 @@
             document.getElementById('calendarMonth').textContent = `${monthName} ${year}`;
             const startWeekday = firstDay.getDay();
             const totalDays = lastDay.getDate();
+            const today = new Date().getDate();
+            
             for (let i = 0; i < startWeekday; i++) {
                 const empty = document.createElement('div');
-                empty.className = 'h-10';
+                empty.style.height = '40px';
                 grid.appendChild(empty);
             }
             for (let d = 1; d <= totalDays; d++) {
                 const cell = document.createElement('button');
-                cell.className = 'h-10 w-10 rounded-full flex items-center justify-center text-gray-700 bg-gray-50 hover:bg-gray-100 transition';
+                cell.className = 'calendar-day';
+                if (d === today) cell.classList.add('today');
                 cell.textContent = d;
                 cell.setAttribute('data-day', d);
                 grid.appendChild(cell);
@@ -235,38 +620,42 @@
             const list = document.getElementById('missionsList');
             list.innerHTML = '';
             const missions = [
-                { id: 'm1', title: TranslationUtils.get('missionConnectWallet') || 'Connect a wallet', points: 20 },
-                { id: 'm2', title: TranslationUtils.get('missionJoinChannel') || 'Join Telegram channel', points: 10 },
-                { id: 'm3', title: TranslationUtils.get('missionFirstOrder') || 'Complete your first order', points: 50 },
-                { id: 'm4', title: TranslationUtils.get('missionInviteFriend') || 'Invite a friend', points: 30 },
+                { id: 'm1', title: 'Connect a wallet', points: 20, icon: '💳' },
+                { id: 'm2', title: 'Join Telegram channel', points: 10, icon: '💬' },
+                { id: 'm3', title: 'Complete your first order', points: 50, icon: '🛍️' },
+                { id: 'm4', title: 'Invite a friend', points: 30, icon: '👥' },
             ];
             const state = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
             const done = new Set(state.missionsCompleted || []);
+            
             missions.forEach(m => {
                 const row = document.createElement('div');
-                row.className = 'mission-item flex items-center justify-between p-4 bg-gray-50 rounded-xl';
+                row.className = 'mission-item';
+                const isCompleted = done.has(m.id);
                 row.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <div class="bg-indigo-100 p-2 rounded-lg"><svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px;">${m.icon}</div>
                         <div>
-                            <div class="text-sm font-medium text-gray-800">${m.title}</div>
-                            <div class="text-xs text-gray-500">+${m.points} pts</div>
+                            <div style="font-size: 15px; font-weight: 500; color: #000;">${m.title}</div>
+                            <div style="font-size: 12px; color: #999;">+${m.points} pts</div>
                         </div>
                     </div>
-                    <button data-id="${m.id}" class="mission-btn text-sm font-semibold px-3 py-1.5 rounded-lg ${done.has(m.id) ? 'bg-green-100 text-green-700' : 'bg-indigo-600 text-white'}">${done.has(m.id) ? (TranslationUtils.get('completed') || 'Completed') : (TranslationUtils.get('complete') || 'Complete')}</button>
+                    <button data-id="${m.id}" class="mission-btn ${isCompleted ? 'completed' : 'complete'}">${isCompleted ? '✓ Done' : 'Complete'}</button>
                 `;
                 list.appendChild(row);
             });
+            
             list.addEventListener('click', (e) => {
                 const btn = e.target.closest('.mission-btn');
-                if (!btn) return;
+                if (!btn || btn.classList.contains('completed')) return;
                 const id = btn.getAttribute('data-id');
                 const state = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
                 const done = new Set(state.missionsCompleted || []);
-                if (done.has(id)) return;
+                
                 done.add(id);
                 state.missionsCompleted = Array.from(done);
-                state.totalPoints = (state.totalPoints || 0) + 10; // base reward for demo
+                const mission = missions.find(m => m.id === id);
+                state.totalPoints = (state.totalPoints || 0) + (mission ? mission.points : 10);
                 localStorage.setItem('dailyRewards', JSON.stringify(state));
                 seedMissions();
                 restoreState();
@@ -276,24 +665,82 @@
         function seedLeaderboard() {
             const el = document.getElementById('leaderboardList');
             el.innerHTML = '';
-            const sample = [
-                { u: 'alice', pts: 1240 },
-                { u: 'bob', pts: 990 },
-                { u: 'carol', pts: 785 },
-                { u: 'dave', pts: 640 },
+            
+            // Generate more realistic leaderboard data
+            const globalUsers = [
+                { u: 'CryptoKing', pts: 3240, avatar: 'C' },
+                { u: 'StarTrader', pts: 2990, avatar: 'S' },
+                { u: 'MoonShot', pts: 2785, avatar: 'M' },
+                { u: 'DiamondHands', pts: 2640, avatar: 'D' },
+                { u: 'GemHunter', pts: 2420, avatar: 'G' },
+                { u: 'WhaleWatcher', pts: 2180, avatar: 'W' },
+                { u: 'BullRunner', pts: 1965, avatar: 'B' },
+                { u: 'Hodler4Life', pts: 1840, avatar: 'H' },
+                { u: 'DeFiNinja', pts: 1720, avatar: 'D' },
+                { u: 'TokenMaster', pts: 1595, avatar: 'T' },
             ];
-            sample.forEach((s, idx) => {
+            
+            const friendUsers = [
+                { u: 'alice_2024', pts: 1240, avatar: 'A' },
+                { u: 'bob_trader', pts: 990, avatar: 'B' },
+                { u: 'carol_crypto', pts: 785, avatar: 'C' },
+                { u: 'dave_defi', pts: 640, avatar: 'D' },
+            ];
+            
+            const users = currentLeaderboardTab === 'global' ? globalUsers : friendUsers;
+            const currentUser = Math.floor(Math.random() * 50) + 15; // Random rank between 15-65
+            document.getElementById('userRank').textContent = `#${currentUser}`;
+            
+            users.forEach((s, idx) => {
                 const row = document.createElement('div');
-                row.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-xl';
+                const isTop3 = idx < 3;
+                const rank = idx + 1;
+                
+                let rankClass = '';
+                if (rank === 1) rankClass = 'gold';
+                else if (rank === 2) rankClass = 'silver';
+                else if (rank === 3) rankClass = 'bronze';
+                
+                row.className = `leaderboard-item ${isTop3 ? 'top-3' : ''}`;
                 row.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">${idx+1}</div>
-                        <div class="text-sm font-medium text-gray-800">@${s.u}</div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="rank-badge ${rankClass}">${rank <= 3 ? (rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉') : rank}</div>
+                        <div class="avatar" style="background: ${getAvatarColor(s.avatar)}">${s.avatar}</div>
+                        <div>
+                            <div style="font-size: 15px; font-weight: 600; color: #000;">@${s.u}</div>
+                            <div style="font-size: 12px; color: #999;">${getStreakText(s.pts)}</div>
+                        </div>
                     </div>
-                    <div class="text-sm font-semibold text-indigo-700">${s.pts} pts</div>
+                    <div>
+                        <div style="font-size: 16px; font-weight: 700; color: #007AFF; text-align: right;">${s.pts.toLocaleString()}</div>
+                        <div style="font-size: 11px; color: #999; text-align: right;">points</div>
+                    </div>
                 `;
                 el.appendChild(row);
             });
+        }
+        
+        function getAvatarColor(letter) {
+            const colors = [
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+                'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+            ];
+            const index = letter.charCodeAt(0) % colors.length;
+            return colors[index];
+        }
+        
+        function getStreakText(pts) {
+            const days = Math.floor(pts / 50); // Estimate streak from points
+            if (days >= 30) return '🏆 30+ day streak';
+            if (days >= 14) return '⭐ 14+ day streak';
+            if (days >= 7) return '🔥 7+ day streak';
+            return `${days} day streak`;
         }
     </script>
 </body>
