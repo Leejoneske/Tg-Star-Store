@@ -299,6 +299,19 @@ const translations = {
         contactBtn: "Contact Support",
         footerPowered: "Powered by",
         
+        // Settings Section
+        settings: "Settings",
+        dailyLogin: "Daily Login",
+        dailyLoginDesc: "Earn points for daily check-ins",
+        notifications: "Notifications",
+        notificationsDesc: "Manage your notification preferences",
+        privacySecurity: "Privacy & Security",
+        privacySecurityDesc: "Manage your privacy settings",
+        accountSettings: "Account Settings",
+        accountSettingsDesc: "Manage your account preferences",
+        helpSupport: "Help & Support",
+        helpSupportDesc: "Get help and contact support",
+        
         // Community Section
         communityTitle: "Join Our Community",
         telegramChannel: "Telegram Channel",
@@ -732,6 +745,20 @@ const translations = {
         contactSupport: "Связаться с поддержкой",
         contactBtn: "Связаться с поддержкой",
         footerPowered: "Работает на",
+        
+        // Settings Section
+        settings: "Настройки",
+        dailyLogin: "Ежедневный вход",
+        dailyLoginDesc: "Зарабатывайте очки за ежедневные входы",
+        notifications: "Уведомления",
+        notificationsDesc: "Управляйте настройками уведомлений",
+        privacySecurity: "Конфиденциальность и безопасность",
+        privacySecurityDesc: "Управляйте настройками конфиденциальности",
+        accountSettings: "Настройки аккаунта",
+        accountSettingsDesc: "Управляйте настройками аккаунта",
+        helpSupport: "Помощь и поддержка",
+        helpSupportDesc: "Получите помощь и свяжитесь с поддержкой",
+        
         transactions: "Транзакции",
         date: "Дата",
         active: "Активен",
@@ -1062,6 +1089,20 @@ try {
         contact: "संपर्क करें",
         contactText: "कोई प्रश्न हैं या सहायता चाहिए? हमारी टीम आपकी मदद के लिए हमेशा तैयार है!",
         contactBtn: "सपोर्ट से संपर्क करें",
+        
+        // Settings Section
+        settings: "सेटिंग्स",
+        dailyLogin: "दैनिक लॉगिन",
+        dailyLoginDesc: "दैनिक चेक-इन के लिए अंक कमाएं",
+        notifications: "सूचनाएं",
+        notificationsDesc: "अपनी सूचना प्राथमिकताएं प्रबंधित करें",
+        privacySecurity: "गोपनीयता और सुरक्षा",
+        privacySecurityDesc: "अपनी गोपनीयता सेटिंग्स प्रबंधित करें",
+        accountSettings: "खाता सेटिंग्स",
+        accountSettingsDesc: "अपनी खाता प्राथमिकताएं प्रबंधित करें",
+        helpSupport: "सहायता और समर्थन",
+        helpSupportDesc: "सहायता प्राप्त करें और समर्थन से संपर्क करें",
+        
         communityTitle: "हमारे समुदाय से जुड़ें",
         telegramChannel: "टेलीग्राम चैनल",
         telegramChannelDesc: "घोषणाएँ, अपडेट और विशेष ऑफ़र",
@@ -1178,6 +1219,20 @@ try {
         contact: "تواصل معنا",
         contactText: "هل لديك أسئلة أو تحتاج مساعدة؟ فريقنا هنا لمساعدتك على مدار الساعة!",
         contactBtn: "اتصل بالدعم",
+        
+        // Settings Section
+        settings: "الإعدادات",
+        dailyLogin: "تسجيل الدخول اليومي",
+        dailyLoginDesc: "اكسب نقاطًا لتسجيل الدخول اليومي",
+        notifications: "الإشعارات",
+        notificationsDesc: "إدارة تفضيلات الإشعارات",
+        privacySecurity: "الخصوصية والأمان",
+        privacySecurityDesc: "إدارة إعدادات الخصوصية",
+        accountSettings: "إعدادات الحساب",
+        accountSettingsDesc: "إدارة تفضيلات الحساب",
+        helpSupport: "المساعدة والدعم",
+        helpSupportDesc: "احصل على المساعدة وتواصل مع الدعم",
+        
         communityTitle: "انضم إلى مجتمعنا",
         telegramChannel: "قناة تيليجرام",
         telegramChannelDesc: "إعلانات وتحديثات وعروض حصرية",
