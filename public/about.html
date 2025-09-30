@@ -116,21 +116,24 @@
 </head>
 <body>
 <div class="app-container">
-    <div class="p-4 flex justify-between items-center bg-white shadow-sm" style="max-width: 100%;">
-        <div class="logo-header">StarStore</div>
-        <div class="flex items-center space-x-4">
-            <select id="languageSelectAbout" class="language-toggle">
+    <!-- Page Header -->
+    <header class="px-4 py-3 bg-white border-b border-gray-200">
+        <div class="flex items-center justify-between">
+            <h1 class="text-lg font-semibold text-gray-900" data-translate="about">About</h1>
+            <div class="flex items-center space-x-4">
+                <select id="languageSelectAbout" class="language-toggle">
                 <option value="en">English</option>
                 <option value="ru">Русский</option>
                 <option value="hi">हिंदी</option>
                 <option value="ar">العربية</option>
             </select>
+            </div>
         </div>
-    </div>
+    </header>
 
 
 <div id="bottomnav-container"></div>
-    <div class="p-4 md:p-6 max-w-4xl mx-auto" style="width: 100%;">
+    <div class="px-4 py-4 max-w-4xl mx-auto" style="width: 100%;">
         <div class="text-center mb-8 md:mb-12 animate__animated animate__fadeIn">
             <h1 class="text-2xl md:text-4xl font-bold text-gray-900 mb-4">
                 <span data-translate="welcome">Welcome to</span> <span class="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">StarStore</span>
