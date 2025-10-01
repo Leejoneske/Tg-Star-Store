@@ -169,10 +169,80 @@
             </div>
         </div>
 
-        <!-- Features (programmatic list; miniapp-aware) -->
-        <div class="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm animate__animated animate__fadeInUp mb-8" id="features-section">
-            <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-2" data-translate="settings">Settings</h2>
-            <div id="features-list" class="space-y-3"></div>
+        <!-- Settings/Others Section (clean list) -->
+        <div class="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm animate__animated animate__fadeInUp mb-8">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-6" data-translate="settings">Settings</h2>
+            <div class="space-y-3">
+                <!-- Daily Login -->
+                <div id="dailyLoginLink" class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer group">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-gradient-to-r from-yellow-400 to-orange-500 p-3 rounded-xl">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800" data-translate="dailyLogin">Daily Login</h3>
+                            <p class="text-sm text-gray-600" data-translate="dailyLoginDesc">Earn points for daily check-ins</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+
+                <!-- Notifications -->
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer group">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-gradient-to-r from-blue-400 to-blue-600 p-3 rounded-xl">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM4 19h6v-6H4v6zM4 5h6V1H4v4zM15 7h5l-5-5v5z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800" data-translate="notifications">Notifications</h3>
+                            <p class="text-sm text-gray-600" data-translate="notificationsDesc">Manage your notification preferences</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+
+                <!-- Privacy & Security -->
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer group">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-gradient-to-r from-green-400 to-green-600 p-3 rounded-xl">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800" data-translate="privacySecurity">Privacy & Security</h3>
+                            <p class="text-sm text-gray-600" data-translate="privacySecurityDesc">Manage your privacy settings</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+
+                <!-- Account Settings -->
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer group">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-gradient-to-r from-purple-400 to-purple-600 p-3 rounded-xl">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800" data-translate="accountSettings">Account Settings</h3>
+                            <p class="text-sm text-gray-600" data-translate="accountSettingsDesc">Manage your account preferences</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+
+                <!-- Help & Support -->
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer group">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-gradient-to-r from-indigo-400 to-indigo-600 p-3 rounded-xl">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800" data-translate="helpSupport">Help & Support</h3>
+                            <p class="text-sm text-gray-600" data-translate="helpSupportDesc">Get help and contact support</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
         </div>
 
         <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 md:p-8 border border-indigo-100 animate__animated animate__fadeInUp mb-20">
@@ -224,7 +294,14 @@
         </div>
 
         <script>
-        // Features are rendered dynamically in the main script
+        (function() {
+            const link = document.getElementById('dailyLoginLink');
+            if (link) {
+                link.addEventListener('click', function () {
+                    window.location.href = '/daily.html';
+                });
+            }
+        })();
         </script>
     </div>
 </div>
@@ -251,9 +328,6 @@
             console.log('Telegram Mini App mode enabled');
         }
         
-        // Render Features programmatically
-        renderFeatures();
-
         // Load shared bottom nav
         fetch('bottomnav.html')
             .then(r => r.ok ? r.text() : '')
@@ -281,100 +355,6 @@
     });
 
     function updateLanguage() {
-        if (typeof TranslationUtils !== 'undefined') {
-            TranslationUtils.applyTranslations();
-        }
-    }
-
-    function isMiniAppMode() {
-        return Boolean(window.Telegram?.WebApp);
-    }
-
-    function renderFeatures() {
-        const featuresRoot = document.getElementById('features-list');
-        if (!featuresRoot) return;
-
-        const items = [
-            {
-                id: 'daily',
-                iconClass: 'from-yellow-400 to-orange-500',
-                titleKey: 'dailyLogin',
-                descKey: 'dailyLoginDesc',
-                onClick: () => { window.location.href = '/daily.html'; },
-                disabled: false
-            },
-            { id: 'notifications', iconClass: 'from-blue-400 to-blue-600', titleKey: 'notifications', descKey: 'notificationsDesc', onClick: null, disabled: false },
-            { id: 'privacy', iconClass: 'from-green-400 to-green-600', titleKey: 'privacySecurity', descKey: 'privacySecurityDesc', onClick: null, disabled: false },
-            { id: 'account', iconClass: 'from-purple-400 to-purple-600', titleKey: 'accountSettings', descKey: 'accountSettingsDesc', onClick: null, disabled: false },
-            {
-                id: 'help',
-                iconClass: 'from-indigo-400 to-indigo-600',
-                titleKey: 'helpSupport',
-                descKey: 'helpSupportDesc',
-                onClick: () => { window.location.href = 'support.html'; },
-                disabled: false
-            }
-        ];
-
-        // De-duplicate by id
-        const unique = [];
-        const seen = new Set();
-        for (const it of items) {
-            if (seen.has(it.id)) continue;
-            seen.add(it.id);
-            unique.push(it);
-        }
-
-        featuresRoot.innerHTML = '';
-        unique
-            // hide Telegram-managed items in mini app
-            .filter(it => !(isMiniAppMode() && (it.id === 'notifications' || it.id === 'privacy' || it.id === 'account')))
-            .forEach(it => {
-            const container = document.createElement('div');
-            container.className = 'flex items-center justify-between p-4 rounded-xl transition-colors group ' + (it.disabled ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-gray-50 hover:bg-gray-100 cursor-pointer');
-            container.setAttribute('data-feature-id', it.id);
-
-            const left = document.createElement('div');
-            left.className = 'flex items-center space-x-4';
-
-            const iconWrap = document.createElement('div');
-            iconWrap.className = 'bg-gradient-to-r ' + it.iconClass + ' p-3 rounded-xl';
-            iconWrap.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-
-            const textWrap = document.createElement('div');
-            const title = document.createElement('h3');
-            title.className = 'text-lg font-semibold text-gray-800';
-            title.setAttribute('data-translate', it.titleKey);
-            title.textContent = it.titleKey;
-
-            const desc = document.createElement('p');
-            desc.className = 'text-sm text-gray-600';
-            desc.setAttribute('data-translate', it.descKey);
-            desc.textContent = it.descKey;
-
-            textWrap.appendChild(title);
-            textWrap.appendChild(desc);
-            left.appendChild(iconWrap);
-            left.appendChild(textWrap);
-
-            const chevron = document.createElement('svg');
-            chevron.className = 'w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors';
-            chevron.setAttribute('fill', 'none');
-            chevron.setAttribute('stroke', 'currentColor');
-            chevron.setAttribute('viewBox', '0 0 24 24');
-            chevron.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>';
-
-            container.appendChild(left);
-            container.appendChild(chevron);
-
-            if (!it.disabled && typeof it.onClick === 'function') {
-                container.addEventListener('click', it.onClick);
-            }
-
-            featuresRoot.appendChild(container);
-        });
-
-        // Apply translations after dynamic render
         if (typeof TranslationUtils !== 'undefined') {
             TranslationUtils.applyTranslations();
         }
