@@ -171,8 +171,7 @@
 
         <!-- Features (programmatic list; miniapp-aware) -->
         <div class="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm animate__animated animate__fadeInUp mb-8" id="features-section">
-            <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-2" data-translate="features">Features</h2>
-            <p id="miniapp-note" class="text-sm text-gray-600 mb-4 hidden" data-translate="miniappManaged">Some settings are managed by Telegram in the Mini App.</p>
+            <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-2" data-translate="settings">Settings</h2>
             <div id="features-list" class="space-y-3"></div>
         </div>
 
@@ -293,7 +292,6 @@
 
     function renderFeatures() {
         const featuresRoot = document.getElementById('features-list');
-        const miniappNote = document.getElementById('miniapp-note');
         if (!featuresRoot) return;
 
         const items = [
@@ -305,30 +303,9 @@
                 onClick: () => { window.location.href = '/daily.html'; },
                 disabled: false
             },
-            {
-                id: 'notifications',
-                iconClass: 'from-blue-400 to-blue-600',
-                titleKey: 'notifications',
-                descKey: 'notificationsDesc',
-                onClick: null,
-                disabled: isMiniAppMode()
-            },
-            {
-                id: 'privacy',
-                iconClass: 'from-green-400 to-green-600',
-                titleKey: 'privacySecurity',
-                descKey: 'privacySecurityDesc',
-                onClick: null,
-                disabled: isMiniAppMode()
-            },
-            {
-                id: 'account',
-                iconClass: 'from-purple-400 to-purple-600',
-                titleKey: 'accountSettings',
-                descKey: 'accountSettingsDesc',
-                onClick: null,
-                disabled: isMiniAppMode()
-            },
+            { id: 'notifications', iconClass: 'from-blue-400 to-blue-600', titleKey: 'notifications', descKey: 'notificationsDesc', onClick: null, disabled: false },
+            { id: 'privacy', iconClass: 'from-green-400 to-green-600', titleKey: 'privacySecurity', descKey: 'privacySecurityDesc', onClick: null, disabled: false },
+            { id: 'account', iconClass: 'from-purple-400 to-purple-600', titleKey: 'accountSettings', descKey: 'accountSettingsDesc', onClick: null, disabled: false },
             {
                 id: 'help',
                 iconClass: 'from-indigo-400 to-indigo-600',
@@ -348,12 +325,11 @@
             unique.push(it);
         }
 
-        if (isMiniAppMode()) {
-            miniappNote?.classList.remove('hidden');
-        }
-
         featuresRoot.innerHTML = '';
-        unique.forEach(it => {
+        unique
+            // hide Telegram-managed items in mini app
+            .filter(it => !(isMiniAppMode() && (it.id === 'notifications' || it.id === 'privacy' || it.id === 'account')))
+            .forEach(it => {
             const container = document.createElement('div');
             container.className = 'flex items-center justify-between p-4 rounded-xl transition-colors group ' + (it.disabled ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-gray-50 hover:bg-gray-100 cursor-pointer');
             container.setAttribute('data-feature-id', it.id);
