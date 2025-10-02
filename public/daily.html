@@ -433,6 +433,26 @@
             if (typeof TranslationUtils !== 'undefined') {
                 TranslationUtils.init();
             }
+            // Telegram WebApp parity and fullscreen
+            try {
+                if (window.Telegram?.WebApp) {
+                    const webApp = window.Telegram.WebApp;
+                    webApp.ready();
+                    webApp.expand();
+                    document.body.classList.add('telegram-fullscreen');
+                }
+            } catch(_) {}
+
+            // Load shared bottom nav and apply translations
+            try {
+                const html = await fetch('bottomnav.html').then(r => r.ok ? r.text() : '');
+                const holder = document.getElementById('bottomnav-container');
+                if (holder) holder.innerHTML = html;
+                if (typeof TranslationUtils !== 'undefined') {
+                    TranslationUtils.applyTranslations();
+                }
+            } catch(_) {}
+
             buildCalendar(new Date());
             await hydrateFromAPI();
             await loadMissions();
