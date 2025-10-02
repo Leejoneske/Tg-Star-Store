@@ -287,7 +287,6 @@
 </head>
 <body>
     <div class="app-container">
-        <div id="bottomnav-container"></div>
 
         <!-- Page Header -->
         <header style="padding: 16px 20px; background: #f5f5f5;">
@@ -440,16 +439,6 @@
                     webApp.ready();
                     webApp.expand();
                     document.body.classList.add('telegram-fullscreen');
-                }
-            } catch(_) {}
-
-            // Load shared bottom nav and apply translations
-            try {
-                const html = await fetch('bottomnav.html').then(r => r.ok ? r.text() : '');
-                const holder = document.getElementById('bottomnav-container');
-                if (holder) holder.innerHTML = html;
-                if (typeof TranslationUtils !== 'undefined') {
-                    TranslationUtils.applyTranslations();
                 }
             } catch(_) {}
 
