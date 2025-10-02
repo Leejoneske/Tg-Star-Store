@@ -1,0 +1,640 @@
+/* Enhanced Daily Rewards System Styles */
+/* Author: StarStore Team */
+/* Version: 2.0 */
+
+/* Loading States */
+.loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+    height: 60px;
+    border-radius: 12px;
+}
+
+.loading-skeleton-lb {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+    height: 400px;
+    border-radius: 12px;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Advanced Animations */
+.animate-bounce {
+    animation: bounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+.celebrate {
+    animation: celebrate 0.6s ease-out;
+}
+
+@keyframes celebrate {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.1) rotate(5deg); }
+    50% { transform: scale(1.1) rotate(-5deg); }
+    75% { transform: scale(1.1) rotate(5deg); }
+    100% { transform: scale(1); }
+}
+
+.mission-complete-anim {
+    animation: mission-complete 0.6s ease-out;
+}
+
+@keyframes mission-complete {
+    0% { transform: scale(1); background-color: #007AFF; }
+    50% { transform: scale(1.05); background-color: #4caf50; }
+    100% { transform: scale(1); background-color: #4caf50; }
+}
+
+/* Confetti Animation */
+@keyframes confetti-fall {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+/* Mission Styling */
+.mission-icon {
+    font-size: 28px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f9f9f9;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+.mission-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #000;
+    margin-bottom: 4px;
+}
+
+.mission-subtitle {
+    font-size: 12px;
+    color: #999;
+}
+
+.mission-btn.complete {
+    background: #007AFF;
+    color: white;
+    transition: all 0.2s ease;
+}
+
+.mission-btn.complete:hover {
+    background: #0056cc;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 122, 255, 0.3);
+}
+
+.mission-btn.completed {
+    background: #e8f5e9;
+    color: #4caf50;
+    border: 1px solid #4caf50;
+}
+
+/* Leaderboard Enhancements */
+.lb-username {
+    font-size: 15px;
+    font-weight: 600;
+    color: #000;
+    margin-bottom: 2px;
+}
+
+.lb-streak {
+    font-size: 12px;
+    color: #999;
+}
+
+.lb-score {
+    font-size: 18px;
+    font-weight: 700;
+    color: #007AFF;
+    text-align: right;
+}
+
+.lb-score-label {
+    font-size: 11px;
+    color: #999;
+    text-align: right;
+    margin-top: 2px;
+}
+
+/* Calendar Enhancements */
+.calendar-empty {
+    height: 40px;
+}
+
+.calendar-day {
+    position: relative;
+}
+
+.calendar-day.checked::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    background: #007AFF;
+    border-radius: 50%;
+}
+
+.calendar-day:hover:not(.checked) {
+    background: #e0e0e0;
+}
+
+/* Month Navigation */
+.month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.month-nav-btn {
+    background: none;
+    border: none;
+    color: #007AFF;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.month-nav-btn:hover {
+    background: #f0f0f0;
+}
+
+.month-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Achievement Badges */
+.achievement-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    color: #2e7d32;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 8px;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.15);
+    animation: achievement-appear 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes achievement-appear {
+    0% {
+        opacity: 0;
+        transform: scale(0.5) translateY(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.achievement-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fade-in 0.3s ease;
+}
+
+.achievement-modal-content {
+    background: white;
+    padding: 32px;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 90%;
+    animation: modal-slide-in 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modal-slide-in {
+    from {
+        opacity: 0;
+        transform: scale(0.7) translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.achievement-icon-large {
+    font-size: 80px;
+    margin-bottom: 16px;
+}
+
+.achievement-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #000;
+    margin-bottom: 8px;
+}
+
+.achievement-description {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 24px;
+}
+
+/* Toast Notifications */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    max-width: 90%;
+    animation: toast-in 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.toast-success {
+    background: #4caf50;
+    color: white;
+}
+
+.toast-error {
+    background: #f44336;
+    color: white;
+}
+
+.toast-warning {
+    background: #ff9800;
+    color: white;
+}
+
+.toast-info {
+    background: #2196f3;
+    color: white;
+}
+
+/* Offline Notice */
+.offline-notice {
+    background: #fff3cd;
+    color: #856404;
+    padding: 12px 16px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    border-bottom: 1px solid #ffeaa7;
+}
+
+/* Button Success State */
+.btn-success {
+    background: #4caf50 !important;
+    color: white !important;
+}
+
+.btn-success:hover {
+    background: #45a049 !important;
+}
+
+/* Spinner */
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Reward Redemption Modal */
+.reward-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+    animation: fade-in 0.3s ease;
+}
+
+.reward-modal-content {
+    background: white;
+    padding: 24px;
+    border-radius: 20px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: modal-slide-in 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.reward-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: #f9f9f9;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.reward-item:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.reward-item.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.reward-icon {
+    font-size: 32px;
+    margin-right: 16px;
+}
+
+.reward-info {
+    flex: 1;
+}
+
+.reward-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #000;
+    margin-bottom: 4px;
+}
+
+.reward-cost {
+    font-size: 14px;
+    font-weight: 600;
+    color: #007AFF;
+}
+
+/* Streak Status Indicator */
+.streak-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #fff3e0;
+    color: #ff9800;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.streak-status.safe {
+    background: #e8f5e9;
+    color: #4caf50;
+}
+
+.streak-status.warning {
+    background: #ffebee;
+    color: #f44336;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Progress Ring (for circular progress) */
+.progress-ring {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+/* Milestone Celebration */
+.milestone-celebration {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+    animation: fade-in 0.3s ease;
+}
+
+.milestone-content {
+    text-align: center;
+    color: white;
+    animation: milestone-zoom 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes milestone-zoom {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.milestone-icon {
+    font-size: 100px;
+    margin-bottom: 24px;
+    animation: rotate-in 0.8s ease;
+}
+
+@keyframes rotate-in {
+    0% {
+        transform: rotate(-180deg) scale(0);
+    }
+    100% {
+        transform: rotate(0deg) scale(1);
+    }
+}
+
+.milestone-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.milestone-subtitle {
+    font-size: 18px;
+    opacity: 0.8;
+}
+
+/* Error Message */
+.error-message {
+    text-align: center;
+    padding: 24px;
+    color: #666;
+    font-size: 14px;
+}
+
+/* Social Share Buttons */
+.share-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.share-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.share-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.share-btn.telegram {
+    background: #0088cc;
+}
+
+.share-btn.twitter {
+    background: #1da1f2;
+}
+
+.share-btn.facebook {
+    background: #1877f2;
+}
+
+.share-btn.whatsapp {
+    background: #25d366;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .mission-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+    }
+
+    .mission-title {
+        font-size: 14px;
+    }
+
+    .achievement-icon-large {
+        font-size: 64px;
+    }
+
+    .achievement-title {
+        font-size: 20px;
+    }
+
+    .milestone-icon {
+        font-size: 80px;
+    }
+
+    .milestone-title {
+        font-size: 24px;
+    }
+
+    .milestone-subtitle {
+        font-size: 16px;
+    }
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+    [data-theme="dark"] .clean-card {
+        background: #1e1e1e;
+    }
+
+    [data-theme="dark"] .mission-title,
+    [data-theme="dark"] .lb-username {
+        color: #fff;
+    }
+
+    [data-theme="dark"] .mission-subtitle,
+    [data-theme="dark"] .lb-streak {
+        color: #999;
+    }
+}
+
+/* Print styles */
+@media print {
+    .btn-primary,
+    .mission-btn,
+    .share-buttons,
+    .tab-buttons {
+        display: none;
+    }
+}

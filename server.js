@@ -621,6 +621,16 @@ const dailyStateSchema = new mongoose.Schema({
     month: { type: String }, // YYYY-MM for which checkedInDays applies
     checkedInDays: { type: [Number], default: [] }, // days of current month
     missionsCompleted: { type: [String], default: [] },
+    redeemedRewards: { type: [{
+        rewardId: String,
+        redeemedAt: Date,
+        name: String
+    }], default: [] },
+    activeBoosts: { type: [{
+        boostType: String,
+        activatedAt: Date,
+        expiresAt: Date
+    }], default: [] },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
@@ -3081,10 +3091,105 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     state.updatedAt = new Date();
     await state.save();
 
-    return res.json({ success: true, pointsAwarded: dailyPoints, streak: state.streak, totalPoints: state.totalPoints, checkedInDays: state.checkedInDays });
+    // Check for milestone achievements
+    let streakMilestone = null;
+    let newAchievement = false;
+    if (newStreak === 7 || newStreak === 14 || newStreak === 30 || newStreak === 50 || newStreak === 100) {
+      streakMilestone = newStreak;
+      newAchievement = true;
+    }
+
+    return res.json({ 
+      success: true, 
+      pointsEarned: dailyPoints,
+      pointsAwarded: dailyPoints, 
+      streak: state.streak, 
+      totalPoints: state.totalPoints, 
+      checkedInDays: state.checkedInDays,
+      streakMilestone,
+      newAchievement
+    });
   } catch (e) {
     console.error('daily/checkin error:', e);
     res.status(500).json({ success: false, error: 'Check-in failed' });
+  }
+});
+
+// Reward redemption endpoint
+app.post('/api/daily/redeem', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { rewardId } = req.body || {};
+    
+    if (!rewardId) {
+      return res.status(400).json({ success: false, error: 'Reward ID required' });
+    }
+
+    // Define available rewards
+    const rewards = {
+      'r1': { name: 'Extra Check-in Points', cost: 100, type: 'boost', bonus: 20 },
+      'r2': { name: 'Streak Freeze (1 day)', cost: 500, type: 'protection', days: 1 },
+      'r3': { name: 'Double Points (24h)', cost: 1000, type: 'boost', duration: 24 },
+      'r4': { name: 'Profile Badge', cost: 2000, type: 'cosmetic', badge: 'premium' }
+    };
+
+    const reward = rewards[rewardId];
+    if (!reward) {
+      return res.status(400).json({ success: false, error: 'Invalid reward' });
+    }
+
+    let state = await DailyState.findOne({ userId });
+    if (!state) {
+      return res.status(400).json({ success: false, error: 'User state not found' });
+    }
+
+    if (state.totalPoints < reward.cost) {
+      return res.status(400).json({ success: false, error: 'Insufficient points' });
+    }
+
+    // Deduct points
+    state.totalPoints -= reward.cost;
+    
+    // Apply reward effect (store in user state or separate collection)
+    if (!state.redeemedRewards) state.redeemedRewards = [];
+    state.redeemedRewards.push({
+      rewardId,
+      redeemedAt: new Date(),
+      name: reward.name
+    });
+
+    await state.save();
+
+    res.json({ 
+      success: true, 
+      reward: reward.name,
+      remainingPoints: state.totalPoints,
+      message: `Successfully redeemed ${reward.name}!`
+    });
+  } catch (e) {
+    console.error('reward redemption error:', e);
+    res.status(500).json({ success: false, error: 'Redemption failed' });
+  }
+});
+
+// Get user's redeemed rewards
+app.get('/api/daily/rewards', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const state = await DailyState.findOne({ userId });
+    
+    if (!state) {
+      return res.json({ success: true, rewards: [], totalPoints: 0 });
+    }
+
+    res.json({ 
+      success: true, 
+      rewards: state.redeemedRewards || [],
+      totalPoints: state.totalPoints || 0
+    });
+  } catch (e) {
+    console.error('get rewards error:', e);
+    res.status(500).json({ success: false, error: 'Failed to load rewards' });
   }
 });
 

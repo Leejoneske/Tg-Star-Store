@@ -39,6 +39,8 @@ class API {
     async dailyCheckIn() { return this.post('/daily/checkin'); }
     async getMissions() { return this.get('/daily/missions'); }
     async completeMission(missionId) { return this.post('/daily/missions/complete', { missionId }); }
+    async redeemReward(rewardId) { return this.post('/daily/redeem', { rewardId }); }
+    async getRewards() { return this.get('/daily/rewards'); }
 
     // Leaderboard
     async getLeaderboard(scope = 'global', wRef, wAct) { 
