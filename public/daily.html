@@ -433,6 +433,26 @@
             if (typeof TranslationUtils !== 'undefined') {
                 TranslationUtils.init();
             }
+            // Telegram WebApp parity and fullscreen
+            try {
+                if (window.Telegram?.WebApp) {
+                    const webApp = window.Telegram.WebApp;
+                    webApp.ready();
+                    webApp.expand();
+                    document.body.classList.add('telegram-fullscreen');
+                }
+            } catch(_) {}
+
+            // Load shared bottom nav and apply translations
+            try {
+                const html = await fetch('bottomnav.html').then(r => r.ok ? r.text() : '');
+                const holder = document.getElementById('bottomnav-container');
+                if (holder) holder.innerHTML = html;
+                if (typeof TranslationUtils !== 'undefined') {
+                    TranslationUtils.applyTranslations();
+                }
+            } catch(_) {}
+
             buildCalendar(new Date());
             await hydrateFromAPI();
             await loadMissions();
@@ -531,43 +551,7 @@
             } finally {
                 setTimeout(() => { btn.disabled = false; }, 800);
             }
-            
-            // Visual updates with animation
-            document.getElementById('streakCount').textContent = streak;
-            document.getElementById('totalPoints').textContent = total;
-            const dayEl = document.querySelector(`[data-day='${dayKey}']`);
-            if (dayEl) {
-                dayEl.classList.add('checked', 'animate-in');
-            }
-            
-            const pct = Math.min(100, Math.round((weekCheckins/7)*100));
-            document.getElementById('weekBar').style.width = pct + '%';
-            document.getElementById('weekProgress').textContent = pct + '%';
-            document.getElementById('daysThisWeek').textContent = weekCheckins;
-            document.getElementById('weeklyEarned').textContent = Math.floor(weekCheckins * 5);
-            
-            // Update emoji and badge
-            const emojiEl = document.getElementById('streakEmoji');
-            if (streak >= 30) emojiEl.textContent = '🏆';
-            else if (streak >= 14) emojiEl.textContent = '⭐';
-            else if (streak >= 7) emojiEl.textContent = '🔥';
-            else emojiEl.textContent = '💪';
-            
-            const badgeEl = document.getElementById('achievementBadge');
-            if (streak === 30) {
-                badgeEl.innerHTML = '<div class="achievement-badge animate-in">🏆 Streak Master - 30 Days!</div>';
-            } else if (streak === 14) {
-                badgeEl.innerHTML = '<div class="achievement-badge animate-in">⭐ 2 Week Warrior!</div>';
-            } else if (streak === 7) {
-                badgeEl.innerHTML = '<div class="achievement-badge animate-in">🔥 Week Streak!</div>';
-            }
-            
-            setStatus('checkInStatus', `🎉 Check-in successful! +${daily} points`, 'success');
-            
-            // Re-enable button after animation
-            setTimeout(() => {
-                btn.disabled = false;
-            }, 1000);
+            // UI updates are handled by hydrateFromAPI()
         }
 
         function setStatus(id, text, type = 'info') {
