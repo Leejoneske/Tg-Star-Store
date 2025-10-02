@@ -397,6 +397,11 @@
                     <button class="tab-btn active" data-tab="global">🌍 Global</button>
                     <button class="tab-btn" data-tab="friends">👥 Friends</button>
                 </div>
+                <div id="weightControls" style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                    <div style="font-size:12px; color:#666;">Weights:</div>
+                    <label style="font-size:12px; color:#666;">Referrals <input id="wRef" type="number" min="0" max="1" step="0.1" value="0.7" style="width:56px; padding:4px; border:1px solid #ddd; border-radius:6px; margin-left:4px;"/></label>
+                    <label style="font-size:12px; color:#666;">Activity <input id="wAct" type="number" min="0" max="1" step="0.1" value="0.3" style="width:56px; padding:4px; border:1px solid #ddd; border-radius:6px; margin-left:4px;"/></label>
+                </div>
                 
                 <div id="leaderboardList"></div>
                 
@@ -453,9 +458,13 @@
                     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentLeaderboardTab = btn.getAttribute('data-tab');
-                    seedLeaderboard();
+                    // Hide weights when friends tab (friends are referrals list)
+                    document.getElementById('weightControls').style.display = currentLeaderboardTab === 'global' ? 'flex' : 'none';
+                    loadLeaderboard();
                 });
             });
+            document.getElementById('wRef').addEventListener('change', loadLeaderboard);
+            document.getElementById('wAct').addEventListener('change', loadLeaderboard);
         }
 
         async function hydrateFromAPI() {
@@ -652,7 +661,9 @@
             const el = document.getElementById('leaderboardList');
             el.innerHTML = '';
             try {
-                const data = await window.API.getLeaderboard(currentLeaderboardTab);
+                const wRef = parseFloat(document.getElementById('wRef').value);
+                const wAct = parseFloat(document.getElementById('wAct').value);
+                const data = await window.API.getLeaderboard(currentLeaderboardTab, isNaN(wRef)?undefined:wRef, isNaN(wAct)?undefined:wAct);
                 if (!data?.success) throw new Error('Failed to load leaderboard');
                 document.getElementById('userRank').textContent = data.userRank ? `#${data.userRank}` : '#--';
                 const users = data.entries.map(e => ({ u: e.username || shortUser(e.userId), pts: e.score ?? e.points, act: e.activityPoints || 0, avatar: (e.username || 'U')[0].toUpperCase() }));

@@ -3210,18 +3210,40 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
     const wAct = Math.max(0, Math.min(1, parseFloat(req.query.wAct || '0.3')));
     const norm = (wRef + wAct) || 1; // avoid 0 division
 
-    // Determine population set for leaderboard
-    let refMatch = { status: { $in: ['active', 'completed'] } };
     if (scope === 'friends') {
-      const referredByMe = await Referral.find({ referrerUserId: requesterId }).distinct('referredUserId');
-      const whoReferredMe = await Referral.find({ referredUserId: requesterId }).distinct('referrerUserId');
-      const friendIds = Array.from(new Set([ ...referredByMe, ...whoReferredMe ]));
-      refMatch = { ...refMatch, referrerUserId: { $in: friendIds } };
+      // Show the current user's referrals (referred users), ranked by their activity
+      const referredIds = await Referral.find({ referrerUserId: requesterId, status: { $in: ['active', 'completed'] } }).distinct('referredUserId');
+      const [users, activity] = await Promise.all([
+        User.find({ id: { $in: referredIds } }, { id: 1, username: 1 }),
+        DailyState.find({ userId: { $in: referredIds } }, { userId: 1, totalPoints: 1 })
+      ]);
+      const idToUsername = new Map(users.map(u => [u.id, u.username]));
+      const idToActivity = new Map(activity.map(d => [d.userId, d.totalPoints]));
+      const maxAct = Math.max(1, ...activity.map(a => a.totalPoints || 0), 1);
+      const entriesRaw = referredIds.map(id => {
+        const act = idToActivity.get(id) || 0;
+        const score = (act / maxAct) * 100; // friends: score purely from activity
+        return { userId: id, username: idToUsername.get(id) || null, activityPoints: act, referralsCount: 1, score };
+      }).sort((a, b) => b.score - a.score);
+
+      return res.json({
+        success: true,
+        scope,
+        entries: entriesRaw.map((e, idx) => ({
+          rank: idx + 1,
+          userId: e.userId,
+          username: e.username,
+          points: e.referralsCount,
+          activityPoints: e.activityPoints,
+          score: Math.round(e.score)
+        })),
+        userRank: null
+      });
     }
 
-    // Aggregate by referrals count per referrer
+    // Global: rank referrers by blended referrals & activity
     const agg = await Referral.aggregate([
-      { $match: refMatch },
+      { $match: { status: { $in: ['active', 'completed'] } } },
       { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } },
       { $sort: { referralsCount: -1 } },
       { $limit: 100 }
@@ -3235,20 +3257,15 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
     const idToUsername = new Map(users.map(u => [u.id, u.username]));
     const idToActivity = new Map(activity.map(d => [d.userId, d.totalPoints]));
 
-    // Compute normalization across selected set
     const maxRef = Math.max(1, ...agg.map(a => a.referralsCount));
     const maxAct = Math.max(1, ...activity.map(a => a.totalPoints || 0), 1);
-
     const entriesRaw = agg.map(a => {
       const act = idToActivity.get(a._id) || 0;
       const refNorm = a.referralsCount / maxRef;
       const actNorm = act / maxAct;
       const score = ((wRef * refNorm) + (wAct * actNorm)) / norm;
       return { userId: a._id, username: idToUsername.get(a._id) || null, referralsCount: a.referralsCount, activityPoints: act, score };
-    });
-
-    // Sort by blended score desc
-    entriesRaw.sort((x, y) => y.score - x.score);
+    }).sort((x, y) => y.score - x.score);
 
     // Compute requester rank by referrals
     let requesterRank = null;
