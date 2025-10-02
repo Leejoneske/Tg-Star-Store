@@ -655,7 +655,7 @@
                 const data = await window.API.getLeaderboard(currentLeaderboardTab);
                 if (!data?.success) throw new Error('Failed to load leaderboard');
                 document.getElementById('userRank').textContent = data.userRank ? `#${data.userRank}` : '#--';
-                const users = data.entries.map(e => ({ u: e.username || shortUser(e.userId), pts: e.points, avatar: (e.username || 'U')[0].toUpperCase() }));
+                const users = data.entries.map(e => ({ u: e.username || shortUser(e.userId), pts: e.score ?? e.points, act: e.activityPoints || 0, avatar: (e.username || 'U')[0].toUpperCase() }));
                 users.forEach((s, idx) => {
                 const row = document.createElement('div');
                 const isTop3 = idx < 3;
@@ -673,12 +673,12 @@
                         <div class="avatar" style="background: ${getAvatarColor(s.avatar)}">${s.avatar}</div>
                         <div>
                             <div style="font-size: 15px; font-weight: 600; color: #000;">@${s.u}</div>
-                            <div style="font-size: 12px; color: #999;">${getStreakText(s.pts)}</div>
+                            <div style="font-size: 12px; color: #999;">${getStreakText(s.act)}</div>
                         </div>
                     </div>
                     <div>
                         <div style="font-size: 16px; font-weight: 700; color: #007AFF; text-align: right;">${s.pts.toLocaleString()}</div>
-                        <div style="font-size: 11px; color: #999; text-align: right;">points</div>
+                        <div style="font-size: 11px; color: #999; text-align: right;">score</div>
                     </div>
                 `;
                 el.appendChild(row);
