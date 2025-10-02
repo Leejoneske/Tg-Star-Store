@@ -13,6 +13,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/daily-enhanced.css">
     <link rel="icon" href="/favicon.png" type="image/png">
     <style>
         body { 
@@ -334,9 +335,13 @@
 
             <!-- Streak Calendar -->
             <section class="clean-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0;" data-translate="streakCalendar">Streak Calendar</h2>
-                    <div style="font-size: 13px; color: #999;" id="calendarMonth"></div>
+                <div class="month-nav">
+                    <button id="prevMonth" class="month-nav-btn" title="Previous month">◀</button>
+                    <div>
+                        <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0; text-align: center;" data-translate="streakCalendar">Streak Calendar</h2>
+                        <div style="font-size: 13px; color: #999; text-align: center; margin-top: 4px;" id="calendarMonth"></div>
+                    </div>
+                    <button id="nextMonth" class="month-nav-btn" title="Next month" disabled>▶</button>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px;">
                     <div style="font-size: 11px; color: #999; text-align: center; font-weight: 600;">S</div>
@@ -385,6 +390,19 @@
                 </ul>
             </section>
 
+            <!-- Rewards & Points Shop -->
+            <section class="clean-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 17px; font-weight: 600; color: #000; margin: 0;">🎁 Rewards Shop</h2>
+                    <div style="font-size: 13px; font-weight: 600; color: #007AFF;" id="userPointsDisplay">0 pts</div>
+                </div>
+                <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Redeem your points for exclusive rewards and power-ups!</p>
+                <button id="redeemBtn" class="btn-primary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
+                    Browse Rewards
+                </button>
+            </section>
+
             <!-- Leaderboard -->
             <section class="clean-card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -415,6 +433,7 @@
 
     <script src="/js/translations.js?v=2"></script>
     <script src="/js/api.js"></script>
+    <script src="/js/daily-enhanced.js?v=2"></script>
     <script>
         let currentLeaderboardTab = 'global';
         
