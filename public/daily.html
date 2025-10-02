@@ -397,6 +397,11 @@
                     <button class="tab-btn active" data-tab="global">🌍 Global</button>
                     <button class="tab-btn" data-tab="friends">👥 Friends</button>
                 </div>
+                <div id="weightControls" style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                    <div style="font-size:12px; color:#666;">Weights:</div>
+                    <label style="font-size:12px; color:#666;">Referrals <input id="wRef" type="number" min="0" max="1" step="0.1" value="0.7" style="width:56px; padding:4px; border:1px solid #ddd; border-radius:6px; margin-left:4px;"/></label>
+                    <label style="font-size:12px; color:#666;">Activity <input id="wAct" type="number" min="0" max="1" step="0.1" value="0.3" style="width:56px; padding:4px; border:1px solid #ddd; border-radius:6px; margin-left:4px;"/></label>
+                </div>
                 
                 <div id="leaderboardList"></div>
                 
@@ -410,6 +415,7 @@
     </div>
 
     <script src="/js/translations.js?v=2"></script>
+    <script src="/js/api.js"></script>
     <script>
         let currentLeaderboardTab = 'global';
         
@@ -423,23 +429,23 @@
         })();
 
         // Translations init
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             if (typeof TranslationUtils !== 'undefined') {
                 TranslationUtils.init();
             }
             buildCalendar(new Date());
-            seedMissions();
-            seedLeaderboard();
-            restoreState();
+            await hydrateFromAPI();
+            await loadMissions();
+            await loadLeaderboard();
             bindHandlers();
         });
 
         function bindHandlers() {
             const btn = document.getElementById('checkInBtn');
-            btn.addEventListener('click', onCheckIn);
+            btn.addEventListener('click', onCheckInAPI);
             const refresh = document.getElementById('refreshLeaderboard');
             refresh.addEventListener('click', () => {
-                seedLeaderboard();
+                loadLeaderboard();
                 refresh.textContent = '✓ Refreshed';
                 setTimeout(() => {
                     refresh.textContent = '↻ Refresh';
@@ -452,93 +458,79 @@
                     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentLeaderboardTab = btn.getAttribute('data-tab');
-                    seedLeaderboard();
+                    // Hide weights when friends tab (friends are referrals list)
+                    document.getElementById('weightControls').style.display = currentLeaderboardTab === 'global' ? 'flex' : 'none';
+                    loadLeaderboard();
                 });
             });
+            document.getElementById('wRef').addEventListener('change', loadLeaderboard);
+            document.getElementById('wAct').addEventListener('change', loadLeaderboard);
         }
 
-        function restoreState() {
-            const data = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
-            const streak = data.streak || 0;
-            document.getElementById('streakCount').textContent = streak;
-            document.getElementById('totalPoints').textContent = data.totalPoints || 0;
-            
-            // Update streak emoji based on streak count
-            const emojiEl = document.getElementById('streakEmoji');
-            if (streak >= 30) emojiEl.textContent = '🏆';
-            else if (streak >= 14) emojiEl.textContent = '⭐';
-            else if (streak >= 7) emojiEl.textContent = '🔥';
-            else emojiEl.textContent = '💪';
-            
-            // Show achievement badge
-            const badgeEl = document.getElementById('achievementBadge');
-            if (streak >= 30) {
-                badgeEl.innerHTML = '<div class="achievement-badge">🏆 Streak Master - 30 Days!</div>';
-            } else if (streak >= 14) {
-                badgeEl.innerHTML = '<div class="achievement-badge">⭐ 2 Week Warrior!</div>';
-            } else if (streak >= 7) {
-                badgeEl.innerHTML = '<div class="achievement-badge">🔥 Week Streak!</div>';
+        async function hydrateFromAPI() {
+            try {
+                const data = await window.API.getDailyState();
+                if (!data?.success) return;
+                const streak = data.streak || 0;
+                document.getElementById('streakCount').textContent = streak;
+                document.getElementById('totalPoints').textContent = data.totalPoints || 0;
+                const emojiEl = document.getElementById('streakEmoji');
+                if (streak >= 30) emojiEl.textContent = '🏆';
+                else if (streak >= 14) emojiEl.textContent = '⭐';
+                else if (streak >= 7) emojiEl.textContent = '🔥';
+                else emojiEl.textContent = '💪';
+                const badgeEl = document.getElementById('achievementBadge');
+                if (streak >= 30) {
+                    badgeEl.innerHTML = '<div class="achievement-badge">🏆 Streak Master - 30 Days!</div>';
+                } else if (streak >= 14) {
+                    badgeEl.innerHTML = '<div class="achievement-badge">⭐ 2 Week Warrior!</div>';
+                } else if (streak >= 7) {
+                    badgeEl.innerHTML = '<div class="achievement-badge">🔥 Week Streak!</div>';
+                }
+                if (Array.isArray(data.checkedInDays)) {
+                    const days = new Set(data.checkedInDays);
+                    document.querySelectorAll('[data-day]').forEach(el => {
+                        const d = parseInt(el.getAttribute('data-day'), 10);
+                        if (days.has(d)) el.classList.add('checked');
+                    });
+                }
+                const weekCount = (data.checkedInDays || []).length % 7; // approx for now
+                const pct = Math.min(100, Math.round((weekCount/7)*100));
+                document.getElementById('weekBar').style.width = pct + '%';
+                document.getElementById('weekProgress').textContent = pct + '%';
+                document.getElementById('daysThisWeek').textContent = weekCount;
+                document.getElementById('weeklyEarned').textContent = Math.floor(weekCount * 5);
+                const completed = (data.missionsCompleted || []).length;
+                const total = 4;
+                document.getElementById('missionsSummary').textContent = `${completed}/${total} completed`;
+            } catch (e) {
+                console.error(e);
             }
-            
-            // Update calendar filled days
-            if (Array.isArray(data.checkedInDays)) {
-                const days = new Set(data.checkedInDays);
-                document.querySelectorAll('[data-day]').forEach(el => {
-                    const d = parseInt(el.getAttribute('data-day'), 10);
-                    if (days.has(d)) el.classList.add('checked');
-                });
-            }
-            
-            // Week bar
-            const weekCount = data.weekCheckins || 0;
-            const pct = Math.min(100, Math.round((weekCount/7)*100));
-            document.getElementById('weekBar').style.width = pct + '%';
-            document.getElementById('weekProgress').textContent = pct + '%';
-            document.getElementById('daysThisWeek').textContent = weekCount;
-            document.getElementById('weeklyEarned').textContent = Math.floor(weekCount * 5);
-            
-            // Missions
-            const completed = (data.missionsCompleted || []).length;
-            const total = 4; // Total missions
-            document.getElementById('missionsSummary').textContent = `${completed}/${total} completed`;
         }
 
-        function onCheckIn() {
+        async function onCheckInAPI() {
             const today = new Date();
             const dayKey = today.getDate();
-            const store = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
-            const lastCheck = store.lastCheckIn ? new Date(store.lastCheckIn) : null;
-            const checkedInDays = new Set(store.checkedInDays || []);
             const btn = document.getElementById('checkInBtn');
-            
-            if (lastCheck && lastCheck.toDateString() === today.toDateString()) {
-                return setStatus('checkInStatus', '✓ Already checked in today!', 'success');
-            }
             
             // Disable button during check-in
             btn.disabled = true;
-            
-            // Update streak
-            let streak = store.streak || 0;
-            if (lastCheck) {
-                const diff = Math.round((today - lastCheck)/(1000*60*60*24));
-                if (diff === 1) streak += 1; else streak = 1;
-            } else {
-                streak = 1;
+            try {
+                const resp = await window.API.dailyCheckIn();
+                if (!resp?.success) throw new Error(resp?.error || 'Check-in failed');
+                if (resp.alreadyChecked) {
+                    setStatus('checkInStatus', '✓ Already checked in today!', 'success');
+                } else {
+                    const daily = parseInt(document.getElementById('dailyPoints').textContent, 10) || 10;
+                    setStatus('checkInStatus', `🎉 Check-in successful! +${daily} points`, 'success');
+                }
+                await hydrateFromAPI();
+            } catch (e) {
+                console.error(e);
+                setStatus('checkInStatus', 'Failed to check-in', 'error');
+            } finally {
+                setTimeout(() => { btn.disabled = false; }, 800);
             }
-            checkedInDays.add(dayKey);
-            const daily = parseInt(document.getElementById('dailyPoints').textContent, 10) || 10;
-            const total = (store.totalPoints || 0) + daily;
-            const weekCheckins = Math.min(7, (store.weekCheckins || 0) + 1);
-            const newStore = { 
-                lastCheckIn: today.toISOString(), 
-                streak, 
-                checkedInDays: Array.from(checkedInDays), 
-                totalPoints: total, 
-                weekCheckins, 
-                missionsCompleted: store.missionsCompleted || [] 
-            };
-            localStorage.setItem('dailyRewards', JSON.stringify(newStore));
             
             // Visual updates with animation
             document.getElementById('streakCount').textContent = streak;
@@ -616,17 +608,13 @@
             }
         }
 
-        function seedMissions() {
+        async function loadMissions() {
             const list = document.getElementById('missionsList');
             list.innerHTML = '';
-            const missions = [
-                { id: 'm1', title: 'Connect a wallet', points: 20, icon: '💳' },
-                { id: 'm2', title: 'Join Telegram channel', points: 10, icon: '💬' },
-                { id: 'm3', title: 'Complete your first order', points: 50, icon: '🛍️' },
-                { id: 'm4', title: 'Invite a friend', points: 30, icon: '👥' },
-            ];
-            const state = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
-            const done = new Set(state.missionsCompleted || []);
+            const missionsResp = await window.API.getMissions();
+            const stateResp = await window.API.getDailyState();
+            const missions = (missionsResp?.missions || []).map(m => ({ ...m, icon: missionIcon(m.id) }));
+            const done = new Set(stateResp?.missionsCompleted || []);
             
             missions.forEach(m => {
                 const row = document.createElement('div');
@@ -645,53 +633,41 @@
                 list.appendChild(row);
             });
             
-            list.addEventListener('click', (e) => {
+            list.addEventListener('click', async (e) => {
                 const btn = e.target.closest('.mission-btn');
                 if (!btn || btn.classList.contains('completed')) return;
                 const id = btn.getAttribute('data-id');
-                const state = JSON.parse(localStorage.getItem('dailyRewards') || '{}');
-                const done = new Set(state.missionsCompleted || []);
-                
-                done.add(id);
-                state.missionsCompleted = Array.from(done);
-                const mission = missions.find(m => m.id === id);
-                state.totalPoints = (state.totalPoints || 0) + (mission ? mission.points : 10);
-                localStorage.setItem('dailyRewards', JSON.stringify(state));
-                seedMissions();
-                restoreState();
+                try {
+                    await window.API.completeMission(id);
+                    await loadMissions();
+                    await hydrateFromAPI();
+                } catch (err) {
+                    console.error(err);
+                }
             });
         }
 
-        function seedLeaderboard() {
+        function missionIcon(id) {
+            switch (id) {
+                case 'm1': return '💳';
+                case 'm2': return '💬';
+                case 'm3': return '🛍️';
+                case 'm4': return '👥';
+                default: return '⭐';
+            }
+        }
+
+        async function loadLeaderboard() {
             const el = document.getElementById('leaderboardList');
             el.innerHTML = '';
-            
-            // Generate more realistic leaderboard data
-            const globalUsers = [
-                { u: 'CryptoKing', pts: 3240, avatar: 'C' },
-                { u: 'StarTrader', pts: 2990, avatar: 'S' },
-                { u: 'MoonShot', pts: 2785, avatar: 'M' },
-                { u: 'DiamondHands', pts: 2640, avatar: 'D' },
-                { u: 'GemHunter', pts: 2420, avatar: 'G' },
-                { u: 'WhaleWatcher', pts: 2180, avatar: 'W' },
-                { u: 'BullRunner', pts: 1965, avatar: 'B' },
-                { u: 'Hodler4Life', pts: 1840, avatar: 'H' },
-                { u: 'DeFiNinja', pts: 1720, avatar: 'D' },
-                { u: 'TokenMaster', pts: 1595, avatar: 'T' },
-            ];
-            
-            const friendUsers = [
-                { u: 'alice_2024', pts: 1240, avatar: 'A' },
-                { u: 'bob_trader', pts: 990, avatar: 'B' },
-                { u: 'carol_crypto', pts: 785, avatar: 'C' },
-                { u: 'dave_defi', pts: 640, avatar: 'D' },
-            ];
-            
-            const users = currentLeaderboardTab === 'global' ? globalUsers : friendUsers;
-            const currentUser = Math.floor(Math.random() * 50) + 15; // Random rank between 15-65
-            document.getElementById('userRank').textContent = `#${currentUser}`;
-            
-            users.forEach((s, idx) => {
+            try {
+                const wRef = parseFloat(document.getElementById('wRef').value);
+                const wAct = parseFloat(document.getElementById('wAct').value);
+                const data = await window.API.getLeaderboard(currentLeaderboardTab, isNaN(wRef)?undefined:wRef, isNaN(wAct)?undefined:wAct);
+                if (!data?.success) throw new Error('Failed to load leaderboard');
+                document.getElementById('userRank').textContent = data.userRank ? `#${data.userRank}` : '#--';
+                const users = data.entries.map(e => ({ u: e.username || shortUser(e.userId), pts: e.score ?? e.points, act: e.activityPoints || 0, avatar: (e.username || 'U')[0].toUpperCase() }));
+                users.forEach((s, idx) => {
                 const row = document.createElement('div');
                 const isTop3 = idx < 3;
                 const rank = idx + 1;
@@ -708,16 +684,19 @@
                         <div class="avatar" style="background: ${getAvatarColor(s.avatar)}">${s.avatar}</div>
                         <div>
                             <div style="font-size: 15px; font-weight: 600; color: #000;">@${s.u}</div>
-                            <div style="font-size: 12px; color: #999;">${getStreakText(s.pts)}</div>
+                            <div style="font-size: 12px; color: #999;">${getStreakText(s.act)}</div>
                         </div>
                     </div>
                     <div>
                         <div style="font-size: 16px; font-weight: 700; color: #007AFF; text-align: right;">${s.pts.toLocaleString()}</div>
-                        <div style="font-size: 11px; color: #999; text-align: right;">points</div>
+                        <div style="font-size: 11px; color: #999; text-align: right;">score</div>
                     </div>
                 `;
                 el.appendChild(row);
             });
+            } catch (e) {
+                console.error(e);
+            }
         }
         
         function getAvatarColor(letter) {
@@ -741,6 +720,10 @@
             if (days >= 14) return '⭐ 14+ day streak';
             if (days >= 7) return '🔥 7+ day streak';
             return `${days} day streak`;
+        }
+
+        function shortUser(id) {
+            return 'user_' + (id || '').toString().slice(-5);
         }
     </script>
 </body>

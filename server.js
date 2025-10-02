@@ -612,6 +612,21 @@ const User = mongoose.model('User', userSchema);
 const Referral = mongoose.model('Referral', referralSchema);
 const BannedUser = mongoose.model('BannedUser', bannedUserSchema);
 
+// Daily rewards schemas
+const dailyStateSchema = new mongoose.Schema({
+    userId: { type: String, required: true, unique: true, index: true },
+    totalPoints: { type: Number, default: 0 },
+    lastCheckIn: { type: Date },
+    streak: { type: Number, default: 0 },
+    month: { type: String }, // YYYY-MM for which checkedInDays applies
+    checkedInDays: { type: [Number], default: [] }, // days of current month
+    missionsCompleted: { type: [String], default: [] },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+const DailyState = mongoose.model('DailyState', dailyStateSchema);
+
 // Wallet update request schema: track request state and message IDs for updates
 const walletUpdateRequestSchema = new mongoose.Schema({
     requestId: { type: String, required: true, unique: true, default: () => generateOrderId() },
@@ -2949,6 +2964,130 @@ app.get('/api/stickers', async (req, res) => {
   }
 });
 
+// Missions: list and complete
+const DAILY_MISSIONS = [
+  { id: 'm1', title: 'Connect a wallet', points: 20 },
+  { id: 'm2', title: 'Join Telegram channel', points: 10 },
+  { id: 'm3', title: 'Complete your first order', points: 50 },
+  { id: 'm4', title: 'Invite a friend', points: 30 }
+];
+
+app.get('/api/daily/missions', requireTelegramAuth, async (_req, res) => {
+  // Static mission definitions returned; completion tracked per user in DB
+  res.json({ success: true, missions: DAILY_MISSIONS });
+});
+
+app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { missionId } = req.body || {};
+    const mission = DAILY_MISSIONS.find(m => m.id === missionId);
+    if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
+
+    let state = await DailyState.findOne({ userId });
+    if (!state) state = new DailyState({ userId });
+
+    const completed = new Set(state.missionsCompleted || []);
+    if (completed.has(missionId)) {
+      return res.json({ success: true, alreadyCompleted: true, totalPoints: state.totalPoints });
+    }
+
+    completed.add(missionId);
+    state.missionsCompleted = Array.from(completed);
+    state.totalPoints = (state.totalPoints || 0) + mission.points;
+    state.updatedAt = new Date();
+    await state.save();
+
+    res.json({ success: true, totalPoints: state.totalPoints, missionsCompleted: state.missionsCompleted });
+  } catch (e) {
+    console.error('missions/complete error:', e);
+    res.status(500).json({ success: false, error: 'Failed to complete mission' });
+  }
+});
+
+// Daily rewards: get current state
+app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    let state = await DailyState.findOne({ userId });
+    if (!state) {
+      state = await DailyState.create({ userId, month: monthKey, checkedInDays: [] });
+    }
+    // Reset month scope if month rolled over
+    if (state.month !== monthKey) {
+      state.month = monthKey;
+      state.checkedInDays = [];
+    }
+    await state.save();
+    return res.json({
+      success: true,
+      userId,
+      totalPoints: state.totalPoints,
+      lastCheckIn: state.lastCheckIn,
+      streak: state.streak,
+      month: state.month,
+      checkedInDays: state.checkedInDays,
+      missionsCompleted: state.missionsCompleted
+    });
+  } catch (e) {
+    console.error('daily/state error:', e);
+    res.status(500).json({ success: false, error: 'Failed to load daily state' });
+  }
+});
+
+// Daily rewards: check-in
+app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const today = new Date();
+    const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const day = today.getDate();
+
+    let state = await DailyState.findOne({ userId });
+    if (!state) state = new DailyState({ userId });
+
+    // Month rollover
+    if (state.month !== monthKey) {
+      state.month = monthKey;
+      state.checkedInDays = [];
+    }
+
+    // Prevent double check-in same day
+    const alreadyToday = state.lastCheckIn && new Date(state.lastCheckIn).toDateString() === today.toDateString();
+    if (alreadyToday || state.checkedInDays.includes(day)) {
+      return res.json({ success: true, alreadyChecked: true, streak: state.streak, totalPoints: state.totalPoints, checkedInDays: state.checkedInDays });
+    }
+
+    // Streak logic
+    let newStreak = state.streak || 0;
+    if (state.lastCheckIn) {
+      const diffDays = Math.round((today - new Date(state.lastCheckIn)) / (1000 * 60 * 60 * 24));
+      newStreak = diffDays === 1 ? newStreak + 1 : 1;
+    } else {
+      newStreak = 1;
+    }
+
+    // Award daily points (can customize later)
+    const dailyPoints = 10;
+    state.totalPoints = (state.totalPoints || 0) + dailyPoints;
+    state.lastCheckIn = today;
+    state.streak = newStreak;
+    state.month = monthKey;
+    const days = new Set(state.checkedInDays);
+    days.add(day);
+    state.checkedInDays = Array.from(days).sort((a,b) => a-b);
+    state.updatedAt = new Date();
+    await state.save();
+
+    return res.json({ success: true, pointsAwarded: dailyPoints, streak: state.streak, totalPoints: state.totalPoints, checkedInDays: state.checkedInDays });
+  } catch (e) {
+    console.error('daily/checkin error:', e);
+    res.status(500).json({ success: false, error: 'Check-in failed' });
+  }
+});
+
 // quarry database to get sell order for sell page
 app.get("/api/sell-orders", async (req, res) => {
     try {
@@ -3060,6 +3199,104 @@ app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) =>
             error: 'Failed to load referral data' 
         });
     }
+});
+
+// Leaderboard endpoint (global by points, friends by referrals relationship)
+app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
+  try {
+    const scope = (req.query.scope || 'global').toString();
+    const requesterId = req.user.id;
+    const wRef = Math.max(0, Math.min(1, parseFloat(req.query.wRef || '0.7')));
+    const wAct = Math.max(0, Math.min(1, parseFloat(req.query.wAct || '0.3')));
+    const norm = (wRef + wAct) || 1; // avoid 0 division
+
+    if (scope === 'friends') {
+      // Show the current user's referrals (referred users), ranked by their activity
+      const referredIds = await Referral.find({ referrerUserId: requesterId, status: { $in: ['active', 'completed'] } }).distinct('referredUserId');
+      const [users, activity] = await Promise.all([
+        User.find({ id: { $in: referredIds } }, { id: 1, username: 1 }),
+        DailyState.find({ userId: { $in: referredIds } }, { userId: 1, totalPoints: 1 })
+      ]);
+      const idToUsername = new Map(users.map(u => [u.id, u.username]));
+      const idToActivity = new Map(activity.map(d => [d.userId, d.totalPoints]));
+      const maxAct = Math.max(1, ...activity.map(a => a.totalPoints || 0), 1);
+      const entriesRaw = referredIds.map(id => {
+        const act = idToActivity.get(id) || 0;
+        const score = (act / maxAct) * 100; // friends: score purely from activity
+        return { userId: id, username: idToUsername.get(id) || null, activityPoints: act, referralsCount: 1, score };
+      }).sort((a, b) => b.score - a.score);
+
+      return res.json({
+        success: true,
+        scope,
+        entries: entriesRaw.map((e, idx) => ({
+          rank: idx + 1,
+          userId: e.userId,
+          username: e.username,
+          points: e.referralsCount,
+          activityPoints: e.activityPoints,
+          score: Math.round(e.score)
+        })),
+        userRank: null
+      });
+    }
+
+    // Global: rank referrers by blended referrals & activity
+    const agg = await Referral.aggregate([
+      { $match: { status: { $in: ['active', 'completed'] } } },
+      { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } },
+      { $sort: { referralsCount: -1 } },
+      { $limit: 100 }
+    ]);
+
+    const ids = agg.map(a => a._id);
+    const [users, activity] = await Promise.all([
+      User.find({ id: { $in: ids } }, { id: 1, username: 1 }),
+      DailyState.find({ userId: { $in: ids } }, { userId: 1, totalPoints: 1 })
+    ]);
+    const idToUsername = new Map(users.map(u => [u.id, u.username]));
+    const idToActivity = new Map(activity.map(d => [d.userId, d.totalPoints]));
+
+    const maxRef = Math.max(1, ...agg.map(a => a.referralsCount));
+    const maxAct = Math.max(1, ...activity.map(a => a.totalPoints || 0), 1);
+    const entriesRaw = agg.map(a => {
+      const act = idToActivity.get(a._id) || 0;
+      const refNorm = a.referralsCount / maxRef;
+      const actNorm = act / maxAct;
+      const score = ((wRef * refNorm) + (wAct * actNorm)) / norm;
+      return { userId: a._id, username: idToUsername.get(a._id) || null, referralsCount: a.referralsCount, activityPoints: act, score };
+    }).sort((x, y) => y.score - x.score);
+
+    // Compute requester rank by referrals
+    let requesterRank = null;
+    const requesterRefCount = await Referral.countDocuments({ referrerUserId: requesterId, status: { $in: ['active', 'completed'] } });
+    if (requesterRefCount > 0) {
+      const numWithMore = await Referral.aggregate([
+        { $match: { status: { $in: ['active', 'completed'] } } },
+        { $group: { _id: '$referrerUserId', c: { $sum: 1 } } },
+        { $match: { c: { $gt: requesterRefCount } } },
+        { $count: 'n' }
+      ]);
+      requesterRank = (numWithMore[0]?.n || 0) + 1;
+    }
+
+    return res.json({
+      success: true,
+      scope,
+      entries: entriesRaw.map((e, idx) => ({
+        rank: idx + 1,
+        userId: e.userId,
+        username: e.username,
+        points: e.referralsCount,
+        activityPoints: e.activityPoints,
+        score: Math.round(e.score * 100)
+      })),
+      userRank: requesterRank
+    });
+  } catch (e) {
+    console.error('leaderboard error:', e);
+    res.status(500).json({ success: false, error: 'Failed to load leaderboard' });
+  }
 });
 //get history for referrals withdraw for referral page
 

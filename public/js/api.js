@@ -34,6 +34,19 @@ class API {
         return this.request(endpoint, { method: 'POST', body: JSON.stringify(data) });
     }
 
+    // Daily
+    async getDailyState() { return this.get('/daily/state'); }
+    async dailyCheckIn() { return this.post('/daily/checkin'); }
+    async getMissions() { return this.get('/daily/missions'); }
+    async completeMission(missionId) { return this.post('/daily/missions/complete', { missionId }); }
+
+    // Leaderboard
+    async getLeaderboard(scope = 'global', wRef, wAct) { 
+        const params = { scope };
+        if (typeof wRef === 'number') params.wRef = wRef;
+        if (typeof wAct === 'number') params.wAct = wAct;
+        return this.get('/leaderboard', params); 
+    }
     async getQuote(data) { return this.post('/quote', data); }
     async getWalletAddress() { return this.get('/get-wallet-address'); }
     async createOrder(orderData) { return this.post('/orders/create', orderData); }
