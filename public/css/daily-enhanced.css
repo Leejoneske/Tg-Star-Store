@@ -333,6 +333,12 @@
     border-bottom: 1px solid #ffeaa7;
 }
 
+/* Auth Notice */
+.auth-notice {
+    position: relative;
+    z-index: 100;
+}
+
 /* Button Success State */
 .btn-success {
     background: #4caf50 !important;

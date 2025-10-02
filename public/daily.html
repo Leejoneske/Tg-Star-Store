@@ -448,9 +448,16 @@
 
         // Translations init
         document.addEventListener('DOMContentLoaded', async function() {
+            // Only run if enhanced system isn't loaded
+            if (typeof DailyRewardsSystem !== 'undefined' && window.dailySystem) {
+                console.log('Using enhanced daily system');
+                return; // Enhanced system handles everything
+            }
+            
             if (typeof TranslationUtils !== 'undefined') {
                 TranslationUtils.init();
             }
+            
             // Telegram WebApp parity and fullscreen
             try {
                 if (window.Telegram?.WebApp) {
@@ -498,7 +505,10 @@
         async function hydrateFromAPI() {
             try {
                 const data = await window.API.getDailyState();
-                if (!data?.success) return;
+                if (!data?.success) {
+                    console.warn('Failed to load state, using fallback');
+                    return;
+                }
                 const streak = data.streak || 0;
                 document.getElementById('streakCount').textContent = streak;
                 document.getElementById('totalPoints').textContent = data.totalPoints || 0;
@@ -532,7 +542,8 @@
                 const total = 4;
                 document.getElementById('missionsSummary').textContent = `${completed}/${total} completed`;
             } catch (e) {
-                console.error(e);
+                console.warn('API hydration failed:', e.message);
+                // Silently fail - enhanced system will handle it
             }
         }
 
@@ -603,8 +614,9 @@
         async function loadMissions() {
             const list = document.getElementById('missionsList');
             list.innerHTML = '';
-            const missionsResp = await window.API.getMissions();
-            const stateResp = await window.API.getDailyState();
+            try {
+                const missionsResp = await window.API.getMissions();
+                const stateResp = await window.API.getDailyState();
             const missions = (missionsResp?.missions || []).map(m => ({ ...m, icon: missionIcon(m.id) }));
             const done = new Set(stateResp?.missionsCompleted || []);
             
@@ -637,6 +649,10 @@
                     console.error(err);
                 }
             });
+            } catch (error) {
+                console.warn('Failed to load missions:', error.message);
+                list.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">Missions unavailable</div>';
+            }
         }
 
         function missionIcon(id) {
@@ -653,10 +669,13 @@
             const el = document.getElementById('leaderboardList');
             el.innerHTML = '';
             try {
-                const wRef = parseFloat(document.getElementById('wRef').value);
-                const wAct = parseFloat(document.getElementById('wAct').value);
+                const wRef = parseFloat(document.getElementById('wRef')?.value || 0.7);
+                const wAct = parseFloat(document.getElementById('wAct')?.value || 0.3);
                 const data = await window.API.getLeaderboard(currentLeaderboardTab, isNaN(wRef)?undefined:wRef, isNaN(wAct)?undefined:wAct);
-                if (!data?.success) throw new Error('Failed to load leaderboard');
+                if (!data?.success) {
+                    console.warn('Leaderboard failed to load');
+                    throw new Error('Failed to load leaderboard');
+                }
                 document.getElementById('userRank').textContent = data.userRank ? `#${data.userRank}` : '#--';
                 const users = data.entries.map(e => ({ u: e.username || shortUser(e.userId), pts: e.score ?? e.points, act: e.activityPoints || 0, avatar: (e.username || 'U')[0].toUpperCase() }));
                 users.forEach((s, idx) => {
@@ -687,7 +706,8 @@
                 el.appendChild(row);
             });
             } catch (e) {
-                console.error(e);
+                console.warn('Leaderboard load failed:', e.message);
+                el.innerHTML = '<div style="text-align:center;color:#999;padding:40px;">Leaderboard unavailable</div>';
             }
         }
         
