@@ -3255,12 +3255,25 @@ app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (r
         break;
       
       case 'm2': // Join channel
-        // Check if user has accessed the app (basic check)
-        // In a real implementation, you'd use Telegram Bot API to check channel membership
-        // For now, we'll check if they have any activity in the system
-        const hasActivity = await getOrderCountForUser(userId) > 0 || await getReferralCountForUser(userId) > 0;
-        isValid = hasActivity; // If they have activity, assume they're engaged with the platform
-        message = isValid ? 'Channel joined successfully!' : 'Please join our Telegram channel first';
+        // Use Telegram Bot API to check channel membership
+        try {
+          const channelId = '@StarStore_app'; // Your channel username
+          const member = await bot.getChatMember(channelId, userId);
+          // Check if user is a member (not left, kicked, or restricted)
+          isValid = ['member', 'administrator', 'creator'].includes(member.status);
+          message = isValid ? 'Channel joined successfully!' : 'Please join our Telegram channel first';
+          console.log(`📢 Channel membership check for user ${userId}:`, member.status);
+        } catch (error) {
+          console.error('Error checking channel membership:', error);
+          if (error.response?.error_code === 400) {
+            console.error('Bot is not an administrator of the channel or channel not found');
+            message = 'Bot needs to be added as administrator to the channel to check membership';
+          }
+          // Fallback: check if they have activity
+          const hasActivity = await getOrderCountForUser(userId) > 0 || await getReferralCountForUser(userId) > 0;
+          isValid = hasActivity;
+          message = isValid ? 'Channel joined successfully!' : 'Please join our Telegram channel first';
+        }
         break;
       
       case 'm3': // Complete first order
