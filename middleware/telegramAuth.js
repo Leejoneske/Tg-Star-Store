@@ -46,6 +46,14 @@ function requireTelegramAuth(req, res, next) {
       return next();
     }
     
+    // Debug: Log all headers for troubleshooting
+    console.log('🔍 Auth Debug:', {
+      headers: Object.keys(req.headers).filter(h => h.includes('telegram') || h.includes('user')),
+      initDataLength: initDataHeader.length,
+      hasBotToken: !!botToken,
+      userAgent: req.headers['user-agent']
+    });
+    
     const valid = validateTelegramInitData(initDataHeader, botToken);
     if (!valid) {
       console.log('❌ Telegram auth validation failed:', { 
