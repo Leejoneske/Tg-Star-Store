@@ -3027,6 +3027,12 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     res.json({ success: true, totalPoints: state.totalPoints, missionsCompleted: state.missionsCompleted });
   } catch (e) {
     console.error('missions/complete error:', e);
+    console.error('Mission error details:', {
+      userId: req.user?.id,
+      hasMongoUri: !!process.env.MONGODB_URI,
+      errorMessage: e.message,
+      errorStack: e.stack
+    });
     res.status(500).json({ success: false, error: 'Failed to complete mission' });
   }
 });
@@ -3169,6 +3175,12 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     });
   } catch (e) {
     console.error('daily/checkin error:', e);
+    console.error('Check-in error details:', {
+      userId: req.user?.id,
+      hasMongoUri: !!process.env.MONGODB_URI,
+      errorMessage: e.message,
+      errorStack: e.stack
+    });
     res.status(500).json({ success: false, error: 'Check-in failed' });
   }
 });
