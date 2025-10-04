@@ -290,7 +290,10 @@
     <div class="app-container">
 
         <!-- Page Header -->
-        <header style="padding: 16px 20px; background: #f5f5f5;">
+        <header style="padding: 16px 20px; background: #f5f5f5; position: relative;">
+            <button id="exitButton" style="position: absolute; top: 16px; right: 20px; background: #ff4444; color: white; border: none; border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#ff3333'" onmouseout="this.style.background='#ff4444'">
+                ✕ Exit
+            </button>
             <h1 style="font-size: 28px; font-weight: 700; color: #000; margin: 0;" data-translate="dailyRewardsTitle">Daily Rewards</h1>
             <p style="font-size: 14px; color: #999; margin: 4px 0 0 0;">Keep your streak alive! 🔥</p>
         </header>
@@ -748,6 +751,11 @@
         function shortUser(id) {
             return 'user_' + (id || '').toString().slice(-5);
         }
+
+        // Exit button functionality
+        document.getElementById('exitButton').addEventListener('click', function() {
+            window.location.href = '/about.html';
+        });
     </script>
 </body>
 </html>
