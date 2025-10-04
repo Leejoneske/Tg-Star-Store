@@ -756,6 +756,21 @@
         document.getElementById('exitButton').addEventListener('click', function() {
             window.location.href = '/about.html';
         });
+
+        // Initialize Enhanced Daily System
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                console.log('🚀 Initializing Enhanced Daily System...');
+                window.dailySystem = new DailyRewardsSystem();
+                await window.dailySystem.init();
+                window.dailySystem.initialized = true;
+                console.log('✅ Enhanced Daily System initialized successfully');
+            } catch (error) {
+                console.error('❌ Enhanced Daily System initialization failed:', error);
+                // Fall back to basic system
+                console.log('Falling back to basic daily system...');
+            }
+        });
     </script>
 </body>
 </html>

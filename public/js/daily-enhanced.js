@@ -464,6 +464,7 @@ class DailyRewardsSystem {
         const validationStatus = this.getMissionValidationStatus(mission.id);
 
         const redirectUrl = this.getMissionRedirectUrl(mission.id);
+        console.log(`🎯 Creating mission ${mission.id} with redirect URL:`, redirectUrl);
         
         row.innerHTML = `
             <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
