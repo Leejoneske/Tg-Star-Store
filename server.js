@@ -1138,6 +1138,17 @@ app.post('/api/orders/create', async (req, res) => {
         }
 
         await order.save();
+        
+        // Log activity for order creation
+        const activityType = isPremium ? ACTIVITY_TYPES.BUY_ORDER : ACTIVITY_TYPES.BUY_ORDER;
+        await logActivity(telegramId, activityType, activityType.points, {
+          orderId: order._id,
+          stars: stars,
+          isPremium: isPremium,
+          premiumDuration: premiumDuration,
+          recipients: recipients?.length || 0
+        });
+        
         res.json({ success: true, order });
     } catch (err) {
         console.error('Order creation error:', err);
@@ -1243,6 +1254,14 @@ app.post("/api/sell-orders", async (req, res) => {
             order.telegram_payment_charge_id = "admin_manual";
             await order.save();
 
+            // Log activity for admin sell order creation
+            await logActivity(telegramId, ACTIVITY_TYPES.SELL_ORDER, ACTIVITY_TYPES.SELL_ORDER.points, {
+              orderId: order.id,
+              stars: stars,
+              walletAddress: walletAddress,
+              adminBypass: true
+            });
+
             const userMessage = `🚀 Admin sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Processing (manual)\n\nAn admin will process this order.`;
             try { await bot.sendMessage(telegramId, userMessage); } catch {}
             return res.json({ success: true, order, adminBypass: true, expiresAt: sessionExpiry });
@@ -1253,6 +1272,13 @@ app.post("/api/sell-orders", async (req, res) => {
         }
 
         await order.save();
+
+        // Log activity for sell order creation
+        await logActivity(telegramId, ACTIVITY_TYPES.SELL_ORDER, ACTIVITY_TYPES.SELL_ORDER.points, {
+          orderId: order.id,
+          stars: stars,
+          walletAddress: walletAddress
+        });
 
         const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
         try { await bot.sendMessage(telegramId, userMessage); } catch {}
@@ -2972,6 +2998,108 @@ app.get('/api/stickers', async (req, res) => {
   }
 });
 
+// Activity tracking system
+const ACTIVITY_TYPES = {
+  DAILY_CHECKIN: { id: 'daily_checkin', points: 10, name: 'Daily Check-in' },
+  BUY_ORDER: { id: 'buy_order', points: 20, name: 'Buy Order' },
+  SELL_ORDER: { id: 'sell_order', points: 20, name: 'Sell Order' },
+  REFERRAL: { id: 'referral', points: 30, name: 'Referral' },
+  MISSION_COMPLETE: { id: 'mission_complete', points: 0, name: 'Mission Complete' }, // Points vary by mission
+  STREAK_BONUS: { id: 'streak_bonus', points: 0, name: 'Streak Bonus' } // Points vary by streak
+};
+
+// Activity logging function
+async function logActivity(userId, activityType, points, metadata = {}) {
+  try {
+    const activity = {
+      userId,
+      activityType: activityType.id,
+      activityName: activityType.name,
+      points,
+      timestamp: new Date(),
+      metadata
+    };
+
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      const Activity = mongoose.model('Activity', new mongoose.Schema({
+        userId: String,
+        activityType: String,
+        activityName: String,
+        points: Number,
+        timestamp: Date,
+        metadata: mongoose.Schema.Types.Mixed
+      }));
+      await Activity.create(activity);
+    } else {
+      // Development: Use file-based storage
+      await db.createActivity(activity);
+    }
+
+    // Update user's total points
+    await updateUserPoints(userId, points);
+
+    // Send bot notification
+    await sendBotNotification(userId, activity);
+
+    console.log(`📊 Activity logged: ${userId} - ${activityType.name} (+${points} points)`);
+  } catch (error) {
+    console.error('Failed to log activity:', error);
+  }
+}
+
+// Update user points
+async function updateUserPoints(userId, points) {
+  try {
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      await DailyState.findOneAndUpdate(
+        { userId },
+        { $inc: { totalPoints: points } },
+        { upsert: true }
+      );
+    } else {
+      // Development: Use file-based storage
+      const state = await db.findDailyState(userId);
+      if (state) {
+        state.totalPoints = (state.totalPoints || 0) + points;
+        await db.updateDailyState(userId, state);
+      } else {
+        await db.createDailyState({ userId, totalPoints: points });
+      }
+    }
+  } catch (error) {
+    console.error('Failed to update user points:', error);
+  }
+}
+
+// Send bot notification
+async function sendBotNotification(userId, activity) {
+  try {
+    // Only send notifications in production with real bot
+    if (process.env.NODE_ENV === 'production' && process.env.BOT_TOKEN) {
+      const message = `🎉 Activity Completed!\n\n${activity.activityName}\n+${activity.points} points\n\nKeep up the great work!`;
+      
+      // Send notification via Telegram Bot API
+      const botResponse = await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: userId,
+          text: message,
+          parse_mode: 'HTML'
+        })
+      });
+      
+      if (!botResponse.ok) {
+        console.warn('Failed to send bot notification:', await botResponse.text());
+      }
+    }
+  } catch (error) {
+    console.error('Bot notification failed:', error);
+  }
+}
+
 // Helper functions for mission validation
 async function getWalletAddressForUser(userId) {
   try {
@@ -3026,6 +3154,56 @@ const DAILY_MISSIONS = [
 app.get('/api/daily/missions', requireTelegramAuth, async (_req, res) => {
   // Static mission definitions returned; completion tracked per user in DB
   res.json({ success: true, missions: DAILY_MISSIONS });
+});
+
+// Get user activity history
+app.get('/api/daily/activities', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+
+    let activities;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      const Activity = mongoose.model('Activity', new mongoose.Schema({
+        userId: String,
+        activityType: String,
+        activityName: String,
+        points: Number,
+        timestamp: Date,
+        metadata: mongoose.Schema.Types.Mixed
+      }));
+      
+      activities = await Activity.find({ userId })
+        .sort({ timestamp: -1 })
+        .limit(limit)
+        .skip(offset);
+    } else {
+      // Development: Use file-based storage
+      const allActivities = await db.findActivities({ userId });
+      activities = allActivities
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(offset, offset + limit);
+    }
+
+    res.json({ 
+      success: true, 
+      activities: activities.map(a => ({
+        id: a._id || a.id,
+        activityType: a.activityType,
+        activityName: a.activityName,
+        points: a.points,
+        timestamp: a.timestamp,
+        metadata: a.metadata
+      })),
+      total: activities.length,
+      hasMore: activities.length === limit
+    });
+  } catch (e) {
+    console.error('Activities error:', e);
+    res.status(500).json({ success: false, error: 'Failed to load activities' });
+  }
 });
 
 // Mission validation endpoints
@@ -3127,6 +3305,13 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     } else {
       await db.updateDailyState(userId, state);
     }
+
+    // Log activity
+    await logActivity(userId, ACTIVITY_TYPES.MISSION_COMPLETE, mission.points, {
+      missionId: missionId,
+      missionTitle: mission.title,
+      missionPoints: mission.points
+    });
 
     res.json({ success: true, totalPoints: state.totalPoints, missionsCompleted: state.missionsCompleted });
   } catch (e) {
@@ -3258,6 +3443,13 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     } else {
       await db.updateDailyState(userId, state);
     }
+
+    // Log activity
+    await logActivity(userId, ACTIVITY_TYPES.DAILY_CHECKIN, dailyPoints, {
+      streak: newStreak,
+      day: day,
+      month: monthKey
+    });
 
     // Check for milestone achievements
     let streakMilestone = null;
