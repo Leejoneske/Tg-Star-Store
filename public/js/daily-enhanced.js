@@ -26,6 +26,7 @@ class DailyRewardsSystem {
             await this.loadLeaderboard();
             await this.checkStreakReminders();
             await this.startAutoRefresh();
+            await this.startMissionValidation();
         } catch (error) {
             console.error('Initialization error:', error);
             this.handleError(error);
@@ -399,6 +400,9 @@ class DailyRewardsSystem {
                 return;
             }
 
+            // Validate all missions first
+            await this.validateAllMissions(missions, completed);
+
             missions.forEach((mission, index) => {
                 const isCompleted = completed.has(mission.id);
                 const row = this.createMissionElement(mission, isCompleted, index);
@@ -567,23 +571,29 @@ class DailyRewardsSystem {
 
     async checkWalletConnected() {
         try {
-            const resp = await window.API.getWalletAddress();
-            return resp?.success && resp?.walletAddress;
+            // Use server-side validation
+            const resp = await window.API.request(`/daily/missions/validate/m1`);
+            return resp?.success && resp?.isValid;
         } catch {
             return false;
         }
     }
 
     async checkTelegramChannelMembership() {
-        // This would require Telegram Bot API to check membership
-        // For now, we'll use localStorage as a simple check
-        return this.storage.get('telegramChannelJoined') === true;
+        try {
+            // Use server-side validation
+            const resp = await window.API.request(`/daily/missions/validate/m2`);
+            return resp?.success && resp?.isValid;
+        } catch {
+            return false;
+        }
     }
 
     async checkFirstOrderCompleted() {
         try {
-            const orders = this.storage.get('completedOrders') || [];
-            return orders.length > 0;
+            // Use server-side validation
+            const resp = await window.API.request(`/daily/missions/validate/m3`);
+            return resp?.success && resp?.isValid;
         } catch {
             return false;
         }
@@ -591,10 +601,83 @@ class DailyRewardsSystem {
 
     async checkReferralMade() {
         try {
-            const referrals = this.storage.get('referralCount') || 0;
-            return referrals > 0;
+            // Use server-side validation
+            const resp = await window.API.request(`/daily/missions/validate/m4`);
+            return resp?.success && resp?.isValid;
         } catch {
             return false;
+        }
+    }
+
+    async validateAllMissions(missions, completed) {
+        console.log('🔍 Validating all missions...');
+        
+        for (const mission of missions) {
+            if (!completed.has(mission.id)) {
+                try {
+                    const isValid = await this.validateMissionCompletion(mission.id);
+                    if (isValid) {
+                        console.log(`✅ Mission ${mission.id} is now valid - auto-completing`);
+                        // Auto-complete the mission
+                        await this.autoCompleteMission(mission.id);
+                    }
+                } catch (error) {
+                    console.warn(`Failed to validate mission ${mission.id}:`, error);
+                }
+            }
+        }
+    }
+
+    async autoCompleteMission(missionId) {
+        try {
+            const resp = await window.API.completeMission(missionId);
+            if (resp?.success) {
+                console.log(`🎉 Auto-completed mission ${missionId}`);
+                this.showToast(`Mission completed! +${resp.totalPoints || 0} points`, 'success');
+                // Reload missions to show updated state
+                await this.loadMissions();
+                await this.hydrateFromAPI();
+            }
+        } catch (error) {
+            console.error('Auto-complete mission failed:', error);
+        }
+    }
+
+    async startMissionValidation() {
+        console.log('🔄 Starting periodic mission validation...');
+        
+        // Validate missions every 30 seconds
+        this.missionValidationInterval = setInterval(async () => {
+            try {
+                await this.validateAllMissionsPeriodically();
+            } catch (error) {
+                console.warn('Periodic mission validation failed:', error);
+            }
+        }, 30000); // 30 seconds
+
+        // Also validate when page becomes visible (user returns from other tabs)
+        document.addEventListener('visibilitychange', async () => {
+            if (!document.hidden) {
+                console.log('👁️ Page visible - validating missions...');
+                await this.validateAllMissionsPeriodically();
+            }
+        });
+    }
+
+    async validateAllMissionsPeriodically() {
+        try {
+            // Get current missions and completed status
+            const [missionsResp, stateResp] = await Promise.all([
+                window.API.getMissions().catch(() => ({ missions: [] })),
+                window.API.getDailyState().catch(() => ({ missionsCompleted: [] }))
+            ]);
+
+            const missions = missionsResp?.missions || [];
+            const completed = new Set(stateResp?.missionsCompleted || []);
+
+            await this.validateAllMissions(missions, completed);
+        } catch (error) {
+            console.warn('Periodic validation failed:', error);
         }
     }
 
@@ -1008,6 +1091,9 @@ class DailyRewardsSystem {
     cleanup() {
         if (this.leaderboardUpdateInterval) {
             clearInterval(this.leaderboardUpdateInterval);
+        }
+        if (this.missionValidationInterval) {
+            clearInterval(this.missionValidationInterval);
         }
     }
 
