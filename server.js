@@ -1140,6 +1140,7 @@ app.post('/api/orders/create', async (req, res) => {
         await order.save();
         
         // Log activity for order creation
+        console.log(`🛒 Buy order created for user ${telegramId}, logging activity...`);
         const activityType = isPremium ? ACTIVITY_TYPES.BUY_ORDER : ACTIVITY_TYPES.BUY_ORDER;
         await logActivity(telegramId, activityType, activityType.points, {
           orderId: order._id,
@@ -1274,6 +1275,7 @@ app.post("/api/sell-orders", async (req, res) => {
         await order.save();
 
         // Log activity for sell order creation
+        console.log(`💰 Sell order created for user ${telegramId}, logging activity...`);
         await logActivity(telegramId, ACTIVITY_TYPES.SELL_ORDER, ACTIVITY_TYPES.SELL_ORDER.points, {
           orderId: order.id,
           stars: stars,
