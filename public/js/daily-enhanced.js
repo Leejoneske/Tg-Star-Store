@@ -17,19 +17,40 @@ class DailyRewardsSystem {
 
     async init() {
         try {
+            console.log('🚀 Starting daily rewards system initialization...');
+            
+            // Initialize core components first
             await this.initializeTelegram();
-            await this.loadCachedData();
             await this.setupEventListeners();
             await this.renderCalendar(new Date());
-            await this.hydrateFromAPI();
-            await this.loadMissions();
-            await this.loadLeaderboard();
+            
+            // Load cached data for immediate display
+            await this.loadCachedData();
+            
+            // Load API data in background (non-blocking)
+            this.hydrateFromAPI().catch(err => {
+                console.warn('API hydration failed, using cached data:', err);
+                this.showOfflineNotice();
+            });
+            
+            this.loadMissions().catch(err => {
+                console.warn('Failed to load missions:', err);
+            });
+            
+            this.loadLeaderboard().catch(err => {
+                console.warn('Failed to load leaderboard:', err);
+            });
+            
+            // Start background processes
             await this.checkStreakReminders();
             await this.startAutoRefresh();
             await this.startMissionValidation();
+            
+            console.log('✅ Daily rewards system initialized successfully');
         } catch (error) {
             console.error('Initialization error:', error);
-            this.handleError(error);
+            // Don't show error toast immediately, try to recover
+            this.showOfflineNotice();
         }
     }
 
@@ -514,11 +535,15 @@ class DailyRewardsSystem {
                 console.log(`🚀 Redirecting to: ${redirectUrl}`);
                 
                 if (redirectUrl.startsWith('http')) {
-                    // External URL - open in new tab
-                    window.open(redirectUrl, '_blank');
+                    // External URL - use Telegram WebApp API if available
+                    if (window.Telegram?.WebApp?.openLink) {
+                        window.Telegram.WebApp.openLink(redirectUrl);
+                    } else {
+                        window.open(redirectUrl, '_blank');
+                    }
                 } else {
-                    // Internal URL - navigate within app
-                    window.location.href = redirectUrl;
+                    // Internal URL - show message instead of redirecting
+                    this.showToast('Please complete this action manually in the app', 'info');
                 }
                 
                 btn.disabled = false;
