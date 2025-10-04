@@ -19,9 +19,9 @@ window.API = {
         
         // Fallback for development/testing when not in Telegram
         if (!authHeaders['x-telegram-id'] && !authHeaders['x-telegram-init-data']) {
-            // Use a default user ID for development
-            authHeaders['x-telegram-id'] = 'dev-user-' + Math.random().toString(36).substr(2, 9);
-            console.log('Using development user ID:', authHeaders['x-telegram-id']);
+            // Use real Telegram ID for testing
+            authHeaders['x-telegram-id'] = '5107333540';
+            console.log('Using test Telegram ID:', authHeaders['x-telegram-id']);
         }
         
         const config = {
