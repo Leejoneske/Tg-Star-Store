@@ -635,6 +635,18 @@ const dailyStateSchema = new mongoose.Schema({
 
 const DailyState = mongoose.model('DailyState', dailyStateSchema);
 
+// Activity tracking schema
+const activitySchema = new mongoose.Schema({
+    userId: { type: String, required: true, index: true },
+    activityType: { type: String, required: true },
+    activityName: { type: String, required: true },
+    points: { type: Number, required: true },
+    timestamp: { type: Date, default: Date.now },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
+});
+
+const Activity = mongoose.model('Activity', activitySchema);
+
 // Wallet update request schema: track request state and message IDs for updates
 const walletUpdateRequestSchema = new mongoose.Schema({
     requestId: { type: String, required: true, unique: true, default: () => generateOrderId() },
@@ -3024,14 +3036,6 @@ async function logActivity(userId, activityType, points, metadata = {}) {
 
     if (process.env.MONGODB_URI) {
       // Production: Use MongoDB
-      const Activity = mongoose.model('Activity', new mongoose.Schema({
-        userId: String,
-        activityType: String,
-        activityName: String,
-        points: Number,
-        timestamp: Date,
-        metadata: mongoose.Schema.Types.Mixed
-      }));
       await Activity.create(activity);
     } else {
       // Development: Use file-based storage
@@ -3168,15 +3172,6 @@ app.get('/api/daily/activities', requireTelegramAuth, async (req, res) => {
     let activities;
     if (process.env.MONGODB_URI) {
       // Production: Use MongoDB
-      const Activity = mongoose.model('Activity', new mongoose.Schema({
-        userId: String,
-        activityType: String,
-        activityName: String,
-        points: Number,
-        timestamp: Date,
-        metadata: mongoose.Schema.Types.Mixed
-      }));
-      
       activities = await Activity.find({ userId })
         .sort({ timestamp: -1 })
         .limit(limit)
@@ -3758,6 +3753,9 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
     
     const idToUsername = new Map(users.filter(u => u).map(u => [u.id, u.username]));
     const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));
+
+    console.log(`📊 Leaderboard data: ${dailyUsers.length} users, ${referralCounts.length} referral counts`);
+    console.log(`📊 Referral counts:`, referralCounts);
 
     const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
     const maxReferrals = Math.max(1, ...referralCounts.map(r => r.referralsCount), 1);
