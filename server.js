@@ -3074,6 +3074,12 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
     });
   } catch (e) {
     console.error('daily/state error:', e);
+    console.error('Error details:', {
+      userId: req.user?.id,
+      hasMongoUri: !!process.env.MONGODB_URI,
+      errorMessage: e.message,
+      errorStack: e.stack
+    });
     res.status(500).json({ success: false, error: 'Failed to load daily state' });
   }
 });
@@ -3477,6 +3483,12 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
     });
   } catch (e) {
     console.error('leaderboard error:', e);
+    console.error('Leaderboard error details:', {
+      userId: req.user?.id,
+      hasMongoUri: !!process.env.MONGODB_URI,
+      errorMessage: e.message,
+      errorStack: e.stack
+    });
     res.status(500).json({ success: false, error: 'Failed to load leaderboard' });
   }
 });
