@@ -458,6 +458,14 @@
                 
                 console.log('Using basic daily system (enhanced system not available or failed)');
                 
+                // Debug API availability in basic system
+                console.log('Basic system - API object:', window.API);
+                console.log('Basic system - API methods:', {
+                    getDailyState: typeof window.API?.getDailyState,
+                    dailyCheckIn: typeof window.API?.dailyCheckIn,
+                    getLeaderboard: typeof window.API?.getLeaderboard
+                });
+                
                 if (typeof TranslationUtils !== 'undefined') {
                     TranslationUtils.init();
                 }
