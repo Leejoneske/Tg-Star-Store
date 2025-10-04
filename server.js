@@ -270,30 +270,28 @@ if (process.env.BOT_TOKEN) {
       process.exit(1);
     });
 }
-// MongoDB connection (use in-memory server if no URI is provided)
+// Database connection (use persistent file storage for development)
+const DataPersistence = require('./data-persistence');
+let db;
+
 async function connectDatabase() {
   if (process.env.MONGODB_URI) {
     try {
       await mongoose.connect(process.env.MONGODB_URI);
       console.log('✅ MongoDB connected successfully');
+      return;
     } catch (err) {
       console.error('❌ MongoDB connection error:', err.message);
       process.exit(1);
     }
-    return;
   }
 
-  console.warn('MONGODB_URI not set. Starting in-memory MongoDB for local/dev.');
+  console.log('📁 Using persistent file-based storage for local/dev.');
   try {
-    const { MongoMemoryServer } = require('mongodb-memory-server');
-    const mongod = await MongoMemoryServer.create();
-    const uri = mongod.getUri();
-    await mongoose.connect(uri);
-    console.log('✅ In-memory MongoDB connected');
-    // Expose for graceful shutdown if needed
-    process.on('exit', async () => { try { await mongod.stop(); } catch (_) {} });
+    db = new DataPersistence();
+    console.log('✅ Persistent database connected');
   } catch (err) {
-    console.error('❌ Failed to start in-memory MongoDB:', err.message);
+    console.error('❌ Failed to start persistent database:', err.message);
     process.exit(1);
   }
 }
@@ -2994,8 +2992,10 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     const mission = DAILY_MISSIONS.find(m => m.id === missionId);
     if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
 
-    let state = await DailyState.findOne({ userId });
-    if (!state) state = new DailyState({ userId });
+    let state = await db.findDailyState(userId);
+    if (!state) {
+      state = await db.createDailyState({ userId, totalPoints: 0, missionsCompleted: [] });
+    }
 
     const completed = new Set(state.missionsCompleted || []);
     if (completed.has(missionId)) {
@@ -3006,7 +3006,7 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     state.missionsCompleted = Array.from(completed);
     state.totalPoints = (state.totalPoints || 0) + mission.points;
     state.updatedAt = new Date();
-    await state.save();
+    await db.updateDailyState(userId, state);
 
     res.json({ success: true, totalPoints: state.totalPoints, missionsCompleted: state.missionsCompleted });
   } catch (e) {
@@ -3021,16 +3021,16 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
     const userId = req.user.id;
     const now = new Date();
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    let state = await DailyState.findOne({ userId });
+    let state = await db.findDailyState(userId);
     if (!state) {
-      state = await DailyState.create({ userId, month: monthKey, checkedInDays: [] });
+      state = await db.createDailyState({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
     }
     // Reset month scope if month rolled over
     if (state.month !== monthKey) {
       state.month = monthKey;
       state.checkedInDays = [];
     }
-    await state.save();
+    await db.updateDailyState(userId, state);
     return res.json({
       success: true,
       userId,
@@ -3055,8 +3055,10 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const day = today.getDate();
 
-    let state = await DailyState.findOne({ userId });
-    if (!state) state = new DailyState({ userId });
+    let state = await db.findDailyState(userId);
+    if (!state) {
+      state = await db.createDailyState({ userId, totalPoints: 0, streak: 0, missionsCompleted: [], checkedInDays: [] });
+    }
 
     // Month rollover
     if (state.month !== monthKey) {
@@ -3089,7 +3091,7 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     days.add(day);
     state.checkedInDays = Array.from(days).sort((a,b) => a-b);
     state.updatedAt = new Date();
-    await state.save();
+    await db.updateDailyState(userId, state);
 
     // Check for milestone achievements
     let streakMilestone = null;
@@ -3346,43 +3348,63 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
       });
     }
 
-    // Global: rank referrers by blended referrals & activity
-    const agg = await Referral.aggregate([
-      { $match: { status: { $in: ['active', 'completed'] } } },
-      { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } },
-      { $sort: { referralsCount: -1 } },
-      { $limit: 100 }
-    ]);
+    // Global: rank users by daily activity points (primary) and referrals (secondary)
+    // Get all users with daily activity
+    const dailyUsers = await db.findAllDailyStates();
+    dailyUsers.sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      return b.streak - a.streak;
+    });
+    dailyUsers.splice(100); // Limit to 100
 
-    const ids = agg.map(a => a._id);
-    const [users, activity] = await Promise.all([
-      User.find({ id: { $in: ids } }, { id: 1, username: 1 }),
-      DailyState.find({ userId: { $in: ids } }, { userId: 1, totalPoints: 1 })
+    const userIds = dailyUsers.map(d => d.userId);
+    
+    // Get user info and referral counts
+    const [users, referralCounts] = await Promise.all([
+      Promise.all(userIds.map(id => db.findUser(id))),
+      db.aggregateReferrals([
+        { $match: { referrerUserId: { $in: userIds }, status: { $in: ['active', 'completed'] } } },
+        { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+      ])
     ]);
-    const idToUsername = new Map(users.map(u => [u.id, u.username]));
-    const idToActivity = new Map(activity.map(d => [d.userId, d.totalPoints]));
+    
+    const idToUsername = new Map(users.filter(u => u).map(u => [u.id, u.username]));
+    const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));
 
-    const maxRef = Math.max(1, ...agg.map(a => a.referralsCount));
-    const maxAct = Math.max(1, ...activity.map(a => a.totalPoints || 0), 1);
-    const entriesRaw = agg.map(a => {
-      const act = idToActivity.get(a._id) || 0;
-      const refNorm = a.referralsCount / maxRef;
-      const actNorm = act / maxAct;
-      const score = ((wRef * refNorm) + (wAct * actNorm)) / norm;
-      return { userId: a._id, username: idToUsername.get(a._id) || null, referralsCount: a.referralsCount, activityPoints: act, score };
+    const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
+    const maxReferrals = Math.max(1, ...referralCounts.map(r => r.referralsCount), 1);
+    
+    const entriesRaw = dailyUsers.map(d => {
+      const referrals = idToReferrals.get(d.userId) || 0;
+      const points = d.totalPoints || 0;
+      const missions = d.missionsCompleted?.length || 0;
+      
+      // Score: 70% daily points, 20% referrals, 10% missions
+      const pointsScore = (points / maxPoints) * 0.7;
+      const refScore = (referrals / maxReferrals) * 0.2;
+      const missionScore = Math.min(missions / 10, 1) * 0.1; // Cap missions at 10
+      
+      const score = pointsScore + refScore + missionScore;
+      
+      return { 
+        userId: d.userId, 
+        username: idToUsername.get(d.userId) || null, 
+        referralsCount: referrals, 
+        activityPoints: points,
+        missionsCompleted: missions,
+        streak: d.streak || 0,
+        score 
+      };
     }).sort((x, y) => y.score - x.score);
 
-    // Compute requester rank by referrals
+    // Compute requester rank based on daily activity
     let requesterRank = null;
-    const requesterRefCount = await Referral.countDocuments({ referrerUserId: requesterId, status: { $in: ['active', 'completed'] } });
-    if (requesterRefCount > 0) {
-      const numWithMore = await Referral.aggregate([
-        { $match: { status: { $in: ['active', 'completed'] } } },
-        { $group: { _id: '$referrerUserId', c: { $sum: 1 } } },
-        { $match: { c: { $gt: requesterRefCount } } },
-        { $count: 'n' }
-      ]);
-      requesterRank = (numWithMore[0]?.n || 0) + 1;
+    const requesterDaily = await db.findDailyState(requesterId);
+    if (requesterDaily && requesterDaily.totalPoints > 0) {
+      const usersWithMorePoints = await db.countDailyStates({ 
+        totalPoints: { $gt: requesterDaily.totalPoints } 
+      });
+      requesterRank = usersWithMorePoints + 1;
     }
 
     return res.json({
@@ -3392,8 +3414,10 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
         rank: idx + 1,
         userId: e.userId,
         username: e.username,
-        points: e.referralsCount,
-        activityPoints: e.activityPoints,
+        points: e.activityPoints,
+        referralsCount: e.referralsCount,
+        missionsCompleted: e.missionsCompleted,
+        streak: e.streak,
         score: Math.round(e.score * 100)
       })),
       userRank: requesterRank

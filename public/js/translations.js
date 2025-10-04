@@ -1560,14 +1560,22 @@ const TranslationUtils = {
     // Apply translations to all elements with data-translate attribute
     applyTranslations() {
         const currentLang = this.getCurrentLanguage();
+        console.log('Applying translations for language:', currentLang);
         this.applyLanguageAttributes(currentLang);
         
-        document.querySelectorAll('[data-translate]').forEach(element => {
+        const elements = document.querySelectorAll('[data-translate]');
+        console.log('Found', elements.length, 'elements with data-translate');
+        
+        elements.forEach(element => {
             const key = element.getAttribute('data-translate');
             const translation = this.get(key, currentLang);
             
+            console.log(`Translating ${key}: "${element.textContent}" -> "${translation}"`);
+            
             if (translation) {
                 element.textContent = translation;
+            } else {
+                console.warn(`No translation found for key: ${key}`);
             }
         });
 

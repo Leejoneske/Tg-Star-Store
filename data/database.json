@@ -1,0 +1,22 @@
+{
+  "users": {},
+  "dailyStates": {
+    "5107333540": {
+      "userId": "5107333540",
+      "month": "2025-10",
+      "checkedInDays": [
+        4
+      ],
+      "totalPoints": 30,
+      "streak": 1,
+      "missionsCompleted": [
+        "m1"
+      ],
+      "lastCheckIn": "2025-10-04T05:41:53.030Z",
+      "updatedAt": "2025-10-04T05:41:53.687Z"
+    }
+  },
+  "referrals": [],
+  "orders": [],
+  "notifications": []
+}
