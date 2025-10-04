@@ -3021,16 +3021,47 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
     const userId = req.user.id;
     const now = new Date();
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    let state = await db.findDailyState(userId);
-    if (!state) {
-      state = await db.createDailyState({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
+    
+    // Check if we're using MongoDB (production) or file-based storage (development)
+    let state;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      state = await DailyState.findOne({ userId });
+      if (!state) {
+        // Initialize with your test data if this is your account
+        if (userId === '5107333540') {
+          state = await DailyState.create({ 
+            userId, 
+            month: monthKey, 
+            checkedInDays: [4], 
+            totalPoints: 30, 
+            streak: 1, 
+            missionsCompleted: ['m1'],
+            lastCheckIn: new Date()
+          });
+        } else {
+          state = await DailyState.create({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
+        }
+      }
+    } else {
+      // Development: Use file-based storage
+      state = await db.findDailyState(userId);
+      if (!state) {
+        state = await db.createDailyState({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
+      }
     }
     // Reset month scope if month rolled over
     if (state.month !== monthKey) {
       state.month = monthKey;
       state.checkedInDays = [];
     }
-    await db.updateDailyState(userId, state);
+    
+    // Save the state
+    if (process.env.MONGODB_URI) {
+      await state.save();
+    } else {
+      await db.updateDailyState(userId, state);
+    }
     return res.json({
       success: true,
       userId,
@@ -3350,12 +3381,21 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
 
     // Global: rank users by daily activity points (primary) and referrals (secondary)
     // Get all users with daily activity
-    const dailyUsers = await db.findAllDailyStates();
-    dailyUsers.sort((a, b) => {
-      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-      return b.streak - a.streak;
-    });
-    dailyUsers.splice(100); // Limit to 100
+    let dailyUsers;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      dailyUsers = await DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1 })
+        .sort({ totalPoints: -1, streak: -1 })
+        .limit(100);
+    } else {
+      // Development: Use file-based storage
+      dailyUsers = await db.findAllDailyStates();
+      dailyUsers.sort((a, b) => {
+        if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+        return b.streak - a.streak;
+      });
+      dailyUsers.splice(100); // Limit to 100
+    }
 
     const userIds = dailyUsers.map(d => d.userId);
     
@@ -3399,12 +3439,25 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
 
     // Compute requester rank based on daily activity
     let requesterRank = null;
-    const requesterDaily = await db.findDailyState(requesterId);
-    if (requesterDaily && requesterDaily.totalPoints > 0) {
-      const usersWithMorePoints = await db.countDailyStates({ 
-        totalPoints: { $gt: requesterDaily.totalPoints } 
-      });
-      requesterRank = usersWithMorePoints + 1;
+    let requesterDaily;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      requesterDaily = await DailyState.findOne({ userId: requesterId });
+      if (requesterDaily && requesterDaily.totalPoints > 0) {
+        const usersWithMorePoints = await DailyState.countDocuments({ 
+          totalPoints: { $gt: requesterDaily.totalPoints } 
+        });
+        requesterRank = usersWithMorePoints + 1;
+      }
+    } else {
+      // Development: Use file-based storage
+      requesterDaily = await db.findDailyState(requesterId);
+      if (requesterDaily && requesterDaily.totalPoints > 0) {
+        const usersWithMorePoints = await db.countDailyStates({ 
+          totalPoints: { $gt: requesterDaily.totalPoints } 
+        });
+        requesterRank = usersWithMorePoints + 1;
+      }
     }
 
     return res.json({
