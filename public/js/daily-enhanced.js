@@ -951,6 +951,11 @@ class DailyRewardsSystem {
             clearInterval(this.leaderboardUpdateInterval);
         }
     }
+
+    openRedemptionModal() {
+        // Simple implementation for now - just show a message
+        this.showToast('Reward redemption feature coming soon!', 'info');
+    }
 }
 
 // Supporting classes
@@ -1210,6 +1215,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('API not loaded. Make sure api.js is included before daily-enhanced.js');
             return;
         }
+        
+        console.log('API object found:', window.API);
+        console.log('API methods:', typeof window.API.getDailyState, typeof window.API.dailyCheckIn, typeof window.API.getLeaderboard);
 
         // Initialize daily system
         dailySystem = new DailyRewardsSystem();

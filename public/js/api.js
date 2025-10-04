@@ -72,4 +72,23 @@ class API {
     async createOrder(orderData) { return this.post('/orders/create', orderData); }
 }
 
-window.API = new API();
+// Create API instance
+const apiInstance = new API();
+
+// Ensure methods are properly bound
+window.API = {
+    ...apiInstance,
+    getDailyState: apiInstance.getDailyState.bind(apiInstance),
+    dailyCheckIn: apiInstance.dailyCheckIn.bind(apiInstance),
+    getMissions: apiInstance.getMissions.bind(apiInstance),
+    completeMission: apiInstance.completeMission.bind(apiInstance),
+    getLeaderboard: apiInstance.getLeaderboard.bind(apiInstance),
+    redeemReward: apiInstance.redeemReward.bind(apiInstance),
+    getRewards: apiInstance.getRewards.bind(apiInstance),
+    getQuote: apiInstance.getQuote.bind(apiInstance),
+    getWalletAddress: apiInstance.getWalletAddress.bind(apiInstance),
+    createOrder: apiInstance.createOrder.bind(apiInstance)
+};
+
+console.log('API object created:', window.API);
+console.log('API methods available:', Object.keys(window.API));
