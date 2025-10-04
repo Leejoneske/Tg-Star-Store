@@ -44,12 +44,13 @@ function requireTelegramAuth(req, res, next) {
       initDataLength: initDataHeader.length,
       hasBotToken: !!botToken,
       botTokenLength: botToken ? botToken.length : 0,
-      userAgent: req.headers['user-agent']?.includes('Telegram') ? 'Telegram' : 'Other'
+      userAgent: req.headers['user-agent']?.includes('Telegram') ? 'Telegram' : 'Other',
+      telegramId: req.headers['x-telegram-id']
     });
     
-    // If no initData but we have a telegram-id header, allow it (for debugging)
-    if (!initDataHeader && req.headers['x-telegram-id']) {
-      console.log('🔧 Allowing request with x-telegram-id header (no initData)');
+    // Temporarily allow requests with telegram-id header while we debug
+    if (req.headers['x-telegram-id']) {
+      console.log('🔧 Allowing request with x-telegram-id header');
       // Continue to normal processing below
     } else if (initDataHeader && botToken) {
       const valid = validateTelegramInitData(initDataHeader, botToken);
@@ -61,9 +62,6 @@ function requireTelegramAuth(req, res, next) {
         });
         return res.status(401).json({ error: 'Unauthorized' });
       }
-    } else if (!botToken) {
-      console.log('⚠️ No BOT_TOKEN configured, allowing request');
-      // Continue to normal processing below
     } else {
       console.log('❌ No valid authentication method found');
       return res.status(401).json({ error: 'Unauthorized' });
