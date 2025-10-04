@@ -448,31 +448,36 @@
 
         // Translations init
         document.addEventListener('DOMContentLoaded', async function() {
-            // Only run if enhanced system isn't loaded
-            if (typeof DailyRewardsSystem !== 'undefined' && window.dailySystem) {
-                console.log('Using enhanced daily system');
-                return; // Enhanced system handles everything
-            }
-            
-            if (typeof TranslationUtils !== 'undefined') {
-                TranslationUtils.init();
-            }
-            
-            // Telegram WebApp parity and fullscreen
-            try {
-                if (window.Telegram?.WebApp) {
-                    const webApp = window.Telegram.WebApp;
-                    webApp.ready();
-                    webApp.expand();
-                    document.body.classList.add('telegram-fullscreen');
+            // Wait a bit for enhanced system to initialize
+            setTimeout(async () => {
+                // Only run if enhanced system isn't loaded or failed to initialize
+                if (typeof DailyRewardsSystem !== 'undefined' && window.dailySystem && window.dailySystem.initialized) {
+                    console.log('Using enhanced daily system');
+                    return; // Enhanced system handles everything
                 }
-            } catch(_) {}
+                
+                console.log('Using basic daily system (enhanced system not available or failed)');
+                
+                if (typeof TranslationUtils !== 'undefined') {
+                    TranslationUtils.init();
+                }
+                
+                // Telegram WebApp parity and fullscreen
+                try {
+                    if (window.Telegram?.WebApp) {
+                        const webApp = window.Telegram.WebApp;
+                        webApp.ready();
+                        webApp.expand();
+                        document.body.classList.add('telegram-fullscreen');
+                    }
+                } catch(_) {}
 
-            buildCalendar(new Date());
-            await hydrateFromAPI();
-            await loadMissions();
-            await loadLeaderboard();
-            bindHandlers();
+                buildCalendar(new Date());
+                await hydrateFromAPI();
+                await loadMissions();
+                await loadLeaderboard();
+                bindHandlers();
+            }, 100); // Wait 100ms for enhanced system to initialize
         });
 
         function bindHandlers() {

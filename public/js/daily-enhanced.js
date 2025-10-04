@@ -1207,6 +1207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.dailySystem = dailySystem; // Make globally accessible
         
         await dailySystem.init();
+        dailySystem.initialized = true;
         
         console.log('✅ Enhanced daily system initialized successfully');
 
