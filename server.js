@@ -3129,11 +3129,17 @@ async function sendBotNotification(userId, activity) {
 async function getWalletAddressForUser(userId) {
   try {
     if (process.env.MONGODB_URI) {
-      const user = await User.findOne({ id: userId });
-      return user?.walletAddress || null;
+      // Check if user has any orders with wallet addresses
+      const buyOrder = await Order.findOne({ telegramId: userId, walletAddress: { $exists: true, $ne: null } });
+      const sellOrder = await SellOrder.findOne({ telegramId: userId, walletAddress: { $exists: true, $ne: null } });
+      return buyOrder?.walletAddress || sellOrder?.walletAddress || null;
     } else {
-      const user = await db.findUser(userId);
-      return user?.walletAddress || null;
+      // Development: Check file-based storage
+      const buyOrders = await db.findOrders({ telegramId: userId });
+      const sellOrders = await db.findSellOrders({ telegramId: userId });
+      const buyOrder = buyOrders.find(o => o.walletAddress);
+      const sellOrder = sellOrders.find(o => o.walletAddress);
+      return buyOrder?.walletAddress || sellOrder?.walletAddress || null;
     }
   } catch (e) {
     console.error('Error getting wallet address:', e);
@@ -3249,10 +3255,12 @@ app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (r
         break;
       
       case 'm2': // Join channel
-        // For now, we'll assume they joined if they're accessing the app
-        // In a real implementation, you'd check Telegram channel membership
-        isValid = true;
-        message = 'Channel joined successfully!';
+        // Check if user has accessed the app (basic check)
+        // In a real implementation, you'd use Telegram Bot API to check channel membership
+        // For now, we'll check if they have any activity in the system
+        const hasActivity = await getOrderCountForUser(userId) > 0 || await getReferralCountForUser(userId) > 0;
+        isValid = hasActivity; // If they have activity, assume they're engaged with the platform
+        message = isValid ? 'Channel joined successfully!' : 'Please join our Telegram channel first';
         break;
       
       case 'm3': // Complete first order
