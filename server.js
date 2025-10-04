@@ -3022,6 +3022,25 @@ const ACTIVITY_TYPES = {
   STREAK_BONUS: { id: 'streak_bonus', points: 0, name: 'Streak Bonus' } // Points vary by streak
 };
 
+// Test endpoint to verify activity tracking
+app.post('/api/test/activity', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log(`🧪 Testing activity tracking for user ${userId}`);
+    
+    await logActivity(userId, ACTIVITY_TYPES.DAILY_CHECKIN, 10, { test: true });
+    
+    res.json({ 
+      success: true, 
+      message: 'Test activity logged successfully',
+      userId: userId
+    });
+  } catch (error) {
+    console.error('Test activity error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Activity logging function
 async function logActivity(userId, activityType, points, metadata = {}) {
   try {
