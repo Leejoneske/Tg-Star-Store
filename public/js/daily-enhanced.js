@@ -19,6 +19,13 @@ class DailyRewardsSystem {
         try {
             console.log('🚀 Starting daily rewards system initialization...');
             
+            // Wait for DOM to be ready
+            if (document.readyState === 'loading') {
+                await new Promise(resolve => {
+                    document.addEventListener('DOMContentLoaded', resolve, { once: true });
+                });
+            }
+            
             // Initialize core components first
             await this.initializeTelegram();
             await this.setupEventListeners();
@@ -100,10 +107,20 @@ class DailyRewardsSystem {
     }
 
     async loadCachedData() {
-        const cached = this.storage.get('dailyState');
-        if (cached && this.isCacheValid(cached.timestamp)) {
-            this.cachedData = cached.data;
-            this.renderWithCache(cached.data);
+        try {
+            const cached = this.storage.get('dailyState');
+            if (cached && this.isCacheValid(cached.timestamp)) {
+                this.cachedData = cached.data;
+                // Wait for DOM to be ready before rendering
+                if (document.readyState === 'loading') {
+                    await new Promise(resolve => {
+                        document.addEventListener('DOMContentLoaded', resolve, { once: true });
+                    });
+                }
+                this.renderWithCache(cached.data);
+            }
+        } catch (error) {
+            console.error('Error loading cached data:', error);
         }
     }
 
@@ -205,12 +222,19 @@ class DailyRewardsSystem {
 
     updateUIWithData(data) {
         try {
+            // Check if DOM elements exist before updating
+            if (!document.getElementById('streakValue') || !document.getElementById('pointsValue')) {
+                console.warn('DOM elements not ready, skipping UI update');
+                return;
+            }
+            
             this.updateStreakDisplay(data);
             this.updateStatsDisplay(data);
             this.updateCalendar(data.checkedInDays || []);
             this.updateWeeklyProgress(data);
         } catch (error) {
             console.error('UI update error:', error);
+            // Don't throw, just log the error
         }
     }
 

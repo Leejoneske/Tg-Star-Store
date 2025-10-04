@@ -454,7 +454,7 @@
             // Wait a bit for enhanced system to initialize
             setTimeout(async () => {
                 // Only run if enhanced system isn't loaded or failed to initialize
-                if (typeof DailyRewardsSystem !== 'undefined' && window.dailySystem && window.dailySystem.initialized) {
+                if (typeof DailyRewardsSystem !== 'undefined' && window.dailySystem && window.dailySystem.initialized === true) {
                     console.log('Using enhanced daily system');
                     return; // Enhanced system handles everything
                 }
@@ -762,11 +762,13 @@
             try {
                 console.log('🚀 Initializing Enhanced Daily System...');
                 window.dailySystem = new DailyRewardsSystem();
+                window.dailySystem.initialized = false; // Set flag before init
                 await window.dailySystem.init();
                 window.dailySystem.initialized = true;
                 console.log('✅ Enhanced Daily System initialized successfully');
             } catch (error) {
                 console.error('❌ Enhanced Daily System initialization failed:', error);
+                window.dailySystem.initialized = false; // Ensure flag is false on error
                 // Fall back to basic system
                 console.log('Falling back to basic daily system...');
             }
