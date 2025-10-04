@@ -3573,20 +3573,40 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
       const points = d.totalPoints || 0;
       const missions = d.missionsCompleted?.length || 0;
       
-      // Score: 70% daily points, 20% referrals, 10% missions
-      const pointsScore = (points / maxPoints) * 0.7;
-      const refScore = (referrals / maxReferrals) * 0.2;
-      const missionScore = Math.min(missions / 10, 1) * 0.1; // Cap missions at 10
+      // Calculate referral points (5 points per referral)
+      const referralPoints = referrals * 5;
+      
+      // Calculate missing check-in penalty (lose 2 points per missed day)
+      const today = new Date();
+      const lastCheckIn = d.lastCheckIn ? new Date(d.lastCheckIn) : null;
+      let missedDays = 0;
+      if (lastCheckIn) {
+        const daysDiff = Math.floor((today - lastCheckIn) / (1000 * 60 * 60 * 24));
+        missedDays = Math.max(0, daysDiff - 1); // Don't count today as missed
+      }
+      const penaltyPoints = missedDays * 2;
+      
+      // Total points = daily points + referral points - penalty
+      const totalPoints = points + referralPoints - penaltyPoints;
+      
+      // Score: 60% total points, 25% referrals, 15% missions
+      const pointsScore = (totalPoints / Math.max(maxPoints + (maxReferrals * 5), 1)) * 0.6;
+      const refScore = (referrals / maxReferrals) * 0.25;
+      const missionScore = Math.min(missions / 10, 1) * 0.15; // Cap missions at 10
       
       const score = pointsScore + refScore + missionScore;
       
       return { 
         userId: d.userId, 
         username: idToUsername.get(d.userId) || null, 
-        referralsCount: referrals, 
+        referralsCount: referrals,
+        referralPoints: referralPoints,
+        penaltyPoints: penaltyPoints,
         activityPoints: points,
+        totalPoints: totalPoints,
         missionsCompleted: missions,
         streak: d.streak || 0,
+        missedDays: missedDays,
         score 
       };
     }).sort((x, y) => y.score - x.score);
@@ -3621,10 +3641,14 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
         rank: idx + 1,
         userId: e.userId,
         username: e.username,
-        points: e.activityPoints,
+        points: e.totalPoints,
+        activityPoints: e.activityPoints,
+        referralPoints: e.referralPoints,
+        penaltyPoints: e.penaltyPoints,
         referralsCount: e.referralsCount,
         missionsCompleted: e.missionsCompleted,
         streak: e.streak,
+        missedDays: e.missedDays,
         score: Math.round(e.score * 100)
       })),
       userRank: requesterRank

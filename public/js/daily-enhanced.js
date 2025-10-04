@@ -367,7 +367,12 @@ class DailyRewardsSystem {
         const list = document.getElementById('missionsList');
         if (!list) return;
         
+        // Clear existing content and event listeners
         list.innerHTML = '<div class="loading-skeleton"></div>';
+        if (this.missionClickHandler) {
+            list.removeEventListener('click', this.missionClickHandler);
+            this.missionClickHandler = null;
+        }
 
         try {
             console.log('Loading missions...');
@@ -433,6 +438,8 @@ class DailyRewardsSystem {
         const icon = this.getMissionIcon(mission.id);
         const validationStatus = this.getMissionValidationStatus(mission.id);
 
+        const redirectUrl = this.getMissionRedirectUrl(mission.id);
+        
         row.innerHTML = `
             <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
                 <div class="mission-icon">${icon}</div>
@@ -441,7 +448,7 @@ class DailyRewardsSystem {
                     <div class="mission-subtitle">+${mission.points} pts${validationStatus ? ` • ${validationStatus}` : ''}</div>
                 </div>
             </div>
-            <button data-id="${mission.id}" class="mission-btn ${isCompleted ? 'completed' : 'complete'}">
+            <button data-id="${mission.id}" class="mission-btn ${isCompleted ? 'completed' : 'complete'}" ${redirectUrl ? `data-redirect-url="${redirectUrl}"` : ''}>
                 ${isCompleted ? '✓ Done' : 'Complete'}
             </button>
         `;
@@ -457,6 +464,21 @@ class DailyRewardsSystem {
             'm4': '👥'
         };
         return icons[missionId] || '⭐';
+    }
+
+    getMissionRedirectUrl(missionId) {
+        switch (missionId) {
+            case 'm1': // Connect wallet
+                return '/app.html'; // Wallet connection page
+            case 'm2': // Join channel
+                return 'https://t.me/StarStore_app'; // Telegram channel
+            case 'm3': // Complete order
+                return '/app.html'; // Buy/sell page
+            case 'm4': // Invite friend
+                return '/referral.html'; // Referral page
+            default:
+                return null;
+        }
     }
 
     getMissionValidationStatus(missionId) {
@@ -476,6 +498,25 @@ class DailyRewardsSystem {
         btn.textContent = 'Verifying...';
 
         try {
+            // Check if mission has a redirect URL
+            const redirectUrl = btn.getAttribute('data-redirect-url');
+            if (redirectUrl) {
+                // Show redirect message and open URL
+                this.showToast('Redirecting to complete mission...', 'info');
+                
+                if (redirectUrl.startsWith('http')) {
+                    // External URL - open in new tab
+                    window.open(redirectUrl, '_blank');
+                } else {
+                    // Internal URL - navigate within app
+                    window.location.href = redirectUrl;
+                }
+                
+                btn.disabled = false;
+                btn.textContent = originalText;
+                return;
+            }
+
             // Validate mission completion
             const isValid = await this.validateMissionCompletion(missionId);
             
@@ -979,6 +1020,12 @@ class DailyRewardsSystem {
         console.log('🎉 Achievement unlocked:', achievement);
         // Show achievement notification
         this.showToast(`🎉 Achievement Unlocked: ${achievement.name}`, 'success');
+    }
+
+    renderWithCache(cachedData) {
+        console.log('Rendering with cached data:', cachedData);
+        // Update UI with cached data
+        this.updateUIWithData(cachedData);
     }
 }
 
