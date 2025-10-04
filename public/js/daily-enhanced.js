@@ -132,6 +132,13 @@ class DailyRewardsSystem {
     async hydrateFromAPI() {
         try {
             console.log('Hydrating from API...');
+            console.log('API object:', window.API);
+            console.log('getDailyState method:', typeof window.API.getDailyState);
+            
+            if (typeof window.API.getDailyState !== 'function') {
+                throw new Error('getDailyState is not a function');
+            }
+            
             const data = await window.API.getDailyState();
             console.log('API response:', data);
             if (!data?.success) {
@@ -305,6 +312,13 @@ class DailyRewardsSystem {
         btn.innerHTML = '<div class="spinner"></div> Checking in...';
 
         try {
+            console.log('Attempting check-in...');
+            console.log('dailyCheckIn method:', typeof window.API.dailyCheckIn);
+            
+            if (typeof window.API.dailyCheckIn !== 'function') {
+                throw new Error('dailyCheckIn is not a function');
+            }
+            
             const resp = await window.API.dailyCheckIn();
             
             if (!resp?.success) {
