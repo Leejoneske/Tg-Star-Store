@@ -400,8 +400,12 @@ class DailyRewardsSystem {
                 list.appendChild(row);
             });
 
-            // Attach event listeners
-            list.addEventListener('click', (e) => this.handleMissionClick(e));
+            // Attach event listeners (remove existing first to prevent duplicates)
+            if (this.missionClickHandler) {
+                list.removeEventListener('click', this.missionClickHandler);
+            }
+            this.missionClickHandler = (e) => this.handleMissionClick(e);
+            list.addEventListener('click', this.missionClickHandler);
 
         } catch (error) {
             console.error('Load missions error:', error);
@@ -969,6 +973,12 @@ class DailyRewardsSystem {
     openRedemptionModal() {
         // Simple implementation for now - just show a message
         this.showToast('Reward redemption feature coming soon!', 'info');
+    }
+
+    handleAchievementUnlock(achievement) {
+        console.log('🎉 Achievement unlocked:', achievement);
+        // Show achievement notification
+        this.showToast(`🎉 Achievement Unlocked: ${achievement.name}`, 'success');
     }
 }
 

@@ -2972,17 +2972,111 @@ app.get('/api/stickers', async (req, res) => {
   }
 });
 
+// Helper functions for mission validation
+async function getWalletAddressForUser(userId) {
+  try {
+    if (process.env.MONGODB_URI) {
+      const user = await User.findOne({ id: userId });
+      return user?.walletAddress || null;
+    } else {
+      const user = await db.findUser(userId);
+      return user?.walletAddress || null;
+    }
+  } catch (e) {
+    console.error('Error getting wallet address:', e);
+    return null;
+  }
+}
+
+async function getOrderCountForUser(userId) {
+  try {
+    if (process.env.MONGODB_URI) {
+      return await Order.countDocuments({ userId, status: 'completed' });
+    } else {
+      const orders = await db.findOrders({ userId, status: 'completed' });
+      return orders.length;
+    }
+  } catch (e) {
+    console.error('Error getting order count:', e);
+    return 0;
+  }
+}
+
+async function getReferralCountForUser(userId) {
+  try {
+    if (process.env.MONGODB_URI) {
+      return await Referral.countDocuments({ referrerUserId: userId, status: { $in: ['active', 'completed'] } });
+    } else {
+      return await db.countReferrals({ referrerUserId: userId, status: { $in: ['active', 'completed'] } });
+    }
+  } catch (e) {
+    console.error('Error getting referral count:', e);
+    return 0;
+  }
+}
+
 // Missions: list and complete
 const DAILY_MISSIONS = [
-  { id: 'm1', title: 'Connect a wallet', points: 20 },
-  { id: 'm2', title: 'Join Telegram channel', points: 10 },
-  { id: 'm3', title: 'Complete your first order', points: 50 },
-  { id: 'm4', title: 'Invite a friend', points: 30 }
+  { id: 'm1', title: 'Connect a wallet', points: 20, description: 'Connect your TON wallet to start trading' },
+  { id: 'm2', title: 'Join Telegram channel', points: 10, description: 'Join our official Telegram channel' },
+  { id: 'm3', title: 'Complete your first order', points: 50, description: 'Complete your first buy or sell order' },
+  { id: 'm4', title: 'Invite a friend', points: 30, description: 'Invite a friend to join StarStore' }
 ];
 
 app.get('/api/daily/missions', requireTelegramAuth, async (_req, res) => {
   // Static mission definitions returned; completion tracked per user in DB
   res.json({ success: true, missions: DAILY_MISSIONS });
+});
+
+// Mission validation endpoints
+app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { missionId } = req.params;
+    const mission = DAILY_MISSIONS.find(m => m.id === missionId);
+    if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
+
+    let isValid = false;
+    let message = '';
+
+    switch (missionId) {
+      case 'm1': // Connect wallet
+        // Check if user has wallet address
+        const walletAddress = await getWalletAddressForUser(userId);
+        isValid = !!walletAddress;
+        message = isValid ? 'Wallet connected successfully!' : 'Please connect your wallet first';
+        break;
+      
+      case 'm2': // Join channel
+        // For now, we'll assume they joined if they're accessing the app
+        // In a real implementation, you'd check Telegram channel membership
+        isValid = true;
+        message = 'Channel joined successfully!';
+        break;
+      
+      case 'm3': // Complete first order
+        // Check if user has any completed orders
+        const orderCount = await getOrderCountForUser(userId);
+        isValid = orderCount > 0;
+        message = isValid ? 'First order completed!' : 'Please complete an order first';
+        break;
+      
+      case 'm4': // Invite friend
+        // Check if user has any referrals
+        const referralCount = await getReferralCountForUser(userId);
+        isValid = referralCount > 0;
+        message = isValid ? 'Friend invited successfully!' : 'Please invite a friend first';
+        break;
+      
+      default:
+        return res.status(400).json({ success: false, error: 'Unknown mission' });
+    }
+
+    res.json({ success: true, isValid, message });
+  } catch (e) {
+    console.error('Mission validation error:', e);
+    res.status(500).json({ success: false, error: 'Validation failed' });
+  }
 });
 
 app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) => {
@@ -2991,6 +3085,16 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     const { missionId } = req.body || {};
     const mission = DAILY_MISSIONS.find(m => m.id === missionId);
     if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
+
+    // Validate mission before completing
+    const validationResp = await fetch(`${req.protocol}://${req.get('host')}/api/daily/missions/validate/${missionId}`, {
+      headers: { 'x-telegram-id': userId }
+    });
+    const validation = await validationResp.json();
+    
+    if (!validation.isValid) {
+      return res.status(400).json({ success: false, error: validation.message });
+    }
 
     let state;
     if (process.env.MONGODB_URI) {
