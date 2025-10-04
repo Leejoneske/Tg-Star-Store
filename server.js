@@ -270,30 +270,28 @@ if (process.env.BOT_TOKEN) {
       process.exit(1);
     });
 }
-// MongoDB connection (use in-memory server if no URI is provided)
+// Database connection (use persistent file storage for development)
+const DataPersistence = require('./data-persistence');
+let db;
+
 async function connectDatabase() {
   if (process.env.MONGODB_URI) {
     try {
       await mongoose.connect(process.env.MONGODB_URI);
       console.log('✅ MongoDB connected successfully');
+      return;
     } catch (err) {
       console.error('❌ MongoDB connection error:', err.message);
       process.exit(1);
     }
-    return;
   }
 
-  console.warn('MONGODB_URI not set. Starting in-memory MongoDB for local/dev.');
+  console.log('📁 Using persistent file-based storage for local/dev.');
   try {
-    const { MongoMemoryServer } = require('mongodb-memory-server');
-    const mongod = await MongoMemoryServer.create();
-    const uri = mongod.getUri();
-    await mongoose.connect(uri);
-    console.log('✅ In-memory MongoDB connected');
-    // Expose for graceful shutdown if needed
-    process.on('exit', async () => { try { await mongod.stop(); } catch (_) {} });
+    db = new DataPersistence();
+    console.log('✅ Persistent database connected');
   } catch (err) {
-    console.error('❌ Failed to start in-memory MongoDB:', err.message);
+    console.error('❌ Failed to start persistent database:', err.message);
     process.exit(1);
   }
 }
@@ -2994,8 +2992,10 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     const mission = DAILY_MISSIONS.find(m => m.id === missionId);
     if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
 
-    let state = await DailyState.findOne({ userId });
-    if (!state) state = new DailyState({ userId });
+    let state = await db.findDailyState(userId);
+    if (!state) {
+      state = await db.createDailyState({ userId, totalPoints: 0, missionsCompleted: [] });
+    }
 
     const completed = new Set(state.missionsCompleted || []);
     if (completed.has(missionId)) {
@@ -3006,7 +3006,7 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     state.missionsCompleted = Array.from(completed);
     state.totalPoints = (state.totalPoints || 0) + mission.points;
     state.updatedAt = new Date();
-    await state.save();
+    await db.updateDailyState(userId, state);
 
     res.json({ success: true, totalPoints: state.totalPoints, missionsCompleted: state.missionsCompleted });
   } catch (e) {
@@ -3021,16 +3021,16 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
     const userId = req.user.id;
     const now = new Date();
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    let state = await DailyState.findOne({ userId });
+    let state = await db.findDailyState(userId);
     if (!state) {
-      state = await DailyState.create({ userId, month: monthKey, checkedInDays: [] });
+      state = await db.createDailyState({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
     }
     // Reset month scope if month rolled over
     if (state.month !== monthKey) {
       state.month = monthKey;
       state.checkedInDays = [];
     }
-    await state.save();
+    await db.updateDailyState(userId, state);
     return res.json({
       success: true,
       userId,
@@ -3055,8 +3055,10 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const day = today.getDate();
 
-    let state = await DailyState.findOne({ userId });
-    if (!state) state = new DailyState({ userId });
+    let state = await db.findDailyState(userId);
+    if (!state) {
+      state = await db.createDailyState({ userId, totalPoints: 0, streak: 0, missionsCompleted: [], checkedInDays: [] });
+    }
 
     // Month rollover
     if (state.month !== monthKey) {
@@ -3089,7 +3091,7 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     days.add(day);
     state.checkedInDays = Array.from(days).sort((a,b) => a-b);
     state.updatedAt = new Date();
-    await state.save();
+    await db.updateDailyState(userId, state);
 
     // Check for milestone achievements
     let streakMilestone = null;
@@ -3348,22 +3350,25 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
 
     // Global: rank users by daily activity points (primary) and referrals (secondary)
     // Get all users with daily activity
-    const dailyUsers = await DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1 })
-      .sort({ totalPoints: -1, streak: -1 })
-      .limit(100);
+    const dailyUsers = await db.findAllDailyStates();
+    dailyUsers.sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      return b.streak - a.streak;
+    });
+    dailyUsers.splice(100); // Limit to 100
 
     const userIds = dailyUsers.map(d => d.userId);
     
     // Get user info and referral counts
     const [users, referralCounts] = await Promise.all([
-      User.find({ id: { $in: userIds } }, { id: 1, username: 1 }),
-      Referral.aggregate([
+      Promise.all(userIds.map(id => db.findUser(id))),
+      db.aggregateReferrals([
         { $match: { referrerUserId: { $in: userIds }, status: { $in: ['active', 'completed'] } } },
         { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
       ])
     ]);
     
-    const idToUsername = new Map(users.map(u => [u.id, u.username]));
+    const idToUsername = new Map(users.filter(u => u).map(u => [u.id, u.username]));
     const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));
 
     const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
@@ -3394,9 +3399,9 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
 
     // Compute requester rank based on daily activity
     let requesterRank = null;
-    const requesterDaily = await DailyState.findOne({ userId: requesterId });
+    const requesterDaily = await db.findDailyState(requesterId);
     if (requesterDaily && requesterDaily.totalPoints > 0) {
-      const usersWithMorePoints = await DailyState.countDocuments({ 
+      const usersWithMorePoints = await db.countDailyStates({ 
         totalPoints: { $gt: requesterDaily.totalPoints } 
       });
       requesterRank = usersWithMorePoints + 1;
