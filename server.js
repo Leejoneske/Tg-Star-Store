@@ -3729,70 +3729,67 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
     }
 
     // Global: rank users by daily activity points (primary) and referrals (secondary)
-    // Get all users with daily activity
-    let dailyUsers;
+    // Get ALL users who have referrals OR daily activity
+    let referralCounts, dailyUsers;
     if (process.env.MONGODB_URI) {
       // Production: Use MongoDB
-      dailyUsers = await DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1 })
-        .sort({ totalPoints: -1, streak: -1 })
-        .limit(100);
+      [referralCounts, dailyUsers] = await Promise.all([
+        Referral.aggregate([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1, lastCheckIn: 1 })
+      ]);
     } else {
       // Development: Use file-based storage
-      dailyUsers = await db.findAllDailyStates();
-      dailyUsers.sort((a, b) => {
-        if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-        return b.streak - a.streak;
-      });
-      dailyUsers.splice(100); // Limit to 100
+      [referralCounts, dailyUsers] = await Promise.all([
+        db.aggregateReferrals([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        db.findAllDailyStates()
+      ]);
     }
 
-    const userIds = dailyUsers.map(d => d.userId);
+    // Get all unique user IDs (from referrals + daily activity)
+    const referralUserIds = referralCounts.map(r => r._id);
+    const dailyUserIds = dailyUsers.map(d => d.userId);
+    const allUserIds = [...new Set([...referralUserIds, ...dailyUserIds])];
     
-    // Get user info and referral counts
-    let users, referralCounts;
+    // Get user info for all users
+    let users;
     if (process.env.MONGODB_URI) {
-      // Production: Use MongoDB
-      [users, referralCounts] = await Promise.all([
-        User.find({ id: { $in: userIds } }, { id: 1, username: 1 }),
-        Referral.aggregate([
-          { $match: { referrerUserId: { $in: userIds }, status: { $in: ['active', 'completed'] } } },
-          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
-        ])
-      ]);
+      users = await User.find({ id: { $in: allUserIds } }, { id: 1, username: 1 });
     } else {
-      // Development: Use file-based storage
-      [users, referralCounts] = await Promise.all([
-        Promise.all(userIds.map(id => db.findUser(id))),
-        db.aggregateReferrals([
-          { $match: { referrerUserId: { $in: userIds }, status: { $in: ['active', 'completed'] } } },
-          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
-        ])
-      ]);
+      users = await Promise.all(allUserIds.map(id => db.findUser(id)));
     }
     
     const idToUsername = new Map(users.filter(u => u).map(u => [u.id, u.username]));
     const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));
+    const idToDailyState = new Map(dailyUsers.map(d => [d.userId, d]));
 
-    console.log(`📊 Leaderboard data: ${dailyUsers.length} users, ${referralCounts.length} referral counts`);
+    console.log(`📊 Leaderboard data: ${allUserIds.length} total users, ${referralCounts.length} with referrals, ${dailyUsers.length} with daily activity`);
     console.log(`📊 Referral counts:`, referralCounts);
 
     const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
     const maxReferrals = Math.max(1, ...referralCounts.map(r => r.referralsCount), 1);
     
-    const entriesRaw = dailyUsers.map(d => {
-      const referrals = idToReferrals.get(d.userId) || 0;
-      const points = d.totalPoints || 0;
-      const missions = d.missionsCompleted?.length || 0;
+    const entriesRaw = allUserIds.map(userId => {
+      const referrals = idToReferrals.get(userId) || 0;
+      const dailyState = idToDailyState.get(userId);
+      const points = dailyState?.totalPoints || 0;
+      const missions = dailyState?.missionsCompleted?.length || 0;
+      const lastCheckIn = dailyState?.lastCheckIn;
       
       // Calculate referral points (5 points per referral)
       const referralPoints = referrals * 5;
       
       // Calculate missing check-in penalty (lose 2 points per missed day)
       const today = new Date();
-      const lastCheckIn = d.lastCheckIn ? new Date(d.lastCheckIn) : null;
+      const lastCheckInDate = lastCheckIn ? new Date(lastCheckIn) : null;
       let missedDays = 0;
-      if (lastCheckIn) {
-        const daysDiff = Math.floor((today - lastCheckIn) / (1000 * 60 * 60 * 24));
+      if (lastCheckInDate) {
+        const daysDiff = Math.floor((today - lastCheckInDate) / (1000 * 60 * 60 * 24));
         missedDays = Math.max(0, daysDiff - 1); // Don't count today as missed
       }
       const penaltyPoints = missedDays * 2;
@@ -3808,41 +3805,26 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
       const score = pointsScore + refScore + missionScore;
       
       return { 
-        userId: d.userId, 
-        username: idToUsername.get(d.userId) || null, 
+        userId: userId, 
+        username: idToUsername.get(userId) || null, 
         referralsCount: referrals,
         referralPoints: referralPoints,
         penaltyPoints: penaltyPoints,
         activityPoints: points,
         totalPoints: totalPoints,
         missionsCompleted: missions,
-        streak: d.streak || 0,
+        streak: dailyState?.streak || 0,
         missedDays: missedDays,
         score 
       };
-    }).sort((x, y) => y.score - x.score);
+    }).sort((x, y) => y.score - x.score).slice(0, 100); // Limit to top 100
 
-    // Compute requester rank based on daily activity
+    // Compute requester rank based on total points (daily + referrals)
     let requesterRank = null;
-    let requesterDaily;
-    if (process.env.MONGODB_URI) {
-      // Production: Use MongoDB
-      requesterDaily = await DailyState.findOne({ userId: requesterId });
-      if (requesterDaily && requesterDaily.totalPoints > 0) {
-        const usersWithMorePoints = await DailyState.countDocuments({ 
-          totalPoints: { $gt: requesterDaily.totalPoints } 
-        });
-        requesterRank = usersWithMorePoints + 1;
-      }
-    } else {
-      // Development: Use file-based storage
-      requesterDaily = await db.findDailyState(requesterId);
-      if (requesterDaily && requesterDaily.totalPoints > 0) {
-        const usersWithMorePoints = await db.countDailyStates({ 
-          totalPoints: { $gt: requesterDaily.totalPoints } 
-        });
-        requesterRank = usersWithMorePoints + 1;
-      }
+    const requesterEntry = entriesRaw.find(e => e.userId === requesterId);
+    if (requesterEntry && requesterEntry.totalPoints > 0) {
+      const usersWithMorePoints = entriesRaw.filter(e => e.totalPoints > requesterEntry.totalPoints).length;
+      requesterRank = usersWithMorePoints + 1;
     }
 
     return res.json({
