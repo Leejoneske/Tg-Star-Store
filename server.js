@@ -3144,10 +3144,14 @@ async function getWalletAddressForUser(userId) {
 async function getOrderCountForUser(userId) {
   try {
     if (process.env.MONGODB_URI) {
-      return await Order.countDocuments({ userId, status: 'completed' });
+      // Check both buy and sell orders
+      const buyOrders = await Order.countDocuments({ telegramId: userId, status: 'completed' });
+      const sellOrders = await SellOrder.countDocuments({ telegramId: userId, status: 'completed' });
+      return buyOrders + sellOrders;
     } else {
-      const orders = await db.findOrders({ userId, status: 'completed' });
-      return orders.length;
+      const buyOrders = await db.findOrders({ telegramId: userId, status: 'completed' });
+      const sellOrders = await db.findSellOrders({ telegramId: userId, status: 'completed' });
+      return buyOrders.length + sellOrders.length;
     }
   } catch (e) {
     console.error('Error getting order count:', e);
@@ -3230,6 +3234,8 @@ app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (r
     const mission = DAILY_MISSIONS.find(m => m.id === missionId);
     if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
 
+    console.log(`🔍 Validating mission ${missionId} for user ${userId}`);
+
     let isValid = false;
     let message = '';
 
@@ -3237,6 +3243,7 @@ app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (r
       case 'm1': // Connect wallet
         // Check if user has wallet address
         const walletAddress = await getWalletAddressForUser(userId);
+        console.log(`💰 Wallet address for user ${userId}:`, walletAddress);
         isValid = !!walletAddress;
         message = isValid ? 'Wallet connected successfully!' : 'Please connect your wallet first';
         break;
@@ -3251,6 +3258,7 @@ app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (r
       case 'm3': // Complete first order
         // Check if user has any completed orders
         const orderCount = await getOrderCountForUser(userId);
+        console.log(`🛍️ Order count for user ${userId}:`, orderCount);
         isValid = orderCount > 0;
         message = isValid ? 'First order completed!' : 'Please complete an order first';
         break;
@@ -3258,6 +3266,7 @@ app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (r
       case 'm4': // Invite friend
         // Check if user has any referrals
         const referralCount = await getReferralCountForUser(userId);
+        console.log(`👥 Referral count for user ${userId}:`, referralCount);
         isValid = referralCount > 0;
         message = isValid ? 'Friend invited successfully!' : 'Please invite a friend first';
         break;

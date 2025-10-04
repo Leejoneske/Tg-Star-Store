@@ -498,15 +498,20 @@ class DailyRewardsSystem {
         const missionId = btn.getAttribute('data-id');
         const originalText = btn.textContent;
 
+        console.log(`🎯 Mission clicked: ${missionId}`);
+
         btn.disabled = true;
         btn.textContent = 'Verifying...';
 
         try {
             // Check if mission has a redirect URL
             const redirectUrl = btn.getAttribute('data-redirect-url');
+            console.log(`🔗 Mission ${missionId} redirect URL:`, redirectUrl);
+            
             if (redirectUrl) {
                 // Show redirect message and open URL
                 this.showToast('Redirecting to complete mission...', 'info');
+                console.log(`🚀 Redirecting to: ${redirectUrl}`);
                 
                 if (redirectUrl.startsWith('http')) {
                     // External URL - open in new tab
@@ -522,7 +527,9 @@ class DailyRewardsSystem {
             }
 
             // Validate mission completion
+            console.log(`🔍 Validating mission ${missionId}...`);
             const isValid = await this.validateMissionCompletion(missionId);
+            console.log(`✅ Mission ${missionId} validation result:`, isValid);
             
             if (!isValid) {
                 this.showToast('Please complete the mission requirements first', 'warning');
