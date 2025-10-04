@@ -3346,43 +3346,60 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
       });
     }
 
-    // Global: rank referrers by blended referrals & activity
-    const agg = await Referral.aggregate([
-      { $match: { status: { $in: ['active', 'completed'] } } },
-      { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } },
-      { $sort: { referralsCount: -1 } },
-      { $limit: 100 }
-    ]);
+    // Global: rank users by daily activity points (primary) and referrals (secondary)
+    // Get all users with daily activity
+    const dailyUsers = await DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1 })
+      .sort({ totalPoints: -1, streak: -1 })
+      .limit(100);
 
-    const ids = agg.map(a => a._id);
-    const [users, activity] = await Promise.all([
-      User.find({ id: { $in: ids } }, { id: 1, username: 1 }),
-      DailyState.find({ userId: { $in: ids } }, { userId: 1, totalPoints: 1 })
+    const userIds = dailyUsers.map(d => d.userId);
+    
+    // Get user info and referral counts
+    const [users, referralCounts] = await Promise.all([
+      User.find({ id: { $in: userIds } }, { id: 1, username: 1 }),
+      Referral.aggregate([
+        { $match: { referrerUserId: { $in: userIds }, status: { $in: ['active', 'completed'] } } },
+        { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+      ])
     ]);
+    
     const idToUsername = new Map(users.map(u => [u.id, u.username]));
-    const idToActivity = new Map(activity.map(d => [d.userId, d.totalPoints]));
+    const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));
 
-    const maxRef = Math.max(1, ...agg.map(a => a.referralsCount));
-    const maxAct = Math.max(1, ...activity.map(a => a.totalPoints || 0), 1);
-    const entriesRaw = agg.map(a => {
-      const act = idToActivity.get(a._id) || 0;
-      const refNorm = a.referralsCount / maxRef;
-      const actNorm = act / maxAct;
-      const score = ((wRef * refNorm) + (wAct * actNorm)) / norm;
-      return { userId: a._id, username: idToUsername.get(a._id) || null, referralsCount: a.referralsCount, activityPoints: act, score };
+    const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
+    const maxReferrals = Math.max(1, ...referralCounts.map(r => r.referralsCount), 1);
+    
+    const entriesRaw = dailyUsers.map(d => {
+      const referrals = idToReferrals.get(d.userId) || 0;
+      const points = d.totalPoints || 0;
+      const missions = d.missionsCompleted?.length || 0;
+      
+      // Score: 70% daily points, 20% referrals, 10% missions
+      const pointsScore = (points / maxPoints) * 0.7;
+      const refScore = (referrals / maxReferrals) * 0.2;
+      const missionScore = Math.min(missions / 10, 1) * 0.1; // Cap missions at 10
+      
+      const score = pointsScore + refScore + missionScore;
+      
+      return { 
+        userId: d.userId, 
+        username: idToUsername.get(d.userId) || null, 
+        referralsCount: referrals, 
+        activityPoints: points,
+        missionsCompleted: missions,
+        streak: d.streak || 0,
+        score 
+      };
     }).sort((x, y) => y.score - x.score);
 
-    // Compute requester rank by referrals
+    // Compute requester rank based on daily activity
     let requesterRank = null;
-    const requesterRefCount = await Referral.countDocuments({ referrerUserId: requesterId, status: { $in: ['active', 'completed'] } });
-    if (requesterRefCount > 0) {
-      const numWithMore = await Referral.aggregate([
-        { $match: { status: { $in: ['active', 'completed'] } } },
-        { $group: { _id: '$referrerUserId', c: { $sum: 1 } } },
-        { $match: { c: { $gt: requesterRefCount } } },
-        { $count: 'n' }
-      ]);
-      requesterRank = (numWithMore[0]?.n || 0) + 1;
+    const requesterDaily = await DailyState.findOne({ userId: requesterId });
+    if (requesterDaily && requesterDaily.totalPoints > 0) {
+      const usersWithMorePoints = await DailyState.countDocuments({ 
+        totalPoints: { $gt: requesterDaily.totalPoints } 
+      });
+      requesterRank = usersWithMorePoints + 1;
     }
 
     return res.json({
@@ -3392,8 +3409,10 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
         rank: idx + 1,
         userId: e.userId,
         username: e.username,
-        points: e.referralsCount,
-        activityPoints: e.activityPoints,
+        points: e.activityPoints,
+        referralsCount: e.referralsCount,
+        missionsCompleted: e.missionsCompleted,
+        streak: e.streak,
         score: Math.round(e.score * 100)
       })),
       userRank: requesterRank
