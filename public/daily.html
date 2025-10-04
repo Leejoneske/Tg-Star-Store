@@ -466,9 +466,7 @@
                     getLeaderboard: typeof window.API?.getLeaderboard
                 });
                 
-                if (typeof TranslationUtils !== 'undefined') {
-                    TranslationUtils.init();
-                }
+                // Translations are auto-initialized by translations.js
                 
                 // Telegram WebApp parity and fullscreen
                 try {

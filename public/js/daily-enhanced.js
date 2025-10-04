@@ -1219,10 +1219,7 @@ let dailySystem;
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Initialize translations
-        if (typeof TranslationUtils !== 'undefined') {
-            TranslationUtils.init();
-        }
+        // Translations are auto-initialized by translations.js
 
         // Check if API is available
         if (typeof window.API === 'undefined') {
