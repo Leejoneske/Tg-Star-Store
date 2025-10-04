@@ -1,10 +1,18 @@
 // API utility for StarStore frontend (restored)
 window.API = {
-    baseURL: '/api',
+    baseURL: (() => {
+        // If we're accessing from localhost or the page is served from localhost, use localhost API
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            return 'http://localhost:3000/api';
+        }
+        // Otherwise use relative path (production)
+        return '/api';
+    })(),
     timeout: 10000,
     
     async request(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
+        console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
         
         // Get authentication headers
         let authHeaders = {};
@@ -72,6 +80,7 @@ window.API = {
 };
 
 // Verify the API object and methods
+console.log('🌐 API Base URL:', window.API.baseURL);
 console.log('API object created:', window.API);
 console.log('API methods:', {
     getDailyState: typeof window.API.getDailyState,
