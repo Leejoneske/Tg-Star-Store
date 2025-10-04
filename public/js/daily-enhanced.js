@@ -131,7 +131,9 @@ class DailyRewardsSystem {
 
     async hydrateFromAPI() {
         try {
+            console.log('Hydrating from API...');
             const data = await window.API.getDailyState();
+            console.log('API response:', data);
             if (!data?.success) {
                 throw new Error(data?.error || 'Failed to load daily state');
             }
@@ -354,6 +356,7 @@ class DailyRewardsSystem {
         list.innerHTML = '<div class="loading-skeleton"></div>';
 
         try {
+            console.log('Loading missions...');
             const [missionsResp, stateResp] = await Promise.all([
                 window.API.getMissions().catch(e => {
                     console.warn('Failed to load missions:', e);
@@ -364,6 +367,8 @@ class DailyRewardsSystem {
                     return this.getDemoData();
                 })
             ]);
+            console.log('Missions response:', missionsResp);
+            console.log('State response:', stateResp);
 
             const missions = missionsResp?.missions || [];
             const completed = new Set(stateResp?.missionsCompleted || []);
@@ -541,8 +546,12 @@ class DailyRewardsSystem {
         el.innerHTML = '<div class="loading-skeleton-lb"></div>';
 
         try {
-            const wRef = parseFloat(document.getElementById('wRef')?.value || 0.7);
-            const wAct = parseFloat(document.getElementById('wAct')?.value || 0.3);
+            const wRefEl = document.getElementById('wRef');
+            const wActEl = document.getElementById('wAct');
+            const wRef = wRefEl ? parseFloat(wRefEl.value || 0.7) : 0.7;
+            const wAct = wActEl ? parseFloat(wActEl.value || 0.3) : 0.3;
+            
+            console.log('Loading leaderboard with weights:', { wRef, wAct, tab: this.currentLeaderboardTab });
             
             const data = await window.API.getLeaderboard(
                 this.currentLeaderboardTab,
@@ -586,7 +595,7 @@ class DailyRewardsSystem {
             if (cached && cached.tab === this.currentLeaderboardTab) {
                 this.renderLeaderboardFromCache(cached.data);
             } else {
-                el.innerHTML = '<div class="error-message">Leaderboard temporarily unavailable</div>';
+                el.innerHTML = `<div class="error-message">Leaderboard temporarily unavailable: ${error.message}</div>`;
             }
         }
     }

@@ -7,12 +7,30 @@ class API {
 
     async request(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
+        
+        // Get authentication headers
+        let authHeaders = {};
+        
+        // Try to get Telegram WebApp data
+        if (window.Telegram?.WebApp?.initData) {
+            authHeaders['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+        }
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            authHeaders['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
+        }
+        
+        // Fallback for development/testing when not in Telegram
+        if (!authHeaders['x-telegram-id'] && !authHeaders['x-telegram-init-data']) {
+            // Use a default user ID for development
+            authHeaders['x-telegram-id'] = 'dev-user-' + Math.random().toString(36).substr(2, 9);
+            console.log('Using development user ID:', authHeaders['x-telegram-id']);
+        }
+        
         const config = {
             timeout: this.timeout,
             headers: {
                 'Content-Type': 'application/json',
-                ...(window.Telegram?.WebApp?.initData ? { 'x-telegram-init-data': window.Telegram.WebApp.initData } : {}),
-                ...(window.Telegram?.WebApp?.initDataUnsafe?.user?.id ? { 'x-telegram-id': window.Telegram.WebApp.initDataUnsafe.user.id } : {}),
+                ...authHeaders,
                 ...options.headers
             },
             ...options
