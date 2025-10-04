@@ -3028,20 +3028,7 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
       // Production: Use MongoDB
       state = await DailyState.findOne({ userId });
       if (!state) {
-        // Initialize with your test data if this is your account
-        if (userId === '5107333540') {
-          state = await DailyState.create({ 
-            userId, 
-            month: monthKey, 
-            checkedInDays: [4], 
-            totalPoints: 30, 
-            streak: 1, 
-            missionsCompleted: ['m1'],
-            lastCheckIn: new Date()
-          });
-        } else {
-          state = await DailyState.create({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
-        }
+        state = await DailyState.create({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
       }
     } else {
       // Development: Use file-based storage
@@ -3406,13 +3393,26 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
     const userIds = dailyUsers.map(d => d.userId);
     
     // Get user info and referral counts
-    const [users, referralCounts] = await Promise.all([
-      Promise.all(userIds.map(id => db.findUser(id))),
-      db.aggregateReferrals([
-        { $match: { referrerUserId: { $in: userIds }, status: { $in: ['active', 'completed'] } } },
-        { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
-      ])
-    ]);
+    let users, referralCounts;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      [users, referralCounts] = await Promise.all([
+        User.find({ id: { $in: userIds } }, { id: 1, username: 1 }),
+        Referral.aggregate([
+          { $match: { referrerUserId: { $in: userIds }, status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ])
+      ]);
+    } else {
+      // Development: Use file-based storage
+      [users, referralCounts] = await Promise.all([
+        Promise.all(userIds.map(id => db.findUser(id))),
+        db.aggregateReferrals([
+          { $match: { referrerUserId: { $in: userIds }, status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ])
+      ]);
+    }
     
     const idToUsername = new Map(users.filter(u => u).map(u => [u.id, u.username]));
     const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));

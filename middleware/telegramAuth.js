@@ -38,22 +38,6 @@ function requireTelegramAuth(req, res, next) {
   const botToken = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
 
   if (process.env.NODE_ENV === 'production') {
-    // Allow testing with specific Telegram ID in production
-    const testTelegramId = req.headers['x-telegram-id'];
-    if (testTelegramId === '5107333540') {
-      console.log('🔧 Production testing mode: Using Telegram ID 5107333540');
-      req.user = { id: '5107333540', isAdmin: false };
-      return next();
-    }
-    
-    // Debug: Log all headers for troubleshooting
-    console.log('🔍 Auth Debug:', {
-      headers: Object.keys(req.headers).filter(h => h.includes('telegram') || h.includes('user')),
-      initDataLength: initDataHeader.length,
-      hasBotToken: !!botToken,
-      userAgent: req.headers['user-agent']
-    });
-    
     const valid = validateTelegramInitData(initDataHeader, botToken);
     if (!valid) {
       console.log('❌ Telegram auth validation failed:', { 
