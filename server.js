@@ -2992,9 +2992,19 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     const mission = DAILY_MISSIONS.find(m => m.id === missionId);
     if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
 
-    let state = await db.findDailyState(userId);
-    if (!state) {
-      state = await db.createDailyState({ userId, totalPoints: 0, missionsCompleted: [] });
+    let state;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      state = await DailyState.findOne({ userId });
+      if (!state) {
+        state = await DailyState.create({ userId, totalPoints: 0, missionsCompleted: [] });
+      }
+    } else {
+      // Development: Use file-based storage
+      state = await db.findDailyState(userId);
+      if (!state) {
+        state = await db.createDailyState({ userId, totalPoints: 0, missionsCompleted: [] });
+      }
     }
 
     const completed = new Set(state.missionsCompleted || []);
@@ -3006,7 +3016,13 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     state.missionsCompleted = Array.from(completed);
     state.totalPoints = (state.totalPoints || 0) + mission.points;
     state.updatedAt = new Date();
-    await db.updateDailyState(userId, state);
+    
+    // Save the state
+    if (process.env.MONGODB_URI) {
+      await state.save();
+    } else {
+      await db.updateDailyState(userId, state);
+    }
 
     res.json({ success: true, totalPoints: state.totalPoints, missionsCompleted: state.missionsCompleted });
   } catch (e) {
@@ -3079,9 +3095,19 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const day = today.getDate();
 
-    let state = await db.findDailyState(userId);
-    if (!state) {
-      state = await db.createDailyState({ userId, totalPoints: 0, streak: 0, missionsCompleted: [], checkedInDays: [] });
+    let state;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      state = await DailyState.findOne({ userId });
+      if (!state) {
+        state = await DailyState.create({ userId, totalPoints: 0, streak: 0, missionsCompleted: [], checkedInDays: [] });
+      }
+    } else {
+      // Development: Use file-based storage
+      state = await db.findDailyState(userId);
+      if (!state) {
+        state = await db.createDailyState({ userId, totalPoints: 0, streak: 0, missionsCompleted: [], checkedInDays: [] });
+      }
     }
 
     // Month rollover
@@ -3115,7 +3141,13 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     days.add(day);
     state.checkedInDays = Array.from(days).sort((a,b) => a-b);
     state.updatedAt = new Date();
-    await db.updateDailyState(userId, state);
+    
+    // Save the state
+    if (process.env.MONGODB_URI) {
+      await state.save();
+    } else {
+      await db.updateDailyState(userId, state);
+    }
 
     // Check for milestone achievements
     let streakMilestone = null;
