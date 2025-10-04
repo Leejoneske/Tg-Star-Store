@@ -1217,7 +1217,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         console.log('API object found:', window.API);
-        console.log('API methods:', typeof window.API.getDailyState, typeof window.API.dailyCheckIn, typeof window.API.getLeaderboard);
+        console.log('API constructor:', window.API?.constructor?.name);
+        console.log('API methods:', {
+            getDailyState: typeof window.API.getDailyState,
+            dailyCheckIn: typeof window.API.dailyCheckIn,
+            getLeaderboard: typeof window.API.getLeaderboard,
+            getMissions: typeof window.API.getMissions,
+            completeMission: typeof window.API.completeMission
+        });
+        
+        // Test if we can call a method
+        try {
+            console.log('Testing API method call...');
+            const testResult = await window.API.getDailyState();
+            console.log('API test successful:', testResult);
+        } catch (error) {
+            console.error('API test failed:', error);
+        }
 
         // Initialize daily system
         dailySystem = new DailyRewardsSystem();
