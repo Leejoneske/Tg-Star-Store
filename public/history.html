@@ -214,16 +214,8 @@
 
         <!-- Page Header -->
         <header class="px-4 py-3 bg-white border-b border-gray-200">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center">
                 <h1 class="text-base font-semibold text-gray-900" data-translate="history">Transaction History</h1>
-                <div class="flex items-center space-x-3">
-                    <select id="languageSelectHistory" class="language-toggle">
-                        <option value="en">English</option>
-                        <option value="ru">Русский</option>
-                        <option value="hi">हिंदी</option>
-                        <option value="ar">العربية</option>
-                    </select>
-                </div>
             </div>
         </header>
         
@@ -397,21 +389,6 @@ window.addEventListener('storage', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
-    
-    // Language selection functionality
-    const languageSelect = document.getElementById('languageSelectHistory');
-    if (languageSelect) {
-        // Set current language
-        const currentLang = TranslationUtils.getCurrentLanguage();
-        languageSelect.value = currentLang;
-        
-        // Handle language change
-        languageSelect.addEventListener('change', function() {
-            const selectedLang = this.value;
-            TranslationUtils.setLanguage(selectedLang);
-            TranslationUtils.applyTranslations();
-        });
-    }
 });
 
 

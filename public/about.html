@@ -130,16 +130,8 @@
 <div class="app-container">
     <!-- Page Header -->
     <header class="px-4 py-3 bg-white border-b border-gray-200">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center">
             <h1 class="text-base font-semibold text-gray-900" data-translate="moreSettings">More Settings</h1>
-            <div class="flex items-center space-x-3">
-                <select id="languageSelectSettings" class="language-toggle">
-                    <option value="en">English</option>
-                    <option value="ru">Русский</option>
-                    <option value="hi">हिंदी</option>
-                    <option value="ar">العربية</option>
-                </select>
-            </div>
         </div>
     </header>
 
@@ -329,18 +321,6 @@
                 }
             });
         
-        // Set up language selector
-        const languageSelect = document.getElementById('languageSelectSettings');
-        if (languageSelect) {
-            languageSelect.value = currentLanguage;
-            languageSelect.addEventListener('change', () => {
-                const newLanguage = languageSelect.value;
-                TranslationUtils.setCurrentLanguage(newLanguage);
-                currentLanguage = newLanguage;
-                try { localStorage.setItem('appLanguage', currentLanguage); } catch (_) {}
-                updateLanguage();
-            });
-        }
 
         // Daily Login Link Handler (12 tap easter egg)
         const dailyLoginLink = document.getElementById('dailyLoginLink');

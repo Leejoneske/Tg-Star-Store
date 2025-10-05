@@ -240,16 +240,8 @@
  
         <!-- Page Header -->
         <header class="px-4 py-3 bg-white border-b border-gray-200">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center">
                 <h1 class="text-base font-semibold text-gray-900" data-translate="referral">Referral Program</h1>
-                <div class="flex items-center space-x-3">
-                    <select id="languageSelectReferral" class="language-toggle">
-                        <option value="en">English</option>
-                        <option value="ru">Русский</option>
-                        <option value="hi">हिंदी</option>
-                        <option value="ar">العربية</option>
-                    </select>
-                </div>
             </div>
         </header>
 
@@ -261,27 +253,27 @@
             </div>
 
             <!-- Stats Section -->
-            <div class="clean-card mb-6">
+            <div class="referral-stats p-5 mb-6 text-white">
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        <div class="text-sm text-gray-500 mb-1" data-translate="availableBalance">Available Balance</div>
-                        <div class="text-2xl font-bold text-gray-800" id="availableBalance">0.00 USDT</div>
+                        <div class="text-sm opacity-80 mb-1" data-translate="availableBalance">Available Balance</div>
+                        <div class="text-2xl font-bold" id="availableBalance">0.00 USDT</div>
                     </div>
-                    <button id="withdrawButton" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors" data-translate="withdraw">Withdraw</button>
+                    <button id="withdrawButton" class="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition-colors" data-translate="withdraw">Withdraw</button>
                 </div>
                 
                 <div class="grid grid-cols-3 gap-4">
-                    <div class="stat-box text-center">
-                        <div class="text-xs text-gray-500 mb-1" data-translate="totalEarned">Total Earned</div>
-                        <div class="text-lg font-bold text-indigo-600" id="totalEarned">0.00 USDT</div>
+                    <div class="text-center">
+                        <div class="text-sm opacity-80 mb-1" data-translate="totalEarned">Total Earned</div>
+                        <div class="text-lg font-semibold" id="totalEarned">0.00 USDT</div>
                     </div>
-                    <div class="stat-box text-center">
-                        <div class="text-xs text-gray-500 mb-1" data-translate="referrals">Referrals</div>
-                        <div class="text-lg font-bold text-indigo-600" id="referralsCount">0</div>
+                    <div class="text-center">
+                        <div class="text-sm opacity-80 mb-1" data-translate="referrals">Referrals</div>
+                        <div class="text-lg font-semibold" id="referralsCount">0</div>
                     </div>
-                    <div class="stat-box text-center">
-                        <div class="text-xs text-gray-500 mb-1" data-translate="pending">Pending</div>
-                        <div class="text-lg font-bold text-indigo-600" id="pendingAmount">0.00 USDT</div>
+                    <div class="text-center">
+                        <div class="text-sm opacity-80 mb-1" data-translate="pending">Pending</div>
+                        <div class="text-lg font-semibold" id="pendingAmount">0.00 USDT</div>
                     </div>
                 </div>
             </div>
@@ -1078,22 +1070,6 @@ if (typeof TranslationUtils !== 'undefined') {
     TranslationUtils.init();
 }
 
-// Language selection functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const languageSelect = document.getElementById('languageSelectReferral');
-    if (languageSelect) {
-        // Set current language
-        const currentLang = TranslationUtils.getCurrentLanguage();
-        languageSelect.value = currentLang;
-        
-        // Handle language change
-        languageSelect.addEventListener('change', function() {
-            const selectedLang = this.value;
-            TranslationUtils.setLanguage(selectedLang);
-            TranslationUtils.applyTranslations();
-        });
-    }
-});
 
 function applyTranslations() {
     if (typeof TranslationUtils !== 'undefined') {
