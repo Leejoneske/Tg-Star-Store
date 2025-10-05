@@ -3221,7 +3221,7 @@ async function getWalletAddressForUser(userId) {
   try {
     if (process.env.MONGODB_URI) {
       // Check if user has any orders with wallet addresses
-      const buyOrder = await Order.findOne({ telegramId: userId, walletAddress: { $exists: true, $ne: null } });
+      const buyOrder = await BuyOrder.findOne({ telegramId: userId, walletAddress: { $exists: true, $ne: null } });
       const sellOrder = await SellOrder.findOne({ telegramId: userId, walletAddress: { $exists: true, $ne: null } });
       return buyOrder?.walletAddress || sellOrder?.walletAddress || null;
     } else {
@@ -4832,13 +4832,14 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
 
 
 bot.onText(/\/help/, (msg) => {
-    const chatId = msg.chat.id;
-    const userId = msg.from.id.toString();
-    const isAdmin = adminIds.includes(userId);
+    try {
+        const chatId = msg.chat.id;
+        const userId = msg.from.id.toString();
+        const isAdmin = adminIds.includes(userId);
 
-    if (isAdmin) {
-        // Show admin help
-        const adminHelpText = `🔧 **Admin Commands Help**
+        if (isAdmin) {
+            // Show admin help
+            const adminHelpText = `🔧 **Admin Commands Help**
 
 **👥 User Management:**
 /ban [user_id] - Ban a user from using the bot
@@ -4915,13 +4916,17 @@ Contact our support team for personalized help:
 • Or send us a message directly
 
 **📞 Support Channels:**
-• Telegram: @StarStore_Chat
-• Channel: @StarStore_app
-• Bot: @TgStarStore_bot
+• Telegram: @StarStore\\_Chat
+• Channel: @StarStore\\_app
+• Bot: @TgStarStore\\_bot
 
 We're here to help 24/7!`;
 
         bot.sendMessage(chatId, userHelpText, { parse_mode: 'Markdown' });
+        }
+    } catch (error) {
+        console.error('Help command error:', error);
+        bot.sendMessage(msg.chat.id, '❌ Failed to load help. Please try again later.');
     }
 });
 
@@ -4939,9 +4944,9 @@ We're here to assist you 24/7! Choose how you'd like to contact us:
 • /paysupport [message] - For payment issues
 
 **🔹 Direct Contact:**
-• **Community Chat**: @StarStore_Chat
-• **Official Channel**: @StarStore_app  
-• **Support Bot**: @TgStarStore_bot
+• **Community Chat**: @StarStore\\_Chat
+• **Official Channel**: @StarStore\\_app  
+• **Support Bot**: @TgStarStore\\_bot
 
 **🔹 What can we help with?**
 • Account issues
