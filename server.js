@@ -4884,43 +4884,17 @@ bot.onText(/\/help/, (msg) => {
         bot.sendMessage(chatId, adminHelpText, { parse_mode: 'Markdown' });
     } else {
         // Show user help
-        const userHelpText = `📖 **StarStore Bot Commands**
+        const userHelpText = `🤖 **StarStore Bot**
 
-**🔹 General Commands:**
-/start - Start using the bot and get welcome message
-/wallet - View your wallet and withdrawal options
-/orders - View your order history
-/referrals - Check your referral statistics
-/help - Show this help menu
+**Main Commands:**
+/wallet - Manage your funds
+/orders - View transaction history
+/referrals - Check your earnings
 
-**🔹 Support Commands:**
-/contact - Contact our support team
-/paysupport [message] - Request payment support
+**Need Help?**
+/contact - Contact support
 
-**🔹 How to Use:**
-1. Use /start to begin
-2. Use /wallet to manage your funds
-3. Use /orders to track your transactions
-4. Use /referrals to check your earnings
-
-**🔹 StarStore Features:**
-• Buy Telegram Stars with USDT
-• Sell Stars for USDT
-• Referral program with rewards
-• Secure wallet management
-• 24/7 customer support
-
-**❓ Can't find what you're looking for?**
-Contact our support team for personalized help:
-• Use /paysupport for payment issues
-• Or send us a message directly
-
-**📞 Support Channels:**
-• Telegram: @StarStore\\_Chat
-• Channel: @StarStore\\_app
-• Bot: @TgStarStore\\_bot
-
-We're here to help 24/7!`;
+*Use /start to begin trading Stars!*`;
 
         bot.sendMessage(chatId, userHelpText, { parse_mode: 'Markdown' });
         }
@@ -4935,28 +4909,11 @@ bot.onText(/\/contact/, (msg) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
 
-    const contactText = `📞 **Contact StarStore Support**
+    const contactText = `📞 **Contact Support**
 
-**❓ Need Help?**
-We're here to assist you 24/7! Choose how you'd like to contact us:
+**Need help? Just type your message below and we'll respond quickly!**
 
-**🔹 Quick Support:**
-• /paysupport [message] - For payment issues
-
-**🔹 Direct Contact:**
-• **Community Chat**: @StarStore\\_Chat
-• **Official Channel**: @StarStore\\_app  
-• **Support Bot**: @TgStarStore\\_bot
-
-**🔹 What can we help with?**
-• Account issues
-• Payment problems
-• Order questions
-• Technical support
-• General inquiries
-
-**📝 Send us a message:**
-Just type your question below and we'll get back to you shortly!`;
+*For payment issues, use /paysupport*`;
 
     bot.sendMessage(chatId, contactText, { parse_mode: 'Markdown' });
     
