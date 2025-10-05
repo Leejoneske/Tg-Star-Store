@@ -196,8 +196,8 @@
             </div>
             
             <div id="transactionsContent" class="tab-content active">
-                <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
-                    <h3 class="text-lg font-semibold mb-4" data-translate="overview">Overview</h3>
+                <div class="bg-white rounded-lg shadow-sm p-3 mb-4">
+                    <h3 class="text-base font-semibold mb-3" data-translate="overview">Overview</h3>
                     <div class="chart-container">
                         <canvas id="transactionChart"></canvas>
                     </div>
@@ -225,7 +225,7 @@
                 </div>
                 
                 <div class="relative mb-6">
-                    <input type="text" id="searchTransactions" class="w-full p-3 pl-10 pr-4 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Search transactions...">
+                    <input type="text" id="searchTransactions" class="w-full p-2 pl-10 pr-4 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Search transactions...">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
                             <circle cx="11" cy="11" r="8"></circle>
@@ -251,7 +251,7 @@
                 
                 <div id="transactionsPagination" class="flex justify-center items-center gap-2 mb-6"></div>
                 
-                <button id="exportTransactions" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors mb-8 flex justify-center items-center">
+                <button id="exportTransactions" class="w-full py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors mb-6 flex justify-center items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
@@ -269,7 +269,7 @@
                 </div>
                 
                 <div class="relative mb-6">
-                    <input type="text" id="searchReferrals" class="w-full p-3 pl-10 pr-4 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Search referrals...">
+                    <input type="text" id="searchReferrals" class="w-full p-2 pl-10 pr-4 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Search referrals...">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
                             <circle cx="11" cy="11" r="8"></circle>
@@ -294,7 +294,7 @@
                 
                 <div id="referralsPagination" class="flex justify-center items-center gap-2 mb-6"></div>
                 
-                <button id="exportReferrals" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors mb-8 flex justify-center items-center">
+                <button id="exportReferrals" class="w-full py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors mb-6 flex justify-center items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
@@ -605,7 +605,7 @@ function updateTransactionList() {
         
         paginatedTransactions.forEach(txn => {
             const txnCard = document.createElement('div');
-            txnCard.className = 'transaction-card bg-white p-4';
+            txnCard.className = 'transaction-card bg-white p-3';
             const dateStr = formatDate(txn.date);
             let statusClass = '';
             let statusText = '';
@@ -686,7 +686,7 @@ function updateReferralList() {
         
         paginatedReferrals.forEach(ref => {
             const refCard = document.createElement('div');
-            refCard.className = 'transaction-card bg-white p-4';
+            refCard.className = 'transaction-card bg-white p-3';
             const dateStr = formatDate(ref.date);
             let statusClass = '';
             let statusText = '';
