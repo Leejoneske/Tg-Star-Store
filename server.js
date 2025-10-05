@@ -329,7 +329,13 @@ app.get('/api/version', (req, res) => {
                 commitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim().split(' ')[0]
             };
         } catch (gitError) {
-            console.warn('Could not get git info:', gitError.message);
+            console.warn('Could not get git info (git not available in production):', gitError.message);
+            gitInfo = {
+                buildNumber: '0',
+                commitHash: 'production',
+                branch: 'main',
+                commitDate: buildDate
+            };
         }
         
         res.json({
@@ -5002,18 +5008,34 @@ bot.onText(/\/version/, (msg) => {
         const packageJson = require('./package.json');
         const { execSync } = require('child_process');
         
-        // Get git information
-        const gitInfo = {
-            commitCount: execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(),
-            currentHash: execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(),
-            branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(),
-            lastCommitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim(),
-            lastCommitMessage: execSync('git log -1 --format=%s', { encoding: 'utf8' }).trim(),
-            lastCommitAuthor: execSync('git log -1 --format=%an', { encoding: 'utf8' }).trim()
-        };
+        // Get git information with error handling
+        let gitInfo = {};
+        let recentCommits = [];
         
-        // Get recent commits (last 5)
-        const recentCommits = execSync('git log -5 --oneline', { encoding: 'utf8' }).trim().split('\n');
+        try {
+            gitInfo = {
+                commitCount: execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(),
+                currentHash: execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(),
+                branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(),
+                lastCommitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim(),
+                lastCommitMessage: execSync('git log -1 --format=%s', { encoding: 'utf8' }).trim(),
+                lastCommitAuthor: execSync('git log -1 --format=%an', { encoding: 'utf8' }).trim()
+            };
+            
+            // Get recent commits (last 5)
+            recentCommits = execSync('git log -5 --oneline', { encoding: 'utf8' }).trim().split('\n');
+        } catch (gitError) {
+            console.warn('Git not available in production environment:', gitError.message);
+            gitInfo = {
+                commitCount: 'N/A',
+                currentHash: 'N/A',
+                branch: 'N/A',
+                lastCommitDate: new Date().toISOString(),
+                lastCommitMessage: 'Production build',
+                lastCommitAuthor: 'System'
+            };
+            recentCommits = ['Production environment - git not available'];
+        }
         
         // Calculate time since last update
         const lastUpdate = new Date(gitInfo.lastCommitDate);
