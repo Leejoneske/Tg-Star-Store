@@ -4784,7 +4784,6 @@ bot.onText(/\/help/, (msg) => {
 **🔹 Support Commands:**
 /contact - Contact our support team
 /paysupport [message] - Request payment support
-/reverse [message] - Request order reversal
 
 **🔹 How to Use:**
 1. Use /start to begin
@@ -4802,7 +4801,6 @@ bot.onText(/\/help/, (msg) => {
 **❓ Can't find what you're looking for?**
 Contact our support team for personalized help:
 • Use /paysupport for payment issues
-• Use /reverse for order problems
 • Or send us a message directly
 
 **📞 Support Channels:**
@@ -4828,7 +4826,6 @@ We're here to assist you 24/7! Choose how you'd like to contact us:
 
 **🔹 Quick Support:**
 • /paysupport [message] - For payment issues
-• /reverse [message] - For order problems
 
 **🔹 Direct Contact:**
 • **Community Chat**: @StarStore_Chat
