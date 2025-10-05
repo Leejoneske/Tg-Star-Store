@@ -2157,6 +2157,10 @@ bot.on('callback_query', async (query) => {
                                     } else {
                                         text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username || order.telegramId}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
                                     }
+                                    
+                                    // Update the originalText in the database to preserve the new wallet address
+                                    m.originalText = text;
+                                    
                                     // Re-attach the original sell action buttons to guarantee they remain
                                     const sellButtons = {
                                         inline_keyboard: [[
@@ -2169,6 +2173,9 @@ bot.on('callback_query', async (query) => {
                                         await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: sellButtons });
                                     } catch (_) {}
                                 }));
+                                
+                                // Save the updated admin messages back to the database
+                                await order.save();
                             }
                         }
                     } else {
@@ -4341,15 +4348,15 @@ async function handleReferralActivation(tracker) {
         }
 
         // Format detailed admin notification
-        const adminMessage = `🎉 REFERRAL ACTIVATED!\n\n` +
-            `🔗 Referral Link: ${tracker.referral}\n` +
-            `👤 Referrer: @${referrer?.username || 'unknown'} (ID: ${tracker.referrerUserId})\n` +
-            `👥 Referred: @${referred?.username || tracker.referredUsername || 'unknown'} (ID: ${tracker.referredUserId})\n` +
-            `⭐ Total Stars Bought: ${tracker.totalBoughtStars}\n` +
-            `⭐ Total Stars Sold: ${tracker.totalSoldStars}\n` +
-            `🎖️ Premium Activated: ${tracker.premiumActivated ? 'Yes' : 'No'}\n` +
-            `📅 Date Referred: ${tracker.dateReferred.toLocaleDateString()}\n` +
-            `📅 Date Activated: ${new Date().toLocaleDateString()}`;
+        const adminMessage = `REFERRAL ACTIVATED\n\n` +
+            `Referral Link: ${tracker.referral}\n` +
+            `Referrer: @${referrer?.username || 'unknown'} (ID: ${tracker.referrerUserId})\n` +
+            `Referred User: @${referred?.username || tracker.referredUsername || 'unknown'} (ID: ${tracker.referredUserId})\n` +
+            `Total Stars Bought: ${tracker.totalBoughtStars}\n` +
+            `Total Stars Sold: ${tracker.totalSoldStars}\n` +
+            `Premium Activated: ${tracker.premiumActivated ? 'Yes' : 'No'}\n` +
+            `Date Referred: ${tracker.dateReferred.toLocaleDateString()}\n` +
+            `Date Activated: ${new Date().toLocaleDateString()}`;
 
         // Send to all admins
         let adminNotificationSuccess = false;
@@ -5180,6 +5187,9 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
                         text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username || order.telegramId}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
                     }
                     
+                    // Update the originalText in the database to preserve the new wallet address
+                    m.originalText = text;
+                    
                     // Re-attach the original sell action buttons
                     const sellButtons = {
                         inline_keyboard: [[
@@ -5199,6 +5209,9 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
                         console.warn(`Failed to edit admin message for order ${order.id}:`, e.message);
                     }
                 }));
+                
+                // Save the updated admin messages back to the database
+                await order.save();
             }
         } else {
             order = await ReferralWithdrawal.findOne({ withdrawalId: orderId, userId: userId });
