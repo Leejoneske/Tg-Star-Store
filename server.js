@@ -311,6 +311,30 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+// Version endpoint
+app.get('/api/version', (req, res) => {
+    try {
+        const packageJson = require('./package.json');
+        const version = packageJson.version || '1.0.0';
+        const buildDate = new Date().toISOString().split('T')[0];
+        
+        res.json({
+            version: version,
+            buildDate: buildDate,
+            name: packageJson.name || 'starstore',
+            description: packageJson.description || 'StarStore - A Telegram Mini App'
+        });
+    } catch (error) {
+        console.error('Error reading package.json:', error);
+        res.json({
+            version: '1.0.0',
+            buildDate: new Date().toISOString().split('T')[0],
+            name: 'starstore',
+            description: 'StarStore - A Telegram Mini App'
+        });
+    }
+});
+
 // Simple whoami endpoint to expose admin flag to frontend
 app.get('/api/whoami', (req, res) => {
   try {

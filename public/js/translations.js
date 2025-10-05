@@ -492,7 +492,7 @@ const translations = {
         // Error Messages
         somethingWentWrong: "Something went wrong",
         tryAgain: "Please try again",
-        contactSupport: "Please contact support",
+        contactSupport: "Contact support",
         networkError: "Network error",
         serverError: "Server error",
         timeoutError: "Request timeout",
@@ -1014,7 +1014,7 @@ const translations = {
         // Error Messages
         somethingWentWrong: "Что-то пошло не так",
         tryAgain: "Пожалуйста, попробуйте снова",
-        contactSupport: "Пожалуйста, обратитесь в поддержку",
+        contactSupport: "Обратитесь в поддержку",
         networkError: "Ошибка сети",
         serverError: "Ошибка сервера",
         timeoutError: "Таймаут запроса",

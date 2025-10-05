@@ -49,6 +49,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="js/translations.js?v=2"></script>
     <script src="js/loading.js"></script>
+    <script src="js/version.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
@@ -281,8 +282,8 @@
 
         <!-- App Version -->
         <div class="text-center text-sm text-gray-500 mt-8 mb-4">
-            <p>StarStore v1.0.0</p>
-            <p class="text-xs mt-1">© 2025 StarStore. All rights reserved.</p>
+            <p data-version>StarStore v1.0.0</p>
+            <p class="text-xs mt-1">© 2025 StarStore. All rights reserved. | Build: <span data-build-date></span></p>
         </div>
 
     </div>
@@ -361,17 +362,17 @@
 
         // About Link Handler
         document.getElementById('aboutLink')?.addEventListener('click', () => {
-            showToast('About page coming soon', 'info');
+            window.location.href = '/about.html';
         });
 
         // Privacy Link Handler
         document.getElementById('privacyLink')?.addEventListener('click', () => {
-            showToast('Privacy policy coming soon', 'info');
+            window.location.href = '/policy.html';
         });
 
         // Terms Link Handler
         document.getElementById('termsLink')?.addEventListener('click', () => {
-            showToast('Terms of service coming soon', 'info');
+            window.location.href = '/policy.html';
         });
     });
 
