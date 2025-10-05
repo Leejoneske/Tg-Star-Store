@@ -3,7 +3,7 @@
 
 class VersionManager {
     constructor() {
-        this.version = '1.1.0'; // Fallback version - should match package.json (1.1.0)
+        this.version = '3.1.6'; // Fallback version - should match package.json (1.1.0)
         this.buildDate = new Date().toISOString().split('T')[0];
         this.init();
     }
@@ -36,12 +36,12 @@ class VersionManager {
         
         versionElements.forEach(element => {
             const originalText = element.textContent;
-            if (originalText.includes('v1.0.0')) {
-                element.textContent = originalText.replace('v1.0.0', `v${this.version}`);
+            if (originalText.includes('v1.0.0') || originalText.includes('v1.1.0')) {
+                element.textContent = originalText.replace(/v[\d\.]+/, `v${this.version}`);
                 console.log('Updated version element:', originalText, '->', element.textContent);
             } else if (originalText.includes('StarStore')) {
                 // Handle case where version might already be updated
-                element.textContent = originalText.replace(/v\d+\.\d+\.\d+/, `v${this.version}`);
+                element.textContent = originalText.replace(/v[\d\.]+/, `v${this.version}`);
                 console.log('Updated existing version element:', originalText, '->', element.textContent);
             }
         });
@@ -53,6 +53,24 @@ class VersionManager {
         buildDateElements.forEach(element => {
             element.textContent = this.buildDate;
             console.log('Updated build date element:', element.textContent);
+        });
+
+        // Update elements with data-build-number attribute
+        const buildNumberElements = document.querySelectorAll('[data-build-number]');
+        console.log('Found build number elements:', buildNumberElements.length);
+        
+        buildNumberElements.forEach(element => {
+            element.textContent = this.buildNumber || 'Unknown';
+            console.log('Updated build number element:', element.textContent);
+        });
+
+        // Update elements with data-commit-hash attribute
+        const commitHashElements = document.querySelectorAll('[data-commit-hash]');
+        console.log('Found commit hash elements:', commitHashElements.length);
+        
+        commitHashElements.forEach(element => {
+            element.textContent = this.commitHash || 'Unknown';
+            console.log('Updated commit hash element:', element.textContent);
         });
     }
 

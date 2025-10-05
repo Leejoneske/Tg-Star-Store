@@ -318,19 +318,43 @@ app.get('/api/version', (req, res) => {
         const version = packageJson.version || '1.0.0';
         const buildDate = new Date().toISOString().split('T')[0];
         
+        // Try to get git information
+        let gitInfo = {};
+        try {
+            const { execSync } = require('child_process');
+            gitInfo = {
+                buildNumber: execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(),
+                commitHash: execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(),
+                branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(),
+                commitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim().split(' ')[0]
+            };
+        } catch (gitError) {
+            console.warn('Could not get git info:', gitError.message);
+        }
+        
         res.json({
             version: version,
-            buildDate: buildDate,
+            buildDate: gitInfo.commitDate || buildDate,
+            buildNumber: gitInfo.buildNumber || '0',
+            commitHash: gitInfo.commitHash || 'unknown',
+            branch: gitInfo.branch || 'unknown',
             name: packageJson.name || 'starstore',
-            description: packageJson.description || 'StarStore - A Telegram Mini App'
+            description: packageJson.description || 'StarStore - A Telegram Mini App',
+            fullVersion: `${version}.${gitInfo.buildNumber || '0'}`,
+            displayVersion: `v${version} (Build ${gitInfo.buildNumber || '0'})`
         });
     } catch (error) {
         console.error('Error reading package.json:', error);
         res.json({
             version: '1.0.0',
             buildDate: new Date().toISOString().split('T')[0],
+            buildNumber: '0',
+            commitHash: 'unknown',
+            branch: 'unknown',
             name: 'starstore',
-            description: 'StarStore - A Telegram Mini App'
+            description: 'StarStore - A Telegram Mini App',
+            fullVersion: '1.0.0.0',
+            displayVersion: 'v1.0.0 (Build 0)'
         });
     }
 });
