@@ -1655,7 +1655,19 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             order.status = 'completed';
             order.dateCompleted = new Date();
             await order.save();
-            await trackStars(order.telegramId, order.stars, 'sell');
+            try {
+                await trackStars(order.telegramId, order.stars, 'sell');
+            } catch (error) {
+                console.error('Failed to track stars for sell order completion:', error);
+                // Notify admins about tracking failure
+                for (const adminId of adminIds) {
+                    try {
+                        await bot.sendMessage(adminId, `⚠️ Tracking Error - Sell Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                    } catch (notifyErr) {
+                        console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                    }
+                }
+            }
         } else if (actionType === 'decline') {
             order.status = 'failed';
             order.dateDeclined = new Date();
@@ -1720,10 +1732,34 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             
             // Track stars/premium for the buyer
             if (!order.isPremium && order.stars) {
-                await trackStars(order.telegramId, order.stars, 'buy');
+                try {
+                    await trackStars(order.telegramId, order.stars, 'buy');
+                } catch (error) {
+                    console.error('Failed to track stars for buy order completion:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Buy Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                }
             }
             if (order.isPremium) {
-                await trackPremiumActivation(order.telegramId);
+                try {
+                    await trackPremiumActivation(order.telegramId);
+                } catch (error) {
+                    console.error('Failed to track premium activation for buy order:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Premium Order #${order.id}\n\nFailed to track premium activation for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                }
             }
         } else if (actionType === 'decline') {
             order.status = 'declined';
@@ -4280,6 +4316,12 @@ bot.on('callback_query', async (query) => {
 //referral tracking for referrals rewards
 async function handleReferralActivation(tracker) {
     try {
+        // Prevent duplicate activations
+        if (tracker.status === 'active') {
+            console.log(`Referral activation skipped - already active for tracker ${tracker._id}`);
+            return;
+        }
+
         // Get user details
         const [referrer, referred] = await Promise.all([
             User.findOne({ id: tracker.referrerUserId }),
@@ -4310,23 +4352,36 @@ async function handleReferralActivation(tracker) {
             `📅 Date Activated: ${new Date().toLocaleDateString()}`;
 
         // Send to all admins
+        let adminNotificationSuccess = false;
         for (const adminId of adminIds) {
             try {
                 await bot.sendMessage(adminId, adminMessage, {
                     parse_mode: 'Markdown',
                     disable_web_page_preview: true
                 });
+                adminNotificationSuccess = true;
+                console.log(`Successfully notified admin ${adminId} about referral activation`);
             } catch (err) {
-                console.error(`Failed to notify admin ${adminId}:`, err);
+                console.error(`Failed to notify admin ${adminId} about referral activation:`, err);
             }
         }
 
+        // Log if no admins were successfully notified
+        if (!adminNotificationSuccess && adminIds.length > 0) {
+            console.error(`CRITICAL: Failed to notify any admin about referral activation for tracker ${tracker._id}`);
+        }
+
         // Send notification to referrer
-        await bot.sendMessage(
-            tracker.referrerUserId,
-            `🎉 Your referral @${referred?.username || tracker.referredUsername} just became active!\n` +
-            `You earned 0.5 USDT referral bonus.`
-        );
+        try {
+            await bot.sendMessage(
+                tracker.referrerUserId,
+                `🎉 Your referral @${referred?.username || tracker.referredUsername} just became active!\n` +
+                `You earned 0.5 USDT referral bonus.`
+            );
+            console.log(`Successfully notified referrer ${tracker.referrerUserId} about referral activation`);
+        } catch (err) {
+            console.error(`Failed to notify referrer ${tracker.referrerUserId} about referral activation:`, err);
+        }
     } catch (error) {
         console.error('Referral activation error:', error);
     }
@@ -7201,10 +7256,52 @@ app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
 
         // Mirror side effects
         if (orderType === 'sell') {
-            if (order.stars) { try { await trackStars(order.telegramId, order.stars, 'sell'); } catch {} }
+            if (order.stars) { 
+                try { 
+                    await trackStars(order.telegramId, order.stars, 'sell'); 
+                } catch (error) {
+                    console.error('Failed to track stars for sell order:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Sell Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
         } else {
-            if (!order.isPremium && order.stars) { try { await trackStars(order.telegramId, order.stars, 'buy'); } catch {} }
-            if (order.isPremium) { try { await trackPremiumActivation(order.telegramId); } catch {} }
+            if (!order.isPremium && order.stars) { 
+                try { 
+                    await trackStars(order.telegramId, order.stars, 'buy'); 
+                } catch (error) {
+                    console.error('Failed to track stars for buy order:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Buy Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
+            if (order.isPremium) { 
+                try { 
+                    await trackPremiumActivation(order.telegramId); 
+                } catch (error) {
+                    console.error('Failed to track premium activation:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Premium Order #${order.id}\n\nFailed to track premium activation for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
         }
 
         // Collapse admin buttons
