@@ -3,7 +3,7 @@
 
 class VersionManager {
     constructor() {
-        this.version = '1.0.0'; // Fallback version
+        this.version = '1.1.0'; // Fallback version - should match package.json
         this.buildDate = new Date().toISOString().split('T')[0];
         this.init();
     }
@@ -16,27 +16,43 @@ class VersionManager {
                 const data = await response.json();
                 this.version = data.version;
                 this.buildDate = data.buildDate;
+                console.log('Version loaded from server:', this.version);
+            } else {
+                console.warn('Server returned error, using fallback version');
             }
         } catch (error) {
-            console.warn('Could not fetch version from server, using fallback');
+            console.warn('Could not fetch version from server, using fallback:', error.message);
         }
         
         this.updateVersionDisplay();
     }
 
     updateVersionDisplay() {
+        console.log('Updating version display:', this.version);
+        
         // Update all elements with data-version attribute
         const versionElements = document.querySelectorAll('[data-version]');
+        console.log('Found version elements:', versionElements.length);
+        
         versionElements.forEach(element => {
-            if (element.textContent.includes('v1.0.0')) {
-                element.textContent = element.textContent.replace('v1.0.0', `v${this.version}`);
+            const originalText = element.textContent;
+            if (originalText.includes('v1.0.0')) {
+                element.textContent = originalText.replace('v1.0.0', `v${this.version}`);
+                console.log('Updated version element:', originalText, '->', element.textContent);
+            } else if (originalText.includes('StarStore')) {
+                // Handle case where version might already be updated
+                element.textContent = originalText.replace(/v\d+\.\d+\.\d+/, `v${this.version}`);
+                console.log('Updated existing version element:', originalText, '->', element.textContent);
             }
         });
 
         // Update elements with data-build-date attribute
         const buildDateElements = document.querySelectorAll('[data-build-date]');
+        console.log('Found build date elements:', buildDateElements.length);
+        
         buildDateElements.forEach(element => {
             element.textContent = this.buildDate;
+            console.log('Updated build date element:', element.textContent);
         });
     }
 
@@ -54,6 +70,12 @@ class VersionManager {
             buildDate: this.buildDate,
             fullVersion: `v${this.version} (${this.buildDate})`
         };
+    }
+
+    // Method to manually set version (for development)
+    setVersion(version) {
+        this.version = version;
+        this.updateVersionDisplay();
     }
 }
 
