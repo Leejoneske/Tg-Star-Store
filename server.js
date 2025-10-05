@@ -4723,18 +4723,66 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
 
 bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
-    const username = msg.from.username;
+    const userId = msg.from.id.toString();
+    const isAdmin = adminIds.includes(userId);
 
-    bot.sendMessage(chatId, `🆘 Need help? Please describe your issue and we will get back to you shortly.`);
-    bot.sendMessage(chatId, "Please type your message below:");
+    const helpText = `📖 **StarStore Bot Commands Manual**
 
-    bot.once('message', (userMsg) => {
-        const userMessageText = userMsg.text;
-        adminIds.forEach(adminId => {
-            bot.sendMessage(adminId, `🆘 Help Request from @${username} (ID: ${chatId}):\n\n${userMessageText}`);
-        });
-        bot.sendMessage(chatId, "Your message has been sent to the admins. We will get back to you shortly.");
-    });
+**🔹 General Commands:**
+/start - Start using the bot and get welcome message
+/wallet - View your wallet and withdrawal options
+/orders - View your order history
+/referrals - Check your referral statistics
+/help - Show this help menu
+
+**🔹 Support Commands:**
+/paysupport [message] - Request payment support
+/reverse [message] - Request order reversal
+
+**🔹 Admin Commands:**
+${isAdmin ? `⚠️ **Admin Access Detected** - Additional commands available:
+/adminhelp - Show admin commands
+/adminwallethelp - Show wallet management commands
+/ban [user_id] - Ban a user
+/unban [user_id] - Unban a user
+/warn [user_id] - Warn a user
+/warnings [user_id] - Check user warnings
+/findorder [order_id] - Find order details
+/getpayment [order_id] - Get payment details
+/updatewallet [user_id] [type] [wallet] [address] - Update user wallet
+/userwallet [user_id] - Get user wallet info
+/reply [user_id] [message] - Reply to user
+/broadcast - Send broadcast message
+/notify [target] [message] - Send notification
+/adminrefund [order_id] - Process refund
+/refundtx [order_id] [tx_hash] - Update refund transaction
+/cso- [order_id] - Complete sell order
+/cbo- [order_id] - Complete buy order
+/sell_complete [order_id] - Complete sell order
+/sell_decline [order_id] - Decline sell order
+/detect_users - Detect new users
+/users - List all users` : '❌ Admin commands not available'}
+
+**🔹 How to Use:**
+1. Use /start to begin
+2. Use /wallet to manage your funds
+3. Use /orders to track your transactions
+4. Use /referrals to check your earnings
+5. Contact support if you need help
+
+**🔹 Support:**
+If you need help, use /paysupport or /reverse followed by your message, or contact our support team.
+
+**🔹 StarStore Features:**
+• Buy Telegram Stars with USDT
+• Sell Stars for USDT
+• Referral program with rewards
+• Secure wallet management
+• 24/7 customer support
+
+Need more help? Contact our support team!`;
+
+    bot.sendMessage(chatId, helpText, { parse_mode: 'Markdown' });
 });
 
 // Admin help command
@@ -4747,25 +4795,42 @@ bot.onText(/\/adminhelp/, (msg) => {
         return bot.sendMessage(chatId, "❌ Unauthorized");
     }
     
-    const helpText = `🔧 Admin Commands Help:
+    const helpText = `🔧 **Admin Commands Help**
 
-**Wallet Management:**
-• /updatewallet <userId> <sell|withdrawal> <orderId> <newWalletAddress>
-  - Directly update a user's wallet address
-  - Special characters (< > $ # +) are automatically removed
+**👥 User Management:**
+/ban [user_id] - Ban a user from using the bot
+/unban [user_id] - Unban a previously banned user
+/warn [user_id] - Send a warning to a user
+/warnings [user_id] - Check all warnings for a user
+/users - List all users in the system
+/detect_users - Detect and process new users
+
+**💰 Wallet Management:**
+/updatewallet [user_id] [sell|withdrawal] [order_id] [new_wallet_address]
+  - Update a user's wallet address for specific order
   - Example: /updatewallet 123456789 sell ABC123 UQAbc123...
+/userwallet [user_id] - View all wallet addresses for a user
 
-• /userwallet <userId>
-  - View all orders and wallet addresses for a user
-  - Example: /userwallet 123456789
+**📋 Order Management:**
+/findorder [order_id] - Find detailed order information
+/getpayment [order_id] - Get payment details for an order
+/cso- [order_id] - Complete sell order
+/cbo- [order_id] - Complete buy order
+/sell_complete [order_id] - Complete sell order (alternative)
+/sell_decline [order_id] - Decline sell order
 
-**General Admin:**
-• /reply <userId1,userId2,...> <message>
-  - Send message to multiple users
-• /getorder <orderId>
-  - Get detailed order information
-• /getpayment <orderId>
-  - Get payment information for an order
+**💸 Refund Management:**
+/adminrefund [order_id] - Process a refund for an order
+/refundtx [order_id] [tx_hash] - Update refund transaction hash
+
+**📢 Communication:**
+/reply [user_id1,user_id2,...] [message] - Send message to multiple users
+/broadcast - Send broadcast message to all users
+/notify [all|@username|user_id] [message] - Send targeted notification
+
+**🔍 Information:**
+/adminhelp - Show this admin help menu
+/adminwallethelp - Show detailed wallet management help
 
 **Wallet Update Requests:**
 • Use the inline buttons on wallet update requests to approve/reject
