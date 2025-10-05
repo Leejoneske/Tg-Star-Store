@@ -167,6 +167,32 @@ class DataPersistence {
     
     return referrals;
   }
+
+  // Activity operations
+  async createActivity(activityData) {
+    this.data.activities = this.data.activities || [];
+    this.data.activities.push(activityData);
+    await this.saveData();
+    return activityData;
+  }
+
+  async findActivities(query = {}) {
+    const activities = this.data.activities || [];
+    
+    if (query.userId) {
+      return activities.filter(a => a.userId === query.userId);
+    }
+    if (query.activityType) {
+      return activities.filter(a => a.activityType === query.activityType);
+    }
+    
+    return activities;
+  }
+
+  async countActivities(query = {}) {
+    const activities = await this.findActivities(query);
+    return activities.length;
+  }
 }
 
 module.exports = DataPersistence;

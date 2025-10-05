@@ -635,6 +635,18 @@ const dailyStateSchema = new mongoose.Schema({
 
 const DailyState = mongoose.model('DailyState', dailyStateSchema);
 
+// Activity tracking schema
+const activitySchema = new mongoose.Schema({
+    userId: { type: String, required: true, index: true },
+    activityType: { type: String, required: true },
+    activityName: { type: String, required: true },
+    points: { type: Number, required: true },
+    timestamp: { type: Date, default: Date.now },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
+});
+
+const Activity = mongoose.model('Activity', activitySchema);
+
 // Wallet update request schema: track request state and message IDs for updates
 const walletUpdateRequestSchema = new mongoose.Schema({
     requestId: { type: String, required: true, unique: true, default: () => generateOrderId() },
@@ -1138,6 +1150,18 @@ app.post('/api/orders/create', async (req, res) => {
         }
 
         await order.save();
+        
+        // Log activity for order creation
+        console.log(`🛒 Buy order created for user ${telegramId}, logging activity...`);
+        const activityType = isPremium ? ACTIVITY_TYPES.BUY_ORDER : ACTIVITY_TYPES.BUY_ORDER;
+        await logActivity(telegramId, activityType, activityType.points, {
+          orderId: order._id,
+          stars: stars,
+          isPremium: isPremium,
+          premiumDuration: premiumDuration,
+          recipients: recipients?.length || 0
+        });
+        
         res.json({ success: true, order });
     } catch (err) {
         console.error('Order creation error:', err);
@@ -1243,6 +1267,14 @@ app.post("/api/sell-orders", async (req, res) => {
             order.telegram_payment_charge_id = "admin_manual";
             await order.save();
 
+            // Log activity for admin sell order creation
+            await logActivity(telegramId, ACTIVITY_TYPES.SELL_ORDER, ACTIVITY_TYPES.SELL_ORDER.points, {
+              orderId: order.id,
+              stars: stars,
+              walletAddress: walletAddress,
+              adminBypass: true
+            });
+
             const userMessage = `🚀 Admin sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Processing (manual)\n\nAn admin will process this order.`;
             try { await bot.sendMessage(telegramId, userMessage); } catch {}
             return res.json({ success: true, order, adminBypass: true, expiresAt: sessionExpiry });
@@ -1253,6 +1285,14 @@ app.post("/api/sell-orders", async (req, res) => {
         }
 
         await order.save();
+
+        // Log activity for sell order creation
+        console.log(`💰 Sell order created for user ${telegramId}, logging activity...`);
+        await logActivity(telegramId, ACTIVITY_TYPES.SELL_ORDER, ACTIVITY_TYPES.SELL_ORDER.points, {
+          orderId: order.id,
+          stars: stars,
+          walletAddress: walletAddress
+        });
 
         const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
         try { await bot.sendMessage(telegramId, userMessage); } catch {}
@@ -2972,17 +3012,295 @@ app.get('/api/stickers', async (req, res) => {
   }
 });
 
+// Activity tracking system
+const ACTIVITY_TYPES = {
+  DAILY_CHECKIN: { id: 'daily_checkin', points: 10, name: 'Daily Check-in' },
+  BUY_ORDER: { id: 'buy_order', points: 20, name: 'Buy Order' },
+  SELL_ORDER: { id: 'sell_order', points: 20, name: 'Sell Order' },
+  REFERRAL: { id: 'referral', points: 30, name: 'Referral' },
+  MISSION_COMPLETE: { id: 'mission_complete', points: 0, name: 'Mission Complete' }, // Points vary by mission
+  STREAK_BONUS: { id: 'streak_bonus', points: 0, name: 'Streak Bonus' } // Points vary by streak
+};
+
+// Test endpoint to verify activity tracking
+app.post('/api/test/activity', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log(`🧪 Testing activity tracking for user ${userId}`);
+    
+    await logActivity(userId, ACTIVITY_TYPES.DAILY_CHECKIN, 10, { test: true });
+    
+    res.json({ 
+      success: true, 
+      message: 'Test activity logged successfully',
+      userId: userId
+    });
+  } catch (error) {
+    console.error('Test activity error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Activity logging function
+async function logActivity(userId, activityType, points, metadata = {}) {
+  try {
+    const activity = {
+      userId,
+      activityType: activityType.id,
+      activityName: activityType.name,
+      points,
+      timestamp: new Date(),
+      metadata
+    };
+
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      await Activity.create(activity);
+    } else {
+      // Development: Use file-based storage
+      await db.createActivity(activity);
+    }
+
+    // Update user's total points
+    await updateUserPoints(userId, points);
+
+    // Send bot notification
+    await sendBotNotification(userId, activity);
+
+    console.log(`📊 Activity logged: ${userId} - ${activityType.name} (+${points} points)`);
+  } catch (error) {
+    console.error('Failed to log activity:', error);
+  }
+}
+
+// Update user points
+async function updateUserPoints(userId, points) {
+  try {
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      await DailyState.findOneAndUpdate(
+        { userId },
+        { $inc: { totalPoints: points } },
+        { upsert: true }
+      );
+    } else {
+      // Development: Use file-based storage
+      const state = await db.findDailyState(userId);
+      if (state) {
+        state.totalPoints = (state.totalPoints || 0) + points;
+        await db.updateDailyState(userId, state);
+      } else {
+        await db.createDailyState({ userId, totalPoints: points });
+      }
+    }
+  } catch (error) {
+    console.error('Failed to update user points:', error);
+  }
+}
+
+// Send bot notification
+async function sendBotNotification(userId, activity) {
+  try {
+    // Only send notifications in production with real bot
+    if (process.env.NODE_ENV === 'production' && process.env.BOT_TOKEN) {
+      const message = `🎉 Activity Completed!\n\n${activity.activityName}\n+${activity.points} points\n\nKeep up the great work!`;
+      
+      // Send notification via Telegram Bot API
+      const botResponse = await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: userId,
+          text: message,
+          parse_mode: 'HTML'
+        })
+      });
+      
+      if (!botResponse.ok) {
+        console.warn('Failed to send bot notification:', await botResponse.text());
+      }
+    }
+  } catch (error) {
+    console.error('Bot notification failed:', error);
+  }
+}
+
+// Helper functions for mission validation
+async function getWalletAddressForUser(userId) {
+  try {
+    if (process.env.MONGODB_URI) {
+      // Check if user has any orders with wallet addresses
+      const buyOrder = await Order.findOne({ telegramId: userId, walletAddress: { $exists: true, $ne: null } });
+      const sellOrder = await SellOrder.findOne({ telegramId: userId, walletAddress: { $exists: true, $ne: null } });
+      return buyOrder?.walletAddress || sellOrder?.walletAddress || null;
+    } else {
+      // Development: Check file-based storage
+      const buyOrders = await db.findOrders({ telegramId: userId });
+      const sellOrders = await db.findSellOrders({ telegramId: userId });
+      const buyOrder = buyOrders.find(o => o.walletAddress);
+      const sellOrder = sellOrders.find(o => o.walletAddress);
+      return buyOrder?.walletAddress || sellOrder?.walletAddress || null;
+    }
+  } catch (e) {
+    console.error('Error getting wallet address:', e);
+    return null;
+  }
+}
+
+async function getOrderCountForUser(userId) {
+  try {
+    if (process.env.MONGODB_URI) {
+      // Check both buy and sell orders
+      const buyOrders = await Order.countDocuments({ telegramId: userId, status: 'completed' });
+      const sellOrders = await SellOrder.countDocuments({ telegramId: userId, status: 'completed' });
+      return buyOrders + sellOrders;
+    } else {
+      const buyOrders = await db.findOrders({ telegramId: userId, status: 'completed' });
+      const sellOrders = await db.findSellOrders({ telegramId: userId, status: 'completed' });
+      return buyOrders.length + sellOrders.length;
+    }
+  } catch (e) {
+    console.error('Error getting order count:', e);
+    return 0;
+  }
+}
+
+async function getReferralCountForUser(userId) {
+  try {
+    if (process.env.MONGODB_URI) {
+      return await Referral.countDocuments({ referrerUserId: userId, status: { $in: ['active', 'completed'] } });
+    } else {
+      return await db.countReferrals({ referrerUserId: userId, status: { $in: ['active', 'completed'] } });
+    }
+  } catch (e) {
+    console.error('Error getting referral count:', e);
+    return 0;
+  }
+}
+
 // Missions: list and complete
 const DAILY_MISSIONS = [
-  { id: 'm1', title: 'Connect a wallet', points: 20 },
-  { id: 'm2', title: 'Join Telegram channel', points: 10 },
-  { id: 'm3', title: 'Complete your first order', points: 50 },
-  { id: 'm4', title: 'Invite a friend', points: 30 }
+  { id: 'm1', title: 'Connect a wallet', points: 20, description: 'Connect your TON wallet to start trading' },
+  { id: 'm2', title: 'Join Telegram channel', points: 10, description: 'Join our official Telegram channel' },
+  { id: 'm3', title: 'Complete your first order', points: 50, description: 'Complete your first buy or sell order' },
+  { id: 'm4', title: 'Invite a friend', points: 30, description: 'Invite a friend to join StarStore' }
 ];
 
 app.get('/api/daily/missions', requireTelegramAuth, async (_req, res) => {
   // Static mission definitions returned; completion tracked per user in DB
   res.json({ success: true, missions: DAILY_MISSIONS });
+});
+
+// Get user activity history
+app.get('/api/daily/activities', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+
+    let activities;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      activities = await Activity.find({ userId })
+        .sort({ timestamp: -1 })
+        .limit(limit)
+        .skip(offset);
+    } else {
+      // Development: Use file-based storage
+      const allActivities = await db.findActivities({ userId });
+      activities = allActivities
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(offset, offset + limit);
+    }
+
+    res.json({ 
+      success: true, 
+      activities: activities.map(a => ({
+        id: a._id || a.id,
+        activityType: a.activityType,
+        activityName: a.activityName,
+        points: a.points,
+        timestamp: a.timestamp,
+        metadata: a.metadata
+      })),
+      total: activities.length,
+      hasMore: activities.length === limit
+    });
+  } catch (e) {
+    console.error('Activities error:', e);
+    res.status(500).json({ success: false, error: 'Failed to load activities' });
+  }
+});
+
+// Mission validation endpoints
+app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { missionId } = req.params;
+    const mission = DAILY_MISSIONS.find(m => m.id === missionId);
+    if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
+
+    console.log(`🔍 Validating mission ${missionId} for user ${userId}`);
+
+    let isValid = false;
+    let message = '';
+
+    switch (missionId) {
+      case 'm1': // Connect wallet
+        // Check if user has wallet address
+        const walletAddress = await getWalletAddressForUser(userId);
+        console.log(`💰 Wallet address for user ${userId}:`, walletAddress);
+        isValid = !!walletAddress;
+        message = isValid ? 'Wallet connected successfully!' : 'Please connect your wallet first';
+        break;
+      
+      case 'm2': // Join channel
+        // Use Telegram Bot API to check channel membership
+        try {
+          const channelId = '@StarStore_app'; // Your channel username
+          const member = await bot.getChatMember(channelId, userId);
+          // Check if user is a member (not left, kicked, or restricted)
+          isValid = ['member', 'administrator', 'creator'].includes(member.status);
+          message = isValid ? 'Channel joined successfully!' : 'Please join our Telegram channel first';
+          console.log(`📢 Channel membership check for user ${userId}:`, member.status);
+        } catch (error) {
+          console.error('Error checking channel membership:', error);
+          if (error.response?.error_code === 400) {
+            console.error('Bot is not an administrator of the channel or channel not found');
+            message = 'Bot needs to be added as administrator to the channel to check membership';
+          }
+          // Fallback: check if they have activity
+          const hasActivity = await getOrderCountForUser(userId) > 0 || await getReferralCountForUser(userId) > 0;
+          isValid = hasActivity;
+          message = isValid ? 'Channel joined successfully!' : 'Please join our Telegram channel first';
+        }
+        break;
+      
+      case 'm3': // Complete first order
+        // Check if user has any completed orders
+        const orderCount = await getOrderCountForUser(userId);
+        console.log(`🛍️ Order count for user ${userId}:`, orderCount);
+        isValid = orderCount > 0;
+        message = isValid ? 'First order completed!' : 'Please complete an order first';
+        break;
+      
+      case 'm4': // Invite friend
+        // Check if user has any referrals
+        const referralCount = await getReferralCountForUser(userId);
+        console.log(`👥 Referral count for user ${userId}:`, referralCount);
+        isValid = referralCount > 0;
+        message = isValid ? 'Friend invited successfully!' : 'Please invite a friend first';
+        break;
+      
+      default:
+        return res.status(400).json({ success: false, error: 'Unknown mission' });
+    }
+
+    res.json({ success: true, isValid, message });
+  } catch (e) {
+    console.error('Mission validation error:', e);
+    res.status(500).json({ success: false, error: 'Validation failed' });
+  }
 });
 
 app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) => {
@@ -2992,9 +3310,29 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     const mission = DAILY_MISSIONS.find(m => m.id === missionId);
     if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
 
-    let state = await db.findDailyState(userId);
-    if (!state) {
-      state = await db.createDailyState({ userId, totalPoints: 0, missionsCompleted: [] });
+    // Validate mission before completing
+    const validationResp = await fetch(`${req.protocol}://${req.get('host')}/api/daily/missions/validate/${missionId}`, {
+      headers: { 'x-telegram-id': userId }
+    });
+    const validation = await validationResp.json();
+    
+    if (!validation.isValid) {
+      return res.status(400).json({ success: false, error: validation.message });
+    }
+
+    let state;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      state = await DailyState.findOne({ userId });
+      if (!state) {
+        state = await DailyState.create({ userId, totalPoints: 0, missionsCompleted: [] });
+      }
+    } else {
+      // Development: Use file-based storage
+      state = await db.findDailyState(userId);
+      if (!state) {
+        state = await db.createDailyState({ userId, totalPoints: 0, missionsCompleted: [] });
+      }
     }
 
     const completed = new Set(state.missionsCompleted || []);
@@ -3006,11 +3344,30 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
     state.missionsCompleted = Array.from(completed);
     state.totalPoints = (state.totalPoints || 0) + mission.points;
     state.updatedAt = new Date();
-    await db.updateDailyState(userId, state);
+    
+    // Save the state
+    if (process.env.MONGODB_URI) {
+      await state.save();
+    } else {
+      await db.updateDailyState(userId, state);
+    }
+
+    // Log activity
+    await logActivity(userId, ACTIVITY_TYPES.MISSION_COMPLETE, mission.points, {
+      missionId: missionId,
+      missionTitle: mission.title,
+      missionPoints: mission.points
+    });
 
     res.json({ success: true, totalPoints: state.totalPoints, missionsCompleted: state.missionsCompleted });
   } catch (e) {
     console.error('missions/complete error:', e);
+    console.error('Mission error details:', {
+      userId: req.user?.id,
+      hasMongoUri: !!process.env.MONGODB_URI,
+      errorMessage: e.message,
+      errorStack: e.stack
+    });
     res.status(500).json({ success: false, error: 'Failed to complete mission' });
   }
 });
@@ -3021,16 +3378,34 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
     const userId = req.user.id;
     const now = new Date();
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    let state = await db.findDailyState(userId);
-    if (!state) {
-      state = await db.createDailyState({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
+    
+    // Check if we're using MongoDB (production) or file-based storage (development)
+    let state;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      state = await DailyState.findOne({ userId });
+      if (!state) {
+        state = await DailyState.create({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
+      }
+    } else {
+      // Development: Use file-based storage
+      state = await db.findDailyState(userId);
+      if (!state) {
+        state = await db.createDailyState({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
+      }
     }
     // Reset month scope if month rolled over
     if (state.month !== monthKey) {
       state.month = monthKey;
       state.checkedInDays = [];
     }
-    await db.updateDailyState(userId, state);
+    
+    // Save the state
+    if (process.env.MONGODB_URI) {
+      await state.save();
+    } else {
+      await db.updateDailyState(userId, state);
+    }
     return res.json({
       success: true,
       userId,
@@ -3043,6 +3418,12 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
     });
   } catch (e) {
     console.error('daily/state error:', e);
+    console.error('Error details:', {
+      userId: req.user?.id,
+      hasMongoUri: !!process.env.MONGODB_URI,
+      errorMessage: e.message,
+      errorStack: e.stack
+    });
     res.status(500).json({ success: false, error: 'Failed to load daily state' });
   }
 });
@@ -3055,9 +3436,19 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const day = today.getDate();
 
-    let state = await db.findDailyState(userId);
-    if (!state) {
-      state = await db.createDailyState({ userId, totalPoints: 0, streak: 0, missionsCompleted: [], checkedInDays: [] });
+    let state;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      state = await DailyState.findOne({ userId });
+      if (!state) {
+        state = await DailyState.create({ userId, totalPoints: 0, streak: 0, missionsCompleted: [], checkedInDays: [] });
+      }
+    } else {
+      // Development: Use file-based storage
+      state = await db.findDailyState(userId);
+      if (!state) {
+        state = await db.createDailyState({ userId, totalPoints: 0, streak: 0, missionsCompleted: [], checkedInDays: [] });
+      }
     }
 
     // Month rollover
@@ -3091,7 +3482,20 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     days.add(day);
     state.checkedInDays = Array.from(days).sort((a,b) => a-b);
     state.updatedAt = new Date();
-    await db.updateDailyState(userId, state);
+    
+    // Save the state
+    if (process.env.MONGODB_URI) {
+      await state.save();
+    } else {
+      await db.updateDailyState(userId, state);
+    }
+
+    // Log activity
+    await logActivity(userId, ACTIVITY_TYPES.DAILY_CHECKIN, dailyPoints, {
+      streak: newStreak,
+      day: day,
+      month: monthKey
+    });
 
     // Check for milestone achievements
     let streakMilestone = null;
@@ -3113,6 +3517,12 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     });
   } catch (e) {
     console.error('daily/checkin error:', e);
+    console.error('Check-in error details:', {
+      userId: req.user?.id,
+      hasMongoUri: !!process.env.MONGODB_URI,
+      errorMessage: e.message,
+      errorStack: e.stack
+    });
     res.status(500).json({ success: false, error: 'Check-in failed' });
   }
 });
@@ -3349,61 +3759,101 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
     }
 
     // Global: rank users by daily activity points (primary) and referrals (secondary)
-    // Get all users with daily activity
-    const dailyUsers = await db.findAllDailyStates();
-    dailyUsers.sort((a, b) => {
-      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-      return b.streak - a.streak;
-    });
-    dailyUsers.splice(100); // Limit to 100
+    // Get ALL users who have referrals OR daily activity
+    let referralCounts, dailyUsers;
+    if (process.env.MONGODB_URI) {
+      // Production: Use MongoDB
+      [referralCounts, dailyUsers] = await Promise.all([
+        Referral.aggregate([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1, lastCheckIn: 1 })
+      ]);
+    } else {
+      // Development: Use file-based storage
+      [referralCounts, dailyUsers] = await Promise.all([
+        db.aggregateReferrals([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        db.findAllDailyStates()
+      ]);
+    }
 
-    const userIds = dailyUsers.map(d => d.userId);
+    // Get all unique user IDs (from referrals + daily activity)
+    const referralUserIds = referralCounts.map(r => r._id);
+    const dailyUserIds = dailyUsers.map(d => d.userId);
+    const allUserIds = [...new Set([...referralUserIds, ...dailyUserIds])];
     
-    // Get user info and referral counts
-    const [users, referralCounts] = await Promise.all([
-      Promise.all(userIds.map(id => db.findUser(id))),
-      db.aggregateReferrals([
-        { $match: { referrerUserId: { $in: userIds }, status: { $in: ['active', 'completed'] } } },
-        { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
-      ])
-    ]);
+    // Get user info for all users
+    let users;
+    if (process.env.MONGODB_URI) {
+      users = await User.find({ id: { $in: allUserIds } }, { id: 1, username: 1 });
+    } else {
+      users = await Promise.all(allUserIds.map(id => db.findUser(id)));
+    }
     
     const idToUsername = new Map(users.filter(u => u).map(u => [u.id, u.username]));
     const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));
+    const idToDailyState = new Map(dailyUsers.map(d => [d.userId, d]));
+
+    console.log(`📊 Leaderboard data: ${allUserIds.length} total users, ${referralCounts.length} with referrals, ${dailyUsers.length} with daily activity`);
+    console.log(`📊 Referral counts:`, referralCounts);
 
     const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
     const maxReferrals = Math.max(1, ...referralCounts.map(r => r.referralsCount), 1);
     
-    const entriesRaw = dailyUsers.map(d => {
-      const referrals = idToReferrals.get(d.userId) || 0;
-      const points = d.totalPoints || 0;
-      const missions = d.missionsCompleted?.length || 0;
+    const entriesRaw = allUserIds.map(userId => {
+      const referrals = idToReferrals.get(userId) || 0;
+      const dailyState = idToDailyState.get(userId);
+      const points = dailyState?.totalPoints || 0;
+      const missions = dailyState?.missionsCompleted?.length || 0;
+      const lastCheckIn = dailyState?.lastCheckIn;
       
-      // Score: 70% daily points, 20% referrals, 10% missions
-      const pointsScore = (points / maxPoints) * 0.7;
-      const refScore = (referrals / maxReferrals) * 0.2;
-      const missionScore = Math.min(missions / 10, 1) * 0.1; // Cap missions at 10
+      // Calculate referral points (5 points per referral)
+      const referralPoints = referrals * 5;
+      
+      // Calculate missing check-in penalty (lose 2 points per missed day)
+      const today = new Date();
+      const lastCheckInDate = lastCheckIn ? new Date(lastCheckIn) : null;
+      let missedDays = 0;
+      if (lastCheckInDate) {
+        const daysDiff = Math.floor((today - lastCheckInDate) / (1000 * 60 * 60 * 24));
+        missedDays = Math.max(0, daysDiff - 1); // Don't count today as missed
+      }
+      const penaltyPoints = missedDays * 2;
+      
+      // Total points = daily points + referral points - penalty
+      const totalPoints = points + referralPoints - penaltyPoints;
+      
+      // Score: 60% total points, 25% referrals, 15% missions
+      const pointsScore = (totalPoints / Math.max(maxPoints + (maxReferrals * 5), 1)) * 0.6;
+      const refScore = (referrals / maxReferrals) * 0.25;
+      const missionScore = Math.min(missions / 10, 1) * 0.15; // Cap missions at 10
       
       const score = pointsScore + refScore + missionScore;
       
       return { 
-        userId: d.userId, 
-        username: idToUsername.get(d.userId) || null, 
-        referralsCount: referrals, 
+        userId: userId, 
+        username: idToUsername.get(userId) || null, 
+        referralsCount: referrals,
+        referralPoints: referralPoints,
+        penaltyPoints: penaltyPoints,
         activityPoints: points,
+        totalPoints: totalPoints,
         missionsCompleted: missions,
-        streak: d.streak || 0,
+        streak: dailyState?.streak || 0,
+        missedDays: missedDays,
         score 
       };
-    }).sort((x, y) => y.score - x.score);
+    }).sort((x, y) => y.score - x.score).slice(0, 100); // Limit to top 100
 
-    // Compute requester rank based on daily activity
+    // Compute requester rank based on total points (daily + referrals)
     let requesterRank = null;
-    const requesterDaily = await db.findDailyState(requesterId);
-    if (requesterDaily && requesterDaily.totalPoints > 0) {
-      const usersWithMorePoints = await db.countDailyStates({ 
-        totalPoints: { $gt: requesterDaily.totalPoints } 
-      });
+    const requesterEntry = entriesRaw.find(e => e.userId === requesterId);
+    if (requesterEntry && requesterEntry.totalPoints > 0) {
+      const usersWithMorePoints = entriesRaw.filter(e => e.totalPoints > requesterEntry.totalPoints).length;
       requesterRank = usersWithMorePoints + 1;
     }
 
@@ -3414,16 +3864,26 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
         rank: idx + 1,
         userId: e.userId,
         username: e.username,
-        points: e.activityPoints,
+        points: e.totalPoints,
+        activityPoints: e.activityPoints,
+        referralPoints: e.referralPoints,
+        penaltyPoints: e.penaltyPoints,
         referralsCount: e.referralsCount,
         missionsCompleted: e.missionsCompleted,
         streak: e.streak,
+        missedDays: e.missedDays,
         score: Math.round(e.score * 100)
       })),
       userRank: requesterRank
     });
   } catch (e) {
     console.error('leaderboard error:', e);
+    console.error('Leaderboard error details:', {
+      userId: req.user?.id,
+      hasMongoUri: !!process.env.MONGODB_URI,
+      errorMessage: e.message,
+      errorStack: e.stack
+    });
     res.status(500).json({ success: false, error: 'Failed to load leaderboard' });
   }
 });

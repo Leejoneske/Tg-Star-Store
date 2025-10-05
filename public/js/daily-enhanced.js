@@ -17,18 +17,47 @@ class DailyRewardsSystem {
 
     async init() {
         try {
+            console.log('🚀 Starting daily rewards system initialization...');
+            
+            // Wait for DOM to be ready
+            if (document.readyState === 'loading') {
+                await new Promise(resolve => {
+                    document.addEventListener('DOMContentLoaded', resolve, { once: true });
+                });
+            }
+            
+            // Initialize core components first
             await this.initializeTelegram();
-            await this.loadCachedData();
             await this.setupEventListeners();
             await this.renderCalendar(new Date());
-            await this.hydrateFromAPI();
-            await this.loadMissions();
-            await this.loadLeaderboard();
+            
+            // Load cached data for immediate display
+            await this.loadCachedData();
+            
+            // Load API data in background (non-blocking)
+            this.hydrateFromAPI().catch(err => {
+                console.warn('API hydration failed, using cached data:', err);
+                this.showOfflineNotice();
+            });
+            
+            this.loadMissions().catch(err => {
+                console.warn('Failed to load missions:', err);
+            });
+            
+            this.loadLeaderboard().catch(err => {
+                console.warn('Failed to load leaderboard:', err);
+            });
+            
+            // Start background processes
             await this.checkStreakReminders();
             await this.startAutoRefresh();
+            await this.startMissionValidation();
+            
+            console.log('✅ Daily rewards system initialized successfully');
         } catch (error) {
             console.error('Initialization error:', error);
-            this.handleError(error);
+            // Don't show error toast immediately, try to recover
+            this.showOfflineNotice();
         }
     }
 
@@ -78,10 +107,20 @@ class DailyRewardsSystem {
     }
 
     async loadCachedData() {
-        const cached = this.storage.get('dailyState');
-        if (cached && this.isCacheValid(cached.timestamp)) {
-            this.cachedData = cached.data;
-            this.renderWithCache(cached.data);
+        try {
+            const cached = this.storage.get('dailyState');
+            if (cached && this.isCacheValid(cached.timestamp)) {
+                this.cachedData = cached.data;
+                // Wait for DOM to be ready before rendering
+                if (document.readyState === 'loading') {
+                    await new Promise(resolve => {
+                        document.addEventListener('DOMContentLoaded', resolve, { once: true });
+                    });
+                }
+                this.renderWithCache(cached.data);
+            }
+        } catch (error) {
+            console.error('Error loading cached data:', error);
         }
     }
 
@@ -183,12 +222,19 @@ class DailyRewardsSystem {
 
     updateUIWithData(data) {
         try {
+            // Check if DOM elements exist before updating
+            if (!document.getElementById('streakValue') || !document.getElementById('pointsValue')) {
+                console.warn('DOM elements not ready, skipping UI update');
+                return;
+            }
+            
             this.updateStreakDisplay(data);
             this.updateStatsDisplay(data);
             this.updateCalendar(data.checkedInDays || []);
             this.updateWeeklyProgress(data);
         } catch (error) {
             console.error('UI update error:', error);
+            // Don't throw, just log the error
         }
     }
 
@@ -367,7 +413,12 @@ class DailyRewardsSystem {
         const list = document.getElementById('missionsList');
         if (!list) return;
         
+        // Clear existing content and event listeners
         list.innerHTML = '<div class="loading-skeleton"></div>';
+        if (this.missionClickHandler) {
+            list.removeEventListener('click', this.missionClickHandler);
+            this.missionClickHandler = null;
+        }
 
         try {
             console.log('Loading missions...');
@@ -394,14 +445,21 @@ class DailyRewardsSystem {
                 return;
             }
 
+            // Validate all missions first
+            await this.validateAllMissions(missions, completed);
+
             missions.forEach((mission, index) => {
                 const isCompleted = completed.has(mission.id);
                 const row = this.createMissionElement(mission, isCompleted, index);
                 list.appendChild(row);
             });
 
-            // Attach event listeners
-            list.addEventListener('click', (e) => this.handleMissionClick(e));
+            // Attach event listeners (remove existing first to prevent duplicates)
+            if (this.missionClickHandler) {
+                list.removeEventListener('click', this.missionClickHandler);
+            }
+            this.missionClickHandler = (e) => this.handleMissionClick(e);
+            list.addEventListener('click', this.missionClickHandler);
 
         } catch (error) {
             console.error('Load missions error:', error);
@@ -429,6 +487,9 @@ class DailyRewardsSystem {
         const icon = this.getMissionIcon(mission.id);
         const validationStatus = this.getMissionValidationStatus(mission.id);
 
+        const redirectUrl = this.getMissionRedirectUrl(mission.id);
+        console.log(`🎯 Creating mission ${mission.id} with redirect URL:`, redirectUrl);
+        
         row.innerHTML = `
             <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
                 <div class="mission-icon">${icon}</div>
@@ -437,7 +498,7 @@ class DailyRewardsSystem {
                     <div class="mission-subtitle">+${mission.points} pts${validationStatus ? ` • ${validationStatus}` : ''}</div>
                 </div>
             </div>
-            <button data-id="${mission.id}" class="mission-btn ${isCompleted ? 'completed' : 'complete'}">
+            <button data-id="${mission.id}" class="mission-btn ${isCompleted ? 'completed' : 'complete'}" ${redirectUrl ? `data-redirect-url="${redirectUrl}"` : ''}>
                 ${isCompleted ? '✓ Done' : 'Complete'}
             </button>
         `;
@@ -447,12 +508,27 @@ class DailyRewardsSystem {
 
     getMissionIcon(missionId) {
         const icons = {
-            'm1': '💳',
-            'm2': '💬',
-            'm3': '🛍️',
-            'm4': '👥'
+            'm1': '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>',
+            'm2': '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>',
+            'm3': '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>',
+            'm4': '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>'
         };
-        return icons[missionId] || '⭐';
+        return icons[missionId] || '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>';
+    }
+
+    getMissionRedirectUrl(missionId) {
+        switch (missionId) {
+            case 'm1': // Connect wallet
+                return '/app.html'; // Wallet connection page
+            case 'm2': // Join channel
+                return 'https://t.me/StarStore_app'; // Telegram channel
+            case 'm3': // Complete order
+                return '/app.html'; // Buy/sell page
+            case 'm4': // Invite friend
+                return '/referral.html'; // Referral page
+            default:
+                return null;
+        }
     }
 
     getMissionValidationStatus(missionId) {
@@ -468,12 +544,42 @@ class DailyRewardsSystem {
         const missionId = btn.getAttribute('data-id');
         const originalText = btn.textContent;
 
+        console.log(`🎯 Mission clicked: ${missionId}`);
+
         btn.disabled = true;
         btn.textContent = 'Verifying...';
 
         try {
+            // Check if mission has a redirect URL
+            const redirectUrl = btn.getAttribute('data-redirect-url');
+            console.log(`🔗 Mission ${missionId} redirect URL:`, redirectUrl);
+            
+            if (redirectUrl) {
+                // Show redirect message and open URL
+                this.showToast('Redirecting to complete mission...', 'info');
+                console.log(`🚀 Redirecting to: ${redirectUrl}`);
+                
+                if (redirectUrl.startsWith('http')) {
+                    // External URL - use Telegram WebApp API if available
+                    if (window.Telegram?.WebApp?.openLink) {
+                        window.Telegram.WebApp.openLink(redirectUrl);
+                    } else {
+                        window.open(redirectUrl, '_blank');
+                    }
+                } else {
+                    // Internal URL - show message instead of redirecting
+                    this.showToast('Please complete this action manually in the app', 'info');
+                }
+                
+                btn.disabled = false;
+                btn.textContent = originalText;
+                return;
+            }
+
             // Validate mission completion
+            console.log(`🔍 Validating mission ${missionId}...`);
             const isValid = await this.validateMissionCompletion(missionId);
+            console.log(`✅ Mission ${missionId} validation result:`, isValid);
             
             if (!isValid) {
                 this.showToast('Please complete the mission requirements first', 'warning');
@@ -522,23 +628,29 @@ class DailyRewardsSystem {
 
     async checkWalletConnected() {
         try {
-            const resp = await window.API.getWalletAddress();
-            return resp?.success && resp?.walletAddress;
+            // Use server-side validation
+            const resp = await window.API.request(`/daily/missions/validate/m1`);
+            return resp?.success && resp?.isValid;
         } catch {
             return false;
         }
     }
 
     async checkTelegramChannelMembership() {
-        // This would require Telegram Bot API to check membership
-        // For now, we'll use localStorage as a simple check
-        return this.storage.get('telegramChannelJoined') === true;
+        try {
+            // Use server-side validation
+            const resp = await window.API.request(`/daily/missions/validate/m2`);
+            return resp?.success && resp?.isValid;
+        } catch {
+            return false;
+        }
     }
 
     async checkFirstOrderCompleted() {
         try {
-            const orders = this.storage.get('completedOrders') || [];
-            return orders.length > 0;
+            // Use server-side validation
+            const resp = await window.API.request(`/daily/missions/validate/m3`);
+            return resp?.success && resp?.isValid;
         } catch {
             return false;
         }
@@ -546,10 +658,83 @@ class DailyRewardsSystem {
 
     async checkReferralMade() {
         try {
-            const referrals = this.storage.get('referralCount') || 0;
-            return referrals > 0;
+            // Use server-side validation
+            const resp = await window.API.request(`/daily/missions/validate/m4`);
+            return resp?.success && resp?.isValid;
         } catch {
             return false;
+        }
+    }
+
+    async validateAllMissions(missions, completed) {
+        console.log('🔍 Validating all missions...');
+        
+        for (const mission of missions) {
+            if (!completed.has(mission.id)) {
+                try {
+                    const isValid = await this.validateMissionCompletion(mission.id);
+                    if (isValid) {
+                        console.log(`✅ Mission ${mission.id} is now valid - auto-completing`);
+                        // Auto-complete the mission
+                        await this.autoCompleteMission(mission.id);
+                    }
+                } catch (error) {
+                    console.warn(`Failed to validate mission ${mission.id}:`, error);
+                }
+            }
+        }
+    }
+
+    async autoCompleteMission(missionId) {
+        try {
+            const resp = await window.API.completeMission(missionId);
+            if (resp?.success) {
+                console.log(`🎉 Auto-completed mission ${missionId}`);
+                this.showToast(`Mission completed! +${resp.totalPoints || 0} points`, 'success');
+                // Reload missions to show updated state
+                await this.loadMissions();
+                await this.hydrateFromAPI();
+            }
+        } catch (error) {
+            console.error('Auto-complete mission failed:', error);
+        }
+    }
+
+    async startMissionValidation() {
+        console.log('🔄 Starting periodic mission validation...');
+        
+        // Validate missions every 30 seconds
+        this.missionValidationInterval = setInterval(async () => {
+            try {
+                await this.validateAllMissionsPeriodically();
+            } catch (error) {
+                console.warn('Periodic mission validation failed:', error);
+            }
+        }, 30000); // 30 seconds
+
+        // Also validate when page becomes visible (user returns from other tabs)
+        document.addEventListener('visibilitychange', async () => {
+            if (!document.hidden) {
+                console.log('👁️ Page visible - validating missions...');
+                await this.validateAllMissionsPeriodically();
+            }
+        });
+    }
+
+    async validateAllMissionsPeriodically() {
+        try {
+            // Get current missions and completed status
+            const [missionsResp, stateResp] = await Promise.all([
+                window.API.getMissions().catch(() => ({ missions: [] })),
+                window.API.getDailyState().catch(() => ({ missionsCompleted: [] }))
+            ]);
+
+            const missions = missionsResp?.missions || [];
+            const completed = new Set(stateResp?.missionsCompleted || []);
+
+            await this.validateAllMissions(missions, completed);
+        } catch (error) {
+            console.warn('Periodic validation failed:', error);
         }
     }
 
@@ -964,11 +1149,26 @@ class DailyRewardsSystem {
         if (this.leaderboardUpdateInterval) {
             clearInterval(this.leaderboardUpdateInterval);
         }
+        if (this.missionValidationInterval) {
+            clearInterval(this.missionValidationInterval);
+        }
     }
 
     openRedemptionModal() {
         // Simple implementation for now - just show a message
         this.showToast('Reward redemption feature coming soon!', 'info');
+    }
+
+    handleAchievementUnlock(achievement) {
+        console.log('🎉 Achievement unlocked:', achievement);
+        // Show achievement notification
+        this.showToast(`🎉 Achievement Unlocked: ${achievement.name}`, 'success');
+    }
+
+    renderWithCache(cachedData) {
+        console.log('Rendering with cached data:', cachedData);
+        // Update UI with cached data
+        this.updateUIWithData(cachedData);
     }
 }
 
