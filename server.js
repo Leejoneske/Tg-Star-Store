@@ -4886,15 +4886,18 @@ bot.onText(/\/help/, (msg) => {
         // Show user help
         const userHelpText = `🤖 **StarStore Bot**
 
-**Main Commands:**
-/wallet - Manage your funds
-/orders - View transaction history
-/referrals - Check your earnings
+**Trading:**
+/start - Launch the app and begin trading
+/wallet - View your processing orders & withdrawals
 
-**Need Help?**
-/contact - Contact support
+**Earnings:**
+/referrals - Check your referral stats & get your link
 
-*Use /start to begin trading Stars!*`;
+**Support:**
+/contact - Message support directly
+/paysupport - Request refund for sell orders
+
+*All trading happens in the web app launched by /start*`;
 
         bot.sendMessage(chatId, userHelpText, { parse_mode: 'Markdown' });
         }
@@ -4911,9 +4914,9 @@ bot.onText(/\/contact/, (msg) => {
 
     const contactText = `📞 **Contact Support**
 
-**Need help? Just type your message below and we'll respond quickly!**
+**Type your message below and we'll respond quickly!**
 
-*For payment issues, use /paysupport*`;
+*For sell order refunds, use /paysupport*`;
 
     bot.sendMessage(chatId, contactText, { parse_mode: 'Markdown' });
     
