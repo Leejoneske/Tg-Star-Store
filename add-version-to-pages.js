@@ -8,7 +8,6 @@ const pages = [
     'daily.html',
     'referral.html', 
     'history.html',
-    'app.html',
     'index.html'
 ];
 

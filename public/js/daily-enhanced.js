@@ -519,11 +519,11 @@ class DailyRewardsSystem {
     getMissionRedirectUrl(missionId) {
         switch (missionId) {
             case 'm1': // Connect wallet
-                return '/app.html'; // Wallet connection page
+                return '/'; // Main app page (wallet connection)
             case 'm2': // Join channel
                 return 'https://t.me/StarStore_app'; // Telegram channel
             case 'm3': // Complete order
-                return '/app.html'; // Buy/sell page
+                return '/'; // Main app page (buy/sell)
             case 'm4': // Invite friend
                 return '/referral.html'; // Referral page
             default:
