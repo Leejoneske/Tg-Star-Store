@@ -4810,6 +4810,7 @@ bot.onText(/\/help/, (msg) => {
 /notify [all|@username|user_id] [message] - Send targeted notification
 
 **🔍 Information:**
+/version - Check app version and update information
 /adminhelp - Show this admin help menu
 /adminwallethelp - Show detailed wallet management help
 
@@ -4948,6 +4949,7 @@ bot.onText(/\/adminhelp/, (msg) => {
 /notify [all|@username|user_id] [message] - Send targeted notification
 
 **🔍 Information:**
+/version - Check app version and update information
 /adminhelp - Show this admin help menu
 /adminwallethelp - Show detailed wallet management help
 
@@ -4956,6 +4958,86 @@ bot.onText(/\/adminhelp/, (msg) => {
 • All wallet changes require admin approval for security`;
     
     bot.sendMessage(chatId, helpText);
+});
+
+// Admin version command
+bot.onText(/\/version/, (msg) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
+    // Verify admin
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, "❌ Unauthorized");
+    }
+    
+    try {
+        // Get current version info
+        const packageJson = require('./package.json');
+        const { execSync } = require('child_process');
+        
+        // Get git information
+        const gitInfo = {
+            commitCount: execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(),
+            currentHash: execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(),
+            branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(),
+            lastCommitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim(),
+            lastCommitMessage: execSync('git log -1 --format=%s', { encoding: 'utf8' }).trim(),
+            lastCommitAuthor: execSync('git log -1 --format=%an', { encoding: 'utf8' }).trim()
+        };
+        
+        // Get recent commits (last 5)
+        const recentCommits = execSync('git log -5 --oneline', { encoding: 'utf8' }).trim().split('\n');
+        
+        // Calculate time since last update
+        const lastUpdate = new Date(gitInfo.lastCommitDate);
+        const now = new Date();
+        const timeDiff = now - lastUpdate;
+        const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
+        const daysAgo = Math.floor(hoursAgo / 24);
+        
+        let timeAgo;
+        if (daysAgo > 0) {
+            timeAgo = `${daysAgo} day${daysAgo > 1 ? 's' : ''} ago`;
+        } else if (hoursAgo > 0) {
+            timeAgo = `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`;
+        } else {
+            const minutesAgo = Math.floor(timeDiff / (1000 * 60));
+            timeAgo = `${minutesAgo} minute${minutesAgo > 1 ? 's' : ''} ago`;
+        }
+        
+        const versionText = `📊 **StarStore Version Information**
+
+**🔢 Current Version:**
+• Version: \`${packageJson.version}\`
+• Build Number: \`${gitInfo.commitCount}\`
+• Commit Hash: \`${gitInfo.currentHash}\`
+• Branch: \`${gitInfo.branch}\`
+
+**⏰ Last Update:**
+• Date: \`${gitInfo.lastCommitDate}\`
+• Time Ago: \`${timeAgo}\`
+• Author: \`${gitInfo.lastCommitAuthor}\`
+• Message: \`${gitInfo.lastCommitMessage}\`
+
+**📈 Recent Updates:**
+${recentCommits.map((commit, index) => `• ${index + 1}. ${commit}`).join('\n')}
+
+**🕐 Server Status:**
+• Server Time: \`${now.toISOString()}\`
+• Uptime: \`${Math.floor(process.uptime() / 3600)} hours\`
+• Memory Usage: \`${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)} MB\`
+
+**📱 App Information:**
+• Name: \`${packageJson.name}\`
+• Description: \`${packageJson.description}\`
+• Node Version: \`${process.version}\``;
+
+        bot.sendMessage(chatId, versionText, { parse_mode: 'Markdown' });
+        
+    } catch (error) {
+        console.error('Error getting version info:', error);
+        bot.sendMessage(chatId, `❌ Error getting version information: ${error.message}`);
+    }
 });
 
 // Admin command to update user wallet addresses
