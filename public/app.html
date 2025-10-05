@@ -156,5 +156,14 @@
             }
         }
     </script>
+    <script src="js/version-display.js"></script>
+    <script>
+        // Auto-update version display
+        setTimeout(() => {
+            if (window.versionDisplay) {
+                console.log('Version:', window.versionDisplay.getDisplayVersion());
+            }
+        }, 1000);
+    </script>
 </body>
 </html>

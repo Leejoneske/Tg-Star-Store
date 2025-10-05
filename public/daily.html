@@ -774,5 +774,21 @@
             }
         });
     </script>
+    
+    <!-- Version Information -->
+    <div style="position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; z-index: 1000;">
+        <div data-version>StarStore v5.1.13</div>
+        <div>Build <span data-build-number></span></div>
+    </div>
+    
+    <script src="js/version-display.js"></script>
+    <script>
+        // Auto-update version display
+        setTimeout(() => {
+            if (window.versionDisplay) {
+                console.log('Version:', window.versionDisplay.getDisplayVersion());
+            }
+        }, 1000);
+    </script>
 </body>
 </html>
