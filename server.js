@@ -1431,19 +1431,19 @@ bot.on("successful_payment", async (msg) => {
     const order = await SellOrder.findOne({ id: orderId });
 
     if (!order) {
-        return await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Please contact support.");
+        return await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Contact support.");
     }
 
     // Verify user matches order creator
     if (order.userLocked && order.userLocked.toString() !== msg.from.id.toString()) {
         // This shouldn't happen if pre-checkout validation works, but extra safety
-        await bot.sendMessage(msg.chat.id, "❌ Payment validation error. Please contact support.");
+        await bot.sendMessage(msg.chat.id, "❌ Payment validation error. Contact support.");
         return;
     }
 
     // Check if order already processed (duplicate payment protection)
     if (order.status !== "pending") {
-        await bot.sendMessage(msg.chat.id, "❌ This order has already been processed. If you were charged multiple times, please contact support.");
+        await bot.sendMessage(msg.chat.id, "❌ This order has already been processed. If you were charged multiple times, contact support.");
         return;
     }
 
@@ -1620,10 +1620,10 @@ async function handleConfirmedAction(query, data, adminUsername) {
         const userMessage = order.status === 'completed' 
             ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your choosing StarStore!'}`
             : order.status === 'failed'
-            ? `❌ Your sell order #${order.id} has failed.\n\nPlease try selling a lower amount or contact support if the issue persist.`
+            ? `❌ Your sell order #${order.id} has failed.\n\nTry selling a lower amount or contact support if the issue persist.`
             : order.status === 'refunded'
             ? `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`
-            : `❌ Your buy order #${order.id} has been declined.\n\nPlease contact support if you believe this was a mistake.`;
+            : `❌ Your buy order #${order.id} has been declined.\n\nContact support if you believe this was a mistake.`;
 
         // Safe Telegram send: handle deactivated/blocked users gracefully
         try {
@@ -4506,7 +4506,7 @@ bot.onText(/\/ban(?:\s+(\d+))$/, async (msg, match) => {
             `**Account Status**: Temporarily Restricted\n` +
             `**Effective Date**: ${new Date().toLocaleDateString()}\n\n` +
             `During this time, you will not be able to place orders until the restriction period ends.\n\n` +
-            `If you believe this is an error, please contact our support team.`;
+            `If you believe this is an error, contact our support team.`;
         
         await bot.sendMessage(userId, userSuspensionNotice, { parse_mode: 'Markdown' });
     } catch (error) {
@@ -4566,7 +4566,7 @@ bot.onText(/\/warn(?:\s+(\d+))$/, async (msg, match) => {
             `**Account Status**: Temporarily Restricted\n` +
             `**Effective Date**: ${new Date().toLocaleDateString()}\n\n` +
             `During this time, you will not be able to place orders until the restriction period ends.\n\n` +
-            `If you believe this is an error, please contact our support team.`;
+            `If you believe this is an error, contact our support team.`;
         
         await bot.sendMessage(userId, userWarningNotice, { parse_mode: 'Markdown' });
     } catch (error) {
@@ -7360,8 +7360,8 @@ app.post('/api/admin/orders/:id/decline', requireAdmin, async (req, res) => {
         }
 
         const userMessage = order.status === 'failed' 
-          ? `❌ Your sell order #${order.id} has failed.\n\nPlease try selling a lower amount or contact support if the issue persist.`
-          : `❌ Your buy order #${order.id} has been declined.\n\nPlease contact support if you believe this was a mistake.`;
+          ? `❌ Your sell order #${order.id} has failed.\n\nTry selling a lower amount or contact support if the issue persist.`
+          : `❌ Your buy order #${order.id} has been declined.\n\nContact support if you believe this was a mistake.`;
         try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
         res.json({ success: true });
     } catch (e) {

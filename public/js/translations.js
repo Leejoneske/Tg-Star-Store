@@ -296,8 +296,10 @@ const translations = {
         getInTouchText: "Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.",
         contactText: "Have questions or need support? Our team is here to help! We provide 24/7 assistance for all your StarStore needs.",
         contactSupport: "Contact Support",
+        contactSupportDesc: "Get help from our team",
         contactBtn: "Contact Support",
         footerPowered: "Powered by",
+        copyright: "© 2025 StarStore. All rights reserved.",
         
         // Settings Section
         settings: "Settings & Features",
@@ -807,8 +809,10 @@ const translations = {
         getInTouchText: "Есть вопросы или нужна поддержка? Наша команда здесь, чтобы помочь! Мы предоставляем круглосуточную помощь для всех ваших потребностей в StarStore.",
         contactText: "Есть вопросы или нужна поддержка? Наша команда здесь, чтобы помочь! Мы предоставляем круглосуточную помощь для всех ваших потребностей в StarStore.",
         contactSupport: "Связаться с поддержкой",
+        contactSupportDesc: "Получите помощь от нашей команды",
         contactBtn: "Связаться с поддержкой",
         footerPowered: "Работает на",
+        copyright: "© 2025 StarStore. Все права защищены.",
         
         // Settings Section
         settings: "Настройки и функции",
@@ -1217,6 +1221,8 @@ try {
         contact: "संपर्क करें",
         contactText: "कोई प्रश्न हैं या सहायता चाहिए? हमारी टीम आपकी मदद के लिए हमेशा तैयार है!",
         contactBtn: "सपोर्ट से संपर्क करें",
+        contactSupportDesc: "हमारी टीम से मदद लें",
+        copyright: "© 2025 StarStore. सभी अधिकार सुरक्षित।",
         
         // Settings Section
         settings: "सेटिंग्स और सुविधाएं",
@@ -1411,6 +1417,8 @@ try {
         contact: "تواصل معنا",
         contactText: "هل لديك أسئلة أو تحتاج مساعدة؟ فريقنا هنا لمساعدتك على مدار الساعة!",
         contactBtn: "اتصل بالدعم",
+        contactSupportDesc: "احصل على المساعدة من فريقنا",
+        copyright: "© 2025 StarStore. جميع الحقوق محفوظة.",
         
         // Settings Section
         settings: "الإعدادات والميزات",
