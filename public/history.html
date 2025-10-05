@@ -44,6 +44,40 @@
             padding-bottom: 64px;
         }
 
+        /* Clean Card Styles (from daily.html) */
+        .clean-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #f0f0f0;
+            margin-bottom: 16px;
+        }
+
+        .stat-box {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Language Toggle (from about.html) */
+        .language-toggle {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            color: #64748b;
+            cursor: pointer;
+        }
+
+        .language-toggle:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
         /* Simple Telegram Mini App styles */
         .telegram-fullscreen .app-container {
             max-width: 100%;
@@ -180,8 +214,16 @@
 
         <!-- Page Header -->
         <header class="px-4 py-3 bg-white border-b border-gray-200">
-            <div class="flex items-center">
-                <h1 class="text-lg font-semibold text-gray-900" data-translate="history">History</h1>
+            <div class="flex items-center justify-between">
+                <h1 class="text-base font-semibold text-gray-900" data-translate="history">Transaction History</h1>
+                <div class="flex items-center space-x-3">
+                    <select id="languageSelectHistory" class="language-toggle">
+                        <option value="en">English</option>
+                        <option value="ru">Русский</option>
+                        <option value="hi">हिंदी</option>
+                        <option value="ar">العربية</option>
+                    </select>
+                </div>
             </div>
         </header>
         
@@ -196,23 +238,24 @@
             </div>
             
             <div id="transactionsContent" class="tab-content active">
-                <div class="bg-white rounded-lg shadow-sm p-3 mb-4">
-                    <h3 class="text-base font-semibold mb-3" data-translate="overview">Overview</h3>
-                    <div class="chart-container">
+                <!-- Overview Section -->
+                <div class="clean-card mb-6">
+                    <h3 class="text-lg font-semibold mb-4" data-translate="overview">Overview</h3>
+                    <div class="chart-container mb-4">
                         <canvas id="transactionChart"></canvas>
                     </div>
-                    <div class="grid grid-cols-3 gap-3 mt-4">
-                        <div class="text-center p-2 rounded-lg bg-green-50">
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="stat-box text-center">
                             <div class="text-green-600 text-xl font-semibold" id="completedCount">0</div>
-                            <div class="text-xs text-green-800" data-translate="completed">Completed</div>
+                            <div class="text-xs text-gray-600" data-translate="completed">Completed</div>
                         </div>
-                        <div class="text-center p-2 rounded-lg bg-blue-50">
+                        <div class="stat-box text-center">
                             <div class="text-blue-600 text-xl font-semibold" id="processingCount">0</div>
-                            <div class="text-xs text-blue-800" data-translate="processing">Processing</div>
+                            <div class="text-xs text-gray-600" data-translate="processing">Processing</div>
                         </div>
-                        <div class="text-center p-2 rounded-lg bg-red-50">
+                        <div class="stat-box text-center">
                             <div class="text-red-600 text-xl font-semibold" id="declinedCount">0</div>
-                            <div class="text-xs text-red-800" data-translate="declined">Declined</div>
+                            <div class="text-xs text-gray-600" data-translate="declined">Declined</div>
                         </div>
                     </div>
                 </div>
@@ -354,6 +397,21 @@ window.addEventListener('storage', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
+    
+    // Language selection functionality
+    const languageSelect = document.getElementById('languageSelectHistory');
+    if (languageSelect) {
+        // Set current language
+        const currentLang = TranslationUtils.getCurrentLanguage();
+        languageSelect.value = currentLang;
+        
+        // Handle language change
+        languageSelect.addEventListener('change', function() {
+            const selectedLang = this.value;
+            TranslationUtils.setLanguage(selectedLang);
+            TranslationUtils.applyTranslations();
+        });
+    }
 });
 
 
