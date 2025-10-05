@@ -4726,7 +4726,53 @@ bot.onText(/\/help/, (msg) => {
     const userId = msg.from.id.toString();
     const isAdmin = adminIds.includes(userId);
 
-    const helpText = `📖 **StarStore Bot Commands Manual**
+    if (isAdmin) {
+        // Show admin help
+        const adminHelpText = `🔧 **Admin Commands Help**
+
+**👥 User Management:**
+/ban [user_id] - Ban a user from using the bot
+/unban [user_id] - Unban a previously banned user
+/warn [user_id] - Send a warning to a user
+/warnings [user_id] - Check all warnings for a user
+/users - List all users in the system
+/detect_users - Detect and process new users
+
+**💰 Wallet Management:**
+/updatewallet [user_id] [sell|withdrawal] [order_id] [new_wallet_address]
+  - Update a user's wallet address for specific order
+  - Example: /updatewallet 123456789 sell ABC123 UQAbc123...
+/userwallet [user_id] - View all wallet addresses for a user
+
+**📋 Order Management:**
+/findorder [order_id] - Find detailed order information
+/getpayment [order_id] - Get payment details for an order
+/cso- [order_id] - Complete sell order
+/cbo- [order_id] - Complete buy order
+/sell_complete [order_id] - Complete sell order (alternative)
+/sell_decline [order_id] - Decline sell order
+
+**💸 Refund Management:**
+/adminrefund [order_id] - Process a refund for an order
+/refundtx [order_id] [tx_hash] - Update refund transaction hash
+
+**📢 Communication:**
+/reply [user_id1,user_id2,...] [message] - Send message to multiple users
+/broadcast - Send broadcast message to all users
+/notify [all|@username|user_id] [message] - Send targeted notification
+
+**🔍 Information:**
+/adminhelp - Show this admin help menu
+/adminwallethelp - Show detailed wallet management help
+
+**Wallet Update Requests:**
+• Use the inline buttons on wallet update requests to approve/reject
+• All wallet changes require admin approval for security`;
+
+        bot.sendMessage(chatId, adminHelpText, { parse_mode: 'Markdown' });
+    } else {
+        // Show user help
+        const userHelpText = `📖 **StarStore Bot Commands**
 
 **🔹 General Commands:**
 /start - Start using the bot and get welcome message
@@ -4736,42 +4782,15 @@ bot.onText(/\/help/, (msg) => {
 /help - Show this help menu
 
 **🔹 Support Commands:**
+/contact - Contact our support team
 /paysupport [message] - Request payment support
 /reverse [message] - Request order reversal
-
-**🔹 Admin Commands:**
-${isAdmin ? `⚠️ **Admin Access Detected** - Additional commands available:
-/adminhelp - Show admin commands
-/adminwallethelp - Show wallet management commands
-/ban [user_id] - Ban a user
-/unban [user_id] - Unban a user
-/warn [user_id] - Warn a user
-/warnings [user_id] - Check user warnings
-/findorder [order_id] - Find order details
-/getpayment [order_id] - Get payment details
-/updatewallet [user_id] [type] [wallet] [address] - Update user wallet
-/userwallet [user_id] - Get user wallet info
-/reply [user_id] [message] - Reply to user
-/broadcast - Send broadcast message
-/notify [target] [message] - Send notification
-/adminrefund [order_id] - Process refund
-/refundtx [order_id] [tx_hash] - Update refund transaction
-/cso- [order_id] - Complete sell order
-/cbo- [order_id] - Complete buy order
-/sell_complete [order_id] - Complete sell order
-/sell_decline [order_id] - Decline sell order
-/detect_users - Detect new users
-/users - List all users` : '❌ Admin commands not available'}
 
 **🔹 How to Use:**
 1. Use /start to begin
 2. Use /wallet to manage your funds
 3. Use /orders to track your transactions
 4. Use /referrals to check your earnings
-5. Contact support if you need help
-
-**🔹 Support:**
-If you need help, use /paysupport or /reverse followed by your message, or contact our support team.
 
 **🔹 StarStore Features:**
 • Buy Telegram Stars with USDT
@@ -4780,9 +4799,64 @@ If you need help, use /paysupport or /reverse followed by your message, or conta
 • Secure wallet management
 • 24/7 customer support
 
-Need more help? Contact our support team!`;
+**❓ Can't find what you're looking for?**
+Contact our support team for personalized help:
+• Use /paysupport for payment issues
+• Use /reverse for order problems
+• Or send us a message directly
 
-    bot.sendMessage(chatId, helpText, { parse_mode: 'Markdown' });
+**📞 Support Channels:**
+• Telegram: @StarStore_Chat
+• Channel: @StarStore_app
+• Bot: @TgStarStore_bot
+
+We're here to help 24/7!`;
+
+        bot.sendMessage(chatId, userHelpText, { parse_mode: 'Markdown' });
+    }
+});
+
+// Contact command for users
+bot.onText(/\/contact/, (msg) => {
+    const chatId = msg.chat.id;
+    const username = msg.from.username;
+
+    const contactText = `📞 **Contact StarStore Support**
+
+**❓ Need Help?**
+We're here to assist you 24/7! Choose how you'd like to contact us:
+
+**🔹 Quick Support:**
+• /paysupport [message] - For payment issues
+• /reverse [message] - For order problems
+
+**🔹 Direct Contact:**
+• **Community Chat**: @StarStore_Chat
+• **Official Channel**: @StarStore_app  
+• **Support Bot**: @TgStarStore_bot
+
+**🔹 What can we help with?**
+• Account issues
+• Payment problems
+• Order questions
+• Technical support
+• General inquiries
+
+**📝 Send us a message:**
+Just type your question below and we'll get back to you shortly!`;
+
+    bot.sendMessage(chatId, contactText, { parse_mode: 'Markdown' });
+    
+    // Set up message listener for support request
+    bot.once('message', (userMsg) => {
+        if (userMsg.chat.id === chatId) {
+            const userMessageText = userMsg.text;
+            adminIds.forEach(adminId => {
+                bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}`);
+            });
+            bot.sendMessage(chatId, "✅ Your message has been sent to our support team. We'll get back to you shortly!");
+        }
+    });
 });
 
 // Admin help command
