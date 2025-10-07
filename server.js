@@ -107,8 +107,28 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-telegram-id'],
     exposedHeaders: ['Content-Disposition']
 }));
-app.use(express.json());
-app.use(bodyParser.json());
+// Add error handling for body parsing
+app.use(express.json({ 
+    limit: '10mb',
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
+app.use(bodyParser.json({ 
+    limit: '10mb',
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
+
+// Error handling for body parsing
+app.use((error, req, res, next) => {
+    if (error.type === 'entity.parse.failed' || error.code === 'ECONNABORTED') {
+        console.log('Request body parsing error (client disconnected):', error.message);
+        return res.status(400).json({ error: 'Invalid request body' });
+    }
+    next(error);
+});
 // Serve static with sensible defaults for SEO and caching
 app.use(express.static('public', {
   extensions: ['html'],
@@ -322,9 +342,9 @@ app.get('/api/version', (req, res) => {
         let gitInfo = {};
         
         // Check if we're in a git repository and git is available
-        const isGitAvailable = process.env.NODE_ENV !== 'production' || 
-                              process.env.RAILWAY_GIT_COMMIT_SHA || 
-                              process.env.GIT_AVAILABLE === 'true';
+        const isGitAvailable = process.env.NODE_ENV !== 'production' && 
+                              (process.env.RAILWAY_GIT_COMMIT_SHA || 
+                               process.env.GIT_AVAILABLE === 'true');
         
         if (isGitAvailable) {
             try {
@@ -5265,9 +5285,9 @@ bot.onText(/\/version/, (msg) => {
         let recentCommits = [];
         
         // Check if we're in a git repository and git is available
-        const isGitAvailable = process.env.NODE_ENV !== 'production' || 
-                              process.env.RAILWAY_GIT_COMMIT_SHA || 
-                              process.env.GIT_AVAILABLE === 'true';
+        const isGitAvailable = process.env.NODE_ENV !== 'production' && 
+                              (process.env.RAILWAY_GIT_COMMIT_SHA || 
+                               process.env.GIT_AVAILABLE === 'true');
         
         if (isGitAvailable) {
             try {
