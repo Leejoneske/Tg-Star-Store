@@ -3158,7 +3158,7 @@ async function handlePurchase(item) {
         // Get payment address directly from server
         const headers = {
             'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-            'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '',
+            'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user',
             'Content-Type': 'application/json'
         };
         const walletResponse = await window.API.getWalletAddress();
@@ -3324,7 +3324,7 @@ async function fetchCurrentRate() {
 }
 
     </script>
-    <script src="js/version-display.js"></script>
+    <script src="js/version-display.js?v=3"></script>
     <script>
         // Auto-update version display
         setTimeout(() => {
