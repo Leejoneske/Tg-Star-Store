@@ -318,9 +318,6 @@ async function connectDatabase() {
 
 // Kick off database connection immediately
 connectDatabase();
-
-// Initialize refund detection system
-refundDetection.init();
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
   if (process.env.WEBHOOK_SECRET && 
@@ -943,157 +940,6 @@ function getOrderTypeFromId(orderId) {
     if (orderId.startsWith('WD')) return 'withdrawal';
     return 'unknown';
 }
-
-// Refund Detection System
-const refundDetection = {
-    // Track processed refunds to avoid duplicates
-    processedRefunds: new Set(),
-    
-    // Initialize refund detection
-    init() {
-        console.log('🔍 Initializing refund detection system...');
-        this.startRefundMonitoring();
-    },
-    
-    // Start monitoring for refunds
-    startRefundMonitoring() {
-        // Check for refunds every 30 seconds
-        setInterval(() => {
-            this.checkForRefunds();
-        }, 30000);
-        
-        // Also check immediately on startup
-        setTimeout(() => {
-            this.checkForRefunds();
-        }, 5000);
-    },
-    
-    // Check for new refunds
-    async checkForRefunds() {
-        try {
-            if (!process.env.MONGODB_URI) return; // Skip in development
-            
-            // Find all sell orders that have been refunded
-            const refundedOrders = await SellOrder.find({
-                status: 'refunded',
-                refundData: { $exists: true, $ne: null }
-            }).sort({ dateRefunded: -1 }).limit(50);
-            
-            for (const order of refundedOrders) {
-                const refundKey = `${order.id}_${order.dateRefunded?.getTime()}`;
-                
-                if (!this.processedRefunds.has(refundKey)) {
-                    await this.processRefundNotification(order);
-                    this.processedRefunds.add(refundKey);
-                }
-            }
-            
-            // Clean up old processed refunds (keep last 1000)
-            if (this.processedRefunds.size > 1000) {
-                const refundsArray = Array.from(this.processedRefunds);
-                this.processedRefunds = new Set(refundsArray.slice(-500));
-            }
-            
-        } catch (error) {
-            console.error('❌ Refund detection error:', error.message);
-        }
-    },
-    
-    // Process refund notification
-    async processRefundNotification(order) {
-        try {
-            const refundType = this.determineRefundType(order);
-            const refundReason = this.getRefundReason(order);
-            
-            const adminMessage = `🚨 **REFUND DETECTED** 🚨\n\n` +
-                `📋 **Order ID:** ${order.id}\n` +
-                `👤 **User:** @${order.username || 'Unknown'} (${order.telegramId})\n` +
-                `⭐ **Stars:** ${order.stars}\n` +
-                `💰 **Amount:** ${order.amount || 'N/A'} USDT\n` +
-                `🆔 **Charge ID:** ${order.telegram_payment_charge_id || 'N/A'}\n` +
-                `🔄 **Refund Type:** ${refundType}\n` +
-                `📝 **Reason:** ${refundReason}\n` +
-                `⏰ **Refunded At:** ${order.dateRefunded?.toLocaleString() || 'Unknown'}\n` +
-                `📊 **Status:** ${order.refundData?.status || 'Unknown'}`;
-            
-            // Send notification to all admins
-            await this.notifyAdmins(adminMessage, order);
-            
-            console.log(`🔔 Refund notification sent for order ${order.id} (${refundType})`);
-            
-        } catch (error) {
-            console.error('❌ Error processing refund notification:', error.message);
-        }
-    },
-    
-    // Determine refund type
-    determineRefundType(order) {
-        if (order.refundData?.adminId) {
-            return 'Admin Approved';
-        } else if (order.refundData?.status === 'processed' && !order.refundData?.adminId) {
-            return 'Chargeback/System';
-        } else {
-            return 'Unknown';
-        }
-    },
-    
-    // Get refund reason
-    getRefundReason(order) {
-        if (order.refundData?.reason) {
-            return order.refundData.reason;
-        } else if (order.refundData?.adminId) {
-            return 'Admin approved refund';
-        } else {
-            return 'Automatic/Chargeback';
-        }
-    },
-    
-    // Notify all admins
-    async notifyAdmins(message, order) {
-        const adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '')
-            .split(',')
-            .filter(Boolean)
-            .map(id => id.trim());
-        
-        const adminKeyboard = {
-            inline_keyboard: [
-                [
-                    { text: "🔍 View Order", callback_data: `view_order_${order.id}` },
-                    { text: "📊 Order Details", callback_data: `order_details_${order.id}` }
-                ],
-                [
-                    { text: "📋 Order History", callback_data: `order_history_${order.telegramId}` }
-                ]
-            ]
-        };
-        
-        for (const adminId of adminIds) {
-            try {
-                await bot.sendMessage(adminId, message, { 
-                    parse_mode: 'Markdown',
-                    reply_markup: adminKeyboard 
-                });
-            } catch (error) {
-                console.error(`❌ Failed to notify admin ${adminId}:`, error.message);
-            }
-        }
-    },
-    
-    // Manual check for specific order
-    async checkOrderRefund(orderId) {
-        try {
-            const order = await SellOrder.findOne({ id: orderId });
-            if (order && order.status === 'refunded') {
-                await this.processRefundNotification(order);
-                return true;
-            }
-            return false;
-        } catch (error) {
-            console.error('❌ Error checking order refund:', error.message);
-            return false;
-        }
-    }
-};
 
 async function verifyTONTransaction(transactionHash, targetAddress, expectedAmount) {
     const maxRetries = 2;
@@ -3584,111 +3430,6 @@ setInterval(() => {
     });
 }, 60000);
 
-// Admin command: Check for refunds manually
-bot.onText(/^\/checkrefunds$/i, async (msg) => {
-    const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
-    
-    try {
-        await bot.sendMessage(chatId, "🔍 Checking for refunds...");
-        await refundDetection.checkForRefunds();
-        await bot.sendMessage(chatId, "✅ Refund check completed");
-    } catch (error) {
-        console.error('Error checking refunds:', error);
-        bot.sendMessage(chatId, '❌ Error checking refunds');
-    }
-});
-
-// Admin command: Check specific order for refund
-bot.onText(/^\/checkrefund\s+((?:BUY|SELL|WD)[A-Z0-9]{6,})/i, async (msg, match) => {
-    const chatId = msg.chat.id;
-    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
-    
-    const orderId = match[1].trim();
-    
-    try {
-        await bot.sendMessage(chatId, `🔍 Checking refund status for order ${orderId}...`);
-        const isRefunded = await refundDetection.checkOrderRefund(orderId);
-        
-        if (isRefunded) {
-            await bot.sendMessage(chatId, `✅ Order ${orderId} has been refunded and notification sent`);
-        } else {
-            await bot.sendMessage(chatId, `ℹ️ Order ${orderId} is not refunded`);
-        }
-    } catch (error) {
-        console.error('Error checking order refund:', error);
-        bot.sendMessage(chatId, '❌ Error checking order refund');
-    }
-});
-
-// Callback handler for refund notification buttons
-bot.on('callback_query', async (query) => {
-    try {
-        const data = query.data;
-        const chatId = query.message.chat.id;
-        
-        if (data.startsWith('view_order_')) {
-            const orderId = data.split('_')[2];
-            const order = await SellOrder.findOne({ id: orderId });
-            
-            if (order) {
-                const orderDetails = `📋 **Order Details**\n\n` +
-                    `🆔 **ID:** ${order.id}\n` +
-                    `👤 **User:** @${order.username || 'Unknown'} (${order.telegramId})\n` +
-                    `⭐ **Stars:** ${order.stars}\n` +
-                    `💰 **Amount:** ${order.amount || 'N/A'} USDT\n` +
-                    `🏦 **Wallet:** ${order.walletAddress || 'N/A'}\n` +
-                    `📝 **Memo:** ${order.memoTag || 'N/A'}\n` +
-                    `📊 **Status:** ${order.status}\n` +
-                    `🆔 **Charge ID:** ${order.telegram_payment_charge_id || 'N/A'}\n` +
-                    `📅 **Created:** ${order.dateCreated?.toLocaleString() || 'Unknown'}\n` +
-                    `📅 **Refunded:** ${order.dateRefunded?.toLocaleString() || 'N/A'}`;
-                
-                await bot.answerCallbackQuery(query.id);
-                await bot.sendMessage(chatId, orderDetails, { parse_mode: 'Markdown' });
-            } else {
-                await bot.answerCallbackQuery(query.id, { text: "❌ Order not found" });
-            }
-        } else if (data.startsWith('order_details_')) {
-            const orderId = data.split('_')[2];
-            const order = await SellOrder.findOne({ id: orderId });
-            
-            if (order) {
-                const refundDetails = `💸 **Refund Details**\n\n` +
-                    `🆔 **Order ID:** ${order.id}\n` +
-                    `📊 **Refund Status:** ${order.refundData?.status || 'Unknown'}\n` +
-                    `👤 **Processed By:** ${order.refundData?.adminId || 'System'}\n` +
-                    `📝 **Reason:** ${order.refundData?.reason || 'N/A'}\n` +
-                    `📅 **Processed At:** ${order.refundData?.processedAt?.toLocaleString() || 'Unknown'}\n` +
-                    `🆔 **Charge ID:** ${order.refundData?.chargeId || 'N/A'}`;
-                
-                await bot.answerCallbackQuery(query.id);
-                await bot.sendMessage(chatId, refundDetails, { parse_mode: 'Markdown' });
-            } else {
-                await bot.answerCallbackQuery(query.id, { text: "❌ Order not found" });
-            }
-        } else if (data.startsWith('order_history_')) {
-            const userId = data.split('_')[2];
-            const orders = await SellOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).limit(10);
-            
-            if (orders.length > 0) {
-                let historyText = `📋 **Order History for User ${userId}**\n\n`;
-                orders.forEach((order, index) => {
-                    historyText += `${index + 1}. **${order.id}** - ${order.status} - ${order.stars} stars - ${order.dateCreated?.toLocaleDateString() || 'Unknown'}\n`;
-                });
-                
-                await bot.answerCallbackQuery(query.id);
-                await bot.sendMessage(chatId, historyText, { parse_mode: 'Markdown' });
-            } else {
-                await bot.answerCallbackQuery(query.id, { text: "❌ No orders found for this user" });
-            }
-        }
-    } catch (error) {
-        console.error('Error handling refund callback:', error);
-        await bot.answerCallbackQuery(query.id, { text: "❌ Error processing request" });
-    }
-});
-
 // STICKER HANDLER
 bot.on('sticker', async (msg) => {
   try {
@@ -5630,10 +5371,6 @@ bot.onText(/\/help/, (msg) => {
 /adminhelp - Show this admin help menu
 /adminwallethelp - Show detailed wallet management help
 
-**💸 Refund Detection:**
-/checkrefunds - Manually check for all refunds
-/checkrefund [order_id] - Check specific order for refund status
-
 **Wallet Update Requests:**
 • Use the inline buttons on wallet update requests to approve/reject
 • All wallet changes require admin approval for security`;
@@ -5736,10 +5473,6 @@ bot.onText(/\/adminhelp/, (msg) => {
 /version - Check app version and update information
 /adminhelp - Show this admin help menu
 /adminwallethelp - Show detailed wallet management help
-
-**💸 Refund Detection:**
-/checkrefunds - Manually check for all refunds
-/checkrefund [order_id] - Check specific order for refund status
 
 **Wallet Update Requests:**
 • Use the inline buttons on wallet update requests to approve/reject
