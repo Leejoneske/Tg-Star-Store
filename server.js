@@ -1195,7 +1195,10 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             isBuyForOthers,
             totalRecipients,
             starsPerRecipient,
-            premiumDurationPerRecipient
+            premiumDurationPerRecipient,
+            transactionHash: transactionHash || null,
+            transactionVerified: false, // Will be set to true after verification
+            verificationAttempts: 0 // Track verification attempts
         });
 
         await order.save();
