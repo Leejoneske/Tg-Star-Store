@@ -1380,15 +1380,15 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         });
 
         // Create user message based on order type
-        let userMessage = `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStatus: Pending`;
+        let userMessage = `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStatus: Pending\n\n⏱️ Processing Time: Up to 2 hours to complete\n⚠️ Important: Do not change your username before order completion`;
         
         if (isPremium) {
-            userMessage = `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending`;
+            userMessage = `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending\n\n⏱️ Processing Time: Up to 2 hours to complete\n⚠️ Important: Do not change your username before order completion`;
             if (isBuyForOthers) {
                 userMessage += `\n\nRecipients: ${totalRecipients} user(s)`;
             }
         } else {
-            userMessage = `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending`;
+            userMessage = `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending\n\n⏱️ Processing Time: Up to 2 hours to complete\n⚠️ Important: Do not change your username before order completion`;
             if (isBuyForOthers) {
                 userMessage += `\n\nRecipients: ${totalRecipients} user(s)\nStars per recipient: ${starsPerRecipient}`;
             }

@@ -3096,6 +3096,10 @@ async function handlePurchase(item) {
                             ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}
                         </div>
                     ` : ''}
+                    <div class="text-xs text-amber-600 bg-amber-50 p-2 rounded border">
+                        ⏱️ Processing may take up to 2 hours<br>
+                        ⚠️ Do not change username before completion
+                    </div>
                 </div>
             `,
             icon: 'question',
@@ -3216,7 +3220,16 @@ async function handlePurchase(item) {
                 
                 await Swal.fire({
                     title: 'Success!',
-                    text: 'Your order has been created successfully!',
+                    html: `
+                        <div class="text-center space-y-3">
+                            <div class="text-lg font-semibold text-gray-800">Your order has been created successfully!</div>
+                            <div class="text-sm text-gray-600 space-y-2">
+                                <div>⏱️ <strong>Processing Time:</strong> Up to 2 hours to complete</div>
+                                <div>⚠️ <strong>Important:</strong> Do not change your username before order completion</div>
+                                <div>📋 <strong>Order ID:</strong> ${response.order.id}</div>
+                            </div>
+                        </div>
+                    `,
                     icon: 'success',
                     confirmButtonText: 'OK',
                     confirmButtonColor: '#10B981',
