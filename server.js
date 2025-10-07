@@ -841,23 +841,27 @@ function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
 // Wallet Address Endpoint
-app.get('/api/get-wallet-address', (req, res) => {
+app.get('/api/get-wallet-address', requireTelegramAuth, (req, res) => {
     try {
         const walletAddress = process.env.WALLET_ADDRESS;
         
+        console.log('💰 Wallet address request from user:', req.user?.id);
+        
         if (!walletAddress) {
+            console.error('❌ Wallet address not configured');
             return res.status(500).json({
                 success: false,
                 error: 'Wallet address not configured'
             });
         }
 
+        console.log('✅ Wallet address provided:', walletAddress.slice(0, 8) + '...');
         res.json({
             success: true,
             walletAddress: walletAddress
         });
     } catch (error) {
-        console.error('Error getting wallet address:', error);
+        console.error('❌ Error getting wallet address:', error);
         res.status(500).json({
             success: false,
             error: 'Internal server error'
@@ -866,7 +870,7 @@ app.get('/api/get-wallet-address', (req, res) => {
 });
 
 // Quote endpoint for pricing (used by Buy page)
-app.post('/api/quote', (req, res) => {
+app.post('/api/quote', requireTelegramAuth, (req, res) => {
     try {
         const { isPremium, premiumDuration, stars, recipientsCount, isBuyForOthers } = req.body || {};
         const quantity = Math.max(1, Number(recipientsCount) || 0);
@@ -1029,11 +1033,24 @@ app.post('/api/validate-usernames', (req, res) => {
     }
 });
 
-app.post('/api/orders/create', async (req, res) => {
+app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTelegramUser, totalAmount, isTestnet } = req.body;
 
+        console.log('📋 Order creation request:', {
+            telegramId,
+            username,
+            stars,
+            walletAddress: walletAddress ? `${walletAddress.slice(0, 8)}...` : 'none',
+            isPremium,
+            premiumDuration,
+            recipientsCount: recipients?.length || 0,
+            totalAmount,
+            isTestnet
+        });
+
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
+            console.error('❌ Missing required fields:', { telegramId: !!telegramId, username: !!username, walletAddress: !!walletAddress, premiumDuration: !!premiumDuration });
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
@@ -1216,10 +1233,16 @@ app.post('/api/orders/create', async (req, res) => {
           recipients: recipients?.length || 0
         });
         
+        console.log('✅ Order created successfully:', order.id);
         res.json({ success: true, order });
     } catch (err) {
-        console.error('Order creation error:', err);
-        res.status(500).json({ error: 'Failed to create order' });
+        console.error('❌ Order creation error:', err);
+        console.error('❌ Error details:', {
+            message: err.message,
+            stack: err.stack,
+            name: err.name
+        });
+        res.status(500).json({ error: 'Failed to create order: ' + err.message });
     }
 });
 

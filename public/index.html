@@ -2042,8 +2042,25 @@ function restoreWalletState() {
 }
 
 function initWalletConnection() {
+    // Wait for TON Connect UI to load
     if (typeof TON_CONNECT_UI === 'undefined') {
-        console.error('TON Connect UI not loaded');
+        console.warn('TON Connect UI not loaded yet, retrying in 1 second...');
+        setTimeout(initWalletConnection, 1000);
+        return;
+    }
+    
+    try {
+        tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ 
+            manifestUrl: 'https://starstore.site/tonconnect-manifest.json',
+            language: currentLanguage === 'ru' ? 'ru' : 'en',
+            restoreConnection: true, 
+            uiOptions: {
+                twaReturnUrl: 'https://t.me/TgStarStore_bot?startApp'
+            }
+        });
+        console.log('✅ TON Connect UI initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize TON Connect UI:', error);
         const btn = document.getElementById('connectWallet');
         if (btn) {
             btn.textContent = TranslationUtils.get('walletError') || 'Wallet Error';
@@ -2051,15 +2068,6 @@ function initWalletConnection() {
         }
         return;
     }
-    
-    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ 
-        manifestUrl: 'https://starstore.site/tonconnect-manifest.json',
-        language: currentLanguage === 'ru' ? 'ru' : 'en',
-        restoreConnection: true, 
-        uiOptions: {
-            twaReturnUrl: 'https://t.me/TgStarStore_bot?startApp'
-        }
-    });
 
     // Update button immediately with current state
     updateWalletButton();
@@ -2070,24 +2078,32 @@ function initWalletConnection() {
         .then(r => r.json()).then(d => { currentUserIsAdmin = !!d?.isAdmin; }).catch(() => { currentUserIsAdmin = false; });
 
     tonConnectUI.onStatusChange(wallet => {
+        console.log('🔄 Wallet status changed:', wallet);
         if (wallet?.account) {
             currentWalletAddress = wallet.account.address;
             walletConnected = true;
             localStorage.setItem('walletConnected', 'true');
             localStorage.setItem('walletAddress', currentWalletAddress);
-            console.log('Wallet connected:', currentWalletAddress);
+            console.log('✅ Wallet connected:', currentWalletAddress);
             // Block testnet wallets immediately
             if (isTestnetWallet(wallet) && !currentUserIsAdmin) {
                 showErrorToUser('Testnet wallet is not supported. Please switch to TON mainnet.');
                 // Attempt to disconnect gracefully
-                setTimeout(async () => { try { await tonConnectUI.disconnect(); } catch (_) {} }, 200);
+                setTimeout(async () => { 
+                    try { 
+                        await tonConnectUI.disconnect(); 
+                        console.log('🔌 Testnet wallet disconnected');
+                    } catch (e) {
+                        console.error('Failed to disconnect testnet wallet:', e);
+                    }
+                }, 200);
             }
         } else {
             currentWalletAddress = '';
             walletConnected = false;
             localStorage.removeItem('walletConnected');
             localStorage.removeItem('walletAddress');
-            console.log('Wallet disconnected');
+            console.log('🔌 Wallet disconnected');
         }
         updateWalletButton();
     });
@@ -2095,15 +2111,18 @@ function initWalletConnection() {
     const btn = document.getElementById('connectWallet');
     if (btn) {
         btn.addEventListener('click', async () => {
+            console.log('🖱️ Wallet button clicked, connected:', walletConnected);
             btn.disabled = true;
             try {
                 if (walletConnected) {
+                    console.log('🔌 Disconnecting wallet...');
                     await tonConnectUI.disconnect();
                 } else {
+                    console.log('🔗 Opening wallet connection modal...');
                     await tonConnectUI.openModal();
                 }
             } catch (e) {
-                console.error('Wallet connection error:', e);
+                console.error('❌ Wallet connection error:', e);
                 showErrorToUser(TranslationUtils.get('walletError') || 'Wallet connection failed');
             } finally {
                 btn.disabled = false;
@@ -2112,30 +2131,46 @@ function initWalletConnection() {
     }
 }   
         
+// Check for existing wallet connection after initialization
 setTimeout(() => {
-    if (tonConnectUI && tonConnectUI.connected) {
-        const wallet = tonConnectUI.wallet;
-        if (wallet?.account) {
-            currentWalletAddress = wallet.account.address;
-            walletConnected = true;
-            localStorage.setItem('walletConnected', 'true');
-            localStorage.setItem('walletAddress', currentWalletAddress);
-            updateWalletButton();
+    if (tonConnectUI) {
+        console.log('🔍 Checking for existing wallet connection...');
+        if (tonConnectUI.connected) {
+            const wallet = tonConnectUI.wallet;
+            if (wallet?.account) {
+                currentWalletAddress = wallet.account.address;
+                walletConnected = true;
+                localStorage.setItem('walletConnected', 'true');
+                localStorage.setItem('walletAddress', currentWalletAddress);
+                console.log('✅ Restored wallet connection:', currentWalletAddress);
+                updateWalletButton();
+            }
+        } else {
+            console.log('ℹ️ No existing wallet connection found');
         }
     }
-}, 1000);       
+}, 2000);       
         
-  function updateWalletButton() {
+function updateWalletButton() {
     const btn = document.getElementById('connectWallet');
-    if (!btn) return;
+    if (!btn) {
+        console.warn('Wallet button not found');
+        return;
+    }
+    
+    console.log('🔄 Updating wallet button, connected:', walletConnected, 'address:', currentWalletAddress);
     
     if (walletConnected && currentWalletAddress) {
         btn.classList.add('wallet-connected');
         const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
         btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
+        btn.disabled = false;
+        console.log('✅ Wallet button updated - connected state');
     } else {
         btn.classList.remove('wallet-connected');
-        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${TranslationUtils.get('connectWallet')}`;
+        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${TranslationUtils.get('connectWallet') || 'Connect Wallet'}`;
+        btn.disabled = false;
+        console.log('✅ Wallet button updated - disconnected state');
     }
 }      
 //end of ton connect
@@ -2885,8 +2920,18 @@ async function updatePackagePrices() {
 }
 
 async function handlePurchase(item) {
-    if (!tonConnectUI || !walletConnected) {
-        showErrorToUser(TranslationUtils.get('walletNotConnected'));
+    console.log('🛒 Starting purchase process for item:', item);
+    console.log('🔍 Wallet state - tonConnectUI:', !!tonConnectUI, 'walletConnected:', walletConnected);
+    
+    if (!tonConnectUI) {
+        console.error('❌ TON Connect UI not initialized');
+        showErrorToUser('Wallet system not ready. Please refresh the page and try again.');
+        return;
+    }
+    
+    if (!walletConnected) {
+        console.warn('⚠️ Wallet not connected');
+        showErrorToUser(TranslationUtils.get('walletNotConnected') || 'Please connect your wallet first');
         return;
     }
     
@@ -3102,7 +3147,9 @@ async function handlePurchase(item) {
         };
         
         // Send transaction
+        console.log('📤 Sending transaction:', transaction);
         const result = await tonConnectUI.sendTransaction(transaction);
+        console.log('📥 Transaction result:', result);
         
         if (result) {
             // Create order record
@@ -3122,7 +3169,9 @@ async function handlePurchase(item) {
                 totalAmount: totalAmountUsdt
             };
             
+            console.log('📋 Creating order with data:', orderData);
             const response = await window.API.createOrder(orderData);
+            console.log('📋 Order creation response:', response);
             
             if (response && response.success) {
                 // Close loading before showing success
@@ -3155,7 +3204,13 @@ async function handlePurchase(item) {
             throw new Error(TranslationUtils.get('transactionFailed'));
         }
     } catch (error) {
-        console.error('Payment error:', error);
+        console.error('❌ Payment error:', error);
+        console.error('❌ Error details:', {
+            name: error?.name,
+            message: error?.message,
+            stack: error?.stack,
+            response: error?.response?.data
+        });
         
         // Close loading before showing error
         if (loadingShown) {
@@ -3175,6 +3230,10 @@ async function handlePurchase(item) {
             errorMessage = error;
         } else if (error?.name === 'UserRejectsError') {
             errorMessage = TranslationUtils.get('transactionCancelled') || 'Transaction was cancelled';
+        } else if (error?.name === 'WalletNotConnectedError') {
+            errorMessage = 'Wallet not connected. Please connect your wallet and try again.';
+        } else if (error?.name === 'WalletNotReadyError') {
+            errorMessage = 'Wallet not ready. Please try again in a moment.';
         }
         
         await Swal.fire({
