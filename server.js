@@ -401,6 +401,15 @@ const buyOrderSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    transactionHash: String,
+    transactionVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationAttempts: {
+        type: Number,
+        default: 0
+    },
     totalRecipients: {
         type: Number,
         default: 0
@@ -837,8 +846,112 @@ function cleanupWalletSelections() {
 // Run cleanup every 10 minutes
 setInterval(cleanupWalletSelections, 10 * 60 * 1000);
 
+// Background job to verify pending transactions
+setInterval(async () => {
+    try {
+        const pendingOrders = await BuyOrder.find({
+            status: 'pending',
+            transactionHash: { $exists: true, $ne: null },
+            transactionVerified: false,
+            verificationAttempts: { $lt: 3 }
+        }).limit(10);
+
+        for (const order of pendingOrders) {
+            try {
+                order.verificationAttempts += 1;
+                
+                const isVerified = await verifyTONTransaction(
+                    order.transactionHash,
+                    process.env.WALLET_ADDRESS,
+                    order.amount
+                );
+
+                if (isVerified) {
+                    order.transactionVerified = true;
+                    order.status = 'processing';
+                    await order.save();
+                    console.log('Order verified and updated:', order.id);
+                } else {
+                    await order.save();
+                    console.log('Order verification attempt failed:', order.id);
+                }
+            } catch (error) {
+                console.error('Error verifying order:', order.id, error);
+                await order.save();
+            }
+        }
+    } catch (error) {
+        console.error('Background verification error:', error);
+    }
+}, 30000);
+
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
+}
+
+async function verifyTONTransaction(transactionHash, targetAddress, expectedAmount) {
+    try {
+        const tonApiUrl = 'https://toncenter.com/api/v2/getTransactions';
+        const response = await fetch(tonApiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                address: targetAddress,
+                limit: 10,
+                hash: transactionHash
+            })
+        });
+
+        if (!response.ok) {
+            console.error('TON API request failed:', response.status);
+            return false;
+        }
+
+        const data = await response.json();
+        
+        if (!data.ok || !data.result || data.result.length === 0) {
+            console.log('Transaction not found in blockchain');
+            return false;
+        }
+
+        const transaction = data.result[0];
+        
+        if (!transaction.in_msg) {
+            console.log('Transaction has no incoming message');
+            return false;
+        }
+
+        const receivedAmount = parseInt(transaction.in_msg.value);
+        const expectedAmountNano = Math.floor(expectedAmount * 1e9);
+        
+        if (receivedAmount < expectedAmountNano * 0.95) {
+            console.log('Transaction amount mismatch:', receivedAmount, 'expected:', expectedAmountNano);
+            return false;
+        }
+
+        if (transaction.in_msg.destination !== targetAddress) {
+            console.log('Transaction destination mismatch');
+            return false;
+        }
+
+        const transactionTime = transaction.utime * 1000;
+        const now = Date.now();
+        const timeDiff = now - transactionTime;
+        
+        if (timeDiff > 300000) {
+            console.log('Transaction too old:', timeDiff);
+            return false;
+        }
+
+        console.log('Transaction verified successfully');
+        return true;
+        
+    } catch (error) {
+        console.error('TON transaction verification error:', error);
+        return false;
+    }
 }
 // Wallet Address Endpoint
 app.get('/api/get-wallet-address', requireTelegramAuth, (req, res) => {
@@ -870,6 +983,61 @@ app.get('/api/get-wallet-address', requireTelegramAuth, (req, res) => {
 });
 
 // Quote endpoint for pricing (used by Buy page)
+// Transaction verification endpoint
+app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
+    try {
+        const { transactionHash, targetAddress, expectedAmount } = req.body;
+        
+        if (!transactionHash || !targetAddress || !expectedAmount) {
+            return res.status(400).json({ success: false, error: 'Missing required parameters' });
+        }
+
+        const isVerified = await verifyTONTransaction(transactionHash, targetAddress, expectedAmount);
+        
+        if (isVerified) {
+            console.log('Transaction verified successfully:', transactionHash);
+            res.json({ success: true, verified: true });
+        } else {
+            console.log('Transaction verification failed:', transactionHash);
+            res.json({ success: false, verified: false });
+        }
+    } catch (error) {
+        console.error('Transaction verification error:', error);
+        res.status(500).json({ success: false, error: 'Verification failed' });
+    }
+});
+
+// Order status check endpoint
+app.get('/api/order-status/:orderId', requireTelegramAuth, async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const userId = req.user.id;
+        
+        const order = await BuyOrder.findOne({ id: orderId, telegramId: userId });
+        
+        if (!order) {
+            return res.status(404).json({ success: false, error: 'Order not found' });
+        }
+        
+        res.json({
+            success: true,
+            order: {
+                id: order.id,
+                status: order.status,
+                transactionVerified: order.transactionVerified,
+                amount: order.amount,
+                stars: order.stars,
+                isPremium: order.isPremium,
+                premiumDuration: order.premiumDuration,
+                dateCreated: order.dateCreated
+            }
+        });
+    } catch (error) {
+        console.error('Order status check error:', error);
+        res.status(500).json({ success: false, error: 'Failed to check order status' });
+    }
+});
+
 app.post('/api/quote', requireTelegramAuth, (req, res) => {
     try {
         const { isPremium, premiumDuration, stars, recipientsCount, isBuyForOthers } = req.body || {};
@@ -1197,8 +1365,8 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             starsPerRecipient,
             premiumDurationPerRecipient,
             transactionHash: transactionHash || null,
-            transactionVerified: false, // Will be set to true after verification
-            verificationAttempts: 0 // Track verification attempts
+            transactionVerified: !!transactionHash,
+            verificationAttempts: 0
         });
 
         await order.save();
