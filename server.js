@@ -320,16 +320,28 @@ app.get('/api/version', (req, res) => {
         
         // Try to get git information, fallback to environment/build info
         let gitInfo = {};
-        try {
-            const { execSync } = require('child_process');
-            gitInfo = {
-                buildNumber: execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(),
-                commitHash: execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(),
-                branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(),
-                commitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim().split(' ')[0]
-            };
-        } catch (gitError) {
-            // Use environment variables or build-time info for production
+        
+        // Check if we're in a git repository and git is available
+        const isGitAvailable = process.env.NODE_ENV !== 'production' || 
+                              process.env.RAILWAY_GIT_COMMIT_SHA || 
+                              process.env.GIT_AVAILABLE === 'true';
+        
+        if (isGitAvailable) {
+            try {
+                const { execSync } = require('child_process');
+                gitInfo = {
+                    buildNumber: execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(),
+                    commitHash: execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(),
+                    branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(),
+                    commitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim().split(' ')[0]
+                };
+            } catch (gitError) {
+                // Fall through to environment variables
+            }
+        }
+        
+        // Use environment variables or build-time info if git failed or unavailable
+        if (!gitInfo.buildNumber) {
             gitInfo = {
                 buildNumber: process.env.RAILWAY_GIT_COMMIT_SHA ? process.env.RAILWAY_GIT_COMMIT_SHA.substring(0, 7) : 'N/A',
                 commitHash: process.env.RAILWAY_GIT_COMMIT_SHA ? process.env.RAILWAY_GIT_COMMIT_SHA.substring(0, 7) : 'production',
@@ -893,17 +905,13 @@ function generateOrderId() {
 
 async function verifyTONTransaction(transactionHash, targetAddress, expectedAmount) {
     try {
-        const tonApiUrl = 'https://toncenter.com/api/v2/getTransactions';
+        // Use GET method with query parameters for TON Center API
+        const tonApiUrl = `https://toncenter.com/api/v2/getTransactions?address=${targetAddress}&limit=10&hash=${transactionHash}`;
         const response = await fetch(tonApiUrl, {
-            method: 'POST',
+            method: 'GET',
             headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                address: targetAddress,
-                limit: 10,
-                hash: transactionHash
-            })
+                'Accept': 'application/json',
+            }
         });
 
         if (!response.ok) {
@@ -4005,7 +4013,7 @@ app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) =>
         }
         
         const referrals = await Referral.find({ referrerUserId: userId });
-        console.log(`Found ${referrals.length} referrals for user ${userId}`);
+        // Found referrals for user
         
         const referredUserIds = referrals.map(r => r.referredUserId);
         const users = await User.find({ id: { $in: referredUserIds } });
@@ -4027,12 +4035,7 @@ app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) =>
             ['completed', 'active'].includes(r.status)
         ).length;
         
-        console.log(`Referral stats for user ${req.params.userId}:`, {
-            totalReferrals,
-            completedReferrals,
-            availableReferrals,
-            referrals: referrals.map(r => ({ status: r.status, withdrawn: r.withdrawn }))
-        });
+        // Referral stats calculated
 
         const responseData = {
             success: true,
@@ -4052,7 +4055,7 @@ app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) =>
             referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`
         };
         
-        console.log(`Returning referral stats for ${req.params.userId}:`, responseData.stats);
+        // Returning referral stats
         res.json(responseData);
         
     } catch (error) {
@@ -5261,20 +5264,31 @@ bot.onText(/\/version/, (msg) => {
         let gitInfo = {};
         let recentCommits = [];
         
-        try {
-            gitInfo = {
-                commitCount: execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(),
-                currentHash: execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(),
-                branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(),
-                lastCommitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim(),
-                lastCommitMessage: execSync('git log -1 --format=%s', { encoding: 'utf8' }).trim(),
-                lastCommitAuthor: execSync('git log -1 --format=%an', { encoding: 'utf8' }).trim()
-            };
-            
-            // Get recent commits (last 5)
-            recentCommits = execSync('git log -5 --oneline', { encoding: 'utf8' }).trim().split('\n');
-        } catch (gitError) {
-            // Use environment variables or build-time info for production
+        // Check if we're in a git repository and git is available
+        const isGitAvailable = process.env.NODE_ENV !== 'production' || 
+                              process.env.RAILWAY_GIT_COMMIT_SHA || 
+                              process.env.GIT_AVAILABLE === 'true';
+        
+        if (isGitAvailable) {
+            try {
+                gitInfo = {
+                    commitCount: execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(),
+                    currentHash: execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(),
+                    branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(),
+                    lastCommitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim(),
+                    lastCommitMessage: execSync('git log -1 --format=%s', { encoding: 'utf8' }).trim(),
+                    lastCommitAuthor: execSync('git log -1 --format=%an', { encoding: 'utf8' }).trim()
+                };
+                
+                // Get recent commits (last 5)
+                recentCommits = execSync('git log -5 --oneline', { encoding: 'utf8' }).trim().split('\n');
+            } catch (gitError) {
+                // Fall through to environment variables
+            }
+        }
+        
+        // Use environment variables or build-time info if git failed or unavailable
+        if (!gitInfo.commitCount) {
             gitInfo = {
                 commitCount: process.env.RAILWAY_GIT_COMMIT_SHA ? '1' : 'N/A',
                 currentHash: process.env.RAILWAY_GIT_COMMIT_SHA ? process.env.RAILWAY_GIT_COMMIT_SHA.substring(0, 7) : 'N/A',

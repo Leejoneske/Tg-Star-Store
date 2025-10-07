@@ -39,7 +39,8 @@ function requireTelegramAuth(req, res, next) {
 
   if (process.env.NODE_ENV === 'production') {
     // Check for telegram-id header first (most reliable)
-    if (req.headers['x-telegram-id']) {
+    const telegramId = req.headers['x-telegram-id'];
+    if (telegramId && telegramId !== 'undefined' && telegramId !== 'null') {
       // Continue to normal processing below
     } else if (initDataHeader && botToken) {
       const valid = validateTelegramInitData(initDataHeader, botToken);
@@ -48,7 +49,8 @@ function requireTelegramAuth(req, res, next) {
         console.log('❌ Telegram auth validation failed:', { 
           hasInitData: !!initDataHeader, 
           hasBotToken: !!botToken,
-          initDataLength: initDataHeader.length 
+          initDataLength: initDataHeader.length,
+          telegramId: telegramId
         });
         return res.status(401).json({ error: 'Unauthorized' });
       }
