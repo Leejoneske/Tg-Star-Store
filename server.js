@@ -1214,7 +1214,8 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             premiumDuration,
             recipientsCount: recipients?.length || 0,
             totalAmount,
-            isTestnet
+            isTestnet,
+            isAdmin: requesterIsAdmin
         });
 
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
@@ -1262,22 +1263,30 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         
         // Additional validation: Check wallet address format
         if (walletAddress && typeof walletAddress === 'string') {
-            if (!isValidTONAddress(walletAddress)) {
+            // For admins, allow testnet addresses; for regular users, enforce mainnet only
+            if (!requesterIsAdmin && !isValidTONAddress(walletAddress)) {
                 console.error('❌ Invalid wallet address format:', walletAddress);
                 return res.status(400).json({ error: 'Invalid wallet address format. Please provide a valid TON mainnet address.' });
             }
-            
-            // Additional validation: Check if wallet address is not empty or just whitespace
-            if (walletAddress.trim().length < 10) {
+            // For admins, do basic format check but allow testnet
+            if (requesterIsAdmin && walletAddress.trim().length < 10) {
                 console.error('❌ Wallet address too short:', walletAddress);
                 return res.status(400).json({ error: 'Invalid wallet address. Please provide a complete TON wallet address.' });
             }
             
-            // Check for common invalid addresses
-            const invalidPatterns = ['0x', 'bc1', '1', '2', '3', 'test', 'invalid', 'none', 'null'];
-            if (invalidPatterns.some(pattern => walletAddress.toLowerCase().includes(pattern))) {
-                console.error('❌ Wallet address contains invalid pattern:', walletAddress);
-                return res.status(400).json({ error: 'Invalid wallet address. Please provide a valid TON wallet address.' });
+            // Additional validation: Check if wallet address is not empty or just whitespace (for non-admins)
+            if (!requesterIsAdmin && walletAddress.trim().length < 10) {
+                console.error('❌ Wallet address too short:', walletAddress);
+                return res.status(400).json({ error: 'Invalid wallet address. Please provide a complete TON wallet address.' });
+            }
+            
+            // Check for common invalid addresses (only for non-admins)
+            if (!requesterIsAdmin) {
+                const invalidPatterns = ['0x', 'bc1', '1', '2', '3', 'test', 'invalid', 'none', 'null'];
+                if (invalidPatterns.some(pattern => walletAddress.toLowerCase().includes(pattern))) {
+                    console.error('❌ Wallet address contains invalid pattern:', walletAddress);
+                    return res.status(400).json({ error: 'Invalid wallet address. Please provide a valid TON wallet address.' });
+                }
             }
         } else {
             console.error('❌ Wallet address missing or invalid type:', walletAddress);
