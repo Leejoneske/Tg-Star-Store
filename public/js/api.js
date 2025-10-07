@@ -23,6 +23,15 @@ window.API = {
         }
         if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
             authHeaders['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
+        } else {
+            // Debug: Log when user ID is not available
+            console.log('🔍 Telegram user ID not available:', {
+                hasTelegram: !!window.Telegram,
+                hasWebApp: !!window.Telegram?.WebApp,
+                hasInitDataUnsafe: !!window.Telegram?.WebApp?.initDataUnsafe,
+                hasUser: !!window.Telegram?.WebApp?.initDataUnsafe?.user,
+                userId: window.Telegram?.WebApp?.initDataUnsafe?.user?.id
+            });
         }
         
         // Fallback for development/testing when not in Telegram

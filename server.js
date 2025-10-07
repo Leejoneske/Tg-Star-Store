@@ -329,7 +329,7 @@ app.get('/api/version', (req, res) => {
                 commitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim().split(' ')[0]
             };
         } catch (gitError) {
-            console.warn('Could not get git info (git not available in production):', gitError.message);
+            // Silently handle git unavailability in production
             gitInfo = {
                 buildNumber: '0',
                 commitHash: 'production',
@@ -5272,7 +5272,7 @@ bot.onText(/\/version/, (msg) => {
             // Get recent commits (last 5)
             recentCommits = execSync('git log -5 --oneline', { encoding: 'utf8' }).trim().split('\n');
         } catch (gitError) {
-            console.warn('Git not available in production environment:', gitError.message);
+            // Silently handle git unavailability in production
             gitInfo = {
                 commitCount: 'N/A',
                 currentHash: 'N/A',

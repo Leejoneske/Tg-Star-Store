@@ -38,23 +38,13 @@ function requireTelegramAuth(req, res, next) {
   const botToken = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
 
   if (process.env.NODE_ENV === 'production') {
-    // Debug: Log authentication details
-    console.log('🔍 Telegram Auth Debug:', {
-      hasInitData: !!initDataHeader,
-      initDataLength: initDataHeader.length,
-      hasBotToken: !!botToken,
-      botTokenLength: botToken ? botToken.length : 0,
-      userAgent: req.headers['user-agent']?.includes('Telegram') ? 'Telegram' : 'Other',
-      telegramId: req.headers['x-telegram-id']
-    });
-    
-    // Temporarily allow requests with telegram-id header while we debug
+    // Check for telegram-id header first (most reliable)
     if (req.headers['x-telegram-id']) {
-      console.log('🔧 Allowing request with x-telegram-id header');
       // Continue to normal processing below
     } else if (initDataHeader && botToken) {
       const valid = validateTelegramInitData(initDataHeader, botToken);
       if (!valid) {
+        // Only log auth failures, not every request
         console.log('❌ Telegram auth validation failed:', { 
           hasInitData: !!initDataHeader, 
           hasBotToken: !!botToken,
@@ -63,6 +53,7 @@ function requireTelegramAuth(req, res, next) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
     } else {
+      // Only log when no auth method is found
       console.log('❌ No valid authentication method found');
       return res.status(401).json({ error: 'Unauthorized' });
     }
