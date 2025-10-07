@@ -3557,7 +3557,10 @@ async function logActivity(userId, activityType, points, metadata = {}) {
     // Send bot notification
     await sendBotNotification(userId, activity);
 
-    console.log(`📊 Activity logged: ${userId} - ${activityType.name} (+${points} points)`);
+    // Only log significant activities, not daily check-ins
+    if (activityType.id !== 'daily_checkin') {
+      console.log(`📊 Activity logged: ${userId} - ${activityType.name} (+${points} points)`);
+    }
   } catch (error) {
     console.error('Failed to log activity:', error);
   }
@@ -3926,66 +3929,128 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const day = today.getDate();
 
-    let state;
+    // Use atomic operations to prevent concurrency issues
     if (process.env.MONGODB_URI) {
-      // Production: Use MongoDB
-      state = await DailyState.findOne({ userId });
-      if (!state) {
-        state = await DailyState.create({ userId, totalPoints: 0, streak: 0, missionsCompleted: [], checkedInDays: [] });
+      // Production: Use MongoDB with atomic operations
+      const result = await DailyState.findOneAndUpdate(
+        { userId },
+        {
+          $setOnInsert: { 
+            userId, 
+            totalPoints: 0, 
+            streak: 0, 
+            missionsCompleted: [], 
+            checkedInDays: [],
+            month: monthKey
+          }
+        },
+        { 
+          upsert: true, 
+          new: true,
+          runValidators: true
+        }
+      );
+      
+      // Check if already checked in today
+      const alreadyToday = result.lastCheckIn && new Date(result.lastCheckIn).toDateString() === today.toDateString();
+      if (alreadyToday || result.checkedInDays.includes(day)) {
+        return res.json({ success: true, alreadyChecked: true, streak: result.streak, totalPoints: result.totalPoints, checkedInDays: result.checkedInDays });
       }
+
+      // Calculate new streak
+      let newStreak = result.streak || 0;
+      if (result.lastCheckIn) {
+        const diffDays = Math.round((today - new Date(result.lastCheckIn)) / (1000 * 60 * 60 * 24));
+        newStreak = diffDays === 1 ? newStreak + 1 : 1;
+      } else {
+        newStreak = 1;
+      }
+
+      // Update with atomic operation
+      const dailyPoints = 10;
+      const days = new Set(result.checkedInDays);
+      days.add(day);
+      
+      const updatedState = await DailyState.findOneAndUpdate(
+        { 
+          userId,
+          $or: [
+            { lastCheckIn: { $ne: today.toDateString() } },
+            { lastCheckIn: { $exists: false } }
+          ]
+        },
+        {
+          $set: {
+            totalPoints: (result.totalPoints || 0) + dailyPoints,
+            lastCheckIn: today,
+            streak: newStreak,
+            month: monthKey,
+            checkedInDays: Array.from(days).sort((a,b) => a-b),
+            updatedAt: new Date()
+          }
+        },
+        { new: true }
+      );
+
+      if (!updatedState) {
+        // Another request already processed this check-in
+        const currentState = await DailyState.findOne({ userId });
+        return res.json({ success: true, alreadyChecked: true, streak: currentState.streak, totalPoints: currentState.totalPoints, checkedInDays: currentState.checkedInDays });
+      }
+
+      state = updatedState;
     } else {
       // Development: Use file-based storage
       state = await db.findDailyState(userId);
       if (!state) {
         state = await db.createDailyState({ userId, totalPoints: 0, streak: 0, missionsCompleted: [], checkedInDays: [] });
       }
-    }
 
-    // Month rollover
-    if (state.month !== monthKey) {
+      // Month rollover
+      if (state.month !== monthKey) {
+        state.month = monthKey;
+        state.checkedInDays = [];
+      }
+
+      // Prevent double check-in same day
+      const alreadyToday = state.lastCheckIn && new Date(state.lastCheckIn).toDateString() === today.toDateString();
+      if (alreadyToday || state.checkedInDays.includes(day)) {
+        return res.json({ success: true, alreadyChecked: true, streak: state.streak, totalPoints: state.totalPoints, checkedInDays: state.checkedInDays });
+      }
+
+      // Streak logic
+      let newStreak = state.streak || 0;
+      if (state.lastCheckIn) {
+        const diffDays = Math.round((today - new Date(state.lastCheckIn)) / (1000 * 60 * 60 * 24));
+        newStreak = diffDays === 1 ? newStreak + 1 : 1;
+      } else {
+        newStreak = 1;
+      }
+
+      // Award daily points
+      const dailyPoints = 10;
+      state.totalPoints = (state.totalPoints || 0) + dailyPoints;
+      state.lastCheckIn = today;
+      state.streak = newStreak;
       state.month = monthKey;
-      state.checkedInDays = [];
-    }
-
-    // Prevent double check-in same day
-    const alreadyToday = state.lastCheckIn && new Date(state.lastCheckIn).toDateString() === today.toDateString();
-    if (alreadyToday || state.checkedInDays.includes(day)) {
-      return res.json({ success: true, alreadyChecked: true, streak: state.streak, totalPoints: state.totalPoints, checkedInDays: state.checkedInDays });
-    }
-
-    // Streak logic
-    let newStreak = state.streak || 0;
-    if (state.lastCheckIn) {
-      const diffDays = Math.round((today - new Date(state.lastCheckIn)) / (1000 * 60 * 60 * 24));
-      newStreak = diffDays === 1 ? newStreak + 1 : 1;
-    } else {
-      newStreak = 1;
-    }
-
-    // Award daily points (can customize later)
-    const dailyPoints = 10;
-    state.totalPoints = (state.totalPoints || 0) + dailyPoints;
-    state.lastCheckIn = today;
-    state.streak = newStreak;
-    state.month = monthKey;
-    const days = new Set(state.checkedInDays);
-    days.add(day);
-    state.checkedInDays = Array.from(days).sort((a,b) => a-b);
-    state.updatedAt = new Date();
-    
-    // Save the state
-    if (process.env.MONGODB_URI) {
-      await state.save();
-    } else {
+      const days = new Set(state.checkedInDays);
+      days.add(day);
+      state.checkedInDays = Array.from(days).sort((a,b) => a-b);
+      state.updatedAt = new Date();
+      
       await db.updateDailyState(userId, state);
     }
 
-    // Log activity
-    await logActivity(userId, ACTIVITY_TYPES.DAILY_CHECKIN, dailyPoints, {
-      streak: newStreak,
-      day: day,
-      month: monthKey
-    });
+    // Log activity (silently)
+    try {
+      await logActivity(userId, ACTIVITY_TYPES.DAILY_CHECKIN, dailyPoints, {
+        streak: newStreak,
+        day: day,
+        month: monthKey
+      });
+    } catch (logError) {
+      // Silently handle activity logging errors
+    }
 
     // Check for milestone achievements
     let streakMilestone = null;
@@ -4284,7 +4349,6 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
     const idToDailyState = new Map(dailyUsers.map(d => [d.userId, d]));
 
     console.log(`📊 Leaderboard data: ${allUserIds.length} total users, ${referralCounts.length} with referrals, ${dailyUsers.length} with daily activity`);
-    console.log(`📊 Referral counts:`, referralCounts);
 
     const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
     const maxReferrals = Math.max(1, ...referralCounts.map(r => r.referralsCount), 1);
