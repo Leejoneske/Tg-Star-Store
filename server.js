@@ -3644,7 +3644,7 @@ async function getOrderCountForUser(userId) {
   try {
     if (process.env.MONGODB_URI) {
       // Check both buy and sell orders
-      const buyOrders = await Order.countDocuments({ telegramId: userId, status: 'completed' });
+      const buyOrders = await BuyOrder.countDocuments({ telegramId: userId, status: 'completed' });
       const sellOrders = await SellOrder.countDocuments({ telegramId: userId, status: 'completed' });
       return buyOrders + sellOrders;
     } else {
@@ -3928,6 +3928,8 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
     const today = new Date();
     const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const day = today.getDate();
+    let newStreak = 0; // Declare at function level
+    let dailyPoints = 10; // Declare at function level
 
     // Use atomic operations to prevent concurrency issues
     if (process.env.MONGODB_URI) {
@@ -3958,7 +3960,7 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
       }
 
       // Calculate new streak
-      let newStreak = result.streak || 0;
+      newStreak = result.streak || 0;
       if (result.lastCheckIn) {
         const diffDays = Math.round((today - new Date(result.lastCheckIn)) / (1000 * 60 * 60 * 24));
         newStreak = diffDays === 1 ? newStreak + 1 : 1;
@@ -3967,7 +3969,6 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
       }
 
       // Update with atomic operation
-      const dailyPoints = 10;
       const days = new Set(result.checkedInDays);
       days.add(day);
       
@@ -4019,7 +4020,7 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
       }
 
       // Streak logic
-      let newStreak = state.streak || 0;
+      newStreak = state.streak || 0;
       if (state.lastCheckIn) {
         const diffDays = Math.round((today - new Date(state.lastCheckIn)) / (1000 * 60 * 60 * 24));
         newStreak = diffDays === 1 ? newStreak + 1 : 1;
@@ -4028,7 +4029,6 @@ app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
       }
 
       // Award daily points
-      const dailyPoints = 10;
       state.totalPoints = (state.totalPoints || 0) + dailyPoints;
       state.lastCheckIn = today;
       state.streak = newStreak;

@@ -50,7 +50,7 @@ function requireTelegramAuth(req, res, next) {
           hasInitData: !!initDataHeader, 
           hasBotToken: !!botToken,
           initDataLength: initDataHeader.length,
-          telegramId: telegramId
+          telegramId: telegramId || 'undefined'
         });
         return res.status(401).json({ error: 'Unauthorized' });
       }
