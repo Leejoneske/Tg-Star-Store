@@ -3181,13 +3181,17 @@ async function handlePurchase(item) {
         console.log('📤 Sending transaction:', transaction);
         const result = await tonConnectUI.sendTransaction(transaction);
         console.log('📥 Transaction result:', result);
+        console.log('📥 Transaction result type:', typeof result);
+        console.log('📥 Transaction result keys:', result ? Object.keys(result) : 'null');
         
         if (result) {
             console.log('Verifying transaction success...');
             
             await new Promise(resolve => setTimeout(resolve, 3000));
             
-            const transactionVerified = await verifyTransactionOnBlockchain(result, walletResponse.walletAddress, nanoTonAmount);
+            const transactionHash = result?.boc || result?.hash || result;
+            console.log('📥 Using transaction hash:', transactionHash);
+            const transactionVerified = await verifyTransactionOnBlockchain(transactionHash, walletResponse.walletAddress, nanoTonAmount);
             
             if (!transactionVerified) {
                 throw new Error('Transaction verification failed. Please check your wallet and try again.');
@@ -3203,7 +3207,7 @@ async function handlePurchase(item) {
                 isPremium: item.isPremium || false,
                 premiumDuration: item.premiumDuration || null,
                 walletAddress: currentWalletAddress,
-                transactionHash: result,
+                transactionHash: result?.boc || result?.hash || result,
                 isTelegramUser: isTelegramEnv,
                 isTestnet: isTestnetDetected,
                 recipients: recipients.map(r => r.username),

@@ -1297,6 +1297,9 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTelegramUser, totalAmount, isTestnet } = req.body;
 
+        // Get admin status early for logging
+        const requesterIsAdmin = Boolean(req.user?.isAdmin);
+
         console.log('📋 Order creation request:', {
             telegramId,
             username,
@@ -1348,7 +1351,6 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         }
 
         // Reject testnet orders for non-admins; allow for admins
-        const requesterIsAdmin = Boolean(req.user?.isAdmin);
         if (isTestnet === true && !requesterIsAdmin) {
             return res.status(400).json({ error: 'Testnet is not supported. Please switch your wallet to TON mainnet.' });
         }
