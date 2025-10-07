@@ -924,64 +924,82 @@ function generateOrderId() {
 }
 
 async function verifyTONTransaction(transactionHash, targetAddress, expectedAmount) {
-    try {
-        // Use GET method with query parameters for TON Center API
-        const tonApiUrl = `https://toncenter.com/api/v2/getTransactions?address=${targetAddress}&limit=10&hash=${transactionHash}`;
-        const response = await fetch(tonApiUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            // Use GET method with query parameters for TON Center API
+            const tonApiUrl = `https://toncenter.com/api/v2/getTransactions?address=${targetAddress}&limit=10&hash=${transactionHash}`;
+            const response = await fetch(tonApiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                },
+                timeout: 10000 // 10 second timeout
+            });
+
+            if (!response.ok) {
+                if (response.status === 503 && attempt < maxRetries) {
+                    console.log(`TON API temporarily unavailable (503), retrying in ${retryDelay}ms... (attempt ${attempt}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+                    continue;
+                }
+                console.error('TON API request failed:', response.status);
+                return false;
             }
-        });
 
-        if (!response.ok) {
-            console.error('TON API request failed:', response.status);
+            const data = await response.json();
+            
+            if (!data.ok || !data.result || data.result.length === 0) {
+                console.log('Transaction not found in blockchain');
+                return false;
+            }
+
+            const transaction = data.result[0];
+            
+            if (!transaction.in_msg) {
+                console.log('Transaction has no incoming message');
+                return false;
+            }
+
+            const receivedAmount = parseInt(transaction.in_msg.value);
+            const expectedAmountNano = Math.floor(expectedAmount * 1e9);
+            
+            if (receivedAmount < expectedAmountNano * 0.95) {
+                console.log('Transaction amount mismatch:', receivedAmount, 'expected:', expectedAmountNano);
+                return false;
+            }
+
+            if (transaction.in_msg.destination !== targetAddress) {
+                console.log('Transaction destination mismatch');
+                return false;
+            }
+
+            const transactionTime = transaction.utime * 1000;
+            const now = Date.now();
+            const timeDiff = now - transactionTime;
+            
+            if (timeDiff > 300000) {
+                console.log('Transaction too old:', timeDiff);
+                return false;
+            }
+
+            console.log('Transaction verified successfully');
+            return true;
+            
+        } catch (error) {
+            if (attempt < maxRetries) {
+                console.log(`TON API error, retrying in ${retryDelay}ms... (attempt ${attempt}/${maxRetries}):`, error.message);
+                await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+                continue;
+            }
+            console.error('TON transaction verification error after all retries:', error);
             return false;
         }
-
-        const data = await response.json();
-        
-        if (!data.ok || !data.result || data.result.length === 0) {
-            console.log('Transaction not found in blockchain');
-            return false;
-        }
-
-        const transaction = data.result[0];
-        
-        if (!transaction.in_msg) {
-            console.log('Transaction has no incoming message');
-            return false;
-        }
-
-        const receivedAmount = parseInt(transaction.in_msg.value);
-        const expectedAmountNano = Math.floor(expectedAmount * 1e9);
-        
-        if (receivedAmount < expectedAmountNano * 0.95) {
-            console.log('Transaction amount mismatch:', receivedAmount, 'expected:', expectedAmountNano);
-            return false;
-        }
-
-        if (transaction.in_msg.destination !== targetAddress) {
-            console.log('Transaction destination mismatch');
-            return false;
-        }
-
-        const transactionTime = transaction.utime * 1000;
-        const now = Date.now();
-        const timeDiff = now - transactionTime;
-        
-        if (timeDiff > 300000) {
-            console.log('Transaction too old:', timeDiff);
-            return false;
-        }
-
-        console.log('Transaction verified successfully');
-        return true;
-        
-    } catch (error) {
-        console.error('TON transaction verification error:', error);
-        return false;
     }
+    
+    return false; // All retries failed
 }
 // Wallet Address Endpoint
 app.get('/api/get-wallet-address', requireTelegramAuth, (req, res) => {
