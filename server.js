@@ -1059,6 +1059,33 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             return res.status(403).json({ error: 'You are banned from placing orders' });
         }
 
+        // Check for duplicate orders with same transaction hash
+        if (transactionHash) {
+            const existingOrder = await BuyOrder.findOne({ transactionHash });
+            if (existingOrder) {
+                console.error('❌ Duplicate transaction detected:', transactionHash);
+                return res.status(400).json({ 
+                    error: 'This transaction has already been processed. If you were charged multiple times, contact support.',
+                    orderId: existingOrder.id
+                });
+            }
+        }
+
+        // Check for recent orders from same user to prevent rapid duplicate orders
+        const recentOrder = await BuyOrder.findOne({
+            telegramId,
+            dateCreated: { $gte: new Date(Date.now() - 60000) }, // Last 1 minute
+            status: { $in: ['pending', 'processing'] }
+        });
+        
+        if (recentOrder) {
+            console.error('❌ Recent order detected for user:', telegramId);
+            return res.status(400).json({ 
+                error: 'Please wait before placing another order. A recent order is still being processed.',
+                orderId: recentOrder.id
+            });
+        }
+
         // Reject testnet orders for non-admins; allow for admins
         const requesterIsAdmin = Boolean(req.user?.isAdmin);
         if (isTestnet === true && !requesterIsAdmin) {
@@ -1068,8 +1095,25 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         // Additional validation: Check wallet address format
         if (walletAddress && typeof walletAddress === 'string') {
             if (!isValidTONAddress(walletAddress)) {
+                console.error('❌ Invalid wallet address format:', walletAddress);
                 return res.status(400).json({ error: 'Invalid wallet address format. Please provide a valid TON mainnet address.' });
             }
+            
+            // Additional validation: Check if wallet address is not empty or just whitespace
+            if (walletAddress.trim().length < 10) {
+                console.error('❌ Wallet address too short:', walletAddress);
+                return res.status(400).json({ error: 'Invalid wallet address. Please provide a complete TON wallet address.' });
+            }
+            
+            // Check for common invalid addresses
+            const invalidPatterns = ['0x', 'bc1', '1', '2', '3', 'test', 'invalid', 'none', 'null'];
+            if (invalidPatterns.some(pattern => walletAddress.toLowerCase().includes(pattern))) {
+                console.error('❌ Wallet address contains invalid pattern:', walletAddress);
+                return res.status(400).json({ error: 'Invalid wallet address. Please provide a valid TON wallet address.' });
+            }
+        } else {
+            console.error('❌ Wallet address missing or invalid type:', walletAddress);
+            return res.status(400).json({ error: 'Wallet address is required and must be a valid TON address.' });
         }
 
         // Handle recipients for "buy for others" functionality
