@@ -145,6 +145,7 @@
       if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
       if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) headers['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
       else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
+      else headers['x-telegram-id'] = 'dev-user';
       const response = await fetch(`/api/notifications?limit=10&skip=${page * 10}`, { headers });
       
       if (!response.ok) {
@@ -179,6 +180,7 @@
       if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
       if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) headers['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
       else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
+      else headers['x-telegram-id'] = 'dev-user';
       const response = await fetch(`/api/notifications/${notificationId}/read`, { method: 'POST', headers, body: JSON.stringify({}) });
 
       if (response.ok) {
@@ -208,6 +210,7 @@
       if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
       if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) headers['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
       else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
+      else headers['x-telegram-id'] = 'dev-user';
       const response = await fetch('/api/notifications/mark-all-read', { method: 'POST', headers, body: JSON.stringify({}) });
 
       if (response.ok) {
@@ -260,6 +263,7 @@
       if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
       if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) headers['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
       else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
+      else headers['x-telegram-id'] = 'dev-user';
       const response = await fetch(`/api/notifications/unread-count`, { headers });
       if (response.ok) {
         const data = await response.json();

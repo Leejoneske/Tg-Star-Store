@@ -3733,7 +3733,8 @@ app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (r
     const mission = DAILY_MISSIONS.find(m => m.id === missionId);
     if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
 
-    console.log(`🔍 Validating mission ${missionId} for user ${userId}`);
+    // Only log mission validation for debugging if needed
+    // console.log(`🔍 Validating mission ${missionId} for user ${userId}`);
 
     let isValid = false;
     let message = '';
@@ -3772,7 +3773,7 @@ app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (r
       case 'm3': // Complete first order
         // Check if user has any completed orders
         const orderCount = await getOrderCountForUser(userId);
-        console.log(`🛍️ Order count for user ${userId}:`, orderCount);
+        // console.log(`🛍️ Order count for user ${userId}:`, orderCount);
         isValid = orderCount > 0;
         message = isValid ? 'First order completed!' : 'Please complete an order first';
         break;
