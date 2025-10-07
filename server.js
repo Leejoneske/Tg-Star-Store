@@ -923,6 +923,24 @@ function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 }
 
+function generateBuyOrderId() {
+    const randomPart = Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
+    return `BUY${randomPart}`;
+}
+
+function generateSellOrderId() {
+    const randomPart = Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
+    return `SELL${randomPart}`;
+}
+
+// Helper function to identify order type from ID
+function getOrderTypeFromId(orderId) {
+    if (orderId.startsWith('BUY')) return 'buy';
+    if (orderId.startsWith('SELL')) return 'sell';
+    if (orderId.startsWith('WD')) return 'withdrawal';
+    return 'unknown';
+}
+
 async function verifyTONTransaction(transactionHash, targetAddress, expectedAmount) {
     const maxRetries = 2;
     const retryDelay = 2000; // 2 seconds
@@ -1503,7 +1521,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         }
 
         const order = new BuyOrder({
-            id: generateOrderId(),
+            id: generateBuyOrderId(),
             telegramId,
             username,
             amount,
@@ -1671,7 +1689,7 @@ app.post("/api/sell-orders", async (req, res) => {
         const sessionExpiry = new Date(Date.now() + 15 * 60 * 1000); 
 
         const order = new SellOrder({
-            id: generateOrderId(),
+            id: generateSellOrderId(),
             telegramId,
             username: sanitizeUsername(username),
             stars,
@@ -2879,7 +2897,7 @@ bot.onText(/^\/refundtx (.+) (.+)/i, async (msg, match) => {
 });
 
 // Admin helper: find order by ID and show details
-bot.onText(/^\/findorder\s+([A-Z0-9]{6,})/i, async (msg, match) => {
+bot.onText(/^\/findorder\s+((?:BUY|SELL|WD)[A-Z0-9]{6,})/i, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
     const orderId = match[1].trim();
