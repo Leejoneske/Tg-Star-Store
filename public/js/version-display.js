@@ -18,12 +18,12 @@ class VersionDisplay {
         } catch (error) {
             console.warn('Could not fetch version from server, using fallback');
             this.versionInfo = {
-                version: '3.1.6',
-                buildNumber: '2069',
-                commitHash: '12de52f',
-                buildDate: '2025-10-05',
-                branch: 'cursor/debug-daily-page-functionality-046e',
-                displayVersion: 'v3.1.6 (Build 2069)'
+                version: '9.1.27',
+                buildNumber: 'N/A',
+                commitHash: 'production',
+                buildDate: new Date().toISOString().split('T')[0],
+                branch: 'main',
+                displayVersion: 'v9.1.27 (Production)'
             };
         }
         
@@ -72,11 +72,11 @@ class VersionDisplay {
     }
 
     getDisplayVersion() {
-        return this.versionInfo ? this.versionInfo.displayVersion : 'v3.1.6 (Build 2069)';
+        return this.versionInfo ? this.versionInfo.displayVersion : 'v9.1.27 (Production)';
     }
 
     getShortVersion() {
-        return this.versionInfo ? `v${this.versionInfo.version}` : 'v3.1.6';
+        return this.versionInfo ? `v${this.versionInfo.version}` : 'v9.1.27';
     }
 
     getBuildInfo() {

@@ -318,7 +318,7 @@ app.get('/api/version', (req, res) => {
         const version = packageJson.version || '1.0.0';
         const buildDate = new Date().toISOString().split('T')[0];
         
-        // Try to get git information
+        // Try to get git information, fallback to environment/build info
         let gitInfo = {};
         try {
             const { execSync } = require('child_process');
@@ -329,12 +329,14 @@ app.get('/api/version', (req, res) => {
                 commitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim().split(' ')[0]
             };
         } catch (gitError) {
-            // Silently handle git unavailability in production
+            // Use environment variables or build-time info for production
             gitInfo = {
-                buildNumber: '0',
-                commitHash: 'production',
-                branch: 'main',
-                commitDate: buildDate
+                buildNumber: process.env.RAILWAY_GIT_COMMIT_SHA ? process.env.RAILWAY_GIT_COMMIT_SHA.substring(0, 7) : 'N/A',
+                commitHash: process.env.RAILWAY_GIT_COMMIT_SHA ? process.env.RAILWAY_GIT_COMMIT_SHA.substring(0, 7) : 'production',
+                branch: process.env.RAILWAY_GIT_BRANCH || 'main',
+                commitDate: process.env.RAILWAY_GIT_COMMIT_CREATED_AT ? 
+                    new Date(process.env.RAILWAY_GIT_COMMIT_CREATED_AT).toISOString().split('T')[0] : 
+                    buildDate
             };
         }
         
@@ -5272,16 +5274,18 @@ bot.onText(/\/version/, (msg) => {
             // Get recent commits (last 5)
             recentCommits = execSync('git log -5 --oneline', { encoding: 'utf8' }).trim().split('\n');
         } catch (gitError) {
-            // Silently handle git unavailability in production
+            // Use environment variables or build-time info for production
             gitInfo = {
-                commitCount: 'N/A',
-                currentHash: 'N/A',
-                branch: 'N/A',
-                lastCommitDate: new Date().toISOString(),
-                lastCommitMessage: 'Production build',
-                lastCommitAuthor: 'System'
+                commitCount: process.env.RAILWAY_GIT_COMMIT_SHA ? '1' : 'N/A',
+                currentHash: process.env.RAILWAY_GIT_COMMIT_SHA ? process.env.RAILWAY_GIT_COMMIT_SHA.substring(0, 7) : 'N/A',
+                branch: process.env.RAILWAY_GIT_BRANCH || 'main',
+                lastCommitDate: process.env.RAILWAY_GIT_COMMIT_CREATED_AT ? 
+                    new Date(process.env.RAILWAY_GIT_COMMIT_CREATED_AT).toISOString() : 
+                    new Date().toISOString(),
+                lastCommitMessage: process.env.RAILWAY_GIT_COMMIT_MESSAGE || 'Production build',
+                lastCommitAuthor: process.env.RAILWAY_GIT_COMMIT_AUTHOR || 'System'
             };
-            recentCommits = ['Production environment - git not available'];
+            recentCommits = ['Production environment - Railway deployment'];
         }
         
         // Calculate time since last update
