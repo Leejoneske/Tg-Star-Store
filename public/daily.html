@@ -445,6 +445,23 @@
                 const tg = window.Telegram && window.Telegram.WebApp;
                 if (tg && tg.colorScheme === 'dark') {
                     document.body.classList.add('telegram-fullscreen');
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+                
+                // Also check system preference
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+                
+                // Listen for system theme changes
+                if (window.matchMedia) {
+                    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                        if (e.matches) {
+                            document.documentElement.setAttribute('data-theme', 'dark');
+                        } else {
+                            document.documentElement.removeAttribute('data-theme');
+                        }
+                    });
                 }
             } catch(_) {}
         })();

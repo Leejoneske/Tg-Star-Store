@@ -628,19 +628,357 @@
 }
 
 /* Dark theme support */
-@media (prefers-color-scheme: dark) {
-    [data-theme="dark"] .clean-card {
-        background: #1e1e1e;
+@media (prefers-color-scheme: dark),
+[data-theme="dark"] {
+    /* Base dark theme */
+    body {
+        background: #0a0a0a !important;
+        color: #ffffff !important;
     }
 
-    [data-theme="dark"] .mission-title,
-    [data-theme="dark"] .lb-username {
-        color: #fff;
+    .app-container {
+        background: #0a0a0a !important;
     }
 
-    [data-theme="dark"] .mission-subtitle,
-    [data-theme="dark"] .lb-streak {
-        color: #999;
+    /* Cards and containers */
+    .clean-card {
+        background: #1a1a1a !important;
+        border: 1px solid #333333 !important;
+        color: #ffffff !important;
+    }
+
+    .stat-box {
+        background: #2a2a2a !important;
+        color: #ffffff !important;
+    }
+
+    /* Headers and text */
+    h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+    }
+
+    /* Mission styling */
+    .mission-title,
+    .lb-username {
+        color: #ffffff !important;
+    }
+
+    .mission-subtitle,
+    .lb-streak {
+        color: #cccccc !important;
+    }
+
+    .mission-icon {
+        background: #2a2a2a !important;
+    }
+
+    .mission-icon svg {
+        color: #cccccc !important;
+    }
+
+    .mission-item {
+        background: #2a2a2a !important;
+        color: #ffffff !important;
+    }
+
+    .mission-item:active {
+        background: #333333 !important;
+    }
+
+    .mission-btn {
+        background: #333333 !important;
+        color: #ffffff !important;
+        border: 1px solid #555555 !important;
+    }
+
+    .mission-btn.complete {
+        background: #007AFF !important;
+        color: white !important;
+    }
+
+    .mission-btn.completed {
+        background: #1a4d1a !important;
+        color: #4caf50 !important;
+        border: 1px solid #4caf50 !important;
+    }
+
+    /* Progress bars */
+    .progress-bar {
+        background: #333333 !important;
+    }
+
+    .progress-fill {
+        background: #007AFF !important;
+    }
+
+    /* Leaderboard */
+    .leaderboard-item {
+        background: #2a2a2a !important;
+        color: #ffffff !important;
+    }
+
+    .leaderboard-item:active {
+        background: #333333 !important;
+    }
+
+    .leaderboard-item.top-3 {
+        background: linear-gradient(135deg, #2a2a1a 0%, #1a1a1a 100%) !important;
+    }
+
+    .leaderboard-item.current-user {
+        background: linear-gradient(135deg, #1a2a3a 0%, #1a1a1a 100%) !important;
+        border: 1px solid #007AFF40 !important;
+    }
+
+    .rank-badge {
+        background: #333333 !important;
+        color: #cccccc !important;
+    }
+
+    .rank-badge.gold {
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%) !important;
+        color: #000000 !important;
+    }
+
+    .rank-badge.silver {
+        background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%) !important;
+        color: #000000 !important;
+    }
+
+    .rank-badge.bronze {
+        background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%) !important;
+        color: #ffffff !important;
+    }
+
+    .avatar-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+    }
+
+    /* Tabs */
+    .tab-buttons {
+        background: #333333 !important;
+    }
+
+    .tab-btn {
+        background: transparent !important;
+        color: #cccccc !important;
+    }
+
+    .tab-btn.active {
+        background: #1a1a1a !important;
+        color: #007AFF !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+    }
+
+    /* Calendar */
+    .calendar-day {
+        color: #ffffff !important;
+    }
+
+    .calendar-day:hover:not(.checked) {
+        background: #333333 !important;
+    }
+
+    .calendar-day.checked {
+        background: #007AFF !important;
+        color: white !important;
+    }
+
+    .calendar-day.today {
+        border: 2px solid #007AFF !important;
+        color: #007AFF !important;
+    }
+
+    /* Month navigation */
+    .month-nav-btn {
+        color: #007AFF !important;
+    }
+
+    .month-nav-btn:hover {
+        background: #333333 !important;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        background: #007AFF !important;
+        color: white !important;
+    }
+
+    .btn-primary:hover {
+        background: #0056cc !important;
+    }
+
+    /* Status messages */
+    .success-message {
+        background: #1a4d1a !important;
+        color: #4caf50 !important;
+    }
+
+    .error-message {
+        background: #4d1a1a !important;
+        color: #f44336 !important;
+    }
+
+    /* Achievement badges */
+    .achievement-badge {
+        background: linear-gradient(135deg, #1a4d1a 0%, #2d5a2d 100%) !important;
+        color: #4caf50 !important;
+    }
+
+    .streak-status {
+        background: #2a1a00 !important;
+        color: #ff9800 !important;
+    }
+
+    .streak-status.safe {
+        background: #1a4d1a !important;
+        color: #4caf50 !important;
+    }
+
+    .streak-status.warning {
+        background: #4d1a1a !important;
+        color: #f44336 !important;
+    }
+
+    /* Modals */
+    .achievement-modal-content,
+    .reward-modal-content {
+        background: #1a1a1a !important;
+        color: #ffffff !important;
+    }
+
+    .achievement-title {
+        color: #ffffff !important;
+    }
+
+    .achievement-description {
+        color: #cccccc !important;
+    }
+
+    /* Reward items */
+    .reward-item {
+        background: #2a2a2a !important;
+        color: #ffffff !important;
+    }
+
+    .reward-item:hover {
+        background: #333333 !important;
+    }
+
+    .reward-name {
+        color: #ffffff !important;
+    }
+
+    .reward-cost {
+        color: #007AFF !important;
+    }
+
+    /* Form elements */
+    input[type="number"] {
+        background: #2a2a2a !important;
+        color: #ffffff !important;
+        border: 1px solid #555555 !important;
+    }
+
+    input[type="number"]:focus {
+        border-color: #007AFF !important;
+        outline: none !important;
+    }
+
+    /* Exit button */
+    #exitButton {
+        background: rgba(255,255,255,0.1) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+    }
+
+    #exitButton:hover {
+        background: rgba(255,255,255,0.2) !important;
+        color: #ffffff !important;
+    }
+
+    /* Loading states */
+    .loading-skeleton {
+        background: linear-gradient(90deg, #2a2a2a 25%, #333333 50%, #2a2a2a 75%) !important;
+    }
+
+    .loading-skeleton-lb {
+        background: linear-gradient(90deg, #2a2a2a 25%, #333333 50%, #2a2a2a 75%) !important;
+    }
+
+    /* Offline notice */
+    .offline-notice {
+        background: #2a1a00 !important;
+        color: #ff9800 !important;
+        border-bottom: 1px solid #4d2a00 !important;
+    }
+
+    /* Toast notifications */
+    .toast {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    /* Share buttons */
+    .share-btn {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    /* Milestone celebration */
+    .milestone-celebration {
+        background: rgba(0, 0, 0, 0.95) !important;
+    }
+
+    /* Calendar legend and other text */
+    .calendar-legend,
+    .mission-description,
+    .leaderboard-description {
+        color: #cccccc !important;
+    }
+
+    /* Week progress stats */
+    .week-stats {
+        background: #2a2a2a !important;
+        color: #ffffff !important;
+    }
+
+    /* All text elements that might be hard to see */
+    p, span, div {
+        color: inherit !important;
+    }
+
+    /* Ensure all text is visible */
+    * {
+        color: inherit !important;
+    }
+
+    /* Specific overrides for better contrast */
+    .text-gray-600 {
+        color: #cccccc !important;
+    }
+
+    .text-gray-500 {
+        color: #999999 !important;
+    }
+
+    .text-gray-400 {
+        color: #666666 !important;
+    }
+
+    .text-black {
+        color: #ffffff !important;
+    }
+
+    .bg-white {
+        background: #1a1a1a !important;
+    }
+
+    .bg-gray-100 {
+        background: #2a2a2a !important;
+    }
+
+    .bg-gray-50 {
+        background: #333333 !important;
     }
 }
 
