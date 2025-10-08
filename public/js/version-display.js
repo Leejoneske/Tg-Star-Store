@@ -32,51 +32,17 @@ class VersionDisplay {
 
     updateAllDisplays() {
         this.updateVersionElements();
-        this.updateBuildElements();
-        this.updateCommitElements();
-        this.updateDateElements();
-        this.updateBuildInfoElements();
     }
 
     updateVersionElements() {
         const elements = document.querySelectorAll('[data-version]');
         elements.forEach(element => {
             if (element.textContent.includes('StarStore')) {
-                element.textContent = element.textContent.replace(/v[\d\.]+/, `v${this.versionInfo.version}`);
+                element.textContent = `StarStore v${this.versionInfo.version}`;
             }
         });
     }
 
-    updateBuildElements() {
-        const elements = document.querySelectorAll('[data-build-number]');
-        elements.forEach(element => {
-            element.textContent = this.versionInfo.buildNumber;
-        });
-    }
-
-    updateCommitElements() {
-        const elements = document.querySelectorAll('[data-commit-hash]');
-        elements.forEach(element => {
-            element.textContent = this.versionInfo.commitHash;
-        });
-    }
-
-    updateDateElements() {
-        const elements = document.querySelectorAll('[data-build-date]');
-        elements.forEach(element => {
-            element.textContent = this.versionInfo.buildDate;
-        });
-    }
-
-    updateBuildInfoElements() {
-        const elements = document.querySelectorAll('[data-build-info]');
-        elements.forEach(element => {
-            const buildNumber = element.querySelector('[data-build-number]');
-            const commitHash = element.querySelector('[data-commit-hash]');
-            if (buildNumber) buildNumber.textContent = this.versionInfo.buildNumber;
-            if (commitHash) commitHash.textContent = this.versionInfo.commitHash;
-        });
-    }
 
     getVersionInfo() {
         return this.versionInfo;
