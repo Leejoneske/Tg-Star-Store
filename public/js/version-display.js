@@ -35,12 +35,21 @@ class VersionDisplay {
     }
 
     updateVersionElements() {
-        const elements = document.querySelectorAll('[data-version]');
-        elements.forEach(element => {
-            if (element.textContent.includes('StarStore')) {
-                element.textContent = `StarStore v${this.versionInfo.version}`;
+        try {
+            const elements = document.querySelectorAll('[data-version]');
+            if (elements.length === 0) {
+                console.warn('No version elements found');
+                return;
             }
-        });
+            
+            elements.forEach(element => {
+                if (element && element.textContent && element.textContent.includes('StarStore')) {
+                    element.textContent = `StarStore v${this.versionInfo.version}`;
+                }
+            });
+        } catch (error) {
+            console.error('Error updating version elements:', error);
+        }
     }
 
 
@@ -67,9 +76,23 @@ class VersionDisplay {
 }
 
 // Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.versionDisplay = new VersionDisplay();
-});
+function initializeVersionDisplay() {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                window.versionDisplay = new VersionDisplay();
+            }, 100);
+        });
+    } else {
+        // DOM is already loaded
+        setTimeout(() => {
+            window.versionDisplay = new VersionDisplay();
+        }, 100);
+    }
+}
+
+// Initialize immediately
+initializeVersionDisplay();
 
 // Export for use in other scripts
 if (typeof module !== 'undefined' && module.exports) {

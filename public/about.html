@@ -50,23 +50,27 @@
     <script src="js/translations.js?v=2"></script>
     <script src="js/loading.js"></script>
     <script src="js/version.js"></script>
-    <script src="js/version-display.js"></script>
     <script>
         // Initialize translations
         document.addEventListener('DOMContentLoaded', function() {
             if (window.initTranslations) {
                 window.initTranslations();
             }
+            
+            // Load version display after translations are initialized
+            setTimeout(() => {
+                const script = document.createElement('script');
+                script.src = 'js/version-display.js?v=3';
+                script.onload = () => {
+                    console.log('Version display script loaded');
+                    if (window.versionDisplay) {
+                        console.log('Version Display Info:', window.versionDisplay.getVersionInfo());
+                        console.log('Display Version:', window.versionDisplay.getDisplayVersion());
+                    }
+                };
+                document.head.appendChild(script);
+            }, 200);
         });
-
-        // Enhanced version display
-        setTimeout(() => {
-            if (window.versionDisplay) {
-                console.log('Version Display Info:', window.versionDisplay.getVersionInfo());
-                console.log('Display Version:', window.versionDisplay.getDisplayVersion());
-                console.log('Build Info:', window.versionDisplay.getBuildInfo());
-            }
-        }, 1000);
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
