@@ -1,284 +1,1472 @@
- <!DOCTYPE html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StarStore Knowledge Base</title>
-    <link rel="stylesheet" href="/css/theme.css">
-    <script src="/js/theme.js"></script>
+    <title>StarStore - Terms of Service & Privacy Policy</title>
+    <link rel="icon" type="image/x-icon" href="public/fav.ico">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0088cc;
+            --primary-dark: #006ba6;
+            --primary-light: #4da6d4;
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #1c2128;
+            --text-primary: #e6edf3;
+            --text-secondary: #7d8590;
+            --text-muted: #57606a;
+            --border: #30363d;
+            --border-muted: #21262d;
+            --success: #2da44e;
+            --warning: #d4a72c;
+            --danger: #da3633;
+            --info: #539bf5;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             line-height: 1.6;
-            color: #333;
-            max-width: 900px;
+            font-size: 16px;
+        }
+
+        /* Header */
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-inner {
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #f9f9f9;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
         }
-        h1, h2, h3 {
-            color: #2c3e50;
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            transition: opacity 0.2s;
         }
-        h1 {
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
+
+        .logo:hover {
+            opacity: 0.8;
         }
-        h2 {
-            background-color: #f0f7ff;
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .logo-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .logo-tagline {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        nav {
+            display: flex;
+            gap: 4px;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        nav a:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 64px 24px 48px;
+        }
+
+        .hero-inner {
+            max-width: 1280px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 40px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            letter-spacing: -0.5px;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 720px;
+            margin: 0 auto 32px;
+        }
+
+        .hero-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 16px;
+            padding: 10px 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 48px 24px;
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 48px;
+            align-items: start;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 80px;
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            padding: 0 12px;
+        }
+
+        .sidebar nav {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .sidebar a {
+            display: block;
             padding: 8px 12px;
-            border-left: 4px solid #3498db;
-            margin-top: 30px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            border-left: 2px solid transparent;
         }
-        .package-table {
+
+        .sidebar a:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .sidebar a.active {
+            background: var(--bg-secondary);
+            color: var(--primary);
+            border-left-color: var(--primary);
+        }
+
+        /* Content */
+        .content {
+            min-width: 0;
+        }
+
+        .section {
+            margin-bottom: 64px;
+            scroll-margin-top: 80px;
+        }
+
+        .section h2 {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section h3 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 32px 0 16px;
+        }
+
+        .section h4 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 24px 0 12px;
+        }
+
+        .section p {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            line-height: 1.7;
+        }
+
+        .section ul,
+        .section ol {
+            margin: 16px 0 16px 24px;
+            color: var(--text-secondary);
+        }
+
+        .section li {
+            margin-bottom: 8px;
+            line-height: 1.7;
+        }
+
+        /* Callout boxes */
+        .callout {
+            padding: 16px 20px;
+            border-radius: 6px;
+            margin: 24px 0;
+            border-left: 3px solid;
+        }
+
+        .callout h4 {
+            margin-top: 0;
+            font-size: 16px;
+        }
+
+        .callout-info {
+            background: rgba(83, 155, 245, 0.1);
+            border-color: var(--info);
+        }
+
+        .callout-info h4 {
+            color: var(--info);
+        }
+
+        .callout-success {
+            background: rgba(45, 164, 78, 0.1);
+            border-color: var(--success);
+        }
+
+        .callout-success h4 {
+            color: var(--success);
+        }
+
+        .callout-warning {
+            background: rgba(212, 167, 44, 0.1);
+            border-color: var(--warning);
+        }
+
+        .callout-warning h4 {
+            color: var(--warning);
+        }
+
+        .callout-danger {
+            background: rgba(218, 54, 51, 0.1);
+            border-color: var(--danger);
+        }
+
+        .callout-danger h4 {
+            color: var(--danger);
+        }
+
+        /* Tables */
+        table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            margin: 24px 0;
+            font-size: 14px;
         }
-        .package-table th, .package-table td {
-            border: 1px solid #ddd;
-            padding: 12px;
+
+        th {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-weight: 600;
             text-align: left;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
         }
-        .package-table th {
-            background-color: #3498db;
+
+        td {
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        tbody tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        /* Definition card */
+        .definition-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 20px;
+            margin: 16px 0;
+        }
+
+        .definition-card h4 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        /* Numbered list */
+        .numbered-list {
+            list-style: none;
+            counter-reset: item;
+            margin-left: 0;
+        }
+
+        .numbered-list li {
+            counter-increment: item;
+            position: relative;
+            padding-left: 40px;
+            margin-bottom: 20px;
+        }
+
+        .numbered-list li::before {
+            content: counter(item);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
             color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
         }
-        .package-table tr:nth-child(even) {
-            background-color: #f2f2f2;
+
+        /* CTA */
+        .cta {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 48px;
+            text-align: center;
+            margin: 64px 0;
         }
-        .note {
-            background-color: #fffde7;
-            padding: 15px;
-            border-left: 4px solid #ffd600;
-            margin: 20px 0;
+
+        .cta h2 {
+            font-size: 32px;
+            margin-bottom: 16px;
+            border: none;
+            padding: 0;
         }
-        .telegram-btn {
+
+        .cta p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+
+        .btn {
             display: inline-block;
-            background-color: #0088cc;
+            padding: 12px 32px;
+            background: var(--primary);
             color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
             text-decoration: none;
-            font-weight: bold;
-            margin: 10px 0;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.2s;
         }
-        .telegram-btn:hover {
-            background-color: #006699;
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 48px 24px 24px;
+            margin-top: 64px;
+        }
+
+        .footer-inner {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .footer-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+        }
+
+        .footer-section ul {
+            list-style: none;
+            margin: 0;
+        }
+
+        .footer-section li {
+            margin-bottom: 8px;
+        }
+
+        .footer-section a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .footer-section a:hover {
+            color: var(--primary);
+        }
+
+        .footer-section p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .footer-bottom {
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .footer-bottom p {
+            margin-bottom: 4px;
+        }
+
+        /* Scroll to top */
+        .scroll-top {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.2s;
+            color: var(--text-primary);
+            font-size: 20px;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+        }
+
+        .scroll-top:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 24px;
+                margin-bottom: 24px;
+            }
+
+            .hero h1 {
+                font-size: 32px;
+            }
+
+            nav {
+                display: none;
+            }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-left: 8px;
+        }
+
+        strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        code {
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.9em;
+            color: var(--text-primary);
         }
     </style>
 </head>
 <body>
-    <h1>StarStore Knowledge Base</h1>
-    
-    <h2>About Telegram Stars</h2>
-    <p>Telegram Stars are a virtual currency used within the Telegram ecosystem. Users can:</p>
-    <ul>
-        <li>Purchase digital goods and services in Telegram bots and mini-apps</li>
-        <li>Support content creators and developers</li>
-        <li>Tip your favorite channels and bot creators</li>
-        <li>Access premium features in various Telegram applications</li>
-    </ul>
-    
-    <h2>About Telegram Premium</h2>
-    <p>Telegram Premium is a subscription service that offers enhanced features including:</p>
-    <ul>
-        <li>Increased limits for chats, folders, and pins</li>
-        <li>Exclusive stickers and reactions</li>
-        <li>Faster downloads</li>
-        <li>Voice-to-text conversion</li>
-        <li>No ads in public channels</li>
-        <li>Premium badges and animated profile pictures</li>
-    </ul>
-    
-    <h2>Buying Telegram Stars</h2>
-    <p>We offer flexible Telegram Stars packages:</p>
-    
-    <table class="package-table">
-        <tr>
-            <th>Stars Amount</th>
-            <th>Price (USD)</th>
-        </tr>
-        <tr>
-            <td>15 Stars</td>
-            <td>$0.35</td>
-        </tr>
-        <tr>
-            <td>45 Stars</td>
-            <td>$1.00</td>
-        </tr>
-        <tr>
-            <td>90 Stars</td>
-            <td>$2.00</td>
-        </tr>
-        <tr>
-            <td>225 Stars</td>
-            <td>$5.00</td>
-        </tr>
-        <tr>
-            <td>450 Stars</td>
-            <td>$10.00</td>
-        </tr>
-        <tr>
-            <td>900 Stars</td>
-            <td>$20.00</td>
-        </tr>
-        <tr>
-            <td>2250 Stars</td>
-            <td>$50.00</td>
-        </tr>
-        <tr>
-            <td>4500 Stars</td>
-            <td>$100.00</td>
-        </tr>
-    </table>
-    
-    <h3>How to Buy:</h3>
-    <ol>
-        <li>Contact our Telegram bot <a href="https://t.me/TgStarStore_bot" class="telegram-btn">@TgStarStore_bot</a></li>
-        <li>Select your desired Stars package</li>
-        <li>Complete the payment using available methods</li>
-        <li>Stars will be delivered to your Telegram account instantly</li>
-    </ol>
-    
-    <h2>Buying Telegram Premium</h2>
-    <p>We offer Telegram Premium subscriptions at competitive rates:</p>
-    
-    <table class="package-table">
-        <tr>
-            <th>Subscription Period</th>
-            <th>Price (USD)</th>
-        </tr>
-        <tr>
-            <td>1 Month</td>
-            <td>$4.99</td>
-        </tr>
-        <tr>
-            <td>3 Months</td>
-            <td>$12.99</td>
-        </tr>
-        <tr>
-            <td>6 Months</td>
-            <td>$23.99</td>
-        </tr>
-        <tr>
-            <td>12 Months</td>
-            <td>$44.99</td>
-        </tr>
-    </table>
-    
-    <h3>Purchase Process:</h3>
-    <ol>
-        <li>Contact <a href="https://t.me/TgStarStore_bot" class="telegram-btn">@TgStarStore_bot</a></li>
-        <li>Choose your subscription length</li>
-        <li>Make payment</li>
-        <li>Receive activation instructions immediately</li>
-    </ol>
-    
-    <h2>Selling Telegram Stars</h2>
-    <p>We provide a secure platform to sell your Telegram Stars:</p>
-    
-    <h3>Selling Details:</h3>
-    <ul>
-        <li>Minimum sell amount: 10 Stars</li>
-        <li>Payout processing time: 21 days after order placement</li>
-        <li>Current exchange rate: $0.022 per Star (varies based on market conditions)</li>
-    </ul>
-    
-    <div class="note" id="why-21-days">
-        <h4>Why 21 Days?</h4>
-        <p>The 21-day holding period serves multiple important purposes:</p>
-        <ol>
-            <li><strong>Fraud Prevention</strong>: Helps identify and prevent fraudulent transactions</li>
-            <li><strong>Telegram Policy</strong>: Matches Telegram's own 21-day holding period for Stars transactions</li>
-            <li><strong>Order Management</strong>: Allows us to properly process all transactions</li>
-            <li><strong>Security</strong>: Ensures all transactions are legitimate before payout</li>
-        </ol>
+    <header>
+        <div class="header-inner">
+            <a href="#" class="logo">
+                <div class="logo-icon">⭐</div>
+                <div class="logo-text">
+                    <div class="logo-name">StarStore</div>
+                    <div class="logo-tagline">Buy • Sell • Stars</div>
+                </div>
+            </a>
+            <nav>
+                <a href="#terms">Terms</a>
+                <a href="#privacy">Privacy</a>
+                <a href="#acceptable-use">Usage</a>
+                <a href="#contact">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-inner">
+            <h1>Terms of Service & Privacy Policy</h1>
+            <p>Comprehensive legal documentation governing the use of StarStore services, including the purchase and sale of Telegram Stars, privacy practices, and user obligations.</p>
+            <div class="hero-meta">
+                <span>Last Updated: October 8, 2025</span>
+                <span>•</span>
+                <span>Version 9.1.27</span>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-title">Quick Navigation</div>
+            <nav>
+                <a href="#introduction" class="active">Introduction</a>
+                <a href="#definitions">Definitions</a>
+                <a href="#terms">Terms of Service</a>
+                <a href="#user-accounts">User Accounts</a>
+                <a href="#buying-services">Buying Services</a>
+                <a href="#selling-services">Selling Services</a>
+                <a href="#referral-program">Referral Program</a>
+                <a href="#payment-terms">Payment Terms</a>
+                <a href="#refund-policy">Refund Policy</a>
+                <a href="#security">Security Measures</a>
+                <a href="#privacy">Privacy Policy</a>
+                <a href="#data-collection">Data Collection</a>
+                <a href="#data-usage">Data Usage</a>
+                <a href="#data-protection">Data Protection</a>
+                <a href="#user-rights">User Rights</a>
+                <a href="#acceptable-use">Acceptable Use</a>
+                <a href="#prohibited-activities">Prohibited Activities</a>
+                <a href="#intellectual-property">Intellectual Property</a>
+                <a href="#liability">Limitation of Liability</a>
+                <a href="#dispute-resolution">Dispute Resolution</a>
+                <a href="#termination">Account Termination</a>
+                <a href="#governing-law">Governing Law</a>
+                <a href="#modifications">Policy Modifications</a>
+                <a href="#contact">Contact Information</a>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <section id="introduction" class="section">
+                <h2>Introduction</h2>
+                <p>Welcome to StarStore, a premium Telegram MiniApp marketplace specializing in the secure exchange of Telegram Stars and premium subscription services. These Terms of Service ("Terms") and Privacy Policy ("Policy") constitute a legally binding agreement between you ("User," "you," or "your") and StarStore ("we," "us," "our," or "Company").</p>
+                
+                <div class="callout callout-info">
+                    <h4>Scope of Agreement</h4>
+                    <p>By accessing, browsing, or using any part of StarStore's services, including but not limited to our Telegram bot (@TgStarStore_bot), website (starstore.site), or any associated platforms, you acknowledge that you have read, understood, and agree to be bound by these Terms and our Privacy Policy in their entirety.</p>
+                </div>
+
+                <p>If you do not agree with any provision of these Terms or our Privacy Policy, you must immediately discontinue use of all StarStore services. Your continued use of our services following the posting of any changes constitutes acceptance of those changes.</p>
+
+                <div class="callout callout-warning">
+                    <h4>Age Requirement</h4>
+                    <p>You must be at least 18 years of age (or the age of majority in your jurisdiction) to use StarStore services. By using our services, you represent and warrant that you meet this age requirement and have the legal capacity to enter into this agreement.</p>
+                </div>
+            </section>
+
+            <section id="definitions" class="section">
+                <h2>Definitions</h2>
+                <p>For the purposes of these Terms and Privacy Policy, the following terms shall have the meanings set forth below:</p>
+
+                <div class="definition-card">
+                    <h4>Telegram Stars</h4>
+                    <p>Virtual currency units native to the Telegram messaging platform ecosystem, utilized for purchasing digital goods, services, tipping content creators, and accessing premium features within Telegram bots and mini-applications.</p>
+                </div>
+
+                <div class="definition-card">
+                    <h4>USDT (Tether)</h4>
+                    <p>A stablecoin cryptocurrency pegged to the United States Dollar, operating on multiple blockchain networks including TON (The Open Network) and TRON (TRC-20), serving as the primary payment and payout currency on StarStore.</p>
+                </div>
+
+                <div class="definition-card">
+                    <h4>TON (The Open Network)</h4>
+                    <p>A decentralized blockchain network integrated with Telegram, providing the infrastructure for secure cryptocurrency transactions, smart contracts, and decentralized applications within the Telegram ecosystem.</p>
+                </div>
+
+                <div class="definition-card">
+                    <h4>Platform</h4>
+                    <p>Collectively refers to all StarStore services, including but not limited to the Telegram bot (@TgStarStore_bot), website (starstore.site), mobile applications, APIs, and any other interface through which StarStore services are accessed.</p>
+                </div>
+
+                <div class="definition-card">
+                    <h4>Holding Period</h4>
+                    <p>The mandatory 21-day security interval during which sold Telegram Stars are retained before USDT payment is processed and released to the seller's designated wallet address.</p>
+                </div>
+            </section>
+
+            <section id="terms" class="section">
+                <h2>Terms of Service</h2>
+                
+                <h3>1.1 Service Overview</h3>
+                <p>StarStore operates as an intermediary marketplace facilitating the exchange of Telegram Stars and providing access to Telegram Premium subscriptions. Our platform connects buyers and sellers while ensuring transaction security, regulatory compliance, and user protection.</p>
+
+                <div class="callout callout-success">
+                    <h4>Core Services Provided</h4>
+                    <ul>
+                        <li><strong>Star Purchase Services:</strong> Instant delivery of Telegram Stars to user accounts following successful payment verification</li>
+                        <li><strong>Star Selling Services:</strong> Secure conversion of user-owned Telegram Stars to USDT with guaranteed payment processing</li>
+                        <li><strong>Telegram Premium Distribution:</strong> Provision of Telegram Premium subscriptions at competitive market rates</li>
+                        <li><strong>Currency Conversion:</strong> Real-time exchange rate calculations and transparent pricing mechanisms</li>
+                        <li><strong>Referral Commission System:</strong> Automated tracking and payout of referral earnings</li>
+                        <li><strong>24/7 Customer Support:</strong> Dedicated assistance through our Telegram bot and support channels</li>
+                    </ul>
+                </div>
+
+                <h3>1.2 Service Availability</h3>
+                <p>While we strive to maintain uninterrupted service availability, StarStore does not guarantee continuous, error-free operation. Service interruptions may occur due to:</p>
+                <ul>
+                    <li>Scheduled maintenance and system upgrades</li>
+                    <li>Telegram API limitations or disruptions</li>
+                    <li>Blockchain network congestion or technical issues</li>
+                    <li>Force majeure events beyond our reasonable control</li>
+                    <li>Security incidents requiring immediate platform suspension</li>
+                    <li>Regulatory compliance requirements</li>
+                </ul>
+
+                <h3>1.3 Platform Independence</h3>
+                <p>StarStore operates independently from Telegram Messenger Inc. and is not officially affiliated with, endorsed by, or sponsored by Telegram. We are an authorized third-party service provider operating within Telegram's published API guidelines and terms of service.</p>
+            </section>
+
+            <section id="user-accounts" class="section">
+                <h2>User Accounts and Registration</h2>
+
+                <h3>2.1 Account Creation</h3>
+                <p>To access StarStore services, users must initiate interaction with our Telegram bot (@TgStarStore_bot). Account registration is automatically processed using your Telegram account credentials and profile information.</p>
+
+                <div class="callout callout-info">
+                    <h4>Registration Requirements</h4>
+                    <ul>
+                        <li>Active Telegram account in good standing</li>
+                        <li>Age of majority in your jurisdiction (minimum 18 years)</li>
+                        <li>Acceptance of these Terms of Service and Privacy Policy</li>
+                        <li>Valid Telegram username or user ID</li>
+                        <li>Compliance with Telegram's Terms of Service</li>
+                    </ul>
+                </div>
+
+                <h3>2.2 Account Security</h3>
+                <p>Users bear exclusive responsibility for maintaining the security and confidentiality of their Telegram account credentials. You agree to:</p>
+
+                <ol class="numbered-list">
+                    <li><strong>Secure Access Control:</strong> Implement robust password protection and enable two-factor authentication (2FA) on your Telegram account</li>
+                    <li><strong>Unauthorized Access Reporting:</strong> Immediately notify StarStore support of any suspected unauthorized access, security breach, or fraudulent activity</li>
+                    <li><strong>Activity Monitoring:</strong> Regularly review your transaction history and account activity for suspicious or unauthorized operations</li>
+                    <li><strong>Device Security:</strong> Maintain adequate security measures on devices used to access StarStore services</li>
+                    <li><strong>Account Sharing Prohibition:</strong> Never share your account credentials or allow third-party access to your StarStore account</li>
+                </ol>
+
+                <div class="callout callout-danger">
+                    <h4>Liability for Unauthorized Use</h4>
+                    <p>You are fully responsible for all activities conducted through your account, whether authorized by you or not. StarStore shall not be liable for any losses resulting from unauthorized use of your account unless such unauthorized use results directly from our gross negligence or willful misconduct.</p>
+                </div>
+            </section>
+
+            <section id="buying-services" class="section">
+                <h2>Buying Services - Telegram Stars & Premium</h2>
+
+                <h3>3.1 Purchase Packages and Pricing</h3>
+                <p>StarStore offers multiple Telegram Stars packages and Telegram Premium subscription options at competitive market rates. All prices are denominated in United States Dollars (USD) and may be paid using supported cryptocurrencies at the current exchange rate.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Telegram Stars Package</th>
+                            <th>Price (USD)</th>
+                            <th>Unit Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>15 Stars</td>
+                            <td>$0.35</td>
+                            <td>$0.0233/star</td>
+                        </tr>
+                        <tr>
+                            <td>45 Stars</td>
+                            <td>$1.00</td>
+                            <td>$0.0222/star</td>
+                        </tr>
+                        <tr>
+                            <td>90 Stars</td>
+                            <td>$2.00</td>
+                            <td>$0.0222/star</td>
+                        </tr>
+                        <tr>
+                            <td>225 Stars</td>
+                            <td>$5.00</td>
+                            <td>$0.0222/star</td>
+                        </tr>
+                        <tr>
+                            <td>450 Stars</td>
+                            <td>$10.00</td>
+                            <td>$0.0222/star</td>
+                        </tr>
+                        <tr>
+                            <td>900 Stars</td>
+                            <td>$20.00</td>
+                            <td>$0.0222/star</td>
+                        </tr>
+                        <tr>
+                            <td>2,250 Stars</td>
+                            <td>$50.00</td>
+                            <td>$0.0222/star</td>
+                        </tr>
+                        <tr>
+                            <td>4,500 Stars</td>
+                            <td>$100.00</td>
+                            <td>$0.0222/star</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <table style="margin-top: 30px;">
+                    <thead>
+                        <tr>
+                            <th>Telegram Premium Subscription</th>
+                            <th>Price (USD)</th>
+                            <th>Monthly Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>3 Months</td>
+                            <td>$12.99</td>
+                            <td>$4.33/month</td>
+                        </tr>
+                        <tr>
+                            <td>6 Months</td>
+                            <td>$23.99</td>
+                            <td>$4.00/month</td>
+                        </tr>
+                        <tr>
+                            <td>12 Months</td>
+                            <td>$44.99</td>
+                            <td>$3.75/month</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>3.2 Payment Methods</h3>
+                <p>StarStore accepts the following payment methods for purchasing Telegram Stars and Premium subscriptions:</p>
+
+                <div class="callout callout-success">
+                    <h4>Accepted Cryptocurrencies</h4>
+                    <ul>
+                        <li><strong>USDT (TON Network):</strong> Preferred payment method with instant confirmation</li>
+                        <li><strong>USDT (TRON TRC-20):</strong> Alternative network option for USDT transfers</li>
+                        <li><strong>TON Coin:</strong> Native cryptocurrency of The Open Network</li>
+                    </ul>
+                </div>
+
+                <h3>3.3 Purchase Process</h3>
+                <ol class="numbered-list">
+                    <li><strong>Package Selection:</strong> Choose your desired Stars package or Premium subscription through our bot interface</li>
+                    <li><strong>Payment Method Selection:</strong> Select your preferred cryptocurrency and network</li>
+                    <li><strong>Payment Submission:</strong> Send the exact amount to the provided address within the specified time window</li>
+                    <li><strong>Transaction Verification:</strong> Our system automatically monitors and confirms blockchain transactions</li>
+                    <li><strong>Instant Delivery:</strong> Stars or Premium subscription is delivered to your Telegram account immediately upon payment confirmation</li>
+                    <li><strong>Receipt Confirmation:</strong> Receive transaction receipt and order details via bot notification</li>
+                </ol>
+            </section>
+
+            <section id="selling-services" class="section">
+                <h2>Selling Services - Converting Stars to USDT</h2>
+
+                <h3>4.1 Selling Overview</h3>
+                <p>StarStore provides a secure marketplace for users to convert their Telegram Stars into USDT cryptocurrency. Our selling service implements industry-leading security measures, including a mandatory 21-day holding period, to protect all parties and ensure transaction legitimacy.</p>
+
+                <div class="callout callout-info">
+                    <h4>Key Selling Terms</h4>
+                    <ul>
+                        <li><strong>Minimum Sell Amount:</strong> 50 Telegram Stars</li>
+                        <li><strong>Maximum Per Transaction:</strong> No upper limit (subject to liquidity)</li>
+                        <li><strong>Exchange Rate:</strong> $0.009 per Star (market-dependent)</li>
+                        <li><strong>Holding Period:</strong> 21 calendar days from transaction initiation</li>
+                        <li><strong>Payout Currency:</strong> USDT (TON Network or TRON TRC-20)</li>
+                        <li><strong>Processing Fee:</strong> No additional fees beyond the exchange rate</li>
+                    </ul>
+                </div>
+
+                <h3>4.2 The 21-Day Holding Period Explained</h3>
+                <p>The mandatory 21-day holding period is a critical security measure designed to protect users, StarStore, and the integrity of our marketplace. This policy aligns with Telegram's official policies and industry best practices.</p>
+
+                <div class="callout callout-success">
+                    <h4>Security Rationale</h4>
+                    <ol>
+                        <li><strong>Fraud Prevention:</strong> Allows sufficient time to identify and investigate potentially fraudulent transactions, stolen accounts, or unauthorized Star transfers</li>
+                        <li><strong>Telegram Policy Compliance:</strong> Mirrors Telegram's own 21-day holding requirement for Stars transactions to ensure platform-wide consistency</li>
+                        <li><strong>Chargeback Protection:</strong> Provides adequate time for payment reversals or disputes to surface before funds are released</li>
+                        <li><strong>Account Verification:</strong> Enables thorough verification of seller account legitimacy and transaction history</li>
+                        <li><strong>Regulatory Compliance:</strong> Satisfies financial regulatory requirements for transaction monitoring and suspicious activity detection</li>
+                    </ol>
+                </div>
+
+                <h3>4.3 Selling Process</h3>
+                <ol class="numbered-list">
+                    <li><strong>Initiate Sell Order:</strong> Contact @TgStarStore_bot and select the "Sell Stars" option</li>
+                    <li><strong>Specify Amount:</strong> Enter the quantity of Stars you wish to sell (minimum 50 Stars)</li>
+                    <li><strong>Rate Confirmation:</strong> Review and confirm the current exchange rate of $0.009 per Star and estimated USDT payout</li>
+                    <li><strong>Wallet Address Provision:</strong> Provide your USDT wallet address (TON or TRON network)</li>
+                    <li><strong>Wallet Verification:</strong> Confirm wallet address accuracy (transactions cannot be reversed)</li>
+                    <li><strong>Star Transfer:</strong> Send Stars via Telegram payment to our designated account</li>
+                    <li><strong>Order Tracking:</strong> Receive unique order ID and track status throughout the 21-day period</li>
+                    <li><strong>Payment Processing:</strong> After 21 days, USDT is sent to your wallet within 24 hours</li>
+                </ol>
+
+                <div class="callout callout-danger">
+                    <h4>Critical Wallet Address Guidelines</h4>
+                    <ul>
+                        <li><strong>Accuracy Verification:</strong> Triple-check your wallet address before submission. Cryptocurrency transactions are irreversible.</li>
+                        <li><strong>Network Compatibility:</strong> Ensure your wallet supports the selected network (TON or TRON TRC-20)</li>
+                        <li><strong>Address Format:</strong> Provide complete, unmodified wallet addresses without additional characters or spaces</li>
+                    </ul>
+                    <p><strong>StarStore Liability Limitation:</strong> StarStore bears no responsibility for funds sent to incorrect, invalid, or incompatible wallet addresses.</p>
+                </div>
+            </section>
+
+            <section id="referral-program" class="section">
+                <h2>Referral Program Terms</h2>
+
+                <h3>5.1 Program Overview</h3>
+                <p>StarStore's Referral Program enables users to earn USDT commissions by introducing new users to our platform. This mutually beneficial program rewards users for expanding our community while helping newcomers discover our services.</p>
+
+                <div class="callout callout-success">
+                    <h4>Referral Commission Structure</h4>
+                    <ul>
+                        <li><strong>Commission Rate:</strong> $0.50 USDT per qualified referral</li>
+                        <li><strong>Qualification Threshold:</strong> Referred user must purchase at least 100 Telegram Stars (cumulative)</li>
+                        <li><strong>Tracking Method:</strong> Automatic attribution through unique referral links</li>
+                        <li><strong>Payment Processing:</strong> Automatic release upon referral qualification</li>
+                        <li><strong>Minimum Withdrawal:</strong> No minimum for USDT withdrawal to TON wallet</li>
+                    </ul>
+                </div>
+
+                <h3>5.2 How the Referral Program Works</h3>
+                <ol class="numbered-list">
+                    <li><strong>Obtain Referral Link:</strong> Access your unique referral link through the /referral command in @TgStarStore_bot</li>
+                    <li><strong>Share Your Link:</strong> Distribute your referral link through social media, messaging, or any legal marketing channels</li>
+                    <li><strong>User Registration:</strong> New users who click your link are automatically attributed to your referral account</li>
+                    <li><strong>Purchase Tracking:</strong> System automatically tracks all purchases made by your referred users</li>
+                    <li><strong>Commission Release:</strong> Upon reaching 100 Stars in cumulative purchases, your $0.50 USDT commission unlocks</li>
+                    <li><strong>Withdraw Earnings:</strong> Transfer accumulated commissions to your TON wallet at any time</li>
+                </ol>
+
+                <div class="callout callout-warning">
+                    <h4>Important Tracking Requirement</h4>
+                    <p>Referred users must use the official @TgStarStore_bot for all purchases. Transactions completed through alternative channels will not be tracked for referral commissions.</p>
+                </div>
+            </section>
+
+            <section id="payment-terms" class="section">
+                <h2>Payment Terms and Conditions</h2>
+
+                <h3>6.1 Accepted Payment Methods</h3>
+                <p>StarStore exclusively processes payments through blockchain-based cryptocurrencies to ensure security, transparency, and global accessibility.</p>
+
+                <div class="callout callout-info">
+                    <h4>Supported Cryptocurrencies and Networks</h4>
+                    <ul>
+                        <li><strong>USDT on TON Network:</strong> Preferred method with fastest confirmation times</li>
+                        <li><strong>USDT on TRON (TRC-20):</strong> Alternative stablecoin option</li>
+                        <li><strong>TON Coin:</strong> Native token of The Open Network</li>
+                    </ul>
+                </div>
+
+                <h3>6.2 Payment Processing</h3>
+                <p>All cryptocurrency payments are processed through their respective blockchain networks:</p>
+                <ul>
+                    <li><strong>Transaction Monitoring:</strong> Automated systems monitor blockchain networks for incoming payments</li>
+                    <li><strong>Confirmation Requirements:</strong> TON (1 confirmation), TRON (19 confirmations)</li>
+                    <li><strong>Payment Verification:</strong> Orders are fulfilled only after required confirmations are received</li>
+                    <li><strong>Exchange Rate Lock:</strong> Cryptocurrency exchange rates are locked at order creation</li>
+                </ul>
+
+                <div class="callout callout-danger">
+                    <h4>Payment Irreversibility</h4>
+                    <p>Blockchain cryptocurrency transactions are irreversible and immutable. Once a payment is sent and confirmed on the blockchain, it cannot be cancelled, reversed, or refunded except through StarStore's explicit refund policy. Users must verify all payment details (amount, address, network) before submitting transactions.</p>
+                </div>
+            </section>
+
+            <section id="refund-policy" class="section">
+                <h2>Refund and Cancellation Policy</h2>
+
+                <h3>7.1 General Refund Policy</h3>
+                <p>Due to the instant digital delivery nature of Telegram Stars and Premium subscriptions, StarStore maintains a strict limited refund policy. All sales are generally considered final once delivery is completed.</p>
+
+                <div class="callout callout-warning">
+                    <h4>No Refund Conditions</h4>
+                    <p>Refunds will NOT be issued for:</p>
+                    <ul>
+                        <li>Change of mind after purchase completion</li>
+                        <li>User error in package selection or recipient designation</li>
+                        <li>Third-party service interruptions (Telegram API issues)</li>
+                        <li>Cryptocurrency market value fluctuations post-payment</li>
+                        <li>User dissatisfaction with Telegram's features or services</li>
+                        <li>Incorrect wallet addresses provided for sell orders</li>
+                    </ul>
+                </div>
+
+                <h3>7.2 Eligible Refund Circumstances</h3>
+                <div class="callout callout-success">
+                    <h4>Refundable Situations</h4>
+                    <ul>
+                        <li><strong>Non-Delivery:</strong> Stars or Premium not delivered within 24 hours despite confirmed payment</li>
+                        <li><strong>System Error:</strong> Technical malfunction resulting in incorrect quantity delivered</li>
+                        <li><strong>Duplicate Payment:</strong> Accidental double payment for the same order</li>
+                        <li><strong>Overcharge:</strong> Amount charged exceeds the displayed price at order time</li>
+                        <li><strong>Service Interruption:</strong> Platform-wide outage preventing order fulfillment</li>
+                    </ul>
+                </div>
+
+                <h3>7.3 Refund Request Process</h3>
+                <ol class="numbered-list">
+                    <li><strong>Contact Support:</strong> Message @TgStarStore_bot with "Refund Request" in the subject</li>
+                    <li><strong>Provide Documentation:</strong> Submit order ID, transaction hash, payment proof, and detailed explanation</li>
+                    <li><strong>Investigation Period:</strong> Allow 3-5 business days for thorough investigation</li>
+                    <li><strong>Decision Notification:</strong> Receive approval or denial with detailed reasoning</li>
+                    <li><strong>Refund Processing:</strong> If approved, refund processed within 7 business days</li>
+                </ol>
+
+                <div class="callout callout-info">
+                    <h4>Monthly Refund Limit</h4>
+                    <p>Users may request a maximum of one (1) refund per calendar month. This limitation prevents abuse while accommodating legitimate errors.</p>
+                </div>
+            </section>
+
+            <section id="security" class="section">
+                <h2>Security Measures and Fraud Prevention</h2>
+
+                <h3>8.1 Platform Security Infrastructure</h3>
+                <p>StarStore implements comprehensive security measures to protect user data, funds, and transactions:</p>
+
+                <div class="callout callout-success">
+                    <h4>Security Technologies Deployed</h4>
+                    <ul>
+                        <li><strong>End-to-End Encryption:</strong> All sensitive data encrypted using AES-256 encryption</li>
+                        <li><strong>Secure Socket Layer (SSL/TLS):</strong> 256-bit SSL certificates for all web traffic</li>
+                        <li><strong>Cold Storage:</strong> Majority of cryptocurrency funds stored in offline cold wallets</li>
+                        <li><strong>Multi-Signature Wallets:</strong> Critical transactions require multiple authorization signatures</li>
+                        <li><strong>DDoS Protection:</strong> Enterprise-grade protection against distributed denial of service attacks</li>
+                        <li><strong>Regular Security Audits:</strong> Quarterly third-party security assessments and penetration testing</li>
+                    </ul>
+                </div>
+
+                <h3>8.2 Fraud Detection Systems</h3>
+                <p>Our advanced fraud prevention system monitors transactions for suspicious patterns:</p>
+                <ul>
+                    <li>Velocity checks for unusual transaction frequency</li>
+                    <li>Pattern recognition algorithms identifying fraudulent behavior</li>
+                    <li>IP address and device fingerprinting</li>
+                    <li>Behavior analysis and anomaly detection</li>
+                    <li>Machine learning models predicting fraudulent activity</li>
+                </ul>
+
+                <h3>8.3 User Security Responsibilities</h3>
+                <div class="callout callout-warning">
+                    <h4>User Security Obligations</h4>
+                    <ul>
+                        <li>Enable two-factor authentication (2FA) on Telegram accounts</li>
+                        <li>Use strong, unique passwords for Telegram and associated email accounts</li>
+                        <li>Never share account credentials or session information</li>
+                        <li>Verify all transaction details before confirmation</li>
+                        <li>Immediately report suspicious activity or unauthorized access</li>
+                        <li>Keep devices and software updated with latest security patches</li>
+                        <li>Avoid accessing StarStore from public/unsecured WiFi networks</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="privacy" class="section">
+                <h2>Privacy Policy</h2>
+
+                <h3>9.1 Privacy Commitment</h3>
+                <p>StarStore is committed to protecting the privacy and personal information of all users. This Privacy Policy explains our practices regarding the collection, use, disclosure, and protection of personal data in compliance with applicable data protection laws including GDPR, CCPA, and international privacy regulations.</p>
+
+                <div class="callout callout-info">
+                    <h4>Core Privacy Principles</h4>
+                    <ul>
+                        <li><strong>Transparency:</strong> Clear communication about data practices</li>
+                        <li><strong>Data Minimization:</strong> Collecting only necessary information</li>
+                        <li><strong>Purpose Limitation:</strong> Using data only for stated purposes</li>
+                        <li><strong>Security:</strong> Implementing robust protection measures</li>
+                        <li><strong>User Control:</strong> Providing access and control over personal data</li>
+                        <li><strong>Accountability:</strong> Taking responsibility for data protection</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="data-collection" class="section">
+                <h2>Data Collection Practices</h2>
+
+                <h3>10.1 Information We Collect</h3>
+                <p>StarStore collects various types of information to provide, maintain, and improve our services:</p>
+
+                <h4>Account Information:</h4>
+                <ul>
+                    <li>Telegram User ID (unique identifier)</li>
+                    <li>Telegram username (if publicly available)</li>
+                    <li>Account creation date and time</li>
+                    <li>Profile language preferences</li>
+                </ul>
+
+                <h4>Transaction Data:</h4>
+                <ul>
+                    <li>Purchase and sale order details</li>
+                    <li>Transaction amounts and timestamps</li>
+                    <li>Cryptocurrency wallet addresses</li>
+                    <li>Blockchain transaction hashes</li>
+                    <li>Payment method selections</li>
+                    <li>Order status and fulfillment records</li>
+                </ul>
+
+                <h4>Technical Data:</h4>
+                <ul>
+                    <li>IP addresses and geolocation data</li>
+                    <li>Device information (type, operating system)</li>
+                    <li>Browser type and version</li>
+                    <li>Access times and session duration</li>
+                </ul>
+            </section>
+
+            <section id="data-usage" class="section">
+                <h2>Data Usage and Processing</h2>
+
+                <h3>11.1 How We Use Your Information</h3>
+                <p>StarStore processes personal data for the following legitimate business purposes:</p>
+
+                <div class="callout callout-info">
+                    <h4>Service Provision</h4>
+                    <ul>
+                        <li>Process purchase and sale transactions</li>
+                        <li>Deliver Telegram Stars and Premium subscriptions</li>
+                        <li>Manage user accounts and preferences</li>
+                        <li>Process cryptocurrency payments and payouts</li>
+                        <li>Track referral relationships and commissions</li>
+                        <li>Provide customer support and resolve issues</li>
+                    </ul>
+                </div>
+
+                <div class="callout callout-success">
+                    <h4>Security and Fraud Prevention</h4>
+                    <ul>
+                        <li>Verify user identity and prevent fraud</li>
+                        <li>Monitor transactions for suspicious activity</li>
+                        <li>Enforce 21-day holding period security measures</li>
+                        <li>Detect and prevent unauthorized access</li>
+                        <li>Comply with anti-money laundering (AML) regulations</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="data-protection" class="section">
+                <h2>Data Protection and Retention</h2>
+
+                <h3>12.1 Data Security Measures</h3>
+                <p>StarStore implements comprehensive security measures to protect personal information:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data Category</th>
+                            <th>Retention Period</th>
+                            <th>Rationale</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Account Information</td>
+                            <td>Duration of account + 3 years</td>
+                            <td>Service provision, legal compliance</td>
+                        </tr>
+                        <tr>
+                            <td>Transaction Records</td>
+                            <td>7 years from transaction</td>
+                            <td>Financial regulations, dispute resolution</td>
+                        </tr>
+                        <tr>
+                            <td>Support Communications</td>
+                            <td>3 years from last contact</td>
+                            <td>Customer service, quality improvement</td>
+                        </tr>
+                        <tr>
+                            <td>Technical Logs</td>
+                            <td>90 days</td>
+                            <td>Security monitoring, troubleshooting</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="user-rights" class="section">
+                <h2>User Rights and Data Control</h2>
+
+                <h3>13.1 Your Privacy Rights</h3>
+                <p>Depending on your jurisdiction, you may have the following rights regarding your personal data:</p>
+
+                <div class="callout callout-info">
+                    <h4>Right to Access</h4>
+                    <p>Request copies of your personal data and information about how it's processed. We provide this information within 30 days of verified requests.</p>
+                </div>
+
+                <div class="callout callout-info">
+                    <h4>Right to Rectification</h4>
+                    <p>Correct inaccurate or incomplete personal information. Contact support to update your data.</p>
+                </div>
+
+                <div class="callout callout-info">
+                    <h4>Right to Erasure</h4>
+                    <p>Request deletion of your personal data, subject to legal retention requirements and legitimate business interests.</p>
+                </div>
+
+                <h3>13.2 Exercising Your Rights</h3>
+                <ol class="numbered-list">
+                    <li><strong>Submit Request:</strong> Contact @TgStarStore_bot or email our data protection officer</li>
+                    <li><strong>Identity Verification:</strong> Provide information to verify your identity</li>
+                    <li><strong>Specify Request:</strong> Clearly state which right(s) you wish to exercise</li>
+                    <li><strong>Processing Time:</strong> We respond within 30 days (45 days for complex requests)</li>
+                </ol>
+            </section>
+
+            <section id="acceptable-use" class="section">
+                <h2>Acceptable Use Policy</h2>
+
+                <h3>14.1 Permitted Uses</h3>
+                <p>StarStore services may be used exclusively for lawful purposes in compliance with these Terms. Permitted activities include:</p>
+
+                <ul>
+                    <li>Purchasing Telegram Stars for personal use or gifting</li>
+                    <li>Selling legitimately acquired Telegram Stars</li>
+                    <li>Subscribing to Telegram Premium for personal accounts</li>
+                    <li>Participating in the referral program through honest promotion</li>
+                    <li>Contacting customer support for legitimate service inquiries</li>
+                </ul>
+            </section>
+
+            <section id="prohibited-activities" class="section">
+                <h2>Prohibited Activities</h2>
+
+                <h3>15.1 Absolute Prohibitions</h3>
+                <p>The following activities are strictly prohibited and constitute material breaches of these Terms:</p>
+
+                <div class="callout callout-danger">
+                    <h4>Fraudulent Activities</h4>
+                    <ul>
+                        <li>Using stolen payment credentials or cryptocurrency</li>
+                        <li>Conducting transactions with stolen or compromised Telegram accounts</li>
+                        <li>Creating multiple accounts to circumvent restrictions or abuse promotions</li>
+                        <li>Providing false information during registration or transactions</li>
+                        <li>Manipulating the referral system through fake accounts or collusion</li>
+                        <li>Selling Stars obtained through fraudulent means</li>
+                    </ul>
+                </div>
+
+                <div class="callout callout-danger">
+                    <h4>Technical Abuse</h4>
+                    <ul>
+                        <li>Attempting to hack, breach, or compromise platform security</li>
+                        <li>Using bots, scripts, or automated tools without authorization</li>
+                        <li>Reverse engineering, decompiling, or disassembling platform code</li>
+                        <li>Exploiting vulnerabilities for personal gain or to harm others</li>
+                        <li>Introducing viruses, malware, or malicious code</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="intellectual-property" class="section">
+                <h2>Intellectual Property Rights</h2>
+
+                <h3>16.1 StarStore Ownership</h3>
+                <p>All intellectual property rights in the StarStore platform, including but not limited to trademarks, logos, service marks, trade names, website design, software code, algorithms, databases, and content, are owned exclusively by StarStore or our licensors.</p>
+
+                <h3>16.2 Limited License to Users</h3>
+                <p>Subject to these Terms, StarStore grants you a limited, non-exclusive, non-transferable, revocable license to access and use our services for personal, non-commercial purposes.</p>
+            </section>
+
+            <section id="liability" class="section">
+                <h2>Disclaimer of Warranties and Limitation of Liability</h2>
+
+                <h3>17.1 Service Disclaimer</h3>
+                <div class="callout callout-warning">
+                    <p><strong>AS-IS BASIS:</strong> StarStore services are provided "as is" and "as available" without warranties of any kind, either express or implied. To the fullest extent permitted by law, we disclaim all warranties.</p>
+                </div>
+
+                <h3>17.2 Limitation of Liability</h3>
+                <div class="callout callout-danger">
+                    <h4>Maximum Liability Cap</h4>
+                    <p>To the maximum extent permitted by applicable law, StarStore's total liability for all claims arising from or related to these Terms or use of our services shall not exceed the total amount you paid to StarStore in the twelve (12) months preceding the claim, or $100 USD, whichever is greater.</p>
+                </div>
+
+                <h3>17.3 Exclusion of Consequential Damages</h3>
+                <p>Under no circumstances shall StarStore be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or business opportunities.</p>
+            </section>
+
+            <section id="dispute-resolution" class="section">
+                <h2>Dispute Resolution and Arbitration</h2>
+
+                <h3>18.1 Informal Resolution</h3>
+                <p>Before initiating formal dispute resolution procedures, users must first attempt to resolve disputes informally by contacting StarStore customer support. We commit to working in good faith to resolve all user concerns through direct communication.</p>
+
+                <h3>18.2 Binding Arbitration</h3>
+                <p>If informal resolution fails, disputes shall be resolved through binding arbitration rather than in court, except where prohibited by law.</p>
+            </section>
+
+            <section id="termination" class="section">
+                <h2>Account Termination and Suspension</h2>
+
+                <h3>19.1 Termination by User</h3>
+                <p>Users may terminate their StarStore account at any time by contacting customer support via @TgStarStore_bot and requesting account closure.</p>
+
+                <h3>19.2 Termination by StarStore</h3>
+                <p>StarStore reserves the right to suspend or terminate user accounts immediately, with or without notice, for violations of any Terms provision, fraudulent activity, or any conduct we deem harmful to our platform.</p>
+            </section>
+
+            <section id="governing-law" class="section">
+                <h2>Governing Law and Jurisdiction</h2>
+
+                <h3>20.1 Applicable Law</h3>
+                <p>These Terms shall be governed by and construed in accordance with applicable international commercial law principles, without regard to conflict of law provisions.</p>
+
+                <h3>20.2 Severability</h3>
+                <p>If any provision of these Terms is found to be unenforceable or invalid, that provision shall be limited or eliminated to the minimum extent necessary so that these Terms otherwise remain in full force and effect.</p>
+            </section>
+
+            <section id="modifications" class="section">
+                <h2>Policy Modifications and Updates</h2>
+
+                <h3>21.1 Right to Modify</h3>
+                <p>StarStore reserves the right to modify, amend, or update these Terms and Privacy Policy at any time. Changes become effective immediately upon posting unless otherwise specified.</p>
+
+                <div class="callout callout-info">
+                    <h4>Notification Methods</h4>
+                    <ul>
+                        <li>Updated "Last Modified" date at policy top</li>
+                        <li>In-app notification through bot</li>
+                        <li>Email notification to registered users</li>
+                        <li>Announcement in official Telegram channel</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="contact" class="section">
+                <h2>Contact Information and Support</h2>
+
+                <h3>22.1 Customer Support</h3>
+                <p>For assistance with StarStore services, technical issues, or general inquiries:</p>
+
+                <div class="callout callout-info">
+                    <h4>Primary Support Channel</h4>
+                    <p><strong>Telegram Bot:</strong> @TgStarStore_bot</p>
+                    <p><strong>Response Time:</strong> Within 24 hours during business hours</p>
+                    <p><strong>Availability:</strong> 24/7 automated assistance, human support during business hours</p>
+                </div>
+
+                <div class="callout callout-info">
+                    <h4>Website Support</h4>
+                    <p><strong>Official Website:</strong> starstore.site</p>
+                    <p><strong>Knowledge Base:</strong> starstore.site/knowledge-base/</p>
+                </div>
+            </section>
+
+            <div class="cta">
+                <h2>Ready to Get Started?</h2>
+                <p>Join thousands of users worldwide who trust StarStore for secure Telegram Stars transactions</p>
+                <a href="https://t.me/TgStarStore_bot" class="btn">Open StarStore Bot</a>
+            </div>
+
+            <section class="section">
+                <div class="callout callout-success">
+                    <h4>Effective Date and Version</h4>
+                    <p><strong>Last Updated:</strong> October 8, 2025</p>
+                    <p><strong>Version:</strong> 9.1.27</p>
+                    <p><strong>Effective Date:</strong> These Terms are effective as of the Last Updated date and apply to all users accessing StarStore services on or after this date.</p>
+                </div>
+            </section>
+        </main>
     </div>
-    
-    <h3>Selling Process:</h3>
-    <ol>
-        <li>Contact <a href="https://t.me/TgStarStore_bot" class="telegram-btn">@TgStarStore_bot</a></li>
-        <li>Enter the amount of Stars you wish to sell</li>
-        <li>Provide your payout details</li>
-        <li>Transfer Stars to our verified account</li>
-        <li>Receive payment after 21-day security period</li>
-    </ol>
-    
-    <h2>Referral Program</h2>
-    <p>Earn rewards by inviting others to StarStore!</p>
-    
-    <h3>Program Details:</h3>
-    <ul>
-        <li><strong>Reward</strong>: $0.50 USDT per successful referral</li>
-        <li><strong>Requirements</strong>:
-            <ul>
-                <li>Referred user must make a purchase of at least 100 Stars</li>
-                <li>Purchases accumulate gradually (multiple small purchases count)</li>
-                <li>Each referral is processed individually</li>
-            </ul>
-        </li>
-        <li><strong>Payout</strong>: Rewards remain pending until requirements are met</li>
-    </ul>
-    
-    <h3>How It Works:</h3>
-    <ol>
-        <li>Share your unique referral link from the bot</li>
-        <li>When a referred user makes their first purchase, they're linked to you</li>
-        <li>As they accumulate 100 Stars in purchases, your reward unlocks</li>
-        <li>Receive USDT payouts for each qualified referral</li>
-    </ol>
-    
-    <h2>Refund Policy</h2>
-    <p>We maintain a fair refund policy:</p>
-    
-    <h3>Policy Highlights:</h3>
-    <ul>
-        <li>All sales are final except in specific cases:
-            <ul>
-                <li>Incorrect amount processed (user sent more than intended)</li>
-                <li>Account manipulation or security issues</li>
-                <li>Network failures directly attributable to our systems</li>
-            </ul>
-        </li>
-        <li>No refunds for:
-            <ul>
-                <li>Third-party API issues</li>
-                <li>User errors in transaction details</li>
-                <li>Changes of mind after purchase</li>
-            </ul>
-        </li>
-    </ul>
-    
-    <h3>Refund Process:</h3>
-    <ol>
-        <li>Contact support through <a href="https://t.me/TgStarStore_bot" class="telegram-btn">@TgStarStore_bot</a></li>
-        <li>Provide transaction details and evidence</li>
-        <li>Allow 3-5 business days for investigation</li>
-        <li>If approved, refund will be processed to original payment method</li>
-    </ol>
-    
-    <h2>Security & Fraud Prevention</h2>
-    <p>We prioritize security for all users:</p>
-    
-    <h3>Protection Measures:</h3>
-    <ul>
-        <li>Secure payment processing</li>
-        <li>21-day holding period for Stars sales</li>
-        <li>Transaction monitoring systems</li>
-        <li>Fraud detection algorithms</li>
-        <li>Encrypted data transmission</li>
-    </ul>
-    
-    <h3>User Responsibilities:</h3>
-    <ul>
-        <li>Keep your account credentials secure</li>
-        <li>Verify all transaction details before confirming</li>
-        <li>Only use official StarStore channels</li>
-        <li>Report any suspicious activity immediately through our bot</li>
-    </ul>
-    
-    <div class="note">
-        <p>For any questions or support, please contact our official bot: <a href="https://t.me/TgStarStore_bot" class="telegram-btn">@TgStarStore_bot</a></p>
-    </div>
+
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <h3>StarStore</h3>
+                    <p>Your trusted marketplace for Telegram Stars and Premium subscriptions. Secure, fast, and reliable since December 2024.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="https://starstore.site">Home</a></li>
+                        <li><a href="https://starstore.site/knowledge-base/">Knowledge Base</a></li>
+                        <li><a href="https://starstore.site/blog/">Blog</a></li>
+                        <li><a href="https://starstore.site/support.html">Support</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Services</h3>
+                    <ul>
+                        <li><a href="https://starstore.site">Buy Telegram Stars</a></li>
+                        <li><a href="https://starstore.site/sell.html">Sell Telegram Stars</a></li>
+                        <li><a href="https://starstore.site">Telegram Premium</a></li>
+                        <li><a href="https://starstore.site/referral.html">Referral Program</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Legal</h3>
+                    <ul>
+                        <li><a href="#terms">Terms of Service</a></li>
+                        <li><a href="#privacy">Privacy Policy</a></li>
+                        <li><a href="#refund-policy">Refund Policy</a></li>
+                        <li><a href="https://starstore.site/policy.html">Full Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2025 StarStore. All rights reserved. | Version 9.1.27</p>
+                <p>StarStore operates independently and is not affiliated with Telegram Messenger Inc.</p>
+            </div>
+        </div>
+    </footer>
+
+    <div class="scroll-top" id="scrollTop">↑</div>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Active navigation highlighting
+        const sections = document.querySelectorAll('.section');
+        const navLinks = document.querySelectorAll('.sidebar a');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (window.scrollY >= (sectionTop - 150)) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // Scroll to top button
+        const scrollTop = document.getElementById('scrollTop');
+        
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 300) {
+                scrollTop.classList.add('visible');
+            } else {
+                scrollTop.classList.remove('visible');
+            }
+        });
+
+        scrollTop.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+    </script>
 </body>
 </html>
