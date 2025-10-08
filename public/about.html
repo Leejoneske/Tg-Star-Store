@@ -52,6 +52,13 @@
     <script src="js/version.js"></script>
     <script src="js/version-display.js"></script>
     <script>
+        // Initialize translations
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.initTranslations) {
+                window.initTranslations();
+            }
+        });
+
         // Enhanced version display
         setTimeout(() => {
             if (window.versionDisplay) {
@@ -286,6 +293,8 @@
         <!-- App Version -->
         <div class="text-center text-sm text-gray-500 mt-8 mb-4">
             <p data-version>StarStore v9.1.27</p>
+            <p class="text-xs mt-1" data-build-info>Build <span data-build-number>N/A</span> • <span data-commit-hash>production</span></p>
+            <p class="text-xs mt-1" data-build-date>Built on <span data-build-date>N/A</span></p>
             <p class="text-xs mt-1" data-translate="copyright">© 2025 StarStore. All rights reserved.</p>
         </div>
 

@@ -341,26 +341,37 @@ app.get('/api/version', (req, res) => {
         // Try to get git information, fallback to environment/build info
         let gitInfo = {};
         
-        // Check if we're in a git repository and git is available
-        const isGitAvailable = process.env.NODE_ENV !== 'production' && 
-                              (process.env.RAILWAY_GIT_COMMIT_SHA || 
-                               process.env.GIT_AVAILABLE === 'true');
-        
-        if (isGitAvailable) {
-            try {
-                const { execSync } = require('child_process');
-                gitInfo = {
-                    buildNumber: execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(),
-                    commitHash: execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(),
-                    branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(),
-                    commitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim().split(' ')[0]
-                };
-            } catch (gitError) {
-                // Fall through to environment variables
+        // Prioritize Railway environment variables for production
+        if (process.env.RAILWAY_GIT_COMMIT_SHA) {
+            gitInfo = {
+                buildNumber: process.env.RAILWAY_GIT_COMMIT_SHA.substring(0, 7),
+                commitHash: process.env.RAILWAY_GIT_COMMIT_SHA.substring(0, 7),
+                branch: process.env.RAILWAY_GIT_BRANCH || 'main',
+                commitDate: process.env.RAILWAY_GIT_COMMIT_CREATED_AT ? 
+                    new Date(process.env.RAILWAY_GIT_COMMIT_CREATED_AT).toISOString().split('T')[0] : 
+                    buildDate
+            };
+        } else {
+            // Check if we're in a git repository and git is available (for development)
+            const isGitAvailable = process.env.NODE_ENV !== 'production' && 
+                                  process.env.GIT_AVAILABLE === 'true';
+            
+            if (isGitAvailable) {
+                try {
+                    const { execSync } = require('child_process');
+                    gitInfo = {
+                        buildNumber: execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim(),
+                        commitHash: execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(),
+                        branch: execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(),
+                        commitDate: execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim().split(' ')[0]
+                    };
+                } catch (gitError) {
+                    // Fall through to default values
+                }
             }
         }
         
-        // Use environment variables or build-time info if git failed or unavailable
+        // Use default values if nothing else worked
         if (!gitInfo.buildNumber) {
             gitInfo = {
                 buildNumber: process.env.RAILWAY_GIT_COMMIT_SHA ? process.env.RAILWAY_GIT_COMMIT_SHA.substring(0, 7) : 'N/A',

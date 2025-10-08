@@ -35,6 +35,7 @@ class VersionDisplay {
         this.updateBuildElements();
         this.updateCommitElements();
         this.updateDateElements();
+        this.updateBuildInfoElements();
     }
 
     updateVersionElements() {
@@ -64,6 +65,16 @@ class VersionDisplay {
         const elements = document.querySelectorAll('[data-build-date]');
         elements.forEach(element => {
             element.textContent = this.versionInfo.buildDate;
+        });
+    }
+
+    updateBuildInfoElements() {
+        const elements = document.querySelectorAll('[data-build-info]');
+        elements.forEach(element => {
+            const buildNumber = element.querySelector('[data-build-number]');
+            const commitHash = element.querySelector('[data-commit-hash]');
+            if (buildNumber) buildNumber.textContent = this.versionInfo.buildNumber;
+            if (commitHash) commitHash.textContent = this.versionInfo.commitHash;
         });
     }
 
