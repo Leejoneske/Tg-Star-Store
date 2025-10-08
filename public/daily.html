@@ -489,9 +489,17 @@
             }, 100); // Wait 100ms for enhanced system to initialize
         });
 
+        let handlersBound = false;
+        
         function bindHandlers() {
+            if (handlersBound) {
+                console.log('Handlers already bound, skipping...');
+                return;
+            }
+            
             const btn = document.getElementById('checkInBtn');
             btn.addEventListener('click', onCheckInAPI);
+            handlersBound = true;
             const refresh = document.getElementById('refreshLeaderboard');
             refresh.addEventListener('click', () => {
                 loadLeaderboard();
@@ -561,7 +569,15 @@
             }
         }
 
+        let checkInInProgress = false;
+        
         async function onCheckInAPI() {
+            if (checkInInProgress) {
+                console.log('Check-in already in progress, ignoring...');
+                return;
+            }
+            
+            checkInInProgress = true;
             const today = new Date();
             const dayKey = today.getDate();
             const btn = document.getElementById('checkInBtn');
@@ -582,7 +598,10 @@
                 console.error(e);
                 setStatus('checkInStatus', 'Failed to check-in', 'error');
             } finally {
-                setTimeout(() => { btn.disabled = false; }, 800);
+                setTimeout(() => { 
+                    btn.disabled = false; 
+                    checkInInProgress = false;
+                }, 800);
             }
             // UI updates are handled by hydrateFromAPI()
         }
