@@ -1,0 +1,86 @@
+:root {
+	--surface: #ffffff;
+	--surface-muted: #f8fafc; /* light gray background */
+	--text: #0f172a; /* slate-900 */
+	--text-muted: #475569; /* slate-600 */
+	--border: #e5e7eb; /* gray-200 */
+	--brand: #4f46e5; /* indigo-600 */
+}
+
+html { color-scheme: light dark; }
+
+body {
+	background: var(--surface-muted);
+	color: var(--text);
+}
+
+/* Subtle defaults for common elements */
+header, footer {
+	background: var(--surface);
+	color: var(--text);
+	border-color: var(--border);
+}
+
+/* Basic link color alignment */
+a { color: var(--brand); }
+
+/* Dark theme via system and explicit data attribute */
+@media (prefers-color-scheme: dark) {
+	:root {
+		--surface: #0b1220;
+		--surface-muted: #0f172a;
+		--text: #e2e8f0;
+		--text-muted: #94a3b8;
+		--border: #1f2937;
+		--brand: #6366f1;
+	}
+	body { background: var(--surface-muted); color: var(--text); }
+}
+
+[data-theme="dark"] {
+	/* Force dark regardless of system */
+	--surface: #0b1220;
+	--surface-muted: #0f172a;
+	--text: #e2e8f0;
+	--text-muted: #94a3b8;
+	--border: #1f2937;
+	--brand: #6366f1;
+}
+
+/* Utility overrides to adapt Tailwind-ish classes in dark */
+@media (prefers-color-scheme: dark) {
+	.bg-white { background-color: #111827 !important; }
+	.bg-gray-50 { background-color: #0f172a !important; }
+	.bg-gray-100 { background-color: #111827 !important; }
+	.text-black, .text-gray-900 { color: #e5e7eb !important; }
+	.text-gray-800 { color: #e2e8f0 !important; }
+	.text-gray-700 { color: #cbd5e1 !important; }
+	.text-gray-600 { color: #94a3b8 !important; }
+	.text-gray-500 { color: #94a3b8 !important; }
+	.text-gray-400 { color: #64748b !important; }
+	.border-gray-200 { border-color: #1f2937 !important; }
+	.border-gray-300 { border-color: #374151 !important; }
+}
+
+[data-theme="dark"] .bg-white { background-color: #111827 !important; }
+[data-theme="dark"] .bg-gray-50 { background-color: #0f172a !important; }
+[data-theme="dark"] .bg-gray-100 { background-color: #111827 !important; }
+[data-theme="dark"] .text-black, 
+[data-theme="dark"] .text-gray-900 { color: #e5e7eb !important; }
+[data-theme="dark"] .text-gray-800 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-gray-700 { color: #cbd5e1 !important; }
+[data-theme="dark"] .text-gray-600 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-gray-500 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-gray-400 { color: #64748b !important; }
+[data-theme="dark"] .border-gray-200 { border-color: #1f2937 !important; }
+[data-theme="dark"] .border-gray-300 { border-color: #374151 !important; }
+
+/* Layout containers commonly used */
+.card,
+.container,
+.content-surface {
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border);
+}
+
