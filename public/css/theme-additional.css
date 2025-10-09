@@ -98,7 +98,25 @@
 	border-color: var(--border) !important;
 }
 
-/* Username Display Fixes */
+/* User Display Area Fixes */
+[data-theme="dark"] .user-info-container {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .user-details {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .profile-image {
+	border: 3px solid var(--brand) !important;
+}
+
+[data-theme="dark"] .profile-image:hover {
+	transform: scale(1.05) !important;
+}
+
 [data-theme="dark"] #username {
 	color: var(--text) !important;
 }
@@ -116,6 +134,15 @@
 [data-theme="dark"] #copyUserIdBtn:hover {
 	background: var(--brand) !important;
 	color: white !important;
+}
+
+[data-theme="dark"] #connectWallet {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #connectWallet:hover {
+	background: var(--brand-hover) !important;
 }
 
 /* Stars/Premium Toggle Fixes */
