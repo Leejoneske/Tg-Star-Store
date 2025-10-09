@@ -992,8 +992,7 @@
 
 /* Telegram Fullscreen Enhancements */
 .telegram-fullscreen {
-	height: 100vh !important;
-	overflow: hidden !important;
+	/* Removed height and overflow restrictions that were blocking scroll */
 }
 
 .telegram-fullscreen .app-container {
@@ -1007,8 +1006,7 @@
 }
 
 .telegram-fullscreen .main-content {
-	padding: 0 !important;
-	margin: 0 !important;
+	/* Removed padding restrictions that were affecting layout */
 }
 
 .telegram-fullscreen .container {
@@ -1020,8 +1018,7 @@
 
 /* Immersive Mode Styles */
 .telegram-immersive {
-	height: 100vh !important;
-	overflow: hidden !important;
+	/* Removed height and overflow restrictions that were blocking scroll */
 }
 
 .telegram-immersive .app-container {
