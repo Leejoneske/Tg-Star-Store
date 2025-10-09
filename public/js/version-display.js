@@ -23,7 +23,7 @@ class VersionDisplay {
                 commitHash: 'production',
                 buildDate: new Date().toISOString().split('T')[0],
                 branch: 'main',
-                displayVersion: 'v9.1.27 (Production)'
+                displayVersion: 'StarStore v9.1.27'
             };
         }
         
@@ -58,11 +58,11 @@ class VersionDisplay {
     }
 
     getDisplayVersion() {
-        return this.versionInfo ? this.versionInfo.displayVersion : 'v9.1.27 (Production)';
+        return this.versionInfo ? this.versionInfo.displayVersion : 'StarStore v9.1.27';
     }
 
     getShortVersion() {
-        return this.versionInfo ? `v${this.versionInfo.version}` : 'v9.1.27';
+        return this.versionInfo ? `StarStore v${this.versionInfo.version}` : 'StarStore v9.1.27';
     }
 
     getBuildInfo() {

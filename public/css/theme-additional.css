@@ -621,3 +621,99 @@
 	background: var(--brand) !important;
 	color: white !important;
 }
+
+/* Order Timeline Dark Theme Fixes */
+[data-theme="dark"] .transaction-step {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .transaction-step .step-number {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-step .step-title {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-step .step-description {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-step .step-date {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .transaction-step.completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-step.pending {
+	background: var(--surface-elevated) !important;
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-step.processing {
+	background: var(--info) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-step.failed {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+/* Wallet Address Visibility Improvements */
+[data-theme="dark"] .wallet-address {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+	padding: 8px 12px !important;
+	border-radius: 6px !important;
+	font-family: monospace !important;
+	font-size: 14px !important;
+}
+
+[data-theme="dark"] .wallet-address:hover {
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] .wallet-address-display {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+	padding: 8px 12px !important;
+	border-radius: 6px !important;
+	font-family: monospace !important;
+	font-size: 14px !important;
+}
+
+[data-theme="dark"] .wallet-address-display:hover {
+	background: var(--surface) !important;
+}
+
+/* Withdrawal Area Fixes */
+[data-theme="dark"] #withdrawAllBtn {
+	color: var(--brand) !important;
+	background: transparent !important;
+	border: none !important;
+}
+
+[data-theme="dark"] #withdrawAllBtn:hover {
+	color: var(--brand-hover) !important;
+	text-decoration: underline !important;
+}
+
+[data-theme="dark"] .withdraw-all-button {
+	color: var(--brand) !important;
+	background: transparent !important;
+	border: none !important;
+}
+
+[data-theme="dark"] .withdraw-all-button:hover {
+	color: var(--brand-hover) !important;
+	text-decoration: underline !important;
+}

@@ -392,7 +392,7 @@ app.get('/api/version', (req, res) => {
             name: packageJson.name || 'starstore',
             description: packageJson.description || 'StarStore - A Telegram Mini App',
             fullVersion: `${version}.${gitInfo.buildNumber || '0'}`,
-            displayVersion: `v${version} (Build ${gitInfo.buildNumber || '0'})`
+            displayVersion: `StarStore v${version}`
         });
     } catch (error) {
         console.error('Error reading package.json:', error);
