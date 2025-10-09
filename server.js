@@ -854,10 +854,6 @@ function isValidTONAddress(address) {
     
     const trimmed = address.trim();
     
-    // Basic TON address format validation
-    // TON addresses are typically 48 characters long and contain base64url characters
-    const tonAddressRegex = /^[A-Za-z0-9_-]{48}$/;
-    
     // Check for testnet indicators
     if (trimmed.toLowerCase().includes('testnet') || 
         trimmed.toLowerCase().includes('test') ||
@@ -865,15 +861,26 @@ function isValidTONAddress(address) {
         return false;
     }
     
-    // Basic format check
-    if (!tonAddressRegex.test(trimmed)) {
-        return false;
+    // Support multiple TON address formats:
+    // 1. Base64url format: UQ, EQ, kQ, 0Q (48 characters)
+    // 2. Hex format: 0:hex (workchain:hex)
+    // 3. Raw format: -1:hex or 0:hex
+    
+    // Check for hex format (0:hex or -1:hex)
+    const hexFormatRegex = /^[0-9-]+:[a-fA-F0-9]{64}$/;
+    if (hexFormatRegex.test(trimmed)) {
+        return true;
     }
     
-    // Additional validation: check if it looks like a valid TON address
-    // TON addresses should start with specific patterns
-    const validPrefixes = ['UQ', 'EQ', 'kQ', '0Q'];
-    return validPrefixes.some(prefix => trimmed.startsWith(prefix));
+    // Check for base64url format (48 characters)
+    const tonAddressRegex = /^[A-Za-z0-9_-]{48}$/;
+    if (tonAddressRegex.test(trimmed)) {
+        // Additional validation: check if it looks like a valid TON address
+        const validPrefixes = ['UQ', 'EQ', 'kQ', '0Q'];
+        return validPrefixes.some(prefix => trimmed.startsWith(prefix));
+    }
+    
+    return false;
 }
 
 // Cleanup function for wallet selections

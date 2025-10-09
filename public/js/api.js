@@ -22,7 +22,7 @@ window.API = {
             authHeaders['x-telegram-init-data'] = window.Telegram.WebApp.initData;
         }
         const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-        if (userId && userId !== 'undefined' && userId !== 'null') {
+        if (userId && userId !== 'undefined' && userId !== 'null' && userId !== undefined && userId !== null) {
             authHeaders['x-telegram-id'] = userId;
         } else {
             // Debug: Log when user ID is not available

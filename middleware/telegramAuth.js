@@ -40,7 +40,7 @@ function requireTelegramAuth(req, res, next) {
   if (process.env.NODE_ENV === 'production') {
     // Check for telegram-id header first (most reliable)
     const telegramId = req.headers['x-telegram-id'];
-    if (telegramId && telegramId !== 'undefined' && telegramId !== 'null') {
+    if (telegramId && telegramId !== 'undefined' && telegramId !== 'null' && telegramId !== undefined && telegramId !== null) {
       // Continue to normal processing below
     } else if (initDataHeader && botToken) {
       const valid = validateTelegramInitData(initDataHeader, botToken);

@@ -2099,7 +2099,7 @@ function initWalletConnection() {
 
     // Determine if current user is admin
     let currentUserIsAdmin = false;
-    fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user' } })
+    fetch('/api/whoami', { headers: { 'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user' } })
         .then(r => r.json()).then(d => { currentUserIsAdmin = !!d?.isAdmin; }).catch(() => { currentUserIsAdmin = false; });
 
     tonConnectUI.onStatusChange(wallet => {
@@ -2207,7 +2207,7 @@ async function verifyTransactionOnBlockchain(transactionHash, targetAddress, exp
             headers: {
                 'Content-Type': 'application/json',
                 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-                'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user'
+                'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user'
             },
             body: JSON.stringify({
                 transactionHash,
@@ -2491,7 +2491,7 @@ async function validateRecipients(containerId) {
         const response = await axios.post('/api/validate-usernames', { usernames }, {
             headers: {
                 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-                'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user',
+                'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user',
                 'Content-Type': 'application/json'
             }
         });
@@ -3028,7 +3028,7 @@ async function handlePurchase(item) {
         // Check admin status via whoami
         let allowTestnet = false;
         try {
-            const who = await fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user' } }).then(r => r.json());
+            const who = await fetch('/api/whoami', { headers: { 'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user' } }).then(r => r.json());
             allowTestnet = !!who?.isAdmin;
             console.log('Admin check result:', { userId: window.Telegram?.WebApp?.initDataUnsafe?.user?.id, isAdmin: who?.isAdmin, allowTestnet });
         } catch (error) {
@@ -3183,7 +3183,7 @@ async function handlePurchase(item) {
         // Get payment address directly from server
         const headers = {
             'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-            'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user',
+            'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user',
             'Content-Type': 'application/json'
         };
         const walletResponse = await window.API.getWalletAddress();
