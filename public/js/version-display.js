@@ -41,7 +41,16 @@ class VersionDisplay {
             
             if (elements.length === 0) {
                 console.warn('No version elements found');
-                return;
+                // Try to find elements with hardcoded version text
+                const allElements = document.querySelectorAll('*');
+                const versionElements = Array.from(allElements).filter(el => 
+                    el.textContent && el.textContent.includes('StarStore v9.1.27')
+                );
+                console.log('Found elements with hardcoded version:', versionElements.length);
+                versionElements.forEach(el => {
+                    el.setAttribute('data-version', '');
+                    elements.push(el);
+                });
             }
             
             const versionText = this.getDisplayVersion();
@@ -83,22 +92,33 @@ class VersionDisplay {
 
 // Initialize when DOM is loaded
 function initializeVersionDisplay() {
+    console.log('Initializing version display...');
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 window.versionDisplay = new VersionDisplay();
+                console.log('Version display initialized after DOM loaded');
             }, 100);
         });
     } else {
         // DOM is already loaded
         setTimeout(() => {
             window.versionDisplay = new VersionDisplay();
+            console.log('Version display initialized immediately');
         }, 100);
     }
 }
 
 // Initialize immediately
 initializeVersionDisplay();
+
+// Also try to initialize after a delay to catch any missed cases
+setTimeout(() => {
+    if (!window.versionDisplay) {
+        console.log('Version display not found, initializing...');
+        window.versionDisplay = new VersionDisplay();
+    }
+}, 2000);
 
 // Export for use in other scripts
 if (typeof module !== 'undefined' && module.exports) {

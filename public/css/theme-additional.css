@@ -918,6 +918,78 @@
 	color: white !important;
 }
 
+/* Transaction Status Badge Dark Theme */
+[data-theme="dark"] .transaction-details-panel .bg-yellow-100 {
+	background: var(--warning) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-yellow-800 {
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .bg-green-100 {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-green-800 {
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .bg-blue-100 {
+	background: var(--info) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-blue-800 {
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .bg-red-100 {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-red-800 {
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .bg-gray-100 {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-800 {
+	color: var(--text) !important;
+}
+
+/* Status badge specific overrides */
+[data-theme="dark"] #transactionStatusBadge {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionStatusBadge.bg-yellow-100 {
+	background: var(--warning) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionStatusBadge.bg-green-100 {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionStatusBadge.bg-blue-100 {
+	background: var(--info) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionStatusBadge.bg-red-100 {
+	background: var(--error) !important;
+	color: white !important;
+}
+
 /* Wallet Address Visibility Improvements */
 [data-theme="dark"] .wallet-address {
 	background: var(--surface-elevated) !important;
