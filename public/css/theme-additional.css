@@ -98,6 +98,44 @@
 	border-color: var(--border) !important;
 }
 
+/* Username Display Fixes */
+[data-theme="dark"] #username {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #userIdText {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #copyUserIdBtn {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] #copyUserIdBtn:hover {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+/* Stars/Premium Toggle Fixes */
+[data-theme="dark"] .toggle-button {
+	background: var(--surface-elevated) !important;
+	color: var(--text-muted) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .toggle-button.active {
+	background: var(--brand) !important;
+	color: white !important;
+	box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .section-toggle {
+	background: var(--surface-muted) !important;
+	border: 1px solid var(--border) !important;
+}
+
 /* Package Section Fixes */
 [data-theme="dark"] .stars-card {
 	background: var(--surface) !important;
@@ -175,11 +213,11 @@
 }
 
 [data-theme="dark"] .text-blue-800 {
-	color: var(--info) !important;
+	color: var(--text) !important;
 }
 
 [data-theme="dark"] .text-blue-700 {
-	color: var(--info) !important;
+	color: var(--text-muted) !important;
 }
 
 [data-theme="dark"] .bg-red-50 {
@@ -188,8 +226,123 @@
 }
 
 [data-theme="dark"] .bg-blue-50 {
-	background: var(--info) !important;
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+/* Sell Page Rate Display Fixes */
+[data-theme="dark"] .rate-info {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .rate-info .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .rate-info .text-gray-700 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .rate-info .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .rate-info .text-gray-500 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .rate-info .bg-gray-50 {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .stars-counter {
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] .stars-input {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .counter-button {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .counter-button:hover {
+	background: var(--brand) !important;
 	color: white !important;
+}
+
+/* How It Works Section Fixes */
+[data-theme="dark"] .how-it-works {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .how-it-works .text-blue-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .how-it-works .text-blue-700 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .how-it-works .text-blue-500 {
+	color: var(--brand) !important;
+}
+
+/* Sell Page Additional Fixes */
+[data-theme="dark"] .bg-white {
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] .wallet-button {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .wallet-button:hover {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .wallet-button .text-sm {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-summary {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-summary .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-summary .text-gray-500 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .transaction-info {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-info .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-info .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-info .text-gray-500 {
+	color: var(--text-secondary) !important;
 }
 
 /* History Page Filter Fixes */
@@ -392,4 +545,52 @@
 
 [data-theme="dark"] .popup button:hover {
 	background: var(--brand-hover) !important;
+}
+
+/* Referral Link Area Fixes */
+[data-theme="dark"] .clean-card {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .clean-card .text-gray-800 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .clean-card .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .clean-card .text-gray-400 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .referral-code {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .referral-code:hover {
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] .copy-button {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .copy-button:hover {
+	background: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .share-button {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .share-button:hover {
+	background: var(--brand) !important;
+	color: white !important;
 }
