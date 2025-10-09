@@ -37,14 +37,20 @@ class VersionDisplay {
     updateVersionElements() {
         try {
             const elements = document.querySelectorAll('[data-version]');
+            console.log('Found version elements:', elements.length);
+            
             if (elements.length === 0) {
                 console.warn('No version elements found');
                 return;
             }
             
+            const versionText = this.getDisplayVersion();
+            console.log('Updating version to:', versionText);
+            
             elements.forEach(element => {
-                if (element && element.textContent && element.textContent.includes('StarStore')) {
-                    element.textContent = `StarStore v${this.versionInfo.version}`;
+                if (element) {
+                    console.log('Updating element:', element.textContent, '->', versionText);
+                    element.textContent = versionText;
                 }
             });
         } catch (error) {

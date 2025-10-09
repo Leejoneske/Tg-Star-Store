@@ -732,6 +732,80 @@
 	color: var(--text-secondary) !important;
 }
 
+/* Override inline styles in timeline */
+[data-theme="dark"] #transactionTimeline .transaction-step[style*="padding-left"] {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number[style*="background: #10b981"] {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number[style*="background: #3b82f6"] {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number[style*="background: #e5e7eb"] {
+	background: var(--surface-elevated) !important;
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .font-medium[style*="color: #10b981"] {
+	color: var(--success) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .font-medium[style*="color: #3b82f6"] {
+	color: var(--brand) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .font-medium[style*="color: #6b7280"] {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .text-gray-500 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .text-gray-400 {
+	color: var(--text-secondary) !important;
+}
+
+/* Force override all timeline inline styles */
+[data-theme="dark"] #transactionTimeline * {
+	color: inherit !important;
+}
+
+[data-theme="dark"] #transactionTimeline .transaction-step {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number.completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number.active {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .font-medium {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .text-xs {
+	color: var(--text-muted) !important;
+}
+
 /* Wallet Address Visibility Improvements */
 [data-theme="dark"] .wallet-address {
 	background: var(--surface-elevated) !important;
