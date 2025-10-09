@@ -1,10 +1,18 @@
 :root {
 	--surface: #ffffff;
 	--surface-muted: #f8fafc; /* light gray background */
+	--surface-elevated: #ffffff; /* elevated surfaces like cards */
 	--text: #0f172a; /* slate-900 */
 	--text-muted: #475569; /* slate-600 */
+	--text-secondary: #64748b; /* slate-500 */
 	--border: #e5e7eb; /* gray-200 */
+	--border-muted: #f1f5f9; /* gray-100 */
 	--brand: #4f46e5; /* indigo-600 */
+	--brand-hover: #3730a3; /* indigo-800 */
+	--success: #059669; /* emerald-600 */
+	--warning: #d97706; /* amber-600 */
+	--error: #dc2626; /* red-600 */
+	--info: #2563eb; /* blue-600 */
 }
 
 html { color-scheme: light dark; }
@@ -27,24 +35,40 @@ a { color: var(--brand); }
 /* Dark theme via system and explicit data attribute */
 @media (prefers-color-scheme: dark) {
 	:root {
-		--surface: #0b1220;
-		--surface-muted: #0f172a;
-		--text: #e2e8f0;
-		--text-muted: #94a3b8;
-		--border: #1f2937;
-		--brand: #6366f1;
+		--surface: #111827; /* gray-900 */
+		--surface-muted: #0f172a; /* slate-900 */
+		--surface-elevated: #1f2937; /* gray-800 */
+		--text: #f9fafb; /* gray-50 */
+		--text-muted: #d1d5db; /* gray-300 */
+		--text-secondary: #9ca3af; /* gray-400 */
+		--border: #374151; /* gray-700 */
+		--border-muted: #4b5563; /* gray-600 */
+		--brand: #6366f1; /* indigo-500 */
+		--brand-hover: #4f46e5; /* indigo-600 */
+		--success: #10b981; /* emerald-500 */
+		--warning: #f59e0b; /* amber-500 */
+		--error: #ef4444; /* red-500 */
+		--info: #3b82f6; /* blue-500 */
 	}
 	body { background: var(--surface-muted); color: var(--text); }
 }
 
 [data-theme="dark"] {
 	/* Force dark regardless of system */
-	--surface: #0b1220;
-	--surface-muted: #0f172a;
-	--text: #e2e8f0;
-	--text-muted: #94a3b8;
-	--border: #1f2937;
-	--brand: #6366f1;
+	--surface: #111827; /* gray-900 */
+	--surface-muted: #0f172a; /* slate-900 */
+	--surface-elevated: #1f2937; /* gray-800 */
+	--text: #f9fafb; /* gray-50 */
+	--text-muted: #d1d5db; /* gray-300 */
+	--text-secondary: #9ca3af; /* gray-400 */
+	--border: #374151; /* gray-700 */
+	--border-muted: #4b5563; /* gray-600 */
+	--brand: #6366f1; /* indigo-500 */
+	--brand-hover: #4f46e5; /* indigo-600 */
+	--success: #10b981; /* emerald-500 */
+	--warning: #f59e0b; /* amber-500 */
+	--error: #ef4444; /* red-500 */
+	--info: #3b82f6; /* blue-500 */
 }
 
 /* Utility overrides to adapt Tailwind-ish classes in dark */
@@ -78,9 +102,148 @@ a { color: var(--brand); }
 /* Layout containers commonly used */
 .card,
 .container,
-.content-surface {
+.content-surface,
+.clean-card {
 	background: var(--surface);
 	color: var(--text);
 	border: 1px solid var(--border);
+}
+
+/* Common component styles */
+.btn-primary {
+	background: var(--brand);
+	color: white;
+	border: 1px solid var(--brand);
+}
+
+.btn-primary:hover {
+	background: var(--brand-hover);
+	border-color: var(--brand-hover);
+}
+
+.btn-secondary {
+	background: var(--surface-elevated);
+	color: var(--text);
+	border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+	background: var(--border-muted);
+}
+
+/* Status colors */
+.text-success { color: var(--success) !important; }
+.text-warning { color: var(--warning) !important; }
+.text-error { color: var(--error) !important; }
+.text-info { color: var(--info) !important; }
+
+.bg-success { background-color: var(--success) !important; }
+.bg-warning { background-color: var(--warning) !important; }
+.bg-error { background-color: var(--error) !important; }
+.bg-info { background-color: var(--info) !important; }
+
+/* Form elements */
+input, textarea, select {
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border);
+}
+
+input:focus, textarea:focus, select:focus {
+	border-color: var(--brand);
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Tables */
+table {
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border);
+}
+
+th {
+	background: var(--surface-elevated);
+	color: var(--text);
+	border-bottom: 1px solid var(--border);
+}
+
+td {
+	border-bottom: 1px solid var(--border-muted);
+}
+
+/* Navigation */
+nav {
+	background: var(--surface);
+	border-bottom: 1px solid var(--border);
+}
+
+nav a {
+	color: var(--text-muted);
+}
+
+nav a:hover, nav a.active {
+	color: var(--brand);
+}
+
+/* Modals and overlays */
+.modal, .overlay {
+	background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border);
+}
+
+/* Notifications */
+.notification {
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border);
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading states */
+.loading {
+	background: var(--border-muted);
+}
+
+/* Ensure all text elements inherit theme colors */
+h1, h2, h3, h4, h5, h6 {
+	color: var(--text);
+}
+
+p, span, div {
+	color: inherit;
+}
+
+/* Links */
+a {
+	color: var(--brand);
+	text-decoration: none;
+}
+
+a:hover {
+	color: var(--brand-hover);
+	text-decoration: underline;
+}
+
+/* Code blocks */
+code, pre {
+	background: var(--surface-elevated);
+	color: var(--text);
+	border: 1px solid var(--border);
+}
+
+/* Dividers */
+hr {
+	border-color: var(--border);
+}
+
+/* Ensure proper contrast for all elements */
+* {
+	box-sizing: border-box;
 }
 
