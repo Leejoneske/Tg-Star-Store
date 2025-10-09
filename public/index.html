@@ -1872,9 +1872,25 @@ function initTelegramApp() {
         const webApp = window.Telegram.WebApp;
         webApp.ready();
         
-        // Simple Telegram Mini App initialization
+        // Telegram Mini App initialization with proper viewport mode
         webApp.ready();
-        webApp.expand();
+        
+        // Set to fullscreen viewport mode (not just expand)
+        if (webApp.viewportHeight) {
+            // This is the proper fullscreen mode
+            webApp.expand();
+            // Set header color for fullscreen
+            if (webApp.HeaderColor) {
+                webApp.HeaderColor.setColor('transparent');
+            }
+            // Hide main button in fullscreen
+            if (webApp.MainButton) {
+                webApp.MainButton.hide();
+            }
+        } else {
+            // Fallback to basic expand
+            webApp.expand();
+        }
         
         // Add fullscreen class when in Telegram
         document.body.classList.add('telegram-fullscreen');
