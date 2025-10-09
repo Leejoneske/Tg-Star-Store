@@ -247,3 +247,528 @@ hr {
 	box-sizing: border-box;
 }
 
+/* Override hardcoded colors with higher specificity */
+[data-theme="dark"] * {
+	color: inherit !important;
+}
+
+[data-theme="dark"] body {
+	background: var(--surface-muted) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .app-container {
+	background: var(--surface-muted) !important;
+}
+
+[data-theme="dark"] .clean-card {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .stat-box {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] header {
+	background: var(--surface-muted) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] h1, 
+[data-theme="dark"] h2, 
+[data-theme="dark"] h3, 
+[data-theme="dark"] h4, 
+[data-theme="dark"] h5, 
+[data-theme="dark"] h6 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] p, 
+[data-theme="dark"] span, 
+[data-theme="dark"] div {
+	color: inherit !important;
+}
+
+[data-theme="dark"] .btn-primary {
+	background: var(--brand) !important;
+	color: white !important;
+	border: 1px solid var(--brand) !important;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+	background: var(--brand-hover) !important;
+	border-color: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .mission-item {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .mission-item:active {
+	background: var(--border-muted) !important;
+}
+
+[data-theme="dark"] .mission-btn {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .mission-btn.complete {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .mission-btn.completed {
+	background: var(--success) !important;
+	color: white !important;
+	border: 1px solid var(--success) !important;
+}
+
+[data-theme="dark"] .leaderboard-item {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .leaderboard-item:active {
+	background: var(--border-muted) !important;
+}
+
+[data-theme="dark"] .leaderboard-item.top-3 {
+	background: linear-gradient(135deg, var(--surface-elevated) 0%, var(--surface) 100%) !important;
+}
+
+[data-theme="dark"] .leaderboard-item.current-user {
+	background: linear-gradient(135deg, var(--surface-elevated) 0%, var(--surface) 100%) !important;
+	border: 1px solid var(--brand) !important;
+}
+
+[data-theme="dark"] .rank-badge {
+	background: var(--border-muted) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .rank-badge.gold {
+	background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%) !important;
+	color: #000000 !important;
+}
+
+[data-theme="dark"] .rank-badge.silver {
+	background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%) !important;
+	color: #000000 !important;
+}
+
+[data-theme="dark"] .rank-badge.bronze {
+	background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%) !important;
+	color: #ffffff !important;
+}
+
+[data-theme="dark"] .avatar-badge {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .tab-buttons {
+	background: var(--border-muted) !important;
+}
+
+[data-theme="dark"] .tab-btn {
+	background: transparent !important;
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .tab-btn.active {
+	background: var(--surface) !important;
+	color: var(--brand) !important;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+}
+
+[data-theme="dark"] .calendar-day {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .calendar-day:hover:not(.checked) {
+	background: var(--border-muted) !important;
+}
+
+[data-theme="dark"] .calendar-day.checked {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .calendar-day.today {
+	border: 2px solid var(--brand) !important;
+	color: var(--brand) !important;
+}
+
+[data-theme="dark"] .month-nav-btn {
+	color: var(--brand) !important;
+}
+
+[data-theme="dark"] .month-nav-btn:hover {
+	background: var(--border-muted) !important;
+}
+
+[data-theme="dark"] .progress-bar {
+	background: var(--border-muted) !important;
+}
+
+[data-theme="dark"] .progress-fill {
+	background: var(--brand) !important;
+}
+
+[data-theme="dark"] .success-message {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .error-message {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .achievement-badge {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .streak-status {
+	background: var(--warning) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .streak-status.safe {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .streak-status.warning {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] select:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+/* Override specific hardcoded colors in daily page */
+[data-theme="dark"] #exitButton {
+	background: rgba(255,255,255,0.1) !important;
+	color: var(--text) !important;
+	border: 1px solid rgba(255,255,255,0.2) !important;
+}
+
+[data-theme="dark"] #exitButton:hover {
+	background: rgba(255,255,255,0.2) !important;
+	color: var(--text) !important;
+}
+
+/* Override inline styles with CSS variables */
+[data-theme="dark"] [style*="color: #000"],
+[data-theme="dark"] [style*="color:#000"] {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] [style*="color: #666"],
+[data-theme="dark"] [style*="color:#666"] {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] [style*="color: #999"],
+[data-theme="dark"] [style*="color:#999"] {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] [style*="background: white"],
+[data-theme="dark"] [style*="background:white"] {
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] [style*="background: #f9f9f9"],
+[data-theme="dark"] [style*="background:#f9f9f9"] {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] [style*="background: #f5f5f5"],
+[data-theme="dark"] [style*="background:#f5f5f5"] {
+	background: var(--surface-muted) !important;
+}
+
+[data-theme="dark"] [style*="background: #f3f4f6"],
+[data-theme="dark"] [style*="background:#f3f4f6"] {
+	background: var(--surface-muted) !important;
+}
+
+[data-theme="dark"] [style*="background: #e8e8e8"],
+[data-theme="dark"] [style*="background:#e8e8e8"] {
+	background: var(--border-muted) !important;
+}
+
+[data-theme="dark"] [style*="background: #f0f0f0"],
+[data-theme="dark"] [style*="background:#f0f0f0"] {
+	background: var(--border-muted) !important;
+}
+
+[data-theme="dark"] [style*="border: 1px solid #e5e7eb"],
+[data-theme="dark"] [style*="border:1px solid #e5e7eb"] {
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] [style*="border: 1px solid #ddd"],
+[data-theme="dark"] [style*="border:1px solid #ddd"] {
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] [style*="border: 1px solid #f0f0f0"],
+[data-theme="dark"] [style*="border:1px solid #f0f0f0"] {
+	border: 1px solid var(--border) !important;
+}
+
+/* Specific overrides for sell page */
+[data-theme="dark"] .sell-option {
+	border: 1px solid var(--border) !important;
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .sell-option:hover {
+	border-color: var(--brand) !important;
+}
+
+[data-theme="dark"] .sell-button {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .sell-button:hover {
+	background: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .sell-title {
+	color: var(--brand) !important;
+}
+
+[data-theme="dark"] .counter-button {
+	background: var(--border-muted) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .counter-button:hover {
+	background: var(--border) !important;
+}
+
+[data-theme="dark"] .transaction-summary {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-info {
+	border-bottom: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .status-pending,
+[data-theme="dark"] .status-processing {
+	background: var(--warning) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .status-completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .status-declined {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .wallet-status {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .wallet-status p {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .progress-container {
+	background-color: var(--border-muted) !important;
+}
+
+[data-theme="dark"] .progress-bar {
+	background: linear-gradient(90deg, var(--brand), var(--brand-hover)) !important;
+}
+
+[data-theme="dark"] .modal-overlay {
+	background: rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="dark"] .modal-content {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .step-number {
+	background: var(--border-muted) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .step-number.active {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .step-number.completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .step-line {
+	background: var(--border-muted) !important;
+}
+
+[data-theme="dark"] .step-line.active {
+	background: var(--brand) !important;
+}
+
+[data-theme="dark"] .step-line.completed {
+	background: var(--success) !important;
+}
+
+[data-theme="dark"] .step-date {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .close-button {
+	background: var(--border-muted) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .notice-content {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .notice-title {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .notice-text {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .notice-button {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .notice-button:hover {
+	background: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .input-group input {
+	border: 1px solid var(--border) !important;
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .input-group input:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1) !important;
+}
+
+[data-theme="dark"] .input-group label {
+	color: var(--text-muted) !important;
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] .input-group input:focus + label {
+	color: var(--brand) !important;
+	background: var(--surface) !important;
+}
+
+[data-theme="dark"] .input-group .input-icon {
+	color: var(--text-muted) !important;
+}
+
+/* Specific overrides for history page */
+[data-theme="dark"] .language-toggle {
+	background: var(--surface-elevated) !important;
+	border: 1px solid var(--border) !important;
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .language-toggle:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+[data-theme="dark"] .history-title {
+	color: var(--brand) !important;
+}
+
+/* Override specific color values in inline styles */
+[data-theme="dark"] [style*="color: #4f46e5"],
+[data-theme="dark"] [style*="color:#4f46e5"] {
+	color: var(--brand) !important;
+}
+
+[data-theme="dark"] [style*="color: #007AFF"],
+[data-theme="dark"] [style*="color:#007AFF"] {
+	color: var(--brand) !important;
+}
+
+[data-theme="dark"] [style*="background: #4f46e5"],
+[data-theme="dark"] [style*="background:#4f46e5"] {
+	background: var(--brand) !important;
+}
+
+[data-theme="dark"] [style*="background: #007AFF"],
+[data-theme="dark"] [style*="background:#007AFF"] {
+	background: var(--brand) !important;
+}
+
+[data-theme="dark"] [style*="background: linear-gradient"],
+[data-theme="dark"] [style*="background:linear-gradient"] {
+	background: var(--brand) !important;
+}
+
+/* Override specific status colors */
+[data-theme="dark"] [style*="color: #10b981"],
+[data-theme="dark"] [style*="color:#10b981"] {
+	color: var(--success) !important;
+}
+
+[data-theme="dark"] [style*="background: #10b981"],
+[data-theme="dark"] [style*="background:#10b981"] {
+	background: var(--success) !important;
+}
+
+[data-theme="dark"] [style*="color: #3b82f6"],
+[data-theme="dark"] [style*="color:#3b82f6"] {
+	color: var(--info) !important;
+}
+
+[data-theme="dark"] [style*="background: #3b82f6"],
+[data-theme="dark"] [style*="background:#3b82f6"] {
+	background: var(--info) !important;
+}
+
