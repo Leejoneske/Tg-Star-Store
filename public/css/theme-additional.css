@@ -806,6 +806,118 @@
 	color: var(--text-muted) !important;
 }
 
+/* Transaction Details Dialog Dark Theme */
+[data-theme="dark"] .transaction-details-overlay {
+	background: rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .transaction-details-content {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel h3 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-500 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-700 {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-400 {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .font-mono {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .close-details {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .close-details:hover {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .bg-white {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .border-gray-200 {
+	border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-600 {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .text-gray-800 {
+	color: var(--text) !important;
+}
+
+/* Transaction Details Loading State */
+[data-theme="dark"] #transaction-details-loading {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transaction-details-loading div {
+	color: var(--text-muted) !important;
+}
+
+/* Transaction Details Status Badges */
+[data-theme="dark"] .transaction-details-panel .status-completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .status-processing {
+	background: var(--info) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .status-pending {
+	background: var(--warning) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .status-declined {
+	background: var(--error) !important;
+	color: white !important;
+}
+
+/* Transaction Details Progress Bar */
+[data-theme="dark"] .transaction-details-panel .progress-bar {
+	background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel .progress-bar-fill {
+	background: var(--brand) !important;
+}
+
+/* Transaction Details Buttons */
+[data-theme="dark"] .transaction-details-panel button {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .transaction-details-panel button:hover {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
 /* Wallet Address Visibility Improvements */
 [data-theme="dark"] .wallet-address {
 	background: var(--surface-elevated) !important;
