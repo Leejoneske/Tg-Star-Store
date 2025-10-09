@@ -634,6 +634,22 @@
 	color: white !important;
 }
 
+[data-theme="dark"] .transaction-step .step-number.active {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-step .step-number.completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] .transaction-step .step-number.pending {
+	background: var(--surface-elevated) !important;
+	color: var(--text-muted) !important;
+	border: 1px solid var(--border) !important;
+}
+
 [data-theme="dark"] .transaction-step .step-title {
 	color: var(--text) !important;
 }
@@ -666,6 +682,56 @@
 	color: white !important;
 }
 
+/* Override inline styles for timeline */
+[data-theme="dark"] .transaction-step[style*="opacity"] {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .step-number[style*="width"] {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+/* More specific timeline overrides */
+[data-theme="dark"] #transactionTimeline .transaction-step {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number.active {
+	background: var(--brand) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number.completed {
+	background: var(--success) !important;
+	color: white !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-number.pending {
+	background: var(--surface-elevated) !important;
+	color: var(--text-muted) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-title {
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-description {
+	color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #transactionTimeline .step-date {
+	color: var(--text-secondary) !important;
+}
+
 /* Wallet Address Visibility Improvements */
 [data-theme="dark"] .wallet-address {
 	background: var(--surface-elevated) !important;
@@ -693,6 +759,29 @@
 
 [data-theme="dark"] .wallet-address-display:hover {
 	background: var(--surface) !important;
+}
+
+/* Input field wallet address */
+[data-theme="dark"] #walletDialogAddress {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] #walletDialogAddress:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] #withdrawWallet {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] #withdrawWallet:focus {
+	border-color: var(--brand) !important;
+	box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
 }
 
 /* Withdrawal Area Fixes */
