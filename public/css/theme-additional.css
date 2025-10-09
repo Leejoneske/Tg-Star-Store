@@ -990,6 +990,168 @@
 	color: white !important;
 }
 
+/* Telegram Fullscreen Enhancements */
+.telegram-fullscreen {
+	height: 100vh !important;
+	overflow: hidden !important;
+}
+
+.telegram-fullscreen .app-container {
+	max-width: 100% !important;
+	width: 100% !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	min-height: 100vh !important;
+}
+
+.telegram-fullscreen .main-content {
+	padding: 0 !important;
+	margin: 0 !important;
+}
+
+.telegram-fullscreen .container {
+	max-width: 100% !important;
+	width: 100% !important;
+	padding-left: 16px !important;
+	padding-right: 16px !important;
+}
+
+/* Immersive Mode Styles */
+.telegram-immersive {
+	height: 100vh !important;
+	overflow: hidden !important;
+}
+
+.telegram-immersive .app-container {
+	padding-top: 0 !important;
+	padding-bottom: 0 !important;
+	margin: 0 !important;
+	border-radius: 0 !important;
+}
+
+.telegram-immersive .header {
+	position: fixed !important;
+	top: 0 !important;
+	left: 0 !important;
+	right: 0 !important;
+	z-index: 1000 !important;
+	background: var(--surface) !important;
+	backdrop-filter: blur(10px) !important;
+}
+
+.telegram-immersive .main-content {
+	padding-top: 60px !important;
+}
+
+/* Gamify Mode Styles */
+.telegram-gamify .package-card {
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+	transform: translateZ(0) !important;
+	backface-visibility: hidden !important;
+}
+
+.telegram-gamify .package-card:hover {
+	transform: translateY(-4px) scale(1.02) !important;
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+}
+
+.telegram-gamify .button {
+	transition: all 0.2s ease !important;
+	transform: translateZ(0) !important;
+}
+
+.telegram-gamify .button:active {
+	transform: scale(0.95) !important;
+}
+
+.telegram-gamify .interactive {
+	cursor: pointer !important;
+	user-select: none !important;
+	-webkit-tap-highlight-color: transparent !important;
+}
+
+/* Fullscreen Navigation */
+.telegram-fullscreen .bottom-nav {
+	position: fixed !important;
+	bottom: 0 !important;
+	left: 0 !important;
+	right: 0 !important;
+	z-index: 1000 !important;
+	background: var(--surface) !important;
+	backdrop-filter: blur(10px) !important;
+	border-top: 1px solid var(--border) !important;
+}
+
+.telegram-fullscreen .main-content {
+	padding-bottom: 80px !important;
+}
+
+/* Safe Area Support */
+.telegram-fullscreen .safe-area-top {
+	padding-top: env(safe-area-inset-top) !important;
+}
+
+.telegram-fullscreen .safe-area-bottom {
+	padding-bottom: env(safe-area-inset-bottom) !important;
+}
+
+.telegram-fullscreen .safe-area-left {
+	padding-left: env(safe-area-inset-left) !important;
+}
+
+.telegram-fullscreen .safe-area-right {
+	padding-right: env(safe-area-inset-right) !important;
+}
+
+/* Immersive Animations */
+@keyframes slideInFromTop {
+	from {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@keyframes fadeInScale {
+	from {
+		transform: scale(0.9);
+		opacity: 0;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+.telegram-immersive .app-container {
+	animation: slideInFromTop 0.3s ease-out !important;
+}
+
+.telegram-gamify .package-card {
+	animation: fadeInScale 0.3s ease-out !important;
+}
+
+/* Dark Theme Fullscreen Enhancements */
+[data-theme="dark"] .telegram-fullscreen .app-container {
+	background: var(--background) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .telegram-immersive .header {
+	background: rgba(26, 26, 26, 0.9) !important;
+	backdrop-filter: blur(20px) !important;
+}
+
+[data-theme="dark"] .telegram-fullscreen .bottom-nav {
+	background: rgba(26, 26, 26, 0.9) !important;
+	backdrop-filter: blur(20px) !important;
+}
+
 /* Wallet Address Visibility Improvements */
 [data-theme="dark"] .wallet-address {
 	background: var(--surface-elevated) !important;
