@@ -1135,8 +1135,8 @@
 
 /* Dark Theme Fullscreen Enhancements */
 [data-theme="dark"] .telegram-fullscreen .app-container {
-	background: var(--background) !important;
-	color: var(--text) !important;
+    background: var(--surface-muted) !important;
+    color: var(--text) !important;
 }
 
 [data-theme="dark"] .telegram-immersive .header {

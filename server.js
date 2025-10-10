@@ -10,6 +10,13 @@ const fetch = require('node-fetch');
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
+// Optional bot simulator (to avoid bloating monolith logic)
+let startBotSimulatorSafe = null;
+try {
+  ({ startBotSimulator: startBotSimulatorSafe } = require('./services/bot-simulator'));
+} catch (_) {
+  // noop if missing
+}
 // Create Telegram bot or a stub in local/dev if no token is provided
 let bot;
 if (process.env.BOT_TOKEN) {
@@ -781,6 +788,14 @@ const walletUpdateRequestSchema = new mongoose.Schema({
 
 const WalletUpdateRequest = mongoose.model('WalletUpdateRequest', walletUpdateRequestSchema);
 
+
+// Bot Profile schema (for simulator adaptive behavior)
+const botProfileSchema = new mongoose.Schema({
+    botId: { type: String, required: true, unique: true, index: true },
+    profile: { type: mongoose.Schema.Types.Mixed, required: true },
+    updatedAt: { type: Date, default: Date.now, index: true }
+});
+const BotProfile = mongoose.models.BotProfile || mongoose.model('BotProfile', botProfileSchema);
 
 let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 // Deduplicate to avoid duplicate notifications per admin
@@ -3584,34 +3599,83 @@ app.post('/api/test/activity', requireTelegramAuth, async (req, res) => {
   }
 });
 
-// Activity logging function
+// Activity logging function (idempotent + configurable side-effects)
 async function logActivity(userId, activityType, points, metadata = {}) {
   try {
-    const activity = {
-      userId,
-      activityType: activityType.id,
-      activityName: activityType.name,
-      points,
-      timestamp: new Date(),
-      metadata
-    };
+    const now = Date.now();
+    const meta = metadata || {};
+    const dedupeWindowMs = parseInt(process.env.ACTIVITY_DEDUPE_MS || '5000', 10);
 
+    // Build dedupe filter from metadata (missionId, orderId, or day for daily check-in)
+    const baseFilter = { userId, activityType: activityType.id };
+    if (meta.missionId) baseFilter['metadata.missionId'] = meta.missionId;
+    else if (meta.orderId) baseFilter['metadata.orderId'] = meta.orderId;
+    else if (activityType.id === 'daily_checkin' && typeof meta.day === 'number') baseFilter['metadata.day'] = meta.day;
+
+    // Check recent duplicate
+    let isDuplicate = false;
     if (process.env.MONGODB_URI) {
-      // Production: Use MongoDB
-      await Activity.create(activity);
+      const recent = await Activity.findOne({
+        ...baseFilter,
+        timestamp: { $gte: new Date(now - dedupeWindowMs) }
+      });
+      isDuplicate = !!recent;
     } else {
-      // Development: Use file-based storage
-      await db.createActivity(activity);
+      const list = await db.findActivities({ userId });
+      const recent = (list || []).slice(-5).reverse().find(a => {
+        if (a.activityType !== activityType.id) return false;
+        if (meta.missionId && a.metadata?.missionId !== meta.missionId) return false;
+        if (meta.orderId && a.metadata?.orderId !== meta.orderId) return false;
+        if (activityType.id === 'daily_checkin' && typeof meta.day === 'number' && a.metadata?.day !== meta.day) return false;
+        return (now - new Date(a.timestamp).getTime()) <= dedupeWindowMs;
+      });
+      isDuplicate = !!recent;
     }
 
-    // Update user's total points
-    await updateUserPoints(userId, points);
+    // Side-effect controls
+    const skipPoints = meta.__noPoints === true || isDuplicate;
+    const skipNotify = meta.__noNotify === true || isDuplicate;
 
-    // Send bot notification
-    await sendBotNotification(userId, activity);
+    // Create activity record only if not duplicate
+    let activity;
+    if (!isDuplicate) {
+      activity = {
+        userId,
+        activityType: activityType.id,
+        activityName: activityType.name,
+        points,
+        timestamp: new Date(),
+        metadata: meta
+      };
+      if (process.env.MONGODB_URI) {
+        await Activity.create(activity);
+      } else {
+        await db.createActivity(activity);
+      }
+    } else {
+      // Fetch latest existing activity to use in notification (if ever needed)
+      activity = {
+        userId,
+        activityType: activityType.id,
+        activityName: activityType.name,
+        points,
+        timestamp: new Date(),
+        metadata: meta
+      };
+    }
+
+    // Update user's total points unless caller already did it or duplicate detected
+    if (!skipPoints) {
+      await updateUserPoints(userId, points);
+    }
+
+    // Send bot notification (avoid duplicates)
+    if (!skipNotify) {
+      await sendBotNotification(userId, activity);
+    }
 
     // Only log significant activities, not daily check-ins
-    if (activityType.id !== 'daily_checkin') {
+    if (activityType.id !== 'daily_checkin' && !isDuplicate) {
       console.log(`📊 Activity logged: ${userId} - ${activityType.name} (+${points} points)`);
     }
   } catch (error) {
@@ -7636,6 +7700,19 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Webhook set to: ${WEBHOOK_URL}`);
+  // Start bot simulator if enabled
+  if (process.env.ENABLE_BOT_SIMULATOR === '1' && startBotSimulatorSafe) {
+    try {
+      startBotSimulatorSafe({
+        useMongo: !!process.env.MONGODB_URI,
+        models: { User, DailyState, BotProfile },
+        db
+      });
+      console.log('🤖 Bot simulator enabled');
+    } catch (e) {
+      console.warn('Failed to start bot simulator:', e.message);
+    }
+  }
 });
 
 function requireAdmin(req, res, next) {
@@ -7673,6 +7750,97 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
 	} catch (e) {
 		res.status(500).json({ error: 'Failed to load stats' });
 	}
+});
+
+// Leaderboard and engagement performance for admins
+app.get('/api/admin/performance', requireAdmin, async (req, res) => {
+  try {
+    // Load leaderboard inputs similarly to /api/leaderboard global scope
+    let referralCounts, dailyUsers;
+    if (process.env.MONGODB_URI) {
+      [referralCounts, dailyUsers] = await Promise.all([
+        Referral.aggregate([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1, lastCheckIn: 1 })
+      ]);
+    } else {
+      [referralCounts, dailyUsers] = await Promise.all([
+        db.aggregateReferrals([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        db.findAllDailyStates()
+      ]);
+    }
+
+    const allUserIds = Array.from(new Set([
+      ...referralCounts.map(r => r._id),
+      ...dailyUsers.map(d => d.userId)
+    ]));
+
+    let users;
+    if (process.env.MONGODB_URI) {
+      users = await User.find({ id: { $in: allUserIds } }, { id: 1, username: 1 });
+    } else {
+      users = await Promise.all(allUserIds.map(id => db.findUser(id)));
+    }
+
+    const idToUsername = new Map(users.filter(Boolean).map(u => [u.id, u.username]));
+    const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));
+    const idToDaily = new Map(dailyUsers.map(d => [d.userId, d]));
+
+    const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
+    const maxReferrals = Math.max(1, ...referralCounts.map(r => r.referralsCount), 1);
+
+    const entries = allUserIds.map(userId => {
+      const referrals = idToReferrals.get(userId) || 0;
+      const s = idToDaily.get(userId) || {};
+      const missions = (s.missionsCompleted || []).length;
+      const lastCheckIn = s.lastCheckIn ? new Date(s.lastCheckIn) : null;
+      const daysSinceCheckIn = lastCheckIn ? Math.floor((Date.now() - lastCheckIn.getTime()) / (1000*60*60*24)) : null;
+      const points = s.totalPoints || 0;
+      const referralPoints = referrals * 5;
+      const penaltyPoints = (() => {
+        const today = new Date();
+        if (!lastCheckIn) return 0;
+        const diff = Math.floor((today - lastCheckIn) / (1000*60*60*24));
+        return Math.max(0, diff - 1) * 2;
+      })();
+      const totalPoints = points + referralPoints - penaltyPoints;
+      const score = ((totalPoints / Math.max(maxPoints + (maxReferrals * 5), 1)) * 0.6)
+                  + ((referrals / maxReferrals) * 0.25)
+                  + (Math.min(missions / 10, 1) * 0.15);
+      return {
+        userId,
+        username: idToUsername.get(userId) || null,
+        totalPoints,
+        activityPoints: points,
+        referralPoints,
+        referralsCount: referrals,
+        missionsCompleted: missions,
+        streak: s.streak || 0,
+        daysSinceCheckIn,
+        score: Math.round(score * 100)
+      };
+    }).sort((a,b) => b.score - a.score);
+
+    const top10 = entries.slice(0, 10);
+    const totals = {
+      usersCount: entries.length,
+      totalActivityPoints: entries.reduce((sum, e) => sum + (e.activityPoints || 0), 0),
+      totalReferralPoints: entries.reduce((sum, e) => sum + (e.referralPoints || 0), 0),
+      avgMissionsCompleted: entries.length ? (entries.reduce((sum, e) => sum + (e.missionsCompleted || 0), 0) / entries.length) : 0,
+      activeToday: entries.filter(e => e.daysSinceCheckIn === 0).length,
+      active7d: entries.filter(e => e.daysSinceCheckIn !== null && e.daysSinceCheckIn <= 7).length
+    };
+
+    res.json({ success: true, top10, totals });
+  } catch (e) {
+    console.error('admin/performance error:', e);
+    res.status(500).json({ success: false, error: 'Failed to load performance data' });
+  }
 });
 
 // List recent orders (buy + sell)

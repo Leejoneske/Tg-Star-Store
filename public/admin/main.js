@@ -234,6 +234,7 @@
       if (view === 'dashboard') loadStats();
       if (view === 'orders') loadOrders();
       if (view === 'withdrawals') loadWithdrawals();
+      if (view === 'performance') loadPerformance();
     }));
     const os = qs('#ordersStatus'); if (os) os.addEventListener('change', () => { state.orders.page = 1; loadOrders(); });
     const oq = qs('#ordersQuery'); if (oq) oq.addEventListener('keyup', (e) => { if (e.key === 'Enter') { state.orders.page = 1; loadOrders(); }});
@@ -254,6 +255,65 @@
       const q = state.withdrawals.q ? `&q=${encodeURIComponent(state.withdrawals.q)}` : '';
       window.open(API + '/admin/withdrawals/export?limit=5000' + s + q, '_blank');
     });
+  }
+
+  async function loadPerformance(){
+    try {
+      const res = await fetch(API + '/admin/performance', { credentials: 'include' });
+      const data = await res.json();
+      const ov = qs('#perfOverview');
+      const t10 = qs('#perfTop10');
+      if (!data.success) throw new Error('Failed');
+      const totals = data.totals || {};
+      ov.innerHTML = `
+        <div class="grid grid-cols-2 gap-4">
+          <div class="p-4 bg-gray-50 border rounded"><div class="text-sm text-gray-500">Users</div><div class="text-2xl font-semibold">${totals.usersCount || 0}</div></div>
+          <div class="p-4 bg-gray-50 border rounded"><div class="text-sm text-gray-500">Active Today</div><div class="text-2xl font-semibold">${totals.activeToday || 0}</div></div>
+          <div class="p-4 bg-gray-50 border rounded"><div class="text-sm text-gray-500">Active 7d</div><div class="text-2xl font-semibold">${totals.active7d || 0}</div></div>
+          <div class="p-4 bg-gray-50 border rounded"><div class="text-sm text-gray-500">Avg Missions</div><div class="text-2xl font-semibold">${(totals.avgMissionsCompleted || 0).toFixed(1)}</div></div>
+          <div class="p-4 bg-gray-50 border rounded col-span-2"><div class="text-sm text-gray-500">Total Activity Points</div><div class="text-2xl font-semibold">${(totals.totalActivityPoints || 0).toLocaleString()}</div></div>
+        </div>`;
+
+      const entries = data.top10 || [];
+      if (!entries.length) {
+        t10.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-users"></i></div><p>No data</p></div>';
+      } else {
+        const rows = entries.map((e, idx) => `
+          <tr>
+            <td class="p-2 border-b">${idx + 1}</td>
+            <td class="p-2 border-b">${e.username ? '@'+e.username : e.userId}</td>
+            <td class="p-2 border-b">${e.score}</td>
+            <td class="p-2 border-b">${e.totalPoints}</td>
+            <td class="p-2 border-b">${e.activityPoints}</td>
+            <td class="p-2 border-b">${e.referralsCount}</td>
+            <td class="p-2 border-b">${e.missionsCompleted}</td>
+            <td class="p-2 border-b">${e.streak}</td>
+          </tr>`).join('');
+        t10.innerHTML = `
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="text-left p-2 border-b">Rank</th>
+                  <th class="text-left p-2 border-b">User</th>
+                  <th class="text-left p-2 border-b">Score</th>
+                  <th class="text-left p-2 border-b">Total</th>
+                  <th class="text-left p-2 border-b">Activity</th>
+                  <th class="text-left p-2 border-b">Referrals</th>
+                  <th class="text-left p-2 border-b">Missions</th>
+                  <th class="text-left p-2 border-b">Streak</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>`;
+      }
+    } catch (e) {
+      const ov = qs('#perfOverview');
+      const t10 = qs('#perfTop10');
+      if (ov) ov.innerHTML = '<div class="empty-state"><p>Failed to load</p></div>';
+      if (t10) t10.innerHTML = '<div class="empty-state"><p>Failed to load</p></div>';
+    }
   }
 
   function wireAuth(){
