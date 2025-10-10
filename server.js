@@ -3599,34 +3599,83 @@ app.post('/api/test/activity', requireTelegramAuth, async (req, res) => {
   }
 });
 
-// Activity logging function
+// Activity logging function (idempotent + configurable side-effects)
 async function logActivity(userId, activityType, points, metadata = {}) {
   try {
-    const activity = {
-      userId,
-      activityType: activityType.id,
-      activityName: activityType.name,
-      points,
-      timestamp: new Date(),
-      metadata
-    };
+    const now = Date.now();
+    const meta = metadata || {};
+    const dedupeWindowMs = parseInt(process.env.ACTIVITY_DEDUPE_MS || '5000', 10);
 
+    // Build dedupe filter from metadata (missionId, orderId, or day for daily check-in)
+    const baseFilter = { userId, activityType: activityType.id };
+    if (meta.missionId) baseFilter['metadata.missionId'] = meta.missionId;
+    else if (meta.orderId) baseFilter['metadata.orderId'] = meta.orderId;
+    else if (activityType.id === 'daily_checkin' && typeof meta.day === 'number') baseFilter['metadata.day'] = meta.day;
+
+    // Check recent duplicate
+    let isDuplicate = false;
     if (process.env.MONGODB_URI) {
-      // Production: Use MongoDB
-      await Activity.create(activity);
+      const recent = await Activity.findOne({
+        ...baseFilter,
+        timestamp: { $gte: new Date(now - dedupeWindowMs) }
+      });
+      isDuplicate = !!recent;
     } else {
-      // Development: Use file-based storage
-      await db.createActivity(activity);
+      const list = await db.findActivities({ userId });
+      const recent = (list || []).slice(-5).reverse().find(a => {
+        if (a.activityType !== activityType.id) return false;
+        if (meta.missionId && a.metadata?.missionId !== meta.missionId) return false;
+        if (meta.orderId && a.metadata?.orderId !== meta.orderId) return false;
+        if (activityType.id === 'daily_checkin' && typeof meta.day === 'number' && a.metadata?.day !== meta.day) return false;
+        return (now - new Date(a.timestamp).getTime()) <= dedupeWindowMs;
+      });
+      isDuplicate = !!recent;
     }
 
-    // Update user's total points
-    await updateUserPoints(userId, points);
+    // Side-effect controls
+    const skipPoints = meta.__noPoints === true || isDuplicate;
+    const skipNotify = meta.__noNotify === true || isDuplicate;
 
-    // Send bot notification
-    await sendBotNotification(userId, activity);
+    // Create activity record only if not duplicate
+    let activity;
+    if (!isDuplicate) {
+      activity = {
+        userId,
+        activityType: activityType.id,
+        activityName: activityType.name,
+        points,
+        timestamp: new Date(),
+        metadata: meta
+      };
+      if (process.env.MONGODB_URI) {
+        await Activity.create(activity);
+      } else {
+        await db.createActivity(activity);
+      }
+    } else {
+      // Fetch latest existing activity to use in notification (if ever needed)
+      activity = {
+        userId,
+        activityType: activityType.id,
+        activityName: activityType.name,
+        points,
+        timestamp: new Date(),
+        metadata: meta
+      };
+    }
+
+    // Update user's total points unless caller already did it or duplicate detected
+    if (!skipPoints) {
+      await updateUserPoints(userId, points);
+    }
+
+    // Send bot notification (avoid duplicates)
+    if (!skipNotify) {
+      await sendBotNotification(userId, activity);
+    }
 
     // Only log significant activities, not daily check-ins
-    if (activityType.id !== 'daily_checkin') {
+    if (activityType.id !== 'daily_checkin' && !isDuplicate) {
       console.log(`📊 Activity logged: ${userId} - ${activityType.name} (+${points} points)`);
     }
   } catch (error) {
