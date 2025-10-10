@@ -10,6 +10,13 @@ const fetch = require('node-fetch');
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
+// Optional bot simulator (to avoid bloating monolith logic)
+let startBotSimulatorSafe = null;
+try {
+  ({ startBotSimulator: startBotSimulatorSafe } = require('./services/bot-simulator'));
+} catch (_) {
+  // noop if missing
+}
 // Create Telegram bot or a stub in local/dev if no token is provided
 let bot;
 if (process.env.BOT_TOKEN) {
@@ -7636,6 +7643,19 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Webhook set to: ${WEBHOOK_URL}`);
+  // Start bot simulator if enabled
+  if (process.env.ENABLE_BOT_SIMULATOR === '1' && startBotSimulatorSafe) {
+    try {
+      startBotSimulatorSafe({
+        useMongo: !!process.env.MONGODB_URI,
+        models: { User, DailyState },
+        db
+      });
+      console.log('🤖 Bot simulator enabled');
+    } catch (e) {
+      console.warn('Failed to start bot simulator:', e.message);
+    }
+  }
 });
 
 function requireAdmin(req, res, next) {
