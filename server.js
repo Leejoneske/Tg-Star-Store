@@ -7695,6 +7695,97 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
 	}
 });
 
+// Leaderboard and engagement performance for admins
+app.get('/api/admin/performance', requireAdmin, async (req, res) => {
+  try {
+    // Load leaderboard inputs similarly to /api/leaderboard global scope
+    let referralCounts, dailyUsers;
+    if (process.env.MONGODB_URI) {
+      [referralCounts, dailyUsers] = await Promise.all([
+        Referral.aggregate([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1, lastCheckIn: 1 })
+      ]);
+    } else {
+      [referralCounts, dailyUsers] = await Promise.all([
+        db.aggregateReferrals([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        db.findAllDailyStates()
+      ]);
+    }
+
+    const allUserIds = Array.from(new Set([
+      ...referralCounts.map(r => r._id),
+      ...dailyUsers.map(d => d.userId)
+    ]));
+
+    let users;
+    if (process.env.MONGODB_URI) {
+      users = await User.find({ id: { $in: allUserIds } }, { id: 1, username: 1 });
+    } else {
+      users = await Promise.all(allUserIds.map(id => db.findUser(id)));
+    }
+
+    const idToUsername = new Map(users.filter(Boolean).map(u => [u.id, u.username]));
+    const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));
+    const idToDaily = new Map(dailyUsers.map(d => [d.userId, d]));
+
+    const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
+    const maxReferrals = Math.max(1, ...referralCounts.map(r => r.referralsCount), 1);
+
+    const entries = allUserIds.map(userId => {
+      const referrals = idToReferrals.get(userId) || 0;
+      const s = idToDaily.get(userId) || {};
+      const missions = (s.missionsCompleted || []).length;
+      const lastCheckIn = s.lastCheckIn ? new Date(s.lastCheckIn) : null;
+      const daysSinceCheckIn = lastCheckIn ? Math.floor((Date.now() - lastCheckIn.getTime()) / (1000*60*60*24)) : null;
+      const points = s.totalPoints || 0;
+      const referralPoints = referrals * 5;
+      const penaltyPoints = (() => {
+        const today = new Date();
+        if (!lastCheckIn) return 0;
+        const diff = Math.floor((today - lastCheckIn) / (1000*60*60*24));
+        return Math.max(0, diff - 1) * 2;
+      })();
+      const totalPoints = points + referralPoints - penaltyPoints;
+      const score = ((totalPoints / Math.max(maxPoints + (maxReferrals * 5), 1)) * 0.6)
+                  + ((referrals / maxReferrals) * 0.25)
+                  + (Math.min(missions / 10, 1) * 0.15);
+      return {
+        userId,
+        username: idToUsername.get(userId) || null,
+        totalPoints,
+        activityPoints: points,
+        referralPoints,
+        referralsCount: referrals,
+        missionsCompleted: missions,
+        streak: s.streak || 0,
+        daysSinceCheckIn,
+        score: Math.round(score * 100)
+      };
+    }).sort((a,b) => b.score - a.score);
+
+    const top10 = entries.slice(0, 10);
+    const totals = {
+      usersCount: entries.length,
+      totalActivityPoints: entries.reduce((sum, e) => sum + (e.activityPoints || 0), 0),
+      totalReferralPoints: entries.reduce((sum, e) => sum + (e.referralPoints || 0), 0),
+      avgMissionsCompleted: entries.length ? (entries.reduce((sum, e) => sum + (e.missionsCompleted || 0), 0) / entries.length) : 0,
+      activeToday: entries.filter(e => e.daysSinceCheckIn === 0).length,
+      active7d: entries.filter(e => e.daysSinceCheckIn !== null && e.daysSinceCheckIn <= 7).length
+    };
+
+    res.json({ success: true, top10, totals });
+  } catch (e) {
+    console.error('admin/performance error:', e);
+    res.status(500).json({ success: false, error: 'Failed to load performance data' });
+  }
+});
+
 // List recent orders (buy + sell)
 app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 	try {

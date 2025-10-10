@@ -21,7 +21,22 @@ const DEFAULT_BOTS = [
   { id: '200000007', username: 'raven' },
   { id: '200000008', username: 'zephyr' },
   { id: '200000009', username: 'solace' },
-  { id: '200000010', username: 'kyra' }
+  { id: '200000010', username: 'kyra' },
+  { id: '200000011', username: 'viper' },
+  { id: '200000012', username: 'titan' },
+  { id: '200000013', username: 'zara' },
+  { id: '200000014', username: 'onyx' },
+  { id: '200000015', username: 'kael' },
+  { id: '200000016', username: 'arwen' },
+  { id: '200000017', username: 'drift' },
+  { id: '200000018', username: 'blaze' },
+  { id: '200000019', username: 'nyx' },
+  { id: '200000020', username: 'astra' },
+  { id: '200000021', username: 'sable' },
+  { id: '200000022', username: 'rune' },
+  { id: '200000023', username: 'echo' },
+  { id: '200000024', username: 'lyra' },
+  { id: '200000025', username: 'cade' }
 ];
 
 // Mirror server mission points (m1..m4)

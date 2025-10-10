@@ -89,6 +89,12 @@
                     </button>
                 </div>
                 <div class="sidebar-nav-item">
+                    <button class="nav-link w-full text-left" data-view="performance">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Performance
+                    </button>
+                </div>
+                <div class="sidebar-nav-item">
                     <button class="nav-link w-full text-left" data-view="withdrawals">
                         <i class="fas fa-credit-card"></i>
                         Withdrawals
@@ -357,6 +363,24 @@
                     </div>
                     <div class="card-body">
                         <div id="usersTable" class="overflow-x-auto"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance View -->
+            <div id="performance-view" class="main-body hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="card">
+                        <div class="card-header"><h3 class="font-semibold">Engagement Overview</h3></div>
+                        <div class="card-body" id="perfOverview">
+                            <div class="empty-state"><div class="empty-state-icon"><i class="fas fa-tachometer-alt"></i></div><p>Loading…</p></div>
+                        </div>
+                    </div>
+                    <div class="card lg:col-span-2">
+                        <div class="card-header"><h3 class="font-semibold">Top 10 Leaderboard (Score)</h3></div>
+                        <div class="card-body" id="perfTop10">
+                            <div class="empty-state"><div class="empty-state-icon"><i class="fas fa-users"></i></div><p>No data</p></div>
+                        </div>
                     </div>
                 </div>
             </div>
