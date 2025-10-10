@@ -789,6 +789,14 @@ const walletUpdateRequestSchema = new mongoose.Schema({
 const WalletUpdateRequest = mongoose.model('WalletUpdateRequest', walletUpdateRequestSchema);
 
 
+// Bot Profile schema (for simulator adaptive behavior)
+const botProfileSchema = new mongoose.Schema({
+    botId: { type: String, required: true, unique: true, index: true },
+    profile: { type: mongoose.Schema.Types.Mixed, required: true },
+    updatedAt: { type: Date, default: Date.now, index: true }
+});
+const BotProfile = mongoose.models.BotProfile || mongoose.model('BotProfile', botProfileSchema);
+
 let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 // Deduplicate to avoid duplicate notifications per admin
 adminIds = Array.from(new Set(adminIds));
@@ -7648,7 +7656,7 @@ app.listen(PORT, () => {
     try {
       startBotSimulatorSafe({
         useMongo: !!process.env.MONGODB_URI,
-        models: { User, DailyState },
+        models: { User, DailyState, BotProfile },
         db
       });
       console.log('🤖 Bot simulator enabled');

@@ -255,6 +255,11 @@ function startBotSimulator({ useMongo, models, db, bots = DEFAULT_BOTS, tickInte
     console.warn('Bot simulator not started: models/db missing');
     return { stop: () => {} };
   }
+  // Initialize Mongo profile model if present
+  try {
+    BotProfileModel = models.BotProfile || null;
+    useMongoProfiles = !!BotProfileModel;
+  } catch {}
   let stopped = false;
   console.log(`🤖 Bot simulator starting with ${bots.length} bots (interval ${Math.round(tickIntervalMs / 60000)}m)`);
 
@@ -285,6 +290,8 @@ const PROFILES_FILE = path.join(__dirname, '..', 'data', 'bot-profiles.json');
 let botProfiles = null;
 let saveProfilesTimer = null;
 const botLocks = new Map(); // Map<botId, Promise/boolean> simple mutex
+let BotProfileModel = null; // Mongo-backed profile model if provided
+let useMongoProfiles = false;
 
 const DEFAULT_PROFILE = () => ({
   version: 1,
@@ -304,6 +311,7 @@ const DEFAULT_PROFILE = () => ({
 });
 
 async function ensureProfilesLoaded() {
+  if (useMongoProfiles) return;
   if (botProfiles) return;
   try {
     await fs.mkdir(path.dirname(PROFILES_FILE), { recursive: true });
@@ -326,6 +334,15 @@ function scheduleSaveProfiles() {
 }
 
 async function getProfile(botId) {
+  if (useMongoProfiles && BotProfileModel) {
+    let doc = await BotProfileModel.findOne({ botId }).lean();
+    if (!doc || !doc.profile) {
+      const profile = DEFAULT_PROFILE();
+      await BotProfileModel.updateOne({ botId }, { $set: { profile, updatedAt: new Date() } }, { upsert: true });
+      return profile;
+    }
+    return doc.profile;
+  }
   await ensureProfilesLoaded();
   if (!botProfiles[botId]) {
     botProfiles[botId] = DEFAULT_PROFILE();
