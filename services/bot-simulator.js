@@ -294,6 +294,9 @@ const DEFAULT_PROFILE = () => ({
   preferredHours: [9, 23],   // Active window (local time)
   lastActionAt: 0,
   lastPoints: 0,
+  minCooldownMs: 60000, // adaptive per-bot cooldown between actions
+  dayWeights: [1,1,1,1,1,1,1], // Sun..Sat engagement multipliers (0.5..1.5)
+  missionWeights: Object.fromEntries(Object.keys(MISSION_POINTS).map(k => [k, 1])),
   adjustments: {
     missionBoost: 0,
     consistency: 0
@@ -344,6 +347,8 @@ function inPreferredHours(profile) {
   } catch { return true; }
 }
 
+function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
 function learnFromDelta(profile, deltaPoints) {
   // Lightweight heuristic: if missions likely caused gain, slightly raise missionProbability
   // If no gain for a while, nudge checkInProbability to maintain consistency
@@ -376,12 +381,16 @@ async function withBotLock(botId, fn) {
 async function actBot({ bot, useMongo, models, db, missionIds }) {
   const { DailyState } = models || {};
   const profile = await getProfile(bot.id);
+  // Skip if still in cooldown (randomized for human-like pacing)
+  const now = new Date();
+  const effectiveCooldown = (profile.minCooldownMs || 60000) * (0.75 + Math.random() * 0.5);
+  if (nowMs() - (profile.lastActionAt || 0) < effectiveCooldown) return;
   if (!inPreferredHours(profile) && Math.random() < 0.35) {
     // Sometimes act off-hours to look human-like
     return;
   }
   await withBotLock(bot.id, async () => {
-    const { monthKey, day, now } = todayKey();
+    const { monthKey, day } = todayKey();
     let state;
     if (useMongo) state = await getOrCreateDailyStateMongo(DailyState, bot.id, monthKey);
     else state = await getOrCreateDailyStateFile(db, bot.id, monthKey);
@@ -390,9 +399,14 @@ async function actBot({ bot, useMongo, models, db, missionIds }) {
     const alreadyToday = state.lastCheckIn && new Date(state.lastCheckIn).toDateString() === now.toDateString();
 
     const { effCheckIn, effMission } = learnFromDelta(profile, Math.max(0, pointsBefore - (profile.lastPoints || 0)));
+    // Day-of-week multiplier
+    const dow = now.getDay();
+    const dayWeight = Array.isArray(profile.dayWeights) ? clamp(profile.dayWeights[dow] || 1, 0.5, 1.5) : 1;
+    const actCheckIn = clamp(effCheckIn * dayWeight, 0.2, 0.98);
+    const actMission = clamp(effMission * dayWeight, 0.05, 0.85);
 
     // Decide actions with randomness
-    if (!alreadyToday && randBool(effCheckIn)) {
+    if (!alreadyToday && randBool(actCheckIn)) {
       const checked = new Set(state.checkedInDays || []);
       checked.add(day);
       state.checkedInDays = Array.from(checked).sort((a, b) => a - b);
@@ -406,14 +420,29 @@ async function actBot({ bot, useMongo, models, db, missionIds }) {
       state.totalPoints = (state.totalPoints || 0) + 10;
     }
 
-    if (randBool(effMission)) {
+    // Ensure mission weights present
+    if (!profile.missionWeights) profile.missionWeights = Object.fromEntries(missionIds.map(m => [m, 1]));
+
+    if (randBool(actMission)) {
       const completed = new Set(state.missionsCompleted || []);
       const remaining = missionIds.filter(m => !completed.has(m));
       if (remaining.length > 0) {
-        const m = remaining[Math.floor(Math.random() * remaining.length)];
+        // Weighted choice among remaining missions
+        const weights = remaining.map(m => Math.max(0.2, profile.missionWeights[m] || 1));
+        const totalW = weights.reduce((s,v)=>s+v,0) || 1;
+        let r = Math.random() * totalW;
+        let chosen = remaining[0];
+        for (let i = 0; i < remaining.length; i++) { r -= weights[i]; if (r <= 0) { chosen = remaining[i]; break; } }
+        const m = chosen;
         completed.add(m);
         state.missionsCompleted = Array.from(completed);
         state.totalPoints = (state.totalPoints || 0) + (MISSION_POINTS[m] || 0);
+        // Reinforce successful mission preference
+        const w = Math.max(0.2, profile.missionWeights[m] || 1);
+        profile.missionWeights[m] = clamp(w + 0.05, 0.2, 2.0);
+        for (const k of Object.keys(profile.missionWeights)) {
+          if (k !== m) profile.missionWeights[k] = clamp(profile.missionWeights[k] * 0.995, 0.2, 2.0);
+        }
       }
     }
 
@@ -424,6 +453,13 @@ async function actBot({ bot, useMongo, models, db, missionIds }) {
     const delta = (state.totalPoints || 0) - pointsBefore;
     profile.lastPoints = state.totalPoints || 0;
     profile.lastActionAt = nowMs();
+    // Adapt day-of-week and cooldown slightly
+    if (Array.isArray(profile.dayWeights)) {
+      const cur = clamp(profile.dayWeights[now.getDay()] || 1, 0.5, 1.5);
+      profile.dayWeights[now.getDay()] = clamp(cur + (delta > 0 ? 0.01 : -0.005), 0.5, 1.5);
+    }
+    const baseCd = clamp((profile.minCooldownMs || 60000) + (delta > 0 ? -2000 : 1000), 30000, 300000);
+    profile.minCooldownMs = baseCd;
     // Persist profile occasionally
     scheduleSaveProfiles();
   });
