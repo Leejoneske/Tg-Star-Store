@@ -36,7 +36,27 @@ const DEFAULT_BOTS = [
   { id: '200000022', username: 'rune' },
   { id: '200000023', username: 'echo' },
   { id: '200000024', username: 'lyra' },
-  { id: '200000025', username: 'cade' }
+  { id: '200000025', username: 'cade' },
+  { id: '200000026', username: 'aria' },
+  { id: '200000027', username: 'jax' },
+  { id: '200000028', username: 'niko' },
+  { id: '200000029', username: 'sora' },
+  { id: '200000030', username: 'ivy' },
+  { id: '200000031', username: 'rio' },
+  { id: '200000032', username: 'sage' },
+  { id: '200000033', username: 'skye' },
+  { id: '200000034', username: 'ren' },
+  { id: '200000035', username: 'faye' },
+  { id: '200000036', username: 'zaid' },
+  { id: '200000037', username: 'kian' },
+  { id: '200000038', username: 'mira' },
+  { id: '200000039', username: 'asher' },
+  { id: '200000040', username: 'juno' },
+  { id: '200000041', username: 'remy' },
+  { id: '200000042', username: 'soren' },
+  { id: '200000043', username: 'nara' },
+  { id: '200000044', username: 'leo' },
+  { id: '200000045', username: 'kaia' }
 ];
 
 // Mirror server mission points (m1..m4)
@@ -254,6 +274,205 @@ function startBotSimulator({ useMongo, models, db, bots = DEFAULT_BOTS, tickInte
   };
 
   return { stop };
+}
+
+// --- Enhanced human-like behavior, concurrency, and lightweight learning ---
+
+const fs = require('fs').promises;
+const path = require('path');
+
+const PROFILES_FILE = path.join(__dirname, '..', 'data', 'bot-profiles.json');
+let botProfiles = null;
+let saveProfilesTimer = null;
+const botLocks = new Map(); // Map<botId, Promise/boolean> simple mutex
+
+const DEFAULT_PROFILE = () => ({
+  version: 1,
+  experience: 0,
+  checkInProbability: 0.85, // Base chance to check in when active
+  missionProbability: 0.35,  // Chance to complete one mission when active
+  preferredHours: [9, 23],   // Active window (local time)
+  lastActionAt: 0,
+  lastPoints: 0,
+  adjustments: {
+    missionBoost: 0,
+    consistency: 0
+  }
+});
+
+async function ensureProfilesLoaded() {
+  if (botProfiles) return;
+  try {
+    await fs.mkdir(path.dirname(PROFILES_FILE), { recursive: true });
+    const content = await fs.readFile(PROFILES_FILE, 'utf8').catch(() => '{}');
+    botProfiles = JSON.parse(content || '{}');
+  } catch (_) {
+    botProfiles = {};
+  }
+}
+
+function scheduleSaveProfiles() {
+  if (saveProfilesTimer) return;
+  saveProfilesTimer = setTimeout(async () => {
+    try {
+      await fs.mkdir(path.dirname(PROFILES_FILE), { recursive: true });
+      await fs.writeFile(PROFILES_FILE, JSON.stringify(botProfiles || {}, null, 2));
+    } catch {}
+    saveProfilesTimer = null;
+  }, 5000);
+}
+
+async function getProfile(botId) {
+  await ensureProfilesLoaded();
+  if (!botProfiles[botId]) {
+    botProfiles[botId] = DEFAULT_PROFILE();
+    scheduleSaveProfiles();
+  }
+  return botProfiles[botId];
+}
+
+function randBool(p) { return Math.random() < p; }
+function nowMs() { return Date.now(); }
+
+function inPreferredHours(profile) {
+  try {
+    const hour = new Date().getHours();
+    const [start, end] = profile.preferredHours || [8, 22];
+    if (start <= end) return hour >= start && hour <= end;
+    // Overnight window
+    return hour >= start || hour <= end;
+  } catch { return true; }
+}
+
+function learnFromDelta(profile, deltaPoints) {
+  // Lightweight heuristic: if missions likely caused gain, slightly raise missionProbability
+  // If no gain for a while, nudge checkInProbability to maintain consistency
+  profile.experience = (profile.experience || 0) + 1;
+  const lr = 0.01; // small step
+  if (deltaPoints >= 20) {
+    profile.adjustments.missionBoost = Math.min(0.2, (profile.adjustments.missionBoost || 0) + lr);
+  } else if (deltaPoints === 0) {
+    profile.adjustments.consistency = Math.min(0.1, (profile.adjustments.consistency || 0) + lr);
+  } else {
+    // slight decay
+    profile.adjustments.missionBoost = Math.max(0, (profile.adjustments.missionBoost || 0) - lr * 0.5);
+    profile.adjustments.consistency = Math.max(0, (profile.adjustments.consistency || 0) - lr * 0.5);
+  }
+  // Apply adjustments to effective probabilities (bounded)
+  const effCheckIn = Math.max(0.4, Math.min(0.98, (profile.checkInProbability || 0.85) + (profile.adjustments.consistency || 0)));
+  const effMission = Math.max(0.1, Math.min(0.8, (profile.missionProbability || 0.35) + (profile.adjustments.missionBoost || 0)));
+  return { effCheckIn, effMission };
+}
+
+async function withBotLock(botId, fn) {
+  // Very lightweight mutex to avoid per-bot races
+  while (botLocks.get(botId)) {
+    await new Promise(r => setTimeout(r, 10 + Math.random() * 40));
+  }
+  botLocks.set(botId, true);
+  try { return await fn(); } finally { botLocks.delete(botId); }
+}
+
+async function actBot({ bot, useMongo, models, db, missionIds }) {
+  const { DailyState } = models || {};
+  const profile = await getProfile(bot.id);
+  if (!inPreferredHours(profile) && Math.random() < 0.35) {
+    // Sometimes act off-hours to look human-like
+    return;
+  }
+  await withBotLock(bot.id, async () => {
+    const { monthKey, day, now } = todayKey();
+    let state;
+    if (useMongo) state = await getOrCreateDailyStateMongo(DailyState, bot.id, monthKey);
+    else state = await getOrCreateDailyStateFile(db, bot.id, monthKey);
+
+    const pointsBefore = state.totalPoints || 0;
+    const alreadyToday = state.lastCheckIn && new Date(state.lastCheckIn).toDateString() === now.toDateString();
+
+    const { effCheckIn, effMission } = learnFromDelta(profile, Math.max(0, pointsBefore - (profile.lastPoints || 0)));
+
+    // Decide actions with randomness
+    if (!alreadyToday && randBool(effCheckIn)) {
+      const checked = new Set(state.checkedInDays || []);
+      checked.add(day);
+      state.checkedInDays = Array.from(checked).sort((a, b) => a - b);
+      if (state.lastCheckIn) {
+        const diffDays = Math.round((now - new Date(state.lastCheckIn)) / (1000 * 60 * 60 * 24));
+        state.streak = diffDays === 1 ? (state.streak || 0) + 1 : 1;
+      } else {
+        state.streak = 1;
+      }
+      state.lastCheckIn = now;
+      state.totalPoints = (state.totalPoints || 0) + 10;
+    }
+
+    if (randBool(effMission)) {
+      const completed = new Set(state.missionsCompleted || []);
+      const remaining = missionIds.filter(m => !completed.has(m));
+      if (remaining.length > 0) {
+        const m = remaining[Math.floor(Math.random() * remaining.length)];
+        completed.add(m);
+        state.missionsCompleted = Array.from(completed);
+        state.totalPoints = (state.totalPoints || 0) + (MISSION_POINTS[m] || 0);
+      }
+    }
+
+    state.updatedAt = new Date();
+    if (useMongo) await updateDailyStateMongo(DailyState, state);
+    else await updateDailyStateFile(db, bot.id, state);
+
+    const delta = (state.totalPoints || 0) - pointsBefore;
+    profile.lastPoints = state.totalPoints || 0;
+    profile.lastActionAt = nowMs();
+    // Persist profile occasionally
+    scheduleSaveProfiles();
+  });
+}
+
+function pLimit(concurrency) {
+  // Minimal concurrency limiter
+  let activeCount = 0;
+  const queue = [];
+  const next = () => {
+    if (queue.length === 0 || activeCount >= concurrency) return;
+    activeCount++;
+    const { fn, resolve, reject } = queue.shift();
+    Promise.resolve()
+      .then(fn)
+      .then((val) => { activeCount--; resolve(val); next(); })
+      .catch((err) => { activeCount--; reject(err); next(); });
+  };
+  return (fn) => new Promise((resolve, reject) => { queue.push({ fn, resolve, reject }); next(); });
+}
+
+// Override simulateTick to schedule randomized, concurrent, human-like actions
+async function simulateTick({ useMongo, models, db, bots = DEFAULT_BOTS }) {
+  const missionIds = Object.keys(MISSION_POINTS);
+  // Randomly pick many bots to act this tick (40% to 80% of bots)
+  const count = Math.max(3, Math.round(bots.length * (0.4 + Math.random() * 0.4)));
+  const activeBots = sample(bots, Math.min(count, bots.length));
+
+  // Concurrency control and jitter to avoid rate limits and races
+  const conf = process.env.BOT_SIM_MAX_CONCURRENCY;
+  const parsed = conf != null ? parseInt(conf, 10) : NaN;
+  const unlimited = conf === '0' || (typeof conf === 'string' && conf.toLowerCase() === 'unlimited') || parsed === 0;
+  const defaultLimit = Math.max(8, Math.ceil(bots.length / 2));
+  const limitVal = unlimited ? activeBots.length : (isFinite(parsed) && parsed > 0 ? parsed : defaultLimit);
+
+  // Random jitter per bot action within 0-45s to spread load
+  const runOne = async (bot) => {
+    const jitter = Math.floor(Math.random() * 45000);
+    await new Promise(r => setTimeout(r, jitter));
+    await actBot({ bot, useMongo, models, db, missionIds });
+  };
+
+  if (unlimited) {
+    await Promise.allSettled(activeBots.map(bot => runOne(bot)));
+  } else {
+    const runLimited = pLimit(limitVal);
+    const tasks = activeBots.map((bot) => runLimited(() => runOne(bot)));
+    await Promise.allSettled(tasks);
+  }
 }
 
 module.exports = { startBotSimulator };
