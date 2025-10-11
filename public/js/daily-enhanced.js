@@ -804,7 +804,7 @@ class DailyRewardsSystem {
             success: true,
             userRank: null,
             entries: [
-                { userId: 'demo1', username: 'StarUser', score: 1000, activityPoints: 500 },
+                { userId: 'demo1', username: null, score: 1000, activityPoints: 500 },
                 { userId: 'demo2', username: 'TopPlayer', score: 850, activityPoints: 400 },
                 { userId: 'demo3', username: 'Champion', score: 720, activityPoints: 350 }
             ]
@@ -821,7 +821,8 @@ class DailyRewardsSystem {
         row.style.animationDelay = `${index * 30}ms`;
 
         const rankBadge = this.getRankBadge(rank);
-        const avatar = this.createAvatar(entry.username || entry.userId);
+        const displayName = entry.username || ('user_' + (entry.userId || '').slice(-5));
+        const avatar = this.createAvatar(displayName);
         const streakText = this.getStreakText(entry.activityPoints || 0);
 
         row.innerHTML = `
@@ -829,7 +830,7 @@ class DailyRewardsSystem {
                 <div class="rank-badge ${rankBadge.class}">${rankBadge.content}</div>
                 ${avatar}
                 <div>
-                    <div class="lb-username">@${entry.username || 'user_' + (entry.userId || '').slice(-5)}</div>
+                <div class="lb-username">@${displayName}</div>
                     <div class="lb-streak">${streakText}</div>
                 </div>
             </div>

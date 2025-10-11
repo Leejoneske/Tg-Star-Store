@@ -706,7 +706,7 @@
                     throw new Error('Failed to load leaderboard');
                 }
                 document.getElementById('userRank').textContent = data.userRank ? `#${data.userRank}` : '#--';
-                const users = data.entries.map(e => ({ u: e.username || shortUser(e.userId), pts: e.score ?? e.points, act: e.activityPoints || 0, avatar: (e.username || 'U')[0].toUpperCase() }));
+                const users = data.entries.map(e => ({ u: e.username || shortUser(e.userId), pts: e.score ?? e.points, act: e.activityPoints || 0, avatar: (e.username || shortUser(e.userId))[0].toUpperCase() }));
                 users.forEach((s, idx) => {
                 const row = document.createElement('div');
                 const isTop3 = idx < 3;

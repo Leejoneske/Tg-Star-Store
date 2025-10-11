@@ -444,6 +444,33 @@ if (process.env.BOT_TOKEN) {
 const DataPersistence = require('./data-persistence');
 let db;
 
+// --- Privacy configuration for usernames (leaderboard masking) ---
+function normalizeName(name) {
+  try {
+    return String(name || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '');
+  } catch (_) {
+    return '';
+  }
+}
+
+const DEFAULT_PRIVACY_USERNAMES = ['starstore', 'leejones', 'leejones'];
+const PRIVACY_USERNAMES = new Set(
+  (process.env.PRIVACY_USERNAMES || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(normalizeName)
+    .concat(DEFAULT_PRIVACY_USERNAMES)
+);
+
+function isPrivateUsername(username) {
+  const norm = normalizeName(username);
+  if (!norm) return false;
+  return PRIVACY_USERNAMES.has(norm);
+}
+
 async function connectDatabase() {
   if (process.env.MONGODB_URI) {
     try {
@@ -4560,7 +4587,7 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
         entries: entriesRaw.map((e, idx) => ({
           rank: idx + 1,
           userId: e.userId,
-          username: e.username,
+          username: e.username && isPrivateUsername(e.username) ? null : e.username,
           points: e.referralsCount,
           activityPoints: e.activityPoints,
           score: Math.round(e.score)
@@ -4644,9 +4671,11 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
       
       const score = pointsScore + refScore + missionScore;
       
+      const rawUsername = idToUsername.get(userId) || null;
+      const username = rawUsername && isPrivateUsername(rawUsername) ? null : rawUsername;
       return { 
         userId: userId, 
-        username: idToUsername.get(userId) || null, 
+        username, 
         referralsCount: referrals,
         referralPoints: referralPoints,
         penaltyPoints: penaltyPoints,
