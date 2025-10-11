@@ -11,7 +11,8 @@ class DataPersistence {
       dailyStates: {},
       referrals: [],
       orders: [],
-      notifications: []
+      notifications: [],
+      ambassadorWaitlist: []
     };
     this.loadData();
   }
@@ -28,6 +29,18 @@ class DataPersistence {
       console.log('📁 No existing data file, starting fresh');
       await this.saveData();
     }
+  }
+
+  // Ambassador waitlist operations
+  async createAmbassadorWaitlist(entry) {
+    this.data.ambassadorWaitlist = this.data.ambassadorWaitlist || [];
+    this.data.ambassadorWaitlist.push(entry);
+    await this.saveData();
+    return entry;
+  }
+
+  async listAmbassadorWaitlist() {
+    return this.data.ambassadorWaitlist || [];
   }
 
   async saveData() {

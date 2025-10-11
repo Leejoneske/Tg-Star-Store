@@ -138,9 +138,7 @@
             font-size: 0.95rem;
         }
         
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
+        .form-group input {
             width: 100%;
             padding: 14px 18px;
             border: 2px solid #E0E0E0;
@@ -150,17 +148,12 @@
             transition: border-color 0.3s ease;
         }
         
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
+        .form-group input:focus {
             outline: none;
             border-color: #5DADE2;
         }
         
-        .form-group textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
+        /* Remove old textarea/select spacing */
         
         .submit-btn {
             width: 100%;
@@ -352,54 +345,13 @@
             <h2>Join the Waitlist</h2>
             <form id="ambassadorForm">
                 <div class="form-group">
-                    <label for="fullName">Full Name *</label>
-                    <input type="text" id="fullName" name="fullName" required placeholder="John Doe">
+                    <label for="username">Telegram Username (optional)</label>
+                    <input type="text" id="username" name="username" placeholder="@yourusername">
                 </div>
-                
+
                 <div class="form-group">
                     <label for="email">Email Address *</label>
                     <input type="email" id="email" name="email" required placeholder="john@example.com">
-                </div>
-                
-                <div class="form-group">
-                    <label for="phone">Phone Number</label>
-                    <input type="tel" id="phone" name="phone" placeholder="+254 700 000 000">
-                </div>
-                
-                <div class="form-group">
-                    <label for="platform">Primary Social Platform *</label>
-                    <select id="platform" name="platform" required>
-                        <option value="">Select a platform</option>
-                        <option value="instagram">Instagram</option>
-                        <option value="tiktok">TikTok</option>
-                        <option value="youtube">YouTube</option>
-                        <option value="twitter">Twitter/X</option>
-                        <option value="facebook">Facebook</option>
-                        <option value="blog">Blog/Website</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="handle">Social Media Handle</label>
-                    <input type="text" id="handle" name="handle" placeholder="@yourusername">
-                </div>
-                
-                <div class="form-group">
-                    <label for="followers">Approximate Followers/Audience Size</label>
-                    <select id="followers" name="followers">
-                        <option value="">Select range</option>
-                        <option value="0-1k">0 - 1,000</option>
-                        <option value="1k-5k">1,000 - 5,000</option>
-                        <option value="5k-10k">5,000 - 10,000</option>
-                        <option value="10k-50k">10,000 - 50,000</option>
-                        <option value="50k+">50,000+</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="whyJoin">Why do you want to become a StarStore Ambassador?</label>
-                    <textarea id="whyJoin" name="whyJoin" placeholder="Tell us about your interest in our program and how you plan to promote StarStore..."></textarea>
                 </div>
                 
                 <button type="submit" class="submit-btn">Join the Waitlist</button>
@@ -456,15 +408,17 @@
             
             // Get form data
             const formData = {
-                fullName: document.getElementById('fullName').value,
-                email: document.getElementById('email').value,
-                phone: document.getElementById('phone').value,
-                platform: document.getElementById('platform').value,
-                handle: document.getElementById('handle').value,
-                followers: document.getElementById('followers').value,
-                whyJoin: document.getElementById('whyJoin').value,
+                username: (document.getElementById('username').value || '').trim(),
+                email: (document.getElementById('email').value || '').trim(),
                 timestamp: new Date().toISOString()
             };
+
+            // Submit to API
+            fetch('/api/ambassador/waitlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            }).catch(() => {});
             
             // In a real implementation, you would send this to your backend
             console.log('Ambassador Application:', formData);

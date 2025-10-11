@@ -351,11 +351,11 @@
             });
         }
 
-        // Ambassador Programme Link Handler
+        // Ambassador Programme Link Handler - open in a new tab (outside Telegram)
         const affiliateLink = document.getElementById('affiliateProgramLink');
         if (affiliateLink) {
             affiliateLink.addEventListener('click', function () {
-                console.log('Ambassador Programme clicked - feature coming soon');
+                window.open('/ambassador.html', '_blank', 'noopener');
             });
         }
 
