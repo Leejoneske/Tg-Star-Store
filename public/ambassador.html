@@ -1,0 +1,488 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StarStore Ambassador Program - Join the Waitlist</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #A8D8E8 0%, #8BC6DB 100%);
+            color: #2C3E50;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 60px 20px 40px;
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .hero h1 {
+            font-family: 'Libre Baskerville', serif;
+            font-size: 3.5rem;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+        
+        .hero .subtitle {
+            font-size: 1.3rem;
+            color: #34495E;
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+        
+        .hero .highlight {
+            font-weight: 700;
+            color: #2C3E50;
+        }
+        
+        .main-card {
+            background: #F5EFE7;
+            border-radius: 24px;
+            padding: 60px 40px;
+            margin: 40px auto;
+            max-width: 900px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+        
+        .benefits {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin: 50px 0;
+        }
+        
+        .benefit-card {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .benefit-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .benefit-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        
+        .benefit-card h3 {
+            font-family: 'Libre Baskerville', serif;
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: #2C3E50;
+        }
+        
+        .benefit-card p {
+            color: #5D6D7E;
+            font-size: 0.95rem;
+        }
+        
+        .waitlist-form {
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            margin: 40px auto;
+            max-width: 600px;
+        }
+        
+        .waitlist-form h2 {
+            font-family: 'Libre Baskerville', serif;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2C3E50;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2C3E50;
+            font-size: 0.95rem;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #E0E0E0;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #5DADE2;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #5DADE2 0%, #3498DB 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 10px;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+        
+        .perks-section {
+            background: #F5EFE7;
+            padding: 40px;
+            border-radius: 20px;
+            margin: 40px 0;
+        }
+        
+        .perks-section h2 {
+            font-family: 'Libre Baskerville', serif;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 35px;
+            color: #2C3E50;
+        }
+        
+        .perks-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        
+        .perk-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        
+        .perk-check {
+            color: #5DADE2;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        
+        .perk-text {
+            font-size: 0.95rem;
+            color: #5D6D7E;
+        }
+        
+        .stats-section {
+            text-align: center;
+            margin: 60px 0;
+            padding: 40px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 40px;
+            margin-top: 30px;
+        }
+        
+        .stat-item {
+            padding: 20px;
+        }
+        
+        .stat-number {
+            font-family: 'Libre Baskerville', serif;
+            font-size: 3rem;
+            font-weight: 700;
+            color: #2C3E50;
+            margin-bottom: 10px;
+        }
+        
+        .stat-label {
+            font-size: 1.1rem;
+            color: #5D6D7E;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: #2C3E50;
+            font-size: 0.9rem;
+        }
+        
+        .success-message {
+            display: none;
+            background: #D5F4E6;
+            border: 2px solid #52C788;
+            color: #155724;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero .subtitle {
+                font-size: 1.1rem;
+            }
+            
+            .main-card {
+                padding: 40px 25px;
+            }
+            
+            .waitlist-form {
+                padding: 30px 20px;
+            }
+            
+            .benefits {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">⭐ StarStore</div>
+        </header>
+        
+        <div class="hero">
+            <h1>Become a StarStore<br>Ambassador</h1>
+            <p class="subtitle">Join our exclusive community and <span class="highlight">earn while you promote</span> products you love</p>
+        </div>
+        
+        <div class="main-card">
+            <div class="benefits">
+                <div class="benefit-card">
+                    <div class="benefit-icon">💰</div>
+                    <h3>Earn Commission</h3>
+                    <p>Get competitive commissions on every sale you generate through your unique referral link</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <div class="benefit-icon">🎁</div>
+                    <h3>Exclusive Perks</h3>
+                    <p>Access to exclusive products, early launches, and special ambassador-only discounts</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <div class="benefit-icon">📈</div>
+                    <h3>Growth Support</h3>
+                    <p>Get marketing materials, training, and dedicated support to help you succeed</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="stats-section">
+            <h2 style="font-family: 'Libre Baskerville', serif; font-size: 2.2rem; margin-bottom: 20px;">Join Successful Ambassadors</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number">500+</div>
+                    <div class="stat-label">Active Ambassadors</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">$50K+</div>
+                    <div class="stat-label">Paid in Commissions</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">20%</div>
+                    <div class="stat-label">Average Commission</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="waitlist-form">
+            <h2>Join the Waitlist</h2>
+            <form id="ambassadorForm">
+                <div class="form-group">
+                    <label for="fullName">Full Name *</label>
+                    <input type="text" id="fullName" name="fullName" required placeholder="John Doe">
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address *</label>
+                    <input type="email" id="email" name="email" required placeholder="john@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" placeholder="+254 700 000 000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="platform">Primary Social Platform *</label>
+                    <select id="platform" name="platform" required>
+                        <option value="">Select a platform</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="tiktok">TikTok</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="twitter">Twitter/X</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="blog">Blog/Website</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="handle">Social Media Handle</label>
+                    <input type="text" id="handle" name="handle" placeholder="@yourusername">
+                </div>
+                
+                <div class="form-group">
+                    <label for="followers">Approximate Followers/Audience Size</label>
+                    <select id="followers" name="followers">
+                        <option value="">Select range</option>
+                        <option value="0-1k">0 - 1,000</option>
+                        <option value="1k-5k">1,000 - 5,000</option>
+                        <option value="5k-10k">5,000 - 10,000</option>
+                        <option value="10k-50k">10,000 - 50,000</option>
+                        <option value="50k+">50,000+</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="whyJoin">Why do you want to become a StarStore Ambassador?</label>
+                    <textarea id="whyJoin" name="whyJoin" placeholder="Tell us about your interest in our program and how you plan to promote StarStore..."></textarea>
+                </div>
+                
+                <button type="submit" class="submit-btn">Join the Waitlist</button>
+                
+                <div class="success-message" id="successMessage">
+                    <strong>🎉 Success!</strong><br>
+                    Thank you for joining our waitlist! We'll be in touch soon with next steps.
+                </div>
+            </form>
+        </div>
+        
+        <div class="perks-section">
+            <h2>What You'll Get</h2>
+            <div class="perks-list">
+                <div class="perk-item">
+                    <div class="perk-check">✓</div>
+                    <div class="perk-text"><strong>Custom referral link</strong> with detailed tracking dashboard</div>
+                </div>
+                <div class="perk-item">
+                    <div class="perk-check">✓</div>
+                    <div class="perk-text"><strong>Marketing resources</strong> including branded content and graphics</div>
+                </div>
+                <div class="perk-item">
+                    <div class="perk-check">✓</div>
+                    <div class="perk-text"><strong>Monthly bonuses</strong> for top-performing ambassadors</div>
+                </div>
+                <div class="perk-item">
+                    <div class="perk-check">✓</div>
+                    <div class="perk-text"><strong>Free products</strong> to review and showcase</div>
+                </div>
+                <div class="perk-item">
+                    <div class="perk-check">✓</div>
+                    <div class="perk-text"><strong>Priority support</strong> from our ambassador team</div>
+                </div>
+                <div class="perk-item">
+                    <div class="perk-check">✓</div>
+                    <div class="perk-text"><strong>Exclusive community</strong> access to network with other ambassadors</div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>&copy; 2024 StarStore. All rights reserved.</p>
+            <p style="margin-top: 10px; color: #5D6D7E;">Questions? Email us at ambassadors@starstore.com</p>
+        </footer>
+    </div>
+    
+    <script>
+        const form = document.getElementById('ambassadorForm');
+        const successMessage = document.getElementById('successMessage');
+        
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Get form data
+            const formData = {
+                fullName: document.getElementById('fullName').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                platform: document.getElementById('platform').value,
+                handle: document.getElementById('handle').value,
+                followers: document.getElementById('followers').value,
+                whyJoin: document.getElementById('whyJoin').value,
+                timestamp: new Date().toISOString()
+            };
+            
+            // In a real implementation, you would send this to your backend
+            console.log('Ambassador Application:', formData);
+            
+            // Show success message
+            successMessage.style.display = 'block';
+            
+            // Reset form
+            form.reset();
+            
+            // Scroll to success message
+            successMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Hide success message after 5 seconds
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
