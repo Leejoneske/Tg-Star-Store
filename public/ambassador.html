@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StarStore Ambassador Program - Join the Waitlist</title>
+    <link rel="icon" href="/favicon.png" type="image/png">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
         
@@ -266,6 +267,17 @@
             margin-top: 20px;
             text-align: center;
         }
+
+        .error-message {
+            display: none;
+            background: #FDE2E1;
+            border: 2px solid #E74C3C;
+            color: #7B241C;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            text-align: center;
+        }
         
         @media (max-width: 768px) {
             .hero h1 {
@@ -293,7 +305,10 @@
 <body>
     <div class="container">
         <header>
-            <div class="logo">⭐ StarStore</div>
+            <div class="logo">
+                <img src="/favicon.png" alt="StarStore" style="height:48px;width:48px;vertical-align:middle;margin-right:8px;border-radius:8px;">
+                <span>StarStore</span>
+            </div>
         </header>
         
         <div class="hero">
@@ -360,6 +375,7 @@
                     <strong>🎉 Success!</strong><br>
                     Thank you for joining our waitlist! We'll be in touch soon with next steps.
                 </div>
+                <div class="error-message" id="errorMessage"></div>
             </form>
         </div>
         
@@ -394,49 +410,83 @@
         </div>
         
         <footer>
-            <p>&copy; 2024 StarStore. All rights reserved.</p>
-            <p style="margin-top: 10px; color: #5D6D7E;">Questions? Email us at ambassadors@starstore.com</p>
+            <p>&copy; 2025 StarStore. All rights reserved.</p>
+            <p style="margin-top: 10px; color: #5D6D7E;">Questions? Email us at support@starstore.site</p>
         </footer>
     </div>
     
     <script>
-        const form = document.getElementById('ambassadorForm');
-        const successMessage = document.getElementById('successMessage');
-        
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Get form data
-            const formData = {
-                username: (document.getElementById('username').value || '').trim(),
-                email: (document.getElementById('email').value || '').trim(),
-                timestamp: new Date().toISOString()
-            };
+        (function() {
+            const form = document.getElementById('ambassadorForm');
+            const successMessage = document.getElementById('successMessage');
+            const errorMessage = document.getElementById('errorMessage');
+            const usernameInput = document.getElementById('username');
+            const emailInput = document.getElementById('email');
+            const submitBtn = form.querySelector('.submit-btn');
 
-            // Submit to API
-            fetch('/api/ambassador/waitlist', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            }).catch(() => {});
-            
-            // In a real implementation, you would send this to your backend
-            console.log('Ambassador Application:', formData);
-            
-            // Show success message
-            successMessage.style.display = 'block';
-            
-            // Reset form
-            form.reset();
-            
-            // Scroll to success message
-            successMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            
-            // Hide success message after 5 seconds
-            setTimeout(() => {
+            // Auto-fill username from Telegram WebApp or URL param
+            try {
+                const tgUsername = window.Telegram?.WebApp?.initDataUnsafe?.user?.username || '';
+                const qp = new URLSearchParams(window.location.search);
+                const qpUsername = (qp.get('username') || '').trim();
+                const auto = (tgUsername || qpUsername).replace(/^@+/, '');
+                if (auto && !usernameInput.value) {
+                    usernameInput.value = auto;
+                }
+            } catch (_) {}
+
+            async function submitForm(e) {
+                e.preventDefault();
+                errorMessage.style.display = 'none';
+                errorMessage.textContent = '';
                 successMessage.style.display = 'none';
-            }, 5000);
-        });
+
+                const formData = {
+                    username: (usernameInput.value || '').trim(),
+                    email: (emailInput.value || '').trim()
+                };
+
+                if (!formData.email || !formData.email.includes('@')) {
+                    errorMessage.textContent = 'Please enter a valid email address.';
+                    errorMessage.style.display = 'block';
+                    return;
+                }
+
+                const headers = { 'Content-Type': 'application/json' };
+                if (window.Telegram?.WebApp?.initData) {
+                    headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+                }
+                if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+                    headers['x-telegram-id'] = String(window.Telegram.WebApp.initDataUnsafe.user.id);
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Submitting...';
+                try {
+                    const resp = await fetch('/api/ambassador/waitlist', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(formData)
+                    });
+                    const result = await resp.json().catch(() => ({}));
+                    if (!resp.ok || !result.success) {
+                        const msg = result?.error || `Request failed (${resp.status})`;
+                        throw new Error(msg);
+                    }
+                    successMessage.style.display = 'block';
+                    form.reset();
+                    successMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } catch (err) {
+                    errorMessage.textContent = err.message || 'Something went wrong. Please try again later.';
+                    errorMessage.style.display = 'block';
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Join the Waitlist';
+                }
+            }
+
+            form.addEventListener('submit', submitForm);
+        })();
     </script>
 </body>
 </html>

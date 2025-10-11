@@ -163,6 +163,39 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
+    // Prevent duplicate email signups
+    try {
+      if (process.env.MONGODB_URI) {
+        if (!global.AmbassadorWaitlist) {
+          const schema = new mongoose.Schema({
+            id: { type: String, unique: true },
+            username: String,
+            email: { type: String, index: true },
+            createdAt: { type: Date, default: Date.now }
+          }, { collection: 'ambassador_waitlist' });
+          global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
+        }
+        const existing = await global.AmbassadorWaitlist.findOne({ email: clean.email }).lean();
+        if (existing) {
+          return res.status(409).json({ success: false, error: 'Email already registered' });
+        }
+      } else {
+        // File DB fallback
+        if (!db) {
+          const DataPersistence = require('./data-persistence');
+          db = new DataPersistence();
+        }
+        const list = (await db.listAmbassadorWaitlist()) || [];
+        const exists = list.some(entry => (entry.email || '').toLowerCase() === clean.email);
+        if (exists) {
+          return res.status(409).json({ success: false, error: 'Email already registered' });
+        }
+      }
+    } catch (dupCheckErr) {
+      console.error('Ambassador duplicate check failed:', dupCheckErr.message);
+      // Continue; creation may still succeed, but we tried.
+    }
+
     // Prefer Mongo when configured; otherwise persist to file DB
     let saved;
     if (process.env.MONGODB_URI) {
@@ -176,13 +209,28 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
         }, { collection: 'ambassador_waitlist' });
         global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
       }
+      // Guard against race condition duplicates
+      const existing = await global.AmbassadorWaitlist.findOne({ email: clean.email }).lean();
+      if (existing) {
+        return res.status(409).json({ success: false, error: 'Email already registered' });
+      }
       saved = await global.AmbassadorWaitlist.create(clean);
     } else if (db && typeof db.createAmbassadorWaitlist === 'function') {
+      // Guard against duplicates in memory/file store
+      const list = (await db.listAmbassadorWaitlist()) || [];
+      const exists = list.some(entry => (entry.email || '').toLowerCase() === clean.email);
+      if (exists) {
+        return res.status(409).json({ success: false, error: 'Email already registered' });
+      }
       saved = await db.createAmbassadorWaitlist(clean);
     } else {
       // Fallback: extend dev storage dynamically
       db = db || new (require('./data-persistence'))();
       if (!db.data.ambassadorWaitlist) db.data.ambassadorWaitlist = [];
+      const exists = db.data.ambassadorWaitlist.some(entry => (entry.email || '').toLowerCase() === clean.email);
+      if (exists) {
+        return res.status(409).json({ success: false, error: 'Email already registered' });
+      }
       db.data.ambassadorWaitlist.push(clean);
       await db.saveData();
       saved = clean;
@@ -195,6 +243,30 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
         await bot.sendMessage(tgId, '✅ You have been added to the StarStore Ambassador waitlist. We will contact you soon.');
       }
     } catch (_) {}
+
+    // Notify admins of new signup
+    try {
+      const admins = (typeof adminIds !== 'undefined' && Array.isArray(adminIds) && adminIds.length)
+        ? adminIds
+        : (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '')
+            .split(',')
+            .filter(Boolean)
+            .map(id => id.trim());
+      if (admins && admins.length) {
+        const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
+        const adminMsg =
+          `🆕 New Ambassador Waitlist Signup\n\n` +
+          `Email: ${clean.email}\n` +
+          `Username: ${clean.username ? '@' + clean.username : 'N/A'}\n` +
+          `${tgId ? `User ID: ${tgId}\n` : ''}` +
+          `Entry ID: ${saved.id}`;
+        await Promise.all(admins.map(aid => {
+          try { return bot.sendMessage(aid, adminMsg); } catch { return Promise.resolve(); }
+        }));
+      }
+    } catch (e) {
+      console.error('Failed to notify admins of ambassador signup:', e.message);
+    }
 
     return res.json({ success: true, waitlistId: saved.id });
   } catch (e) {
