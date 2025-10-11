@@ -275,8 +275,13 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
   }
 });
 
+// Legacy redirects for ambassador URL spelling change
+app.get(['/ambassador', '/ambassador.html'], (req, res) => {
+  return res.redirect(301, '/ambasador');
+});
+
 // Ensure directories with index.html return 200 (no 302/redirects)
-app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
+app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambasador'], (req, res, next) => {
   try {
     const map = {
       '/': 'index.html',
@@ -286,15 +291,18 @@ app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-t
       '/blog': 'blog/index.html',
       '/knowledge-base': 'knowledge-base/index.html',
       '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
-      '/ambassador': 'ambassador.html'
+      '/ambasador': 'ambasador/index.html'
     };
     const file = map[req.path];
     if (file) {
       const abs = path.join(__dirname, 'public', file);
       return res.status(200).sendFile(abs, (err) => {
         if (err) {
-          // If the mapped file is missing, return 404 for clarity
-          return res.status(404).send('Not found');
+          // If the mapped file is missing, serve the graceful 404 page
+          const notFound = path.join(__dirname, 'public', '404.html');
+          return res.status(404).sendFile(notFound, (sendErr) => {
+            if (sendErr) return res.status(404).send('Not found');
+          });
         }
       });
     }
@@ -373,7 +381,10 @@ app.get('/admin', (req, res) => {
 	try {
 		return res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
 	} catch (e) {
-		return res.status(404).send('Not found');
+		const notFound = path.join(__dirname, 'public', '404.html');
+		return res.status(404).sendFile(notFound, (err) => {
+			if (err) return res.status(404).send('Not found');
+		});
 	}
 });
 
@@ -382,7 +393,12 @@ app.get(['/400','/401','/403','/404','/500','/502','/503','/504'], (req, res) =>
   try {
     const code = parseInt(req.path.replace('/', ''), 10);
     const allowed = new Set([400,401,403,404,500,502,503,504]);
-    if (!allowed.has(code)) return res.status(404).send('Not found');
+    if (!allowed.has(code)) {
+      const notFound = path.join(__dirname, 'public', '404.html');
+      return res.status(404).sendFile(notFound, (err) => {
+        if (err) return res.status(404).send('Not found');
+      });
+    }
     const abs = path.join(__dirname, 'public', `${code}.html`);
     return res.status(code).sendFile(abs, (err) => {
       if (err) return res.status(code).send(String(code));
