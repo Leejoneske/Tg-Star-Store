@@ -271,17 +271,17 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
     return res.json({ success: true, waitlistId: saved.id });
   } catch (e) {
     console.error('Ambassador waitlist error:', e.message);
-    return res.status(500).json({ success: false });
+    return res.status(500).json({ success: false, error: 'We could not add you to the waitlist. Please try again later.' });
   }
 });
 
 // Legacy redirects for ambassador URL spelling change
-app.get(['/ambassador', '/ambassador.html'], (req, res) => {
-  return res.redirect(301, '/ambasador');
+app.get(['/ambasador', '/ambasador.html'], (req, res) => {
+  return res.redirect(301, '/ambassador');
 });
 
 // Ensure directories with index.html return 200 (no 302/redirects)
-app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambasador'], (req, res, next) => {
+app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
   try {
     const map = {
       '/': 'index.html',
@@ -291,7 +291,7 @@ app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-t
       '/blog': 'blog/index.html',
       '/knowledge-base': 'knowledge-base/index.html',
       '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
-      '/ambasador': 'ambasador/index.html'
+      '/ambassador': 'ambassador/index.html'
     };
     const file = map[req.path];
     if (file) {

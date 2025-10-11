@@ -470,7 +470,24 @@
                     });
                     const result = await resp.json().catch(() => ({}));
                     if (!resp.ok || !result.success) {
-                        const msg = result?.error || `Request failed (${resp.status})`;
+                        let friendly;
+                        switch (resp.status) {
+                            case 400:
+                                friendly = 'Please check your input and try again.'; break;
+                            case 401:
+                            case 403:
+                                friendly = 'You are not authorized. Please open from the app or try again later.'; break;
+                            case 404:
+                                friendly = 'Service temporarily unavailable. Please try again shortly.'; break;
+                            case 409:
+                                friendly = 'This email is already registered on the waitlist.'; break;
+                            case 429:
+                                friendly = 'Too many attempts. Please wait a minute and try again.'; break;
+                            case 500:
+                            default:
+                                friendly = 'Something went wrong on our side. Please try again later.'; break;
+                        }
+                        const msg = result?.error || friendly;
                         throw new Error(msg);
                     }
                     successMessage.style.display = 'block';
