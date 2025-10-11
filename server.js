@@ -471,6 +471,39 @@ function isPrivateUsername(username) {
   return PRIVACY_USERNAMES.has(norm);
 }
 
+// --- Pseudonymization (stable human-like names) ---
+function simpleHash(input) {
+  const str = String(input || '');
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) + str.charCodeAt(i); // hash * 33 + c
+    hash = hash & 0xffffffff;
+  }
+  return Math.abs(hash >>> 0);
+}
+
+const PSEUDONYM_FIRST = [
+  'Amina','Aria','Diego','Hiro','Ibrahim','Jamal','Jin','Kai','Leila','Luca',
+  'Maria','Mateo','Mei','Mohamed','Muhammad','Nadia','Noah','Omar','Priya','Ravi',
+  'Sofia','Wei','Yara','Zara','Fatima','Ahmed','Elena','Mikhail','Sasha','Yun',
+  'Hassan','Layla','Amir','Sara','Isabella','Oliver','Ethan','Aisha','Kofi','Chloe',
+  'Hannah','Lucas','Ivy','Mia','Leo','Daniel','Grace','Zoe','Ana','Dmitri'
+];
+const PSEUDONYM_LAST = [
+  'Adams','Brown','Chen','Diaz','Evans','Garcia','Hassan','Inoue','Johnson','Kumar',
+  'Lee','Martinez','Nguyen','Okafor','Patel','Quinn','Rossi','Silva','Tan','Usman',
+  'Valdez','Williams','Xu','Yamada','Zhang','Bauer','Costa','Dubois','Eriksen','Fujita'
+];
+
+function generatePseudonym(userId, username) {
+  const source = String(userId || normalizeName(username) || 'seed');
+  const h = simpleHash(source);
+  const first = PSEUDONYM_FIRST[h % PSEUDONYM_FIRST.length];
+  const last = PSEUDONYM_LAST[(Math.floor(h / 97)) % PSEUDONYM_LAST.length];
+  const lastInitial = (last && last[0]) ? `${last[0]}.` : '';
+  return `${first} ${lastInitial}`.trim();
+}
+
 async function connectDatabase() {
   if (process.env.MONGODB_URI) {
     try {
@@ -4588,6 +4621,8 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
           rank: idx + 1,
           userId: e.userId,
           username: e.username && isPrivateUsername(e.username) ? null : e.username,
+          displayName: e.username && isPrivateUsername(e.username) ? generatePseudonym(e.userId, e.username) : (e.username || null),
+          isPseudonym: !!(e.username && isPrivateUsername(e.username)),
           points: e.referralsCount,
           activityPoints: e.activityPoints,
           score: Math.round(e.score)
@@ -4672,10 +4707,13 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
       const score = pointsScore + refScore + missionScore;
       
       const rawUsername = idToUsername.get(userId) || null;
-      const username = rawUsername && isPrivateUsername(rawUsername) ? null : rawUsername;
+      const masked = rawUsername && isPrivateUsername(rawUsername);
+      const username = masked ? null : rawUsername;
       return { 
         userId: userId, 
         username, 
+        displayName: masked ? generatePseudonym(userId, rawUsername) : (rawUsername || null),
+        isPseudonym: !!masked,
         referralsCount: referrals,
         referralPoints: referralPoints,
         penaltyPoints: penaltyPoints,

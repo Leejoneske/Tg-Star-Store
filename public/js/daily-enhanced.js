@@ -821,7 +821,7 @@ class DailyRewardsSystem {
         row.style.animationDelay = `${index * 30}ms`;
 
         const rankBadge = this.getRankBadge(rank);
-        const displayName = entry.username || ('user_' + (entry.userId || '').slice(-5));
+        const displayName = entry.displayName || entry.username || ('user_' + (entry.userId || '').slice(-5));
         const avatar = this.createAvatar(displayName);
         const streakText = this.getStreakText(entry.activityPoints || 0);
 
@@ -830,7 +830,7 @@ class DailyRewardsSystem {
                 <div class="rank-badge ${rankBadge.class}">${rankBadge.content}</div>
                 ${avatar}
                 <div>
-                <div class="lb-username">@${displayName}</div>
+                <div class="lb-username">${entry.isPseudonym ? '' : '@'}${displayName}</div>
                     <div class="lb-streak">${streakText}</div>
                 </div>
             </div>
