@@ -149,8 +149,62 @@ app.use(express.static('public', {
   }
 }));
 
+// Ambassador Waitlist endpoint
+app.post('/api/ambassador/waitlist', async (req, res) => {
+  try {
+    const { username = '', email = '' } = req.body || {};
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ success: false, error: 'Valid email is required' });
+    }
+    const clean = {
+      id: `AMB-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`,
+      username: String(username || '').trim().replace(/^@+/, ''),
+      email: String(email || '').trim().toLowerCase(),
+      createdAt: new Date().toISOString()
+    };
+
+    // Prefer Mongo when configured; otherwise persist to file DB
+    let saved;
+    if (process.env.MONGODB_URI) {
+      // Lazy-init schema/model to avoid top-level clutter
+      if (!global.AmbassadorWaitlist) {
+        const schema = new mongoose.Schema({
+          id: { type: String, unique: true },
+          username: String,
+          email: { type: String, index: true },
+          createdAt: { type: Date, default: Date.now }
+        }, { collection: 'ambassador_waitlist' });
+        global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
+      }
+      saved = await global.AmbassadorWaitlist.create(clean);
+    } else if (db && typeof db.createAmbassadorWaitlist === 'function') {
+      saved = await db.createAmbassadorWaitlist(clean);
+    } else {
+      // Fallback: extend dev storage dynamically
+      db = db || new (require('./data-persistence'))();
+      if (!db.data.ambassadorWaitlist) db.data.ambassadorWaitlist = [];
+      db.data.ambassadorWaitlist.push(clean);
+      await db.saveData();
+      saved = clean;
+    }
+
+    // Attempt Telegram notify if request came from Telegram user
+    try {
+      const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
+      if (tgId) {
+        await bot.sendMessage(tgId, '✅ You have been added to the StarStore Ambassador waitlist. We will contact you soon.');
+      }
+    } catch (_) {}
+
+    return res.json({ success: true, waitlistId: saved.id });
+  } catch (e) {
+    console.error('Ambassador waitlist error:', e.message);
+    return res.status(500).json({ success: false });
+  }
+});
+
 // Ensure directories with index.html return 200 (no 302/redirects)
-app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars'], (req, res, next) => {
+app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
   try {
     const map = {
       '/': 'index.html',
@@ -159,7 +213,8 @@ app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-t
       '/history': 'history.html',
       '/blog': 'blog/index.html',
       '/knowledge-base': 'knowledge-base/index.html',
-      '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html'
+      '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
+      '/ambassador': 'ambassador.html'
     };
     const file = map[req.path];
     if (file) {

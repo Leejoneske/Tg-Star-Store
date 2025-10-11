@@ -351,11 +351,16 @@
             });
         }
 
-        // Ambassador Programme Link Handler
+        // Ambassador Programme Link Handler - always open outside the bot
         const affiliateLink = document.getElementById('affiliateProgramLink');
         if (affiliateLink) {
             affiliateLink.addEventListener('click', function () {
-                console.log('Ambassador Programme clicked - feature coming soon');
+                const url = `${window.location.origin}/ambassador.html`;
+                if (window.Telegram?.WebApp?.openLink) {
+                    window.Telegram.WebApp.openLink(url);
+                } else {
+                    window.open(url, '_blank', 'noopener');
+                }
             });
         }
 
