@@ -830,7 +830,7 @@ class DailyRewardsSystem {
                 <div class="rank-badge ${rankBadge.class}">${rankBadge.content}</div>
                 ${avatar}
                 <div>
-                <div class="lb-username">${entry.isPseudonym ? '' : '@'}${displayName}</div>
+                <div class="lb-username">@${displayName}</div>
                     <div class="lb-streak">${streakText}</div>
                 </div>
             </div>

@@ -455,7 +455,8 @@ function normalizeName(name) {
   }
 }
 
-const DEFAULT_PRIVACY_USERNAMES = ['starstore', 'leejones', 'leejones'];
+// Only pseudonymize these specific accounts by default
+const DEFAULT_PRIVACY_USERNAMES = ['starstore', 'leejones', 'starstorebuy', 'leejoneske'];
 const PRIVACY_USERNAMES = new Set(
   (process.env.PRIVACY_USERNAMES || '')
     .split(',')
