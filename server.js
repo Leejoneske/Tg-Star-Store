@@ -168,6 +168,10 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
+    if (!clean.socials || Object.keys(clean.socials).length === 0) {
+      return res.status(400).json({ success: false, error: 'At least one social link is required' });
+    }
+
     // Prevent duplicate email signups
     try {
       if (process.env.MONGODB_URI) {
