@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StarStore Ambassador Program - Join the Waitlist</title>
     <link rel="icon" href="/favicon.png" type="image/png">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
         
@@ -415,7 +416,7 @@
             <div class="levels-grid">
                 <div class="level-card">
                     <div class="level-header">
-                        <div class="level-badge" style="background: linear-gradient(135deg,#A78BFA 0%,#7C3AED 100%)">🧭</div>
+                        <div class="level-badge" style="background: linear-gradient(135deg,#A78BFA 0%,#7C3AED 100%)">🗺️</div>
                         <div class="level-title">Explorer · 30 referrals</div>
                     </div>
                     <div class="level-section-title">Requirements</div>
@@ -436,7 +437,7 @@
                 </div>
                 <div class="level-card">
                     <div class="level-header">
-                        <div class="level-badge" style="background: linear-gradient(135deg,#34D399 0%,#059669 100%)">🔗</div>
+                        <div class="level-badge" style="background: linear-gradient(135deg,#34D399 0%,#059669 100%)">🤝</div>
                         <div class="level-title">Connector · 50 referrals</div>
                     </div>
                     <div class="level-section-title">Requirements</div>
@@ -454,7 +455,7 @@
                 </div>
                 <div class="level-card">
                     <div class="level-header">
-                        <div class="level-badge" style="background: linear-gradient(135deg,#60A5FA 0%,#2563EB 100%)">🚀</div>
+                        <div class="level-badge" style="background: linear-gradient(135deg,#60A5FA 0%,#2563EB 100%)">🏔️</div>
                         <div class="level-title">Pioneer · 70 referrals</div>
                     </div>
                     <div class="level-section-title">Requirements</div>
@@ -583,21 +584,30 @@
             const submitBtn = form.querySelector('.submit-btn');
 
             // Auto-fill name/username from Telegram WebApp or URL param
-            try {
-                const tgUsername = window.Telegram?.WebApp?.initDataUnsafe?.user?.username || '';
-                const tgFirst = window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || '';
-                const tgLast = window.Telegram?.WebApp?.initDataUnsafe?.user?.last_name || '';
-                const tgFull = [tgFirst, tgLast].filter(Boolean).join(' ').trim();
-                const qp = new URLSearchParams(window.location.search);
-                const qpUsername = (qp.get('username') || '').trim();
-                const auto = (tgUsername || qpUsername).replace(/^@+/, '');
-                if (auto && !usernameInput.value) {
-                    usernameInput.value = auto;
-                }
-                if (tgFull && !fullNameInput.value) {
-                    fullNameInput.value = tgFull;
-                }
-            } catch (_) {}
+            function attemptAutofill() {
+                try {
+                    if (window.Telegram?.WebApp) {
+                        try { window.Telegram.WebApp.ready(); } catch (_) {}
+                    }
+                    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user || {};
+                    const tgUsername = tgUser.username || '';
+                    const tgFirst = tgUser.first_name || '';
+                    const tgLast = tgUser.last_name || '';
+                    const tgFull = [tgFirst, tgLast].filter(Boolean).join(' ').trim();
+                    const qp = new URLSearchParams(window.location.search);
+                    const qpUsername = (qp.get('username') || '').trim();
+                    const auto = (tgUsername || qpUsername).replace(/^@+/, '');
+                    if (auto && !usernameInput.value) {
+                        usernameInput.value = auto;
+                    }
+                    if (tgFull && !fullNameInput.value) {
+                        fullNameInput.value = tgFull;
+                    }
+                } catch (_) {}
+            }
+            attemptAutofill();
+            // Retry once shortly after in case Telegram SDK initializes slightly later
+            setTimeout(attemptAutofill, 300);
 
             async function submitForm(e) {
                 e.preventDefault();
