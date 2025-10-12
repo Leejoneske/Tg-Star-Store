@@ -360,6 +360,10 @@
             <h2>Join the Waitlist</h2>
             <form id="ambassadorForm">
                 <div class="form-group">
+                    <label for="fullName">Full Name *</label>
+                    <input type="text" id="fullName" name="fullName" required placeholder="Jane Doe">
+                </div>
+                <div class="form-group">
                     <label for="username">Telegram Username (optional)</label>
                     <input type="text" id="username" name="username" placeholder="@yourusername">
                 </div>
@@ -367,6 +371,48 @@
                 <div class="form-group">
                     <label for="email">Email Address *</label>
                     <input type="email" id="email" name="email" required placeholder="john@example.com">
+                </div>
+
+                <div class="form-group">
+                    <label>Where will you post? (add handles/links)</label>
+                    <div style="display:grid; gap:10px;">
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="checkbox" id="cbInstagram" style="width:16px;height:16px;" />
+                            <label for="instagram" style="min-width:120px;">Instagram</label>
+                            <input type="text" id="instagram" placeholder="@your_ig or link" style="flex:1;" />
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="checkbox" id="cbTikTok" style="width:16px;height:16px;" />
+                            <label for="tiktok" style="min-width:120px;">TikTok</label>
+                            <input type="text" id="tiktok" placeholder="@your_tiktok or link" style="flex:1;" />
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="checkbox" id="cbX" style="width:16px;height:16px;" />
+                            <label for="x" style="min-width:120px;">X (Twitter)</label>
+                            <input type="text" id="x" placeholder="@your_x or link" style="flex:1;" />
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="checkbox" id="cbYouTube" style="width:16px;height:16px;" />
+                            <label for="youtube" style="min-width:120px;">YouTube</label>
+                            <input type="text" id="youtube" placeholder="Channel link" style="flex:1;" />
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="checkbox" id="cbFacebook" style="width:16px;height:16px;" />
+                            <label for="facebook" style="min-width:120px;">Facebook</label>
+                            <input type="text" id="facebook" placeholder="Profile/Page link" style="flex:1;" />
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="checkbox" id="cbTelegram" style="width:16px;height:16px;" />
+                            <label for="telegram" style="min-width:120px;">Telegram Channel</label>
+                            <input type="text" id="telegram" placeholder="t.me/yourchannel" style="flex:1;" />
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="checkbox" id="cbOther" style="width:16px;height:16px;" />
+                            <label for="other" style="min-width:120px;">Other</label>
+                            <input type="text" id="other" placeholder="Link or handle" style="flex:1;" />
+                        </div>
+                        <small style="color:#5D6D7E;">Add at least one platform you use or plan to use.</small>
+                    </div>
                 </div>
                 
                 <button type="submit" class="submit-btn">Join the Waitlist</button>
@@ -380,31 +426,39 @@
         </div>
         
         <div class="perks-section">
-            <h2>What You'll Get</h2>
+            <h2>Ambassador Levels</h2>
             <div class="perks-list">
                 <div class="perk-item">
-                    <div class="perk-check">✓</div>
-                    <div class="perk-text"><strong>Custom referral link</strong> with detailed tracking dashboard</div>
+                    <div class="perk-check">1</div>
+                    <div class="perk-text">
+                        <strong>Level 1 — Explorer (30 referrals)</strong><br>
+                        <em>Requirements:</em> 30+ successful transactions/month • 4 social posts/month • Active in community • Avg. transaction 350+ Stars<br>
+                        <em>Benefits:</em> $30 minimum earnings • Level 1 NFT • 50 free Stars monthly • Access to ambassador group • Basic analytics dashboard
+                    </div>
                 </div>
                 <div class="perk-item">
-                    <div class="perk-check">✓</div>
-                    <div class="perk-text"><strong>Marketing resources</strong> including branded content and graphics</div>
+                    <div class="perk-check">2</div>
+                    <div class="perk-text">
+                        <strong>Level 2 — Connector (50 referrals)</strong><br>
+                        <em>Requirements:</em> 50+ transactions/month • 6 social posts/month • Avg. transaction 400+ Stars<br>
+                        <em>Benefits:</em> $60+ earnings • Level 2 NFT • 100 free Stars monthly
+                    </div>
                 </div>
                 <div class="perk-item">
-                    <div class="perk-check">✓</div>
-                    <div class="perk-text"><strong>Monthly bonuses</strong> for top-performing ambassadors</div>
+                    <div class="perk-check">3</div>
+                    <div class="perk-text">
+                        <strong>Level 3 — Pioneer (70 referrals)</strong><br>
+                        <em>Requirements:</em> 70+ transactions/month • 8 social posts/month (incl. 1 video) • Avg. transaction 450+ Stars • Mentor 1 Level 1 ambassador<br>
+                        <em>Benefits:</em> $80+ earnings • Level 3 NFT • 150 free Stars monthly • Priority support • Co‑marketing opportunities
+                    </div>
                 </div>
                 <div class="perk-item">
-                    <div class="perk-check">✓</div>
-                    <div class="perk-text"><strong>Free products</strong> to review and showcase</div>
-                </div>
-                <div class="perk-item">
-                    <div class="perk-check">✓</div>
-                    <div class="perk-text"><strong>Priority support</strong> from our ambassador team</div>
-                </div>
-                <div class="perk-item">
-                    <div class="perk-check">✓</div>
-                    <div class="perk-text"><strong>Exclusive community</strong> access to network with other ambassadors</div>
+                    <div class="perk-check">4</div>
+                    <div class="perk-text">
+                        <strong>Level 4 — Elite (100 referrals)</strong><br>
+                        <em>Requirements:</em> 100+ transactions/month • 10 social posts/month (incl. 2 videos) • Avg. transaction 500+ Stars • Lead monthly community event<br>
+                        <em>Benefits:</em> $110+ earnings • Level 4 NFT • 200 free Stars monthly • Revenue share participation
+                    </div>
                 </div>
             </div>
         </div>
@@ -420,18 +474,25 @@
             const form = document.getElementById('ambassadorForm');
             const successMessage = document.getElementById('successMessage');
             const errorMessage = document.getElementById('errorMessage');
+            const fullNameInput = document.getElementById('fullName');
             const usernameInput = document.getElementById('username');
             const emailInput = document.getElementById('email');
             const submitBtn = form.querySelector('.submit-btn');
 
-            // Auto-fill username from Telegram WebApp or URL param
+            // Auto-fill name/username from Telegram WebApp or URL param
             try {
                 const tgUsername = window.Telegram?.WebApp?.initDataUnsafe?.user?.username || '';
+                const tgFirst = window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || '';
+                const tgLast = window.Telegram?.WebApp?.initDataUnsafe?.user?.last_name || '';
+                const tgFull = [tgFirst, tgLast].filter(Boolean).join(' ').trim();
                 const qp = new URLSearchParams(window.location.search);
                 const qpUsername = (qp.get('username') || '').trim();
                 const auto = (tgUsername || qpUsername).replace(/^@+/, '');
                 if (auto && !usernameInput.value) {
                     usernameInput.value = auto;
+                }
+                if (tgFull && !fullNameInput.value) {
+                    fullNameInput.value = tgFull;
                 }
             } catch (_) {}
 
@@ -442,12 +503,44 @@
                 successMessage.style.display = 'none';
 
                 const formData = {
+                    fullName: (fullNameInput.value || '').trim(),
                     username: (usernameInput.value || '').trim(),
-                    email: (emailInput.value || '').trim()
+                    email: (emailInput.value || '').trim(),
+                    socials: {}
                 };
 
+                if (!formData.fullName || formData.fullName.length < 2) {
+                    errorMessage.textContent = 'Please enter your full name.';
+                    errorMessage.style.display = 'block';
+                    return;
+                }
                 if (!formData.email || !formData.email.includes('@')) {
                     errorMessage.textContent = 'Please enter a valid email address.';
+                    errorMessage.style.display = 'block';
+                    return;
+                }
+
+                // Collect socials (only non-empty and box-checked)
+                const socialsMap = [
+                    ['instagram','cbInstagram'],
+                    ['tiktok','cbTikTok'],
+                    ['x','cbX'],
+                    ['youtube','cbYouTube'],
+                    ['facebook','cbFacebook'],
+                    ['telegram','cbTelegram'],
+                    ['other','cbOther']
+                ];
+                let socialsCount = 0;
+                socialsMap.forEach(([id, cb]) => {
+                    const checked = document.getElementById(cb)?.checked;
+                    const val = (document.getElementById(id)?.value || '').trim();
+                    if (checked && val) {
+                        formData.socials[id] = val;
+                        socialsCount++;
+                    }
+                });
+                if (socialsCount === 0) {
+                    errorMessage.textContent = 'Please add at least one social platform (handle or link).';
                     errorMessage.style.display = 'block';
                     return;
                 }

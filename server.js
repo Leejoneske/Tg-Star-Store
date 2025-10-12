@@ -152,14 +152,19 @@ app.use(express.static('public', {
 // Ambassador Waitlist endpoint
 app.post('/api/ambassador/waitlist', async (req, res) => {
   try {
-    const { username = '', email = '' } = req.body || {};
+    const { fullName = '', username = '', email = '', socials = {} } = req.body || {};
+    if (!fullName || typeof fullName !== 'string' || fullName.trim().length < 2) {
+      return res.status(400).json({ success: false, error: 'Full name is required' });
+    }
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return res.status(400).json({ success: false, error: 'Valid email is required' });
     }
     const clean = {
       id: `AMB-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`,
+      fullName: String(fullName || '').trim(),
       username: String(username || '').trim().replace(/^@+/, ''),
       email: String(email || '').trim().toLowerCase(),
+      socials: Object.fromEntries(Object.entries(socials || {}).map(([k,v]) => [String(k), String(v).trim()]).filter(([,v]) => !!v)),
       createdAt: new Date().toISOString()
     };
 
@@ -169,8 +174,10 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
         if (!global.AmbassadorWaitlist) {
           const schema = new mongoose.Schema({
             id: { type: String, unique: true },
+            fullName: String,
             username: String,
             email: { type: String, index: true },
+            socials: { type: Object, default: {} },
             createdAt: { type: Date, default: Date.now }
           }, { collection: 'ambassador_waitlist' });
           global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
@@ -203,8 +210,10 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       if (!global.AmbassadorWaitlist) {
         const schema = new mongoose.Schema({
           id: { type: String, unique: true },
+          fullName: String,
           username: String,
           email: { type: String, index: true },
+          socials: { type: Object, default: {} },
           createdAt: { type: Date, default: Date.now }
         }, { collection: 'ambassador_waitlist' });
         global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
@@ -240,7 +249,7 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
     try {
       const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
       if (tgId) {
-        await bot.sendMessage(tgId, '✅ You have been added to the StarStore Ambassador waitlist. We will contact you soon.');
+        await bot.sendMessage(tgId, `✅ Thanks ${clean.fullName}! You have been added to the StarStore Ambassador waitlist. We will contact you soon.`);
       }
     } catch (_) {}
 
@@ -256,8 +265,10 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
         const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
         const adminMsg =
           `🆕 New Ambassador Waitlist Signup\n\n` +
+          `Name: ${clean.fullName}\n` +
           `Email: ${clean.email}\n` +
           `Username: ${clean.username ? '@' + clean.username : 'N/A'}\n` +
+          `${Object.keys(clean.socials||{}).length ? `Socials: ${Object.entries(clean.socials).map(([k,v])=>`${k}: ${v}`).join(', ')}\n` : ''}` +
           `${tgId ? `User ID: ${tgId}\n` : ''}` +
           `Entry ID: ${saved.id}`;
         await Promise.all(admins.map(aid => {
