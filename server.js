@@ -149,6 +149,9 @@ app.use(express.static('public', {
   }
 }));
 
+// Parse Telegram init data for all requests (non-blocking)
+try { app.use(verifyTelegramAuth); } catch (_) {}
+
 // Ambassador Waitlist endpoint
 app.post('/api/ambassador/waitlist', async (req, res) => {
   try {
@@ -251,10 +254,17 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
 
     // Attempt Telegram notify if request came from Telegram user
     try {
-      const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
-      if (tgId) {
-        await bot.sendMessage(tgId, `✅ Thanks ${clean.fullName}! You have been added to the StarStore Ambassador waitlist. We will contact you soon.`);
+      let tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
+      if (!tgId && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.id) {
+        tgId = String(req.telegramInitData.user.id);
       }
+      if (!tgId && clean.username) {
+        try {
+          const candidate = await User.findOne({ username: clean.username }).lean();
+          if (candidate && candidate.id) tgId = String(candidate.id);
+        } catch (_) {}
+      }
+      if (tgId) await bot.sendMessage(tgId, `✅ Thanks ${clean.fullName}! You have been added to the StarStore Ambassador waitlist. We will contact you soon.`);
     } catch (_) {}
 
     // Notify admins of new signup
