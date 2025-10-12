@@ -185,6 +185,58 @@
             border-radius: 20px;
             margin: 40px 0;
         }
+        /* Communication flow */
+        .flow-section {
+            background: #ffffff;
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            margin: 32px auto;
+        }
+        .flow-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .flow-step {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            background: #f9fafb;
+            border: 1px solid #eef2f7;
+            border-radius: 12px;
+            padding: 14px;
+        }
+        .flow-emoji {
+            font-size: 20px;
+        }
+        .flow-title {
+            font-weight: 700;
+            color: #111827;
+            font-size: 0.98rem;
+        }
+        .flow-desc {
+            color: #4b5563;
+            font-size: 0.9rem;
+        }
+        /* Levels UI */
+        .levels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .level-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+        .level-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .level-badge { width: 36px; height: 36px; border-radius: 10px; color: #fff; font-weight: 700; display:flex; align-items:center; justify-content:center; }
+        .level-title { font-family: 'Libre Baskerville', serif; font-size: 1.05rem; color: #2C3E50; }
+        .level-section-title { font-weight: 600; margin-top: 10px; color: #34495E; font-size: 0.95rem; }
+        .level-list { margin: 6px 0 0 18px; color: #5D6D7E; font-size: 0.92rem; }
+        .level-list li { margin: 4px 0; }
         
         .perks-section h2 {
             font-family: 'Libre Baskerville', serif;
@@ -356,6 +408,127 @@
             </div>
         </div>
         
+        <div class="flow-section">
+            <h2 style="font-family:'Libre Baskerville',serif;font-size:1.6rem;margin-bottom:16px;color:#2C3E50;">How the Ambassador Program Works</h2>
+            <div class="flow-steps">
+                <div class="flow-step">
+                    <div class="flow-emoji">📝</div>
+                    <div>
+                        <div class="flow-title">1) Apply</div>
+                        <div class="flow-desc">Share your full name, email, and where you post (links/handles).</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-emoji">🔎</div>
+                    <div>
+                        <div class="flow-title">2) Review (24–72h)</div>
+                        <div class="flow-desc">We verify socials and reach out via Telegram DM or email.</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-emoji">🧰</div>
+                    <div>
+                        <div class="flow-title">3) Set up</div>
+                        <div class="flow-desc">Get your referral link, media kit, and dashboard access.</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-emoji">🚀</div>
+                    <div>
+                        <div class="flow-title">4) Earn & level up</div>
+                        <div class="flow-desc">Post consistently, track results, unlock higher-level rewards.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="perks-section">
+            <h2>Ambassador Levels</h2>
+            <div class="levels-grid">
+                <div class="level-card">
+                    <div class="level-header">
+                        <div class="level-badge" style="background: linear-gradient(135deg,#A78BFA 0%,#7C3AED 100%)">1</div>
+                        <div class="level-title">Explorer · 30 referrals</div>
+                    </div>
+                    <div class="level-section-title">Requirements</div>
+                    <ul class="level-list">
+                        <li>30+ successful transactions/month</li>
+                        <li>4 social media posts/month</li>
+                        <li>Active in community</li>
+                        <li>Average transaction 350+ Stars</li>
+                    </ul>
+                    <div class="level-section-title">Benefits</div>
+                    <ul class="level-list">
+                        <li>$30 minimum earnings</li>
+                        <li>Level 1 NFT</li>
+                        <li>50 free Stars monthly</li>
+                        <li>Access to ambassador group</li>
+                        <li>Basic analytics dashboard</li>
+                    </ul>
+                </div>
+                <div class="level-card">
+                    <div class="level-header">
+                        <div class="level-badge" style="background: linear-gradient(135deg,#34D399 0%,#059669 100%)">2</div>
+                        <div class="level-title">Connector · 50 referrals</div>
+                    </div>
+                    <div class="level-section-title">Requirements</div>
+                    <ul class="level-list">
+                        <li>50+ transactions/month</li>
+                        <li>6 social posts/month</li>
+                        <li>Average transaction 400+ Stars</li>
+                    </ul>
+                    <div class="level-section-title">Benefits</div>
+                    <ul class="level-list">
+                        <li>$60+ earnings</li>
+                        <li>Level 2 NFT</li>
+                        <li>100 free Stars monthly</li>
+                    </ul>
+                </div>
+                <div class="level-card">
+                    <div class="level-header">
+                        <div class="level-badge" style="background: linear-gradient(135deg,#60A5FA 0%,#2563EB 100%)">3</div>
+                        <div class="level-title">Pioneer · 70 referrals</div>
+                    </div>
+                    <div class="level-section-title">Requirements</div>
+                    <ul class="level-list">
+                        <li>70+ transactions/month</li>
+                        <li>8 social posts/month (incl. 1 video)</li>
+                        <li>Average transaction 450+ Stars</li>
+                        <li>Mentor 1 Level 1 ambassador</li>
+                    </ul>
+                    <div class="level-section-title">Benefits</div>
+                    <ul class="level-list">
+                        <li>$80+ earnings</li>
+                        <li>Level 3 NFT</li>
+                        <li>150 free Stars monthly</li>
+                        <li>Priority support</li>
+                        <li>Co-marketing opportunities</li>
+                    </ul>
+                </div>
+                <div class="level-card">
+                    <div class="level-header">
+                        <div class="level-badge" style="background: linear-gradient(135deg,#F59E0B 0%,#D97706 100%)">4</div>
+                        <div class="level-title">Elite · 100 referrals</div>
+                    </div>
+                    <div class="level-section-title">Requirements</div>
+                    <ul class="level-list">
+                        <li>100+ transactions/month</li>
+                        <li>10 social posts/month (incl. 2 videos)</li>
+                        <li>Average transaction 500+ Stars</li>
+                        <li>Lead monthly community event</li>
+                    </ul>
+                    <div class="level-section-title">Benefits</div>
+                    <ul class="level-list">
+                        <li>$110+ earnings</li>
+                        <li>Level 4 NFT</li>
+                        <li>200 free Stars monthly</li>
+                        <li>Revenue share participation</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Application form moved below program info for better flow -->
         <div class="waitlist-form">
             <h2>Join the Ambassador Program</h2>
             <form id="ambassadorForm">
@@ -423,44 +596,6 @@
                 </div>
                 <div class="error-message" id="errorMessage"></div>
             </form>
-        </div>
-        
-        <div class="perks-section">
-            <h2>Ambassador Levels</h2>
-            <div class="perks-list">
-                <div class="perk-item">
-                    <div class="perk-check">1</div>
-                    <div class="perk-text">
-                        <strong>Level 1 — Explorer (30 referrals)</strong><br>
-                        <em>Requirements:</em> 30+ successful transactions/month • 4 social posts/month • Active in community • Avg. transaction 350+ Stars<br>
-                        <em>Benefits:</em> $30 minimum earnings • Level 1 NFT • 50 free Stars monthly • Access to ambassador group • Basic analytics dashboard
-                    </div>
-                </div>
-                <div class="perk-item">
-                    <div class="perk-check">2</div>
-                    <div class="perk-text">
-                        <strong>Level 2 — Connector (50 referrals)</strong><br>
-                        <em>Requirements:</em> 50+ transactions/month • 6 social posts/month • Avg. transaction 400+ Stars<br>
-                        <em>Benefits:</em> $60+ earnings • Level 2 NFT • 100 free Stars monthly
-                    </div>
-                </div>
-                <div class="perk-item">
-                    <div class="perk-check">3</div>
-                    <div class="perk-text">
-                        <strong>Level 3 — Pioneer (70 referrals)</strong><br>
-                        <em>Requirements:</em> 70+ transactions/month • 8 social posts/month (incl. 1 video) • Avg. transaction 450+ Stars • Mentor 1 Level 1 ambassador<br>
-                        <em>Benefits:</em> $80+ earnings • Level 3 NFT • 150 free Stars monthly • Priority support • Co‑marketing opportunities
-                    </div>
-                </div>
-                <div class="perk-item">
-                    <div class="perk-check">4</div>
-                    <div class="perk-text">
-                        <strong>Level 4 — Elite (100 referrals)</strong><br>
-                        <em>Requirements:</em> 100+ transactions/month • 10 social posts/month (incl. 2 videos) • Avg. transaction 500+ Stars • Lead monthly community event<br>
-                        <em>Benefits:</em> $110+ earnings • Level 4 NFT • 200 free Stars monthly • Revenue share participation
-                    </div>
-                </div>
-            </div>
         </div>
         
         <footer>
