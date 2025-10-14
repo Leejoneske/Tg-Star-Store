@@ -4269,6 +4269,14 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
 app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    // Debounce: prevent duplicate rapid check-ins from dual flows (1.5s window)
+    const nowTs = Date.now();
+    if (!global.__recentCheckins) global.__recentCheckins = new Map();
+    const lastTs = global.__recentCheckins.get(userId) || 0;
+    if (nowTs - lastTs < 1500) {
+      return res.json({ success: true, alreadyChecked: true });
+    }
+    global.__recentCheckins.set(userId, nowTs);
     const today = new Date();
     const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const day = today.getDate();
@@ -7925,6 +7933,29 @@ bot.onText(/\/users/, async (msg) => {
         console.error('Error fetching user count:', err);
         bot.sendMessage(chatId, '❌ Failed to fetch user count.');
     }
+});
+
+// Admin-only: /activity - bot activity summary (no console)
+bot.onText(/\/activity(?:\s+(24h|7d))?/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  if (!adminIds.includes(chatId.toString())) {
+    try { await bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.'); } catch {}
+    return;
+  }
+  const windowArg = (match && match[1]) || '24h';
+  const windowMs = windowArg === '7d' ? 7*24*60*60*1000 : 24*60*60*1000;
+  try {
+    const [totalUsers, states] = await Promise.all([
+      User.countDocuments({}).catch(()=>0),
+      DailyState.find({}, { userId: 1, lastCheckIn: 1 }).lean().catch(()=>[])
+    ]);
+    const cutoff = Date.now() - windowMs;
+    const active = states.filter(s => s.lastCheckIn && new Date(s.lastCheckIn).getTime() >= cutoff).length;
+    const text = `📈 Activity (${windowArg})\n\nUsers: ${totalUsers}\nChecked-in: ${active}`;
+    await bot.sendMessage(chatId, text);
+  } catch (e) {
+    try { await bot.sendMessage(chatId, '❌ Failed to load activity.'); } catch {}
+  }
 });
 
 
