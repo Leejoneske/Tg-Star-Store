@@ -1882,16 +1882,8 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
 
         await order.save();
         
-        // Log activity for order creation
-        console.log(`🛒 Buy order created for user ${telegramId}, logging activity...`);
-        const activityType = isPremium ? ACTIVITY_TYPES.BUY_ORDER : ACTIVITY_TYPES.BUY_ORDER;
-        await logActivity(telegramId, activityType, activityType.points, {
-          orderId: order._id,
-          stars: stars,
-          isPremium: isPremium,
-          premiumDuration: premiumDuration,
-          recipients: recipients?.length || 0
-        });
+        // Do NOT award or log points yet; award on completion
+        console.log(`🛒 Buy order created for user ${telegramId}`);
         
         console.log('✅ Order created successfully:', order.id);
         res.json({ success: true, order });
@@ -2023,13 +2015,8 @@ app.post("/api/sell-orders", async (req, res) => {
 
         await order.save();
 
-        // Log activity for sell order creation
-        console.log(`💰 Sell order created for user ${telegramId}, logging activity...`);
-        await logActivity(telegramId, ACTIVITY_TYPES.SELL_ORDER, ACTIVITY_TYPES.SELL_ORDER.points, {
-          orderId: order.id,
-          stars: stars,
-          walletAddress: walletAddress
-        });
+        // Do NOT award or log points at creation
+        console.log(`💰 Sell order created for user ${telegramId}`);
 
         const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
         try { await bot.sendMessage(telegramId, userMessage); } catch {}
