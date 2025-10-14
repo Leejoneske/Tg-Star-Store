@@ -355,10 +355,10 @@
         const affiliateLink = document.getElementById('affiliateProgramLink');
         if (affiliateLink) {
             affiliateLink.addEventListener('click', function () {
-                const url = '/ambassador';
-                if (window.Telegram?.WebApp) {
-                    // Navigate inside the WebApp to preserve initData
-                    window.location.href = url;
+                const url = `${window.location.origin}/ambassador`;
+                if (window.Telegram?.WebApp?.openLink) {
+                    // Always open outside Telegram mini app in a new tab
+                    window.Telegram.WebApp.openLink(url);
                 } else {
                     window.open(url, '_blank', 'noopener');
                 }
