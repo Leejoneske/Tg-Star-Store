@@ -586,7 +586,7 @@
             const submitBtn = form.querySelector('.submit-btn');
 
             // Auto-fill name/username from Telegram WebApp or URL param
-            function attemptAutofill() {
+            async function attemptAutofill() {
                 try {
                     if (window.Telegram?.WebApp) {
                         try { window.Telegram.WebApp.ready(); } catch (_) {}
@@ -605,7 +605,21 @@
                     if (tgFull && !fullNameInput.value) {
                         fullNameInput.value = tgFull;
                     }
+                    // Fallback: ask backend if it knows the username
+                    if (!usernameInput.value) {
+                        try {
+                            const me = await fetch('/api/me', { headers: buildHeaders() }).then(r=>r.json()).catch(()=>({}));
+                            if (me?.username && !usernameInput.value) usernameInput.value = me.username;
+                        } catch(_) {}
+                    }
                 } catch (_) {}
+            }
+            function buildHeaders() {
+                const h = { 'Content-Type': 'application/json' };
+                if (window.Telegram?.WebApp?.initData) h['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+                const id = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+                if (id) h['x-telegram-id'] = String(id);
+                return h;
             }
             attemptAutofill();
             // Retry once shortly after in case Telegram SDK initializes slightly later

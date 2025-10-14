@@ -7977,10 +7977,13 @@ function requireAdmin(req, res, next) {
 app.get('/api/me', (req, res) => {
 	const sess = getAdminSession(req);
 	if (sess && adminIds.includes(sess.payload.tgId)) {
-		return res.json({ id: sess.payload.tgId, isAdmin: true });
+		return res.json({ id: sess.payload.tgId, isAdmin: true, username: null });
 	}
 	const tgId = (req.headers['x-telegram-id'] || '').toString();
-	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false });
+	let username = null;
+	try { if (req.user && req.user.username) username = req.user.username; } catch(_) {}
+	try { if (!username && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.username) username = req.telegramInitData.user.username; } catch(_) {}
+	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false, username });
 });
 
 // Basic admin stats
