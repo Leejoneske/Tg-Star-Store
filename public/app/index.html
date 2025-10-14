@@ -3355,6 +3355,11 @@ async function fetchCurrentRate() {
     </script>
     <script src="/js/version-display.js?v=3"></script>
     <script>
+    (function(){
+      try { if (location.pathname !== '/app') history.replaceState(null, '', '/app'); } catch(_) {}
+    })();
+    </script>
+    <script>
         // Auto-update version display
         setTimeout(() => {
             if (window.versionDisplay) {
