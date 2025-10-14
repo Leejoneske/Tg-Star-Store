@@ -1,0 +1,27 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/app/index.html" },
+    { "source": "/app", "destination": "/app/index.html" },
+
+    { "source": "/sell", "destination": "/app/sell.html" },
+    { "source": "/about", "destination": "/app/about.html" },
+    { "source": "/history", "destination": "/app/history.html" },
+    { "source": "/daily", "destination": "/app/daily.html" },
+    { "source": "/referral", "destination": "/app/referral.html" },
+    { "source": "/support", "destination": "/app/support.html" },
+    { "source": "/notification", "destination": "/app/notification.html" },
+
+    { "source": "/ambassador", "destination": "/ambassador/index.html" },
+    { "source": "/blog", "destination": "/blog/index.html" },
+    { "source": "/knowledge-base", "destination": "/knowledge-base/index.html" },
+    { "source": "/how-to-withdraw-telegram-stars", "destination": "/how-to-withdraw-telegram-stars/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)\\.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    }
+  ]
+}
