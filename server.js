@@ -319,10 +319,10 @@ app.get(['/ambasador', '/ambasador.html'], (req, res) => {
 app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
   try {
     const map = {
-      '/': 'app/index.html',
-      '/about': 'app/about.html',
-      '/sell': 'app/sell.html',
-      '/history': 'app/history.html',
+      '/': 'index.html',
+      '/about': 'about.html',
+      '/sell': 'sell.html',
+      '/history': 'history.html',
       '/blog': 'blog/index.html',
       '/knowledge-base': 'knowledge-base/index.html',
       '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
