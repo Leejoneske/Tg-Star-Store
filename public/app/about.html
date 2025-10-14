@@ -325,7 +325,7 @@
         }
         
         // Load shared bottom nav
-        fetch('bottomnav.html')
+        fetch('/bottomnav.html')
             .then(r => r.ok ? r.text() : '')
             .then(html => { 
                 document.getElementById('bottomnav-container').innerHTML = html; 

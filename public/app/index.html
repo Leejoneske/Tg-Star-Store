@@ -1804,7 +1804,7 @@ function loadBottomNav() {
     return new Promise((resolve) => {
         const container = document.getElementById('bottomnav-container');
         if (!container) return resolve();
-        fetch('bottomnav.html')
+        fetch('/bottomnav.html')
             .then(r => r.ok ? r.text() : '')
             .then(html => { 
                 container.innerHTML = html; 
