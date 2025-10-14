@@ -518,42 +518,42 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Where will you post? (add handles/links) <span style="color:#dc2626">*</span></label>
+                    <label>Where will you post? (links only, no @ usernames) <span style="color:#dc2626">*</span></label>
                     <div style="display:grid; gap:10px;">
                         <div style="display:flex; gap:10px; align-items:center;">
                             <input type="checkbox" id="cbInstagram" style="width:16px;height:16px;" />
                             <label for="instagram" style="min-width:120px;">Instagram</label>
-                            <input type="text" id="instagram" placeholder="@your_ig or link" style="flex:1;" />
+                            <input type="text" id="instagram" placeholder="https://instagram.com/username" style="flex:1;" />
                         </div>
                         <div style="display:flex; gap:10px; align-items:center;">
                             <input type="checkbox" id="cbTikTok" style="width:16px;height:16px;" />
                             <label for="tiktok" style="min-width:120px;">TikTok</label>
-                            <input type="text" id="tiktok" placeholder="@your_tiktok or link" style="flex:1;" />
+                            <input type="text" id="tiktok" placeholder="https://tiktok.com/@username" style="flex:1;" />
                         </div>
                         <div style="display:flex; gap:10px; align-items:center;">
                             <input type="checkbox" id="cbX" style="width:16px;height:16px;" />
                             <label for="x" style="min-width:120px;">X (Twitter)</label>
-                            <input type="text" id="x" placeholder="@your_x or link" style="flex:1;" />
+                            <input type="text" id="x" placeholder="https://x.com/username" style="flex:1;" />
                         </div>
                         <div style="display:flex; gap:10px; align-items:center;">
                             <input type="checkbox" id="cbYouTube" style="width:16px;height:16px;" />
                             <label for="youtube" style="min-width:120px;">YouTube</label>
-                            <input type="text" id="youtube" placeholder="Channel link" style="flex:1;" />
+                            <input type="text" id="youtube" placeholder="https://youtube.com/@channel" style="flex:1;" />
                         </div>
                         <div style="display:flex; gap:10px; align-items:center;">
                             <input type="checkbox" id="cbFacebook" style="width:16px;height:16px;" />
                             <label for="facebook" style="min-width:120px;">Facebook</label>
-                            <input type="text" id="facebook" placeholder="Profile/Page link" style="flex:1;" />
+                            <input type="text" id="facebook" placeholder="https://facebook.com/yourpage" style="flex:1;" />
                         </div>
                         <div style="display:flex; gap:10px; align-items:center;">
                             <input type="checkbox" id="cbTelegram" style="width:16px;height:16px;" />
                             <label for="telegram" style="min-width:120px;">Telegram Channel</label>
-                            <input type="text" id="telegram" placeholder="t.me/yourchannel" style="flex:1;" />
+                            <input type="text" id="telegram" placeholder="https://t.me/yourchannel" style="flex:1;" />
                         </div>
                         <div style="display:flex; gap:10px; align-items:center;">
                             <input type="checkbox" id="cbOther" style="width:16px;height:16px;" />
                             <label for="other" style="min-width:120px;">Other</label>
-                            <input type="text" id="other" placeholder="Link or handle" style="flex:1;" />
+                            <input type="text" id="other" placeholder="https://example.com/profile" style="flex:1;" />
                         </div>
                         <small style="color:#5D6D7E;">Add at least one platform you use or plan to use.</small>
                     </div>
@@ -635,7 +635,23 @@
                     return;
                 }
 
-                // Collect socials (only non-empty and box-checked)
+                // Helpers for URL validation
+                function normalizeUrl(value) {
+                    const raw = (value || '').trim();
+                    if (!raw || raw.startsWith('@')) return null;
+                    let candidate = raw;
+                    if (!/^https?:\/\//i.test(candidate)) {
+                        // Allow bare domains like t.me/..., instagram.com/...
+                        candidate = 'https://' + candidate;
+                    }
+                    try {
+                        const u = new URL(candidate);
+                        if (!u.hostname || !u.protocol.startsWith('http')) return null;
+                        return u.href;
+                    } catch { return null; }
+                }
+
+                // Collect socials (only valid links and box-checked)
                 const socialsMap = [
                     ['instagram','cbInstagram'],
                     ['tiktok','cbTikTok'],
@@ -649,9 +665,14 @@
                 socialsMap.forEach(([id, cb]) => {
                     const checked = document.getElementById(cb)?.checked;
                     const val = (document.getElementById(id)?.value || '').trim();
-                    if (checked && val) {
-                        formData.socials[id] = val;
-                        socialsCount++;
+                    if (checked) {
+                        const normalized = normalizeUrl(val);
+                        if (normalized) {
+                            formData.socials[id] = normalized;
+                            socialsCount++;
+                        } else if (val) {
+                            throw new Error(`Please enter a valid link for ${id}.`);
+                        }
                     }
                 });
                 if (socialsCount === 0) {

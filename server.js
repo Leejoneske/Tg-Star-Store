@@ -175,6 +175,16 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       return res.status(400).json({ success: false, error: 'At least one social link is required' });
     }
 
+    // Validate socials are links (http/https)
+    for (const [k, v] of Object.entries(clean.socials)) {
+      try {
+        const u = new URL(v.startsWith('http') ? v : `https://${v}`);
+        if (!u.hostname) throw new Error('invalid');
+      } catch {
+        return res.status(400).json({ success: false, error: `Invalid link for ${k}` });
+      }
+    }
+
     // Prevent duplicate email signups
     try {
       if (process.env.MONGODB_URI) {
