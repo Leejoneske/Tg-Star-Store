@@ -316,7 +316,7 @@ app.get(['/ambasador', '/ambasador.html'], (req, res) => {
 });
 
 // Ensure directories with index.html return 200 (no 302/redirects)
-app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
+app.get(['/', '/app', '/about', '/sell', '/history', '/daily', '/referral', '/support', '/notification', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
   try {
     const map = {
       '/': 'app/index.html',
