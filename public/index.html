@@ -1,12 +1,3368 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0; url=/app/" />
-  <title>Redirecting…</title>
-  <script>location.replace('/app/');</script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-SX6TDXG0N8"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);} 
+      gtag('js', new Date());
+
+      gtag('config', 'G-SX6TDXG0N8');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>StarStore | Buy & Sell Telegram Stars | Stars to USDT Converter</title>
+    <!-- API Utility Script (restored) -->
+    <script src="/js/api.js?v=4"></script>
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Buy and sell Telegram Stars securely with StarStore. Convert Stars to USDT, purchase Premium subscriptions, and earn rewards. Fast, secure, and reliable platform for Telegram Stars trading.">
+    <meta name="keywords" content="Telegram Stars, buy Telegram Stars, sell Telegram Stars, Stars to USDT, Telegram Premium, TON blockchain, digital payments, crypto payments, StarStore">
+    <meta name="author" content="StarStore">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://starstore.site/">
+    <meta property="og:title" content="StarStore | Buy & Sell Telegram Stars | Stars to USDT Converter">
+    <meta property="og:description" content="Buy and sell Telegram Stars securely with StarStore. Convert Stars to USDT, purchase Premium subscriptions, and earn rewards.">
+    <meta property="og:image" content="https://starstore.site/images/starstore-og.jpg">
+    <meta property="og:site_name" content="StarStore">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://starstore.site/">
+    <meta property="twitter:title" content="StarStore | Buy & Sell Telegram Stars | Stars to USDT Converter">
+    <meta property="twitter:description" content="Buy and sell Telegram Stars securely with StarStore. Convert Stars to USDT, purchase Premium subscriptions, and earn rewards.">
+    <meta property="twitter:image" content="https://starstore.site/images/starstore-og.jpg">
+    <!-- Structured Data: Organization & WebSite -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "StarStore",
+      "url": "https://starstore.site/",
+      "logo": "https://starstore.site/favicon.png",
+      "sameAs": [
+        "https://t.me/StarStore_app",
+        "https://t.me/StarStore_Chat",
+        "https://github.com/Leejoneske/Tg-Star-Store"
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "url": "https://starstore.site/",
+      "name": "StarStore",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://starstore.site/history?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://starstore.site/">
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "StarStore",
+        "description": "Buy and sell Telegram Stars securely with StarStore. Convert Stars to USDT, purchase Premium subscriptions, and earn rewards.",
+        "url": "https://starstore.site/",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://starstore.site/search?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+        }
+    }
+    </script>
+
+    <!-- Telegram WebApp Script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- CSS & Fonts -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" as="script">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/theme-additional.css?v=7">
+    
+    
+
+<style>
+    body {
+        font-family: 'Inter', sans-serif;
+        background: #f8fafc;
+        margin: 0;
+        padding: 0;
+    }
+
+    .app-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        margin: 0 auto;
+        background: white;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+        max-width: 600px;
+        width: 100%;
+        padding-bottom: 64px;
+    }
+
+    /* Simple Telegram Mini App styles */
+    .telegram-fullscreen .app-container {
+        max-width: 100%;
+        width: 100%;
+        margin: 0;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    
+
+    .profile-image {
+        width: 64px;
+        height: 64px;
+        border: 3px solid #4f46e5;
+        border-radius: 50%;
+        overflow: hidden;
+        transition: transform 0.3s ease;
+        flex-shrink: 0;
+    }
+
+    .profile-image:hover {
+        transform: scale(1.05);
+    }
+
+    .package-option {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: white;
+        will-change: transform, box-shadow, border-color;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .package-option::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.02), rgba(79, 70, 229, 0.05));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+    }
+
+    .package-option:hover {
+        border-color: #4f46e5;
+        transform: translateY(-6px);
+        box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    .package-option:hover::before {
+        opacity: 1;
+    }
+    
+    .package-option:active {
+        transform: translateY(-2px);
+        transition: transform 0.1s ease;
+    }
+
+    .buy-button {
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        color: white;
+        border-radius: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+        padding: 8px 12px;
+        font-size: 14px;
+        border: none;
+        cursor: pointer;
+        will-change: transform, box-shadow;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .buy-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.6s ease;
+        pointer-events: none;
+    }
+
+    .buy-button:hover {
+        background: linear-gradient(135deg, #5054c0, #3f3aaf);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 20px -3px rgba(79, 70, 229, 0.4);
+    }
+    
+    .buy-button:hover::before {
+        left: 100%;
+    }
+    
+    .buy-button:active {
+        transform: translateY(0);
+        transition: transform 0.1s ease;
+    }
+    
+    /* Enhanced animations for purchase flow */
+    .purchase-animation {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .purchase-animation:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Smooth loading transitions */
+    .loading-spinner {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Enhanced button hover effects */
+    .btn-enhanced {
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-enhanced::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+        pointer-events: none;
+    }
+    
+    .btn-enhanced:hover::before {
+        left: 100%;
+    }
+    
+    .btn-enhanced:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Smooth modal transitions */
+    .modal-smooth {
+        animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    #connectWallet {
+    padding: 8px 16px;
+    font-size: 14px;
+    border: 1px solid #4f46e5;
+    border-radius: 10px;
+    color: #4f46e5;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s ease; /* Combined transitions for efficiency */
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 140px;
+    white-space: nowrap;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    will-change: transform;
+}
+
+/* (reverted enhanced language dropdown styling) */
+
+#connectWallet:hover {
+    background-color: #f3f4f6;
+    transform: translateY(-1px); 
+}
+
+#connectWallet:active {
+    transform: translateY(0); 
+}
+
+#connectWallet:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+#connectWallet.wallet-connected {
+    background-color: #f0f9ff; 
+    border-color: #0ea5e9; 
+    color: #0ea5e9;
+}
+
+#connectWallet.wallet-connected:hover {
+    background-color: #e0f2fe;
+}
+
+.wallet-address {
+    font-size: 12px;
+    color: #6b7280;
+    font-family: 'Courier New', Consolas, monospace; 
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px; 
+}
+
+/* Disabled package button styles */
+.buy-button:disabled {
+    background: linear-gradient(135deg, #9ca3af, #6b7280);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.buy-button:disabled:hover {
+    background: linear-gradient(135deg, #9ca3af, #6b7280);
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.buy-button.opacity-50 {
+    opacity: 0.5;
+}
+
+    .buy-button.cursor-not-allowed {
+        cursor: not-allowed;
+    }
+
+    /* Smooth transitions for better UX */
+    .package-option {
+        transition: all 0.3s ease;
+    }
+    
+    .package-option:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .buy-button {
+        transition: all 0.2s ease;
+    }
+    
+    .buy-button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+    
+    .buy-button:active:not(:disabled) {
+        transform: translateY(0);
+    }
+    
+    /* Smooth section transitions */
+    .section-content {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    
+    .section-content:not(.active) {
+        opacity: 0;
+        transform: translateY(10px);
+        pointer-events: none;
+    }
+    
+    .section-content.active {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    /* Smooth toggle button transitions */
+    .toggle-button {
+        transition: all 0.2s ease;
+    }
+    
+    .toggle-button:hover {
+        transform: translateY(-1px);
+    }
+    
+    /* Smooth radio button transitions */
+    input[type="radio"] {
+        transition: all 0.2s ease;
+    }
+    
+    /* Smooth input transitions */
+    input, button, select {
+        transition: all 0.2s ease;
+    }
+    
+    /* Loading animation improvements */
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    .logo-header {
+        font-size: 24px;
+        font-weight: bold;
+        color: #4f46e5;
+        text-align: left;
+        padding: 16px;
+        background: linear-gradient(90deg, #4f46e5, #6366f1);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        width: fit-content;
+    }
+
+    .language-toggle {
+        padding: 6px 10px;
+        font-size: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        color: #6b7280;
+        background-color: #f9fafb;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        min-width: 80px;
+    }
+
+    .language-toggle:hover {
+        background-color: #f3f4f6;
+        border-color: #d1d5db;
+        color: #374151;
+    }
+
+    .language-toggle:focus {
+        outline: none;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+    }
+
+    .user-info-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        gap: 16px;
+        background: white;
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .user-details {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        overflow: hidden;
+    }
+
+
+
+
+.notification-button {
+    position: relative;
+    outline: none;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.notification-button:hover {
+    background-color: #f3f4f6;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    pointer-events: none;
+}
+
+
+.notification-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
+}
+
+.notification-overlay.active {
+    opacity: 1;
+}
+
+.notification-content-container {
+    position: relative;
+    pointer-events: auto;
+    width: 90%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow: hidden;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+
+
+    .section-toggle {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        background: #f3f4f6;
+        padding: 6px;
+        border-radius: 12px;
+        gap: 4px;
+    }
+
+    .toggle-button {
+        padding: 12px 0;
+        border-radius: 8px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease;
+        font-weight: 600;
+        color: #6b7280;
+        flex: 1;
+        text-align: center;
+        font-size: 15px;
+    }
+
+    .toggle-button.active {
+        background: white;
+        color: #4f46e5;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .section-content {
+        display: none;
+    }
+
+    .section-content.active {
+        display: block;
+    }
+
+    .stars-card, .premium-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .price-tag {
+        display: inline-flex;
+        align-items: center;
+        background: #f3f4f6;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #4f46e5;
+    }
+
+    .premium-feature {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #4b5563;
+    }
+
+    .premium-feature i {
+        margin-right: 8px;
+        color: #4f46e5;
+    }
+
+    .stars-package {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 16px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stars-amount {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+
+    .usdt-price {
+        font-size: 16px;
+        font-weight: 600;
+        color: #4f46e5;
+        margin-bottom: 12px;
+    }
+
+    .sticker-container {
+        width: 72px;
+        height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+
+    .sticker-container img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .premium-package {
+        padding: 20px;
+        position: relative;
+    }
+
+    .premium-duration {
+        font-size: 18px;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 6px;
+    }
+
+    .premium-description {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 12px;
+    }
+
+    .premium-price {
+        font-size: 18px;
+        font-weight: 700;
+        color: #4f46e5;
+    }
+
+    @keyframes shimmer {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* content is visible by default to avoid blank screen if JS fails */
+
+    @media (hover: none) and (pointer: coarse) {
+        .package-option:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        .buy-button:hover {
+            transform: none;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+        }
+        .menu-item:hover {
+            transform: none;
+        }
+    }
+
+    /* Tablet and smaller desktop */
+    @media (max-width: 1024px) {
+        .app-container {
+            max-width: 100%;
+        }
+        
+        /* keep spacing improvements without overriding grid templates */
+        .user-info-container {
+            gap: 16px;
+        }
+    }
+    
+    /* Mobile landscape */
+    @media (max-width: 768px) {
+        .section-toggle {
+            gap: 8px;
+        }
+        
+        .toggle-button {
+            padding: 10px 16px;
+            font-size: 14px;
+        }
+        
+        .user-info-container {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .logo-header { font-size: 24px; padding: 14px; }
+        
+        .profile-image {
+            width: 52px;
+            height: 52px;
+        }
+        
+        .package-option {
+            padding: 14px;
+        }
+        
+        .recipient-item {
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .recipient-item input {
+            width: 100%;
+        }
+    }
+    
+    /* Small mobile */
+    @media (max-width: 480px) {
+        .section-toggle {
+            gap: 6px;
+        }
+        
+        .toggle-button {
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+        
+        .user-info-container {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .logo-header { font-size: 24px; padding: 12px; }
+        
+        .profile-image {
+            width: 48px;
+            height: 48px;
+        }
+        
+        .package-option {
+            padding: 12px;
+        }
+        
+        .package-option h3 {
+            font-size: 16px;
+        }
+        
+        .package-option .price {
+            font-size: 18px;
+        }
+        
+        .buy-button {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+    }
+    
+    /* Extra small mobile */
+    @media (max-width: 360px) {
+        .logo-header { font-size: 24px; padding: 10px; }
+        
+        .toggle-button {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        
+        .package-option {
+            padding: 10px;
+        }
+        
+        .buy-button {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+    }
+</style>
+    <script src="/js/theme.js"></script>
 </head>
 <body>
-  <p>Redirecting to <a href="/app/">/app/</a>…</p>
+    <main class="app-container">
+        <div id="loading-container"></div>
+
+        <div id="content-container">
+            <div id="bottomnav-container"></div>
+            <div class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm relative">
+                <div class="logo-header" data-translate="appName">StarStore</div>
+                <div class="flex items-center space-x-4">
+                    <button class="notification-button relative p-2 rounded-full hover:bg-gray-100 transition-colors" id="notificationButton">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        <div class="notification-badge hidden" id="notificationBadge">0</div>
+                    </button>
+                    <select id="languageSelect" class="language-toggle">
+                        <option value="en">English</option>
+                        <option value="ru">Русский</option>
+                        <option value="hi">हिंदी</option>
+                        <option value="ar">العربية</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="px-6 pt-4 pb-2">
+                <div class="user-info-container">
+                    <div class="user-details">
+                        <div class="profile-image">
+                            <img id="profilePicture" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIyNCIgcj0iMTIiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTggNTZDMjQgNDggNDAgNDggNTYgNTZIMThaIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=" alt="User Profile" class="w-full h-full object-cover">
+                        </div>
+                        <div class="text-lg font-semibold text-gray-800" id="username">@username</div>
+                        <div class="text-xs text-gray-500 flex items-center gap-2" id="userIdRow"><span id="userIdText"></span><button id="copyUserIdBtn" class="px-2 py-1 text-[10px] border rounded">Copy</button></div>
+                    </div>
+                    <button id="connectWallet" data-translate="connectWallet">
+                        <i class="fas fa-wallet mr-2"></i>Connect Wallet
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6 pt-2">
+                <div class="section-toggle">
+                    <button class="toggle-button active" id="starsToggle" data-translate="buyStars">Buy Stars</button>
+                    <button class="toggle-button" id="premiumToggle" data-translate="telegramPremium">Telegram Premium</button>
+                </div>
+
+                <div class="section-content active" id="starsSection">
+                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
+                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="buyFor">Buy For</div>
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForStars" value="self" checked> <span data-translate="myself">Myself</span></label>
+                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForStars" value="others"> <span data-translate="someoneElse">Someone else</span></label>
+                        </div>
+                    </div>
+                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
+                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="recipients">Recipients (up to 5)</div>
+                        <div class="space-y-2" id="recipientsContainer"></div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <button id="addRecipientBtn" class="px-3 py-2 text-sm rounded-md border border-gray-300" data-translate="addRecipient">Add Recipient</button>
+                                    <span class="text-xs text-gray-500" id="recipientHelp" data-translate="enterTelegramUsernames">Enter Telegram usernames.</span>
+                        </div>
+                    </div>
+                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
+                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="customStars">Custom Stars</div>
+                        <div class="flex items-center gap-2">
+                            <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50 for manual; packages allow less)" class="flex-1 px-3 py-2 border rounded-md text-sm" data-translate-placeholder="enterStars" />
+                            <button id="buyCustomStars" class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-indigo-600 text-white" data-translate="buy">Buy</button>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1" data-translate="ifSetOverrides">If set, this overrides the package selection.</div>
+                        <div class="text-xs text-gray-700 mt-1" id="customStarsQuote"></div>
+                        <div id="starsDistribution" class="mt-3 p-3 bg-gray-50 rounded-lg" style="display: none;">
+                            <div class="text-xs font-semibold text-gray-700 mb-2" data-translate="starsDistribution">Stars Distribution:</div>
+                            <div id="distributionList" class="space-y-1"></div>
+                        </div>
+                    </div>
+                    <div class="stars-card rounded-xl mb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4" data-translate="chooseStarsPackage">Choose a Stars Package</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">15 Stars</div>
+                                <div class="usdt-price">0.35 USDT</div>
+                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm package-btn" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Now</button>
+                                <div class="mt-2">
+                        
+                                    <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
+                                </div>
+                            </div>
+                            <div class="package-option stars-package">
+                                <div class="stars-amount">25 Stars</div>
+                                <div class="usdt-price">0.60 USDT</div>
+                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm package-btn" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
+                                </div>
+                            </div>
+                            <div class="package-option stars-package" data-stars="50">
+                                <div class="stars-amount">50 Stars</div>
+                                <div class="usdt-price package-price">1.00 USDT</div>
+                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
+                                </div>
+                            </div>
+                            <div class="package-option stars-package" data-stars="100">
+                                <div class="stars-amount">100 Stars</div>
+                                <div class="usdt-price package-price">2.00 USDT</div>
+                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
+                                </div>
+                            </div>
+                            <div class="package-option stars-package" data-stars="500">
+                                <div class="stars-amount">500 Stars</div>
+                                <div class="usdt-price package-price">10.00 USDT</div>
+                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
+                                </div>
+                            </div>
+                            <div class="package-option stars-package" data-stars="1000">
+                                <div class="stars-amount">1000 Stars</div>
+                                <div class="usdt-price package-price">20.00 USDT</div>
+                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy Now</button>
+                                <div class="mt-2">
+                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-content" id="premiumSection">
+                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
+                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="buyFor">Buy For</div>
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForPremium" value="self" checked> <span data-translate="myself">Myself</span></label>
+                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForPremium" value="others"> <span data-translate="someoneElse">Someone else</span></label>
+                        </div>
+                    </div>
+                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
+                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="recipients">Recipients (up to 5)</div>
+                        <div class="space-y-2" id="recipientsContainerPremium"></div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <button id="addRecipientBtnPremium" class="px-3 py-2 text-sm rounded-md border border-gray-300" data-translate="addRecipient">Add Recipient</button>
+                                    <span class="text-xs text-gray-500" id="recipientHelpPremium" data-translate="enterTelegramUsernames">Enter Telegram usernames.</span>
+                        </div>
+                    </div>
+                    <div class="premium-card rounded-xl mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Telegram Premium Subscriptions</h3>
+                        <div class="space-y-4">
+                            <div class="package-option premium-package" data-premium-duration="3">
+                                <div class="flex flex-col space-y-4">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="premium-duration" data-translate="3monthsPremium">3 Months Premium</div>
+                                            <div class="premium-description" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
+                                        </div>
+                                        <div class="premium-price package-price">19.31 USDT</div>
+                                    </div>
+                                    <div class="premium-features">
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
+                                    </div>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Subscribe Now</button>
+                                </div>
+                            </div>
+                            <div class="package-option premium-package" data-premium-duration="6">
+                                <div class="flex flex-col space-y-4">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="premium-duration" data-translate="6monthsPremium">6 Months Premium</div>
+                                            <div class="premium-description" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
+                                        </div>
+                                        <div class="premium-price package-price">26.25 USDT</div>
+                                    </div>
+                                    <div class="premium-features">
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Voice-to-Text</div>
+                                    </div>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Subscribe Now</button>
+                                </div>
+                            </div>
+                            <div class="package-option premium-package" data-premium-duration="12">
+                                <div class="flex flex-col space-y-4">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="premium-duration" data-translate="12monthsPremium">12 Months Premium</div>
+                                            <div class="premium-description" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
+                                        </div>
+                                        <div class="premium-price package-price">44.79 USDT</div>
+                                    </div>
+                                    <div class="premium-features">
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Voice-to-Text</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Animated Profile Pic</div>
+                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Reactions</div>
+                                    </div>
+                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Subscribe Now</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3CFMZX0XGZ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-3CFMZX0XGZ');
+</script>
+    <!-- Load required libraries in head -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+    <script src="/js/translations.js?v=2"></script>
+    <script src="/js/loading.js?v=4"></script>
+    <script>
+    // Simple in-page error reporter
+    (function(){
+        function showErrorBanner(text){
+            try {
+                let banner = document.getElementById('error-banner');
+                if (!banner) {
+                    banner = document.createElement('div');
+                    banner.id = 'error-banner';
+                    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#fee2e2;color:#991b1b;padding:8px 12px;font:12px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;border-bottom:1px solid #fecaca;white-space:pre-wrap;';
+                    document.body.appendChild(banner);
+                }
+                banner.textContent = text;
+            } catch (_) {}
+        }
+        window.addEventListener('error', function(e){
+            var msg = '[Error] ' + (e.message || 'Unknown error');
+            if (e.filename) msg += ' at ' + e.filename + (e.lineno? ':'+e.lineno : '');
+            showErrorBanner(msg);
+        });
+        window.addEventListener('unhandledrejection', function(e){
+            var reason = e && e.reason;
+            var txt = '[PromiseRejection] ' + (reason && reason.message ? reason.message : String(reason));
+            showErrorBanner(txt);
+        });
+    })();
+    </script>
+    <script>
+
+let tonConnectUI = null;
+let currentLanguage = 'en'; // Will be properly initialized in initLanguageToggle()
+let walletConnected = false;
+let currentWalletAddress = '';
+
+// Global function for robust testnet detection using official TON chain IDs
+function isTestnetWallet(wallet) {
+    try {
+        const chain = wallet?.account?.chain;
+        
+        // Official TON blockchain chain ID values
+        // Mainnet: -239 (0xFFFFFF11)
+        // Testnet: -3 (0xFFFFFFFD)
+        if (typeof chain === 'string') {
+            // Handle string values (some wallets return string representations)
+            const chainNum = parseInt(chain, 10);
+            return chainNum === -3; // TON testnet chain ID
+        }
+        if (typeof chain === 'number') {
+            return chain === -3; // TON testnet chain ID
+        }
+        
+        // Fallback: check if chain contains testnet indicators
+        if (typeof chain === 'string' && /testnet/i.test(chain)) {
+            return true;
+        }
+    } catch (error) {
+        console.warn('Error detecting wallet chain:', error);
+    }
+    return false;
+}
+let lastUserData = null;
+let currentUser = null;
+let isTelegramEnv = false;
+let updateUserInterfaceRetryCount = 0;
+let isInitialized = false;
+
+// (Removed API wrapper; using axios directly)
+
+const stickerCache = new Map();
+const CACHE_DURATION = 40 * 60 * 1000; 
+let batchLoadPromise = null;        
+      
+window.getUserIdentifier = function() {
+    if (currentUser?.id) return currentUser.id.toString();
+    if (currentWalletAddress) return currentWalletAddress;
+    return 'anonymous_' + (sessionStorage.getItem('anonymousId') || generateAnonymousId());
+};
+
+function generateAnonymousId() {
+    const id = 'anon_' + Math.random().toString(36).substr(2, 12) + '_' + Date.now();
+    sessionStorage.setItem('anonymousId', id);
+    return id;
+}
+
+function detectTelegramEnvironment() {
+    try {
+        if (window.Telegram?.WebApp) {
+            const webApp = window.Telegram.WebApp;
+            if (webApp.initData || webApp.initDataUnsafe?.user) {
+                isTelegramEnv = true;
+                return true;
+            }
+            if (webApp.version && webApp.platform) {
+                isTelegramEnv = true;
+                return true;
+            }
+        }
+        const userAgent = navigator.userAgent.toLowerCase();
+        if (userAgent.includes('telegram')) {
+            isTelegramEnv = true;
+            return true;
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('tgWebAppData') || urlParams.has('tgWebAppVersion')) {
+            isTelegramEnv = true;
+            return true;
+        }
+        return false;
+    } catch (e) {
+        console.error('Telegram detection error:', e);
+        return false;
+    }
+}
+
+function showErrorToUser(message) {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Error',
+            text: message,
+            icon: 'error',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#EF4444',
+            showClass: {
+                popup: 'animate__animated animate__fadeInUp animate__faster'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutDown animate__faster'
+            },
+            customClass: {
+                popup: 'rounded-xl shadow-lg',
+                confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105'
+            }
+        });
+    } else {
+        alert(message);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (isInitialized) return;
+    isInitialized = true;
+    
+    detectTelegramEnvironment();
+    
+    const content = document.getElementById('content-container');
+    
+    if (window.LoadingComponent && typeof LoadingComponent.show === 'function') {
+        LoadingComponent.show('loading-container', 'fullPage', { text: 'Loading StarStore...' });
+    } else {
+        const el = document.getElementById('loading-container');
+        if (el) el.style.display = 'block';
+    }
+    if (content) content.style.display = 'none';
+
+    requestAnimationFrame(() => {
+        showContent();
+        initTelegramApp();
+        initWalletConnection();
+        
+        setTimeout(() => {
+            loadBottomNav()
+                .then(() => {
+                    initLanguageToggle();
+                    initSectionToggle();
+                    updateLanguage();
+                    initBuyButtons();
+                    initRecipientsUI();
+                    initCustomStars();
+                    updatePackagePrices(); // Initialize package prices
+                    initNotificationSystem();
+                    loadStickers();
+                    
+                    // Ensure package buttons are properly initialized
+                    setTimeout(() => {
+                        const updatePackageButtons = () => {
+                            const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value || 'self';
+                            const packageButtons = document.querySelectorAll('.package-btn');
+                            
+                            packageButtons.forEach(btn => {
+                                try {
+                                    const itemData = JSON.parse(btn.getAttribute('data-item'));
+                                    const stars = itemData.stars;
+                                    
+                                    if (buyForValue === 'others') {
+                                        // For buying for others, only allow packages >= 50 stars
+                                        if (stars < 50) {
+                                            btn.disabled = true;
+                                            btn.textContent = TranslationUtils.get('min50ForOthers') || 'Min 50 for others';
+                                            btn.classList.add('opacity-50', 'cursor-not-allowed');
+                                        } else {
+                                            btn.disabled = false;
+                                            btn.textContent = TranslationUtils.get('buyGiftCta') || 'Buy Gift';
+                                            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                                        }
+                                    } else {
+                                        // For self-purchase, allow all packages
+                                        btn.disabled = false;
+                                        btn.textContent = TranslationUtils.get('buyNowCta') || 'Buy Now';
+                                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                                    }
+                                } catch (error) {
+                                    console.error('Error updating package button:', error);
+                                    // Default to enabled state for self-purchase
+                                    btn.disabled = false;
+                                    btn.textContent = TranslationUtils.get('buyNowCta') || 'Buy Now';
+                                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                                }
+                            });
+                        };
+                        
+                        updatePackageButtons();
+                        
+                        // Update when "buy for" selection changes
+                        document.querySelectorAll('input[name="buyForStars"]').forEach(radio => {
+                            radio.addEventListener('change', updatePackageButtons);
+                        });
+                    }, 100);
+                    
+                    window.currentUser = currentUser;
+                    window.currentWalletAddress = currentWalletAddress;
+                    window.isTelegramEnv = isTelegramEnv;
+                })
+                .catch(error => {
+                    console.error('Initialization error:', error);
+                });
+        }, 300);
+    });
+});
+
+
+
+// Enhanced device detection
+function isLowEndDevice() {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isMobile = /android|webos|iphone|ipod|ipad|blackberry|windows phone/.test(userAgent);
+  const isOldBrowser = !/(chrome|firefox|safari|opera)/.test(userAgent);
+  const hasLowMemory = navigator.deviceMemory && navigator.deviceMemory < 4;
+  const hasSlowConnection = navigator.connection && 
+    (navigator.connection.effectiveType === 'slow-2g' || navigator.connection.effectiveType === '2g');
+  
+  return (isMobile && isOldBrowser) || hasLowMemory || hasSlowConnection;
+}
+
+// Check if cached data is still valid
+function isCacheValid(cacheEntry) {
+  return cacheEntry && (Date.now() - cacheEntry.timestamp < CACHE_DURATION);
+}
+
+// Get sticker info with caching
+async function getStickerInfo(stickerId) {
+  const cached = stickerCache.get(stickerId);
+  if (isCacheValid(cached)) {
+    return cached.data;
+  }
+
+  try {
+    const response = await fetch(`/api/sticker/${stickerId}/info`);
+    if (!response.ok) return null;
+    
+    const info = await response.json();
+    stickerCache.set(stickerId, {
+      data: info,
+      timestamp: Date.now()
+    });
+    return info;
+  } catch (error) {
+    console.warn(`Failed to fetch sticker info for ${stickerId}:`, error);
+    return null;
+  }
+}
+
+// Batch load all sticker info to reduce network requests
+async function batchLoadStickerInfo(stickerIds) {
+  const uncachedIds = stickerIds.filter(id => {
+    const cached = stickerCache.get(id);
+    return !isCacheValid(cached);
+  });
+
+  if (uncachedIds.length === 0) return;
+
+  // Load all uncached stickers in parallel with controlled concurrency
+  const BATCH_SIZE = 5; // Limit concurrent requests for low-end devices
+  const batches = [];
+  
+  for (let i = 0; i < uncachedIds.length; i += BATCH_SIZE) {
+    batches.push(uncachedIds.slice(i, i + BATCH_SIZE));
+  }
+
+  for (const batch of batches) {
+    await Promise.allSettled(
+      batch.map(id => getStickerInfo(id))
+    );
+  }
+}
+
+async function loadStickers() {
+  // Prevent multiple simultaneous batch loads
+  if (batchLoadPromise) {
+    await batchLoadPromise;
+    return;
+  }
+
+  const containers = document.querySelectorAll('.sticker-container');
+  const stickerIds = Array.from(containers)
+    .map(container => container.getAttribute('data-sticker-id'))
+    .filter(Boolean);
+
+  if (stickerIds.length === 0) return;
+
+  // Start batch loading
+  batchLoadPromise = batchLoadStickerInfo(stickerIds);
+  await batchLoadPromise;
+  batchLoadPromise = null;
+
+  // Load all stickers simultaneously for synchronized playback
+  const loadPromises = Array.from(containers).map(container => {
+    const stickerId = container.getAttribute('data-sticker-id');
+    if (!stickerId) return Promise.resolve();
+
+    const cached = stickerCache.get(stickerId);
+    const info = cached?.data;
+    
+    if (!info) {
+      loadPlaceholder(container);
+      return Promise.resolve();
+    }
+
+    // For low-end devices, prefer static stickers
+    if (isLowEndDevice()) {
+      if (info.is_animated || info.is_video) {
+        return loadStaticSticker(container, stickerId);
+      } else {
+        return loadStaticSticker(container, stickerId);
+      }
+    }
+
+    // For high-end devices, load appropriate type
+    if (info.is_animated) {
+      return loadAnimatedSticker(container, stickerId)
+        .catch(() => loadStaticSticker(container, stickerId));
+    } else if (info.is_video) {
+      return loadVideoSticker(container, stickerId);
+    } else {
+      return loadStaticSticker(container, stickerId);
+    }
+  });
+
+  // Wait for all stickers to load simultaneously
+  await Promise.allSettled(loadPromises);
+  
+  // Synchronize animated content playback
+  synchronizeAnimations();
+}
+
+function loadStaticSticker(container, stickerId) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.width = 72;
+    img.height = 72;
+    img.alt = 'Sticker';
+    img.loading = 'lazy';
+    img.style.objectFit = 'contain';
+    
+    img.onload = () => {
+      container.replaceChildren(img);
+      resolve();
+    };
+    
+    img.onerror = () => {
+      loadPlaceholder(container);
+      reject(new Error('Failed to load static sticker'));
+    };
+    
+    img.src = `/api/sticker/${stickerId}`;
+  });
+}
+
+function loadVideoSticker(container, stickerId) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.width = 72;
+    video.height = 72;
+    video.autoplay = false; 
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.style.objectFit = 'contain';
+    video.preload = 'metadata';
+    
+    video.onloadedmetadata = () => {
+      container.replaceChildren(video);
+      container._videoElement = video;
+      resolve();
+    };
+    
+    video.onerror = () => {
+      loadPlaceholder(container);
+      reject(new Error('Failed to load video sticker'));
+    };
+    
+    video.src = `/api/sticker/${stickerId}`;
+  });
+}
+
+async function loadAnimatedSticker(container, stickerId) {
+  if (typeof lottie === 'undefined') {
+    throw new Error('Lottie not available');
+  }
+
+  try {
+    const response = await fetch(`/api/sticker/${stickerId}/json`);
+    if (!response.ok) throw new Error('Failed to fetch animation');
+    
+    const animationData = await response.json();
+    container.innerHTML = '';
+    container.style.width = '72px';
+    container.style.height = '72px';
+    
+    const animation = lottie.loadAnimation({
+      container: container,
+      renderer: 'svg',
+      loop: true,
+      autoplay: false, // Don't autoplay yet
+      animationData: animationData
+    });
+    
+    container._lottieAnimation = animation;
+    
+    return new Promise((resolve) => {
+      animation.addEventListener('DOMLoaded', () => {
+        resolve();
+      });
+    });
+  } catch (error) {
+    throw error;
+  }
+}
+
+function loadPlaceholder(container) {
+  const placeholder = document.createElement('div');
+  placeholder.style.width = '72px';
+  placeholder.style.height = '72px';
+  placeholder.style.backgroundColor = '#f0f0f0';
+  placeholder.style.display = 'flex';
+  placeholder.style.alignItems = 'center';
+  placeholder.style.justifyContent = 'center';
+  placeholder.style.color = '#999';
+  placeholder.style.fontSize = '12px';
+  placeholder.style.borderRadius = '4px';
+  placeholder.textContent = 'Sticker';
+  container.replaceChildren(placeholder);
+}
+
+// Synchronize all animations to play at the same time
+function synchronizeAnimations() {
+  const containers = document.querySelectorAll('.sticker-container');
+  
+  // Start all Lottie animations
+  containers.forEach(container => {
+    if (container._lottieAnimation) {
+      container._lottieAnimation.goToAndPlay(0);
+    }
+  });
+  
+  // Start all video elements
+  containers.forEach(container => {
+    if (container._videoElement) {
+      container._videoElement.currentTime = 0;
+      container._videoElement.play().catch(() => {
+        // Autoplay might be blocked, ignore error
+      });
+    }
+  });
+}
+
+// Optimized intersection observer for performance
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const container = entry.target;
+    if (!entry.isIntersecting) {
+      // Pause animations when not visible to save resources
+      if (container._lottieAnimation) {
+        container._lottieAnimation.pause();
+      }
+      if (container._videoElement) {
+        container._videoElement.pause();
+      }
+    } else {
+      // Resume animations when visible
+      if (container._lottieAnimation) {
+        container._lottieAnimation.play();
+      }
+      if (container._videoElement) {
+        container._videoElement.play().catch(() => {});
+      }
+    }
+  });
+}, { 
+  threshold: 0.1,
+  rootMargin: '50px' 
+});
+
+// Clean up animations when they leave viewport completely
+const cleanupObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const container = entry.target;
+    if (!entry.isIntersecting && container._lottieAnimation) {
+      // Only destroy if far from viewport to avoid unnecessary recreation
+      const rect = container.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const distanceFromViewport = Math.min(
+        Math.abs(rect.bottom),
+        Math.abs(rect.top - viewportHeight)
+      );
+      
+      if (distanceFromViewport > viewportHeight) {
+        container._lottieAnimation.destroy();
+        container._lottieAnimation = null;
+      }
+    }
+  });
+}, { threshold: 0, rootMargin: '-100px' });
+
+// Initialize observers
+document.querySelectorAll('.sticker-container').forEach(container => {
+  observer.observe(container);
+  cleanupObserver.observe(container);
+});
+
+// Clean up cache periodically to prevent memory leaks
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of stickerCache.entries()) {
+    if (now - value.timestamp > CACHE_DURATION) {
+      stickerCache.delete(key);
+    }
+  }
+}, 5 * 60 * 1000); // Clean up every 5 minutes        
+
+
+        
+// Real Notification System
+function initNotificationSystem() {
+    const notificationButton = document.getElementById('notificationButton');
+    if (!notificationButton) return;
+
+    let notificationOverlay = null;
+    let currentUserId = null;
+
+    // Get current user ID
+    function getCurrentUserId() {
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            return window.Telegram.WebApp.initDataUnsafe.user.id.toString();
+        }
+        return localStorage.getItem('userId');
+    }
+
+    // Handle messages from notification iframe
+    const handleMessage = (event) => {
+        if (!event.data?.type) return;
+        
+        switch(event.data.type) {
+            case 'CLOSE_NOTIFICATIONS':
+                closeNotificationWindow();
+                break;
+            case 'NOTIFICATION_READ':
+                updateNotificationBadge(event.data.count);
+                break;
+            case 'ALL_NOTIFICATIONS_READ':
+                updateNotificationBadge(0);
+                break;
+            case 'UPDATE_BADGE':
+                updateNotificationBadge(event.data.count);
+                break;
+        }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    notificationButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!isTelegramEnv) {
+            showErrorToUser(TranslationUtils.get('telegramRequiredForNotifications'));
+            return;
+        }
+
+        // Toggle if already exists
+        if (notificationOverlay) {
+            closeNotificationWindow();
+            return;
+        }
+
+        // Create overlay
+        notificationOverlay = document.createElement('div');
+        notificationOverlay.className = 'notification-overlay';
+        
+        // Create content container
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'notification-content-container';
+        
+        notificationOverlay.appendChild(contentContainer);
+        document.body.appendChild(notificationOverlay);
+        
+        // Trigger reflow and animate in
+        void notificationOverlay.offsetWidth; // Force reflow
+        notificationOverlay.classList.add('active');
+
+        // Add click handler
+        notificationOverlay.addEventListener('click', (e) => {
+            if (e.target === notificationOverlay) {
+                closeNotificationWindow();
+            }
+        });
+
+        try {
+            const response = await fetch('notification.html');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            
+            contentContainer.innerHTML = await response.text();
+            
+            // Initialize the notification system inside the loaded content
+            const script = contentContainer.querySelector('script');
+            if (script) {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                contentContainer.appendChild(newScript);
+                script.remove();
+            }
+            
+        } catch (error) {
+            console.error('Notification error:', error);
+            contentContainer.innerHTML = `
+                <div class="notification-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>${TranslationUtils.get('failedToLoadNotifications') || 'Failed to load notifications'}</p>
+                </div>
+            `;
+        }
+    });
+
+    function closeNotificationWindow() {
+        if (!notificationOverlay) return;
+        
+        notificationOverlay.classList.remove('active');
+        
+        notificationOverlay.addEventListener('transitionend', () => {
+            if (notificationOverlay && document.body.contains(notificationOverlay)) {
+                document.body.removeChild(notificationOverlay);
+                notificationOverlay = null;
+            }
+        }, { once: true });
+    }
+
+    async function updateNotificationBadge(count = null) {
+        const badge = document.getElementById('notificationBadge');
+        if (!badge) return;
+
+        if (count === null) {
+            // Fetch current unread count from API
+            currentUserId = getCurrentUserId();
+            if (window.Telegram?.WebApp?.initData) {
+                try {
+                    const response = await fetch(`/api/notifications/unread-count`, {
+                        headers: {
+                            'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        count = data.unreadCount;
+                    }
+                } catch (error) {
+                    console.error('Error fetching unread count:', error);
+                    return;
+                }
+            }
+        }
+        
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count.toString();
+            badge.classList.remove('hidden');
+            badge.style.display = 'flex'; // Ensure it's visible
+        } else {
+            badge.classList.add('hidden');
+            badge.style.display = 'none';
+        }
+    }
+
+    // Initialize badge with current count
+    updateNotificationBadge();
+
+    // Auto-refresh badge every 30 seconds
+    setInterval(() => {
+        updateNotificationBadge();
+    }, 30000);
+
+    // Activity heartbeat: update lastActive every 60s
+    setInterval(() => {
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            const hasTG = !!(window.Telegram?.WebApp?.initData);
+            const hasUser = !!window.currentUserId;
+            if (hasTG) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+            if (hasUser) headers['x-telegram-id'] = String(window.currentUserId);
+            if (hasTG || hasUser) fetch('/api/active-ping', { method: 'POST', headers });
+        } catch {}
+    }, 60000);
+
+    // Cleanup
+    return () => {
+        window.removeEventListener('message', handleMessage);
+        if (notificationOverlay) {
+            closeNotificationWindow();
+        }
+    };
+}
+    
+       
+function loadBottomNav() {
+    return new Promise((resolve) => {
+        const container = document.getElementById('bottomnav-container');
+        if (!container) return resolve();
+        fetch('/bottomnav.html')
+            .then(r => r.ok ? r.text() : '')
+            .then(html => { 
+                container.innerHTML = html; 
+                resolve(); 
+            })
+            .catch(() => resolve());
+    });
+}
+
+function showContent() {
+    if (window.LoadingComponent && typeof LoadingComponent.hide === 'function') {
+        LoadingComponent.hide('loading-container');
+    } else {
+        const el = document.getElementById('loading-container');
+        if (el) el.style.display = 'none';
+    }
+    const content = document.getElementById('content-container');
+    if (content) content.style.display = 'block';
+}
+
+function initMenu() { /* side menu deprecated */ }
+
+function initSectionToggle() {
+    const starsToggle = document.getElementById('starsToggle');
+    const premiumToggle = document.getElementById('premiumToggle');
+    const starsSection = document.getElementById('starsSection');
+    const premiumSection = document.getElementById('premiumSection');
+
+    if (starsToggle && premiumToggle && starsSection && premiumSection) {
+        starsToggle.addEventListener('click', () => {
+            starsToggle.classList.add('active');
+            premiumToggle.classList.remove('active');
+            starsSection.classList.add('active');
+            premiumSection.classList.remove('active');
+        });
+
+        premiumToggle.addEventListener('click', () => {
+            premiumToggle.classList.add('active');
+            starsToggle.classList.remove('active');
+            premiumSection.classList.add('active');
+            starsSection.classList.remove('active');
+        });
+    }
+}
+
+function initTelegramApp() {
+    if (!isTelegramEnv) {
+        currentUser = {
+            id: 'local_user_' + Math.random().toString(36).substr(2, 9),
+            first_name: 'Guest User',
+            username: 'guest' + Math.floor(Math.random() * 1000),
+            is_local: true
+        };
+        sessionStorage.setItem('localUser', JSON.stringify(currentUser));
+        updateUserInterface(currentUser);
+        updateGlobalUserData();
+        return;
+    }
+
+    try {
+        if (!window.Telegram?.WebApp) {
+            throw new Error('Telegram WebApp not available');
+        }
+        
+        const webApp = window.Telegram.WebApp;
+        webApp.ready();
+        
+        // Telegram Mini App initialization with fullscreen viewport mode
+        webApp.ready();
+        
+        // Use the proper fullscreen mode (like BotFather)
+        // This sets the viewport to fullscreen mode, not just expand
+        webApp.expand();
+        
+        // Configure for fullscreen experience
+        if (webApp.HeaderColor) {
+            webApp.HeaderColor.setColor('transparent');
+        }
+        
+        // Hide main button in fullscreen mode
+        if (webApp.MainButton) {
+            webApp.MainButton.hide();
+        }
+        
+        // Set closing confirmation for fullscreen
+        if (webApp.enableClosingConfirmation) {
+            webApp.enableClosingConfirmation();
+        }
+        
+        // Add fullscreen class when in Telegram
+        document.body.classList.add('telegram-fullscreen');
+        
+        // Handle theme changes
+        if (webApp.themeParams) {
+            document.documentElement.style.setProperty('--tg-bg-color', webApp.themeParams.bg_color || '#ffffff');
+            document.documentElement.style.setProperty('--tg-text-color', webApp.themeParams.text_color || '#000000');
+        }
+        
+        let user = null;
+        
+        if (webApp.initDataUnsafe?.user) {
+            user = webApp.initDataUnsafe.user;
+        } 
+        else if (webApp.initData) {
+            try {
+                const initData = new URLSearchParams(webApp.initData);
+                const userJson = initData.get('user');
+                if (userJson) user = JSON.parse(userJson);
+            } catch (e) {
+                console.error('Error parsing initData:', e);
+            }
+        }
+
+            if (user) {
+            currentUser = user;
+            
+            // Auto-detect Telegram language and map to supported locales
+            if (user.language_code) {
+                const tgLang = String(user.language_code).toLowerCase();
+                const map = { 'ru': 'ru', 'en': 'en', 'ar': 'ar', 'hi': 'hi', 'he': 'ar', 'fa': 'ar', 'ur': 'ar' };
+                const detected = map[tgLang] || (tgLang.startsWith('ar') ? 'ar' : (tgLang.startsWith('hi') ? 'hi' : (tgLang.startsWith('ru') ? 'ru' : 'en')));
+                if (detected !== currentLanguage) {
+                    currentLanguage = detected;
+                    sessionStorage.setItem('appLanguage', detected);
+                    localStorage.setItem('appLanguage', detected);
+                    updateLanguage();
+                }
+            }
+            
+            updateUserInterface(user);
+            updateGlobalUserData();
+            setupTelegramFullscreen(); // Enable fullscreen mode
+        } else {
+            console.warn('No user data available from Telegram');
+            currentUser = {
+                id: 'tg_user_' + Math.random().toString(36).substr(2, 9),
+                first_name: 'Telegram User',
+                username: 'tguser' + Math.floor(Math.random() * 1000),
+                is_telegram: true
+            };
+            updateUserInterface(currentUser);
+            updateGlobalUserData();
+            setupTelegramFullscreen(); // Enable fullscreen mode
+        }
+    } catch (error) {
+        console.error('Telegram init error:', error);
+        currentUser = {
+            id: 'fallback_user_' + Math.random().toString(36).substr(2, 9),
+            first_name: 'User',
+            username: 'user' + Math.floor(Math.random() * 1000),
+            is_fallback: true
+        };
+        updateUserInterface(currentUser);
+        updateGlobalUserData();
+        setupTelegramFullscreen(); // Enable fullscreen mode
+    }
+}
+
+function updateGlobalUserData() {
+    window.currentUser = currentUser;
+    window.currentWalletAddress = currentWalletAddress;
+    window.isTelegramEnv = isTelegramEnv;
+}
+
+// Function to handle Telegram Mini App fullscreen mode
+function setupTelegramFullscreen() {
+    if (window.Telegram?.WebApp) {
+        document.body.classList.add('telegram-fullscreen');
+        console.log('Telegram Mini App mode enabled');
+    }
+}
+
+
+
+function updateUserInterface(user) {
+    if (!user) {
+        console.error('No user data provided');
+        return;
+    }
+    
+    const profilePic = document.getElementById('profilePicture');
+    const usernameElement = document.getElementById('username');
+    const userIdText = document.getElementById('userIdText');
+    const copyUserIdBtn = document.getElementById('copyUserIdBtn');
+    
+    if (!profilePic || !usernameElement) {
+        console.warn('User interface elements not found');
+        updateUserInterfaceRetryCount++;
+        if (updateUserInterfaceRetryCount < 10) {
+            setTimeout(() => updateUserInterface(user), 500);
+        } else {
+            console.error('Failed to find user interface elements after 10 retries');
+            updateUserInterfaceRetryCount = 0;
+        }
+        return;
+    }
+    
+    updateUserInterfaceRetryCount = 0;
+    
+    const displayName = user.first_name || user.username || 'User';
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=6366f1&color=fff&size=128`;
+    
+    if (user.photo_url && !user.is_local) {
+        profilePic.src = user.photo_url;
+        profilePic.onerror = function() {
+            this.src = avatarUrl;
+            this.onerror = null;
+        };
+    } else {
+        profilePic.src = avatarUrl;
+    }
+    
+    if (user.username) {
+        usernameElement.textContent = `@${user.username}`;
+    } else if (user.first_name) {
+        usernameElement.textContent = user.first_name;
+    } else {
+        usernameElement.textContent = 'User';
+    }
+
+    if (userIdText) {
+        userIdText.textContent = `ID: ${user.id || 'unknown'}`;
+    }
+    
+    if (copyUserIdBtn) {
+        copyUserIdBtn.onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(String(user.id || ''));
+                copyUserIdBtn.textContent = 'Copied';
+                setTimeout(() => copyUserIdBtn.textContent = 'Copy', 1200);
+            } catch (_) {}
+        };
+    }
+    
+    if (!isTelegramEnv) {
+        const envIndicator = document.createElement('span');
+        envIndicator.textContent = ' (Web)';
+        envIndicator.style.opacity = '0.7';
+        envIndicator.style.fontSize = '0.8em';
+        usernameElement.appendChild(envIndicator);
+    }
+    
+    lastUserData = {...user};
+}
+
+//Connect Ton wallet function
+function restoreWalletState() {
+    const savedWalletConnected = localStorage.getItem('walletConnected');
+    const savedWalletAddress = localStorage.getItem('walletAddress');
+    
+    if (savedWalletConnected === 'true' && savedWalletAddress) {
+        walletConnected = true;
+        currentWalletAddress = savedWalletAddress;
+        console.log('Restored wallet state:', savedWalletAddress);
+        return true;
+    }
+    walletConnected = false;
+    currentWalletAddress = '';
+    return false;
+}
+
+function initWalletConnection() {
+    // Wait for TON Connect UI to load
+    if (typeof TON_CONNECT_UI === 'undefined') {
+        console.warn('TON Connect UI not loaded yet, retrying in 1 second...');
+        setTimeout(initWalletConnection, 1000);
+        return;
+    }
+    
+    try {
+        tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ 
+            manifestUrl: 'https://starstore.site/tonconnect-manifest.json',
+            language: currentLanguage === 'ru' ? 'ru' : 'en',
+            restoreConnection: true, 
+            uiOptions: {
+                twaReturnUrl: 'https://t.me/TgStarStore_bot?startApp'
+            }
+        });
+        console.log('✅ TON Connect UI initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize TON Connect UI:', error);
+        const btn = document.getElementById('connectWallet');
+        if (btn) {
+            btn.textContent = TranslationUtils.get('walletError') || 'Wallet Error';
+            btn.disabled = true;
+        }
+        return;
+    }
+
+    // Update button immediately with current state
+    updateWalletButton();
+
+    // Determine if current user is admin
+    let currentUserIsAdmin = false;
+    fetch('/api/whoami', { headers: { 'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user' } })
+        .then(r => r.json()).then(d => { currentUserIsAdmin = !!d?.isAdmin; }).catch(() => { currentUserIsAdmin = false; });
+
+    tonConnectUI.onStatusChange(wallet => {
+        console.log('🔄 Wallet status changed:', wallet);
+        if (wallet?.account) {
+            currentWalletAddress = wallet.account.address;
+            walletConnected = true;
+            localStorage.setItem('walletConnected', 'true');
+            localStorage.setItem('walletAddress', currentWalletAddress);
+            console.log('✅ Wallet connected:', currentWalletAddress);
+            // Block testnet wallets immediately
+            if (isTestnetWallet(wallet) && !currentUserIsAdmin) {
+                showErrorToUser('Testnet wallet is not supported. Please switch to TON mainnet.');
+                // Attempt to disconnect gracefully
+                setTimeout(async () => { 
+                    try { 
+                        await tonConnectUI.disconnect(); 
+                        console.log('🔌 Testnet wallet disconnected');
+                    } catch (e) {
+                        console.error('Failed to disconnect testnet wallet:', e);
+                    }
+                }, 200);
+            }
+        } else {
+            currentWalletAddress = '';
+            walletConnected = false;
+            localStorage.removeItem('walletConnected');
+            localStorage.removeItem('walletAddress');
+            console.log('🔌 Wallet disconnected');
+        }
+        updateWalletButton();
+    });
+
+    const btn = document.getElementById('connectWallet');
+    if (btn) {
+        btn.addEventListener('click', async () => {
+            console.log('🖱️ Wallet button clicked, connected:', walletConnected);
+            btn.disabled = true;
+            try {
+                if (walletConnected) {
+                    console.log('🔌 Disconnecting wallet...');
+                    await tonConnectUI.disconnect();
+                } else {
+                    console.log('🔗 Opening wallet connection modal...');
+                    await tonConnectUI.openModal();
+                }
+            } catch (e) {
+                console.error('❌ Wallet connection error:', e);
+                showErrorToUser(TranslationUtils.get('walletError') || 'Wallet connection failed');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    }
+}   
+        
+// Check for existing wallet connection after initialization
+setTimeout(() => {
+    if (tonConnectUI) {
+        console.log('🔍 Checking for existing wallet connection...');
+        if (tonConnectUI.connected) {
+            const wallet = tonConnectUI.wallet;
+            if (wallet?.account) {
+                currentWalletAddress = wallet.account.address;
+                walletConnected = true;
+                localStorage.setItem('walletConnected', 'true');
+                localStorage.setItem('walletAddress', currentWalletAddress);
+                console.log('✅ Restored wallet connection:', currentWalletAddress);
+                updateWalletButton();
+            }
+        } else {
+            console.log('ℹ️ No existing wallet connection found');
+        }
+    }
+}, 2000);       
+        
+function updateWalletButton() {
+    const btn = document.getElementById('connectWallet');
+    if (!btn) {
+        console.warn('Wallet button not found');
+        return;
+    }
+    
+    console.log('🔄 Updating wallet button, connected:', walletConnected, 'address:', currentWalletAddress);
+    
+    if (walletConnected && currentWalletAddress) {
+        btn.classList.add('wallet-connected');
+        const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
+        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
+        btn.disabled = false;
+        console.log('✅ Wallet button updated - connected state');
+    } else {
+        btn.classList.remove('wallet-connected');
+        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${TranslationUtils.get('connectWallet') || 'Connect Wallet'}`;
+        btn.disabled = false;
+        console.log('✅ Wallet button updated - disconnected state');
+    }
+}      
+//end of ton connect
+
+async function verifyTransactionOnBlockchain(transactionHash, targetAddress, expectedAmount) {
+    try {
+        const response = await fetch('/api/verify-transaction', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user'
+            },
+            body: JSON.stringify({
+                transactionHash,
+                targetAddress,
+                expectedAmount
+            })
+        });
+
+        const result = await response.json();
+        return result.success === true;
+    } catch (error) {
+        console.error('Transaction verification error:', error);
+        return false;
+    }
+}
+
+function initLanguageToggle() {
+    const languageSelect = document.getElementById('languageSelect');
+    if (!languageSelect) {
+        console.warn('Language select not found');
+        return;
+    }
+    
+    if (typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.init();
+    }
+    
+    currentLanguage = TranslationUtils.getCurrentLanguage();
+    updateLanguage();
+
+    // Set initial select value
+    languageSelect.value = currentLanguage;
+
+    languageSelect.addEventListener('change', () => {
+        const newLanguage = languageSelect.value;
+        TranslationUtils.setCurrentLanguage(newLanguage);
+        currentLanguage = newLanguage;
+        localStorage.setItem('appLanguage', currentLanguage);
+        window.dispatchEvent(new CustomEvent('languageChanged'));
+        updateLanguage();
+                if (tonConnectUI?.setLanguage) {
+                    // TonConnect currently supports 'en' and 'ru'. Map others to 'en'.
+                    tonConnectUI.setLanguage(currentLanguage === 'ru' ? 'ru' : 'en');
+                }
+    });
+}
+
+// Make sure this exists!
+function updateLanguage() {
+    const languageSelect = document.getElementById('languageSelect');
+    if (languageSelect) {
+        languageSelect.value = currentLanguage;
+    }
+    if (typeof TranslationUtils !== 'undefined') {
+        TranslationUtils.applyTranslations();
+    }
+}
+
+
+function initBuyButtons() {
+    document.querySelectorAll('.buy-button').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Check if button is disabled
+            if (button.disabled) {
+                showErrorToUser('This package is not available for the selected purchase type');
+                return;
+            }
+            
+            const itemData = this.getAttribute('data-item');
+            if (itemData) {
+                try {
+                    const item = JSON.parse(itemData);
+                    
+                    // Additional validation for "buy for others"
+                    if (item.stars && item.stars < 50) {
+                        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+                        if (buyForValue === 'others') {
+                            showErrorToUser('Packages under 50 stars are only available for self-purchase');
+                            return;
+                        }
+                    }
+                    
+                    handlePurchase(item);
+                } catch (error) {
+                    console.error('Purchase parse error:', error);
+                    showErrorToUser(TranslationUtils.get('error'));
+                }
+            }
+        });
+    });
+}
+
+function buildRecipientInput(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const makeRow = (idx) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2';
+        row.innerHTML = `
+            <input type="text" class="flex-1 px-3 py-2 border rounded-md text-sm" placeholder="@username" data-idx="${idx}" />
+            <span class="text-xs text-gray-500" data-status="${idx}"></span>
+            <button class="px-2 py-2 text-xs border rounded-md" data-remove="${idx}">Remove</button>
+        `;
+        return row;
+    };
+
+    const state = { rows: [] };
+
+    function addRow() {
+        if (state.rows.length >= 5) return;
+        const idx = Date.now() + Math.floor(Math.random()*1000);
+        const row = makeRow(idx);
+        container.appendChild(row);
+        state.rows.push(idx);
+        wireRow(row, idx);
+    }
+
+    function wireRow(row, idx) {
+        const input = row.querySelector(`input[data-idx="${idx}"]`);
+        const status = row.querySelector(`span[data-status="${idx}"]`);
+        const removeBtn = row.querySelector(`button[data-remove="${idx}"]`);
+
+        let debounceTimer = null;
+        input.addEventListener('input', () => {
+            status.textContent = '';
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                if (!window.buyPageState.isValidating) {
+                    window.buyPageState.isValidating = true;
+                    try {
+                        await validateRecipients(containerId);
+                    } catch (error) {
+                        console.error('Error validating recipients:', error);
+                        // Show user-friendly error message
+                        status.textContent = TranslationUtils.get('validationError') || 'Validation failed. Please try again.';
+                    } finally {
+                        window.buyPageState.isValidating = false;
+                    }
+                }
+            }, 600); // Increased debounce time
+        });
+
+        removeBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            container.removeChild(row);
+            state.rows = state.rows.filter(r => r !== idx);
+            await validateRecipients(containerId);
+        });
+    }
+
+    return { addRow };
+}
+
+const recipientsUI = {};
+
+function initRecipientsUI() {
+    recipientsUI.stars = buildRecipientInput('recipientsContainer');
+    recipientsUI.premium = buildRecipientInput('recipientsContainerPremium');
+
+    const addStars = document.getElementById('addRecipientBtn');
+    if (addStars && recipientsUI.stars) addStars.addEventListener('click', (e) => { e.preventDefault(); recipientsUI.stars.addRow(); });
+
+    const addPremium = document.getElementById('addRecipientBtnPremium');
+    if (addPremium && recipientsUI.premium) addPremium.addEventListener('click', (e) => { e.preventDefault(); recipientsUI.premium.addRow(); });
+
+    // Toggle show/hide based on "Buy For"
+    function wireToggle(groupName, containerId, addBtnId) {
+        const radios = document.querySelectorAll(`input[name="${groupName}"]`);
+        const container = document.getElementById(containerId)?.parentElement; // include header/help
+        const addBtn = document.getElementById(addBtnId);
+        const apply = () => {
+            const value = Array.from(radios).find(r => r.checked)?.value;
+            if (!container) return;
+            if (value === 'self') {
+                container.style.display = 'none';
+            } else {
+                container.style.display = '';
+            }
+            // notify quote refreshers
+            window.dispatchEvent(new CustomEvent('recipientsChanged'));
+        };
+        radios.forEach(r => r.addEventListener('change', apply));
+        apply();
+    }
+    wireToggle('buyForStars', 'recipientsContainer', 'addRecipientBtn');
+    wireToggle('buyForPremium', 'recipientsContainerPremium', 'addRecipientBtnPremium');
+    
+    // Update package button text and validation based on "buy for" selection
+    function updatePackageButtons() {
+        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value || 'self';
+        const packageButtons = document.querySelectorAll('.package-btn');
+        
+        packageButtons.forEach(btn => {
+            try {
+                const itemData = JSON.parse(btn.getAttribute('data-item'));
+                const stars = itemData.stars;
+                
+                if (buyForValue === 'others') {
+                    // For buying for others, only allow packages >= 50 stars
+                    if (stars < 50) {
+                        btn.disabled = true;
+                        btn.textContent = TranslationUtils.get('min50ForOthers') || 'Min 50 for others';
+                        btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        btn.disabled = false;
+                        btn.textContent = TranslationUtils.get('buyGiftCta') || 'Buy Gift';
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                } else {
+                    // For self-purchase, allow all packages
+                    btn.disabled = false;
+                    btn.textContent = TranslationUtils.get('buyNowCta') || 'Buy Now';
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            } catch (error) {
+                console.error('Error updating package button:', error);
+                // Default to enabled state for self-purchase
+                btn.disabled = false;
+                btn.textContent = TranslationUtils.get('buyNowCta') || 'Buy Now';
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+    }
+    
+    // Initial update
+    updatePackageButtons();
+    
+    // Update when "buy for" selection changes
+    document.querySelectorAll('input[name="buyForStars"]').forEach(radio => {
+        radio.addEventListener('change', updatePackageButtons);
+    });
+}
+
+function collectRecipients(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return [];
+    const inputs = Array.from(container.querySelectorAll('input'));
+    const values = inputs.map(i => i.value.trim());
+    const filtered = values.filter(Boolean);
+    return filtered;
+}
+
+async function validateRecipients(containerId) {
+    const usernames = collectRecipients(containerId);
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+    const statusMap = new Map();
+    container.querySelectorAll('span[data-status]').forEach(s => {
+        const key = s.getAttribute('data-status');
+        statusMap.set(key, s);
+    });
+
+    if (usernames.length === 0) {
+        // clear all statuses
+        statusMap.forEach(s => s.textContent = '');
+        const detail = { count: 0 };
+        window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
+        return { recipients: [] };
+    }
+    
+    // Create cache key for validation
+    const normalizedUsernames = usernames
+        .map(name => name.toLowerCase().trim().replace(/^@/, ''))
+        .filter(name => name.length > 0)
+        .sort();
+    const validationCacheKey = normalizedUsernames.join(',');
+    
+    // Check validation cache first
+    if (window.buyPageState.validationCache.has(validationCacheKey)) {
+        const cachedResult = window.buyPageState.validationCache.get(validationCacheKey);
+        updateValidationStatus(container, cachedResult);
+        const detail = { count: cachedResult.recipients.length };
+        window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
+        return cachedResult;
+    }
+    
+    try {
+        const response = await axios.post('/api/validate-usernames', { usernames }, {
+            headers: {
+                'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user',
+                'Content-Type': 'application/json'
+            }
+        });
+        if (response.data?.success) {
+            const result = { recipients: response.data.recipients };
+            
+            // Cache the validation result
+            window.buyPageState.validationCache.set(validationCacheKey, result);
+            
+            // Limit validation cache size
+            if (window.buyPageState.validationCache.size > 20) {
+                const firstKey = window.buyPageState.validationCache.keys().next().value;
+                window.buyPageState.validationCache.delete(firstKey);
+            }
+            
+            updateValidationStatus(container, result);
+            const detail = { count: response.data.recipients.length };
+            window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
+            return result;
+        } else {
+            const result = { recipients: [] };
+            updateValidationStatus(container, result);
+            const detail = { count: 0 };
+            window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
+            return result;
+        }
+    } catch (e) {
+        // If server returned per-username results, use them to update UI
+        const results = e?.response?.data?.results;
+        if (Array.isArray(results) && results.length > 0) {
+            const valid = [];
+            const mapByName = new Map(results.map(r => [String(r.username || '').toLowerCase(), r]));
+            container.querySelectorAll('input').forEach(input => {
+                const name = (input.value || '').trim().replace(/^@/, '').toLowerCase();
+                const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+                if (!statusEl) return;
+                const r = mapByName.get(name);
+                if (r?.valid) {
+                    valid.push({ username: r.username, userId: r.userId });
+                    statusEl.textContent = 'Valid';
+                    statusEl.className = 'text-xs text-green-600';
+                } else {
+                    statusEl.textContent = 'Invalid';
+                    statusEl.className = 'text-xs text-red-600';
+                }
+            });
+            const detail = { count: valid.length };
+            window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
+            // Treat as unsuccessful overall to block purchase unless all are valid
+            return { recipients: valid };
+        }
+        
+        // Show user-friendly error message
+        container.querySelectorAll('input').forEach(input => {
+            const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+            if (statusEl) {
+                statusEl.textContent = TranslationUtils.get('validationError') || 'Validation failed';
+                statusEl.className = 'text-xs text-red-600';
+            }
+        });
+        const detail = { count: 0 };
+        window.dispatchEvent(new CustomEvent('recipientsChanged', { detail }));
+        return { recipients: [] };
+    }
+}
+
+// Helper function to update validation status
+function updateValidationStatus(container, result) {
+    const mapByName = new Map(result.recipients.map(r => [r.username.toLowerCase(), r]));
+    container.querySelectorAll('input').forEach(input => {
+        const name = (input.value || '').trim().replace(/^@/, '').toLowerCase();
+        const statusEl = container.querySelector(`span[data-status="${input.getAttribute('data-idx')}"]`);
+        if (!statusEl) return;
+        if (mapByName.has(name)) {
+            statusEl.textContent = 'Valid';
+            statusEl.className = 'text-xs text-green-600';
+        } else {
+            statusEl.textContent = 'Invalid';
+            statusEl.className = 'text-xs text-red-600';
+        }
+    });
+}
+
+function initCustomStars() {
+    const input = document.getElementById('customStarsInput');
+    const applyBtn = document.getElementById('buyCustomStars');
+    const quoteText = document.getElementById('customStarsQuote');
+    if (!input || !applyBtn) return;
+
+    let lastRate = null;
+    let lastRateAt = 0;
+    async function getRateCached() {
+        const now = Date.now();
+        if (lastRate && now - lastRateAt < 60000) return lastRate;
+        const r = await fetchCurrentRate();
+        if (r) { lastRate = r; lastRateAt = now; }
+        return r;
+    }
+
+    // Global state management to prevent race conditions
+    window.buyPageState = window.buyPageState || {
+        isRefreshing: false,
+        isValidating: false,
+        packageQuoteCache: new Map(),
+        lastRecipientsCount: 0,
+        lastRecipientsHash: '',
+        validationCache: new Map()
+    };
+
+    async function refreshQuote() {
+        const val = Number(input.value || 0);
+        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+        
+        // Get recipients count (cached validation)
+        let recipientsCount = 0;
+        let recipients = [];
+        
+        if (buyForValue === 'others') {
+            const recValidation = await validateRecipients('recipientsContainer');
+            recipients = recValidation?.recipients || [];
+            recipientsCount = recipients.length;
+        }
+        
+        // Create normalized cache key for package quotes
+        const normalizedRecipients = recipients
+            .map(r => r.username.toLowerCase().trim())
+            .filter(username => username.length > 0)
+            .sort();
+        const uniqueRecipients = [...new Set(normalizedRecipients)];
+        const recipientsHash = uniqueRecipients.join(',');
+        const cacheKey = `recipients_${recipientsCount}_${recipientsHash}`;
+        
+        // Hide distribution if no valid input or recipients
+        const distributionDiv = document.getElementById('starsDistribution');
+        const distributionList = document.getElementById('distributionList');
+        
+        // Check minimum stars based on purchase type
+        if (buyForValue === 'others') {
+            // For buying for others, minimum 50 stars per recipient
+            if (!val || val < 50 * recipientsCount) {
+                if (recipientsCount > 0) {
+                    const minStars = 50 * recipientsCount;
+                    quoteText.textContent = `⚠️ Need at least ${minStars} stars for ${recipientsCount} recipient(s)`;
+                } else {
+                    quoteText.textContent = '';
+                }
+                if (distributionDiv) distributionDiv.style.display = 'none';
+                return;
+            }
+        } else {
+            // For self-purchase, manual input enforces minimum 50 stars
+            if (!val || val < 50) {
+                quoteText.textContent = '⚠️ Manual input requires at least 50 stars. Use a package below for smaller amounts.';
+                if (distributionDiv) distributionDiv.style.display = 'none';
+                return;
+            }
+        }
+        
+        // Show distribution for multiple recipients
+        if (buyForValue === 'others' && recipientsCount > 0) {
+            const starsPerRecipient = Math.floor(val / recipientsCount);
+            const remainingStars = val % recipientsCount;
+            
+            // Show distribution
+            if (distributionDiv) distributionDiv.style.display = 'block';
+            if (distributionList) {
+                let distributionHTML = '';
+                recipients.forEach((recipient, index) => {
+                    const starsForThisRecipient = starsPerRecipient + (index < remainingStars ? 1 : 0);
+                    distributionHTML += `
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-gray-600">@${recipient.username}:</span>
+                            <span class="font-semibold text-indigo-600">${starsForThisRecipient} stars</span>
+                        </div>
+                    `;
+                });
+                distributionList.innerHTML = distributionHTML;
+            }
+        } else {
+            // Hide distribution for single recipient or no recipients
+            if (distributionDiv) distributionDiv.style.display = 'none';
+        }
+        
+        try {
+            const q = await window.API.getQuote({ stars: val, isPremium: false, recipientsCount });
+            if (q.success) {
+                const rate = await getRateCached();
+                const ton = rate ? (q.totalAmount / rate) : null;
+                quoteText.textContent = ton
+                    ? `Total: ${q.totalAmount} USDT (~${ton.toFixed(4)} TON) for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.unitAmount} USDT)`
+                    : `Total: ${q.totalAmount} USDT for ${q.quantity} ${q.quantity > 1 ? 'recipients' : 'recipient'} (Unit: ${q.unitAmount} USDT)`;
+            } else {
+                quoteText.textContent = TranslationUtils.get('quoteUnavailable') || 'Quote unavailable. Please try again.';
+            }
+        } catch (error) {
+            console.error('Error fetching quote:', error);
+            quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+        }
+        
+        // Update package prices only if recipients changed
+        if (window.buyPageState.lastRecipientsCount !== recipientsCount || window.buyPageState.lastRecipientsHash !== recipientsHash) {
+            window.buyPageState.lastRecipientsCount = recipientsCount;
+            window.buyPageState.lastRecipientsHash = recipientsHash;
+            await updatePackagePricesOptimized(recipientsCount, cacheKey);
+        }
+    }
+
+    applyBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        // Validate input and recipients then proceed to buy using custom stars
+        const val = Number(input.value || 0);
+        const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+        
+        if (buyForValue === 'others') {
+            // For buying for others, minimum 50 stars per recipient
+            const validation = await validateRecipients('recipientsContainer');
+            const recipients = validation?.recipients || [];
+            if (recipients.length === 0) {
+                showErrorToUser('Please add at least one valid recipient');
+                return;
+            }
+            if (!val || val < 50 * recipients.length) {
+                showErrorToUser(`Please enter at least ${50 * recipients.length} stars for ${recipients.length} recipient(s)`);
+                return;
+            }
+        } else {
+            // For self-purchase via manual input, enforce minimum 50
+            if (!val || val < 50) {
+                showErrorToUser('Manual input requires at least 50 stars. Use a package for smaller amounts.');
+                return;
+            }
+        }
+        await refreshQuote();
+        // Trigger purchase with a synthetic item using custom stars
+        const fakeItem = { isPremium: false, stars: val };
+        await handlePurchase(fakeItem);
+    });
+
+    let debounceTimer = null;
+    
+    input.addEventListener('input', () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+            if (!window.buyPageState.isRefreshing) {
+                window.buyPageState.isRefreshing = true;
+                try {
+                    await refreshQuote();
+                } catch (error) {
+                    console.error('Error refreshing quote:', error);
+                    // Show user-friendly error message
+                    quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                } finally {
+                    window.buyPageState.isRefreshing = false;
+                }
+            }
+        }, 500); // Increased debounce time for better performance
+    });
+
+    // React to recipients validation and toggle changes
+    window.addEventListener('recipientsChanged', () => {
+        // small delay to allow DOM status updates
+        setTimeout(async () => {
+            if (!window.buyPageState.isRefreshing) {
+                window.buyPageState.isRefreshing = true;
+                try {
+                    await refreshQuote();
+                } catch (error) {
+                    console.error('Error refreshing quote on recipients change:', error);
+                    quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                } finally {
+                    window.buyPageState.isRefreshing = false;
+                }
+            }
+        }, 100);
+    });
+    
+    // Also refresh when "Buy For" selection changes
+    document.querySelectorAll('input[name="buyForStars"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            setTimeout(async () => {
+                if (!window.buyPageState.isRefreshing) {
+                    window.buyPageState.isRefreshing = true;
+                    try {
+                        await refreshQuote();
+                    } catch (error) {
+                        console.error('Error refreshing quote on selection change:', error);
+                        quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                    } finally {
+                        window.buyPageState.isRefreshing = false;
+                    }
+                }
+            }, 100);
+        });
+    });
+    
+    // Add event listeners for premium section
+    document.querySelectorAll('input[name="buyForPremium"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            setTimeout(async () => {
+                if (!window.buyPageState.isRefreshing) {
+                    window.buyPageState.isRefreshing = true;
+                    try {
+                        await refreshQuote();
+                    } catch (error) {
+                        console.error('Error refreshing quote on premium change:', error);
+                        quoteText.textContent = TranslationUtils.get('quoteError') || 'Unable to get quote. Please try again.';
+                    } finally {
+                        window.buyPageState.isRefreshing = false;
+                    }
+                }
+            }, 100);
+        });
+    });
+}
+
+// Optimized function to update package prices with caching
+async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
+    try {
+        // Check cache first
+        if (window.buyPageState.packageQuoteCache.has(cacheKey)) {
+            const cachedData = window.buyPageState.packageQuoteCache.get(cacheKey);
+            updatePackagePricesFromCache(cachedData);
+            return;
+        }
+        
+        // Update stars package prices
+        const starsPackages = [
+            { stars: 50, element: document.querySelector('[data-stars="50"]') },
+            { stars: 100, element: document.querySelector('[data-stars="100"]') },
+            { stars: 500, element: document.querySelector('[data-stars="500"]') },
+            { stars: 1000, element: document.querySelector('[data-stars="1000"]') }
+        ];
+        
+        const cacheData = {};
+        
+        // Batch API calls for better performance
+        const starsQuotes = await Promise.allSettled(
+            starsPackages.map(pkg => 
+                window.API.getQuote({
+                    stars: pkg.stars,
+                    isPremium: false,
+                    recipientsCount: recipientsCount
+                })
+            )
+        );
+        
+        starsQuotes.forEach((result, index) => {
+            const pkg = starsPackages[index];
+            if (result.status === 'fulfilled' && result.value?.success && pkg.element) {
+                const quoteData = result.value;
+                cacheData[`stars_${pkg.stars}`] = quoteData;
+                updatePackagePriceDisplay(pkg.element, quoteData);
+            }
+        });
+        
+        // Update premium package prices
+        const premiumPackages = [
+            { duration: 3, element: document.querySelector('[data-premium-duration="3"]') },
+            { duration: 6, element: document.querySelector('[data-premium-duration="6"]') },
+            { duration: 12, element: document.querySelector('[data-premium-duration="12"]') }
+        ];
+        
+        const premiumQuotes = await Promise.allSettled(
+            premiumPackages.map(pkg => 
+                window.API.getQuote({
+                    isPremium: true,
+                    premiumDuration: pkg.duration,
+                    recipientsCount: recipientsCount
+                })
+            )
+        );
+        
+        premiumQuotes.forEach((result, index) => {
+            const pkg = premiumPackages[index];
+            if (result.status === 'fulfilled' && result.value?.success && pkg.element) {
+                const quoteData = result.value;
+                cacheData[`premium_${pkg.duration}`] = quoteData;
+                updatePackagePriceDisplay(pkg.element, quoteData);
+            }
+        });
+        
+        // Cache the results
+        window.buyPageState.packageQuoteCache.set(cacheKey, cacheData);
+        
+        // Limit cache size to prevent memory leaks
+        if (window.buyPageState.packageQuoteCache.size > 10) {
+            const firstKey = window.buyPageState.packageQuoteCache.keys().next().value;
+            window.buyPageState.packageQuoteCache.delete(firstKey);
+        }
+        
+    } catch (error) {
+        console.error('Error updating package prices:', error);
+    }
+}
+
+// Helper function to update package price display
+function updatePackagePriceDisplay(element, quoteData) {
+    const totalAmount = quoteData.totalAmount;
+    const unitAmount = quoteData.unitAmount;
+    const quantity = quoteData.quantity;
+    
+    // Update price element
+    const priceElement = element.querySelector('.package-price');
+    if (priceElement) {
+        if (quantity > 1) {
+            priceElement.textContent = `${totalAmount} USDT (${unitAmount} × ${quantity})`;
+        } else {
+            priceElement.textContent = `${totalAmount} USDT`;
+        }
+    }
+    
+    // Update button data
+    const buyButton = element.querySelector('.buy-button');
+    if (buyButton) {
+        try {
+            const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
+            const updatedData = {
+                ...currentData,
+                amount: totalAmount.toString()
+            };
+            buyButton.setAttribute('data-item', JSON.stringify(updatedData));
+        } catch (error) {
+            console.warn('Failed to update button data for package:', error);
+        }
+    }
+}
+
+// Helper function to update from cache
+function updatePackagePricesFromCache(cacheData) {
+    // Update stars packages from cache
+    const starsPackages = [
+        { stars: 50, element: document.querySelector('[data-stars="50"]') },
+        { stars: 100, element: document.querySelector('[data-stars="100"]') },
+        { stars: 500, element: document.querySelector('[data-stars="500"]') },
+        { stars: 1000, element: document.querySelector('[data-stars="1000"]') }
+    ];
+    
+    starsPackages.forEach(pkg => {
+        if (pkg.element && cacheData[`stars_${pkg.stars}`]) {
+            updatePackagePriceDisplay(pkg.element, cacheData[`stars_${pkg.stars}`]);
+        }
+    });
+    
+    // Update premium packages from cache
+    const premiumPackages = [
+        { duration: 3, element: document.querySelector('[data-premium-duration="3"]') },
+        { duration: 6, element: document.querySelector('[data-premium-duration="6"]') },
+        { duration: 12, element: document.querySelector('[data-premium-duration="12"]') }
+    ];
+    
+    premiumPackages.forEach(pkg => {
+        if (pkg.element && cacheData[`premium_${pkg.duration}`]) {
+            updatePackagePriceDisplay(pkg.element, cacheData[`premium_${pkg.duration}`]);
+        }
+    });
+}
+
+// Legacy function for backward compatibility
+async function updatePackagePrices() {
+    const buyForStarsValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
+    const buyForPremiumValue = Array.from(document.querySelectorAll('input[name="buyForPremium"]')).find(r => r.checked)?.value;
+    
+    let recipientsCount = 0;
+    
+    if (buyForStarsValue === 'others') {
+        const validation = await validateRecipients('recipientsContainer');
+        recipientsCount = validation?.recipients?.length || 0;
+    } else if (buyForPremiumValue === 'others') {
+        const validation = await validateRecipients('recipientsContainerPremium');
+        recipientsCount = validation?.recipients?.length || 0;
+    }
+    
+    const cacheKey = `recipients_${recipientsCount}_legacy`;
+    await updatePackagePricesOptimized(recipientsCount, cacheKey);
+}
+
+async function handlePurchase(item) {
+    console.log('🛒 Starting purchase process for item:', item);
+    console.log('🔍 Wallet state - tonConnectUI:', !!tonConnectUI, 'walletConnected:', walletConnected);
+    
+    if (!tonConnectUI) {
+        console.error('❌ TON Connect UI not initialized');
+        showErrorToUser('Wallet system not ready. Please refresh the page and try again.');
+        return;
+    }
+    
+    if (!walletConnected) {
+        console.warn('⚠️ Wallet not connected');
+        showErrorToUser(TranslationUtils.get('walletNotConnected') || 'Please connect your wallet first');
+        return;
+    }
+    
+    const user = currentUser;
+    if (!user || !user.id) {
+        showErrorToUser(TranslationUtils.get('userNotFound'));
+        return;
+    }
+    
+    // Check if running in Telegram environment
+    const isInTelegram = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData;
+    
+    if (!isInTelegram) {
+        try {
+            await Swal.fire({
+                title: TranslationUtils.get('warning') || 'Warning',
+                text: TranslationUtils.get('tryInTelegram') || 'This feature is only available in our Telegram bot. Please use the Telegram app to make purchases.',
+                icon: 'warning',
+                showCancelButton: false,
+                confirmButtonText: TranslationUtils.get('openTelegram') || 'Open in Telegram',
+                allowOutsideClick: false,
+                customClass: {
+                    confirmButton: 'telegram-confirm-btn'
+                }
+            });
+            
+            // Always redirect to Telegram - no option to continue
+            window.location.href = 'https://t.me/TgStarStore_bot';
+            return;
+        } catch (error) {
+            console.error('Error showing Telegram warning:', error);
+            // Fallback to direct Telegram link if Swal fails
+            window.location.href = 'https://t.me/TgStarStore_bot';
+            return;
+        }
+    }
+    
+    // Enforce mainnet only (except admins)
+    try {
+        const w = tonConnectUI.wallet;
+        if (!w || !w.account) {
+            showErrorToUser('Wallet not connected');
+            return;
+        }
+        // Check admin status via whoami
+        let allowTestnet = false;
+        try {
+            const who = await fetch('/api/whoami', { headers: { 'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user' } }).then(r => r.json());
+            allowTestnet = !!who?.isAdmin;
+            console.log('Admin check result:', { userId: window.Telegram?.WebApp?.initDataUnsafe?.user?.id, isAdmin: who?.isAdmin, allowTestnet });
+        } catch (error) {
+            console.log('Admin check failed:', error);
+        }
+        if (isTestnetWallet(w) && !allowTestnet) {
+            showErrorToUser('Testnet is not supported. Please switch your wallet to TON mainnet.');
+            return;
+        }
+    } catch (_) {}
+
+    let loadingShown = false;
+    try {
+        // Determine selection: package or custom stars
+        let stars = item.stars || null;
+        const customStarsVal = Number(document.getElementById('customStarsInput')?.value || 0);
+        if (!item.isPremium && customStarsVal >= 50) {
+            stars = customStarsVal;
+        }
+        
+        // Collect and validate recipients based on section
+        const inPremium = !!item.isPremium;
+        const containerId = inPremium ? 'recipientsContainerPremium' : 'recipientsContainer';
+        const buyForName = inPremium ? 'buyForPremium' : 'buyForStars';
+        const buyForValue = Array.from(document.querySelectorAll(`input[name="${buyForName}"]`)).find(r => r.checked)?.value;
+        let recipients = [];
+        if (buyForValue === 'others') {
+            const validation = await validateRecipients(containerId);
+            recipients = validation?.recipients || [];
+            // Block if any invalids exist compared to inputs length
+            const inputsCount = collectRecipients(containerId).length;
+            if (recipients.length === 0 || recipients.length !== inputsCount) {
+                showErrorToUser('Please ensure all recipient usernames are valid');
+                return;
+            }
+        }
+        if (recipients.length > 5) {
+            showErrorToUser(TranslationUtils.get('maximumRecipientsAllowed'));
+            return;
+        }
+
+        // Fetch server quote for accurate amount per recipients
+        const quote = await window.API.getQuote({
+            isPremium: !!item.isPremium,
+            premiumDuration: item.premiumDuration || null,
+            stars: item.isPremium ? null : Number(stars),
+            recipientsCount: recipients.length,
+            isBuyForOthers: recipients.length > 0
+        });
+        if (!quote.success) {
+            throw new Error(quote.error || 'Failed to get quote');
+        }
+        const totalAmountUsdt = Number(quote.totalAmount);
+        
+        // Fetch rate non-blocking with short cap to avoid delaying confirm
+        const ratePromise = fetchCurrentRate();
+        const rateQuick = await Promise.race([
+            ratePromise,
+            new Promise(resolve => setTimeout(() => resolve(null), 400))
+        ]);
+        const approxTon = rateQuick ? (totalAmountUsdt / rateQuick) : null;
+        
+        // Enhanced logic for stars distribution among recipients
+        let starsDisplay = '';
+        let distributionInfo = '';
+        
+        if (!item.isPremium) {
+            if (recipients.length > 0) {
+                const starsPerRecipient = Math.floor(Number(stars) / recipients.length);
+                const remainingStars = Number(stars) % recipients.length;
+                starsDisplay = `${Number(stars)} Stars`;
+                distributionInfo = `${starsPerRecipient} stars each${remainingStars > 0 ? ` (+${remainingStars} bonus stars)` : ''}`;
+            } else {
+                starsDisplay = `${Number(stars)} Stars`;
+                distributionInfo = '';
+            }
+        } else {
+            starsDisplay = `${item.premiumDuration} Month(s) Premium`;
+            distributionInfo = recipients.length ? `${recipients.length} recipient(s)` : '';
+        }
+        
+        // Simplified confirmation dialog
+        const confirm = await Swal.fire({
+            title: 'Confirm Purchase',
+            html: `
+                <div class="text-center space-y-3">
+                    <div class="text-2xl font-bold text-gray-800">${starsDisplay}</div>
+                    ${distributionInfo ? `<div class="text-sm text-gray-600">${distributionInfo}</div>` : ''}
+                    <div class="text-xl font-bold text-green-600">${totalAmountUsdt} USDT</div>
+                    ${approxTon ? `<div class="text-sm text-gray-500">~${approxTon.toFixed(4)} TON</div>` : ''}
+                    ${recipients.length ? `
+                        <div class="text-xs text-gray-500">
+                            ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}
+                        </div>
+                    ` : ''}
+                    <div class="text-xs text-amber-600 bg-amber-50 p-2 rounded border">
+                        ⏱️ Processing may take up to 2 hours<br>
+                        ⚠️ Do not change username before completion
+                    </div>
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Confirm',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#10B981',
+            cancelButtonColor: '#6B7280',
+            showClass: {
+                popup: 'animate__animated animate__fadeInUp animate__faster'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutDown animate__faster'
+            },
+            customClass: {
+                popup: 'rounded-xl shadow-lg',
+                confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105',
+                cancelButton: 'rounded-lg px-6 py-2 text-gray-700 font-medium transition-all duration-200 hover:scale-105'
+            }
+        });
+        if (!confirm.isConfirmed) return;
+
+        // Simplified loading indicator
+        Swal.fire({
+            title: 'Processing...',
+            html: `
+                <div class="text-center space-y-3">
+                    <div class="w-12 h-12 border-3 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto"></div>
+                    <div class="text-sm text-gray-600">Preparing your transaction</div>
+                </div>
+            `,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            showClass: {
+                popup: 'animate__animated animate__fadeInUp animate__faster'
+            },
+            customClass: {
+                popup: 'rounded-xl shadow-lg'
+            }
+        });
+        loadingShown = true;
+
+        // Get current exchange rate (already fetched above if needed)
+        const tonToUsdtRate = rateQuick || await fetchCurrentRate();
+        if (!tonToUsdtRate || tonToUsdtRate <= 0) {
+            throw new Error('Failed to fetch current exchange rate');
+        }
+        
+        // Calculate amount in TON
+        const tonAmount = totalAmountUsdt / tonToUsdtRate;
+        const nanoTonAmount = Math.round(tonAmount * 1e9);
+        
+        // Get payment address directly from server
+        const headers = {
+            'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+            'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user',
+            'Content-Type': 'application/json'
+        };
+        const walletResponse = await window.API.getWalletAddress();
+        if (!walletResponse.success || !walletResponse.walletAddress) {
+            throw new Error('Failed to get payment address');
+        }
+
+        // Prepare transaction
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 300,
+            messages: [
+                {
+                    address: walletResponse.walletAddress,
+                    amount: nanoTonAmount.toString(),
+                }
+            ]
+        };
+        
+        // Send transaction
+        console.log('📤 Sending transaction:', transaction);
+        const result = await tonConnectUI.sendTransaction(transaction);
+        console.log('📥 Transaction result:', result);
+        console.log('📥 Transaction result type:', typeof result);
+        console.log('📥 Transaction result keys:', result ? Object.keys(result) : 'null');
+        
+        if (result) {
+            console.log('Verifying transaction success...');
+            
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            const transactionHash = result?.boc || result?.hash || result;
+            console.log('📥 Using transaction hash:', transactionHash);
+            const transactionVerified = await verifyTransactionOnBlockchain(transactionHash, walletResponse.walletAddress, nanoTonAmount);
+            
+            if (!transactionVerified) {
+                throw new Error('Transaction verification failed. Please check your wallet and try again.');
+            }
+            
+            console.log('Transaction verified successfully');
+            
+            const isTestnetDetected = isTestnetWallet(tonConnectUI?.wallet);
+            const orderData = {
+                telegramId: user.id,
+                username: user.username || user.first_name || 'Unknown',
+                stars: item.isPremium ? null : Number(stars) || null,
+                isPremium: item.isPremium || false,
+                premiumDuration: item.premiumDuration || null,
+                walletAddress: currentWalletAddress,
+                transactionHash: result?.boc || result?.hash || result,
+                isTelegramUser: isTelegramEnv,
+                isTestnet: isTestnetDetected,
+                recipients: recipients.map(r => r.username),
+                totalAmount: totalAmountUsdt
+            };
+            
+            console.log('📋 Creating order with data:', orderData);
+            const response = await window.API.createOrder(orderData);
+            console.log('📋 Order creation response:', response);
+            
+            if (response && response.success) {
+                // Close loading before showing success
+                if (loadingShown) {
+                    Swal.close();
+                    loadingShown = false;
+                }
+                
+                await Swal.fire({
+                    title: 'Success!',
+                    html: `
+                        <div class="text-center space-y-3">
+                            <div class="text-lg font-semibold text-gray-800">Your order has been created successfully!</div>
+                            <div class="text-sm text-gray-600 space-y-2">
+                                <div>⏱️ <strong>Processing Time:</strong> Up to 2 hours to complete</div>
+                                <div>⚠️ <strong>Important:</strong> Do not change your username before order completion</div>
+                                <div>📋 <strong>Order ID:</strong> ${response.order.id}</div>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'success',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#10B981',
+                    showClass: {
+                        popup: 'animate__animated animate__fadeInUp animate__faster'
+                    },
+                    hideClass: {
+                        popup: 'animate__animated animate__fadeOutDown animate__faster'
+                    },
+                    customClass: {
+                        popup: 'rounded-xl shadow-lg',
+                        confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105'
+                    }
+                });
+            } else {
+                throw new Error(response?.error || TranslationUtils.get('orderFailed'));
+            }
+        } else {
+            throw new Error(TranslationUtils.get('transactionFailed'));
+        }
+    } catch (error) {
+        console.error('❌ Payment error:', error);
+        console.error('❌ Error details:', {
+            name: error?.name,
+            message: error?.message,
+            stack: error?.stack,
+            response: error?.response?.data
+        });
+        
+        // Close loading before showing error
+        if (loadingShown) {
+            Swal.close();
+            loadingShown = false;
+        }
+        
+        let errorMessage = TranslationUtils.get('paymentFailed') || 'Payment failed';
+        
+        if (error?.response?.data?.error) {
+            errorMessage = error.response.data.error;
+        } else if (error?.response?.status) {
+            errorMessage = `Request failed with status ${error.response.status}: ${error.response.statusText || 'Unknown error'}`;
+        } else if (error?.message && typeof error.message === 'string') {
+            errorMessage = error.message;
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        } else if (error?.name === 'UserRejectsError') {
+            errorMessage = TranslationUtils.get('transactionCancelled') || 'Transaction was cancelled';
+        } else if (error?.name === 'WalletNotConnectedError') {
+            errorMessage = 'Wallet not connected. Please connect your wallet and try again.';
+        } else if (error?.name === 'WalletNotReadyError') {
+            errorMessage = 'Wallet not ready. Please try again in a moment.';
+        }
+        
+        await Swal.fire({
+            title: 'Error',
+            text: errorMessage,
+            icon: 'error',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#EF4444',
+            showClass: {
+                popup: 'animate__animated animate__fadeInUp animate__faster'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutDown animate__faster'
+            },
+            customClass: {
+                popup: 'rounded-xl shadow-lg',
+                confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105'
+            }
+        });
+    } finally {
+        if (loadingShown) {
+            Swal.close();
+        }
+    }
+}
+
+async function fetchCurrentRate() {
+    try {
+        const response = await axios.get(
+            'https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd',
+            { timeout: 1200 }
+        );
+        return response.data?.['the-open-network']?.usd || 3.64;
+    } catch (error) {
+        console.error('Rate fetch failed:', error);
+        return 3.64;
+    }
+}
+
+    </script>
+    <script src="/js/version-display.js?v=3"></script>
+    <script>
+        // Auto-update version display
+        setTimeout(() => {
+            if (window.versionDisplay) {
+                console.log('Version:', window.versionDisplay.getDisplayVersion());
+            }
+        }, 1000);
+
+        // Removed fullscreen control button to prevent UI interference
+    </script>
 </body>
 </html>
