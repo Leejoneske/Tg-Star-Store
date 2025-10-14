@@ -320,6 +320,7 @@ app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-t
   try {
     const map = {
       '/': 'app/index.html',
+      '/app': 'app/index.html',
       '/about': 'app/about.html',
       '/sell': 'app/sell.html',
       '/history': 'app/history.html',
