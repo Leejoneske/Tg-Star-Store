@@ -525,7 +525,7 @@ class DailyRewardsSystem {
             case 'm3': // Complete order
                 return '/'; // Main app page (buy/sell)
             case 'm4': // Invite friend
-                return '/referral.html'; // Referral page
+                return '/referral'; // Referral page
             default:
                 return null;
         }
