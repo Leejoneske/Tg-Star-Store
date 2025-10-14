@@ -53,7 +53,15 @@
     <script src="/js/theme.js"></script>
 </head>
 <body class="loading">
-<script src="//code.tidio.co/2eplfarnhl3xdyrvsgtdzukrgiwlxq4c.js" async></script>
+<script src="//code.tidio.co/2eplfarnhl3xdyrvsgtdzukrgiwlxq4c.js" async onload="try{tidioChatApi.open();tidioChatApi.show();}catch(_){}"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  function openTidio(){try{if(window.tidioChatApi){tidioChatApi.open();tidioChatApi.show();return true;} }catch(_){} return false;}
+  if(!openTidio()){
+    var tries=0; var iv=setInterval(function(){tries++; if(openTidio()||tries>20) clearInterval(iv);},200);
+  }
+});
+</script>
     <div class="loading-overlay" id="loadingScreen">
         <div class="spinner"></div>
                         <div class="loading-text" data-translate="connectingToSupport">Connecting to StarStore support...</div>
