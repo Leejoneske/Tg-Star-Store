@@ -355,9 +355,10 @@
         const affiliateLink = document.getElementById('affiliateProgramLink');
         if (affiliateLink) {
             affiliateLink.addEventListener('click', function () {
-                const url = `${window.location.origin}/ambassador`;
-                if (window.Telegram?.WebApp?.openLink) {
-                    window.Telegram.WebApp.openLink(url);
+                const url = '/ambassador';
+                if (window.Telegram?.WebApp) {
+                    // Navigate inside the WebApp to preserve initData
+                    window.location.href = url;
                 } else {
                     window.open(url, '_blank', 'noopener');
                 }
