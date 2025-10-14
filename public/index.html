@@ -1746,6 +1746,7 @@ function initNotificationSystem() {
                     const response = await fetch(`/api/notifications/unread-count`, {
                         headers: {
                             'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
+                            'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || window.currentUserId || 'dev-user',
                             'Content-Type': 'application/json'
                         }
                     });
