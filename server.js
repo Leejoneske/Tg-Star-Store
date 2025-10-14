@@ -319,10 +319,10 @@ app.get(['/ambasador', '/ambasador.html'], (req, res) => {
 app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
   try {
     const map = {
-      '/': 'index.html',
-      '/about': 'about.html',
-      '/sell': 'sell.html',
-      '/history': 'history.html',
+      '/': 'app/index.html',
+      '/about': 'app/about.html',
+      '/sell': 'app/sell.html',
+      '/history': 'app/history.html',
       '/blog': 'blog/index.html',
       '/knowledge-base': 'knowledge-base/index.html',
       '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
@@ -334,7 +334,7 @@ app.get(['/', '/about', '/sell', '/history', '/blog', '/knowledge-base', '/how-t
       return res.status(200).sendFile(abs, (err) => {
         if (err) {
           // If the mapped file is missing, serve the graceful 404 page
-          const notFound = path.join(__dirname, 'public', '404.html');
+          const notFound = path.join(__dirname, 'public', 'errors', '404.html');
           return res.status(404).sendFile(notFound, (sendErr) => {
             if (sendErr) return res.status(404).send('Not found');
           });
@@ -429,12 +429,12 @@ app.get(['/400','/401','/403','/404','/500','/502','/503','/504'], (req, res) =>
     const code = parseInt(req.path.replace('/', ''), 10);
     const allowed = new Set([400,401,403,404,500,502,503,504]);
     if (!allowed.has(code)) {
-      const notFound = path.join(__dirname, 'public', '404.html');
+      const notFound = path.join(__dirname, 'public', 'errors', '404.html');
       return res.status(404).sendFile(notFound, (err) => {
         if (err) return res.status(404).send('Not found');
       });
     }
-    const abs = path.join(__dirname, 'public', `${code}.html`);
+    const abs = path.join(__dirname, 'public', 'errors', `${code}.html`);
     return res.status(code).sendFile(abs, (err) => {
       if (err) return res.status(code).send(String(code));
     });
@@ -446,7 +446,7 @@ app.get(['/400','/401','/403','/404','/500','/502','/503','/504'], (req, res) =>
 // Catch-all 404 for non-API GET requests
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) {
-    const abs = path.join(__dirname, 'public', '404.html');
+    const abs = path.join(__dirname, 'public', 'errors', '404.html');
     return res.status(404).sendFile(abs, (err) => {
       if (err) return res.status(404).send('Not found');
     });
