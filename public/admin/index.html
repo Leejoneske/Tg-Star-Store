@@ -107,6 +107,12 @@
                     </button>
                 </div>
                 <div class="sidebar-nav-item">
+                    <button class="nav-link w-full text-left" data-view="bots">
+                        <i class="fas fa-robot"></i>
+                        Bot Management
+                    </button>
+                </div>
+                <div class="sidebar-nav-item">
                     <button class="nav-link w-full text-left" data-view="settings">
                         <i class="fas fa-cog"></i>
                         Settings
@@ -385,6 +391,56 @@
                 </div>
             </div>
 
+            <!-- Bot Management View -->
+            <div id="bots-view" class="main-body hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="font-semibold">Bot Simulator Management</h3>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="form-group">
+                                <label class="form-label">Simulator Status</label>
+                                <div id="botSimulatorStatus" class="flex items-center gap-3">
+                                    <span class="badge badge-secondary">Loading...</span>
+                                    <button id="toggleBotSimulator" class="btn btn-secondary btn-sm" disabled>
+                                        <i class="fas fa-power-off"></i>
+                                        Toggle
+                                    </button>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-2">
+                                    Controls the bot simulator that creates realistic user activity
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Bot Count</label>
+                                <div id="botCount" class="text-lg font-semibold">0</div>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    Number of active simulated users
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                            <div class="flex items-start gap-3">
+                                <i class="fas fa-exclamation-triangle text-yellow-600 mt-1"></i>
+                                <div>
+                                    <h4 class="font-semibold text-yellow-800">Important Notes</h4>
+                                    <ul class="text-sm text-yellow-700 mt-2 space-y-1">
+                                        <li>• Bot simulator creates realistic user activity to populate leaderboards</li>
+                                        <li>• Changes made here only affect the current session</li>
+                                        <li>• For persistent changes, update environment variables in deployment</li>
+                                        <li>• Bots use natural human names and realistic behavior patterns</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Settings View -->
             <div id="settings-view" class="main-body hidden">
                 <div class="card">
@@ -498,6 +554,9 @@
 
                 // Refresh
                 document.getElementById('refreshBtn')?.addEventListener('click', () => this.refreshCurrentView());
+
+                // Bot management
+                document.getElementById('toggleBotSimulator')?.addEventListener('click', () => this.toggleBotSimulator());
             }
 
             async checkAuth() {
@@ -650,6 +709,7 @@
                     orders: 'Orders',
                     withdrawals: 'Withdrawals',
                     notifications: 'Notifications',
+                    bots: 'Bot Management',
                     settings: 'Settings'
                 };
                 document.getElementById('pageTitle').textContent = titles[view] || 'Dashboard';
@@ -678,6 +738,9 @@
                         break;
                     case 'withdrawals':
                         await this.loadWithdrawals();
+                        break;
+                    case 'bots':
+                        await this.loadBotStatus();
                         break;
                 }
             }
@@ -1060,6 +1123,83 @@
 
             async refreshCurrentView() {
                 await this.loadViewData(this.currentView);
+            }
+
+            async loadBotStatus() {
+                try {
+                    const response = await fetch('/api/admin/bot-simulator/status', {
+                        headers: {
+                            'x-csrf-token': this.csrfToken
+                        }
+                    });
+                    const status = await response.json();
+                    
+                    const statusElement = document.getElementById('botSimulatorStatus');
+                    const countElement = document.getElementById('botCount');
+                    const toggleButton = document.getElementById('toggleBotSimulator');
+                    
+                    if (statusElement) {
+                        const badge = status.running ? 
+                            '<span class="badge badge-success">Running</span>' :
+                            status.available ? 
+                                '<span class="badge badge-warning">Stopped</span>' :
+                                '<span class="badge badge-danger">Unavailable</span>';
+                        
+                        statusElement.innerHTML = `
+                            ${badge}
+                            <button id="toggleBotSimulator" class="btn btn-secondary btn-sm" ${!status.available ? 'disabled' : ''}>
+                                <i class="fas fa-power-off"></i>
+                                ${status.running ? 'Stop' : 'Start'}
+                            </button>
+                        `;
+                        
+                        // Re-attach event listener
+                        document.getElementById('toggleBotSimulator')?.addEventListener('click', () => this.toggleBotSimulator());
+                    }
+                    
+                    if (countElement) {
+                        countElement.textContent = status.botCount || 0;
+                    }
+                } catch (error) {
+                    console.error('Failed to load bot status:', error);
+                    this.showNotification('Failed to load bot status', 'error');
+                }
+            }
+
+            async toggleBotSimulator() {
+                const button = document.getElementById('toggleBotSimulator');
+                if (button.disabled) return;
+                
+                button.disabled = true;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="spinner"></i> Processing...';
+
+                try {
+                    const response = await fetch('/api/admin/bot-simulator/toggle', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-csrf-token': this.csrfToken
+                        }
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.showNotification(result.message, 'success');
+                        if (result.note) {
+                            this.showNotification(result.note, 'warning');
+                        }
+                        await this.loadBotStatus();
+                    } else {
+                        this.showNotification(result.error || 'Failed to toggle bot simulator', 'error');
+                    }
+                } catch (error) {
+                    this.showNotification('Network error. Please try again.', 'error');
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                }
             }
 
             async exportOrders() {
