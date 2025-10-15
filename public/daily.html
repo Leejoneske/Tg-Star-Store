@@ -294,8 +294,11 @@
 
         <!-- Page Header -->
         <header style="padding: 16px 20px; background: #f5f5f5; position: relative;">
-            <button id="exitButton" style="position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.1); color: #333; border: 1px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 8px 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onmouseover="this.style.background='rgba(0,0,0,0.2)'; this.style.color='#000'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='#333'">
+                <button id="exitButton" style="position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.1); color: #333; border: 1px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 8px 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onmouseover="this.style.background='rgba(0,0,0,0.2)'; this.style.color='#000'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='#333'">
                 ← Back
+            </button>
+            <button id="botStatusButton" style="position: absolute; top: 16px; right: 80px; background: rgba(0,0,255,0.1); color: #333; border: 1px solid rgba(0,0,255,0.2); border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="checkBotStatus()">
+                🤖 Bots
             </button>
             <h1 style="font-size: 28px; font-weight: 700; color: #000; margin: 0;" data-translate="dailyRewardsTitle">Daily Rewards</h1>
             <p style="font-size: 14px; color: #999; margin: 4px 0 0 0;">Keep your streak alive! 🔥</p>
@@ -709,6 +712,19 @@
                     const display = e.displayName || e.username || shortUser(e.userId);
                     return { u: display, pts: e.score ?? e.points, act: e.activityPoints || 0, avatar: (display || 'U')[0].toUpperCase(), pseudo: !!e.isPseudonym };
                 });
+                
+                // Handle empty leaderboard
+                if (!users || users.length === 0) {
+                    el.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #999;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">🏆</div>
+                            <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No competitors yet!</div>
+                            <div style="font-size: 14px;">Be the first to check in and climb the leaderboard</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
                 users.forEach((s, idx) => {
                 const row = document.createElement('div');
                 const isTop3 = idx < 3;
@@ -767,6 +783,28 @@
 
         function shortUser(id) {
             return 'user_' + (id || '').toString().slice(-5);
+        }
+
+        async function checkBotStatus() {
+            try {
+                const response = await fetch('/api/bot-simulator-status');
+                const status = await response.json();
+                
+                let message = `🤖 Bot Simulator Status:\n\n`;
+                message += `• Enabled: ${status.enabled ? '✅ Yes' : '❌ No'}\n`;
+                message += `• Available: ${status.available ? '✅ Yes' : '❌ No'}\n`;
+                message += `• Running: ${status.running ? '✅ Yes' : '❌ No'}\n`;
+                message += `• Bot Count: ${status.botCount}\n\n`;
+                
+                if (!status.running) {
+                    message += `💡 To enable bots:\n`;
+                    message += `Set ENABLE_BOT_SIMULATOR=1 in environment`;
+                }
+                
+                alert(message);
+            } catch (error) {
+                alert(`❌ Failed to check bot status: ${error.message}`);
+            }
         }
 
         // Exit button functionality

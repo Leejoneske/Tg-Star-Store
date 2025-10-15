@@ -656,6 +656,18 @@ app.get('/api/version', (req, res) => {
     }
 });
 
+// Bot simulator status endpoint
+app.get('/api/bot-simulator-status', (req, res) => {
+  const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+  const hasSimulator = !!startBotSimulatorSafe;
+  res.json({
+    enabled: isEnabled,
+    available: hasSimulator,
+    running: isEnabled && hasSimulator,
+    botCount: isEnabled ? 135 : 0 // DEFAULT_BOTS length
+  });
+});
+
 // Simple whoami endpoint to expose admin flag to frontend
 app.get('/api/whoami', (req, res) => {
   try {

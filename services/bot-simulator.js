@@ -309,6 +309,7 @@ function applyTodayCheckInAndMissions(state) {
 }
 
 async function seedBots({ useMongo, models, db, bots = DEFAULT_BOTS }) {
+  console.log(`🌱 Seeding ${bots.length} bots...`);
   const { User, DailyState } = models || {};
   const { monthKey } = todayKey();
 
@@ -329,6 +330,7 @@ async function seedBots({ useMongo, models, db, bots = DEFAULT_BOTS }) {
       }
     }
   }
+  console.log(`✅ Seeded ${bots.length} bots successfully`);
 }
 
 async function simulateTick({ useMongo, models, db, bots = DEFAULT_BOTS }) {
@@ -363,6 +365,7 @@ function startBotSimulator({ useMongo, models, db, bots = DEFAULT_BOTS, tickInte
   } catch {}
   let stopped = false;
   console.log(`🤖 Bot simulator starting with ${bots.length} bots (interval ${Math.round(tickIntervalMs / 60000)}m)`);
+  console.log(`🤖 Bot IDs: ${bots.slice(0, 5).map(b => b.username).join(', ')}...`);
 
   seedBots({ useMongo, models, db, bots }).then(() => simulateTick({ useMongo, models, db, bots })).catch(err => {
     console.warn('Bot simulator seed/tick error:', err.message);
