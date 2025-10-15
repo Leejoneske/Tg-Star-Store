@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram WebApp Debug</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
+        .debug-title { font-weight: bold; color: #333; margin-bottom: 10px; }
+        .debug-data { background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; }
+        .test-btn { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .test-btn:hover { background: #005a87; }
+        .result { margin-top: 10px; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>Telegram WebApp Debug Tool</h1>
+    
+    <div class="debug-section">
+        <div class="debug-title">Telegram WebApp Availability</div>
+        <div class="debug-data" id="telegram-availability"></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-title">InitData</div>
+        <div class="debug-data" id="init-data"></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-title">InitDataUnsafe</div>
+        <div class="debug-data" id="init-data-unsafe"></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-title">User Information</div>
+        <div class="debug-data" id="user-info"></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-title">Headers Test</div>
+        <button class="test-btn" onclick="testHeaders()">Test Headers</button>
+        <div id="headers-result"></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-title">Notification API Test</div>
+        <button class="test-btn" onclick="testNotificationAPI()">Test Notifications</button>
+        <div id="notification-result"></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-title">CSV Export Test</div>
+        <button class="test-btn" onclick="testCSVExport()">Test CSV Export</button>
+        <div id="csv-result"></div>
+    </div>
+
+    <script>
+        // Initialize Telegram WebApp
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+        }
+
+        function displayDebugInfo() {
+            // Telegram WebApp Availability
+            document.getElementById('telegram-availability').textContent = JSON.stringify({
+                hasTelegram: !!window.Telegram,
+                hasWebApp: !!window.Telegram?.WebApp,
+                isReady: !!window.Telegram?.WebApp?.ready,
+                platform: window.Telegram?.WebApp?.platform || 'unknown'
+            }, null, 2);
+
+            // InitData
+            document.getElementById('init-data').textContent = JSON.stringify({
+                initData: window.Telegram?.WebApp?.initData || 'not available',
+                initDataLength: window.Telegram?.WebApp?.initData?.length || 0
+            }, null, 2);
+
+            // InitDataUnsafe
+            document.getElementById('init-data-unsafe').textContent = JSON.stringify(
+                window.Telegram?.WebApp?.initDataUnsafe || 'not available', null, 2
+            );
+
+            // User Information
+            const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+            document.getElementById('user-info').textContent = JSON.stringify({
+                hasUser: !!user,
+                userId: user?.id,
+                userIdType: typeof user?.id,
+                username: user?.username,
+                firstName: user?.first_name,
+                lastName: user?.last_name,
+                languageCode: user?.language_code
+            }, null, 2);
+        }
+
+        function getHeaders() {
+            const headers = { 'Content-Type': 'application/json' };
+            
+            if (window.Telegram?.WebApp?.initData) {
+                headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+            }
+            
+            const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+                headers['x-telegram-id'] = telegramUserId.toString();
+            }
+            
+            return headers;
+        }
+
+        async function testHeaders() {
+            const resultDiv = document.getElementById('headers-result');
+            const headers = getHeaders();
+            
+            resultDiv.innerHTML = `
+                <div class="result">
+                    <strong>Headers to be sent:</strong>
+                    <pre>${JSON.stringify(headers, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        async function testNotificationAPI() {
+            const resultDiv = document.getElementById('notification-result');
+            resultDiv.innerHTML = '<div class="result">Testing...</div>';
+            
+            try {
+                const headers = getHeaders();
+                console.log('Testing with headers:', headers);
+                
+                const response = await fetch('/api/notifications', { headers });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <strong>✅ Success!</strong>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <strong>❌ Error ${response.status}:</strong>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <strong>❌ Network Error:</strong>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testCSVExport() {
+            const resultDiv = document.getElementById('csv-result');
+            resultDiv.innerHTML = '<div class="result">Testing...</div>';
+            
+            try {
+                const headers = getHeaders();
+                console.log('Testing CSV export with headers:', headers);
+                
+                const response = await fetch('/api/export-transactions', { 
+                    method: 'POST',
+                    headers 
+                });
+                
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const data = await response.json();
+                        resultDiv.innerHTML = `
+                            <div class="result success">
+                                <strong>✅ JSON Response:</strong>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </div>
+                        `;
+                    } else {
+                        const csvData = await response.text();
+                        resultDiv.innerHTML = `
+                            <div class="result success">
+                                <strong>✅ CSV Response (first 500 chars):</strong>
+                                <pre>${csvData.substring(0, 500)}...</pre>
+                            </div>
+                        `;
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <strong>❌ Error ${response.status}:</strong>
+                            <pre>${JSON.stringify(errorData, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <strong>❌ Network Error:</strong>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // Display debug info on load
+        displayDebugInfo();
+
+        // Refresh debug info every 2 seconds in case Telegram data loads asynchronously
+        setInterval(displayDebugInfo, 2000);
+    </script>
+</body>
+</html>
