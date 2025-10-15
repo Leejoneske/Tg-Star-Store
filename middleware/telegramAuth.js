@@ -36,43 +36,87 @@ function verifyTelegramAuth(req, _res, next) {
 function requireTelegramAuth(req, res, next) {
   const initDataHeader = req.headers['x-telegram-init-data'] || '';
   const botToken = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
+  
+  // Helper function to check if a value is a valid user ID
+  function isValidUserId(value) {
+    return value && 
+           value !== 'undefined' && 
+           value !== 'null' && 
+           value !== undefined && 
+           value !== null && 
+           value !== 'dev-user' &&
+           typeof value === 'string' && 
+           value.trim().length > 0;
+  }
 
-  if (process.env.NODE_ENV === 'production') {
-    // Check for telegram-id header first (most reliable)
-    const telegramId = req.headers['x-telegram-id'];
-    if (telegramId && telegramId !== 'undefined' && telegramId !== 'null' && telegramId !== undefined && telegramId !== null) {
-      // Continue to normal processing below
-    } else if (initDataHeader && botToken) {
-      const valid = validateTelegramInitData(initDataHeader, botToken);
-      if (!valid) {
-        // Only log auth failures, not every request
-        console.log('❌ Telegram auth validation failed:', { 
-          hasInitData: !!initDataHeader, 
-          hasBotToken: !!botToken,
-          initDataLength: initDataHeader.length,
-          telegramId: telegramId || 'undefined'
-        });
-        return res.status(401).json({ error: 'Unauthorized' });
+  let userId = null;
+  let authMethod = 'none';
+
+  // First, try to extract user ID from x-telegram-id header
+  const telegramIdHeader = req.headers['x-telegram-id'];
+  if (isValidUserId(telegramIdHeader)) {
+    userId = telegramIdHeader.toString();
+    authMethod = 'header';
+  }
+
+  // If no valid header ID, try to extract from initData
+  if (!userId && initDataHeader) {
+    try {
+      const parsed = parseInitData(initDataHeader);
+      if (parsed.user && parsed.user.id && isValidUserId(parsed.user.id.toString())) {
+        userId = parsed.user.id.toString();
+        authMethod = 'initData';
+        
+        // Validate initData signature if in production
+        if (process.env.NODE_ENV === 'production' && botToken) {
+          const valid = validateTelegramInitData(initDataHeader, botToken);
+          if (!valid) {
+            console.log('❌ Telegram auth validation failed:', { 
+              hasInitData: !!initDataHeader, 
+              hasBotToken: !!botToken,
+              initDataLength: initDataHeader.length,
+              telegramIdHeader: telegramIdHeader || 'undefined',
+              extractedUserId: parsed.user?.id || 'undefined',
+              authMethod
+            });
+            return res.status(401).json({ error: 'Invalid Telegram authentication' });
+          }
+        }
       }
-    } else {
-      // Only log when no auth method is found
-      console.log('❌ No valid authentication method found');
-      return res.status(401).json({ error: 'Unauthorized' });
+    } catch (error) {
+      console.log('❌ Error parsing initData:', error.message);
     }
   }
 
-  const idFromHeader = req.headers['x-telegram-id'];
-  let userId = idFromHeader ? idFromHeader.toString() : undefined;
-  if (!userId) {
-    try {
-      const parsed = parseInitData(initDataHeader);
-      if (parsed.user && parsed.user.id) userId = parsed.user.id.toString();
-    } catch (_) {}
+  // Production validation
+  if (process.env.NODE_ENV === 'production' && !userId) {
+    console.log('❌ No valid authentication found:', {
+      hasInitData: !!initDataHeader,
+      hasBotToken: !!botToken,
+      telegramIdHeader: telegramIdHeader || 'undefined',
+      authMethod
+    });
+    return res.status(401).json({ error: 'Unauthorized - No valid Telegram authentication' });
   }
-  if (!userId) userId = 'dev-user';
+
+  // Fallback for development
+  if (!userId) {
+    userId = 'dev-user';
+    authMethod = 'dev-fallback';
+  }
 
   const adminEnv = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(s => s.trim());
-  req.user = { id: userId, isAdmin: adminEnv.includes(userId) };
+  req.user = { 
+    id: userId, 
+    isAdmin: adminEnv.includes(userId),
+    authMethod // For debugging
+  };
+  
+  // Log successful auth in development
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('✅ Auth successful:', { userId, authMethod });
+  }
+  
   next();
 }
 

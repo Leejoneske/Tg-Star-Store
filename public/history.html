@@ -1053,16 +1053,18 @@ async function exportTransactions() {
         if (window.Telegram?.WebApp?.initData) {
             headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
             console.log('Using x-telegram-init-data header');
-        } else if (user?.id) {
-            headers['x-telegram-id'] = user.id;
+        } else if (user?.id && user.id !== undefined && user.id !== null && user.id !== 'undefined') {
+            headers['x-telegram-id'] = user.id.toString();
             console.log('Using x-telegram-id header from user object:', user.id);
-        } else if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
-            headers['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
-            console.log('Using x-telegram-id header from initDataUnsafe:', window.Telegram.WebApp.initDataUnsafe.user.id);
         } else {
-            console.log('No authentication headers available - using fallback for development');
-            // Fallback for development/testing when not in Telegram
-            headers['x-telegram-id'] = 'dev-user-123';
+            const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null && telegramUserId !== 'undefined') {
+                headers['x-telegram-id'] = telegramUserId.toString();
+                console.log('Using x-telegram-id header from initDataUnsafe:', telegramUserId);
+            } else {
+                console.log('No valid authentication headers available - letting server extract from initData');
+                // Don't send invalid x-telegram-id, let server extract from initData
+            }
         }
         
         console.log('Export headers:', headers);
@@ -1186,12 +1188,16 @@ async function exportReferrals() {
         
         if (window.Telegram?.WebApp?.initData) {
             headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
-        } else if (user?.id) {
-            headers['x-telegram-id'] = user.id;
+        } else if (user?.id && user.id !== undefined && user.id !== null && user.id !== 'undefined') {
+            headers['x-telegram-id'] = user.id.toString();
         } else {
-            console.log('No authentication headers available for referrals - using fallback for development');
-            // Fallback for development/testing when not in Telegram
-            headers['x-telegram-id'] = 'dev-user-123';
+            const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null && telegramUserId !== 'undefined') {
+                headers['x-telegram-id'] = telegramUserId.toString();
+            } else {
+                console.log('No valid authentication headers available for referrals - letting server extract from initData');
+                // Don't send invalid x-telegram-id, let server extract from initData
+            }
         }
 
         const response = await fetch(`${BASE_API_URL}/export-referrals`, {

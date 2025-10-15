@@ -143,9 +143,15 @@
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
-      if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) headers['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
-      else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
-      else headers['x-telegram-id'] = 'dev-user';
+      
+      const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+        headers['x-telegram-id'] = telegramUserId.toString();
+      } else if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+        headers['x-telegram-id'] = String(currentUserId);
+      }
+      // Don't send x-telegram-id header if we don't have a valid ID - let server extract from initData
+      
       const response = await fetch(`/api/notifications?limit=10&skip=${page * 10}`, { headers });
       
       if (!response.ok) {
@@ -178,9 +184,14 @@
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
-      if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) headers['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
-      else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
-      else headers['x-telegram-id'] = 'dev-user';
+      
+      const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+        headers['x-telegram-id'] = telegramUserId.toString();
+      } else if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+        headers['x-telegram-id'] = String(currentUserId);
+      }
+      
       const response = await fetch(`/api/notifications/${notificationId}/read`, { method: 'POST', headers, body: JSON.stringify({}) });
 
       if (response.ok) {
@@ -208,9 +219,14 @@
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
-      if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) headers['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
-      else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
-      else headers['x-telegram-id'] = 'dev-user';
+      
+      const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+        headers['x-telegram-id'] = telegramUserId.toString();
+      } else if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+        headers['x-telegram-id'] = String(currentUserId);
+      }
+      
       const response = await fetch('/api/notifications/mark-all-read', { method: 'POST', headers, body: JSON.stringify({}) });
 
       if (response.ok) {
@@ -235,13 +251,17 @@
   async function updateUnreadCount(count = null) {
     if (count === null) {
       try {
-        const response = await fetch(`/api/notifications/unread-count`, {
-          headers: {
-            'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-            'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || currentUserId || 'dev-user',
-            'Content-Type': 'application/json'
-          }
-        });
+        const headers = { 'Content-Type': 'application/json' };
+        if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+        
+        const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+          headers['x-telegram-id'] = telegramUserId.toString();
+        } else if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+          headers['x-telegram-id'] = String(currentUserId);
+        }
+        
+        const response = await fetch(`/api/notifications/unread-count`, { headers });
         if (response.ok) {
           const data = await response.json();
           count = data.unreadCount;
@@ -261,9 +281,14 @@
     try {
       const headers = {};
       if (window.Telegram?.WebApp?.initData) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
-      if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) headers['x-telegram-id'] = window.Telegram.WebApp.initDataUnsafe.user.id;
-      else if (currentUserId) headers['x-telegram-id'] = String(currentUserId);
-      else headers['x-telegram-id'] = 'dev-user';
+      
+      const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null) {
+        headers['x-telegram-id'] = telegramUserId.toString();
+      } else if (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') {
+        headers['x-telegram-id'] = String(currentUserId);
+      }
+      
       const response = await fetch(`/api/notifications/unread-count`, { headers });
       if (response.ok) {
         const data = await response.json();
