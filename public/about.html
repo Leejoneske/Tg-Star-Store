@@ -335,20 +335,50 @@
             });
         
 
-        // Daily Login Link Handler (12 tap easter egg)
-        const dailyLoginLink = document.getElementById('dailyLoginLink');
-        if (dailyLoginLink) {
-            let tapCount = 0;
-            let lastTap = 0;
-            dailyLoginLink.addEventListener('click', function () {
-                const now = Date.now();
-                if (now - lastTap > 2000) tapCount = 0;
-                lastTap = now;
-                tapCount += 1;
-                if (tapCount >= 12) {
+        // Check for highlight parameter and handle daily redirect
+        const urlParams = new URLSearchParams(window.location.search);
+        const highlight = urlParams.get('highlight');
+        
+        if (highlight === 'daily') {
+            // Highlight the daily login section
+            const dailyLoginLink = document.getElementById('dailyLoginLink');
+            if (dailyLoginLink) {
+                // Add highlight styling
+                dailyLoginLink.style.backgroundColor = '#fef3c7';
+                dailyLoginLink.style.border = '2px solid #f59e0b';
+                dailyLoginLink.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.1)';
+                
+                // Scroll to the element
+                dailyLoginLink.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Show a message and auto-redirect after 3 seconds
+                setTimeout(() => {
+                    if (confirm('🎁 Ready to claim your daily rewards? Click OK to go to Daily page!')) {
+                        window.location.href = '/daily';
+                    }
+                }, 1500);
+                
+                // Make it clickable to go to daily immediately
+                dailyLoginLink.addEventListener('click', function() {
                     window.location.href = '/daily';
-                }
-            });
+                });
+            }
+        } else {
+            // Daily Login Link Handler (12 tap easter egg)
+            const dailyLoginLink = document.getElementById('dailyLoginLink');
+            if (dailyLoginLink) {
+                let tapCount = 0;
+                let lastTap = 0;
+                dailyLoginLink.addEventListener('click', function () {
+                    const now = Date.now();
+                    if (now - lastTap > 2000) tapCount = 0;
+                    lastTap = now;
+                    tapCount += 1;
+                    if (tapCount >= 12) {
+                        window.location.href = '/daily';
+                    }
+                });
+            }
         }
 
         // Ambassador Programme Link Handler - always open outside the bot

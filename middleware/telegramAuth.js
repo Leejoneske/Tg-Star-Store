@@ -37,16 +37,19 @@ function requireTelegramAuth(req, res, next) {
   const initDataHeader = req.headers['x-telegram-init-data'] || '';
   const botToken = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
   
-  // Debug logging
-  console.log('🔍 Auth Debug - Request:', {
-    url: req.url,
-    method: req.method,
-    hasInitData: !!initDataHeader,
-    initDataLength: initDataHeader.length,
-    telegramIdHeader: req.headers['x-telegram-id'],
-    hasBotToken: !!botToken,
-    nodeEnv: process.env.NODE_ENV
-  });
+  // Reduced logging - only log auth failures and important events
+  const shouldLog = req.url.includes('/api/export-') || req.url.includes('/api/notifications') || 
+                   req.url.includes('/api/admin') || !isValidUserId(req.headers['x-telegram-id']);
+  
+  if (shouldLog) {
+    console.log('🔍 Auth Debug:', {
+      url: req.url,
+      method: req.method,
+      hasInitData: !!initDataHeader,
+      telegramIdHeader: req.headers['x-telegram-id'],
+      nodeEnv: process.env.NODE_ENV
+    });
+  }
   
   // Helper function to check if a value is a valid user ID
   function isValidUserId(value) {
@@ -129,20 +132,34 @@ function requireTelegramAuth(req, res, next) {
     authMethod = 'dev-fallback';
   }
 
+  // Extract username from initData if available
+  let username = null;
+  if (initDataHeader) {
+    try {
+      const parsed = parseInitData(initDataHeader);
+      if (parsed.user && parsed.user.username) {
+        username = parsed.user.username;
+      }
+    } catch (_) {}
+  }
+
   const adminEnv = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(s => s.trim());
   req.user = { 
     id: userId, 
+    username: username,
     isAdmin: adminEnv.includes(userId),
     authMethod // For debugging
   };
   
-  // Log auth result
-  console.log('✅ Auth result:', { 
-    userId, 
-    authMethod, 
-    isAdmin: req.user.isAdmin,
-    url: req.url 
-  });
+  // Log auth result only for important endpoints
+  if (shouldLog) {
+    console.log('✅ Auth result:', { 
+      userId, 
+      authMethod, 
+      isAdmin: req.user.isAdmin,
+      url: req.url 
+    });
+  }
   
   next();
 }

@@ -6379,27 +6379,15 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
         const { limit = 20, skip = 0 } = req.query;
         const userId = req.user.id;
 
-        console.log('📋 Fetching notifications for user:', userId);
-
-        // First, let's check what's in the database
-        const totalUserNotifications = await UserNotification.countDocuments({ userId });
-        const totalTemplates = await NotificationTemplate.countDocuments();
-        console.log('📋 Database state:', { totalUserNotifications, totalTemplates, userId });
-
         const userNotifications = await UserNotification.find({ userId })
             .sort({ createdAt: -1 })
             .skip(parseInt(skip))
             .limit(parseInt(limit))
             .lean();
 
-        console.log('📋 Found user notifications:', userNotifications.length);
-        console.log('📋 User notifications details:', userNotifications);
-
         const templateIds = userNotifications.map(n => n.templateId);
         const templates = await NotificationTemplate.find({ _id: { $in: templateIds } }).lean();
         const templateMap = new Map(templates.map(t => [t._id.toString(), t]));
-
-        console.log('📋 Found templates:', templates.length);
 
         const formattedNotifications = userNotifications.map(n => {
             const t = templateMap.get(n.templateId.toString());
@@ -6418,18 +6406,8 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
         const unreadCount = await UserNotification.countDocuments({ userId, read: false });
         const totalCount = await UserNotification.countDocuments({ userId });
 
-        console.log('📋 Notification summary:', { 
-            userId, 
-            userNotifications: userNotifications.length, 
-            templates: templates.length, 
-            formatted: formattedNotifications.length, 
-            unreadCount, 
-            totalCount 
-        });
-
         // If no notifications found OR all notifications are read, create a new unread one
         if (formattedNotifications.length === 0 || unreadCount === 0) {
-            console.log('📋 Creating fresh notification for better UX...');
             
             // Create a new notification for this user
             const newTemplate = await NotificationTemplate.create({
@@ -6439,7 +6417,7 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
                 audience: 'user',
                 targetUserId: userId,
                 priority: 1,
-                actionUrl: '/daily',
+                actionUrl: '/about?highlight=daily',
                 createdBy: 'system'
             });
 
@@ -6449,7 +6427,7 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
                 read: false  // Explicitly set as unread
             });
 
-            console.log('📋 Created new unread notification for user:', userId);
+            // Notification created successfully
 
             // Add the new notification to the response
             const newNotification = {
@@ -6805,42 +6783,17 @@ app.get('/api/transactions/:userId', async (req, res) => {
 // Export transactions as CSV via Telegram
 app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
     try {
-        console.log('=== CSV EXPORT DEBUG START ===');
-        console.log('Export transactions request received');
-        console.log('Request headers:', {
-            'x-telegram-init-data': req.headers['x-telegram-init-data'] ? 'present' : 'missing',
-            'x-telegram-id': req.headers['x-telegram-id'] || 'missing',
-            'content-type': req.headers['content-type']
-        });
-        console.log('Request user:', req.user);
-        console.log('Auth middleware details - checking if middleware ran properly...');
-        console.log('Environment:', {
-            NODE_ENV: process.env.NODE_ENV,
-            BOT_TOKEN: process.env.BOT_TOKEN ? 'present' : 'missing'
-        });
+        console.log('📊 CSV Export request for user:', req.user.id);
         
         // Check if user authentication worked and extract user ID
         let userId = null;
         if (req.user && req.user.id) {
             userId = req.user.id;
-            console.log('✅ Using authenticated user ID:', userId);
-            
-            // Check what transactions exist for this user
-            const buyOrdersCount = await BuyOrder.countDocuments({ telegramId: userId });
-            const sellOrdersCount = await SellOrder.countDocuments({ telegramId: userId });
-            console.log('📊 Transaction counts:', { buyOrdersCount, sellOrdersCount, userId });
-            
-            // If no transactions exist, create sample data for demo purposes
-            if (buyOrdersCount === 0 && sellOrdersCount === 0) {
-                console.log('📊 No transactions found, user has no purchase history');
-            }
+            // Get transaction counts
+        const buyOrdersCount = await BuyOrder.countDocuments({ telegramId: userId });
+        const sellOrdersCount = await SellOrder.countDocuments({ telegramId: userId });
         } else {
-            console.log('❌ Authentication failed - no user found');
-            console.log('req.user:', req.user);
-            console.log('❌ Request headers for debugging:', {
-                'x-telegram-init-data': req.headers['x-telegram-init-data'] ? `present (${req.headers['x-telegram-init-data'].length} chars)` : 'missing',
-                'x-telegram-id': req.headers['x-telegram-id'] || 'missing'
-            });
+            console.log('❌ CSV Export: Authentication failed');
             
             // Try to extract user ID from init data directly
             try {
@@ -6882,7 +6835,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             buyOrders = await BuyOrder.find({ telegramId: userId })
                 .sort({ dateCreated: -1 })
                 .lean();
-            console.log('✅ Found buy orders:', buyOrders.length);
+            // Buy orders fetched
         } catch (buyError) {
             console.error('❌ Error fetching buy orders:', buyError.message);
             buyOrders = [];
@@ -6899,7 +6852,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         }
 
         // Combine and format the data
-        console.log('Combining transaction data...');
+        // Combining transaction data
         const transactions = [];
         
         // Safely map buy orders
@@ -6940,10 +6893,10 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             });
         }
         
-        console.log('Total transactions combined:', transactions.length);
+        // Transactions combined
 
         // Generate CSV content with header information
-        console.log('Generating CSV content...');
+        // Generating CSV content
         let csv = '';
         
         try {
@@ -6982,7 +6935,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
                 csv += `"No Data","No transactions found","0","0","none","${new Date().toISOString().split('T')[0]}","No transactions available for this user"\n`;
             }
             
-            console.log('✅ CSV generated successfully, length:', csv.length, 'characters');
+            // CSV generated successfully
         } catch (csvError) {
             console.error('❌ Error generating CSV:', csvError.message);
             csv = `# StarStore - Transaction History Export (Error)\n# Error: ${csvError.message}\nID,Type,Amount,Status,Date,Details\n"Error","Error","0","error","${new Date().toISOString().split('T')[0]}","${csvError.message}"`;
@@ -6991,7 +6944,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         // Send CSV file via Telegram bot when possible, otherwise provide direct download
         const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
         const buffer = Buffer.from(csv, 'utf8');
-        console.log('CSV buffer created, size:', buffer.length, 'bytes');
+        // CSV buffer created
 
         if (process.env.BOT_TOKEN) {
             try {
@@ -7002,8 +6955,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
                     filename: filename,
                     contentType: 'text/csv'
                 });
-                console.log('✅ CSV sent to user via Telegram');
-                console.log('=== CSV EXPORT DEBUG END ===');
+                console.log('✅ CSV sent via Telegram to user:', userId);
                 return res.json({ success: true, message: 'CSV file sent to your Telegram' });
             } catch (botError) {
                 const message = String(botError && botError.message || '');
@@ -7020,8 +6972,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Cache-Control', 'no-store');
-        console.log('✅ Sending CSV as direct download');
-        console.log('=== CSV EXPORT DEBUG END ===');
+        console.log('✅ CSV direct download for user:', userId);
         return res.send(csv);
     } catch (error) {
         console.error('❌ ERROR in CSV export:', error);
