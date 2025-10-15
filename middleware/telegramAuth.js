@@ -37,16 +37,36 @@ function requireTelegramAuth(req, res, next) {
   const initDataHeader = req.headers['x-telegram-init-data'] || '';
   const botToken = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
   
+  // Debug logging
+  console.log('🔍 Auth Debug - Request:', {
+    url: req.url,
+    method: req.method,
+    hasInitData: !!initDataHeader,
+    initDataLength: initDataHeader.length,
+    telegramIdHeader: req.headers['x-telegram-id'],
+    hasBotToken: !!botToken,
+    nodeEnv: process.env.NODE_ENV
+  });
+  
   // Helper function to check if a value is a valid user ID
   function isValidUserId(value) {
-    return value && 
-           value !== 'undefined' && 
-           value !== 'null' && 
-           value !== undefined && 
-           value !== null && 
-           value !== 'dev-user' &&
-           typeof value === 'string' && 
-           value.trim().length > 0;
+    if (!value) return false;
+    
+    // Convert to string for consistent checking
+    const strValue = String(value);
+    
+    // Check for invalid string representations
+    if (strValue === 'undefined' || strValue === 'null' || strValue === 'NaN' || strValue === '') {
+      return false;
+    }
+    
+    // Allow dev-user in development
+    if (strValue === 'dev-user' && process.env.NODE_ENV !== 'production') {
+      return true;
+    }
+    
+    // For production, ensure it's a valid user ID (numeric or valid string)
+    return strValue.trim().length > 0 && strValue !== 'dev-user';
   }
 
   let userId = null;
@@ -112,10 +132,13 @@ function requireTelegramAuth(req, res, next) {
     authMethod // For debugging
   };
   
-  // Log successful auth in development
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('✅ Auth successful:', { userId, authMethod });
-  }
+  // Log auth result
+  console.log('✅ Auth result:', { 
+    userId, 
+    authMethod, 
+    isAdmin: req.user.isAdmin,
+    url: req.url 
+  });
   
   next();
 }

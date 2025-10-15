@@ -6379,15 +6379,21 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
         const { limit = 20, skip = 0 } = req.query;
         const userId = req.user.id;
 
+        console.log('📋 Fetching notifications for user:', userId);
+
         const userNotifications = await UserNotification.find({ userId })
             .sort({ createdAt: -1 })
             .skip(parseInt(skip))
             .limit(parseInt(limit))
             .lean();
 
+        console.log('📋 Found user notifications:', userNotifications.length);
+
         const templateIds = userNotifications.map(n => n.templateId);
         const templates = await NotificationTemplate.find({ _id: { $in: templateIds } }).lean();
         const templateMap = new Map(templates.map(t => [t._id.toString(), t]));
+
+        console.log('📋 Found templates:', templates.length);
 
         const formattedNotifications = userNotifications.map(n => {
             const t = templateMap.get(n.templateId.toString());
@@ -6404,7 +6410,59 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
         });
 
         const unreadCount = await UserNotification.countDocuments({ userId, read: false });
-        res.json({ notifications: formattedNotifications, unreadCount, totalCount: await UserNotification.countDocuments({ userId }) });
+        const totalCount = await UserNotification.countDocuments({ userId });
+
+        console.log('📋 Notification summary:', { 
+            userId, 
+            userNotifications: userNotifications.length, 
+            templates: templates.length, 
+            formatted: formattedNotifications.length, 
+            unreadCount, 
+            totalCount 
+        });
+
+        // If no notifications found, let's check if we should create some sample ones
+        if (formattedNotifications.length === 0) {
+            console.log('📋 No notifications found, checking for sample creation...');
+            
+            // Create a sample notification for this user if none exist
+            const sampleTemplate = await NotificationTemplate.create({
+                title: 'Welcome to StarStore! 🌟',
+                message: 'Thank you for joining StarStore. Start exploring our features and earn rewards!',
+                icon: 'fa-star',
+                audience: 'user',
+                targetUserId: userId,
+                priority: 1,
+                createdBy: 'system'
+            });
+
+            await UserNotification.create({
+                userId: userId,
+                templateId: sampleTemplate._id
+            });
+
+            console.log('📋 Created sample notification for user:', userId);
+
+            // Return the sample notification
+            const sampleNotification = {
+                id: sampleTemplate._id.toString(),
+                title: sampleTemplate.title,
+                message: sampleTemplate.message,
+                actionUrl: sampleTemplate.actionUrl,
+                icon: sampleTemplate.icon,
+                createdAt: sampleTemplate.createdAt,
+                read: false,
+                priority: sampleTemplate.priority
+            };
+
+            return res.json({ 
+                notifications: [sampleNotification], 
+                unreadCount: 1, 
+                totalCount: 1 
+            });
+        }
+
+        res.json({ notifications: formattedNotifications, unreadCount, totalCount });
     } catch (error) {
         console.error('Error fetching notifications:', error);
         res.status(500).json({ error: "Failed to fetch notifications" });
@@ -6700,6 +6758,10 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         } else {
             console.log('❌ Authentication failed - no user found');
             console.log('req.user:', req.user);
+            console.log('❌ Request headers for debugging:', {
+                'x-telegram-init-data': req.headers['x-telegram-init-data'] ? `present (${req.headers['x-telegram-init-data'].length} chars)` : 'missing',
+                'x-telegram-id': req.headers['x-telegram-id'] || 'missing'
+            });
             
             // Try to extract user ID from init data directly
             try {
