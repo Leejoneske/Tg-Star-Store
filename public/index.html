@@ -3213,17 +3213,12 @@ async function handlePurchase(item) {
         if (result) {
             console.log('Verifying transaction success...');
             
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            // Don't verify immediately - blockchain needs time to confirm
+            // Instead, create pending order and verify in background
             
             const transactionHash = result?.boc || result?.hash || result;
-            console.log('📥 Using transaction hash:', transactionHash);
-            const transactionVerified = await verifyTransactionOnBlockchain(transactionHash, walletResponse.walletAddress, nanoTonAmount);
-            
-            if (!transactionVerified) {
-                throw new Error('Transaction verification failed. Please check your wallet and try again.');
-            }
-            
-            console.log('Transaction verified successfully');
+            console.log('📥 Transaction submitted with BOC:', transactionHash);
+            console.log('⏳ Order will be created as pending and verified automatically...');
             
             const isTestnetDetected = isTestnetWallet(tonConnectUI?.wallet);
             const orderData = {
@@ -3241,6 +3236,7 @@ async function handlePurchase(item) {
             };
             
             console.log('📋 Creating order with data:', orderData);
+            console.log('⏳ Transaction submitted - order will be verified automatically in background...');
             const response = await window.API.createOrder(orderData);
             console.log('📋 Order creation response:', response);
             
@@ -3255,9 +3251,10 @@ async function handlePurchase(item) {
                     title: 'Success!',
                     html: `
                         <div class="text-center space-y-3">
-                            <div class="text-lg font-semibold text-gray-800">Your order has been created successfully!</div>
+                            <div class="text-lg font-semibold text-gray-800">Payment submitted successfully!</div>
                             <div class="text-sm text-gray-600 space-y-2">
-                                <div>⏱️ <strong>Processing Time:</strong> Up to 2 hours to complete</div>
+                                <div>🔄 <strong>Status:</strong> Verifying transaction on blockchain...</div>
+                                <div>⏱️ <strong>Processing Time:</strong> 5-10 minutes for verification, up to 2 hours for delivery</div>
                                 <div>⚠️ <strong>Important:</strong> Do not change your username before order completion</div>
                                 <div>📋 <strong>Order ID:</strong> ${response.order.id}</div>
                             </div>
