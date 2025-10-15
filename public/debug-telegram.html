@@ -64,6 +64,12 @@
         <div id="db-state-result"></div>
     </div>
 
+    <div class="debug-section">
+        <div class="debug-title">Create Test Notification</div>
+        <button class="test-btn" onclick="createTestNotification()">Create Test Notification</button>
+        <div id="create-notification-result"></div>
+    </div>
+
     <script>
         // Initialize Telegram WebApp
         if (window.Telegram?.WebApp) {
@@ -234,6 +240,46 @@
                         <div class="result success">
                             <strong>✅ Database State:</strong>
                             <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <strong>❌ Error ${response.status}:</strong>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <strong>❌ Network Error:</strong>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function createTestNotification() {
+            const resultDiv = document.getElementById('create-notification-result');
+            resultDiv.innerHTML = '<div class="result">Creating test notification...</div>';
+            
+            try {
+                const headers = getHeaders();
+                console.log('Creating test notification with headers:', headers);
+                
+                const response = await fetch('/api/debug/create-notification', { 
+                    method: 'POST',
+                    headers 
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <strong>✅ Test Notification Created:</strong>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                            <p>Now refresh the notifications to see it!</p>
                         </div>
                     `;
                 } else {

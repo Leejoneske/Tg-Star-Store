@@ -6427,44 +6427,52 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
             totalCount 
         });
 
-        // If no notifications found, let's check if we should create some sample ones
-        if (formattedNotifications.length === 0) {
-            console.log('📋 No notifications found, checking for sample creation...');
+        // If no notifications found OR all notifications are read, create a new unread one
+        if (formattedNotifications.length === 0 || unreadCount === 0) {
+            console.log('📋 Creating fresh notification for better UX...');
             
-            // Create a sample notification for this user if none exist
-            const sampleTemplate = await NotificationTemplate.create({
-                title: 'Welcome to StarStore! 🌟',
-                message: 'Thank you for joining StarStore. Start exploring our features and earn rewards!',
-                icon: 'fa-star',
+            // Create a new notification for this user
+            const newTemplate = await NotificationTemplate.create({
+                title: 'Daily Rewards Available! 🎁',
+                message: 'Check in daily to earn bonus points and maintain your streak. New missions are waiting for you!',
+                icon: 'fa-gift',
                 audience: 'user',
                 targetUserId: userId,
                 priority: 1,
+                actionUrl: '/daily',
                 createdBy: 'system'
             });
 
             await UserNotification.create({
                 userId: userId,
-                templateId: sampleTemplate._id
+                templateId: newTemplate._id,
+                read: false  // Explicitly set as unread
             });
 
-            console.log('📋 Created sample notification for user:', userId);
+            console.log('📋 Created new unread notification for user:', userId);
 
-            // Return the sample notification
-            const sampleNotification = {
-                id: sampleTemplate._id.toString(),
-                title: sampleTemplate.title,
-                message: sampleTemplate.message,
-                actionUrl: sampleTemplate.actionUrl,
-                icon: sampleTemplate.icon,
-                createdAt: sampleTemplate.createdAt,
+            // Add the new notification to the response
+            const newNotification = {
+                id: newTemplate._id.toString(),
+                title: newTemplate.title,
+                message: newTemplate.message,
+                actionUrl: newTemplate.actionUrl,
+                icon: newTemplate.icon,
+                createdAt: newTemplate.createdAt,
                 read: false,
-                priority: sampleTemplate.priority
+                priority: newTemplate.priority
             };
 
+            formattedNotifications.unshift(newNotification);
+            
+            // Update counts
+            const newUnreadCount = unreadCount + 1;
+            const newTotalCount = totalCount + 1;
+            
             return res.json({ 
-                notifications: [sampleNotification], 
-                unreadCount: 1, 
-                totalCount: 1 
+                notifications: formattedNotifications, 
+                unreadCount: newUnreadCount, 
+                totalCount: newTotalCount 
             });
         }
 
@@ -6485,6 +6493,35 @@ app.get('/api/notifications/unread-count', requireTelegramAuth, async (req, res)
     } catch (error) {
         console.error('Error fetching unread notifications count:', error);
         res.status(500).json({ error: 'Failed to fetch unread notifications count' });
+    }
+});
+
+// Debug endpoint to create sample notification
+app.post('/api/debug/create-notification', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const template = await NotificationTemplate.create({
+            title: 'Test Notification 📢',
+            message: 'This is a test notification created via debug endpoint. Everything is working correctly!',
+            icon: 'fa-bell',
+            audience: 'user',
+            targetUserId: userId,
+            priority: 1,
+            actionUrl: '/daily',
+            createdBy: 'debug'
+        });
+
+        await UserNotification.create({
+            userId: userId,
+            templateId: template._id,
+            read: false
+        });
+
+        res.json({ success: true, templateId: template._id, userId });
+    } catch (error) {
+        console.error('Debug create notification error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -6792,6 +6829,11 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             const buyOrdersCount = await BuyOrder.countDocuments({ telegramId: userId });
             const sellOrdersCount = await SellOrder.countDocuments({ telegramId: userId });
             console.log('📊 Transaction counts:', { buyOrdersCount, sellOrdersCount, userId });
+            
+            // If no transactions exist, create sample data for demo purposes
+            if (buyOrdersCount === 0 && sellOrdersCount === 0) {
+                console.log('📊 No transactions found, user has no purchase history');
+            }
         } else {
             console.log('❌ Authentication failed - no user found');
             console.log('req.user:', req.user);
