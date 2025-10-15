@@ -1391,7 +1391,7 @@ async function verifyTONTransaction(transactionHash, targetAddress, expectedAmou
                 }
 
                 const receivedAmount = parseInt(transaction.in_msg.value);
-                const expectedAmountNano = Math.floor(expectedAmount * 1e9);
+                // expectedAmountNano already declared above
                 
                 console.log(`API ${endpointIndex + 1}: Amount check - received: ${receivedAmount}, expected: ${expectedAmountNano}`);
                 
