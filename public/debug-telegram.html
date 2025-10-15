@@ -58,6 +58,12 @@
         <div id="csv-result"></div>
     </div>
 
+    <div class="debug-section">
+        <div class="debug-title">Database State Check</div>
+        <button class="test-btn" onclick="testDatabaseState()">Check Database State</button>
+        <div id="db-state-result"></div>
+    </div>
+
     <script>
         // Initialize Telegram WebApp
         if (window.Telegram?.WebApp) {
@@ -199,6 +205,42 @@
                         <div class="result error">
                             <strong>❌ Error ${response.status}:</strong>
                             <pre>${JSON.stringify(errorData, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <strong>❌ Network Error:</strong>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testDatabaseState() {
+            const resultDiv = document.getElementById('db-state-result');
+            resultDiv.innerHTML = '<div class="result">Checking database state...</div>';
+            
+            try {
+                const headers = getHeaders();
+                console.log('Testing database state with headers:', headers);
+                
+                const response = await fetch('/api/debug/db-state', { headers });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <strong>✅ Database State:</strong>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <strong>❌ Error ${response.status}:</strong>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
                         </div>
                     `;
                 }

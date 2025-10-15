@@ -6381,6 +6381,11 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
 
         console.log('📋 Fetching notifications for user:', userId);
 
+        // First, let's check what's in the database
+        const totalUserNotifications = await UserNotification.countDocuments({ userId });
+        const totalTemplates = await NotificationTemplate.countDocuments();
+        console.log('📋 Database state:', { totalUserNotifications, totalTemplates, userId });
+
         const userNotifications = await UserNotification.find({ userId })
             .sort({ createdAt: -1 })
             .skip(parseInt(skip))
@@ -6388,6 +6393,7 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
             .lean();
 
         console.log('📋 Found user notifications:', userNotifications.length);
+        console.log('📋 User notifications details:', userNotifications);
 
         const templateIds = userNotifications.map(n => n.templateId);
         const templates = await NotificationTemplate.find({ _id: { $in: templateIds } }).lean();
@@ -6479,6 +6485,32 @@ app.get('/api/notifications/unread-count', requireTelegramAuth, async (req, res)
     } catch (error) {
         console.error('Error fetching unread notifications count:', error);
         res.status(500).json({ error: 'Failed to fetch unread notifications count' });
+    }
+});
+
+// Debug endpoint to check database state
+app.get('/api/debug/db-state', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const dbState = {
+            userId,
+            userNotifications: await UserNotification.countDocuments({ userId }),
+            allUserNotifications: await UserNotification.countDocuments(),
+            notificationTemplates: await NotificationTemplate.countDocuments(),
+            buyOrders: await BuyOrder.countDocuments({ telegramId: userId }),
+            sellOrders: await SellOrder.countDocuments({ telegramId: userId }),
+            referrals: await Referral.countDocuments({ referrerUserId: userId }),
+            
+            // Sample data
+            sampleUserNotifications: await UserNotification.find({ userId }).limit(3).lean(),
+            sampleTemplates: await NotificationTemplate.find().limit(3).lean()
+        };
+        
+        res.json(dbState);
+    } catch (error) {
+        console.error('Debug DB state error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -6755,6 +6787,11 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         if (req.user && req.user.id) {
             userId = req.user.id;
             console.log('✅ Using authenticated user ID:', userId);
+            
+            // Check what transactions exist for this user
+            const buyOrdersCount = await BuyOrder.countDocuments({ telegramId: userId });
+            const sellOrdersCount = await SellOrder.countDocuments({ telegramId: userId });
+            console.log('📊 Transaction counts:', { buyOrdersCount, sellOrdersCount, userId });
         } else {
             console.log('❌ Authentication failed - no user found');
             console.log('req.user:', req.user);
