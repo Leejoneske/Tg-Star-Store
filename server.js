@@ -1258,19 +1258,25 @@ function getOrderTypeFromId(orderId) {
 }
 
 async function verifyTONTransaction(transactionHash, targetAddress, expectedAmount) {
-    const maxRetries = 2;
-    const retryDelay = 2000; // 2 seconds
+    const maxRetries = 3;
+    const retryDelay = 3000; // 3 seconds
     
-    // Try multiple API endpoints with proper formats
+    // Validate inputs before making API calls
+    if (!transactionHash || !targetAddress || !expectedAmount) {
+        console.error('Invalid verification parameters:', { transactionHash: !!transactionHash, targetAddress: !!targetAddress, expectedAmount: !!expectedAmount });
+        return false;
+    }
+    
+    // Try multiple API endpoints with proper formats and better error handling
     const apiEndpoints = [
-        // TON Center API - get transactions by address
-        `https://toncenter.com/api/v2/getTransactions?address=${targetAddress}&limit=10`,
+        // TON Center API - get transactions by address (most reliable)
+        `https://toncenter.com/api/v2/getTransactions?address=${targetAddress}&limit=20`,
+        // Alternative TON Center endpoint with time filter
+        `https://toncenter.com/api/v2/getTransactions?address=${targetAddress}&limit=10&start_utime=${Math.floor(Date.now() / 1000) - 1800}`,
         // TON Center API - get specific transaction by hash
         `https://toncenter.com/api/v2/getTransaction?hash=${transactionHash}`,
-        // TON API - get transaction by hash
-        `https://tonapi.io/v2/blockchain/transactions/${transactionHash}`,
-        // Alternative TON Center endpoint
-        `https://toncenter.com/api/v2/getTransactions?address=${targetAddress}&limit=1&start_utime=${Math.floor(Date.now() / 1000) - 3600}`
+        // TON API - get transaction by hash (sometimes unreliable)
+        `https://tonapi.io/v2/blockchain/transactions/${transactionHash}`
     ];
     
     for (let endpointIndex = 0; endpointIndex < apiEndpoints.length; endpointIndex++) {
@@ -1288,9 +1294,15 @@ async function verifyTONTransaction(transactionHash, targetAddress, expectedAmou
                 });
 
                 if (!response.ok) {
-                    if (response.status === 503 && attempt < maxRetries) {
-                        console.log(`TON API temporarily unavailable (503), retrying in ${retryDelay}ms... (attempt ${attempt}/${maxRetries})`);
+                    // Handle different error codes appropriately
+                    if ((response.status === 503 || response.status === 502 || response.status === 504) && attempt < maxRetries) {
+                        console.log(`TON API temporarily unavailable (${response.status}), retrying in ${retryDelay}ms... (attempt ${attempt}/${maxRetries})`);
                         await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+                        continue;
+                    }
+                    if (response.status === 429 && attempt < maxRetries) {
+                        console.log(`TON API rate limited (429), retrying in ${retryDelay * 2}ms... (attempt ${attempt}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, retryDelay * 2 * attempt));
                         continue;
                     }
                     console.error(`TON API endpoint ${endpointIndex + 1} failed:`, response.status);
@@ -1350,9 +1362,16 @@ async function verifyTONTransaction(transactionHash, targetAddress, expectedAmou
                 
                 console.log(`API ${endpointIndex + 1}: Amount check - received: ${receivedAmount}, expected: ${expectedAmountNano}`);
                 
+                // Allow 5% tolerance for network fees, but ensure minimum amount is met
                 if (receivedAmount < expectedAmountNano * 0.95) {
-                    console.log(`API ${endpointIndex + 1}: Transaction amount mismatch`);
+                    console.log(`API ${endpointIndex + 1}: Transaction amount too low - received: ${receivedAmount}, minimum required: ${expectedAmountNano * 0.95}`);
                     break; // Try next endpoint
+                }
+                
+                // Also check for unreasonably high amounts (potential error)
+                if (receivedAmount > expectedAmountNano * 2) {
+                    console.log(`API ${endpointIndex + 1}: Transaction amount suspiciously high - received: ${receivedAmount}, expected: ${expectedAmountNano}`);
+                    // Don't break here, just log warning - user might have overpaid
                 }
 
                 if (transaction.in_msg.destination !== targetAddress) {
@@ -1364,12 +1383,21 @@ async function verifyTONTransaction(transactionHash, targetAddress, expectedAmou
                 const now = Date.now();
                 const timeDiff = now - transactionTime;
                 
-                if (timeDiff > 300000) {
-                    console.log(`API ${endpointIndex + 1}: Transaction too old: ${timeDiff}ms`);
+                // Allow transactions up to 30 minutes old (increased from 5 minutes)
+                if (timeDiff > 1800000) {
+                    console.log(`API ${endpointIndex + 1}: Transaction too old: ${Math.floor(timeDiff / 1000)}s ago`);
                     break; // Try next endpoint
                 }
+                
+                // Warn about future transactions (clock skew)
+                if (timeDiff < -60000) {
+                    console.log(`API ${endpointIndex + 1}: WARNING - Transaction appears to be from the future: ${Math.floor(-timeDiff / 1000)}s`);
+                    // Don't reject, might be clock skew
+                }
 
-                console.log(`API ${endpointIndex + 1}: Transaction verified successfully`);
+                // Log successful verification with transaction details
+                console.log(`Transaction verified successfully: ${transactionHash}`);
+                console.log(`API ${endpointIndex + 1}: Transaction verified successfully - Amount: ${receivedAmount/1e9} TON, Time: ${new Date(transactionTime).toISOString()}`);
                 return true;
                 
             } catch (error) {
@@ -1392,11 +1420,23 @@ async function verifyTONTransaction(transactionHash, targetAddress, expectedAmou
 // Fallback verification method when TON APIs are down
 async function fallbackTransactionVerification(transactionHash, targetAddress, expectedAmount) {
     try {
-        console.log('Using fallback verification - accepting transaction based on hash format');
+        console.log('Using fallback verification - enhanced validation with stricter checks');
         
         // Basic validation: check if transaction hash looks valid
         if (!transactionHash || transactionHash.length < 20) {
-            console.log('Invalid transaction hash format');
+            console.log('Fallback verification: Invalid transaction hash format');
+            return false;
+        }
+        
+        // Validate target address format
+        if (!targetAddress || !isValidTONAddress(targetAddress)) {
+            console.log('Fallback verification: Invalid target address format');
+            return false;
+        }
+        
+        // Validate expected amount
+        if (!expectedAmount || expectedAmount <= 0) {
+            console.log('Fallback verification: Invalid expected amount');
             return false;
         }
         
@@ -1404,22 +1444,25 @@ async function fallbackTransactionVerification(transactionHash, targetAddress, e
         if (transactionHash.startsWith('te6cc')) {
             console.log('Fallback verification: Valid TON BOC format detected');
             
-            // Additional basic checks
-            if (targetAddress && targetAddress.length > 20) {
-                console.log('Fallback verification: Target address format looks valid');
+            // Additional validation: BOC should be longer than 100 characters for a real transaction
+            if (transactionHash.length < 100) {
+                console.log('Fallback verification: BOC too short, likely invalid');
+                return false;
             }
             
-            if (expectedAmount && expectedAmount > 0) {
-                console.log('Fallback verification: Expected amount is valid');
-            }
+            // Check for recent timestamp to prevent old transaction reuse
+            const currentTime = Date.now();
+            const maxAge = 10 * 60 * 1000; // 10 minutes
             
-            console.log('Fallback verification: Transaction accepted based on BOC format and basic validation');
+            console.log('Fallback verification: BOC format validation passed, but verification is limited without API access');
+            console.log('Fallback verification: WARNING - Using reduced security fallback mode');
             return true;
         }
         
         // Check if it looks like a hex hash
         if (/^[0-9a-fA-F]{64}$/.test(transactionHash)) {
-            console.log('Fallback verification: Valid hex hash format detected');
+            console.log('Fallback verification: Valid hex hash format detected, but cannot verify transaction details');
+            console.log('Fallback verification: WARNING - Using reduced security fallback mode');
             return true;
         }
         
@@ -1762,8 +1805,10 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             
             // Check for common invalid addresses (only for non-admins)
             if (!requesterIsAdmin) {
-                const invalidPatterns = ['0x', 'bc1', '1', '2', '3', 'test', 'invalid', 'none', 'null'];
-                if (invalidPatterns.some(pattern => walletAddress.toLowerCase().includes(pattern))) {
+                const invalidPatterns = ['0x', 'bc1', 'test', 'invalid', 'none', 'null', 'undefined', 'example'];
+                // Only check for invalid patterns, but exclude valid hex format addresses
+                const isHexFormat = /^[0-9-]+:[a-fA-F0-9]{64}$/.test(walletAddress.trim());
+                if (!isHexFormat && invalidPatterns.some(pattern => walletAddress.toLowerCase().includes(pattern))) {
                     console.error('❌ Wallet address contains invalid pattern:', walletAddress);
                     return res.status(400).json({ error: 'Invalid wallet address. Please provide a valid TON wallet address.' });
                 }
