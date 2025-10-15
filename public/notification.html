@@ -101,7 +101,6 @@
           <div class="title">${notification.title}</div>
           <div class="message">${notification.message}</div>
           <div class="time">${formatTimestamp(notification.createdAt)}</div>
-          ${notification.actionUrl ? `<div class="action-link"><a href="${notification.actionUrl}" target="_blank">View Details</a></div>` : ''}
         </div>
         <button class="mark-read-btn" onclick="markAsRead('${notification.id}')" ${notification.read ? 'style="display: none;"' : ''}>
           <i class="fas fa-check"></i>
@@ -309,6 +308,7 @@
       <p>${message}</p>
     `;
   }
+
 
   // Event listeners
   document.getElementById('markAllRead')?.addEventListener('click', () => {

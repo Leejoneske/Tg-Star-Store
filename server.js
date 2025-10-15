@@ -6412,12 +6412,12 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
             // Create a new notification for this user
             const newTemplate = await NotificationTemplate.create({
                 title: 'Daily Rewards Available! 🎁',
-                message: 'Check in daily to earn bonus points and maintain your streak. New missions are waiting for you!',
+                message: 'Check in daily to earn bonus points and maintain your streak. Use the bottom navigation to visit the Daily page and claim your rewards!',
                 icon: 'fa-gift',
                 audience: 'user',
                 targetUserId: userId,
                 priority: 1,
-                actionUrl: '/about?highlight=daily',
+                actionUrl: null, // No action URL to prevent navigation issues in Telegram Mini App
                 createdBy: 'system'
             });
 
