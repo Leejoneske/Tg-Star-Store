@@ -668,6 +668,38 @@ app.get('/api/bot-simulator-status', (req, res) => {
   });
 });
 
+// Admin-only bot management endpoints
+app.get('/api/admin/bot-simulator/status', requireAuth, requireAdmin, (req, res) => {
+  const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+  const hasSimulator = !!startBotSimulatorSafe;
+  res.json({
+    enabled: isEnabled,
+    available: hasSimulator,
+    running: isEnabled && hasSimulator,
+    botCount: isEnabled ? 135 : 0 // DEFAULT_BOTS length
+  });
+});
+
+app.post('/api/admin/bot-simulator/toggle', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const currentState = process.env.ENABLE_BOT_SIMULATOR === '1';
+    const newState = !currentState;
+    
+    // Note: This only affects the current process. For persistent changes,
+    // the environment variable should be updated in the deployment configuration.
+    process.env.ENABLE_BOT_SIMULATOR = newState ? '1' : '0';
+    
+    res.json({
+      success: true,
+      enabled: newState,
+      message: newState ? 'Bot simulator enabled' : 'Bot simulator disabled',
+      note: 'Changes will be lost on server restart. Update environment variables for persistence.'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Simple whoami endpoint to expose admin flag to frontend
 app.get('/api/whoami', (req, res) => {
   try {
