@@ -2509,13 +2509,20 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
                     // Create notifications in the database for recipients
                     for (const recipient of order.recipients) {
                         try {
-                            await Notification.create({
-                                userId: recipient.userId || 'anonymous',
+                            const template = await NotificationTemplate.create({
                                 title: 'Gift Received! 🎁',
                                 message: `You received ${order.isPremium ? `${order.premiumDurationPerRecipient} months Premium` : `${recipient.starsReceived} Stars`} from @${order.username}!`,
-                                icon: 'gift',
+                                audience: 'user',
+                                targetUserId: recipient.userId || 'anonymous',
+                                icon: 'fa-gift',
                                 priority: 1,
-                                isGlobal: false
+                                createdBy: 'system_gift'
+                            });
+
+                            await UserNotification.create({
+                                userId: recipient.userId || 'anonymous',
+                                templateId: template._id,
+                                read: false
                             });
                         } catch (notifErr) {
                             console.error(`Failed to create notification for ${recipient.username}:`, notifErr);
@@ -6482,19 +6489,31 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
         const unreadCount = await UserNotification.countDocuments({ userId, read: false });
         const totalCount = await UserNotification.countDocuments({ userId });
 
-        // If no notifications found OR all notifications are read, create a new unread one
-        if (formattedNotifications.length === 0 || unreadCount === 0) {
+        // Clean up old read notifications (older than 30 days) to prevent database bloat
+        try {
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            await UserNotification.deleteMany({ 
+                userId, 
+                read: true, 
+                createdAt: { $lt: thirtyDaysAgo } 
+            });
+        } catch (cleanupError) {
+            console.log('Notification cleanup error (non-critical):', cleanupError.message);
+        }
+
+        // Only create welcome notification if user has no notifications at all
+        if (formattedNotifications.length === 0) {
             
-            // Create a new notification for this user
+            // Create a welcome notification for this user
             const newTemplate = await NotificationTemplate.create({
-                title: 'Daily Rewards Available! 🎁',
-                message: 'Check in daily to earn bonus points and maintain your streak. Use the bottom navigation to visit the Daily page and claim your rewards!',
-                icon: 'fa-gift',
+                title: 'Welcome to StarStore! 🌟',
+                message: 'Welcome to StarStore! Check in daily to earn bonus points and maintain your streak. Use the bottom navigation to explore all features!',
+                icon: 'fa-star',
                 audience: 'user',
                 targetUserId: userId,
-                priority: 1,
-                actionUrl: null, // No action URL to prevent navigation issues in Telegram Mini App
-                createdBy: 'system'
+                priority: 0,
+                actionUrl: null,
+                createdBy: 'system_welcome'
             });
 
             await UserNotification.create({
@@ -6770,42 +6789,100 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
     const timestamp = new Date();
 
     try {
-        let notification;
+        let template;
         let responseMessage;
+        let userNotificationsCreated = 0;
 
         if (target === 'all') {
-            notification = await Notification.create({
-                title: 'Global Announcement',
+            // Create global notification template
+            template = await NotificationTemplate.create({
+                title: 'Global Announcement 📢',
                 message: notificationMessage,
-                isGlobal: true,
-                priority: 1 // Higher priority for admin announcements
+                audience: 'global',
+                priority: 1,
+                icon: 'fa-bullhorn',
+                createdBy: `admin_${chatId}`
             });
-            responseMessage = `🌍 Global notification sent at ${timestamp.toLocaleTimeString()}`;
+
+            // Get all users and create UserNotification for each
+            const users = await User.find({}, { id: 1 }).limit(10000);
+            const userNotifications = users.map(user => ({
+                userId: user.id.toString(),
+                templateId: template._id,
+                read: false
+            }));
+
+            if (userNotifications.length > 0) {
+                await UserNotification.insertMany(userNotifications);
+                userNotificationsCreated = userNotifications.length;
+            }
+
+            responseMessage = `🌍 Global notification sent to ${userNotificationsCreated} users`;
         } 
         else if (target && (target.startsWith('@') || !isNaN(target))) {
             const userId = target.startsWith('@') ? target.substring(1) : target;
-            notification = await Notification.create({
-                title: 'Personal Message',
-                userId: userId,
+            
+            // Create user-specific notification template
+            template = await NotificationTemplate.create({
+                title: 'Personal Message 💬',
                 message: notificationMessage,
-                isGlobal: false,
-                priority: 2 // Highest priority for personal admin messages
+                audience: 'user',
+                targetUserId: userId,
+                priority: 2,
+                icon: 'fa-envelope',
+                createdBy: `admin_${chatId}`
             });
+
+            // Create UserNotification for the specific user
+            await UserNotification.create({
+                userId: userId,
+                templateId: template._id,
+                read: false
+            });
+
+            userNotificationsCreated = 1;
             responseMessage = `👤 Notification sent to ${target}`;
+
+            // Also try to send direct Telegram message if possible
+            try {
+                await bot.sendMessage(userId, `📢 Admin Message:\n\n${notificationMessage}`);
+                responseMessage += ` (also sent via Telegram)`;
+            } catch (telegramErr) {
+                console.log(`Could not send direct Telegram message to ${userId}:`, telegramErr.message);
+            }
         } 
         else {
-            notification = await Notification.create({
-                title: 'System Notification',
+            // Default to global notification
+            template = await NotificationTemplate.create({
+                title: 'System Notification 🔔',
                 message: notificationMessage,
-                isGlobal: true
+                audience: 'global',
+                priority: 1,
+                icon: 'fa-bell',
+                createdBy: `admin_${chatId}`
             });
-            responseMessage = `✅ Notification sent`;
+
+            // Get all users and create UserNotification for each
+            const users = await User.find({}, { id: 1 }).limit(10000);
+            const userNotifications = users.map(user => ({
+                userId: user.id.toString(),
+                templateId: template._id,
+                read: false
+            }));
+
+            if (userNotifications.length > 0) {
+                await UserNotification.insertMany(userNotifications);
+                userNotificationsCreated = userNotifications.length;
+            }
+
+            responseMessage = `✅ System notification sent to ${userNotificationsCreated} users`;
         }
 
         // Format the response with timestamp and preview
         await bot.sendMessage(chatId,
-            `${responseMessage} at ${timestamp.toLocaleTimeString()}:\n\n` +
-            `${notificationMessage.substring(0, 100)}${notificationMessage.length > 100 ? '...' : ''}`
+            `${responseMessage} at ${timestamp.toLocaleTimeString()}\n\n` +
+            `📝 Preview: ${notificationMessage.substring(0, 100)}${notificationMessage.length > 100 ? '...' : ''}\n` +
+            `🆔 Template ID: ${template._id}`
         );
 
     } catch (err) {
@@ -8768,37 +8845,225 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
     }
 });
 
-// Send a notification (basic)
+// Enhanced notification system - sends both Telegram messages and creates database notifications
 app.post('/api/admin/notify', requireAdmin, async (req, res) => {
     try {
-        const { target, message } = req.body || {};
+        const { target, message, title, sendTelegram = true, createDbNotification = true } = req.body || {};
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
             return res.status(400).json({ error: 'Message required' });
         }
-        const sent = [];
+
+        const telegramSent = [];
+        const dbNotificationsCreated = [];
+        let template = null;
+
+        // Create notification template if database notifications are requested
+        if (createDbNotification) {
+            const notificationTitle = title || 'Admin Notification 📢';
+            template = await NotificationTemplate.create({
+                title: notificationTitle,
+                message: message,
+                audience: (!target || target === 'all' || target === 'active') ? 'global' : 'user',
+                targetUserId: (/^\d+$/.test(target)) ? target : null,
+                priority: 1,
+                icon: 'fa-bullhorn',
+                createdBy: `admin_api_${req.user.id}`
+            });
+        }
+
         if (!target || target === 'all') {
-            const users = await User.find({}, { id: 1 }).limit(5000);
-            for (const u of users) {
-                try { await bot.sendMessage(u.id, message); sent.push(u.id); } catch {}
+            const users = await User.find({}, { id: 1 }).limit(10000);
+            
+            // Send Telegram messages
+            if (sendTelegram) {
+                for (const u of users) {
+                    try { 
+                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
+                        telegramSent.push(u.id); 
+                    } catch {}
+                }
+            }
+
+            // Create database notifications
+            if (createDbNotification && template) {
+                const userNotifications = users.map(user => ({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                }));
+                
+                if (userNotifications.length > 0) {
+                    await UserNotification.insertMany(userNotifications);
+                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
+                }
             }
         } else if (target === 'active') {
             // Active users in last 24h
             const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const users = await User.find({ lastActive: { $gte: since } }, { id: 1 }).limit(5000);
-            for (const u of users) {
-                try { await bot.sendMessage(u.id, message); sent.push(u.id); } catch {}
+            const users = await User.find({ lastActive: { $gte: since } }, { id: 1 }).limit(10000);
+            
+            // Send Telegram messages
+            if (sendTelegram) {
+                for (const u of users) {
+                    try { 
+                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
+                        telegramSent.push(u.id); 
+                    } catch {}
+                }
+            }
+
+            // Create database notifications
+            if (createDbNotification && template) {
+                const userNotifications = users.map(user => ({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                }));
+                
+                if (userNotifications.length > 0) {
+                    await UserNotification.insertMany(userNotifications);
+                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
+                }
             }
         } else if (/^@/.test(target)) {
             const username = target.replace(/^@/, '');
             const user = await User.findOne({ username });
             if (!user) return res.status(404).json({ error: 'User not found' });
-            await bot.sendMessage(user.id, message); sent.push(user.id);
+            
+            // Send Telegram message
+            if (sendTelegram) {
+                try {
+                    await bot.sendMessage(user.id, `📢 Personal Admin Message:\n\n${message}`); 
+                    telegramSent.push(user.id);
+                } catch (err) {
+                    console.log(`Failed to send Telegram message to @${username}:`, err.message);
+                }
+            }
+
+            // Create database notification
+            if (createDbNotification && template) {
+                template.audience = 'user';
+                template.targetUserId = user.id.toString();
+                await template.save();
+
+                await UserNotification.create({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                });
+                dbNotificationsCreated.push(user.id.toString());
+            }
         } else if (/^\d+$/.test(target)) {
-            await bot.sendMessage(target, message); sent.push(target);
+            // Send Telegram message
+            if (sendTelegram) {
+                try {
+                    await bot.sendMessage(target, `📢 Personal Admin Message:\n\n${message}`); 
+                    telegramSent.push(target);
+                } catch (err) {
+                    console.log(`Failed to send Telegram message to ${target}:`, err.message);
+                }
+            }
+
+            // Create database notification
+            if (createDbNotification && template) {
+                template.audience = 'user';
+                template.targetUserId = target;
+                await template.save();
+
+                await UserNotification.create({
+                    userId: target,
+                    templateId: template._id,
+                    read: false
+                });
+                dbNotificationsCreated.push(target);
+            }
         } else {
             return res.status(400).json({ error: 'Invalid target' });
         }
-        res.json({ success: true, sent: sent.length });
+        
+        res.json({ 
+            success: true, 
+            telegramSent: telegramSent.length,
+            dbNotificationsCreated: dbNotificationsCreated.length,
+            templateId: template?._id
+        });
+    } catch (error) {
+        console.error('Admin notify error:', error);
+        res.status(500).json({ error: 'Failed to send notification' });
+    }
+});
+
+// Admin endpoint to view all notifications and templates
+app.get('/api/admin/notifications', requireAdmin, async (req, res) => {
+    try {
+        const { limit = 50, skip = 0, type = 'all' } = req.query;
+
+        let query = {};
+        if (type === 'global') query.audience = 'global';
+        if (type === 'user') query.audience = 'user';
+
+        const templates = await NotificationTemplate.find(query)
+            .sort({ createdAt: -1 })
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
+            .lean();
+
+        const templateStats = await Promise.all(templates.map(async (template) => {
+            const userNotificationCount = await UserNotification.countDocuments({ templateId: template._id });
+            const unreadCount = await UserNotification.countDocuments({ templateId: template._id, read: false });
+            
+            return {
+                ...template,
+                totalRecipients: userNotificationCount,
+                unreadCount: unreadCount,
+                readCount: userNotificationCount - unreadCount
+            };
+        }));
+
+        const totalTemplates = await NotificationTemplate.countDocuments(query);
+        const totalUserNotifications = await UserNotification.countDocuments();
+        const totalUnread = await UserNotification.countDocuments({ read: false });
+
+        res.json({
+            templates: templateStats,
+            pagination: {
+                total: totalTemplates,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                hasMore: (parseInt(skip) + parseInt(limit)) < totalTemplates
+            },
+            stats: {
+                totalTemplates,
+                totalUserNotifications,
+                totalUnread,
+                totalRead: totalUserNotifications - totalUnread
+            }
+        });
+    } catch (error) {
+        console.error('Admin notifications fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch notifications' });
+    }
+});
+
+// Admin endpoint to delete notification templates and cascade to user notifications
+app.delete('/api/admin/notifications/:templateId', requireAdmin, async (req, res) => {
+    try {
+        const { templateId } = req.params;
+        
+        // Delete the template
+        const deletedTemplate = await NotificationTemplate.findByIdAndDelete(templateId);
+        if (!deletedTemplate) {
+            return res.status(404).json({ error: 'Notification template not found' });
+        }
+
+        // Delete all associated user notifications
+        const deletedUserNotifications = await UserNotification.deleteMany({ templateId });
+
+        res.json({ 
+            success: true, 
+            deletedTemplate: deletedTemplate.title,
+            deletedUserNotifications: deletedUserNotifications.deletedCount
+        });
     } catch (e) {
         res.status(500).json({ error: 'Failed to send notification' });
     }
