@@ -2475,7 +2475,7 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
         }
     } else { // buy order
         if (actionType === 'complete') {
-            if (order.status !== 'pending') {
+            if (order.status !== 'pending' && order.status !== 'processing') {
                 throw new Error(`Order is ${order.status} - cannot complete`);
             }
             order.status = 'completed';
@@ -8406,7 +8406,7 @@ app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
         if (orderType === 'sell' && order.status !== 'processing') {
             return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
         }
-        if (orderType === 'buy' && order.status !== 'pending') {
+        if (orderType === 'buy' && order.status !== 'pending' && order.status !== 'processing') {
             return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
         }
 
