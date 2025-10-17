@@ -8948,6 +8948,53 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
     }
 });
 
+// Force enable bot simulator endpoint (admin only)
+app.post('/api/admin/force-enable-bots', requireAdmin, async (req, res) => {
+  try {
+    // Set environment variable programmatically
+    process.env.ENABLE_BOT_SIMULATOR = '1';
+    
+    // Try to start bot simulator immediately
+    if (startBotSimulatorSafe) {
+      try {
+        await startBotSimulatorSafe({
+          useMongo: !!process.env.MONGODB_URI,
+          models: { User, DailyState, BotProfile, Activity },
+          db
+        });
+        
+        res.json({
+          success: true,
+          message: 'Bot simulator force enabled and started',
+          status: 'enabled',
+          environment: process.env.ENABLE_BOT_SIMULATOR
+        });
+      } catch (startError) {
+        res.json({
+          success: true,
+          message: 'Bot simulator enabled but start failed',
+          status: 'enabled_but_not_started',
+          environment: process.env.ENABLE_BOT_SIMULATOR,
+          startError: startError.message
+        });
+      }
+    } else {
+      res.json({
+        success: true,
+        message: 'Bot simulator enabled (restart required)',
+        status: 'enabled_restart_needed',
+        environment: process.env.ENABLE_BOT_SIMULATOR
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to enable bot simulator',
+      details: error.message
+    });
+  }
+});
+
 // Admin endpoint to view activity statistics
 app.get('/api/admin/activity/stats', requireAdmin, async (req, res) => {
     try {
