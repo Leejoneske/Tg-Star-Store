@@ -18,12 +18,12 @@ class VersionDisplay {
         } catch (error) {
             console.warn('Could not fetch version from server, using fallback');
             this.versionInfo = {
-                version: '9.1.27',
+                version: '1.10.17',
                 buildNumber: 'N/A',
                 commitHash: 'production',
                 buildDate: new Date().toISOString().split('T')[0],
                 branch: 'main',
-                displayVersion: 'StarStore v9.1.27'
+                displayVersion: 'StarStore v1.10.17'
             };
         }
         
@@ -44,7 +44,7 @@ class VersionDisplay {
                 // Try to find elements with hardcoded version text
                 const allElements = document.querySelectorAll('*');
                 const versionElements = Array.from(allElements).filter(el => 
-                    el.textContent && el.textContent.includes('StarStore v9.1.27')
+                    el.textContent && el.textContent.includes('StarStore v1.10.17')
                 );
                 console.log('Found elements with hardcoded version:', versionElements.length);
                 versionElements.forEach(el => {
@@ -73,11 +73,11 @@ class VersionDisplay {
     }
 
     getDisplayVersion() {
-        return this.versionInfo ? this.versionInfo.displayVersion : 'StarStore v9.1.27';
+        return this.versionInfo ? this.versionInfo.displayVersion : 'StarStore v1.10.17';
     }
 
     getShortVersion() {
-        return this.versionInfo ? `StarStore v${this.versionInfo.version}` : 'StarStore v9.1.27';
+        return this.versionInfo ? `StarStore v${this.versionInfo.version}` : 'StarStore v1.10.17';
     }
 
     getBuildInfo() {
