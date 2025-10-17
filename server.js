@@ -5931,6 +5931,113 @@ bot.onText(/\/adminhelp/, (msg) => {
     bot.sendMessage(chatId, helpText);
 });
 
+// Admin command to check activity and bot status
+bot.onText(/\/activity(?:\s+(.+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const timeframe = match?.[1]?.toLowerCase() || '24h';
+    
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+    
+    try {
+        await bot.sendMessage(chatId, '📊 Fetching activity statistics...');
+        
+        // Calculate time range
+        let startTime;
+        let displayPeriod;
+        switch (timeframe) {
+            case '1h':
+                startTime = new Date(Date.now() - 60 * 60 * 1000);
+                displayPeriod = 'Last Hour';
+                break;
+            case '24h':
+                startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                displayPeriod = 'Last 24 Hours';
+                break;
+            case '7d':
+                startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                displayPeriod = 'Last 7 Days';
+                break;
+            default:
+                startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                displayPeriod = 'Last 24 Hours';
+        }
+
+        // Get statistics
+        const [
+            totalActivities,
+            recentActivities,
+            totalUsers,
+            activeUsers,
+            botUsers,
+            botActivities,
+            activityTypes
+        ] = await Promise.all([
+            Activity.countDocuments(),
+            Activity.countDocuments({ timestamp: { $gte: startTime } }),
+            User.countDocuments(),
+            User.countDocuments({ lastActive: { $gte: startTime } }),
+            User.countDocuments({ id: { $regex: '^200000' } }),
+            Activity.countDocuments({ 
+                userId: { $regex: '^200000' },
+                timestamp: { $gte: startTime }
+            }),
+            Activity.aggregate([
+                { $match: { timestamp: { $gte: startTime } } },
+                { $group: { 
+                    _id: '$activityType', 
+                    count: { $sum: 1 },
+                    totalPoints: { $sum: '$points' }
+                }},
+                { $sort: { count: -1 } },
+                { $limit: 5 }
+            ])
+        ]);
+
+        const botSimulatorEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+
+        const activityText = `📊 **Activity Statistics**
+
+**📈 ${displayPeriod}:**
+• Activities: \`${recentActivities}\` (Total: \`${totalActivities}\`)
+• Active Users: \`${activeUsers}\` / \`${totalUsers}\`
+
+**🤖 Bot Simulator:**
+• Status: ${botSimulatorEnabled ? '✅ Enabled' : '❌ Disabled'}
+• Bot Users: \`${botUsers}\`
+• Bot Activities: \`${botActivities}\`
+
+**🎯 Top Activity Types:**
+${activityTypes.length > 0 ? 
+    activityTypes.map(type => `• ${type._id}: \`${type.count}\` (${type.totalPoints} pts)`).join('\n') : 
+    '• No recent activities'
+}
+
+**💡 Commands:**
+• \`/activity 1h\` - Last hour stats
+• \`/activity 24h\` - Last 24 hours (default)
+• \`/activity 7d\` - Last 7 days`;
+
+        await bot.sendMessage(chatId, activityText, { parse_mode: 'Markdown' });
+        
+        // Additional diagnostics if bot simulator is enabled but not working
+        if (botSimulatorEnabled && botActivities === 0) {
+            await bot.sendMessage(chatId, 
+                '⚠️ **Bot Simulator Issue Detected**\n\n' +
+                'Bot simulator is enabled but no recent bot activities found.\n' +
+                'This may indicate the bot simulator is not running properly.',
+                { parse_mode: 'Markdown' }
+            );
+        }
+        
+    } catch (error) {
+        console.error('Activity command error:', error);
+        await bot.sendMessage(chatId, `❌ Error fetching activity statistics: ${error.message}`);
+    }
+});
+
 // Admin version command
 bot.onText(/\/version/, (msg) => {
     const chatId = msg.chat.id;
@@ -8252,7 +8359,7 @@ app.listen(PORT, () => {
     try {
       startBotSimulatorSafe({
         useMongo: !!process.env.MONGODB_URI,
-        models: { User, DailyState, BotProfile },
+        models: { User, DailyState, BotProfile, Activity },
         db
       });
       console.log('🤖 Bot simulator enabled');
@@ -8842,6 +8949,221 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
         res.json({ users, total: await User.countDocuments(filter).catch(()=>0) });
     } catch (e) {
         res.status(500).json({ error: 'Failed to load users' });
+    }
+});
+
+// Admin endpoint to view activity statistics
+app.get('/api/admin/activity/stats', requireAdmin, async (req, res) => {
+    try {
+        const { timeframe = '24h' } = req.query;
+        
+        // Calculate time range
+        let startTime;
+        switch (timeframe) {
+            case '1h':
+                startTime = new Date(Date.now() - 60 * 60 * 1000);
+                break;
+            case '24h':
+                startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                break;
+            case '7d':
+                startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case '30d':
+                startTime = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                break;
+            default:
+                startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        }
+
+        // Get activity statistics
+        const [
+            totalActivities,
+            recentActivities,
+            activityTypes,
+            topUsers,
+            botActivities,
+            totalUsers,
+            activeUsers
+        ] = await Promise.all([
+            Activity.countDocuments(),
+            Activity.countDocuments({ timestamp: { $gte: startTime } }),
+            Activity.aggregate([
+                { $match: { timestamp: { $gte: startTime } } },
+                { $group: { 
+                    _id: '$activityType', 
+                    count: { $sum: 1 }, 
+                    totalPoints: { $sum: '$points' },
+                    avgPoints: { $avg: '$points' }
+                }},
+                { $sort: { count: -1 } }
+            ]),
+            Activity.aggregate([
+                { $match: { timestamp: { $gte: startTime } } },
+                { $group: { 
+                    _id: '$userId', 
+                    count: { $sum: 1 }, 
+                    totalPoints: { $sum: '$points' }
+                }},
+                { $sort: { totalPoints: -1 } },
+                { $limit: 10 }
+            ]),
+            Activity.countDocuments({ 
+                userId: { $regex: '^200000' },
+                timestamp: { $gte: startTime }
+            }),
+            User.countDocuments(),
+            User.countDocuments({ lastActive: { $gte: startTime } })
+        ]);
+
+        // Get bot simulator status
+        const botSimulatorEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+        const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+
+        res.json({
+            timeframe,
+            period: {
+                start: startTime.toISOString(),
+                end: new Date().toISOString()
+            },
+            overview: {
+                totalActivities,
+                recentActivities,
+                totalUsers,
+                activeUsers,
+                botUsers,
+                botActivities
+            },
+            activityTypes,
+            topUsers,
+            botSimulator: {
+                enabled: botSimulatorEnabled,
+                botUsers,
+                recentBotActivities: botActivities
+            }
+        });
+    } catch (error) {
+        console.error('Admin activity stats error:', error);
+        res.status(500).json({ error: 'Failed to fetch activity statistics' });
+    }
+});
+
+// Admin endpoint to view recent activities
+app.get('/api/admin/activity/recent', requireAdmin, async (req, res) => {
+    try {
+        const { limit = 50, skip = 0, userId, activityType } = req.query;
+        
+        const filter = {};
+        if (userId) filter.userId = userId;
+        if (activityType) filter.activityType = activityType;
+
+        const activities = await Activity.find(filter)
+            .sort({ timestamp: -1 })
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
+            .lean();
+
+        const total = await Activity.countDocuments(filter);
+
+        res.json({
+            activities,
+            pagination: {
+                total,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                hasMore: (parseInt(skip) + parseInt(limit)) < total
+            }
+        });
+    } catch (error) {
+        console.error('Admin recent activities error:', error);
+        res.status(500).json({ error: 'Failed to fetch recent activities' });
+    }
+});
+
+// Admin endpoint to enable/disable bot simulator
+app.post('/api/admin/bot-simulator/enable', requireAdmin, async (req, res) => {
+    try {
+        process.env.ENABLE_BOT_SIMULATOR = '1';
+        
+        // Try to start bot simulator if not already running
+        if (startBotSimulatorSafe) {
+            try {
+                startBotSimulatorSafe({
+                    useMongo: !!process.env.MONGODB_URI,
+                    models: { User, DailyState, BotProfile, Activity },
+                    db
+                });
+                console.log('🤖 Bot simulator enabled via admin command');
+            } catch (e) {
+                console.warn('Failed to start bot simulator:', e.message);
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: 'Bot simulator enabled. Note: Changes will be lost on server restart. Update environment variables for persistence.',
+            enabled: true
+        });
+    } catch (error) {
+        console.error('Enable bot simulator error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to enable bot simulator',
+            details: error.message 
+        });
+    }
+});
+
+// Admin endpoint to test bot simulator
+app.post('/api/admin/bot-simulator/test', requireAdmin, async (req, res) => {
+    try {
+        const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+        
+        if (!isEnabled) {
+            return res.json({
+                success: false,
+                message: 'Bot simulator is disabled. Set ENABLE_BOT_SIMULATOR=1 to enable.',
+                enabled: false
+            });
+        }
+
+        // Check if bot simulator is actually working
+        const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+        const recentBotActivity = await Activity.countDocuments({
+            userId: { $regex: '^200000' },
+            timestamp: { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+        });
+
+        // Try to create a test bot user
+        const testBotId = '200999999';
+        const existingTestBot = await User.findOne({ id: testBotId });
+        
+        if (!existingTestBot) {
+            await User.create({
+                id: testBotId,
+                username: 'test_bot_admin',
+                lastActive: new Date(),
+                createdAt: new Date()
+            });
+        }
+
+        res.json({
+            success: true,
+            enabled: true,
+            stats: {
+                botUsers,
+                recentBotActivity,
+                testBotCreated: !existingTestBot
+            },
+            message: `Bot simulator is enabled. Found ${botUsers} bot users with ${recentBotActivity} recent activities.`
+        });
+    } catch (error) {
+        console.error('Bot simulator test error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to test bot simulator',
+            details: error.message 
+        });
     }
 });
 

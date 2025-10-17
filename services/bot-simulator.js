@@ -500,7 +500,7 @@ async function withBotLock(botId, fn) {
 }
 
 async function actBot({ bot, useMongo, models, db, missionIds }) {
-  const { DailyState } = models || {};
+  const { DailyState, Activity } = models || {};
   const profile = await getProfile(bot.id);
   // Skip if still in cooldown (randomized for human-like pacing)
   const now = new Date();
@@ -539,6 +539,27 @@ async function actBot({ bot, useMongo, models, db, missionIds }) {
       }
       state.lastCheckIn = now;
       state.totalPoints = (state.totalPoints || 0) + 10;
+      
+      // Log activity for bot check-in
+      if (Activity && useMongo) {
+        try {
+          await Activity.create({
+            userId: bot.id,
+            activityType: 'daily_checkin',
+            activityName: 'Daily Check-in',
+            points: 10,
+            timestamp: now,
+            metadata: { 
+              streak: state.streak,
+              day: day,
+              month: monthKey,
+              bot: true
+            }
+          });
+        } catch (activityError) {
+          console.warn(`Failed to log bot activity for ${bot.username}:`, activityError.message);
+        }
+      }
     }
 
     // Ensure mission weights present
@@ -557,7 +578,30 @@ async function actBot({ bot, useMongo, models, db, missionIds }) {
         const m = chosen;
         completed.add(m);
         state.missionsCompleted = Array.from(completed);
-        state.totalPoints = (state.totalPoints || 0) + (MISSION_POINTS[m] || 0);
+        const missionPoints = MISSION_POINTS[m] || 0;
+        state.totalPoints = (state.totalPoints || 0) + missionPoints;
+        
+        // Log activity for bot mission completion
+        if (Activity && useMongo) {
+          try {
+            await Activity.create({
+              userId: bot.id,
+              activityType: 'mission_complete',
+              activityName: 'Mission Complete',
+              points: missionPoints,
+              timestamp: now,
+              metadata: { 
+                missionId: m,
+                missionTitle: `Mission ${m.toUpperCase()}`,
+                missionPoints: missionPoints,
+                bot: true
+              }
+            });
+          } catch (activityError) {
+            console.warn(`Failed to log bot mission activity for ${bot.username}:`, activityError.message);
+          }
+        }
+        
         // Reinforce successful mission preference
         const w = Math.max(0.2, profile.missionWeights[m] || 1);
         profile.missionWeights[m] = clamp(w + 0.05, 0.2, 2.0);
