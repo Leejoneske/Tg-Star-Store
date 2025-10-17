@@ -364,19 +364,18 @@
                 });
             }
         } else {
-            // Daily Login Link Handler (12 tap easter egg)
+            // Daily Login Link Handler - Direct access (production ready)
             const dailyLoginLink = document.getElementById('dailyLoginLink');
             if (dailyLoginLink) {
-                let tapCount = 0;
-                let lastTap = 0;
                 dailyLoginLink.addEventListener('click', function () {
-                    const now = Date.now();
-                    if (now - lastTap > 2000) tapCount = 0;
-                    lastTap = now;
-                    tapCount += 1;
-                    if (tapCount >= 12) {
-                        window.location.href = '/daily';
-                    }
+                    // Add visual feedback
+                    this.style.transform = 'scale(0.98)';
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 150);
+                    
+                    // Navigate to daily page immediately
+                    window.location.href = '/daily';
                 });
             }
         }
