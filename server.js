@@ -4396,14 +4396,28 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
 app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    // Debounce: prevent duplicate rapid check-ins from dual flows (1.5s window)
+    // Enhanced debounce: prevent duplicate rapid check-ins (3s window)
     const nowTs = Date.now();
     if (!global.__recentCheckins) global.__recentCheckins = new Map();
     const lastTs = global.__recentCheckins.get(userId) || 0;
-    if (nowTs - lastTs < 1500) {
-      return res.json({ success: true, alreadyChecked: true });
+    if (nowTs - lastTs < 3000) {
+      return res.json({ 
+        success: true, 
+        alreadyChecked: true,
+        message: 'Please wait before checking in again'
+      });
     }
     global.__recentCheckins.set(userId, nowTs);
+    
+    // Clean up old entries to prevent memory leaks
+    if (global.__recentCheckins.size > 1000) {
+      const cutoff = nowTs - 300000; // 5 minutes
+      for (const [id, timestamp] of global.__recentCheckins.entries()) {
+        if (timestamp < cutoff) {
+          global.__recentCheckins.delete(id);
+        }
+      }
+    }
     const today = new Date();
     const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const day = today.getDate();
@@ -5998,37 +6012,40 @@ bot.onText(/\/activity(?:\s+(.+))?/, async (msg, match) => {
 
         const botSimulatorEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
 
-        const activityText = `📊 **Activity Statistics**
+        const activityText = `📊 <b>Activity Statistics</b>
 
-**📈 ${displayPeriod}:**
-• Activities: \`${recentActivities}\` (Total: \`${totalActivities}\`)
-• Active Users: \`${activeUsers}\` / \`${totalUsers}\`
+<b>📈 ${displayPeriod}:</b>
+• Activities: <code>${recentActivities}</code> (Total: <code>${totalActivities}</code>)
+• Active Users: <code>${activeUsers}</code> / <code>${totalUsers}</code>
 
-**🤖 Bot Simulator:**
+<b>🤖 Bot Simulator:</b>
 • Status: ${botSimulatorEnabled ? '✅ Enabled' : '❌ Disabled'}
-• Bot Users: \`${botUsers}\`
-• Bot Activities: \`${botActivities}\`
+• Bot Users: <code>${botUsers}</code>
+• Bot Activities: <code>${botActivities}</code>
 
-**🎯 Top Activity Types:**
+<b>🎯 Top Activity Types:</b>
 ${activityTypes.length > 0 ? 
-    activityTypes.map(type => `• ${type._id}: \`${type.count}\` (${type.totalPoints} pts)`).join('\n') : 
+    activityTypes.map(type => `• ${type._id}: <code>${type.count}</code> (${type.totalPoints} pts)`).join('\n') : 
     '• No recent activities'
 }
 
-**💡 Commands:**
-• \`/activity 1h\` - Last hour stats
-• \`/activity 24h\` - Last 24 hours (default)
-• \`/activity 7d\` - Last 7 days`;
+<b>💡 Commands:</b>
+• <code>/activity 1h</code> - Last hour stats
+• <code>/activity 24h</code> - Last 24 hours (default)
+• <code>/activity 7d</code> - Last 7 days`;
 
-        await bot.sendMessage(chatId, activityText, { parse_mode: 'Markdown' });
+        await bot.sendMessage(chatId, activityText, { 
+            parse_mode: 'HTML',
+            disable_web_page_preview: true 
+        });
         
         // Additional diagnostics if bot simulator is enabled but not working
         if (botSimulatorEnabled && botActivities === 0) {
             await bot.sendMessage(chatId, 
-                '⚠️ **Bot Simulator Issue Detected**\n\n' +
+                '⚠️ <b>Bot Simulator Issue Detected</b>\n\n' +
                 'Bot simulator is enabled but no recent bot activities found.\n' +
                 'This may indicate the bot simulator is not running properly.',
-                { parse_mode: 'Markdown' }
+                { parse_mode: 'HTML' }
             );
         }
         
@@ -8325,28 +8342,7 @@ bot.onText(/\/users/, async (msg) => {
     }
 });
 
-// Admin-only: /activity - bot activity summary (no console)
-bot.onText(/\/activity(?:\s+(24h|7d))?/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  if (!adminIds.includes(chatId.toString())) {
-    try { await bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.'); } catch {}
-    return;
-  }
-  const windowArg = (match && match[1]) || '24h';
-  const windowMs = windowArg === '7d' ? 7*24*60*60*1000 : 24*60*60*1000;
-  try {
-    const [totalUsers, states] = await Promise.all([
-      User.countDocuments({}).catch(()=>0),
-      DailyState.find({}, { userId: 1, lastCheckIn: 1 }).lean().catch(()=>[])
-    ]);
-    const cutoff = Date.now() - windowMs;
-    const active = states.filter(s => s.lastCheckIn && new Date(s.lastCheckIn).getTime() >= cutoff).length;
-    const text = `📈 Activity (${windowArg})\n\nUsers: ${totalUsers}\nChecked-in: ${active}`;
-    await bot.sendMessage(chatId, text);
-  } catch (e) {
-    try { await bot.sendMessage(chatId, '❌ Failed to load activity.'); } catch {}
-  }
-});
+// Duplicate activity command removed - using the comprehensive one above
 
 
 
