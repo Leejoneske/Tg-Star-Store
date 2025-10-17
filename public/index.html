@@ -3131,7 +3131,7 @@ async function handlePurchase(item) {
         return;
     }
     
-    const user = currentUser;
+    // User already declared above, just validate ID
     if (!user || !user.id) {
         showErrorToUser(TranslationUtils.get('userNotFound'));
         return;
