@@ -70,21 +70,6 @@
     <!-- Canonical URL -->
     <link rel="canonical" href="https://starstore.site/">
     
-    <!-- Structured Data -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "StarStore",
-        "description": "Buy and sell Telegram Stars securely with StarStore. Convert Stars to USDT, purchase Premium subscriptions, and earn rewards.",
-        "url": "https://starstore.site/",
-        "potentialAction": {
-            "@type": "SearchAction",
-            "target": "https://starstore.site/search?q={search_term_string}",
-            "query-input": "required name=search_term_string"
-        }
-    }
-    </script>
 
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -98,6 +83,11 @@
     <link href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" rel="stylesheet" />
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" as="script">
     <link rel="icon" href="/favicon.png" type="image/png">
+    
+    <!-- Required JavaScript Libraries -->
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/theme-additional.css?v=7">
     
@@ -253,49 +243,7 @@
         to { transform: rotate(360deg); }
     }
     
-    /* Enhanced button hover effects */
-    .btn-enhanced {
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
     
-    .btn-enhanced::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.5s;
-        pointer-events: none;
-    }
-    
-    .btn-enhanced:hover::before {
-        left: 100%;
-    }
-    
-    .btn-enhanced:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-    
-    /* Smooth modal transitions */
-    .modal-smooth {
-        animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    @keyframes modalSlideIn {
-        from {
-            opacity: 0;
-            transform: scale(0.95) translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-        }
-    }
 
     #connectWallet {
     padding: 8px 16px;
@@ -377,27 +325,6 @@
     }
 
     /* Smooth transitions for better UX */
-    .package-option {
-        transition: all 0.3s ease;
-    }
-    
-    .package-option:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
-    
-    .buy-button {
-        transition: all 0.2s ease;
-    }
-    
-    .buy-button:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-    }
-    
-    .buy-button:active:not(:disabled) {
-        transform: translateY(0);
-    }
     
     /* Smooth section transitions */
     .section-content {
@@ -1062,20 +989,6 @@
     </div>
 
     <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3CFMZX0XGZ"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-3CFMZX0XGZ');
-</script>
-    <!-- Load required libraries in head -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 
     <script src="/js/translations.js?v=2"></script>
     <script src="/js/loading.js?v=4"></script>
@@ -1100,8 +1013,8 @@
             showErrorBanner(msg);
         });
         window.addEventListener('unhandledrejection', function(e){
-            var reason = e && e.reason;
-            var txt = '[PromiseRejection] ' + (reason && reason.message ? reason.message : String(reason));
+            const reason = e && e.reason;
+            const txt = '[PromiseRejection] ' + (reason && reason.message ? reason.message : String(reason));
             showErrorBanner(txt);
         });
     })();
@@ -2055,7 +1968,6 @@ function updateGlobalUserData() {
 function setupTelegramFullscreen() {
     if (window.Telegram?.WebApp) {
         document.body.classList.add('telegram-fullscreen');
-        console.log('Telegram Mini App mode enabled');
     }
 }
 
@@ -2165,7 +2077,6 @@ function initWalletConnection() {
                 twaReturnUrl: 'https://t.me/TgStarStore_bot?startApp'
             }
         });
-        console.log('✅ TON Connect UI initialized successfully');
     } catch (error) {
         console.error('❌ Failed to initialize TON Connect UI:', error);
         const btn = document.getElementById('connectWallet');
@@ -2181,17 +2092,15 @@ function initWalletConnection() {
 
     // Determine if current user is admin
     let currentUserIsAdmin = false;
-    fetch('/api/whoami', { headers: { 'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user' } })
+    fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user' } })
         .then(r => r.json()).then(d => { currentUserIsAdmin = !!d?.isAdmin; }).catch(() => { currentUserIsAdmin = false; });
 
     tonConnectUI.onStatusChange(wallet => {
-        console.log('🔄 Wallet status changed:', wallet);
         if (wallet?.account) {
             currentWalletAddress = wallet.account.address;
             walletConnected = true;
             localStorage.setItem('walletConnected', 'true');
             localStorage.setItem('walletAddress', currentWalletAddress);
-            console.log('✅ Wallet connected:', currentWalletAddress);
             // Block testnet wallets immediately
             if (isTestnetWallet(wallet) && !currentUserIsAdmin) {
                 showErrorToUser('Testnet wallet is not supported. Please switch to TON mainnet.');
@@ -2199,7 +2108,6 @@ function initWalletConnection() {
                 setTimeout(async () => { 
                     try { 
                         await tonConnectUI.disconnect(); 
-                        console.log('🔌 Testnet wallet disconnected');
                     } catch (e) {
                         console.error('Failed to disconnect testnet wallet:', e);
                     }
@@ -2218,11 +2126,9 @@ function initWalletConnection() {
     const btn = document.getElementById('connectWallet');
     if (btn) {
         btn.addEventListener('click', async () => {
-            console.log('🖱️ Wallet button clicked, connected:', walletConnected);
             btn.disabled = true;
             try {
                 if (walletConnected) {
-                    console.log('🔌 Disconnecting wallet...');
                     await tonConnectUI.disconnect();
                 } else {
                     console.log('🔗 Opening wallet connection modal...');
@@ -2241,7 +2147,6 @@ function initWalletConnection() {
 // Check for existing wallet connection after initialization
 setTimeout(() => {
     if (tonConnectUI) {
-        console.log('🔍 Checking for existing wallet connection...');
         if (tonConnectUI.connected) {
             const wallet = tonConnectUI.wallet;
             if (wallet?.account) {
@@ -2249,11 +2154,9 @@ setTimeout(() => {
                 walletConnected = true;
                 localStorage.setItem('walletConnected', 'true');
                 localStorage.setItem('walletAddress', currentWalletAddress);
-                console.log('✅ Restored wallet connection:', currentWalletAddress);
                 updateWalletButton();
             }
         } else {
-            console.log('ℹ️ No existing wallet connection found');
         }
     }
 }, 2000);       
@@ -2265,19 +2168,16 @@ function updateWalletButton() {
         return;
     }
     
-    console.log('🔄 Updating wallet button, connected:', walletConnected, 'address:', currentWalletAddress);
     
     if (walletConnected && currentWalletAddress) {
         btn.classList.add('wallet-connected');
         const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
         btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
         btn.disabled = false;
-        console.log('✅ Wallet button updated - connected state');
     } else {
         btn.classList.remove('wallet-connected');
         btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${TranslationUtils.get('connectWallet') || 'Connect Wallet'}`;
         btn.disabled = false;
-        console.log('✅ Wallet button updated - disconnected state');
     }
 }      
 //end of ton connect
@@ -2289,7 +2189,7 @@ async function verifyTransactionOnBlockchain(transactionHash, targetAddress, exp
             headers: {
                 'Content-Type': 'application/json',
                 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-                'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user'
+                'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user'
             },
             body: JSON.stringify({
                 transactionHash,
@@ -2573,7 +2473,7 @@ async function validateRecipients(containerId) {
         const response = await axios.post('/api/validate-usernames', { usernames }, {
             headers: {
                 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-                'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user',
+                'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user',
                 'Content-Type': 'application/json'
             }
         });
@@ -3117,8 +3017,6 @@ async function updatePackagePrices() {
 }
 
 async function handlePurchase(item) {
-    console.log('🛒 Starting purchase process for item:', item);
-    console.log('🔍 Wallet state - tonConnectUI:', !!tonConnectUI, 'walletConnected:', walletConnected);
     
     // Early username validation - block purchase immediately if no username
     const user = currentUser;
@@ -3184,9 +3082,8 @@ async function handlePurchase(item) {
         // Check admin status via whoami
         let allowTestnet = false;
         try {
-            const who = await fetch('/api/whoami', { headers: { 'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user' } }).then(r => r.json());
+            const who = await fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user' } }).then(r => r.json());
             allowTestnet = !!who?.isAdmin;
-            console.log('Admin check result:', { userId: window.Telegram?.WebApp?.initDataUnsafe?.user?.id, isAdmin: who?.isAdmin, allowTestnet });
         } catch (error) {
             console.log('Admin check failed:', error);
         }
@@ -3339,7 +3236,7 @@ async function handlePurchase(item) {
         // Get payment address directly from server
         const headers = {
             'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
-            'x-telegram-id': (window.Telegram?.WebApp?.initDataUnsafe?.user?.id && window.Telegram.WebApp.initDataUnsafe.user.id !== 'undefined') ? window.Telegram.WebApp.initDataUnsafe.user.id : 'dev-user',
+            'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user',
             'Content-Type': 'application/json'
         };
         const walletResponse = await window.API.getWalletAddress();
@@ -3359,21 +3256,14 @@ async function handlePurchase(item) {
         };
         
         // Send transaction
-        console.log('📤 Sending transaction:', transaction);
         const result = await tonConnectUI.sendTransaction(transaction);
-        console.log('📥 Transaction result:', result);
-        console.log('📥 Transaction result type:', typeof result);
-        console.log('📥 Transaction result keys:', result ? Object.keys(result) : 'null');
         
         if (result) {
-            console.log('Verifying transaction success...');
             
             // Don't verify immediately - blockchain needs time to confirm
             // Instead, create pending order and verify in background
             
             const transactionHash = result?.boc || result?.hash || result;
-            console.log('📥 Transaction submitted with BOC:', transactionHash);
-            console.log('⏳ Order will be created as pending and verified automatically...');
             
             const isTestnetDetected = isTestnetWallet(tonConnectUI?.wallet);
             // Strict username validation - only send real Telegram usernames
@@ -3395,10 +3285,7 @@ async function handlePurchase(item) {
                 totalAmount: totalAmountUsdt
             };
             
-            console.log('📋 Creating order with data:', orderData);
-            console.log('⏳ Transaction submitted - order will be verified automatically in background...');
             const response = await window.API.createOrder(orderData);
-            console.log('📋 Order creation response:', response);
             
             if (response && response.success) {
                 // Close loading before showing success
@@ -3523,7 +3410,6 @@ async function fetchCurrentRate() {
         // Auto-update version display
         setTimeout(() => {
             if (window.versionDisplay) {
-                console.log('Version:', window.versionDisplay.getDisplayVersion());
             }
         }, 1000);
 
