@@ -87,6 +87,7 @@
     <!-- Required JavaScript Libraries -->
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/theme-additional.css?v=7">
@@ -1001,10 +1002,24 @@
                 if (!banner) {
                     banner = document.createElement('div');
                     banner.id = 'error-banner';
-                    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#fee2e2;color:#991b1b;padding:8px 12px;font:12px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;border-bottom:1px solid #fecaca;white-space:pre-wrap;';
+                    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#fee2e2;color:#991b1b;padding:12px 16px;font:14px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial;border-bottom:2px solid #fecaca;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,0.1);';
                     document.body.appendChild(banner);
+                    
+                    // Add close button
+                    const closeBtn = document.createElement('button');
+                    closeBtn.innerHTML = '×';
+                    closeBtn.style.cssText = 'position:absolute;top:8px;right:12px;background:none;border:none;color:#991b1b;font-size:20px;cursor:pointer;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;';
+                    closeBtn.onclick = () => banner.remove();
+                    banner.appendChild(closeBtn);
                 }
                 banner.textContent = text;
+                
+                // Auto-hide after 10 seconds
+                setTimeout(() => {
+                    if (banner && banner.parentNode) {
+                        banner.remove();
+                    }
+                }, 10000);
             } catch (_) {}
         }
         window.addEventListener('error', function(e){
@@ -1126,9 +1141,60 @@ function showErrorToUser(message) {
             }
         });
     } else {
+        // Fallback to native alert if SweetAlert2 is not available
         alert(message);
     }
 }
+
+function showSuccessToUser(message, title = 'Success') {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: title,
+            text: message,
+            icon: 'success',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#10B981',
+            showClass: {
+                popup: 'animate__animated animate__fadeInUp animate__faster'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutDown animate__faster'
+            },
+            customClass: {
+                popup: 'rounded-xl shadow-lg',
+                confirmButton: 'rounded-lg px-6 py-2 text-white font-medium transition-all duration-200 hover:scale-105'
+            }
+        });
+    } else {
+        alert(`${title}: ${message}`);
+    }
+}
+
+// Test function for alert system (can be called from browser console)
+window.testAlerts = function() {
+    console.log('Testing alert system...');
+    
+    // Test SweetAlert2 availability
+    if (typeof Swal !== 'undefined') {
+        console.log('✅ SweetAlert2 is loaded');
+        
+        // Test error alert
+        setTimeout(() => {
+            showErrorToUser('This is a test error message to verify the alert system is working properly.');
+        }, 500);
+        
+        // Test success alert
+        setTimeout(() => {
+            showSuccessToUser('This is a test success message to verify the alert system is working properly.');
+        }, 2000);
+        
+        return 'Alert system test completed - check if SweetAlert2 popups appeared';
+    } else {
+        console.error('❌ SweetAlert2 is not loaded');
+        alert('SweetAlert2 is not loaded - falling back to native alert');
+        return 'SweetAlert2 not available - used native alert fallback';
+    }
+};
 
 function showUsernameRequiredError(user, dmSent = false) {
     const userId = user?.id || 'Unknown';
