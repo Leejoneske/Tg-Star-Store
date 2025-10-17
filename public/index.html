@@ -1217,7 +1217,7 @@ function showErrorToUser(message) {
     }
 }
 
-function showUsernameRequiredError(user) {
+function showUsernameRequiredError(user, dmSent = false) {
     const userId = user?.id || 'Unknown';
     const displayName = user?.first_name || 'User';
     
@@ -1232,6 +1232,15 @@ function showUsernameRequiredError(user) {
                         </div>
                         <p class="text-sm text-red-700">You must have a Telegram username to place orders.</p>
                     </div>
+                    
+                    ${dmSent ? `
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <span class="text-purple-600 font-semibold">📨 Instructions Sent</span>
+                        </div>
+                        <p class="text-sm text-purple-700">We've sent detailed instructions to your Telegram DM with step-by-step guidance.</p>
+                    </div>
+                    ` : ''}
                     
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <div class="flex items-center space-x-2 mb-2">
@@ -1257,7 +1266,7 @@ function showUsernameRequiredError(user) {
                     </div>
                     
                     <div class="text-xs text-gray-500 text-center">
-                        Usernames help us provide better support and order tracking.
+                        ${dmSent ? 'Check your Telegram messages for detailed instructions. ' : ''}Usernames help us provide better support and order tracking.
                     </div>
                 </div>
             `,
@@ -3448,7 +3457,8 @@ async function handlePurchase(item) {
         
         // Handle specific username error
         if (error.message === 'MISSING_USERNAME' || error?.response?.data?.requiresUsername) {
-            showUsernameRequiredError(currentUser);
+            const dmSent = error?.response?.data?.dmSent;
+            showUsernameRequiredError(currentUser, dmSent);
             return;
         }
         

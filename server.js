@@ -1783,10 +1783,44 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         const isFallbackUsername = username === 'Unknown' || username === 'User' || !username.match(/^[a-zA-Z0-9_]{5,32}$/);
         if (isFallbackUsername) {
             console.error('❌ Invalid username detected:', { username, telegramId });
+            
+            // Send DM instructions to user
+            try {
+                const dmMessage = `🔒 *Username Required for Orders*
+
+❌ *Cannot Process Your Order*
+You attempted to place an order but don't have a Telegram username set.
+
+👤 *Your Account:*
+• User ID: \`${telegramId}\`
+• Current Username: Not Set
+
+✅ *How to Fix:*
+1. Go to Telegram Settings
+2. Tap on "Username" 
+3. Create a username (e.g., @yourname)
+4. Return to StarStore and try again
+
+💡 *Why is this required?*
+Usernames help us provide better support and ensure smooth order processing.
+
+Need help? Contact @StarStore_Chat`;
+
+                await bot.sendMessage(telegramId, dmMessage, { 
+                    parse_mode: 'Markdown',
+                    disable_web_page_preview: true 
+                });
+                console.log(`✅ Sent username instructions DM to user ${telegramId}`);
+            } catch (dmError) {
+                console.warn(`⚠️ Could not send DM to user ${telegramId}:`, dmError.message);
+                // Don't fail the API call if DM fails
+            }
+            
             return res.status(400).json({ 
                 error: 'Telegram username required', 
                 details: 'You must set a Telegram username (@username) to place orders. Go to Telegram Settings → Username to create one.',
-                requiresUsername: true
+                requiresUsername: true,
+                dmSent: true
             });
         }
 
@@ -1973,8 +2007,8 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
 
         await bot.sendMessage(telegramId, userMessage);
 
-        // Create enhanced admin message
-        let adminMessage = `🛒 New ${isPremium ? 'Premium' : 'Buy'} Order!\n\nOrder ID: ${order.id}\nUser: @${username}\nAmount: ${amount} USDT`;
+        // Create enhanced admin message with Telegram ID
+        let adminMessage = `🛒 New ${isPremium ? 'Premium' : 'Buy'} Order!\n\nOrder ID: ${order.id}\nUser: @${username} (ID: ${telegramId})\nAmount: ${amount} USDT`;
         
         if (isPremium) {
             adminMessage += `\nDuration: ${premiumDuration} months`;
@@ -2970,7 +3004,7 @@ bot.on('callback_query', async (query) => {
                                             }
                                         }
                                     } else {
-                                        text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username || order.telegramId}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
+                                        text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username ? `@${order.username}` : 'Unknown'} (ID: ${order.telegramId})\nStars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
                                     }
                                     
                                     // Update the originalText in the database to preserve the new wallet address
@@ -6258,7 +6292,7 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
                             }
                         }
                     } else {
-                        text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username || order.telegramId}\nStars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
+                        text = `💰 New Payment Received!\n\nOrder ID: ${order.id}\nUser: ${order.username ? `@${order.username}` : 'Unknown'} (ID: ${order.telegramId})\nStars: ${order.stars}\nWallet: ${order.walletAddress}\n${order.memoTag ? `Memo: ${order.memoTag}` : 'Memo: None'}`;
                     }
                     
                     // Update the originalText in the database to preserve the new wallet address
@@ -8138,7 +8172,7 @@ async function completeFeedback(chatId) {
         // Notify admins
         const adminMessage = `📝 New Feedback Received\n\n` +
                             `Order: ${session.orderId}\n` +
-                            `User: @${session.username}\n` +
+                            `User: @${session.username} (ID: ${chatId})\n` +
                             `Rating: ${session.responses.satisfaction}/5\n` +
                             `Reasons: ${session.responses.reasons || 'Not provided'}\n` +
                             `Suggestions: ${session.responses.suggestions || 'Not provided'}\n` +
