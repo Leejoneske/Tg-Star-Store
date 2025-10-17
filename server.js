@@ -1773,9 +1773,21 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             isAdmin: requesterIsAdmin
         });
 
+        // Strict validation: username must be a real Telegram username (not fallback)
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
             console.error('❌ Missing required fields:', { telegramId: !!telegramId, username: !!username, walletAddress: !!walletAddress, premiumDuration: !!premiumDuration });
             return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Additional validation: username must not be a fallback value
+        const isFallbackUsername = username === 'Unknown' || username === 'User' || !username.match(/^[a-zA-Z0-9_]{5,32}$/);
+        if (isFallbackUsername) {
+            console.error('❌ Invalid username detected:', { username, telegramId });
+            return res.status(400).json({ 
+                error: 'Telegram username required', 
+                details: 'You must set a Telegram username (@username) to place orders. Go to Telegram Settings → Username to create one.',
+                requiresUsername: true
+            });
         }
 
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
