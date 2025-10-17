@@ -1170,6 +1170,40 @@ function showSuccessToUser(message, title = 'Success') {
     }
 }
 
+// Test function for pricing system (can be called from browser console)
+window.testPricing = async function() {
+    console.log('🧪 Testing pricing system...');
+    
+    try {
+        // Test API availability
+        console.log('📡 Testing API connection...');
+        const testQuote = await window.API.getQuote({
+            stars: 100,
+            isPremium: false,
+            recipientsCount: 1
+        });
+        console.log('✅ API Response:', testQuote);
+        
+        // Test price display update
+        const element = document.querySelector('[data-stars="100"]');
+        if (element) {
+            console.log('🎯 Testing price display update...');
+            updatePackagePriceDisplay(element, testQuote);
+            console.log('✅ Price display updated');
+        }
+        
+        // Test rate fetching
+        console.log('💱 Testing rate fetching...');
+        const rate = await fetchCurrentRate();
+        console.log('✅ Current TON rate:', rate, 'USD');
+        
+        return 'Pricing test completed - check console for details';
+    } catch (error) {
+        console.error('❌ Pricing test failed:', error);
+        return 'Pricing test failed - check console for errors';
+    }
+};
+
 // Test function for alert system (can be called from browser console)
 window.testAlerts = function() {
     console.log('Testing alert system...');
@@ -2901,8 +2935,12 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
             const pkg = starsPackages[index];
             if (result.status === 'fulfilled' && result.value?.success && pkg.element) {
                 const quoteData = result.value;
+                console.log(`💰 Price update for ${pkg.stars} stars:`, quoteData);
                 cacheData[`stars_${pkg.stars}`] = quoteData;
                 updatePackagePriceDisplay(pkg.element, quoteData);
+            } else {
+                console.error(`❌ Failed to get quote for ${pkg.stars} stars:`, result.reason || result.value);
+                // Keep estimated price if API fails
             }
         });
         
@@ -2953,9 +2991,14 @@ async function updatePackagePricesOptimized(recipientsCount, cacheKey) {
 
 // Helper function to update package price display with instant feedback
 function updatePackagePriceDisplay(element, quoteData) {
-    const totalAmount = quoteData.totalAmount;
-    const unitAmount = quoteData.unitAmount;
-    const quantity = quoteData.quantity;
+    if (!quoteData || typeof quoteData.totalAmount === 'undefined') {
+        console.error('Invalid quote data:', quoteData);
+        return;
+    }
+    
+    const totalAmount = parseFloat(quoteData.totalAmount).toFixed(2);
+    const unitAmount = parseFloat(quoteData.unitAmount).toFixed(2);
+    const quantity = parseInt(quoteData.quantity) || 1;
     
     // Update price element with smooth transition
     const priceElement = element.querySelector('.package-price');
@@ -2963,6 +3006,7 @@ function updatePackagePriceDisplay(element, quoteData) {
         // Add loading state first for instant feedback
         priceElement.style.opacity = '0.7';
         priceElement.style.transition = 'opacity 0.2s ease';
+        priceElement.style.fontStyle = 'normal'; // Remove italic from estimates
         
         setTimeout(() => {
             if (quantity > 1) {
@@ -3030,23 +3074,36 @@ function showPackageLoadingState() {
 }
 
 function showEstimatedPrices(recipientsCount) {
-    // Estimated prices for instant feedback (will be replaced by real prices)
-    const multiplier = Math.max(1, recipientsCount);
+    // Use actual server pricing for estimates (from server.js priceMap)
+    const quantity = Math.max(1, recipientsCount);
+    const basePrices = {
+        50: 1.00,    // Server: 50: 1
+        100: 2.00,   // Server: 100: 2  
+        500: 10.00,  // Server: 500: 10
+        1000: 20.00  // Server: 1000: 20
+    };
+    
+    // For stars, price doesn't multiply by recipients (stars are distributed)
     const estimates = {
-        50: (2.5 * multiplier).toFixed(2),
-        100: (5.0 * multiplier).toFixed(2), 
-        500: (25.0 * multiplier).toFixed(2),
-        1000: (50.0 * multiplier).toFixed(2),
-        premium_3: (15.0 * multiplier).toFixed(2),
-        premium_6: (30.0 * multiplier).toFixed(2),
-        premium_12: (60.0 * multiplier).toFixed(2)
+        50: basePrices[50].toFixed(2),
+        100: basePrices[100].toFixed(2), 
+        500: basePrices[500].toFixed(2),
+        1000: basePrices[1000].toFixed(2),
+        premium_3: (19.31 * quantity).toFixed(2),
+        premium_6: (26.25 * quantity).toFixed(2),
+        premium_12: (44.79 * quantity).toFixed(2)
     };
 
     // Update stars packages with estimates
     [50, 100, 500, 1000].forEach(stars => {
         const element = document.querySelector(`[data-stars="${stars}"] .package-price`);
         if (element) {
-            element.textContent = `~${estimates[stars]} USDT`;
+            if (quantity > 1) {
+                const unitPrice = basePrices[stars].toFixed(2);
+                element.textContent = `~${estimates[stars]} USDT (${unitPrice} × ${quantity})`;
+            } else {
+                element.textContent = `~${estimates[stars]} USDT`;
+            }
             element.style.opacity = '0.8';
             element.style.fontStyle = 'italic';
         }
@@ -3463,10 +3520,10 @@ async function fetchCurrentRate() {
             'https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd',
             { timeout: 1200 }
         );
-        return response.data?.['the-open-network']?.usd || 3.64;
+        return response.data?.['the-open-network']?.usd || 2.10;
     } catch (error) {
         console.error('Rate fetch failed:', error);
-        return 3.64;
+        return 2.10;
     }
 }
 
