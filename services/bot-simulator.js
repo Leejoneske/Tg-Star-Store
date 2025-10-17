@@ -209,7 +209,16 @@ async function getOrCreateDailyStateMongo(DailyState, userId, monthKey) {
 }
 
 async function updateDailyStateMongo(DailyState, state) {
-  await DailyState.updateOne({ userId: state.userId }, { $set: state }, { upsert: true });
+  // Remove version field to prevent conflicts
+  const updateData = { ...state };
+  delete updateData.__v;
+  delete updateData._id;
+  
+  await DailyState.updateOne(
+    { userId: state.userId }, 
+    { $set: updateData }, 
+    { upsert: true }
+  );
 }
 
 async function upsertUserFile(db, bot) {
@@ -326,7 +335,21 @@ async function seedBots({ useMongo, models, db, bots = DEFAULT_BOTS }) {
         const state = await getOrCreateDailyStateMongo(DailyState, bot.id, monthKey);
         if (!state.checkedInDays || state.checkedInDays.length === 0) {
           seedStateLikeHuman(state);
-          await updateDailyStateMongo(DailyState, state);
+          // Use findOneAndUpdate instead of updateOne to avoid version conflicts
+          await DailyState.findOneAndUpdate(
+            { userId: bot.id },
+            { 
+              $set: {
+                totalPoints: state.totalPoints,
+                streak: state.streak,
+                checkedInDays: state.checkedInDays,
+                lastCheckIn: state.lastCheckIn,
+                month: state.month,
+                updatedAt: new Date()
+              }
+            },
+            { upsert: true, new: true }
+          );
         }
       } else {
         await upsertUserFile(db, bot);
@@ -362,8 +385,40 @@ async function simulateTick({ useMongo, models, db, bots = DEFAULT_BOTS }) {
     if (useMongo) {
       let state = await getOrCreateDailyStateMongo(DailyState, bot.id, monthKey);
       applyTodayCheckInAndMissions(state);
-      state.updatedAt = new Date();
-      await updateDailyStateMongo(DailyState, state);
+      
+      // Use findOneAndUpdate for atomic updates
+      await DailyState.findOneAndUpdate(
+        { userId: bot.id },
+        { 
+          $set: {
+            totalPoints: state.totalPoints,
+            streak: state.streak,
+            checkedInDays: state.checkedInDays,
+            lastCheckIn: state.lastCheckIn,
+            month: state.month,
+            missionsCompleted: state.missionsCompleted,
+            updatedAt: new Date()
+          }
+        },
+        { upsert: true, new: true }
+      );
+      
+      // Log activity for bot actions
+      const { Activity } = models || {};
+      if (Activity) {
+        try {
+          await Activity.create({
+            userId: bot.id,
+            activityType: 'daily_checkin',
+            activityName: 'Daily Check-in (Bot)',
+            points: 10,
+            timestamp: new Date(),
+            metadata: { botSimulated: true }
+          });
+        } catch (activityError) {
+          // Don't fail the whole process for activity logging
+        }
+      }
     } else {
       let state = await getOrCreateDailyStateFile(db, bot.id, monthKey);
       applyTodayCheckInAndMissions(state);
