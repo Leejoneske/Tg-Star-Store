@@ -311,26 +311,46 @@ function applyTodayCheckInAndMissions(state) {
 async function seedBots({ useMongo, models, db, bots = DEFAULT_BOTS }) {
   console.log(`🌱 Seeding ${bots.length} bots...`);
   const { User, DailyState } = models || {};
+  
+  if (!User || !DailyState) {
+    throw new Error('User or DailyState model not provided');
+  }
+  
   const { monthKey } = todayKey();
+  let seededCount = 0;
 
   for (const bot of bots) {
-    if (useMongo) {
-      await upsertUserMongo(User, bot);
-      const state = await getOrCreateDailyStateMongo(DailyState, bot.id, monthKey);
-      if (!state.checkedInDays || state.checkedInDays.length === 0) {
-        seedStateLikeHuman(state);
-        await updateDailyStateMongo(DailyState, state);
+    try {
+      if (useMongo) {
+        await upsertUserMongo(User, bot);
+        const state = await getOrCreateDailyStateMongo(DailyState, bot.id, monthKey);
+        if (!state.checkedInDays || state.checkedInDays.length === 0) {
+          seedStateLikeHuman(state);
+          await updateDailyStateMongo(DailyState, state);
+        }
+      } else {
+        await upsertUserFile(db, bot);
+        const state = await getOrCreateDailyStateFile(db, bot.id, monthKey);
+        if (!state.checkedInDays || state.checkedInDays.length === 0) {
+          seedStateLikeHuman(state);
+          await updateDailyStateFile(db, bot.id, state);
+        }
       }
-    } else {
-      await upsertUserFile(db, bot);
-      const state = await getOrCreateDailyStateFile(db, bot.id, monthKey);
-      if (!state.checkedInDays || state.checkedInDays.length === 0) {
-        seedStateLikeHuman(state);
-        await updateDailyStateFile(db, bot.id, state);
+      seededCount++;
+      
+      // Log progress every 25 bots
+      if (seededCount % 25 === 0) {
+        console.log(`🌱 Seeded ${seededCount}/${bots.length} bots...`);
       }
+    } catch (error) {
+      console.error(`❌ Failed to seed bot ${bot.username}:`, error.message);
     }
   }
-  console.log(`✅ Seeded ${bots.length} bots successfully`);
+  console.log(`✅ Successfully seeded ${seededCount}/${bots.length} bots`);
+  
+  if (seededCount === 0) {
+    throw new Error('Failed to seed any bots - check database connection and models');
+  }
 }
 
 async function simulateTick({ useMongo, models, db, bots = DEFAULT_BOTS }) {
@@ -367,9 +387,18 @@ function startBotSimulator({ useMongo, models, db, bots = DEFAULT_BOTS, tickInte
   console.log(`🤖 Bot simulator starting with ${bots.length} bots (interval ${Math.round(tickIntervalMs / 60000)}m)`);
   console.log(`🤖 Bot IDs: ${bots.slice(0, 5).map(b => b.username).join(', ')}...`);
 
-  seedBots({ useMongo, models, db, bots }).then(() => simulateTick({ useMongo, models, db, bots })).catch(err => {
-    console.warn('Bot simulator seed/tick error:', err.message);
-  });
+  // Improved async handling for bot seeding and initial tick
+  (async () => {
+    try {
+      await seedBots({ useMongo, models, db, bots });
+      console.log('✅ Bot seeding completed successfully');
+      await simulateTick({ useMongo, models, db, bots });
+      console.log('✅ Initial bot tick completed');
+    } catch (err) {
+      console.error('❌ Bot simulator seed/tick error:', err.message);
+      console.error('Full error:', err);
+    }
+  })();
 
   const handle = setInterval(() => {
     if (stopped) return;
