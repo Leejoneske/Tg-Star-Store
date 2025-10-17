@@ -5291,23 +5291,23 @@ async function handleReferralActivation(tracker) {
             });
         }
 
-        // Format detailed admin notification
-        const adminMessage = `REFERRAL ACTIVATED\n\n` +
-            `Referral Link: ${tracker.referral}\n` +
-            `Referrer: @${referrer?.username || 'unknown'} (ID: ${tracker.referrerUserId})\n` +
-            `Referred User: @${referred?.username || tracker.referredUsername || 'unknown'} (ID: ${tracker.referredUserId})\n` +
-            `Total Stars Bought: ${tracker.totalBoughtStars}\n` +
-            `Total Stars Sold: ${tracker.totalSoldStars}\n` +
-            `Premium Activated: ${tracker.premiumActivated ? 'Yes' : 'No'}\n` +
-            `Date Referred: ${tracker.dateReferred.toLocaleDateString()}\n` +
-            `Date Activated: ${new Date().toLocaleDateString()}`;
+        // Format detailed admin notification with HTML formatting to avoid underscore issues
+        const adminMessage = `<b>REFERRAL ACTIVATED</b>\n\n` +
+            `<b>Referral Link:</b> ${tracker.referral}\n` +
+            `<b>Referrer:</b> @${referrer?.username || 'unknown'} (ID: ${tracker.referrerUserId})\n` +
+            `<b>Referred User:</b> @${referred?.username || tracker.referredUsername || 'unknown'} (ID: ${tracker.referredUserId})\n` +
+            `<b>Total Stars Bought:</b> ${tracker.totalBoughtStars}\n` +
+            `<b>Total Stars Sold:</b> ${tracker.totalSoldStars}\n` +
+            `<b>Premium Activated:</b> ${tracker.premiumActivated ? 'Yes' : 'No'}\n` +
+            `<b>Date Referred:</b> ${tracker.dateReferred.toLocaleDateString()}\n` +
+            `<b>Date Activated:</b> ${new Date().toLocaleDateString()}`;
 
         // Send to all admins
         let adminNotificationSuccess = false;
         for (const adminId of adminIds) {
             try {
                 await bot.sendMessage(adminId, adminMessage, {
-                    parse_mode: 'Markdown',
+                    parse_mode: 'HTML',
                     disable_web_page_preview: true
                 });
                 adminNotificationSuccess = true;
