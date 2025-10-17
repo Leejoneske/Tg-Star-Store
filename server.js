@@ -8995,6 +8995,98 @@ app.post('/api/admin/force-enable-bots', requireAdmin, async (req, res) => {
   }
 });
 
+// Diagnostic endpoint to check bot simulator status (admin only)
+app.get('/api/admin/bot-simulator/diagnostic', requireAdmin, async (req, res) => {
+  try {
+    const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+    const botActivities = await Activity.countDocuments({ 
+      userId: { $regex: '^200000' },
+      timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    });
+    const botStates = await DailyState.countDocuments({ userId: { $regex: '^200000' } });
+    
+    // Get sample bot users
+    const sampleBots = await User.find({ id: { $regex: '^200000' } }).limit(5).select('id username');
+    
+    // Check if bot simulator is running
+    const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+    const hasStartFunction = !!startBotSimulatorSafe;
+    
+    res.json({
+      success: true,
+      diagnostic: {
+        environment: {
+          ENABLE_BOT_SIMULATOR: process.env.ENABLE_BOT_SIMULATOR,
+          isEnabled,
+          hasStartFunction
+        },
+        database: {
+          botUsers,
+          botActivities,
+          botStates,
+          sampleBots
+        },
+        expected: {
+          botUsers: 135,
+          botActivities: '20-40 per day',
+          botStates: 135
+        },
+        recommendations: []
+      }
+    });
+    
+    // Add recommendations based on findings
+    if (botUsers < 10) {
+      res.json.diagnostic?.recommendations.push('Bot seeding failed - need to restart bot simulator');
+    }
+    if (botActivities === 0 && botUsers > 0) {
+      res.json.diagnostic?.recommendations.push('Bots exist but not generating activities - check tick function');
+    }
+    if (!isEnabled) {
+      res.json.diagnostic?.recommendations.push('Set ENABLE_BOT_SIMULATOR=1 in environment variables');
+    }
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Diagnostic failed',
+      details: error.message
+    });
+  }
+});
+
+// Force restart bot simulator (admin only)
+app.post('/api/admin/bot-simulator/restart', requireAdmin, async (req, res) => {
+  try {
+    if (!startBotSimulatorSafe) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bot simulator not available'
+      });
+    }
+    
+    // Force restart the bot simulator
+    const result = startBotSimulatorSafe({
+      useMongo: !!process.env.MONGODB_URI,
+      models: { User, DailyState, BotProfile, Activity },
+      db
+    });
+    
+    res.json({
+      success: true,
+      message: 'Bot simulator restarted',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to restart bot simulator',
+      details: error.message
+    });
+  }
+});
+
 // Admin endpoint to view activity statistics
 app.get('/api/admin/activity/stats', requireAdmin, async (req, res) => {
     try {
