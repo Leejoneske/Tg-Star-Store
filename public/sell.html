@@ -940,6 +940,7 @@
         const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
         const starsInput = document.getElementById('starsAmount');
         const tonAmountDisplay = document.getElementById('tonAmount');
+        const usdAmountDisplay = document.getElementById('usdAmount');
 
         const appContent = document.getElementById('appContent');
         const noticeModal = document.getElementById('noticeModal');
@@ -1049,6 +1050,11 @@ const walletConfigs = {
         memoNote: 'No memo required for Cryptomus'
     }
 };
+
+// Compatibility function for onclick handlers
+function openWallet(walletType) {
+    openWalletDialog(walletType);
+}
 
 function openWalletDialog(walletType) {
     currentWalletType = walletType;
