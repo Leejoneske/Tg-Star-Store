@@ -1,5 +1,94 @@
 /* Additional Dark Theme Fixes for Specific Components */
 
+/* Fix Blue Buttons in Dark Theme */
+[data-theme="dark"] #connectWallet {
+    background: var(--surface-elevated) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+
+[data-theme="dark"] #connectWallet:hover {
+    background: var(--surface-muted) !important;
+    color: var(--text) !important;
+}
+
+[data-theme="dark"] #connectWallet.wallet-connected {
+    background: var(--surface-elevated) !important;
+    color: var(--brand) !important;
+    border-color: var(--brand) !important;
+}
+
+[data-theme="dark"] #connectWallet.wallet-connected:hover {
+    background: var(--surface-muted) !important;
+}
+
+/* Fix Toggle Buttons (Stars/Premium) */
+[data-theme="dark"] .section-toggle {
+    background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .toggle-button {
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border: none !important;
+}
+
+[data-theme="dark"] .toggle-button.active {
+    background: var(--brand) !important;
+    color: white !important;
+}
+
+[data-theme="dark"] .toggle-button:hover {
+    background: var(--surface-muted) !important;
+    color: var(--text) !important;
+}
+
+[data-theme="dark"] .toggle-button.active:hover {
+    background: var(--brand-hover) !important;
+    color: white !important;
+}
+
+/* Fix Blue Account Info Box */
+[data-theme="dark"] .bg-blue-50 {
+    background: var(--surface-elevated) !important;
+}
+
+[data-theme="dark"] .border-blue-200 {
+    border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .text-blue-600 {
+    color: var(--brand) !important;
+}
+
+/* Daily Page Calendar Fixes */
+[data-theme="dark"] .calendar-day {
+    background: var(--surface-elevated) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .calendar-day.checked {
+    background: var(--brand) !important;
+    color: white !important;
+}
+
+[data-theme="dark"] .calendar-day.today {
+    border: 2px solid var(--brand) !important;
+    background: var(--surface-elevated) !important;
+    color: var(--text) !important;
+}
+
+[data-theme="dark"] .calendar-day:hover {
+    background: var(--surface-muted) !important;
+    color: var(--text) !important;
+}
+
+[data-theme="dark"] .calendar-day.checked:hover {
+    background: var(--brand-hover) !important;
+    color: white !important;
+}
+
 /* SweetAlert2 Dark Theme Overrides */
 [data-theme="dark"] .swal2-popup {
 	background: var(--surface) !important;
