@@ -61,6 +61,28 @@
     color: var(--brand) !important;
 }
 
+/* Fix Remaining Blue Buttons */
+[data-theme="dark"] .bg-indigo-600 {
+    background: var(--brand) !important;
+}
+
+[data-theme="dark"] .bg-indigo-700 {
+    background: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .hover\:bg-indigo-700:hover {
+    background: var(--brand-hover) !important;
+}
+
+[data-theme="dark"] .focus\:border-indigo-500:focus {
+    border-color: var(--brand) !important;
+}
+
+[data-theme="dark"] .focus\:ring-indigo-200:focus {
+    --tw-ring-color: var(--brand) !important;
+    --tw-ring-opacity: 0.2 !important;
+}
+
 /* Daily Page Calendar Fixes */
 [data-theme="dark"] .calendar-day {
     background: var(--surface-elevated) !important;
@@ -87,6 +109,18 @@
 [data-theme="dark"] .calendar-day.checked:hover {
     background: var(--brand-hover) !important;
     color: white !important;
+}
+
+/* History Page Improvements */
+[data-theme="dark"] .loading-spinner {
+    border-color: var(--surface-muted) !important;
+    border-top-color: var(--brand) !important;
+}
+
+/* Add padding between CSV buttons and bottom nav */
+#exportTransactions,
+#exportReferrals {
+    margin-bottom: 80px !important;
 }
 
 /* SweetAlert2 Dark Theme Overrides */
