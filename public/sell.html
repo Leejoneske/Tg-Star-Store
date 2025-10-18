@@ -23,6 +23,10 @@
     <meta property="og:url" content="https://starstore.site/sell">
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Required JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
@@ -33,19 +37,23 @@
 <style>
     body {
         font-family: 'Inter', sans-serif;
-        background: #f3f4f6;
+        background: var(--surface-muted);
+        color: var(--text);
         margin: 0;
         padding: 0;
+        transition: background-color 0.3s ease, color 0.3s ease;
     }
     .app-container {
         max-width: 600px;
         margin: 0 auto;
-        background: white;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        background: var(--surface);
+        box-shadow: 0 8px 32px var(--shadow-medium, rgba(0, 0, 0, 0.1));
         min-height: 100vh;
         position: relative;
         overflow: hidden;
         padding-bottom: 64px;
+        border: 1px solid var(--border, transparent);
+        transition: all 0.3s ease;
     }
 
     /* Simple Telegram Mini App styles */
@@ -57,43 +65,51 @@
         border-radius: 0;
     }
     .sell-option {
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 12px;
-        transition: all 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         padding: 16px;
         margin-bottom: 16px;
+        background: linear-gradient(135deg, var(--surface), var(--surface-elevated, var(--surface)));
+        color: var(--text);
+        box-shadow: 0 2px 8px var(--shadow-subtle, rgba(0, 0, 0, 0.05));
     }
     .sell-option:hover {
-        border-color: #4f46e5;
+        border-color: var(--brand);
         transform: translateY(-4px);
-        box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+        box-shadow: 0 8px 25px var(--shadow-medium, rgba(79, 70, 229, 0.2));
     }
     .sell-button {
-        background: #4f46e5;
+        background: linear-gradient(135deg, var(--brand), var(--brand-hover));
         color: white;
         border-radius: 8px;
-        transition: all 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         padding: 12px;
         width: 100%;
         font-size: 16px;
         font-weight: 600;
+        border: 1px solid var(--brand);
+        box-shadow: 0 4px 12px var(--shadow-subtle, rgba(79, 70, 229, 0.2));
     }
     .sell-button:hover {
-        background: #6366f1;
-        transform: scale(1.02);
+        background: linear-gradient(135deg, var(--brand-hover), var(--brand));
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px var(--shadow-medium, rgba(79, 70, 229, 0.3));
     }
     
     
     .logo-header {
         font-size: 24px;
         font-weight: bold;
-        color: #4f46e5;
+        color: var(--brand);
         text-align: left;
         padding: 16px;
-        background: linear-gradient(90deg, #4f46e5, #6366f1);
+        background: linear-gradient(90deg, var(--brand), var(--brand-hover));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        background-clip: text;
         width: fit-content;
+        transition: all 0.3s ease;
     }
     .stars-counter {
         display: flex;
@@ -101,14 +117,28 @@
         justify-content: center;
         gap: 8px;
         margin-bottom: 16px;
+        background: var(--surface-elevated, #f9fafb);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        color: var(--text);
+        transition: all 0.3s ease;
     }
     .stars-input {
         width: 80px;
         text-align: center;
         padding: 8px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--border);
         border-radius: 8px;
         font-weight: bold;
+        background: var(--surface);
+        color: var(--text);
+        transition: all 0.3s ease;
+    }
+    .stars-input:focus {
+        border-color: var(--brand);
+        outline: none;
+        box-shadow: 0 0 0 3px var(--brand-hover, rgba(79, 70, 229, 0.1));
     }
     .counter-button {
         width: 32px;
@@ -117,13 +147,18 @@
         align-items: center;
         justify-content: center;
         border-radius: 50%;
-        background: #f3f4f6;
+        background: var(--surface-elevated, #f3f4f6);
+        color: var(--text);
         font-weight: bold;
         cursor: pointer;
-        transition: all 0.2s ease;
+        border: 1px solid var(--border);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .counter-button:hover {
-        background: #e5e7eb;
+        background: var(--brand);
+        color: white;
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px var(--shadow-subtle, rgba(0, 0, 0, 0.1));
     }
     
     .transaction-history {
@@ -154,7 +189,13 @@
         align-items: center;
         justify-content: space-between;
         padding: 12px;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        transition: all 0.3s ease;
+    }
+    .transaction-item:hover {
+        background: var(--surface-elevated, #f9fafb);
     }
     .transaction-info {
         display: flex;
@@ -183,10 +224,14 @@
     }
     .wallet-status {
         padding: 16px;
-        background: #f9fafb;
+        background: linear-gradient(135deg, var(--surface), var(--surface-elevated, #f9fafb));
+        border: 1px solid var(--border);
         border-radius: 8px;
         margin-bottom: 16px;
         text-align: center;
+        color: var(--text);
+        box-shadow: 0 2px 8px var(--shadow-subtle, rgba(0, 0, 0, 0.05));
+        transition: all 0.3s ease;
     }
     .sell-section {
         padding: 16px;
@@ -1664,7 +1709,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Add fullscreen class to body
         document.body.classList.add('telegram-fullscreen');
         
-        console.log('Telegram Mini App mode enabled');
     }
 
     // Check admin status to relax UI limits for admins
@@ -1692,6 +1736,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Apply translations to bottom nav after loading
         if (typeof TranslationUtils !== 'undefined') {
             TranslationUtils.applyTranslations();
+        }
+    });
+    
+});
+
+
+
+    </script>
+</body>
+</html>
+nUtils.applyTranslations();
         }
     });
     
