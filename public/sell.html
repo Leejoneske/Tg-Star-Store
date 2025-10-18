@@ -209,17 +209,29 @@
         transition: all 0.3s ease;
     }
     
-    /* Blue areas - make them work in dark theme */
-    .bg-blue-50 {
-        background: var(--info, #eff6ff) !important;
+    /* Original info-badge styling restored */
+    .info-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        background: var(--brand-hover, rgba(79, 70, 229, 0.1));
+        color: var(--brand, #4f46e5);
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        margin: 0 auto;
+        transition: all 0.3s ease;
     }
     
-    .text-blue-700 {
-        color: var(--info, #1d4ed8) !important;
-    }
-    
-    .text-blue-600 {
-        color: var(--info, #2563eb) !important;
+    /* USDT display using same styling as info-badge but larger */
+    .usdt-display-badge {
+        display: inline-block;
+        padding: 16px 20px;
+        background: var(--brand-hover, rgba(79, 70, 229, 0.1));
+        color: var(--brand, #4f46e5);
+        border-radius: 12px;
+        text-align: center;
+        width: 100%;
+        transition: all 0.3s ease;
     }
     
     .transaction-history {
@@ -716,8 +728,8 @@
                             <div class="font-bold text-lg">1 Star = 0.009 USDT</div>
                         </div>
                     </div>
-                    <div class="info-badge-container">
-                        <span class="text-blue-700 text-sm font-medium" data-translate="minimumSell">Minimum sell: 50 Stars</span>
+                    <div class="text-center mt-2">
+                        <span class="info-badge" data-translate="minimumSell">Minimum sell: 50 Stars</span>
                     </div>
                 </div>
 
@@ -756,9 +768,9 @@
                     <!-- Receive Amount Display -->
                     <div class="mb-6">
                         <label class="block text-sm font-medium mb-2" data-translate="youWillReceive">You'll Receive</label>
-                        <div class="bg-blue-50 rounded-lg p-4 text-center">
-                            <div id="tonAmount" class="text-2xl font-bold text-blue-700">0.450 USDT</div>
-                            <div class="text-sm mt-1 text-blue-600">≈ $0.45 USD</div>
+                        <div class="usdt-display-badge">
+                            <div id="tonAmount" class="text-2xl font-bold">0.450 USDT</div>
+                            <div class="text-sm mt-1 opacity-75">≈ $0.45 USD</div>
                         </div>
                     </div>
 
