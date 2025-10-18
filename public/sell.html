@@ -225,10 +225,10 @@
     /* USDT display using same styling as info-badge but larger */
     .usdt-display-badge {
         display: inline-block;
-        padding: 16px 20px;
-        background: var(--brand-hover, rgba(79, 70, 229, 0.1));
-        color: var(--brand, #4f46e5);
-        border-radius: 12px;
+        padding: 12px 16px;
+        background: rgba(79, 70, 229, 0.1) !important;
+        color: #4f46e5 !important;
+        border-radius: 8px;
         text-align: center;
         width: 100%;
         transition: all 0.3s ease;
@@ -741,7 +741,7 @@
                         <!-- Stars Input with Clean Design -->
                         <div class="bg-gray-50 rounded-xl p-4 mb-4">
                             <div class="flex items-center justify-center gap-4">
-                                <button class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl font-bold text-gray-600 shadow-sm hover:bg-gray-100 active:scale-95 transition-all" onclick="decrementStars()">−</button>
+                                <button class="counter-btn" onclick="decrementStars()">−</button>
                                 
                                 <div class="flex-1 max-w-32">
                                     <input type="number" id="starsAmount" 
@@ -769,8 +769,7 @@
                     <div class="mb-6">
                         <label class="block text-sm font-medium mb-2" data-translate="youWillReceive">You'll Receive</label>
                         <div class="usdt-display-badge">
-                            <div id="tonAmount" class="text-2xl font-bold">0.450 USDT</div>
-                            <div id="usdAmount" class="text-sm mt-1 opacity-75">≈ $0.45 USD</div>
+                            <div id="tonAmount" class="text-lg font-semibold">0.450 USDT</div>
                         </div>
                     </div>
 
@@ -940,7 +939,6 @@
         const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
         const starsInput = document.getElementById('starsAmount');
         const tonAmountDisplay = document.getElementById('tonAmount');
-        const usdAmountDisplay = document.getElementById('usdAmount');
 
         const appContent = document.getElementById('appContent');
         const noticeModal = document.getElementById('noticeModal');
@@ -1239,12 +1237,6 @@ function calculateTonAmount() {
     }
     const tonAmount = (stars * rate).toFixed(3);
     tonAmountDisplay.textContent = `${tonAmount} USDT`;
-    
-    // Update USD display
-    const usdAmount = parseFloat(tonAmount).toFixed(2);
-    if (usdAmountDisplay) {
-        usdAmountDisplay.textContent = `≈ $${usdAmount} USD`;
-    }
     
     return tonAmount;
 }
