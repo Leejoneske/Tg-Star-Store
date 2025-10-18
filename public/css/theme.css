@@ -35,19 +35,19 @@ a { color: var(--brand); }
 /* Dark theme via system and explicit data attribute */
 @media (prefers-color-scheme: dark) {
 	:root {
-		--surface: #1a202c; /* Enhanced depth */
-		--surface-muted: #0d1117; /* Deeper background */
-		--surface-elevated: #2d3748; /* More elevated */
-		--surface-subtle: #161b22; /* Subtle variation */
-		--text: #f7fafc; /* Softer white */
-		--text-muted: #cbd5e0; /* Better contrast */
-		--text-secondary: #a0aec0; /* Refined secondary */
-		--border: #2d3748; /* Subtle borders */
-		--border-muted: #4a5568; /* Muted borders */
-		--brand: #667eea; /* Softer brand color */
-		--brand-hover: #5a67d8; /* Refined hover */
-		--success: #48bb78; /* Gentler success */
-		--warning: #ed8936; /* Warmer warning */
+		--surface: #1e293b; /* Lighter, less oppressive */
+		--surface-muted: #0f172a; /* Deep but not black */
+		--surface-elevated: #334155; /* Better contrast */
+		--surface-subtle: #1e293b; /* Consistent with surface */
+		--text: #f1f5f9; /* Softer, easier on eyes */
+		--text-muted: #cbd5e0; /* Better readability */
+		--text-secondary: #94a3b8; /* More refined */
+		--border: #475569; /* Visible but subtle */
+		--border-muted: #64748b; /* Clearer definition */
+		--brand: #6366f1; /* More vibrant, consistent */
+		--brand-hover: #4f46e5; /* Proper hover state */
+		--success: #10b981; /* Cleaner success */
+		--warning: #f59e0b; /* Better warning */
 		--error: #f56565; /* Softer error */
 		--info: #4299e1; /* Calmer info */
 		--shadow-subtle: rgba(0, 0, 0, 0.2);
