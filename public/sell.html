@@ -64,38 +64,6 @@
         box-shadow: none;
         border-radius: 0;
     }
-    .sell-option {
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        padding: 16px;
-        margin-bottom: 16px;
-        background: linear-gradient(135deg, var(--surface), var(--surface-elevated, var(--surface)));
-        color: var(--text);
-        box-shadow: 0 2px 8px var(--shadow-subtle, rgba(0, 0, 0, 0.05));
-    }
-    .sell-option:hover {
-        border-color: var(--brand);
-        transform: translateY(-4px);
-        box-shadow: 0 8px 25px var(--shadow-medium, rgba(79, 70, 229, 0.2));
-    }
-    .sell-button {
-        background: linear-gradient(135deg, var(--brand), var(--brand-hover));
-        color: white;
-        border-radius: 8px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        padding: 12px;
-        width: 100%;
-        font-size: 16px;
-        font-weight: 600;
-        border: 1px solid var(--brand);
-        box-shadow: 0 4px 12px var(--shadow-subtle, rgba(79, 70, 229, 0.2));
-    }
-    .sell-button:hover {
-        background: linear-gradient(135deg, var(--brand-hover), var(--brand));
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px var(--shadow-medium, rgba(79, 70, 229, 0.3));
-    }
     
     
     .logo-header {
@@ -111,54 +79,41 @@
         width: fit-content;
         transition: all 0.3s ease;
     }
-    .stars-counter {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        margin-bottom: 16px;
-        background: var(--surface-elevated, #f9fafb);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 12px;
+    /* Clean card design from daily page */
+    .clean-card { 
+        background: var(--surface, white); 
+        border-radius: 16px; 
+        padding: 20px;
+        margin-bottom: 12px;
+        border: 1px solid var(--border, transparent);
+        box-shadow: 0 2px 8px var(--shadow-subtle, rgba(0, 0, 0, 0.05));
         color: var(--text);
         transition: all 0.3s ease;
     }
-    .stars-input {
-        width: 80px;
-        text-align: center;
-        padding: 8px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        font-weight: bold;
-        background: var(--surface);
-        color: var(--text);
-        transition: all 0.3s ease;
-    }
-    .stars-input:focus {
-        border-color: var(--brand);
-        outline: none;
-        box-shadow: 0 0 0 3px var(--brand-hover, rgba(79, 70, 229, 0.1));
-    }
-    .counter-button {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        background: var(--surface-elevated, #f3f4f6);
-        color: var(--text);
-        font-weight: bold;
-        cursor: pointer;
-        border: 1px solid var(--border);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .counter-button:hover {
-        background: var(--brand);
+    
+    /* Button styling from daily page */
+    .btn-primary {
+        background: var(--brand, #007AFF);
         color: white;
-        transform: scale(1.1);
-        box-shadow: 0 4px 12px var(--shadow-subtle, rgba(0, 0, 0, 0.1));
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: opacity 0.2s, transform 0.2s;
+        width: 100%;
+        justify-content: center;
+    }
+    .btn-primary:active {
+        opacity: 0.8;
+        transform: scale(0.98);
+    }
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
     
     .transaction-history {
@@ -645,66 +600,102 @@
             </section>
             
             <!-- Sell Stars Section -->
-            <section class="sell-section">
-                <div class="bg-white rounded-xl p-8 mb-6">
-                    <h2 class="text-2xl font-bold mb-6" data-translate="sellStars">Sell Stars</h2>
-                    <div class="rate-info mb-6">        
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <span class="text-sm text-gray-600" data-translate="currentRate">Current Rate</span>
-                                <div class="font-bold">1 Star = 0.009 USDT</div>
-                            </div>
-                        </div>
-                        <div class="text-center mt-2">
-                            <span class="info-badge" data-translate="minimumSell">Minimum sell: 50 Stars</span>
-                        </div>
-                    </div> 
-                    
-                    <div class="sell-option p-6 mb-6">
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="amountToSell">Amount of Stars to Sell</label>
-                            <div class="stars-counter">
-                                <button class="counter-button" onclick="decrementStars()">-</button>
-                                <input type="number" id="starsAmount" class="stars-input" value="50" min="50" max="80000" onchange="calculateTonAmount()">
-                                <button class="counter-button" onclick="incrementStars()">+</button>
-                            </div>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2" data-translate="youWillReceive">You'll Receive (USDT)</label>
-                            <div class="p-3 bg-gray-50 rounded-lg font-bold text-center" id="tonAmount">0.438 USDT</div>
-                        </div>
-                                                  <button id="sellStarsBtn" class="sell-button w-full py-3 text-white rounded-lg font-semibold" data-translate="sellNow">Sell Now</button>
-                    </div>
-                    
-                    <div class="bg-blue-50 rounded-lg p-4 text-sm">
-                        <div class="flex items-start space-x-2">
-                            <svg class="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <div>
-                                <p class="font-medium text-blue-800" data-translate="howItWorks">How it works:</p>
-                                <ol class="list-decimal list-inside mt-1 text-blue-700 space-y-1">
-                                    <li data-translate="step1Sell">Enter the amount of stars you want to sell</li>
-                                    <li data-translate="step2Sell">Click "Sell Now" to initiate the transaction</li>
-                                    <li data-translate="step3Sell">Send the stars via Telegram payment</li>
-                                    <li data-translate="step4Sell">Once verified, USDT will be sent to your wallet within 21 days.</li>
-                                </ol>
-                            </div>
+            <section class="px-4 py-6">
+                <!-- Rate Information Card -->
+                <div class="clean-card mb-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-semibold" data-translate="sellStars">Sell Stars</h2>
+                        <div class="text-right">
+                            <div class="text-sm text-gray-500" data-translate="currentRate">Current Rate</div>
+                            <div class="font-bold text-lg">1 ⭐ = 0.009 USDT</div>
                         </div>
                     </div>
-                    
-                    <a href="https://t.me/StarStore_app/82" target="_blank" class="flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-all duration-200 cursor-pointer">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0 18 0z" />
+                    <div class="bg-blue-50 rounded-lg p-3 text-center">
+                        <span class="text-blue-700 text-sm font-medium" data-translate="minimumSell">Minimum sell: 50 Stars</span>
+                    </div>
+                </div>
+
+                <!-- Sell Amount Card -->
+                <div class="clean-card mb-4">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium mb-3" data-translate="amountToSell">Amount of Stars to Sell</label>
+                        
+                        <!-- Stars Input with Clean Design -->
+                        <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                            <div class="flex items-center justify-center gap-4">
+                                <button class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl font-bold text-gray-600 shadow-sm hover:bg-gray-100 active:scale-95 transition-all" onclick="decrementStars()">−</button>
+                                
+                                <div class="flex-1 max-w-32">
+                                    <input type="number" id="starsAmount" 
+                                           class="w-full text-center text-2xl font-bold bg-transparent border-none outline-none" 
+                                           value="50" min="50" max="80000" 
+                                           onchange="calculateTonAmount()"
+                                           style="color: var(--text);">
+                                    <div class="text-center text-sm text-gray-500 mt-1">Stars</div>
+                                </div>
+                                
+                                <button class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl font-bold text-gray-600 shadow-sm hover:bg-gray-100 active:scale-95 transition-all" onclick="incrementStars()">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Quick Amount Buttons -->
+                        <div class="grid grid-cols-4 gap-2 mb-4">
+                            <button onclick="setStarsAmount(50)" class="py-2 px-3 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 active:scale-95 transition-all">50</button>
+                            <button onclick="setStarsAmount(100)" class="py-2 px-3 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 active:scale-95 transition-all">100</button>
+                            <button onclick="setStarsAmount(500)" class="py-2 px-3 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 active:scale-95 transition-all">500</button>
+                            <button onclick="setStarsAmount(1000)" class="py-2 px-3 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 active:scale-95 transition-all">1000</button>
+                        </div>
+                    </div>
+
+                    <!-- Receive Amount Display -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium mb-2" data-translate="youWillReceive">You'll Receive</label>
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                            <div id="tonAmount" class="text-2xl font-bold text-green-700">0.450 USDT</div>
+                            <div class="text-sm text-green-600 mt-1">≈ $0.45 USD</div>
+                        </div>
+                    </div>
+
+                    <!-- Sell Button -->
+                    <button id="sellStarsBtn" class="btn-primary w-full" data-translate="sellNow">
+                        <span>Sell Now</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
                         </svg>
-                        <span data-translate="why21Days">Why 21 days?</span>
-                    </a>
-                    
-                    <div class="transaction-history">
-                        <h3 class="text-lg font-semibold mb-3" data-translate="recentTransactions">Recent Transactions</h3>
-                        <div id="transactionsList">
-                            <div class="text-gray-500 text-center py-4 text-sm" data-translate="noTransactions">No transactions yet</div>
+                    </button>
+                </div>
+
+                <!-- How It Works Card -->
+                <div class="clean-card mb-4">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                            </svg>
                         </div>
+                        <div>
+                            <h3 class="font-medium mb-2" data-translate="howItWorks">How it works</h3>
+                            <ol class="text-sm text-gray-600 space-y-1 list-decimal list-inside">
+                                <li data-translate="step1Sell">Enter the amount of stars you want to sell</li>
+                                <li data-translate="step2Sell">Click "Sell Now" to initiate the transaction</li>
+                                <li data-translate="step3Sell">Send the stars via Telegram payment</li>
+                                <li data-translate="step4Sell">USDT will be sent to your wallet within 21 days</li>
+                            </ol>
+                            <a href="https://t.me/StarStore_app/82" target="_blank" class="inline-flex items-center gap-1 mt-2 text-sm text-blue-600 hover:text-blue-700">
+                                <span data-translate="why21Days">Why 21 days?</span>
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions Card -->
+                <div class="clean-card">
+                    <h3 class="font-medium mb-3" data-translate="recentTransactions">Recent Transactions</h3>
+                    <div id="transactionsList">
+                        <div class="text-gray-500 text-center py-8 text-sm" data-translate="noTransactions">No transactions yet</div>
                     </div>
                 </div>
             </section>
@@ -1101,6 +1092,14 @@ function decrementStars() {
     const currentValue = parseInt(starsInput.value) || 0;
     const isAdmin = Boolean(Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
     starsInput.value = isAdmin ? Math.max(currentValue - 5, 0) : Math.max(currentValue - 5, 50);
+    calculateTonAmount();
+}
+
+function setStarsAmount(amount) {
+    const isAdmin = Boolean(Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
+    if (!isAdmin && amount < 50) amount = 50;
+    if (!isAdmin && amount > 80000) amount = 80000;
+    starsInput.value = amount;
     calculateTonAmount();
 }
 
