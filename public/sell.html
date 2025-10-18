@@ -222,16 +222,22 @@
         transition: all 0.3s ease;
     }
     
-    /* USDT display using same styling as info-badge but larger */
+    /* USDT display using exact same colors as info-badge but larger */
     .usdt-display-badge {
-        display: inline-block;
-        padding: 16px 20px;
-        background: var(--brand-hover, rgba(79, 70, 229, 0.1));
-        color: var(--brand, #4f46e5);
-        border-radius: 12px;
-        text-align: center;
-        width: 100%;
-        transition: all 0.3s ease;
+        display: inline-block !important;
+        padding: 16px 20px !important;
+        background: rgba(79, 70, 229, 0.1) !important;
+        color: #4f46e5 !important;
+        border-radius: 12px !important;
+        text-align: center !important;
+        width: 100% !important;
+        transition: all 0.3s ease !important;
+        border: none !important;
+    }
+    
+    /* Ensure child elements inherit the correct indigo color */
+    .usdt-display-badge * {
+        color: #4f46e5 !important;
     }
     
     .transaction-history {
