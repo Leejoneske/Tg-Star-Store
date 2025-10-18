@@ -100,8 +100,10 @@
 
 /* User Display Area Fixes */
 [data-theme="dark"] .user-info-container {
-	background: var(--surface) !important;
+	background: linear-gradient(135deg, var(--surface), var(--surface-elevated)) !important;
 	color: var(--text) !important;
+	box-shadow: 0 4px 16px var(--shadow-subtle) !important;
+	border: 1px solid var(--border) !important;
 }
 
 [data-theme="dark"] .user-details {
@@ -147,15 +149,18 @@
 
 /* Stars/Premium Toggle Fixes */
 [data-theme="dark"] .toggle-button {
-	background: var(--surface-elevated) !important;
+	background: linear-gradient(135deg, var(--surface-elevated), var(--surface)) !important;
 	color: var(--text-muted) !important;
 	border: 1px solid var(--border) !important;
+	box-shadow: 0 2px 6px var(--shadow-subtle) !important;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 [data-theme="dark"] .toggle-button.active {
-	background: var(--brand) !important;
+	background: linear-gradient(135deg, var(--brand), var(--brand-hover)) !important;
 	color: white !important;
-	box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2) !important;
+	box-shadow: 0 4px 12px var(--shadow-medium), 0 0 0 1px var(--brand) !important;
+	transform: translateY(-1px) !important;
 }
 
 [data-theme="dark"] .section-toggle {
@@ -165,13 +170,19 @@
 
 /* Package Section Fixes */
 [data-theme="dark"] .stars-card {
-	background: var(--surface) !important;
+	background: linear-gradient(135deg, var(--surface), var(--surface-elevated)) !important;
 	color: var(--text) !important;
+	box-shadow: 0 4px 12px var(--shadow-subtle) !important;
+	border: 1px solid var(--border) !important;
+	transition: all 0.3s ease !important;
 }
 
 [data-theme="dark"] .premium-card {
-	background: var(--surface) !important;
+	background: linear-gradient(135deg, var(--surface), var(--surface-elevated)) !important;
 	color: var(--text) !important;
+	box-shadow: 0 4px 12px var(--shadow-subtle) !important;
+	border: 1px solid var(--border) !important;
+	transition: all 0.3s ease !important;
 }
 
 [data-theme="dark"] .stars-card .text-gray-800 {
@@ -183,13 +194,18 @@
 }
 
 [data-theme="dark"] .package-option {
-	background: var(--surface) !important;
+	background: linear-gradient(135deg, var(--surface-elevated), var(--surface)) !important;
 	color: var(--text) !important;
 	border: 1px solid var(--border) !important;
+	box-shadow: 0 2px 8px var(--shadow-subtle) !important;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 [data-theme="dark"] .package-option:hover {
 	border-color: var(--brand) !important;
+	box-shadow: 0 8px 25px var(--shadow-medium), 0 0 0 1px var(--brand) !important;
+	transform: translateY(-2px) !important;
+	background: linear-gradient(135deg, var(--surface-elevated), var(--surface-subtle)) !important;
 }
 
 [data-theme="dark"] .package-option .text-gray-600 {
@@ -1135,8 +1151,17 @@
 
 /* Dark Theme Fullscreen Enhancements */
 [data-theme="dark"] .telegram-fullscreen .app-container {
-    background: var(--surface-muted) !important;
+    background: linear-gradient(135deg, var(--surface-muted), var(--surface-subtle)) !important;
     color: var(--text) !important;
+}
+
+/* Enhanced App Container with Visual Hierarchy */
+[data-theme="dark"] .app-container {
+    background: linear-gradient(135deg, var(--surface), var(--surface-subtle)) !important;
+    color: var(--text) !important;
+    box-shadow: 0 8px 32px var(--shadow-medium) !important;
+    border: 1px solid var(--border) !important;
+    transition: all 0.3s ease !important;
 }
 
 [data-theme="dark"] .telegram-immersive .header {
@@ -1222,4 +1247,101 @@
 [data-theme="dark"] .withdraw-all-button:hover {
 	color: var(--brand-hover) !important;
 	text-decoration: underline !important;
+}
+
+/* ===== ENHANCED VISUAL HIERARCHY AND SUBTLE EFFECTS ===== */
+
+/* Buy Buttons with Enhanced Depth */
+[data-theme="dark"] .buy-button {
+	background: linear-gradient(135deg, var(--brand), var(--brand-hover)) !important;
+	color: white !important;
+	border: 1px solid var(--brand) !important;
+	box-shadow: 0 4px 12px var(--shadow-subtle) !important;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="dark"] .buy-button:hover {
+	background: linear-gradient(135deg, var(--brand-hover), var(--brand)) !important;
+	border-color: var(--brand-hover) !important;
+	box-shadow: 0 6px 20px var(--shadow-medium), 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+	transform: translateY(-2px) !important;
+}
+
+/* Enhanced Input Fields */
+[data-theme="dark"] input:not([type="radio"]):not([type="checkbox"]), 
+[data-theme="dark"] textarea, 
+[data-theme="dark"] select {
+	background: linear-gradient(135deg, var(--surface), var(--surface-elevated)) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: inset 0 2px 4px var(--shadow-subtle) !important;
+	transition: all 0.3s ease !important;
+}
+
+[data-theme="dark"] input:focus:not([type="radio"]):not([type="checkbox"]), 
+[data-theme="dark"] textarea:focus, 
+[data-theme="dark"] select:focus {
+	border-color: var(--brand) !important;
+	box-shadow: inset 0 2px 4px var(--shadow-subtle), 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+	outline: none !important;
+}
+
+/* Enhanced Cards and Containers */
+[data-theme="dark"] .card,
+[data-theme="dark"] .container,
+[data-theme="dark"] .content-surface,
+[data-theme="dark"] .clean-card {
+	background: linear-gradient(135deg, var(--surface), var(--surface-elevated)) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: 0 4px 16px var(--shadow-subtle) !important;
+	transition: all 0.3s ease !important;
+}
+
+/* Subtle Hover Effects for Interactive Elements */
+[data-theme="dark"] .card:hover,
+[data-theme="dark"] .clean-card:hover {
+	box-shadow: 0 8px 24px var(--shadow-medium) !important;
+	transform: translateY(-1px) !important;
+}
+
+/* Enhanced Section Toggles */
+[data-theme="dark"] .section-toggle {
+	background: linear-gradient(135deg, var(--surface-muted), var(--surface)) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: 0 2px 8px var(--shadow-subtle) !important;
+	transition: all 0.3s ease !important;
+}
+
+/* Enhanced Toggle Buttons */
+[data-theme="dark"] .toggle-button {
+	background: linear-gradient(135deg, var(--surface-elevated), var(--surface)) !important;
+	color: var(--text-muted) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: 0 2px 6px var(--shadow-subtle) !important;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="dark"] .toggle-button.active {
+	background: linear-gradient(135deg, var(--brand), var(--brand-hover)) !important;
+	color: white !important;
+	box-shadow: 0 4px 12px var(--shadow-medium), 0 0 0 1px var(--brand) !important;
+	transform: translateY(-1px) !important;
+}
+
+/* Enhanced Profile Elements */
+[data-theme="dark"] .profile-image {
+	border: 3px solid var(--brand) !important;
+	box-shadow: 0 4px 16px var(--shadow-subtle), 0 0 0 1px var(--border) !important;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="dark"] .profile-image:hover {
+	transform: scale(1.05) !important;
+	box-shadow: 0 8px 24px var(--shadow-medium), 0 0 0 2px var(--brand) !important;
+}
+
+/* Global Smooth Transitions */
+[data-theme="dark"] * {
+	transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease !important;
 }

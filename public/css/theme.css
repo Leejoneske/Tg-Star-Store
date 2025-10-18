@@ -35,40 +35,52 @@ a { color: var(--brand); }
 /* Dark theme via system and explicit data attribute */
 @media (prefers-color-scheme: dark) {
 	:root {
-		--surface: #111827; /* gray-900 */
-		--surface-muted: #0f172a; /* slate-900 */
-		--surface-elevated: #1f2937; /* gray-800 */
-		--text: #f9fafb; /* gray-50 */
-		--text-muted: #d1d5db; /* gray-300 */
-		--text-secondary: #9ca3af; /* gray-400 */
-		--border: #374151; /* gray-700 */
-		--border-muted: #4b5563; /* gray-600 */
-		--brand: #6366f1; /* indigo-500 */
-		--brand-hover: #4f46e5; /* indigo-600 */
-		--success: #10b981; /* emerald-500 */
-		--warning: #f59e0b; /* amber-500 */
-		--error: #ef4444; /* red-500 */
-		--info: #3b82f6; /* blue-500 */
+		--surface: #1a202c; /* Enhanced depth */
+		--surface-muted: #0d1117; /* Deeper background */
+		--surface-elevated: #2d3748; /* More elevated */
+		--surface-subtle: #161b22; /* Subtle variation */
+		--text: #f7fafc; /* Softer white */
+		--text-muted: #cbd5e0; /* Better contrast */
+		--text-secondary: #a0aec0; /* Refined secondary */
+		--border: #2d3748; /* Subtle borders */
+		--border-muted: #4a5568; /* Muted borders */
+		--brand: #667eea; /* Softer brand color */
+		--brand-hover: #5a67d8; /* Refined hover */
+		--success: #48bb78; /* Gentler success */
+		--warning: #ed8936; /* Warmer warning */
+		--error: #f56565; /* Softer error */
+		--info: #4299e1; /* Calmer info */
+		--shadow-subtle: rgba(0, 0, 0, 0.2);
+		--shadow-medium: rgba(0, 0, 0, 0.4);
+		--shadow-strong: rgba(0, 0, 0, 0.6);
 	}
-	body { background: var(--surface-muted); color: var(--text); }
+	body { 
+		background: var(--surface-muted); 
+		color: var(--text);
+		transition: background-color 0.3s ease, color 0.3s ease;
+	}
 }
 
 [data-theme="dark"] {
 	/* Force dark regardless of system */
-	--surface: #111827; /* gray-900 */
-	--surface-muted: #0f172a; /* slate-900 */
-	--surface-elevated: #1f2937; /* gray-800 */
-	--text: #f9fafb; /* gray-50 */
-	--text-muted: #d1d5db; /* gray-300 */
-	--text-secondary: #9ca3af; /* gray-400 */
-	--border: #374151; /* gray-700 */
-	--border-muted: #4b5563; /* gray-600 */
-	--brand: #6366f1; /* indigo-500 */
-	--brand-hover: #4f46e5; /* indigo-600 */
-	--success: #10b981; /* emerald-500 */
-	--warning: #f59e0b; /* amber-500 */
-	--error: #ef4444; /* red-500 */
-	--info: #3b82f6; /* blue-500 */
+	--surface: #1a202c; /* Enhanced depth */
+	--surface-muted: #0d1117; /* Deeper background */
+	--surface-elevated: #2d3748; /* More elevated */
+	--surface-subtle: #161b22; /* Subtle variation */
+	--text: #f7fafc; /* Softer white */
+	--text-muted: #cbd5e0; /* Better contrast */
+	--text-secondary: #a0aec0; /* Refined secondary */
+	--border: #2d3748; /* Subtle borders */
+	--border-muted: #4a5568; /* Muted borders */
+	--brand: #667eea; /* Softer brand color */
+	--brand-hover: #5a67d8; /* Refined hover */
+	--success: #48bb78; /* Gentler success */
+	--warning: #ed8936; /* Warmer warning */
+	--error: #f56565; /* Softer error */
+	--info: #4299e1; /* Calmer info */
+	--shadow-subtle: rgba(0, 0, 0, 0.2);
+	--shadow-medium: rgba(0, 0, 0, 0.4);
+	--shadow-strong: rgba(0, 0, 0, 0.6);
 }
 
 /* Utility overrides to adapt Tailwind-ish classes in dark */
@@ -147,6 +159,13 @@ input, textarea, select {
 	background: var(--surface);
 	color: var(--text);
 	border: 1px solid var(--border);
+	transition: all 0.3s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+	border-color: var(--brand);
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 input:focus, textarea:focus, select:focus {
