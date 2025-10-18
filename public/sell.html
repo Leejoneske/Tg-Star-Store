@@ -164,8 +164,8 @@
     }
     
     .counter-btn:hover {
-        background: var(--brand);
-        color: white;
+        background: var(--surface-elevated, #f3f4f6);
+        color: var(--text);
         transform: scale(1.05);
         box-shadow: 0 4px 12px var(--shadow-medium, rgba(0, 0, 0, 0.2));
     }
@@ -1239,6 +1239,11 @@ function calculateTonAmount() {
     }
     const tonAmount = (stars * rate).toFixed(3);
     tonAmountDisplay.textContent = `${tonAmount} USDT`;
+    
+    // Update USD display (assuming 1 USDT = 1 USD)
+    const usdAmount = parseFloat(tonAmount).toFixed(2);
+    usdAmountDisplay.textContent = `≈ $${usdAmount} USD`;
+    
     return tonAmount;
 }
 
