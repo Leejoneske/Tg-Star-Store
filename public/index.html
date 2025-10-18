@@ -3378,8 +3378,13 @@ async function handlePurchase(item) {
             ]
         };
         
-        // Send transaction
-        const result = await tonConnectUI.sendTransaction(transaction);
+        // Send transaction with timeout handling
+        const result = await Promise.race([
+            tonConnectUI.sendTransaction(transaction),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Transaction timeout - please try again')), 300000) // 5 minutes
+            )
+        ]);
         
         if (result) {
             
@@ -3408,7 +3413,59 @@ async function handlePurchase(item) {
                 totalAmount: totalAmountUsdt
             };
             
-            const response = await window.API.createOrder(orderData);
+            // Create order with retry mechanism
+            let response;
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (retryCount < maxRetries) {
+                try {
+                    response = await Promise.race([
+                        window.API.createOrder(orderData),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Order creation timeout')), 30000) // 30 seconds
+                        )
+                    ]);
+                    break; // Success, exit retry loop
+                } catch (orderError) {
+                    retryCount++;
+                    console.warn(`Order creation attempt ${retryCount} failed:`, orderError);
+                    
+                    if (retryCount >= maxRetries) {
+                        // Final attempt failed - show special message
+                        await Swal.fire({
+                            title: 'Payment Processed - Order Pending',
+                            html: `
+                                <div class="text-center space-y-3">
+                                    <div class="text-lg font-semibold text-orange-600">⚠️ Transaction Sent Successfully</div>
+                                    <div class="text-sm text-gray-600 space-y-2">
+                                        <div>✅ <strong>Payment:</strong> Your transaction was sent to the blockchain</div>
+                                        <div>🔄 <strong>Order Status:</strong> Being processed manually due to system delay</div>
+                                        <div>📞 <strong>Support:</strong> Contact us if you don't receive your order within 2 hours</div>
+                                        <div>🔗 <strong>Transaction:</strong> ${transactionHash}</div>
+                                    </div>
+                                </div>
+                            `,
+                            icon: 'warning',
+                            confirmButtonText: 'Contact Support',
+                            confirmButtonColor: '#f59e0b',
+                            showCancelButton: true,
+                            cancelButtonText: 'OK',
+                            customClass: {
+                                popup: 'rounded-xl shadow-lg'
+                            }
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.open('https://t.me/StarStore_Chat', '_blank');
+                            }
+                        });
+                        return; // Exit function
+                    }
+                    
+                    // Wait before retry
+                    await new Promise(resolve => setTimeout(resolve, 2000 * retryCount));
+                }
+            }
             
             if (response && response.success) {
                 // Close loading before showing success
@@ -3488,6 +3545,10 @@ async function handlePurchase(item) {
             errorMessage = 'Wallet not connected. Please connect your wallet and try again.';
         } else if (error?.name === 'WalletNotReadyError') {
             errorMessage = 'Wallet not ready. Please try again in a moment.';
+        } else if (error?.message === 'Transaction timeout - please try again') {
+            errorMessage = 'Transaction timed out. If payment was sent, please contact support with your transaction details.';
+        } else if (error?.message === 'Order creation timeout') {
+            errorMessage = 'Order processing delayed. If payment was sent, your order will be processed manually.';
         }
         
         await Swal.fire({
