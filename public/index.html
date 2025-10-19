@@ -95,9 +95,98 @@
     
 
 <style>
-    body {
-        font-family: 'Inter', sans-serif;
-        background: #f8fafc;
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #f5f5f5; 
+            margin: 0; 
+            padding: 0; 
+        }
+        .clean-card { 
+            background: white; 
+            border-radius: 16px; 
+            padding: 20px;
+            margin-bottom: 12px;
+        }
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.2s, transform 0.2s;
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-primary:active {
+            opacity: 0.8;
+            transform: scale(0.98);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            background: #f0f0f0;
+            padding: 4px;
+            border-radius: 10px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: white;
+            color: #007AFF;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section-content {
+            display: none;
+        }
+        .section-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .app-container {
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: #f5f5f5; 
+            min-height: 100vh; 
+            position: relative; 
+            overflow: hidden; 
+        }
+        .telegram-fullscreen .app-container { 
+            max-width: 100%; 
+            width: 100%; 
+            margin: 0; 
+            box-shadow: none; 
+            border-radius: 0; 
+        }
         margin: 0;
         padding: 0;
     }
@@ -784,208 +873,361 @@
 
         <div id="content-container">
             <div id="bottomnav-container"></div>
-            <div class="p-3 md:p-4 flex justify-between items-center bg-white shadow-sm relative">
-                <div class="logo-header" data-translate="appName">StarStore</div>
-                <div class="flex items-center space-x-4">
-                    <button class="notification-button relative p-2 rounded-full hover:bg-gray-100 transition-colors" id="notificationButton">
-                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            <!-- Page Header -->
+            <header style="padding: 16px 20px; background: #f5f5f5; position: relative; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1 style="font-size: 28px; font-weight: 700; color: #000; margin: 0;" data-translate="appName">StarStore</h1>
+                    <p style="font-size: 14px; color: #999; margin: 4px 0 0 0;">Buy & Sell Telegram Stars 🌟</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button style="position: relative; padding: 8px; border-radius: 50%; background: rgba(0,0,0,0.1); border: none; cursor: pointer; transition: background 0.2s;" id="notificationButton">
+                        <svg style="width: 20px; height: 20px; color: #666;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                         </svg>
-                        <div class="notification-badge hidden" id="notificationBadge">0</div>
+                        <div class="notification-badge hidden" id="notificationBadge" style="position: absolute; top: 4px; right: 4px; background: #ff4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px;">0</div>
                     </button>
-                    <select id="languageSelect" class="language-toggle">
+                    <select id="languageSelect" style="padding: 8px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 8px; background: white; color: #333; cursor: pointer;">
                         <option value="en">English</option>
                         <option value="ru">Русский</option>
                         <option value="hi">हिंदी</option>
                         <option value="ar">العربية</option>
                     </select>
                 </div>
-            </div>
+            </header>
 
-            <div class="px-6 pt-4 pb-2">
-                <div class="user-info-container">
-                    <div class="user-details">
-                        <div class="profile-image">
-                            <img id="profilePicture" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIyNCIgcj0iMTIiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTggNTZDMjQgNDggNDAgNDggNTYgNTZIMThaIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=" alt="User Profile" class="w-full h-full object-cover">
+            <!-- User Profile Section -->
+            <section style="padding: 16px 20px; background: #f5f5f5;">
+                <div class="clean-card" style="margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div style="width: 64px; height: 64px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <img id="profilePicture" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIyNCIgcj0iMTIiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTggNTZDMjQgNDggNDAgNDggNTYgNTZIMThaIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=" alt="User Profile" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
-                        <div class="text-lg font-semibold text-gray-800" id="username">@username</div>
-                        <div class="text-xs text-gray-500 flex items-center gap-2" id="userIdRow"><span id="userIdText"></span><button id="copyUserIdBtn" class="px-2 py-1 text-[10px] border rounded">Copy</button></div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 20px; font-weight: 700; color: #000; margin-bottom: 4px;" id="username">@username</div>
+                            <div style="font-size: 13px; color: #666; display: flex; align-items: center; gap: 8px;" id="userIdRow">
+                                <span id="userIdText"></span>
+                                <button id="copyUserIdBtn" style="padding: 4px 8px; font-size: 11px; border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9; color: #666; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
+                        </div>
                     </div>
-                    <button id="connectWallet" data-translate="connectWallet">
-                        <i class="fas fa-wallet mr-2"></i>Connect Wallet
+                    <button id="connectWallet" class="btn-primary" style="margin-top: 16px;" data-translate="connectWallet">
+                        <i class="fas fa-wallet"></i>
+                        <span>Connect Wallet</span>
                     </button>
                 </div>
-            </div>
+            </section>
 
-            <div class="p-6 pt-2">
-                <div class="section-toggle">
-                    <button class="toggle-button active" id="starsToggle" data-translate="buyStars">Buy Stars</button>
-                    <button class="toggle-button" id="premiumToggle" data-translate="telegramPremium">Telegram Premium</button>
-                </div>
+            <!-- Main Content -->
+            <main style="padding: 0 16px 80px;">
+                <!-- Section Toggle -->
+                <section class="clean-card">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" id="starsToggle" data-translate="buyStars">⭐ Buy Stars</button>
+                        <button class="tab-btn" id="premiumToggle" data-translate="telegramPremium">👑 Premium</button>
+                    </div>
+                </section>
 
                 <div class="section-content active" id="starsSection">
-                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
-                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="buyFor">Buy For</div>
-                        <div class="flex items-center gap-3">
-                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForStars" value="self" checked> <span data-translate="myself">Myself</span></label>
-                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForStars" value="others"> <span data-translate="someoneElse">Someone else</span></label>
+                    <!-- Buy For Options -->
+                    <section class="clean-card">
+                        <div style="font-size: 15px; font-weight: 600; color: #000; margin-bottom: 12px;" data-translate="buyFor">Buy For</div>
+                        <div style="display: flex; gap: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; padding: 8px 12px; background: #f9f9f9; border-radius: 8px; flex: 1; transition: background 0.2s;">
+                                <input type="radio" name="buyForStars" value="self" checked style="margin: 0;">
+                                <span data-translate="myself">Myself</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; padding: 8px 12px; background: #f9f9f9; border-radius: 8px; flex: 1; transition: background 0.2s;">
+                                <input type="radio" name="buyForStars" value="others" style="margin: 0;">
+                                <span data-translate="someoneElse">Someone else</span>
+                            </label>
                         </div>
-                    </div>
-                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
-                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="recipients">Recipients (up to 5)</div>
-                        <div class="space-y-2" id="recipientsContainer"></div>
-                        <div class="flex items-center gap-2 mt-2">
-                            <button id="addRecipientBtn" class="px-3 py-2 text-sm rounded-md border border-gray-300" data-translate="addRecipient">Add Recipient</button>
-                                    <span class="text-xs text-gray-500" id="recipientHelp" data-translate="enterTelegramUsernames">Enter Telegram usernames.</span>
+                    </section>
+                    <!-- Recipients Section -->
+                    <section class="clean-card">
+                        <div style="font-size: 15px; font-weight: 600; color: #000; margin-bottom: 12px;" data-translate="recipients">Recipients (up to 5)</div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;" id="recipientsContainer"></div>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
+                            <button id="addRecipientBtn" class="btn-primary" style="background: #f9f9f9; color: #007AFF; border: 1px solid #e0e0e0;" data-translate="addRecipient">
+                                <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                <span>Add Recipient</span>
+                            </button>
+                            <span style="font-size: 12px; color: #999;" id="recipientHelp" data-translate="enterTelegramUsernames">Enter Telegram usernames.</span>
                         </div>
-                    </div>
-                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
-                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="customStars">Custom Stars</div>
-                        <div class="flex items-center gap-2">
-                            <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50 for manual; packages allow less)" class="flex-1 px-3 py-2 border rounded-md text-sm" data-translate-placeholder="enterStars" />
-                            <button id="buyCustomStars" class="px-3 py-2 text-sm rounded-md border border-gray-300 bg-indigo-600 text-white" data-translate="buy">Buy</button>
+                    </section>
+                    <!-- Custom Stars Section -->
+                    <section class="clean-card">
+                        <div style="font-size: 15px; font-weight: 600; color: #000; margin-bottom: 12px;" data-translate="customStars">Custom Stars</div>
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50)" style="flex: 1; padding: 12px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 14px; background: #f9f9f9;" data-translate-placeholder="enterStars" />
+                            <button id="buyCustomStars" class="btn-primary" data-translate="buy">
+                                <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                                </svg>
+                                <span>Buy</span>
+                            </button>
                         </div>
-                        <div class="text-xs text-gray-500 mt-1" data-translate="ifSetOverrides">If set, this overrides the package selection.</div>
-                        <div class="text-xs text-gray-700 mt-1" id="customStarsQuote"></div>
-                        <div id="starsDistribution" class="mt-3 p-3 bg-gray-50 rounded-lg" style="display: none;">
-                            <div class="text-xs font-semibold text-gray-700 mb-2" data-translate="starsDistribution">Stars Distribution:</div>
-                            <div id="distributionList" class="space-y-1"></div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 8px;" data-translate="ifSetOverrides">If set, this overrides the package selection.</div>
+                        <div style="font-size: 13px; color: #000; font-weight: 500;" id="customStarsQuote"></div>
+                        <div id="starsDistribution" style="margin-top: 12px; padding: 12px; background: #f9f9f9; border-radius: 10px; display: none;">
+                            <div style="font-size: 12px; font-weight: 600; color: #000; margin-bottom: 8px;" data-translate="starsDistribution">Stars Distribution:</div>
+                            <div id="distributionList" style="display: flex; flex-direction: column; gap: 4px;"></div>
                         </div>
-                    </div>
-                    <div class="stars-card rounded-xl mb-8">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4" data-translate="chooseStarsPackage">Choose a Stars Package</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="package-option stars-package">
-                                <div class="stars-amount">15 Stars</div>
-                                <div class="usdt-price">0.35 USDT</div>
-                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm package-btn" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>Buy Now</button>
-                                <div class="mt-2">
-                        
+                    </section>
+                    <!-- Stars Packages -->
+                    <section class="clean-card">
+                        <h3 style="font-size: 17px; font-weight: 600; color: #000; margin-bottom: 16px;" data-translate="chooseStarsPackage">⭐ Choose a Stars Package</h3>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">15 Stars</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;">0.35 USDT</div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>
+                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    <span>Buy Now</span>
+                                </button>
+                                <div style="margin-top: 8px;">
                                     <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
                                 </div>
                             </div>
-                            <div class="package-option stars-package">
-                                <div class="stars-amount">25 Stars</div>
-                                <div class="usdt-price">0.60 USDT</div>
-                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm package-btn" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>Buy Now</button>
-                                <div class="mt-2">
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">25 Stars</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;">0.60 USDT</div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>
+                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    <span>Buy Now</span>
+                                </button>
+                                <div style="margin-top: 8px;">
                                     <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
                                 </div>
                             </div>
-                            <div class="package-option stars-package" data-stars="50">
-                                <div class="stars-amount">50 Stars</div>
-                                <div class="usdt-price package-price">1.00 USDT</div>
-                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>Buy Now</button>
-                                <div class="mt-2">
-                                <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
-                                </div>
-                            </div>
-                            <div class="package-option stars-package" data-stars="100">
-                                <div class="stars-amount">100 Stars</div>
-                                <div class="usdt-price package-price">2.00 USDT</div>
-                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>Buy Now</button>
-                                <div class="mt-2">
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" data-stars="50" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">50 Stars</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;" class="package-price">1.00 USDT</div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>
+                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    <span>Buy Now</span>
+                                </button>
+                                <div style="margin-top: 8px;">
                                     <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
                                 </div>
                             </div>
-                            <div class="package-option stars-package" data-stars="500">
-                                <div class="stars-amount">500 Stars</div>
-                                <div class="usdt-price package-price">10.00 USDT</div>
-                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>Buy Now</button>
-                                <div class="mt-2">
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" data-stars="100" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">100 Stars</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;" class="package-price">2.00 USDT</div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>
+                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    <span>Buy Now</span>
+                                </button>
+                                <div style="margin-top: 8px;">
                                     <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
                                 </div>
                             </div>
-                            <div class="package-option stars-package" data-stars="1000">
-                                <div class="stars-amount">1000 Stars</div>
-                                <div class="usdt-price package-price">20.00 USDT</div>
-                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>Buy Now</button>
-                                <div class="mt-2">
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" data-stars="500" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">500 Stars</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;" class="package-price">10.00 USDT</div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>
+                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    <span>Buy Now</span>
+                                </button>
+                                <div style="margin-top: 8px;">
+                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
+                                </div>
+                            </div>
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" data-stars="1000" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">1000 Stars</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;" class="package-price">20.00 USDT</div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>
+                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    <span>Buy Now</span>
+                                </button>
+                                <div style="margin-top: 8px;">
                                     <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="section-content" id="premiumSection">
-                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
-                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="buyFor">Buy For</div>
-                        <div class="flex items-center gap-3">
-                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForPremium" value="self" checked> <span data-translate="myself">Myself</span></label>
-                            <label class="flex items-center gap-1 text-sm"><input type="radio" name="buyForPremium" value="others"> <span data-translate="someoneElse">Someone else</span></label>
+                    <!-- Premium Buy For Options -->
+                    <section class="clean-card">
+                        <div style="font-size: 15px; font-weight: 600; color: #000; margin-bottom: 12px;" data-translate="buyFor">Buy For</div>
+                        <div style="display: flex; gap: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; padding: 8px 12px; background: #f9f9f9; border-radius: 8px; flex: 1; transition: background 0.2s;">
+                                <input type="radio" name="buyForPremium" value="self" checked style="margin: 0;">
+                                <span data-translate="myself">Myself</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; padding: 8px 12px; background: #f9f9f9; border-radius: 8px; flex: 1; transition: background 0.2s;">
+                                <input type="radio" name="buyForPremium" value="others" style="margin: 0;">
+                                <span data-translate="someoneElse">Someone else</span>
+                            </label>
                         </div>
-                    </div>
-                    <div class="mb-4 bg-white rounded-xl p-4 shadow-sm">
-                        <div class="text-sm font-semibold text-gray-700 mb-2" data-translate="recipients">Recipients (up to 5)</div>
-                        <div class="space-y-2" id="recipientsContainerPremium"></div>
-                        <div class="flex items-center gap-2 mt-2">
-                            <button id="addRecipientBtnPremium" class="px-3 py-2 text-sm rounded-md border border-gray-300" data-translate="addRecipient">Add Recipient</button>
-                                    <span class="text-xs text-gray-500" id="recipientHelpPremium" data-translate="enterTelegramUsernames">Enter Telegram usernames.</span>
+                    </section>
+                    
+                    <!-- Premium Recipients Section -->
+                    <section class="clean-card">
+                        <div style="font-size: 15px; font-weight: 600; color: #000; margin-bottom: 12px;" data-translate="recipients">Recipients (up to 5)</div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;" id="recipientsContainerPremium"></div>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
+                            <button id="addRecipientBtnPremium" class="btn-primary" style="background: #f9f9f9; color: #007AFF; border: 1px solid #e0e0e0;" data-translate="addRecipient">
+                                <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                <span>Add Recipient</span>
+                            </button>
+                            <span style="font-size: 12px; color: #999;" id="recipientHelpPremium" data-translate="enterTelegramUsernames">Enter Telegram usernames.</span>
                         </div>
-                    </div>
-                    <div class="premium-card rounded-xl mb-6">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Telegram Premium Subscriptions</h3>
-                        <div class="space-y-4">
-                            <div class="package-option premium-package" data-premium-duration="3">
-                                <div class="flex flex-col space-y-4">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <div class="premium-duration" data-translate="3monthsPremium">3 Months Premium</div>
-                                            <div class="premium-description" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
-                                        </div>
-                                        <div class="premium-price package-price">19.31 USDT</div>
+                    </section>
+                    <!-- Premium Packages -->
+                    <section class="clean-card">
+                        <h3 style="font-size: 17px; font-weight: 600; color: #000; margin-bottom: 16px;">👑 Telegram Premium Subscriptions</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option premium-package" data-premium-duration="3" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                                    <div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;" data-translate="3monthsPremium">3 Months Premium</div>
+                                        <div style="font-size: 13px; color: #666;" data-translate="3monthsDesc">Unlock premium features for 3 months</div>
                                     </div>
-                                    <div class="premium-features">
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
-                                    </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>Subscribe Now</button>
+                                    <div style="font-size: 16px; font-weight: 600; color: #007AFF;" class="package-price">19.31 USDT</div>
                                 </div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Premium Badge</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Double Limits</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Exclusive Stickers</span>
+                                    </div>
+                                </div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 3, "amount": "19.31"}'>
+                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span>Subscribe Now</span>
+                                </button>
                             </div>
-                            <div class="package-option premium-package" data-premium-duration="6">
-                                <div class="flex flex-col space-y-4">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <div class="premium-duration" data-translate="6monthsPremium">6 Months Premium</div>
-                                            <div class="premium-description" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
-                                        </div>
-                                        <div class="premium-price package-price">26.25 USDT</div>
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option premium-package" data-premium-duration="6" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                                    <div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;" data-translate="6monthsPremium">6 Months Premium</div>
+                                        <div style="font-size: 13px; color: #666;" data-translate="6monthsDesc">Unlock premium features for 6 months</div>
                                     </div>
-                                    <div class="premium-features">
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Voice-to-Text</div>
-                                    </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>Subscribe Now</button>
+                                    <div style="font-size: 16px; font-weight: 600; color: #007AFF;" class="package-price">26.25 USDT</div>
                                 </div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Premium Badge</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Double Limits</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Exclusive Stickers</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Voice-to-Text</span>
+                                    </div>
+                                </div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 6, "amount": "26.25"}'>
+                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span>Subscribe Now</span>
+                                </button>
                             </div>
-                            <div class="package-option premium-package" data-premium-duration="12">
-                                <div class="flex flex-col space-y-4">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <div class="premium-duration" data-translate="12monthsPremium">12 Months Premium</div>
-                                            <div class="premium-description" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
-                                        </div>
-                                        <div class="premium-price package-price">44.79 USDT</div>
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option premium-package" data-premium-duration="12" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                                    <div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;" data-translate="12monthsPremium">12 Months Premium</div>
+                                        <div style="font-size: 13px; color: #666;" data-translate="12monthsDesc">Unlock premium features for 12 months</div>
                                     </div>
-                                    <div class="premium-features">
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Badge</div>
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Double Limits</div>
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Exclusive Stickers</div>
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Voice-to-Text</div>
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Animated Profile Pic</div>
-                                        <div class="premium-feature"><i class="fas fa-check-circle"></i> Premium Reactions</div>
-                                    </div>
-                                    <button class="buy-button w-full py-2 text-white rounded-lg font-semibold text-sm" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>Subscribe Now</button>
+                                    <div style="font-size: 16px; font-weight: 600; color: #007AFF;" class="package-price">44.79 USDT</div>
                                 </div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Premium Badge</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Double Limits</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Exclusive Stickers</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Voice-to-Text</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Animated Profile Pic</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; background: white; padding: 4px 8px; border-radius: 6px;">
+                                        <svg style="width: 12px; height: 12px; color: #4CAF50;" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>Premium Reactions</span>
+                                    </div>
+                                </div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": null, "isPremium": true, "premiumDuration": 12, "amount": "44.79"}'>
+                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span>Subscribe Now</span>
+                                </button>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
-            </div>
+            </main>
         </div>
     </div>
 
@@ -1930,15 +2172,21 @@ function initSectionToggle() {
 
     if (starsToggle && premiumToggle && starsSection && premiumSection) {
         starsToggle.addEventListener('click', () => {
+            // Update tab button styles
             starsToggle.classList.add('active');
             premiumToggle.classList.remove('active');
+            
+            // Update section visibility
             starsSection.classList.add('active');
             premiumSection.classList.remove('active');
         });
 
         premiumToggle.addEventListener('click', () => {
+            // Update tab button styles
             premiumToggle.classList.add('active');
             starsToggle.classList.remove('active');
+            
+            // Update section visibility
             premiumSection.classList.add('active');
             starsSection.classList.remove('active');
         });
