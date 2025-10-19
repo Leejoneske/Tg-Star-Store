@@ -332,7 +332,7 @@
                 
                 <div id="referralsPagination" class="flex justify-center items-center gap-2 mb-6"></div>
                 
-                <button id="exportReferrals" class="w-full py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors mb-6 flex justify-center items-center">
+                <button id="exportReferrals" class="w-full py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors mb-20 flex justify-center items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
@@ -1218,48 +1218,57 @@ async function exportReferrals() {
             throw new Error(`HTTP ${response.status}: ${errorMessage}`);
         }
 
-        // Check if response is CSV (direct download)
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('text/csv')) {
-            // Handle direct CSV download using blob
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `referrals_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-            
-            // Fallback for strict webviews: open link using Telegram API
-            setTimeout(() => {
-                try {
-                    const init = window.Telegram?.WebApp?.initData || '';
-                    const fallbackUrl = `${BASE_API_URL}/export-referrals-download?init=${encodeURIComponent(init)}&tg_id=${encodeURIComponent(user?.id || '')}`;
-                    if (window.Telegram?.WebApp?.openLink) {
-                        window.Telegram.WebApp.openLink(fallbackUrl);
-                    } else {
-                        window.location.href = fallbackUrl;
-                    }
-                } catch (_) {}
-            }, 700);
+        // Use same robust CSV handling as transactions
+        console.log('Handling referrals response as CSV download...');
+        let blob;
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('text/csv')) {
+            blob = await response.blob();
         } else {
-            // Handle JSON response (Telegram sent)
-            const result = await response.json();
-
-            if (result.success) {
-                Swal.fire({
-                    title: TranslationUtils.get('success'),
-                    text: '👥 CSV file has been sent to your Telegram!',
-                    icon: 'success',
-                    confirmButtonText: TranslationUtils.get('close'),
-                    confirmButtonColor: '#4f46e5'
-                });
-            } else {
-                throw new Error(result.error || 'Export failed');
+            const csvText = await response.text();
+            // If server accidentally returned JSON, bubble it as error
+            if (csvText.trim().startsWith('{') || csvText.trim().startsWith('[')) {
+                try {
+                    const errorData = JSON.parse(csvText);
+                    throw new Error(errorData.error || 'Export failed');
+                } catch (_) {
+                    // fall through to treat as CSV
+                }
             }
+            blob = new Blob([csvText], { type: 'text/csv; charset=utf-8' });
         }
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `referrals_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        
+        // Fallback for strict webviews: open link using Telegram API
+        setTimeout(() => {
+            try {
+                const init = window.Telegram?.WebApp?.initData || '';
+                const fallbackUrl = `${BASE_API_URL}/export-referrals-download?init=${encodeURIComponent(init)}&tg_id=${encodeURIComponent(user?.id || '')}`;
+                if (window.Telegram?.WebApp?.openLink) {
+                    window.Telegram.WebApp.openLink(fallbackUrl);
+                } else {
+                    window.location.href = fallbackUrl;
+                }
+            } catch (_) {}
+        }, 700);
+
+        // Show success message like transactions
+        Swal.fire({
+            title: TranslationUtils.get('success'),
+            text: '📊 Referrals CSV file has been downloaded!',
+            icon: 'success',
+            confirmButtonText: TranslationUtils.get('close'),
+            confirmButtonColor: '#4f46e5'
+        });
+
+        return; // Exit here since we handled the download
     } catch (error) {
         console.error('Export error:', error);
         Swal.fire({
