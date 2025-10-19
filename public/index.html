@@ -877,7 +877,7 @@
             <header style="padding: 16px 20px; background: #f5f5f5; position: relative; display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <h1 style="font-size: 28px; font-weight: 700; color: #000; margin: 0;" data-translate="appName">StarStore</h1>
-                    <p style="font-size: 14px; color: #999; margin: 4px 0 0 0;">Buy & Sell Telegram Stars 🌟</p>
+                    <p style="font-size: 14px; color: #999; margin: 4px 0 0 0;">Buy & Sell Telegram Stars</p>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <button style="position: relative; padding: 8px; border-radius: 50%; background: rgba(0,0,0,0.1); border: none; cursor: pointer; transition: background 0.2s;" id="notificationButton">
@@ -961,7 +961,7 @@
                         <div style="font-size: 15px; font-weight: 600; color: #000; margin-bottom: 12px;" data-translate="customStars">Custom Stars</div>
                         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                             <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50)" style="flex: 1; padding: 12px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 14px; background: #f9f9f9;" data-translate-placeholder="enterStars" />
-                            <button id="buyCustomStars" class="btn-primary" data-translate="buy">
+                            <button id="buyCustomStars" style="background: #007AFF; color: white; padding: 12px 20px; border-radius: 10px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: opacity 0.2s, transform 0.2s; flex-shrink: 0;" data-translate="buy">
                                 <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
                                 </svg>
@@ -1478,66 +1478,14 @@ function showUsernameRequiredError(user, dmSent = false) {
     
     if (typeof Swal !== 'undefined') {
         Swal.fire({
-            title: '🔒 Username Required',
-            html: `
-                <div class="text-left space-y-4">
-                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <div class="flex items-center space-x-2 mb-2">
-                            <span class="text-red-600 font-semibold">❌ Cannot Place Order</span>
-                        </div>
-                        <p class="text-sm text-red-700">You must have a Telegram username to place orders.</p>
-                    </div>
-                    
-                    ${dmSent ? `
-                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                        <div class="flex items-center space-x-2 mb-2">
-                            <span class="text-purple-600 font-semibold">📨 Instructions Sent</span>
-                        </div>
-                        <p class="text-sm text-purple-700">We've sent detailed instructions to your Telegram DM with step-by-step guidance.</p>
-                    </div>
-                    ` : ''}
-                    
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div class="flex items-center space-x-2 mb-2">
-                            <span class="text-blue-600 font-semibold">👤 Your Account</span>
-                        </div>
-                        <div class="text-sm text-gray-700">
-                            <p><strong>Name:</strong> ${displayName}</p>
-                            <p><strong>User ID:</strong> ${userId}</p>
-                            <p><strong>Username:</strong> <span class="text-red-600">Not Set</span></p>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div class="flex items-center space-x-2 mb-2">
-                            <span class="text-green-600 font-semibold">✅ How to Fix</span>
-                        </div>
-                        <ol class="text-sm text-gray-700 space-y-1 list-decimal list-inside">
-                            <li>Open Telegram Settings</li>
-                            <li>Go to "Username" section</li>
-                            <li>Create a username (e.g., @yourname)</li>
-                            <li>Return here and try again</li>
-                        </ol>
-                    </div>
-                    
-                    <div class="text-xs text-gray-500 text-center">
-                        ${dmSent ? 'Check your Telegram messages for detailed instructions. ' : ''}Usernames help us provide better support and order tracking.
-                    </div>
-                </div>
-            `,
+            title: 'Username Required',
+            text: 'You need a Telegram username to place orders. Go to Telegram Settings → Username to create one.',
             icon: 'warning',
-            confirmButtonText: 'Open Telegram Settings',
-            confirmButtonColor: '#0088cc',
+            confirmButtonText: 'Open Settings',
+            confirmButtonColor: '#007AFF',
             showCancelButton: true,
             cancelButtonText: 'Cancel',
-            cancelButtonColor: '#6B7280',
-            width: '500px',
-            showClass: {
-                popup: 'animate__animated animate__fadeInUp animate__faster'
-            },
-            hideClass: {
-                popup: 'animate__animated animate__fadeOutDown animate__faster'
-            }
+            cancelButtonColor: '#6B7280'
         }).then((result) => {
             if (result.isConfirmed) {
                 // Try to open Telegram settings
@@ -2123,7 +2071,13 @@ function initNotificationSystem() {
             const hasUser = !!window.currentUserId;
             if (hasTG) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
             if (hasUser) headers['x-telegram-id'] = String(window.currentUserId);
-            if (hasTG || hasUser) fetch('/api/active-ping', { method: 'POST', headers });
+            if (hasTG || hasUser) {
+                fetch('/api/active-ping', { method: 'POST', headers })
+                    .catch(err => {
+                        // Silently ignore active-ping errors in preview/development
+                        console.debug('Active ping failed (expected in preview):', err.message);
+                    });
+            }
         } catch {}
     }, 60000);
 
@@ -2441,7 +2395,15 @@ function initWalletConnection() {
     // Determine if current user is admin
     let currentUserIsAdmin = false;
     fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user' } })
-        .then(r => r.json()).then(d => { currentUserIsAdmin = !!d?.isAdmin; }).catch(() => { currentUserIsAdmin = false; });
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+        })
+        .then(d => { currentUserIsAdmin = !!d?.isAdmin; })
+        .catch(err => { 
+            console.debug('Admin check failed (expected in preview):', err.message);
+            currentUserIsAdmin = false; 
+        });
 
     tonConnectUI.onStatusChange(wallet => {
         if (wallet?.account) {
@@ -3453,7 +3415,9 @@ async function handlePurchase(item) {
         // Check admin status via whoami
         let allowTestnet = false;
         try {
-            const who = await fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user' } }).then(r => r.json());
+            const response = await fetch('/api/whoami', { headers: { 'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user' } });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const who = await response.json();
             allowTestnet = !!who?.isAdmin;
         } catch (error) {
             console.log('Admin check failed:', error);
