@@ -187,6 +187,10 @@
             box-shadow: none; 
             border-radius: 0; 
         }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
         margin: 0;
         padding: 0;
     }
@@ -961,6 +965,7 @@
                         <div style="font-size: 15px; font-weight: 600; color: #000; margin-bottom: 12px;" data-translate="customStars">Custom Stars</div>
                         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                             <input id="customStarsInput" type="number" min="50" step="1" placeholder="Enter stars (min 50)" style="flex: 1; padding: 12px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 14px; background: #f9f9f9;" data-translate-placeholder="enterStars" />
+                            <div id="customStarsError" style="font-size: 12px; color: #dc2626; margin-top: 4px; display: none;"></div>
                             <button id="buyCustomStars" style="background: #007AFF; color: white; padding: 12px 20px; border-radius: 10px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: opacity 0.2s, transform 0.2s; flex-shrink: 0;" data-translate="buy">
                                 <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
@@ -1272,6 +1277,13 @@
         window.addEventListener('unhandledrejection', function(e){
             const reason = e && e.reason;
             const txt = '[PromiseRejection] ' + (reason && reason.message ? reason.message : String(reason));
+            
+            // Don't show banner for expected API failures in preview mode
+            if (txt.includes('active-ping') || txt.includes('whoami') || txt.includes('405') || txt.includes('404')) {
+                console.debug('Ignoring expected API failure in preview mode');
+                return;
+            }
+            
             showErrorBanner(txt);
         });
     })();
@@ -2560,7 +2572,7 @@ function updateLanguage() {
 
 
 function initBuyButtons() {
-    document.querySelectorAll('.buy-button').forEach(button => {
+    document.querySelectorAll('.btn-primary[data-item], .buy-button').forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
             
@@ -2584,7 +2596,21 @@ function initBuyButtons() {
                         }
                     }
                     
-                    handlePurchase(item);
+                    // Add loading state to button
+                    const originalText = button.innerHTML;
+                    button.disabled = true;
+                    button.innerHTML = '<svg style="width: 16px; height: 16px; animation: spin 1s linear infinite;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg><span style="margin-left: 8px;">Processing...</span>';
+                    
+                    handlePurchase(item)
+                        .catch(error => {
+                            console.error('Purchase failed:', error);
+                            showErrorToUser(error.message || 'Purchase failed. Please try again.');
+                        })
+                        .finally(() => {
+                            // Restore button state
+                            button.disabled = false;
+                            button.innerHTML = originalText;
+                        });
                 } catch (error) {
                     console.error('Purchase parse error:', error);
                     showErrorToUser(TranslationUtils.get('error'));
@@ -3025,6 +3051,23 @@ function initCustomStars() {
     let debounceTimer = null;
     
     input.addEventListener('input', () => {
+        // Real-time validation feedback
+        const val = Number(input.value || 0);
+        const errorDiv = document.getElementById('customStarsError');
+        
+        if (val > 0 && val < 50) {
+            errorDiv.textContent = 'Minimum 50 stars required for manual input';
+            errorDiv.style.display = 'block';
+            input.style.borderColor = '#dc2626';
+        } else if (val > 1000000) {
+            errorDiv.textContent = 'Maximum 1,000,000 stars allowed';
+            errorDiv.style.display = 'block';
+            input.style.borderColor = '#dc2626';
+        } else {
+            errorDiv.style.display = 'none';
+            input.style.borderColor = '#e0e0e0';
+        }
+        
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
             if (!window.buyPageState.isRefreshing) {
@@ -3229,7 +3272,7 @@ function updatePackagePriceDisplay(element, quoteData) {
     }
     
     // Update button data
-    const buyButton = element.querySelector('.buy-button');
+    const buyButton = element.querySelector('.btn-primary[data-item], .buy-button');
     if (buyButton) {
         try {
             const currentData = JSON.parse(buyButton.getAttribute('data-item') || '{}');
@@ -3459,15 +3502,25 @@ async function handlePurchase(item) {
         }
 
         // Fetch server quote for accurate amount per recipients
-        const quote = await window.API.getQuote({
-            isPremium: !!item.isPremium,
-            premiumDuration: item.premiumDuration || null,
-            stars: item.isPremium ? null : Number(stars),
-            recipientsCount: recipients.length,
-            isBuyForOthers: recipients.length > 0
-        });
-        if (!quote.success) {
-            throw new Error(quote.error || 'Failed to get quote');
+        let quote;
+        try {
+            quote = await window.API.getQuote({
+                isPremium: !!item.isPremium,
+                premiumDuration: item.premiumDuration || null,
+                stars: item.isPremium ? null : Number(stars),
+                recipientsCount: recipients.length,
+                isBuyForOthers: recipients.length > 0
+            });
+            if (!quote.success) {
+                throw new Error(quote.error || 'Failed to get quote');
+            }
+        } catch (error) {
+            console.error('Quote API failed:', error);
+            if (error.name === 'TypeError' || error.message.includes('fetch')) {
+                throw new Error('Network connection failed. Please check your internet connection and try again.');
+            } else {
+                throw new Error(error.message || 'Failed to get price quote. Please try again.');
+            }
         }
         const totalAmountUsdt = Number(quote.totalAmount);
         
