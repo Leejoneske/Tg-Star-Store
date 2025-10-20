@@ -34,9 +34,6 @@
     <meta name="twitter:title" content="Sell Telegram Stars for USDT | StarStore">
     <meta name="twitter:description" content="Convert your Telegram Stars to USDT instantly with the best rates.">
     <meta name="twitter:image" content="https://starstore.site/favicon.png">
-    <meta property="og:title" content="StarStore - Sell Telegram Stars">
-    <meta property="og:description" content="Convert your Telegram Stars to USDT securely and fast.">
-    <meta property="og:url" content="https://starstore.site/sell">
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
@@ -927,10 +924,7 @@
         </div>
     </div>
    
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="/js/translations.js?v=2"></script>
     <script src="/js/theme.js"></script>
     <script src="/js/loading.js"></script>
@@ -939,7 +933,7 @@
         let currentWalletMemo = '';
         let currentWalletType = '';
         let currentWalletAddress = '';
-        let currentLanguage = TranslationUtils.getCurrentLanguage();
+        let currentLanguage = 'en'; // Will be set properly in DOMContentLoaded
         let rate = 0.009;
 
 
@@ -956,9 +950,8 @@
         const starsInput = document.getElementById('starsAmount');
         const tonAmountDisplay = document.getElementById('tonAmount');
 
-        const appContent = document.getElementById('appContent');
-        const noticeModal = document.getElementById('noticeModal');
-        const continueButton = document.getElementById('continueButton');
+        // These will be initialized in DOMContentLoaded
+        let appContent, noticeModal, continueButton;
 
         
         // TonConnect UI setup
@@ -981,18 +974,14 @@ function checkNoticeStatus() {
 }
 // Show the main app content
 function showAppContent() {
-        
-    appContent.style.display = 'block';
-    // Fetch transactions when app content is shown
-    fetchTransactions();
+    if (appContent) {
+        appContent.style.display = 'block';
+        // Fetch transactions when app content is shown
+        fetchTransactions();
+    }
 }
 
-// Continue button handler for notice modal
-continueButton.addEventListener('click', () => {
-    localStorage.setItem('noticeAccepted', 'true');
-    noticeModal.style.display = 'none';
-    showAppContent();
-});
+// Continue button handler will be set up in DOMContentLoaded
       
 window.addEventListener('storage', (e) => {
     if (e.key === 'appLanguage') {
@@ -1803,6 +1792,11 @@ const fetchTransactions = async () => {
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize DOM elements
+    appContent = document.getElementById('appContent');
+    noticeModal = document.getElementById('noticeModal');
+    continueButton = document.getElementById('continueButton');
+    
     // Initialize TranslationUtils and get current language
     if (typeof TranslationUtils !== 'undefined') {
         TranslationUtils.init();
@@ -1814,6 +1808,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupWalletButtons();
     updateLanguageTexts();
     createTransactionDetailsPanel();
+    
+    // Set up continue button handler for notice modal
+    if (continueButton) {
+        continueButton.addEventListener('click', () => {
+            localStorage.setItem('noticeAccepted', 'true');
+            if (noticeModal) noticeModal.style.display = 'none';
+            showAppContent();
+        });
+    }
     
     
             // Show content immediately
