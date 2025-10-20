@@ -7,6 +7,9 @@ const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
 const fetch = require('node-fetch');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
@@ -40,6 +43,11 @@ const SERVER_URL = (process.env.RAILWAY_STATIC_URL ||
                    'tg-star-store-production.up.railway.app');
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
+
+// Initialize admin IDs early
+let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
+adminIds = Array.from(new Set(adminIds));
+
 // Import Telegram auth middleware (single import only)
 let verifyTelegramAuth = (req, res, next) => next();
 let requireTelegramAuth = (req, res, next) => next();
@@ -114,6 +122,26 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-telegram-id'],
     exposedHeaders: ['Content-Disposition']
 }));
+
+// Basic security middleware
+app.use(helmet({
+    contentSecurityPolicy: false, // Disable CSP for now to avoid breaking functionality
+    crossOriginEmbedderPolicy: false
+}));
+
+// Compression middleware
+app.use(compression());
+
+// Basic rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 200, // limit each IP to 200 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+app.use('/api/', limiter);
+
 // Add error handling for body parsing
 app.use(express.json({ 
     limit: '10mb',
@@ -131,7 +159,7 @@ app.use(bodyParser.json({
 // Error handling for body parsing
 app.use((error, req, res, next) => {
     if (error.type === 'entity.parse.failed' || error.code === 'ECONNABORTED') {
-        console.log('Request body parsing error (client disconnected):', error.message);
+        // Request body parsing error (client disconnected)
         return res.status(400).json({ error: 'Invalid request body' });
     }
     next(error);
@@ -469,7 +497,7 @@ app.use((err, req, res, next) => {
 // Webhook setup (only when real bot is configured)
 if (process.env.BOT_TOKEN) {
   bot.setWebHook(WEBHOOK_URL)
-    .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
+    .then(() => console.log(`Webhook set successfully at ${WEBHOOK_URL}`))
     .catch(err => {
       console.error('❌ Webhook setup failed:', err.message);
       process.exit(1);
@@ -1080,9 +1108,7 @@ const botProfileSchema = new mongoose.Schema({
 });
 const BotProfile = mongoose.models.BotProfile || mongoose.model('BotProfile', botProfileSchema);
 
-let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
-// Deduplicate to avoid duplicate notifications per admin
-adminIds = Array.from(new Set(adminIds));
+// adminIds already defined above
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
 // Track processing callbacks to prevent duplicates

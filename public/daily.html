@@ -450,7 +450,7 @@
             // Give the enhanced system first priority; if it's present at all, don't run fallback
             setTimeout(async () => {
                 if (typeof DailyRewardsSystem !== 'undefined') {
-                    console.log('Enhanced system present - skipping basic fallback');
+                    // Enhanced system present - skipping basic fallback
                     return;
                 }
                 
