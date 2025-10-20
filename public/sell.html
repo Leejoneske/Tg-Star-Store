@@ -1848,14 +1848,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             const resp = await fetch(`/api/whoami?t=${Date.now()}`, {
                 headers: { 'x-telegram-id': tgId }
             });
-            const me = await resp.json();
-                starsInput.min = "0";
-                starsInput.removeAttribute('max');
-                // Update UI hint
-                const badge = document.querySelector('[data-translate="minimumSell"]');
+            
+            // Only parse JSON if response is OK
+            if (resp.ok) {
+                const me = await resp.json();
+                if (me?.isAdmin) {
+                    starsInput.min = "0";
+                    starsInput.removeAttribute('max');
+                    // Update UI hint
+                    const badge = document.querySelector('[data-translate="minimumSell"]');
+                    if (badge) badge.textContent = 'Admin: no min/max';
+                }
+            } else {
+                console.debug('Admin check failed (expected in preview):', resp.status);
             }
         }
-    } catch (_) {}
+    } catch (error) {
+        console.debug('Admin check error (expected in preview):', error.message);
+    }
 
     // Load shared bottom nav
     fetch('/bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { 
