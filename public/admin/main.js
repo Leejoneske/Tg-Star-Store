@@ -197,14 +197,19 @@ class AdminDashboard {
         }
         
         try {
+            const requestBody = { tgId: telegramId };
+            console.log('🔍 Sending request:', requestBody);
+            
             // Use existing admin OTP system with correct parameter name
             const response = await fetch('/api/admin/auth/send-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ tgId: telegramId })
+                body: JSON.stringify(requestBody)
             });
+            
+            console.log('🔍 Response status:', response.status);
             
             const data = await response.json();
             
