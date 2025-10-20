@@ -160,17 +160,34 @@ class AdminDashboard {
     }
     
     async sendOTP() {
+        // Try multiple ways to get the input
         const telegramIdInput = document.getElementById('telegram-id');
-        const telegramId = telegramIdInput ? telegramIdInput.value.trim() : '';
+        const telegramIdByQuery = document.querySelector('#telegram-id');
+        const telegramIdByName = document.querySelector('input[placeholder*="Telegram ID"]');
         
-        console.log('🔍 SendOTP Debug:', {
-            inputElement: !!telegramIdInput,
-            inputValue: telegramId,
-            inputValueLength: telegramId.length
+        console.log('🔍 SendOTP Debug - All Methods:', {
+            getElementById: !!telegramIdInput,
+            querySelector: !!telegramIdByQuery,
+            byPlaceholder: !!telegramIdByName,
+            inputValue1: telegramIdInput ? telegramIdInput.value : 'no element',
+            inputValue2: telegramIdByQuery ? telegramIdByQuery.value : 'no element',
+            inputValue3: telegramIdByName ? telegramIdByName.value : 'no element',
+            allInputs: Array.from(document.querySelectorAll('input')).map(inp => ({
+                id: inp.id,
+                value: inp.value,
+                placeholder: inp.placeholder
+            }))
         });
+        
+        // Use the first available input
+        const input = telegramIdInput || telegramIdByQuery || telegramIdByName;
+        const telegramId = input ? input.value.trim() : '';
+        
+        console.log('🔍 Final value captured:', telegramId);
         
         if (!telegramId) {
             this.showMessage('Please enter your Telegram ID', 'error');
+            console.log('❌ No Telegram ID entered');
             return;
         }
         
@@ -776,6 +793,45 @@ document.addEventListener('DOMContentLoaded', () => {
     
     window.adminDashboard = new AdminDashboard();
 });
+
+// Debug function to test input capture
+window.debugInputCapture = function() {
+    const input = document.getElementById('telegram-id');
+    console.log('🔍 Debug Input Capture:', {
+        element: input,
+        value: input ? input.value : 'no element',
+        innerHTML: input ? input.outerHTML : 'no element'
+    });
+    return input ? input.value : null;
+};
+
+// Global function as backup for button click
+window.handleSendOTP = function() {
+    console.log('🔍 Global handleSendOTP called');
+    
+    // Debug the input right here
+    const input = document.getElementById('telegram-id');
+    console.log('🔍 Input debug in handleSendOTP:', {
+        element: !!input,
+        value: input ? input.value : 'no element',
+        valueLength: input ? input.value.length : 0
+    });
+    
+    if (window.adminDashboard) {
+        window.adminDashboard.sendOTP();
+    } else {
+        console.error('❌ AdminDashboard not initialized');
+    }
+};
+
+window.handleVerifyOTP = function() {
+    console.log('🔍 Global handleVerifyOTP called');
+    if (window.adminDashboard) {
+        window.adminDashboard.verifyOTP();
+    } else {
+        console.error('❌ AdminDashboard not initialized');
+    }
+};
 
 // Handle window resize for responsive charts
 window.addEventListener('resize', () => {
