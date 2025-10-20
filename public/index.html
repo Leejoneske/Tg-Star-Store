@@ -2492,7 +2492,9 @@ function initWalletConnection() {
             walletConnected = true;
             localStorage.setItem('walletConnected', 'true');
             localStorage.setItem('walletAddress', currentWalletAddress);
+            
             // Block testnet wallets immediately
+            if (isTestnetWallet(wallet)) {
                 showErrorToUser('Testnet wallet is not supported. Please switch to TON mainnet.');
                 // Attempt to disconnect gracefully
                 setTimeout(async () => { 
