@@ -2328,18 +2328,19 @@ async function showConfirmationButtons(query, originalAction) {
 
 // Handle callback queries for order actions
 bot.on('callback_query', async (query) => {
-    const data = query.data;
-    
-    if (data.startsWith('confirm_')) {
-        // Remove 'confirm_' prefix to get original action
-        const originalAction = data.replace('confirm_', '');
-        const actionType = originalAction.split('_')[0];
-        const orderType = originalAction.split('_')[1];
-        const orderId = originalAction.split('_')[2];
+    try {
+        const data = query.data;
         
-        let order;
-        
-        try {
+        if (data.startsWith('confirm_')) {
+            // Remove 'confirm_' prefix to get original action
+            const originalAction = data.replace('confirm_', '');
+            const actionType = originalAction.split('_')[0];
+            const orderType = originalAction.split('_')[1];
+            const orderId = originalAction.split('_')[2];
+            
+            let order;
+            
+            try {
             // Find the order
             if (orderType === 'sell') {
                 order = await SellOrder.findOne({ id: orderId });
