@@ -275,21 +275,34 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       if (tgId) await bot.sendMessage(tgId, `✅ Thanks ${clean.fullName}! You have been added to the StarStore Ambassador waitlist. We will contact you soon.`);
     } catch (_) {}
 
+    // Notify admins about new ambassador waitlist signup
     try {
-            .split(',')
-            .filter(Boolean)
-            .map(id => id.trim());
+      const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '')
+        .split(',')
+        .filter(Boolean)
+        .map(id => id.trim());
+      
+      if (adminIds.length > 0) {
         const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
-          `🆕 New Ambassador Waitlist Signup\n\n` +
+        const message = `🆕 New Ambassador Waitlist Signup\n\n` +
           `Name: ${clean.fullName}\n` +
           `Email: ${clean.email}\n` +
           `Username: ${clean.username ? '@' + clean.username : 'N/A'}\n` +
           `${Object.keys(clean.socials||{}).length ? `Socials: ${Object.entries(clean.socials).map(([k,v])=>`${k}: ${v}`).join(', ')}\n` : ''}` +
           `${tgId ? `User ID: ${tgId}\n` : ''}` +
           `Entry ID: ${saved.id}`;
-        }));
+        
+        // Send notification to all admin IDs
+        for (const adminId of adminIds) {
+          try {
+            await bot.sendMessage(adminId, message);
+          } catch (e) {
+            console.error('Failed to send admin notification:', e.message);
+          }
+        }
       }
     } catch (e) {
+      console.error('Admin notification error:', e.message);
     }
 
     return res.json({ success: true, waitlistId: saved.id });
@@ -767,6 +780,7 @@ const sellOrderSchema = new mongoose.Schema({
         processedAt: Date,
         chargeId: String
     },
+    messages: [{
         messageId: Number,
         originalText: String,
         messageType: {
@@ -831,6 +845,7 @@ const referralWithdrawalSchema = new mongoose.Schema({
         enum: ['pending', 'completed', 'declined'], 
         default: 'pending' 
     },
+    messages: [{
         messageId: Number,
         originalText: String
     }],
@@ -877,6 +892,7 @@ const reversalSchema = new mongoose.Schema({
     reason: { type: String, required: true },
     status: { type: String, enum: ['pending', 'approved', 'rejected', 'processed', 'completed', 'declined'], default: 'pending' },
     processedAt: Date,
+    messages: [{
         messageId: Number,
         messageType: String,
         originalText: String
@@ -993,6 +1009,7 @@ const walletUpdateRequestSchema = new mongoose.Schema({
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
     reason: String,
     userMessageId: Number,
+    messages: [{
         messageId: Number,
         originalText: String
     }],
@@ -1782,29 +1799,33 @@ Need help? Contact @StarStore_Chat`;
             });
         }
 
+        // Check if testnet is being used
+        if (isTestnet) {
             return res.status(400).json({ error: 'Testnet is not supported. Please switch your wallet to TON mainnet.' });
         }
         
         // Additional validation: Check wallet address format
         if (walletAddress && typeof walletAddress === 'string') {
-                console.error('❌ Invalid wallet address format:', walletAddress);
-                return res.status(400).json({ error: 'Invalid wallet address format. Please provide a valid TON mainnet address.' });
+            // Check for testnet indicators
+            if (walletAddress.toLowerCase().includes('testnet') || 
+                walletAddress.toLowerCase().includes('test') ||
+                walletAddress.toLowerCase().includes('sandbox')) {
+                console.error('❌ Testnet wallet address detected:', walletAddress);
+                return res.status(400).json({ error: 'Testnet is not supported. Please switch your wallet to TON mainnet.' });
             }
+            
+            // Check wallet address length
+            if (walletAddress.length < 10) {
                 console.error('❌ Wallet address too short:', walletAddress);
                 return res.status(400).json({ error: 'Invalid wallet address. Please provide a complete TON wallet address.' });
             }
             
-                console.error('❌ Wallet address too short:', walletAddress);
-                return res.status(400).json({ error: 'Invalid wallet address. Please provide a complete TON wallet address.' });
-            }
-            
-                const invalidPatterns = ['0x', 'bc1', 'test', 'invalid', 'none', 'null', 'undefined', 'example'];
-                // Only check for invalid patterns, but exclude valid hex format addresses
-                const isHexFormat = /^[0-9-]+:[a-fA-F0-9]{64}$/.test(walletAddress.trim());
-                if (!isHexFormat && invalidPatterns.some(pattern => walletAddress.toLowerCase().includes(pattern))) {
-                    console.error('❌ Wallet address contains invalid pattern:', walletAddress);
-                    return res.status(400).json({ error: 'Invalid wallet address. Please provide a valid TON wallet address.' });
-                }
+            // Check for invalid patterns
+            const invalidPatterns = ['0x', 'bc1', 'test', 'invalid', 'none', 'null', 'undefined', 'example'];
+            const isHexFormat = /^[0-9-]+:[a-fA-F0-9]{64}$/.test(walletAddress.trim());
+            if (!isHexFormat && invalidPatterns.some(pattern => walletAddress.toLowerCase().includes(pattern))) {
+                console.error('❌ Wallet address contains invalid pattern:', walletAddress);
+                return res.status(400).json({ error: 'Invalid wallet address. Please provide a valid TON wallet address.' });
             }
         } else {
             console.error('❌ Wallet address missing or invalid type:', walletAddress);
@@ -1922,28 +1943,46 @@ Need help? Contact @StarStore_Chat`;
 
         await bot.sendMessage(telegramId, userMessage);
 
-        
-        if (isPremium) {
-        } else {
-        }
-        
-        if (isBuyForOthers) {
-            if (isPremium) {
-            } else {
+        // Send admin notification
+        try {
+            const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '')
+                .split(',')
+                .filter(Boolean)
+                .map(id => id.trim());
+            
+            if (adminIds.length > 0) {
+                const adminMessage = `🛒 New Buy Order\n\n` +
+                    `Order ID: ${order.id}\n` +
+                    `User: @${username || 'Unknown'} (${telegramId})\n` +
+                    `Stars: ${stars}\n` +
+                    `Amount: ${totalAmount} TON\n` +
+                    `Wallet: ${walletAddress}\n` +
+                    `${isPremium ? `Premium: ${premiumDuration} days\n` : ''}` +
+                    `${isBuyForOthers ? `Recipients: ${totalRecipients} users\n` : ''}` +
+                    `Status: Pending`;
+                
+                const adminKeyboard = {
+                    inline_keyboard: [[
+                        { text: '✅ Complete', callback_data: `complete_buy_${order.id}` },
+                        { text: '❌ Decline', callback_data: `decline_buy_${order.id}` }
+                    ]]
+                };
+                
+                for (const adminId of adminIds) {
+                    try {
+                        const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+                        await AdminNotification.create({
+                            orderId: order.id,
+                            messageId: message.message_id,
+                            messageType: 'order'
+                        });
+                    } catch (e) {
+                        console.error('Failed to send admin notification:', e.message);
+                    }
+                }
             }
-        }
-
-            inline_keyboard: [[
-                { text: '✅ Complete', callback_data: `complete_buy_${order.id}` },
-                { text: '❌ Decline', callback_data: `decline_buy_${order.id}` }
-            ]]
-        };
-
-            try {
-                    messageId: message.message_id,
-                });
-            } catch (err) {
-            }
+        } catch (e) {
+            console.error('Admin notification error:', e.message);
         }
 
         await order.save();
@@ -1988,13 +2027,12 @@ app.post("/api/sell-orders", async (req, res) => {
             return res.status(403).json({ error: "You are banned from placing orders" });
         }
 
-            const numericStars = Number(stars);
-            if (!Number.isFinite(numericStars)) {
-                return res.status(400).json({ error: "Invalid stars amount" });
-            }
-            if (numericStars < 50 || numericStars > 80000) {
-                return res.status(400).json({ error: "Stars amount must be between 50 and 80000" });
-            }
+        // Validate stars amount
+        if (!Number.isFinite(Number(stars))) {
+            return res.status(400).json({ error: "Invalid stars amount" });
+        }
+        if (Number(stars) < 50 || Number(stars) > 80000) {
+            return res.status(400).json({ error: "Stars amount must be between 50 and 80000" });
         }
 
         // Check for existing pending orders for this user
@@ -2045,11 +2083,12 @@ app.post("/api/sell-orders", async (req, res) => {
                     sessionToken 
                 );
             } catch (e) {
-                    throw e;
-                }
+                throw e;
             }
         }
 
+        // Update order status if payment link was created successfully
+        if (paymentLink) {
             order.status = "processing";
             await order.save();
 
@@ -2191,31 +2230,51 @@ bot.on("successful_payment", async (msg) => {
         try { order.userMessageId = sent?.message_id || order.userMessageId; await order.save(); } catch (_) {}
     } catch (_) {}
   
-    const userDisplayName = await getUserDisplayName(order.telegramId);
-    
-        `Order ID: ${order.id}\n` +
-        `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` + 
-        `Stars: ${order.stars}\n` +
-        `Wallet: ${order.walletAddress}\n` +  
-        `Memo: ${order.memoTag || 'None'}`;
+    // Send admin notification
+    try {
+        const userDisplayName = await getUserDisplayName(order.telegramId);
+        const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '')
+            .split(',')
+            .filter(Boolean)
+            .map(id => id.trim());
+        
+        if (adminIds.length > 0) {
+            const adminMessage = `💰 New Sell Order\n\n` +
+                `Order ID: ${order.id}\n` +
+                `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` + 
+                `Stars: ${order.stars}\n` +
+                `Wallet: ${order.walletAddress}\n` +  
+                `Memo: ${order.memoTag || 'None'}`;
 
-        inline_keyboard: [
-            [
-                { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
-                { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
-                { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
-            ]
-        ]
-    };
+            const adminKeyboard = {
+                inline_keyboard: [
+                    [
+                        { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                        { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                        { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                    ]
+                ]
+            };
 
-        try {
-            const message = await bot.sendMessage(
-            );
-                messageId: message.message_id,
-            });
-            await order.save();
-        } catch (err) {
+            for (const adminId of adminIds) {
+                try {
+                    const message = await bot.sendMessage(
+                        adminId,
+                        adminMessage,
+                        { reply_markup: adminKeyboard }
+                    );
+                    await AdminNotification.create({
+                        orderId: order.id,
+                        messageId: message.message_id,
+                        messageType: 'order'
+                    });
+                } catch (e) {
+                    console.error('Failed to send admin notification:', e.message);
+                }
+            }
         }
+    } catch (e) {
+        console.error('Admin notification error:', e.message);
     }
 });
 
@@ -2267,56 +2326,85 @@ async function showConfirmationButtons(query, originalAction) {
     }
 }
 
-    // Remove 'confirm_' prefix to get original action
-    const originalAction = data.replace('confirm_', '');
-    const actionType = originalAction.split('_')[0];
-    const orderType = originalAction.split('_')[1];
-    const orderId = originalAction.split('_')[2];
+// Handle callback queries for order actions
+bot.on('callback_query', async (query) => {
+    const data = query.data;
     
-    let order;
-    
-    try {
-        // Find the order
-        if (orderType === 'sell') {
-            order = await SellOrder.findOne({ id: orderId });
-        } else {
-            order = await BuyOrder.findOne({ id: orderId });
-        }
+    if (data.startsWith('confirm_')) {
+        // Remove 'confirm_' prefix to get original action
+        const originalAction = data.replace('confirm_', '');
+        const actionType = originalAction.split('_')[0];
+        const orderType = originalAction.split('_')[1];
+        const orderId = originalAction.split('_')[2];
+        
+        let order;
+        
+        try {
+            // Find the order
+            if (orderType === 'sell') {
+                order = await SellOrder.findOne({ id: orderId });
+            } else {
+                order = await BuyOrder.findOne({ id: orderId });
+            }
         
         if (!order) {
             await bot.answerCallbackQuery(query.id, { text: `${orderType} order not found` });
             return;
         }
         
-        // Execute the confirmed action
+        // Execute the confirmed action based on action type
+        if (actionType === 'complete') {
+            order.status = 'completed';
+        } else if (actionType === 'decline' || actionType === 'fail') {
+            order.status = 'failed';
+        } else if (actionType === 'refund') {
+            order.status = 'refunded';
+        }
         
-        // Update the message with the result
+        await order.save();
+        
+        // Update admin notification messages
         const statusText = order.status === 'completed' ? '✅ Completed' : 
                           order.status === 'failed' ? '❌ Failed' : 
                           order.status === 'refunded' ? '💸 Refunded' : '❌ Declined';
         const completionNote = orderType === 'sell' && order.status === 'completed' ? '\n\nPayments have been transferred to the seller.' : '';
 
-            try {
-                
-                if (updatedText.length > 4000) {
-                    return;
-                }
-                
-                await bot.editMessageText(updatedText, {
-                    reply_markup: {
-                        inline_keyboard: [[
-                            { 
-                                text: statusText, 
-                                callback_data: `processed_${order.id}_${Date.now()}`
-                            }
-                        ]]
+        try {
+            const notifications = await AdminNotification.find({ orderId: order.id });
+            const updatePromises = notifications.map(async (notification) => {
+                try {
+                    const updatedText = `💰 ${orderType === 'sell' ? 'Sell' : 'Buy'} Order ${statusText}\n\n` +
+                        `Order ID: ${order.id}\n` +
+                        `User: ${order.username ? `@${order.username}` : 'Unknown'} (ID: ${order.telegramId})\n` +
+                        `Stars: ${order.stars}\n` +
+                        `Wallet: ${order.walletAddress}\n` +
+                        `Status: ${order.status}${completionNote}`;
+                    
+                    if (updatedText.length > 4000) {
+                        return;
                     }
-                });
-            } catch (err) {
-            }
-        });
+                    
+                    await bot.editMessageText(updatedText, {
+                        chat_id: notification.userId,
+                        message_id: notification.messageId,
+                        reply_markup: {
+                            inline_keyboard: [[
+                                { 
+                                    text: statusText, 
+                                    callback_data: `processed_${order.id}_${Date.now()}`
+                                }
+                            ]]
+                        }
+                    });
+                } catch (err) {
+                    console.error('Failed to update admin notification:', err.message);
+                }
+            });
 
-        await Promise.allSettled(updatePromises);
+            await Promise.allSettled(updatePromises);
+        } catch (e) {
+            console.error('Error updating admin notifications:', e.message);
+        }
 
         // Send notification to user
         const userMessage = order.status === 'completed' 
@@ -2365,9 +2453,15 @@ async function showConfirmationButtons(query, originalAction) {
                 await trackStars(order.telegramId, order.stars, 'sell');
             } catch (error) {
                 console.error('Failed to track stars for sell order completion:', error);
-                    try {
-                    } catch (notifyErr) {
-                    }
+                try {
+                    // Send notification to user about completion
+                    await bot.sendMessage(order.telegramId, 
+                        `✅ Your sell order #${order.id} has been completed!\n\n` +
+                        `Stars: ${order.stars}\n` +
+                        `Payment has been sent to your wallet.`
+                    );
+                } catch (notifyErr) {
+                    console.error('Failed to notify user:', notifyErr.message);
                 }
             }
         } else if (actionType === 'decline') {
@@ -2445,9 +2539,15 @@ async function showConfirmationButtons(query, originalAction) {
                     await trackStars(order.telegramId, order.stars, 'buy');
                 } catch (error) {
                     console.error('Failed to track stars for buy order completion:', error);
-                        try {
-                        } catch (notifyErr) {
-                        }
+                    try {
+                        // Send notification to user about completion
+                        await bot.sendMessage(order.telegramId, 
+                            `✅ Your buy order #${order.id} has been completed!\n\n` +
+                            `Stars: ${order.stars}\n` +
+                            `Thank you for choosing StarStore!`
+                        );
+                    } catch (notifyErr) {
+                        console.error('Failed to notify user:', notifyErr.message);
                     }
                 }
             }
@@ -2456,9 +2556,14 @@ async function showConfirmationButtons(query, originalAction) {
                     await trackPremiumActivation(order.telegramId);
                 } catch (error) {
                     console.error('Failed to track premium activation for buy order:', error);
-                        try {
-                        } catch (notifyErr) {
-                        }
+                    try {
+                        // Send premium activation notification
+                        await bot.sendMessage(order.telegramId, 
+                            `🎉 Premium activated for ${order.premiumDuration} days!\n\n` +
+                            `Thank you for upgrading to StarStore Premium!`
+                        );
+                    } catch (notifyErr) {
+                        console.error('Failed to notify user about premium:', notifyErr.message);
                     }
                 }
             }
@@ -2468,7 +2573,17 @@ async function showConfirmationButtons(query, originalAction) {
             await order.save();
         }
     }
-}
+    
+    // Answer the callback query
+    await bot.answerCallbackQuery(query.id, { 
+        text: `${actionType} action completed for ${orderType} order #${orderId}` 
+    });
+    
+    } catch (error) {
+        console.error('Error processing callback query:', error.message);
+        await bot.answerCallbackQuery(query.id, { text: "Error processing request" });
+    }
+});
 
 bot.on('callback_query', async (query) => {
     try {
