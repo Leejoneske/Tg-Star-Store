@@ -1,5 +1,91 @@
 // StarStore Admin Dashboard - Modern JavaScript
 
+// Global functions (defined first to be available immediately)
+window.debugInputCapture = function() {
+    const input = document.getElementById('telegram-id');
+    console.log('🔍 Debug Input Capture:', {
+        element: input,
+        value: input ? input.value : 'no element',
+        innerHTML: input ? input.outerHTML : 'no element'
+    });
+    return input ? input.value : null;
+};
+
+window.handleSendOTP = function() {
+    console.log('🔍 Global handleSendOTP called');
+    
+    // Debug the input right here
+    const input = document.getElementById('telegram-id');
+    const telegramId = input ? input.value.trim() : '';
+    
+    console.log('🔍 Input debug in handleSendOTP:', {
+        element: !!input,
+        value: telegramId,
+        valueLength: telegramId.length
+    });
+    
+    if (window.adminDashboard) {
+        window.adminDashboard.sendOTP();
+    } else {
+        console.log('⚠️ AdminDashboard not initialized yet, calling sendOTP directly');
+        // Call sendOTP directly as a fallback
+        sendOTPDirect(telegramId);
+    }
+};
+
+// Direct OTP sending function as fallback
+async function sendOTPDirect(telegramId) {
+    if (!telegramId) {
+        console.error('❌ No Telegram ID provided');
+        return;
+    }
+    
+    if (!/^\d+$/.test(telegramId)) {
+        console.error('❌ Telegram ID must contain only numbers');
+        return;
+    }
+    
+    try {
+        const requestBody = { tgId: telegramId };
+        console.log('🔍 Direct sending request:', requestBody);
+        
+        const response = await fetch('/api/admin/auth/send-otp', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        console.log('🔍 Direct response status:', response.status);
+        const data = await response.json();
+        console.log('🔍 Direct response data:', data);
+        
+        if (response.ok) {
+            console.log('✅ OTP sent successfully');
+            // Show OTP section
+            const otpSection = document.getElementById('otp-section');
+            if (otpSection) {
+                otpSection.classList.remove('hidden');
+                otpSection.classList.add('animate-slide-down');
+            }
+        } else {
+            console.error('❌ OTP send failed:', data.error);
+        }
+    } catch (error) {
+        console.error('❌ Network error:', error);
+    }
+}
+
+window.handleVerifyOTP = function() {
+    console.log('🔍 Global handleVerifyOTP called');
+    if (window.adminDashboard) {
+        window.adminDashboard.verifyOTP();
+    } else {
+        console.error('❌ AdminDashboard not initialized');
+    }
+};
+
 class AdminDashboard {
     constructor() {
         this.token = localStorage.getItem('admin_token');
@@ -799,44 +885,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.adminDashboard = new AdminDashboard();
 });
 
-// Debug function to test input capture
-window.debugInputCapture = function() {
-    const input = document.getElementById('telegram-id');
-    console.log('🔍 Debug Input Capture:', {
-        element: input,
-        value: input ? input.value : 'no element',
-        innerHTML: input ? input.outerHTML : 'no element'
-    });
-    return input ? input.value : null;
-};
-
-// Global function as backup for button click
-window.handleSendOTP = function() {
-    console.log('🔍 Global handleSendOTP called');
-    
-    // Debug the input right here
-    const input = document.getElementById('telegram-id');
-    console.log('🔍 Input debug in handleSendOTP:', {
-        element: !!input,
-        value: input ? input.value : 'no element',
-        valueLength: input ? input.value.length : 0
-    });
-    
-    if (window.adminDashboard) {
-        window.adminDashboard.sendOTP();
-    } else {
-        console.error('❌ AdminDashboard not initialized');
-    }
-};
-
-window.handleVerifyOTP = function() {
-    console.log('🔍 Global handleVerifyOTP called');
-    if (window.adminDashboard) {
-        window.adminDashboard.verifyOTP();
-    } else {
-        console.error('❌ AdminDashboard not initialized');
-    }
-};
 
 // Handle window resize for responsive charts
 window.addEventListener('resize', () => {
