@@ -50,8 +50,8 @@ class AdminDashboard {
     
     async verifyToken() {
         try {
-            // Use existing admin verification endpoint
-            const response = await fetch('/api/me', {
+            // Use correct admin verification endpoint
+            const response = await fetch('/api/admin/auth/verify', {
                 headers: {
                     'x-telegram-id': this.token
                 }
@@ -59,8 +59,8 @@ class AdminDashboard {
             
             if (response.ok) {
                 const data = await response.json();
-                if (data.isAdmin) {
-                    this.user = data;
+                if (data.success && data.user && data.user.isAdmin) {
+                    this.user = data.user;
                     return true;
                 }
             }
@@ -148,20 +148,26 @@ class AdminDashboard {
             return;
         }
         
+        if (!/^\d+$/.test(telegramId)) {
+            this.showMessage('Telegram ID must contain only numbers', 'error');
+            return;
+        }
+        
         try {
-            // Use existing admin OTP system
+            // Use existing admin OTP system with correct parameter name
             const response = await fetch('/api/admin/auth/send-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ telegramId })
+                body: JSON.stringify({ tgId: telegramId })
             });
             
             const data = await response.json();
             
             if (response.ok) {
                 document.getElementById('otp-section').classList.remove('hidden');
+                document.getElementById('otp-section').classList.add('animate-slide-down');
                 this.showMessage('Verification code sent to your Telegram', 'success');
                 this.startOTPTimer(300); // 5 minutes
             } else {
@@ -182,29 +188,46 @@ class AdminDashboard {
             return;
         }
         
+        if (!/^\d{6}$/.test(otp)) {
+            this.showMessage('OTP must be 6 digits', 'error');
+            return;
+        }
+        
         try {
-            // Use existing admin OTP verification
+            // Use existing admin OTP verification with correct parameter names
             const response = await fetch('/api/admin/auth/verify-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ telegramId, otp })
+                body: JSON.stringify({ tgId: telegramId, code: otp })
             });
             
             const data = await response.json();
             
-            if (response.ok) {
+            if (response.ok && data.success) {
                 this.token = telegramId; // Store telegram ID as token for existing system compatibility
-                this.user = { id: telegramId, isAdmin: true };
+                this.user = { id: telegramId, telegramId: telegramId, isAdmin: true };
                 localStorage.setItem('admin_token', this.token);
                 
-                this.showMessage('Login successful!', 'success');
+                this.showMessage('Login successful! Redirecting...', 'success');
+                
+                // Add success animation
+                const verifyBtn = document.getElementById('verify-otp-btn');
+                verifyBtn.classList.add('animate-pulse-success');
+                
                 setTimeout(() => {
                     this.showDashboard();
-                }, 1000);
+                }, 1500);
             } else {
                 this.showMessage(data.error || 'Invalid verification code', 'error');
+                
+                // Add error animation
+                const otpInput = document.getElementById('otp-input');
+                otpInput.style.borderColor = '#ef4444';
+                setTimeout(() => {
+                    otpInput.style.borderColor = '';
+                }, 2000);
             }
         } catch (error) {
             console.error('Verify OTP error:', error);
@@ -214,15 +237,33 @@ class AdminDashboard {
     
     startOTPTimer(seconds) {
         const timerElement = document.getElementById('otp-timer');
+        const timerText = document.getElementById('timer-text');
+        
         timerElement.classList.remove('hidden');
         
         const updateTimer = () => {
             const minutes = Math.floor(seconds / 60);
             const remainingSeconds = seconds % 60;
-            timerElement.textContent = `Code expires in ${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            const timeString = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            
+            if (timerText) {
+                if (seconds <= 0) {
+                    timerText.textContent = 'Code expired. Please request a new one.';
+                    timerElement.className = 'text-sm text-red-600 mt-3 font-medium';
+                } else {
+                    timerText.textContent = `Code expires in ${timeString}`;
+                    // Change color as time runs out
+                    if (seconds <= 60) {
+                        timerElement.className = 'text-sm text-red-600 mt-3 font-medium';
+                    } else if (seconds <= 120) {
+                        timerElement.className = 'text-sm text-yellow-600 mt-3 font-medium';
+                    } else {
+                        timerElement.className = 'text-sm text-blue-600 mt-3 font-medium';
+                    }
+                }
+            }
             
             if (seconds <= 0) {
-                timerElement.textContent = 'Code expired. Please request a new one.';
                 return;
             }
             
@@ -235,13 +276,49 @@ class AdminDashboard {
     
     showMessage(message, type = 'info') {
         const messageElement = document.getElementById('login-message');
-        messageElement.textContent = message;
-        messageElement.className = `text-sm text-center ${type === 'error' ? 'text-red-600' : type === 'success' ? 'text-green-600' : 'text-blue-600'}`;
+        const messageText = document.getElementById('message-text');
+        const messageContainer = messageElement.querySelector('div');
+        
+        // Set message text
+        if (messageText) {
+            messageText.textContent = message;
+        } else {
+            messageElement.innerHTML = `
+                <div class="inline-flex items-center px-4 py-2 rounded-lg">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+        }
+        
+        // Set styling based on type
+        const container = messageElement.querySelector('div');
+        if (container) {
+            container.className = `inline-flex items-center px-4 py-2 rounded-lg ${
+                type === 'error' ? 'bg-red-100 text-red-700 border border-red-200' : 
+                type === 'success' ? 'bg-green-100 text-green-700 border border-green-200' : 
+                'bg-blue-100 text-blue-700 border border-blue-200'
+            }`;
+            
+            // Update icon
+            const icon = container.querySelector('i');
+            if (icon) {
+                icon.className = `fas ${
+                    type === 'error' ? 'fa-exclamation-triangle' : 
+                    type === 'success' ? 'fa-check-circle' : 
+                    'fa-info-circle'
+                } mr-2`;
+            }
+        }
+        
         messageElement.classList.remove('hidden');
         
-        setTimeout(() => {
-            messageElement.classList.add('hidden');
-        }, 5000);
+        // Auto-hide after 5 seconds unless it's a success message
+        if (type !== 'success') {
+            setTimeout(() => {
+                messageElement.classList.add('hidden');
+            }, 5000);
+        }
     }
     
     showSection(section) {

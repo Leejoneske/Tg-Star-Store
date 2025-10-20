@@ -29,6 +29,68 @@ body {
     100% { transform: rotate(360deg); }
 }
 
+@keyframes fade-in {
+    0% { 
+        opacity: 0; 
+        transform: scale(0.9) translateY(20px); 
+    }
+    100% { 
+        opacity: 1; 
+        transform: scale(1) translateY(0); 
+    }
+}
+
+@keyframes slide-down {
+    0% { 
+        opacity: 0; 
+        transform: translateY(-10px); 
+        max-height: 0;
+    }
+    100% { 
+        opacity: 1; 
+        transform: translateY(0); 
+        max-height: 200px;
+    }
+}
+
+@keyframes pulse-success {
+    0%, 100% { 
+        background-color: #10b981; 
+        transform: scale(1);
+    }
+    50% { 
+        background-color: #059669; 
+        transform: scale(1.05);
+    }
+}
+
+@keyframes pulse-error {
+    0%, 100% { 
+        background-color: #ef4444; 
+        transform: scale(1);
+    }
+    50% { 
+        background-color: #dc2626; 
+        transform: scale(1.05);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+}
+
+.animate-slide-down {
+    animation: slide-down 0.3s ease-out;
+}
+
+.animate-pulse-success {
+    animation: pulse-success 0.6s ease-in-out;
+}
+
+.animate-pulse-error {
+    animation: pulse-error 0.6s ease-in-out;
+}
+
 /* Utility Classes */
 .hidden { display: none !important; }
 .active { display: block !important; }

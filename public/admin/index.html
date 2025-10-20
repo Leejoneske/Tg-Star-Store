@@ -29,42 +29,131 @@
     </div>
 
     <!-- Login Modal -->
-    <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center hidden">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4 transform transition-all">
-            <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-shield-alt text-2xl text-blue-600"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-gray-900">Admin Access</h2>
-                <p class="text-gray-600 mt-2">Secure login to StarStore Dashboard</p>
+    <div id="login-modal" class="fixed inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 z-40 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black bg-opacity-30 backdrop-blur-sm"></div>
+        
+        <div class="relative bg-white rounded-3xl shadow-2xl p-10 w-full max-w-lg mx-6 transform transition-all animate-fade-in">
+            <!-- Background Pattern -->
+            <div class="absolute inset-0 rounded-3xl overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full -translate-y-16 translate-x-16 opacity-50"></div>
+                <div class="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-indigo-100 to-blue-100 rounded-full translate-y-12 -translate-x-12 opacity-50"></div>
             </div>
             
-            <form id="login-form" class="space-y-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Telegram ID</label>
-                    <input type="text" id="telegram-id" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="Enter your Telegram ID" required>
-                </div>
-                
-                <button type="button" id="send-otp-btn" class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                    <i class="fas fa-paper-plane mr-2"></i>
-                    Send Verification Code
-                </button>
-                
-                <div id="otp-section" class="hidden space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
-                        <div class="flex gap-3">
-                            <input type="text" id="otp-input" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="000000" maxlength="6">
-                            <button type="button" id="verify-otp-btn" class="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors">
-                                <i class="fas fa-check"></i>
-                            </button>
+            <div class="relative z-10">
+                <!-- Header -->
+                <div class="text-center mb-10">
+                    <div class="relative mb-6">
+                        <div class="w-20 h-20 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                            <i class="fas fa-star text-3xl text-white"></i>
                         </div>
-                        <div id="otp-timer" class="text-sm text-gray-500 mt-2 hidden"></div>
+                        <div class="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                            <i class="fas fa-shield-alt text-xs text-white"></i>
+                        </div>
                     </div>
+                    <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2">
+                        StarStore Admin
+                    </h1>
+                    <p class="text-gray-600 font-medium">Secure Dashboard Access</p>
+                    <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mt-4"></div>
                 </div>
                 
-                <div id="login-message" class="text-sm text-center hidden"></div>
-            </form>
+                <form id="login-form" class="space-y-6">
+                    <!-- Telegram ID Input -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fab fa-telegram-plane text-blue-500 mr-2"></i>
+                            Telegram ID
+                        </label>
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                id="telegram-id" 
+                                class="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-gray-50 focus:bg-white text-lg font-medium placeholder-gray-400" 
+                                placeholder="Enter your Telegram ID" 
+                                required
+                            >
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-4">
+                                <i class="fas fa-user text-gray-400"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 ml-1">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Your unique Telegram user ID
+                        </p>
+                    </div>
+                    
+                    <!-- Send OTP Button -->
+                    <button 
+                        type="button" 
+                        id="send-otp-btn" 
+                        class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                    >
+                        <i class="fas fa-paper-plane mr-3"></i>
+                        Send Verification Code
+                    </button>
+                    
+                    <!-- OTP Section -->
+                    <div id="otp-section" class="hidden space-y-4 animate-slide-down">
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                            <div class="flex items-center mb-3">
+                                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                                    <i class="fas fa-key text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-blue-800">Verification Code</h4>
+                                    <p class="text-xs text-blue-600">Check your Telegram for the code</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-3">
+                                <input 
+                                    type="text" 
+                                    id="otp-input" 
+                                    class="flex-1 px-4 py-3 border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-center text-lg font-mono tracking-widest" 
+                                    placeholder="000000" 
+                                    maxlength="6"
+                                >
+                                <button 
+                                    type="button" 
+                                    id="verify-otp-btn" 
+                                    class="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all duration-300 transform hover:scale-105 shadow-md"
+                                >
+                                    <i class="fas fa-check text-lg"></i>
+                                </button>
+                            </div>
+                            
+                            <div id="otp-timer" class="text-sm text-blue-600 mt-3 font-medium hidden">
+                                <i class="fas fa-clock mr-1"></i>
+                                <span id="timer-text">Code expires in 5:00</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Message -->
+                    <div id="login-message" class="text-center hidden">
+                        <div class="inline-flex items-center px-4 py-2 rounded-lg">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <span id="message-text"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Security Notice -->
+                    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mt-6">
+                        <div class="flex items-start">
+                            <div class="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                                <i class="fas fa-lock text-white text-xs"></i>
+                            </div>
+                            <div>
+                                <h5 class="font-semibold text-gray-700 text-sm">Secure Access</h5>
+                                <p class="text-xs text-gray-600 mt-1">
+                                    Only authorized administrators can access this dashboard. 
+                                    Your session is encrypted and monitored for security.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
