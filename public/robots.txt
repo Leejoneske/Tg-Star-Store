@@ -4,14 +4,45 @@ Allow: /
 # Sitemap location
 Sitemap: https://starstore.site/sitemap.xml
 
+# Allow important pages
+Allow: /
+Allow: /daily
+Allow: /about
+Allow: /sell
+Allow: /referral
+Allow: /history
+Allow: /support
+Allow: /policy
+Allow: /knowledge-base
+Allow: /blog
+Allow: /ambassador
+
 # Disallow sensitive API endpoints
 Disallow: /api/users/
 Disallow: /api/notifications/
 Disallow: /api/orders/
 Disallow: /api/referrals/
+Disallow: /api/
 
+# Disallow private directories
 Disallow: /private/
 Disallow: /temp/
+Disallow: /node_modules/
+Disallow: /.git/
 
-# Crawl delay (optional - be respectful to server)
+# Disallow query parameters that don't add value
+Disallow: /*?*utm_
+Disallow: /*?*ref=
+Disallow: /*?*fbclid=
+
+# Crawl delay (be respectful to server)
 Crawl-delay: 1
+
+# Specific bot instructions
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 2
