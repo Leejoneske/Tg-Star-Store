@@ -18,6 +18,107 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/css/admin-modern.css">
+    
+    <!-- Fallback CSS in case external CSS fails -->
+    <style>
+        /* Critical CSS for login page */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 50%, #3730a3 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .fixed { position: fixed; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .z-40 { z-index: 40; }
+        .z-50 { z-index: 50; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .hidden { display: none !important; }
+        .bg-white { background-color: white; }
+        .rounded-3xl { border-radius: 1.5rem; }
+        .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        .p-10 { padding: 2.5rem; }
+        .w-full { width: 100%; }
+        .max-w-lg { max-width: 32rem; }
+        .mx-6 { margin-left: 1.5rem; margin-right: 1.5rem; }
+        .relative { position: relative; }
+        .text-center { text-align: center; }
+        .mb-10 { margin-bottom: 2.5rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .w-20 { width: 5rem; }
+        .h-20 { height: 5rem; }
+        .rounded-2xl { border-radius: 1rem; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+        .font-bold { font-weight: 700; }
+        .text-gray-900 { color: #111827; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .text-gray-600 { color: #4b5563; }
+        .font-medium { font-weight: 500; }
+        .space-y-6 > * + * { margin-top: 1.5rem; }
+        .space-y-2 > * + * { margin-top: 0.5rem; }
+        .block { display: block; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .font-semibold { font-weight: 600; }
+        .text-gray-700 { color: #374151; }
+        .px-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+        .border-2 { border-width: 2px; }
+        .border-gray-200 { border-color: #e5e7eb; }
+        .rounded-xl { border-radius: 0.75rem; }
+        .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+        .placeholder-gray-400::placeholder { color: #9ca3af; }
+        .bg-gray-50 { background-color: #f9fafb; }
+        .text-blue-500 { color: #3b82f6; }
+        .text-white { color: white; }
+        .bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
+        .from-blue-600 { --tw-gradient-from: #2563eb; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(37, 99, 235, 0)); }
+        .to-purple-600 { --tw-gradient-to: #9333ea; }
+        .cursor-pointer { cursor: pointer; }
+        .transition-all { transition: all 0.3s ease; }
+        .hover\:scale-105:hover { transform: scale(1.05); }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Button styling */
+        button {
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-1px);
+        }
+        
+        /* Input styling */
+        input {
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
     <!-- Loading Screen -->

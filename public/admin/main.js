@@ -87,8 +87,27 @@ class AdminDashboard {
     
     bindEvents() {
         // Login form events
-        document.getElementById('send-otp-btn').addEventListener('click', () => this.sendOTP());
-        document.getElementById('verify-otp-btn').addEventListener('click', () => this.verifyOTP());
+        const sendOtpBtn = document.getElementById('send-otp-btn');
+        const verifyOtpBtn = document.getElementById('verify-otp-btn');
+        
+        console.log('🔍 Binding events:', {
+            sendOtpBtn: !!sendOtpBtn,
+            verifyOtpBtn: !!verifyOtpBtn
+        });
+        
+        if (sendOtpBtn) {
+            sendOtpBtn.addEventListener('click', () => {
+                console.log('🔍 Send OTP button clicked');
+                this.sendOTP();
+            });
+        }
+        
+        if (verifyOtpBtn) {
+            verifyOtpBtn.addEventListener('click', () => {
+                console.log('🔍 Verify OTP button clicked');
+                this.verifyOTP();
+            });
+        }
         
         // Navigation events
         document.querySelectorAll('.nav-link').forEach(link => {
@@ -141,7 +160,14 @@ class AdminDashboard {
     }
     
     async sendOTP() {
-        const telegramId = document.getElementById('telegram-id').value.trim();
+        const telegramIdInput = document.getElementById('telegram-id');
+        const telegramId = telegramIdInput ? telegramIdInput.value.trim() : '';
+        
+        console.log('🔍 SendOTP Debug:', {
+            inputElement: !!telegramIdInput,
+            inputValue: telegramId,
+            inputValueLength: telegramId.length
+        });
         
         if (!telegramId) {
             this.showMessage('Please enter your Telegram ID', 'error');
@@ -730,6 +756,24 @@ class AdminDashboard {
 
 // Initialize the admin dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Debug CSS loading
+    const cssLink = document.querySelector('link[href="/css/admin-modern.css"]');
+    if (cssLink) {
+        cssLink.addEventListener('load', () => {
+            console.log('✅ Admin CSS loaded successfully');
+        });
+        cssLink.addEventListener('error', () => {
+            console.error('❌ Failed to load admin CSS');
+        });
+    }
+    
+    // Debug DOM elements
+    console.log('🔍 DOM Debug:', {
+        telegramIdInput: !!document.getElementById('telegram-id'),
+        sendOtpBtn: !!document.getElementById('send-otp-btn'),
+        loginModal: !!document.getElementById('login-modal')
+    });
+    
     window.adminDashboard = new AdminDashboard();
 });
 
