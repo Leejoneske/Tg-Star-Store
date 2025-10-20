@@ -51,7 +51,7 @@ class AdminDashboard {
     
     async verifyToken() {
         try {
-            const response = await fetch('/api/auth/me', {
+            const response = await fetch('/api/admin/auth/verify', {
                 headers: {
                     'Authorization': `Bearer ${this.token}`
                 }
@@ -73,7 +73,6 @@ class AdminDashboard {
     async showDashboard() {
         this.hideLogin();
         this.updateUserInfo();
-        this.connectWebSocket();
         await this.loadDashboardData();
         this.initCharts();
     }
@@ -81,57 +80,6 @@ class AdminDashboard {
     updateUserInfo() {
         if (this.user) {
             document.getElementById('admin-name').textContent = `Admin ${this.user.telegramId}`;
-        }
-    }
-    
-    connectWebSocket() {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}`;
-        
-        this.ws = new WebSocket(wsUrl);
-        
-        this.ws.onopen = () => {
-            console.log('WebSocket connected');
-            this.ws.send(JSON.stringify({
-                type: 'subscribe',
-                channels: ['dashboard', 'orders', 'users', 'system']
-            }));
-        };
-        
-        this.ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                this.handleWebSocketMessage(data);
-            } catch (error) {
-                console.error('WebSocket message error:', error);
-            }
-        };
-        
-        this.ws.onclose = () => {
-            console.log('WebSocket disconnected');
-            // Attempt to reconnect after 5 seconds
-            setTimeout(() => {
-                if (this.token) {
-                    this.connectWebSocket();
-                }
-            }, 5000);
-        };
-    }
-    
-    handleWebSocketMessage(data) {
-        switch (data.channel) {
-            case 'dashboard':
-                this.updateDashboardStats(data.data);
-                break;
-            case 'orders':
-                this.updateOrdersTable(data.data);
-                break;
-            case 'users':
-                this.updateUsersTable(data.data);
-                break;
-            case 'system':
-                this.updateSystemHealth(data.data);
-                break;
         }
     }
     
@@ -150,29 +98,36 @@ class AdminDashboard {
         });
         
         // Sidebar toggle for mobile
-        document.getElementById('sidebar-toggle').addEventListener('click', () => {
-            this.toggleSidebar();
-        });
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                this.toggleSidebar();
+            });
+        }
         
         // Logout
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            this.logout();
-        });
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.logout();
+            });
+        }
         
         // Refresh activity
-        document.getElementById('refresh-activity').addEventListener('click', () => {
-            this.loadRecentActivity();
-        });
+        const refreshActivity = document.getElementById('refresh-activity');
+        if (refreshActivity) {
+            refreshActivity.addEventListener('click', () => {
+                this.loadRecentActivity();
+            });
+        }
         
         // Revenue period change
-        document.getElementById('revenue-period').addEventListener('change', (e) => {
-            this.updateRevenueChart(e.target.value);
-        });
-        
-        // Sidebar overlay
-        document.getElementById('sidebar-overlay').addEventListener('click', () => {
-            this.toggleSidebar();
-        });
+        const revenuePeriod = document.getElementById('revenue-period');
+        if (revenuePeriod) {
+            revenuePeriod.addEventListener('change', (e) => {
+                this.updateRevenueChart(e.target.value);
+            });
+        }
     }
     
     async sendOTP() {
@@ -184,7 +139,7 @@ class AdminDashboard {
         }
         
         try {
-            const response = await fetch('/api/auth/send-otp', {
+            const response = await fetch('/api/admin/auth/send-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -217,7 +172,7 @@ class AdminDashboard {
         }
         
         try {
-            const response = await fetch('/api/auth/verify-otp', {
+            const response = await fetch('/api/admin/auth/verify-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -298,7 +253,10 @@ class AdminDashboard {
             system: 'System Management'
         };
         
-        document.getElementById('page-title').textContent = titles[section] || 'Dashboard';
+        const pageTitle = document.getElementById('page-title');
+        if (pageTitle) {
+            pageTitle.textContent = titles[section] || 'Dashboard';
+        }
         this.currentSection = section;
         
         // Load section-specific data
@@ -331,22 +289,22 @@ class AdminDashboard {
     async loadDashboardData() {
         try {
             const [statsResponse, activityResponse] = await Promise.all([
-                fetch('/api/dashboard/stats', {
+                fetch('/api/admin/stats', {
                     headers: { 'Authorization': `Bearer ${this.token}` }
                 }),
-                fetch('/api/dashboard/activity', {
+                fetch('/api/admin/activity/recent', {
                     headers: { 'Authorization': `Bearer ${this.token}` }
                 })
             ]);
             
             if (statsResponse.ok) {
                 const statsData = await statsResponse.json();
-                this.updateDashboardStats(statsData.data);
+                this.updateDashboardStats(statsData);
             }
             
             if (activityResponse.ok) {
                 const activityData = await activityResponse.json();
-                this.updateRecentActivity(activityData.data);
+                this.updateRecentActivity(activityData.data || []);
             }
             
             // Load revenue chart data
@@ -359,14 +317,21 @@ class AdminDashboard {
     }
     
     updateDashboardStats(stats) {
-        document.getElementById('total-users').textContent = stats.totalUsers.toLocaleString();
-        document.getElementById('total-orders').textContent = stats.totalOrders.toLocaleString();
-        document.getElementById('total-revenue').textContent = `$${stats.totalRevenue.toLocaleString()}`;
-        document.getElementById('pending-orders').textContent = stats.pendingOrders.toLocaleString();
+        const totalUsers = document.getElementById('total-users');
+        const totalOrders = document.getElementById('total-orders');
+        const totalRevenue = document.getElementById('total-revenue');
+        const pendingOrders = document.getElementById('pending-orders');
+        
+        if (totalUsers) totalUsers.textContent = (stats.totalUsers || 0).toLocaleString();
+        if (totalOrders) totalOrders.textContent = (stats.totalOrders || 0).toLocaleString();
+        if (totalRevenue) totalRevenue.textContent = `$${(stats.totalRevenue || 0).toLocaleString()}`;
+        if (pendingOrders) pendingOrders.textContent = (stats.pendingOrders || 0).toLocaleString();
     }
     
     updateRecentActivity(activities) {
         const activityList = document.getElementById('activity-list');
+        if (!activityList) return;
+        
         activityList.innerHTML = '';
         
         activities.forEach(activity => {
@@ -449,13 +414,13 @@ class AdminDashboard {
     
     async updateRevenueChart(period) {
         try {
-            const response = await fetch(`/api/dashboard/revenue?period=${period}`, {
+            const response = await fetch(`/api/admin/revenue?period=${period}`, {
                 headers: { 'Authorization': `Bearer ${this.token}` }
             });
             
             if (response.ok) {
                 const data = await response.json();
-                this.renderRevenueChart(data.data);
+                this.renderRevenueChart(data.data || []);
             }
         } catch (error) {
             console.error('Failed to load revenue chart:', error);
@@ -467,7 +432,10 @@ class AdminDashboard {
     }
     
     renderRevenueChart(data) {
-        const ctx = document.getElementById('revenue-chart').getContext('2d');
+        const canvas = document.getElementById('revenue-chart');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
         
         if (this.charts.revenue) {
             this.charts.revenue.destroy();
@@ -510,7 +478,10 @@ class AdminDashboard {
     }
     
     renderOrdersChart() {
-        const ctx = document.getElementById('orders-chart').getContext('2d');
+        const canvas = document.getElementById('orders-chart');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
         
         this.charts.orders = new Chart(ctx, {
             type: 'doughnut',
@@ -538,18 +509,14 @@ class AdminDashboard {
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebar-overlay');
         
-        sidebar.classList.toggle('-translate-x-full');
-        overlay.classList.toggle('hidden');
+        if (sidebar) sidebar.classList.toggle('-translate-x-full');
+        if (overlay) overlay.classList.toggle('hidden');
     }
     
     logout() {
         localStorage.removeItem('admin_token');
         this.token = null;
         this.user = null;
-        
-        if (this.ws) {
-            this.ws.close();
-        }
         
         // Clear all charts
         Object.values(this.charts).forEach(chart => {
@@ -562,51 +529,40 @@ class AdminDashboard {
     }
     
     showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
+        // Simple toast implementation
         const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
+        toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg text-white ${
+            type === 'error' ? 'bg-red-500' : 
+            type === 'success' ? 'bg-green-500' : 
+            type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+        }`;
+        toast.textContent = message;
         
-        const icons = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle',
-            info: 'fas fa-info-circle'
-        };
-        
-        toast.innerHTML = `
-            <i class="${icons[type]} text-${type === 'error' ? 'red' : type === 'success' ? 'green' : type === 'warning' ? 'yellow' : 'blue'}-500"></i>
-            <span>${message}</span>
-        `;
-        
-        container.appendChild(toast);
+        document.body.appendChild(toast);
         
         setTimeout(() => {
             toast.remove();
         }, 5000);
     }
     
+    // Placeholder methods for other sections
     async loadOrdersData() {
-        // TODO: Implement orders data loading
         console.log('Loading orders data...');
     }
     
     async loadUsersData() {
-        // TODO: Implement users data loading
         console.log('Loading users data...');
     }
     
     async loadAnalyticsData() {
-        // TODO: Implement analytics data loading
         console.log('Loading analytics data...');
     }
     
     async loadNotificationsData() {
-        // TODO: Implement notifications data loading
         console.log('Loading notifications data...');
     }
     
     async loadSystemData() {
-        // TODO: Implement system data loading
         console.log('Loading system data...');
     }
     

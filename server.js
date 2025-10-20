@@ -9725,6 +9725,57 @@ app.post('/api/admin/logout', (req, res) => {
 	}
 });
 
+// Modern admin auth verification endpoint
+app.get('/api/admin/auth/verify', (req, res) => {
+	const telegramId = req.headers['x-telegram-id'];
+	if (!telegramId) {
+		return res.status(401).json({ error: 'No telegram ID provided' });
+	}
+	
+	const isAdmin = Array.isArray(adminIds) && adminIds.includes(telegramId);
+	if (!isAdmin) {
+		return res.status(403).json({ error: 'Access denied' });
+	}
+	
+	res.json({
+		success: true,
+		user: {
+			telegramId,
+			isAdmin: true
+		}
+	});
+});
+
+// Enhanced admin stats endpoint for modern dashboard
+app.get('/api/admin/dashboard/stats', requireAdmin, async (req, res) => {
+	try {
+		// Get existing stats and enhance them
+		const orders = await db.getOrders();
+		const users = await db.getUsers();
+		const withdrawals = await db.getWithdrawals();
+		
+		const stats = {
+			totalUsers: users.length,
+			totalOrders: orders.length,
+			totalRevenue: orders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0),
+			pendingOrders: orders.filter(o => o.status === 'pending').length,
+			completedOrders: orders.filter(o => o.status === 'completed').length,
+			activeUsers24h: users.filter(u => {
+				const lastActive = new Date(u.lastActive || u.createdAt);
+				return Date.now() - lastActive.getTime() < 24 * 60 * 60 * 1000;
+			}).length,
+			totalWithdrawals: withdrawals.length,
+			pendingWithdrawals: withdrawals.filter(w => w.status === 'pending').length,
+			lastUpdated: new Date().toISOString()
+		};
+		
+		res.json(stats);
+	} catch (error) {
+		console.error('Enhanced admin stats error:', error);
+		res.status(500).json({ error: 'Failed to fetch enhanced stats' });
+	}
+});
+
 // Simple SMTP email sender for newsletter (admin-only)
 let smtpTransport = null;
 try {
