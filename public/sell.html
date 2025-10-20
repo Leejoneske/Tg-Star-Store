@@ -1226,10 +1226,14 @@ function setStarsAmount(amount) {
 
 function calculateTonAmount() {
     let stars = parseInt(starsInput.value) || 0;
-        if (stars < 50) { stars = 50; starsInput.value = 50; }
-        else if (stars > 80000) { stars = 80000; starsInput.value = 80000; }
-    } else {
-        if (stars < 0) { stars = 0; starsInput.value = 0; }
+    
+    // Apply limits based on user type (this logic was broken)
+    if (stars < 50) { 
+        stars = 50; 
+        starsInput.value = 50; 
+    } else if (stars > 80000) { 
+        stars = 80000; 
+        starsInput.value = 80000; 
     }
     const tonAmount = (stars * rate).toFixed(3);
     tonAmountDisplay.textContent = `${tonAmount} USDT`;
