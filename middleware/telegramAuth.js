@@ -39,7 +39,6 @@ function requireTelegramAuth(req, res, next) {
   
   // Reduced logging - only log auth failures and important events
   const shouldLog = req.url.includes('/api/export-') || req.url.includes('/api/notifications') || 
-                   req.url.includes('/api/admin') || !isValidUserId(req.headers['x-telegram-id']);
   
   if (shouldLog) {
     console.log('🔍 Auth Debug:', {
@@ -143,11 +142,9 @@ function requireTelegramAuth(req, res, next) {
     } catch (_) {}
   }
 
-  const adminEnv = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(s => s.trim());
   req.user = { 
     id: userId, 
     username: username,
-    isAdmin: adminEnv.includes(userId),
     authMethod // For debugging
   };
   
@@ -156,7 +153,6 @@ function requireTelegramAuth(req, res, next) {
     console.log('✅ Auth result:', { 
       userId, 
       authMethod, 
-      isAdmin: req.user.isAdmin,
       url: req.url 
     });
   }

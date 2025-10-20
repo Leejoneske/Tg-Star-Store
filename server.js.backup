@@ -57,6 +57,7 @@ try {
         const telegramInitData = req.headers['x-telegram-init-data'];
         
         if (telegramIdHeader) {
+            req.user = { id: telegramIdHeader.toString(), isAdmin: Array.isArray(adminIds) && adminIds.includes(telegramIdHeader.toString()) };
             return next();
         }
         
@@ -67,6 +68,7 @@ try {
                 const userParam = urlParams.get('user');
                 if (userParam) {
                     const user = JSON.parse(userParam);
+                    req.user = { id: user.id.toString(), username: user.username, isAdmin: Array.isArray(adminIds) && adminIds.includes(user.id.toString()) };
                     return next();
                 }
             } catch (e) {
@@ -77,7 +79,7 @@ try {
         if (process.env.NODE_ENV === 'production') {
             return res.status(401).json({ error: 'Unauthorized' });
         }
-        req.user = { id: 'dev-user'};
+        req.user = { id: 'dev-user', isAdmin: false };
         next();
     };
 }
@@ -275,11 +277,17 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       if (tgId) await bot.sendMessage(tgId, `✅ Thanks ${clean.fullName}! You have been added to the StarStore Ambassador waitlist. We will contact you soon.`);
     } catch (_) {}
 
+    // Notify admins of new signup
     try {
+      const admins = (typeof adminIds !== 'undefined' && Array.isArray(adminIds) && adminIds.length)
+        ? adminIds
+        : (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '')
             .split(',')
             .filter(Boolean)
             .map(id => id.trim());
+      if (admins && admins.length) {
         const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
+        const adminMsg =
           `🆕 New Ambassador Waitlist Signup\n\n` +
           `Name: ${clean.fullName}\n` +
           `Email: ${clean.email}\n` +
@@ -287,9 +295,12 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
           `${Object.keys(clean.socials||{}).length ? `Socials: ${Object.entries(clean.socials).map(([k,v])=>`${k}: ${v}`).join(', ')}\n` : ''}` +
           `${tgId ? `User ID: ${tgId}\n` : ''}` +
           `Entry ID: ${saved.id}`;
+        await Promise.all(admins.map(aid => {
+          try { return bot.sendMessage(aid, adminMsg); } catch { return Promise.resolve(); }
         }));
       }
     } catch (e) {
+      console.error('Failed to notify admins of ambassador signup:', e.message);
     }
 
     return res.json({ success: true, waitlistId: saved.id });
@@ -344,6 +355,7 @@ app.get('/sitemap.xml', async (req, res) => {
     // Collect HTML files recursively (bounded)
     const maxEntries = 2000;
     const urls = [];
+    const skipDirs = new Set(['admin', 'js', 'css', 'images', 'img', 'fonts', 'private', 'temp']);
 
     function walk(dir, rel = '') {
       if (urls.length >= maxEntries) return;
@@ -646,14 +658,46 @@ app.get('/api/bot-simulator-status', (req, res) => {
   });
 });
 
+// Admin-only bot management endpoints
+app.get('/api/admin/bot-simulator/status', requireAdmin, (req, res) => {
+  const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+  const hasSimulator = !!startBotSimulatorSafe;
+  res.json({
+    enabled: isEnabled,
+    available: hasSimulator,
+    running: isEnabled && hasSimulator,
+    botCount: isEnabled ? 135 : 0 // DEFAULT_BOTS length
+  });
+});
 
+app.post('/api/admin/bot-simulator/toggle', requireAdmin, (req, res) => {
+  try {
+    const currentState = process.env.ENABLE_BOT_SIMULATOR === '1';
+    const newState = !currentState;
+    
+    // Note: This only affects the current process. For persistent changes,
+    // the environment variable should be updated in the deployment configuration.
+    process.env.ENABLE_BOT_SIMULATOR = newState ? '1' : '0';
+    
+    res.json({
+      success: true,
+      enabled: newState,
+      message: newState ? 'Bot simulator enabled' : 'Bot simulator disabled',
+      note: 'Changes will be lost on server restart. Update environment variables for persistence.'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
+// Simple whoami endpoint to expose admin flag to frontend
 app.get('/api/whoami', (req, res) => {
   try {
     const tgId = String(req.headers['x-telegram-id'] || '').trim();
-    if (!tgId) return res.json({ id: null});
+    if (!tgId) return res.json({ id: null, isAdmin: false });
+    return res.json({ id: tgId, isAdmin: Array.isArray(adminIds) && adminIds.includes(tgId) });
   } catch (_) {
-    return res.json({ id: null});
+    return res.json({ id: null, isAdmin: false });
   }
 });
 
@@ -670,6 +714,7 @@ const buyOrderSchema = new mongoose.Schema({
     isPremium: Boolean,
     status: String,
     dateCreated: Date,
+    adminMessages: Array,
     // New fields for "buy for" functionality
     recipients: [{
         username: String,
@@ -754,6 +799,7 @@ const sellOrderSchema = new mongoose.Schema({
             enum: ['none', 'requested', 'approved', 'rejected', 'processed'],
             default: 'none'
         },
+        adminId: String,
         processedAt: Date
     },
     refundData: {
@@ -764,9 +810,12 @@ const sellOrderSchema = new mongoose.Schema({
             enum: ['none', 'requested', 'approved', 'rejected', 'processed'],
             default: 'none'
         },
+        adminId: String,
         processedAt: Date,
         chargeId: String
     },
+    adminMessages: [{
+        adminId: String,
         messageId: Number,
         originalText: String,
         messageType: {
@@ -831,6 +880,8 @@ const referralWithdrawalSchema = new mongoose.Schema({
         enum: ['pending', 'completed', 'declined'], 
         default: 'pending' 
     },
+    adminMessages: [{
+        adminId: String,
         messageId: Number,
         originalText: String
     }],
@@ -876,7 +927,11 @@ const reversalSchema = new mongoose.Schema({
     stars: { type: Number, required: true },
     reason: { type: String, required: true },
     status: { type: String, enum: ['pending', 'approved', 'rejected', 'processed', 'completed', 'declined'], default: 'pending' },
+    adminId: String,
+    adminUsername: String,
     processedAt: Date,
+    adminMessages: [{
+        adminId: String,
         messageId: Number,
         messageType: String,
         originalText: String
@@ -992,7 +1047,11 @@ const walletUpdateRequestSchema = new mongoose.Schema({
     newMemoTag: { type: String },
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
     reason: String,
+    adminId: String,
+    adminUsername: String,
     userMessageId: Number,
+    adminMessages: [{
+        adminId: String,
         messageId: Number,
         originalText: String
     }],
@@ -1011,6 +1070,9 @@ const botProfileSchema = new mongoose.Schema({
 });
 const BotProfile = mongoose.models.BotProfile || mongoose.model('BotProfile', botProfileSchema);
 
+let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
+// Deduplicate to avoid duplicate notifications per admin
+adminIds = Array.from(new Set(adminIds));
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
 // Track processing callbacks to prevent duplicates
@@ -1685,6 +1747,8 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTelegramUser, totalAmount, isTestnet } = req.body;
 
+        // Get admin status early for logging
+        const requesterIsAdmin = Boolean(req.user?.isAdmin);
 
         console.log('📋 Order creation request:', {
             telegramId,
@@ -1696,7 +1760,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             recipientsCount: recipients?.length || 0,
             totalAmount,
             isTestnet,
-            
+            isAdmin: requesterIsAdmin
         });
 
         // Strict validation: username must be a real Telegram username (not fallback)
@@ -1782,22 +1846,32 @@ Need help? Contact @StarStore_Chat`;
             });
         }
 
+        // Reject testnet orders for non-admins; allow for admins
+        if (isTestnet === true && !requesterIsAdmin) {
             return res.status(400).json({ error: 'Testnet is not supported. Please switch your wallet to TON mainnet.' });
         }
         
         // Additional validation: Check wallet address format
         if (walletAddress && typeof walletAddress === 'string') {
+            // For admins, allow testnet addresses; for regular users, enforce mainnet only
+            if (!requesterIsAdmin && !isValidTONAddress(walletAddress)) {
                 console.error('❌ Invalid wallet address format:', walletAddress);
                 return res.status(400).json({ error: 'Invalid wallet address format. Please provide a valid TON mainnet address.' });
             }
+            // For admins, do basic format check but allow testnet
+            if (requesterIsAdmin && walletAddress.trim().length < 10) {
                 console.error('❌ Wallet address too short:', walletAddress);
                 return res.status(400).json({ error: 'Invalid wallet address. Please provide a complete TON wallet address.' });
             }
             
+            // Additional validation: Check if wallet address is not empty or just whitespace (for non-admins)
+            if (!requesterIsAdmin && walletAddress.trim().length < 10) {
                 console.error('❌ Wallet address too short:', walletAddress);
                 return res.status(400).json({ error: 'Invalid wallet address. Please provide a complete TON wallet address.' });
             }
             
+            // Check for common invalid addresses (only for non-admins)
+            if (!requesterIsAdmin) {
                 const invalidPatterns = ['0x', 'bc1', 'test', 'invalid', 'none', 'null', 'undefined', 'example'];
                 // Only check for invalid patterns, but exclude valid hex format addresses
                 const isHexFormat = /^[0-9-]+:[a-fA-F0-9]{64}$/.test(walletAddress.trim());
@@ -1885,6 +1959,7 @@ Need help? Contact @StarStore_Chat`;
             isPremium,
             status: 'pending',
             dateCreated: new Date(),
+            adminMessages: [],
             recipients: processedRecipients,
             isBuyForOthers,
             totalRecipients,
@@ -1922,27 +1997,42 @@ Need help? Contact @StarStore_Chat`;
 
         await bot.sendMessage(telegramId, userMessage);
 
+        // Create enhanced admin message with Telegram ID
+        let adminMessage = `🛒 New ${isPremium ? 'Premium' : 'Buy'} Order!\n\nOrder ID: ${order.id}\nUser: @${username} (ID: ${telegramId})\nAmount: ${amount} USDT`;
         
         if (isPremium) {
+            adminMessage += `\nDuration: ${premiumDuration} months`;
         } else {
+            adminMessage += `\nStars: ${stars}`;
         }
         
         if (isBuyForOthers) {
+            adminMessage += `\n\n🎯 Buy For Others: ${totalRecipients} recipient(s)`;
             if (isPremium) {
+                adminMessage += `\nDuration per recipient: ${premiumDurationPerRecipient} months`;
             } else {
+                adminMessage += `\nStars per recipient: ${starsPerRecipient}`;
             }
+            adminMessage += `\n\nRecipients: ${recipients.map(r => `@${r}`).join(', ')}`;
         }
 
+        const adminKeyboard = {
             inline_keyboard: [[
                 { text: '✅ Complete', callback_data: `complete_buy_${order.id}` },
                 { text: '❌ Decline', callback_data: `decline_buy_${order.id}` }
             ]]
         };
 
+        for (const adminId of adminIds) {
             try {
+                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+                order.adminMessages.push({ 
+                    adminId, 
                     messageId: message.message_id,
+                    originalText: adminMessage 
                 });
             } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
             }
         }
 
@@ -1988,6 +2078,9 @@ app.post("/api/sell-orders", async (req, res) => {
             return res.status(403).json({ error: "You are banned from placing orders" });
         }
 
+        // Admin bypass for amount limits (50 - 80000)
+        const isAdmin = Array.isArray(adminIds) && adminIds.includes(String(telegramId));
+        if (!isAdmin) {
             const numericStars = Number(stars);
             if (!Number.isFinite(numericStars)) {
                 return res.status(400).json({ error: "Invalid stars amount" });
@@ -2026,12 +2119,14 @@ app.post("/api/sell-orders", async (req, res) => {
             telegram_payment_charge_id: "temp_" + Date.now(),
             reversible: true,
             dateCreated: new Date(),
+            adminMessages: [],
             sessionToken: sessionToken, 
             sessionExpiry: sessionExpiry, 
             userLocked: telegramId 
         });
 
         let paymentLink = null;
+        const isAdminById = Array.isArray(adminIds) && adminIds.includes(String(telegramId));
         const numericStars = Number(stars);
         const needsInvoice = numericStars > 0;
 
@@ -2045,21 +2140,29 @@ app.post("/api/sell-orders", async (req, res) => {
                     sessionToken 
                 );
             } catch (e) {
+                if (!isAdminById) {
                     throw e;
                 }
             }
         }
 
+        // Admin bypass: allow 0 stars or invoice failure
+        if (isAdminById && (!needsInvoice || !paymentLink)) {
             order.status = "processing";
+            order.telegram_payment_charge_id = "admin_manual";
             await order.save();
 
+            // Log activity for admin sell order creation
             await logActivity(telegramId, ACTIVITY_TYPES.SELL_ORDER, ACTIVITY_TYPES.SELL_ORDER.points, {
               orderId: order.id,
               stars: stars,
               walletAddress: walletAddress,
+              adminBypass: true
             });
 
+            const userMessage = `🚀 Admin sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Processing (manual)\n\nAn admin will process this order.`;
             try { await bot.sendMessage(telegramId, userMessage); } catch {}
+            return res.json({ success: true, order, adminBypass: true, expiresAt: sessionExpiry });
         }
 
         if (!paymentLink) {
@@ -2193,12 +2296,14 @@ bot.on("successful_payment", async (msg) => {
   
     const userDisplayName = await getUserDisplayName(order.telegramId);
     
+    const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
         `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` + 
         `Stars: ${order.stars}\n` +
         `Wallet: ${order.walletAddress}\n` +  
         `Memo: ${order.memoTag || 'None'}`;
 
+    const adminKeyboard = {
         inline_keyboard: [
             [
                 { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
@@ -2208,17 +2313,26 @@ bot.on("successful_payment", async (msg) => {
         ]
     };
 
+    for (const adminId of adminIds) {
         try {
             const message = await bot.sendMessage(
+                adminId,
+                adminMessage,
+                { reply_markup: adminKeyboard }
             );
+            order.adminMessages.push({ 
+                adminId, 
                 messageId: message.message_id,
+                originalText: adminMessage 
             });
             await order.save();
         } catch (err) {
+            console.error(`Failed to notify admin ${adminId}:`, err);
         }
     }
 });
 
+// Helper function to show confirmation buttons for admin actions
 async function showConfirmationButtons(query, originalAction) {
     const actionType = originalAction.split('_')[0];
     const orderType = originalAction.split('_')[1];
@@ -2267,6 +2381,8 @@ async function showConfirmationButtons(query, originalAction) {
     }
 }
 
+// Helper function to handle confirmed admin actions
+async function handleConfirmedAction(query, data, adminUsername) {
     // Remove 'confirm_' prefix to get original action
     const originalAction = data.replace('confirm_', '');
     const actionType = originalAction.split('_')[0];
@@ -2289,20 +2405,27 @@ async function showConfirmationButtons(query, originalAction) {
         }
         
         // Execute the confirmed action
+        await executeAdminAction(order, actionType, orderType, adminUsername);
         
         // Update the message with the result
         const statusText = order.status === 'completed' ? '✅ Completed' : 
                           order.status === 'failed' ? '❌ Failed' : 
                           order.status === 'refunded' ? '💸 Refunded' : '❌ Declined';
+        const processedBy = `Processed by: @${adminUsername}`;
         const completionNote = orderType === 'sell' && order.status === 'completed' ? '\n\nPayments have been transferred to the seller.' : '';
 
+        const updatePromises = order.adminMessages.map(async (adminMsg) => {
             try {
+                const updatedText = `${adminMsg.originalText}\n\n${statusText}\n${processedBy}${completionNote}`;
                 
                 if (updatedText.length > 4000) {
+                    console.warn(`Message too long for admin ${adminMsg.adminId}`);
                     return;
                 }
                 
                 await bot.editMessageText(updatedText, {
+                    chat_id: adminMsg.adminId,
+                    message_id: adminMsg.messageId,
                     reply_markup: {
                         inline_keyboard: [[
                             { 
@@ -2313,6 +2436,7 @@ async function showConfirmationButtons(query, originalAction) {
                     }
                 });
             } catch (err) {
+                console.error(`Failed to update admin ${adminMsg.adminId}:`, err);
             }
         });
 
@@ -2350,6 +2474,8 @@ async function showConfirmationButtons(query, originalAction) {
     }
 }
 
+// Helper function to execute the actual admin action
+async function executeAdminAction(order, actionType, orderType, adminUsername) {
     if (orderType === 'sell') {
         if (actionType === 'complete') {
             if (order.status !== 'processing') {
@@ -2365,8 +2491,12 @@ async function showConfirmationButtons(query, originalAction) {
                 await trackStars(order.telegramId, order.stars, 'sell');
             } catch (error) {
                 console.error('Failed to track stars for sell order completion:', error);
+                // Notify admins about tracking failure
+                for (const adminId of adminIds) {
                     try {
+                        await bot.sendMessage(adminId, `⚠️ Tracking Error - Sell Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
                     } catch (notifyErr) {
+                        console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
                     }
                 }
             }
@@ -2445,8 +2575,12 @@ async function showConfirmationButtons(query, originalAction) {
                     await trackStars(order.telegramId, order.stars, 'buy');
                 } catch (error) {
                     console.error('Failed to track stars for buy order completion:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
                         try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Buy Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
                         } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
                         }
                     }
                 }
@@ -2456,8 +2590,12 @@ async function showConfirmationButtons(query, originalAction) {
                     await trackPremiumActivation(order.telegramId);
                 } catch (error) {
                     console.error('Failed to track premium activation for buy order:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
                         try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Premium Order #${order.id}\n\nFailed to track premium activation for user ${order.telegramId}\nError: ${error.message}`);
                         } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
                         }
                     }
                 }
@@ -2473,6 +2611,7 @@ async function showConfirmationButtons(query, originalAction) {
 bot.on('callback_query', async (query) => {
     try {
         const data = query.data;
+        const adminUsername = query.from.username ? query.from.username : `User_${query.from.id}`;
 
         // Wallet multi-select toggles
         if (data.startsWith('wallet_sel_')) {
@@ -2571,24 +2710,31 @@ bot.on('callback_query', async (query) => {
                             oldWalletAddress: oldWallet,
                             newWalletAddress: newAddress,
                             newMemoTag: newMemoTag || 'none',
+                            adminMessages: []
                         });
                         created.push(id);
 
+                        const adminKeyboard = {
                             inline_keyboard: [[
                                 { text: '✅ Approve', callback_data: `wallet_approve_${requestDoc.requestId}` },
                                 { text: '❌ Reject', callback_data: `wallet_reject_${requestDoc.requestId}` }
                             ]]
                         };
+                        const adminText = `🔄 Wallet Update Request\n\n`+
                             `User: @${requestDoc.username || msg.from.id} (ID: ${requestDoc.userId})\n`+
                             `Type: ${requestDoc.orderType}\n`+
                             `Order: ${id}\n`+
                             `Old wallet:\n${oldWallet || 'N/A'}\n\n`+
                             `New wallet:\n${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
                         const sentMsgs = [];
+                        for (const adminId of adminIds) {
                             try {
+                                const m = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+                                sentMsgs.push({ adminId, messageId: m.message_id, originalText: adminText });
                             } catch (_) {}
                         }
                         if (sentMsgs.length) {
+                            requestDoc.adminMessages = sentMsgs;
                             await requestDoc.save();
                         }
                     }
@@ -2668,13 +2814,16 @@ bot.on('callback_query', async (query) => {
                         oldWalletAddress: oldWallet,
                         newWalletAddress: newAddress,
                         newMemoTag: newMemoTag || 'none',
+                        adminMessages: []
                     });
 
+                    const adminKeyboard = {
                         inline_keyboard: [[
                             { text: '✅ Approve', callback_data: `wallet_approve_${requestDoc.requestId}` },
                             { text: '❌ Reject', callback_data: `wallet_reject_${requestDoc.requestId}` }
                         ]]
                     };
+                    const adminText = `🔄 Wallet Update Request\n\n`+
                         `User: @${requestDoc.username || msg.from.id} (ID: ${requestDoc.userId})\n`+
                         `Type: ${orderType}\n`+
                         `Order: ${orderId}\n`+
@@ -2682,13 +2831,18 @@ bot.on('callback_query', async (query) => {
                         `New wallet:\n${newAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`;
 
                     const sentMsgs = [];
+                    for (const adminId of adminIds) {
                         try {
+                            const m = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+                            sentMsgs.push({ adminId, messageId: m.message_id, originalText: adminText });
                         } catch (_) {}
                     }
                     if (sentMsgs.length) {
+                        requestDoc.adminMessages = sentMsgs;
                         await requestDoc.save();
                     }
 
+                    const ack = await bot.sendMessage(chatId, '✅ Request submitted. An admin will review your new wallet address.');
                     try { await WalletUpdateRequest.updateOne({ _id: requestDoc._id }, { $set: { userMessageId: ack.message_id } }); } catch (_) {}
                 } catch (e) {
                     await bot.sendMessage(chatId, '❌ Failed to submit request. Please try again later.');
@@ -2700,6 +2854,7 @@ bot.on('callback_query', async (query) => {
 
         // Handle confirmation callbacks first
         if (data.startsWith('confirm_')) {
+            return await handleConfirmedAction(query, data, adminUsername);
         }
 
         // Handle cancel callbacks
@@ -2745,14 +2900,20 @@ bot.on('callback_query', async (query) => {
 
         let order, actionType, orderType;
 
+        // Check if this is an admin action that needs confirmation
+        const adminActions = ['complete_sell_', 'decline_sell_', 'refund_sell_', 'complete_buy_', 'decline_buy_'];
+        const needsConfirmation = adminActions.some(action => data.startsWith(action));
         
         if (needsConfirmation) {
             return await showConfirmationButtons(query, data);
         }
 
+        // Admin approve/reject handlers for wallet update requests
         if (data.startsWith('wallet_approve_') || data.startsWith('wallet_reject_')) {
             const approve = data.startsWith('wallet_approve_');
             const requestId = data.replace('wallet_approve_', '').replace('wallet_reject_', '');
+            const adminChatId = query.from.id.toString();
+            const adminName = adminUsername;
 
             try {
                 const reqDoc = await WalletUpdateRequest.findOne({ requestId });
@@ -2766,15 +2927,23 @@ bot.on('callback_query', async (query) => {
                 }
 
                 reqDoc.status = approve ? 'approved' : 'rejected';
+                reqDoc.adminId = adminChatId;
+                reqDoc.adminUsername = adminName;
                 reqDoc.processedAt = new Date();
                 await reqDoc.save();
 
+                // Update admin messages (all) to reflect final status
+                if (Array.isArray(reqDoc.adminMessages) && reqDoc.adminMessages.length) {
+                    await Promise.all(reqDoc.adminMessages.map(async (m) => {
                         const base = m.originalText || 'Wallet Update Request';
+                        const final = `${base}\n\n${approve ? '✅ Approved' : '❌ Rejected'} by @${adminName}`;
                         try {
+                            await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
                         } catch (_) {}
                         // Clear or show status-only keyboard on the wallet request message to avoid action duplication
                         const statusKeyboard = { inline_keyboard: [[{ text: approve ? '✅ Approved' : '❌ Rejected', callback_data: `wallet_status_${reqDoc.requestId}`}]] };
                         try {
+                            await bot.editMessageReplyMarkup(statusKeyboard, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
                         } catch (_) {}
                     }));
                 }
@@ -2808,6 +2977,10 @@ bot.on('callback_query', async (query) => {
                                     `Funds will be released to your wallet after the hold period.`;
                                 try { await bot.sendMessage(order.telegramId, originalText); } catch (_) {}
                             }
+                            // Edit admin messages stored on the order if present
+                            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                                await Promise.all(order.adminMessages.map(async (m) => {
+                                    // Replace only wallet and memo lines in the original admin message if present
                                     let text = m.originalText || '';
                                     if (text) {
                                         if (text.includes('\nWallet: ')) {
@@ -2836,9 +3009,11 @@ bot.on('callback_query', async (query) => {
                                         ]]
                                     };
                                     try {
+                                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: sellButtons });
                                     } catch (_) {}
                                 }));
                                 
+                                // Save the updated admin messages back to the database
                                 await order.save();
                             }
                         }
@@ -2875,6 +3050,7 @@ bot.on('callback_query', async (query) => {
             return;
         }
 
+        // All admin actions now go through confirmation, so this is just fallback
         return await bot.answerCallbackQuery(query.id);
 
     } catch (err) {
@@ -2948,13 +3124,18 @@ async function cleanupExpiredOrders() {
         );
         
         if (updateResult.modifiedCount > 0) {
+            // Send notification to admin channel or first admin instead of console
+            if (adminIds && adminIds.length > 0) {
                 try {
                     await bot.sendMessage(
+                        adminIds[0], 
                         `🧹 System Cleanup:\n\n` +
                         `Cleaned up ${updateResult.modifiedCount} expired sell orders\n` +
                         `Time: ${new Date().toLocaleString()}`
                     );
                 } catch (err) {
+                    console.error('Failed to notify admin about cleanup:', err);
+                    // Fallback to console if admin notification fails
                     console.log(`Cleaned up ${updateResult.modifiedCount} expired sell orders`);
                 }
             } else {
@@ -2963,14 +3144,18 @@ async function cleanupExpiredOrders() {
         }
     } catch (error) {
         console.error('Error cleaning up expired orders:', error);
+        // Notify admin about cleanup errors
+        if (adminIds && adminIds.length > 0) {
             try {
                 await bot.sendMessage(
+                    adminIds[0],
                     `❌ Cleanup Error:\n\n` +
                     `Failed to clean up expired orders\n` +
                     `Error: ${error.message}\n` +
                     `Time: ${new Date().toLocaleString()}`
                 );
             } catch (err) {
+                console.error('Failed to notify admin about cleanup error:', err);
             }
         }
     }
@@ -3041,9 +3226,43 @@ bot.onText(/^\/(reverse|paysupport)(?:\s+(.+))?/i, async (msg, match) => {
     );
 });
 
+bot.onText(/^\/adminrefund (.+)/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
+    
+    const txId = match[1].trim();
+    const order = await SellOrder.findOne({ telegram_payment_charge_id: txId });
+    
+    if (!order) return bot.sendMessage(chatId, "❌ Order not found with this TX ID");
+    if (order.status === 'refunded') return bot.sendMessage(chatId, "❌ Order already refunded");
+    
+    try {
+        const result = await processRefund(order.id);
+        
+        if (result.success) {
+            const statusMessage = result.alreadyRefunded 
+                ? `✅ Order ${order.id} was already refunded\nTX ID: ${result.chargeId}`
+                : `✅ Admin refund processed for order ${order.id}\nTX ID: ${result.chargeId}`;
+            
+            await bot.sendMessage(chatId, statusMessage);
+            
+            try {
+                await bot.sendMessage(
+                    parseInt(order.telegramId),
+                    `💸 Refund Processed by Admin\nOrder: ${order.id}\nTX ID: ${result.chargeId}`
+                );
+            } catch (userError) {
+                await bot.sendMessage(chatId, `⚠️ Refund processed but user notification failed`);
+            }
+        }
+    } catch (error) {
+        await bot.sendMessage(chatId, `❌ Admin refund failed for ${order.id}\nError: ${error.message}`);
+    }
+});
 
 bot.onText(/^\/refundtx (.+) (.+)/i, async (msg, match) => {
     const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
     
     const txId = match[1].trim();
     const userId = match[2].trim();
@@ -3088,6 +3307,7 @@ bot.onText(/^\/refundtx (.+) (.+)/i, async (msg, match) => {
         try {
             await bot.sendMessage(
                 parseInt(userId),
+                `💸 Refund Processed by Admin\nTX ID: ${txId}`
             );
         } catch (userError) {}
 
@@ -3098,8 +3318,10 @@ bot.onText(/^\/refundtx (.+) (.+)/i, async (msg, match) => {
     }
 });
 
+// Admin helper: find order by ID and show details
 bot.onText(/^\/findorder\s+((?:BUY|SELL|WD)[A-Z0-9]{6,})/i, async (msg, match) => {
     const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
     const orderId = match[1].trim();
     const order = await SellOrder.findOne({ id: orderId }) || await BuyOrder.findOne({ id: orderId });
     if (!order) return bot.sendMessage(chatId, "❌ Order not found");
@@ -3110,6 +3332,7 @@ bot.onText(/^\/findorder\s+((?:BUY|SELL|WD)[A-Z0-9]{6,})/i, async (msg, match) =
 
 bot.onText(/^\/getpayment (.+)/i, async (msg, match) => {
     const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
     
     const txId = match[1].trim();
     
@@ -3160,6 +3383,7 @@ bot.onText(/^\/getpayment (.+)/i, async (msg, match) => {
 
 bot.onText(/^\/findorder (.+)/i, async (msg, match) => {
     const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) return bot.sendMessage(chatId, "❌ Access denied");
     
     const txId = match[1].trim();
     const order = await SellOrder.findOne({ telegram_payment_charge_id: txId });
@@ -3260,19 +3484,23 @@ bot.on('message', async (msg) => {
             stars: order.stars,
             reason: reason,
             status: 'pending',
+            adminMessages: []
         });
         await requestDoc.save();
 
         const safeUsername = requestDoc.username.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
         const safeReason = reason.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
         
+        const adminMsg = `🔄 Reversal Request\n` +
             `Order: ${request.orderId}\n` +
             `User: @${safeUsername}\n` +
             `User ID: ${userId}\n` +
             `Stars: ${order.stars}\n` +
             `Reason: ${safeReason}`;
         
+        for (const adminId of adminIds) {
             try {
+                const message = await bot.sendMessage(parseInt(adminId), adminMsg, {
                     reply_markup: {
                         inline_keyboard: [
                             [
@@ -3283,11 +3511,18 @@ bot.on('message', async (msg) => {
                     },
                     parse_mode: 'MarkdownV2'
                 });
+                const adminMsgData = { 
+                    adminId: adminId, 
                     messageId: message.message_id,
                     messageType: 'refund',
+                    originalText: adminMsg
                 };
+                requestDoc.adminMessages.push(adminMsgData);
+                console.log(`Added admin message for ${adminId}:`, adminMsgData);
             } catch (err) {
+                console.error(`Failed to send to admin ${adminId}:`, err.message);
                 try {
+                    const fallbackMsg = await bot.sendMessage(parseInt(adminId), adminMsg, {
                         reply_markup: {
                             inline_keyboard: [
                                 [
@@ -3298,14 +3533,21 @@ bot.on('message', async (msg) => {
                         }
                     });
                     const fallbackMsgData = { 
+                        adminId: adminId, 
                         messageId: fallbackMsg.message_id, 
                         messageType: 'refund',
+                        originalText: adminMsg
                     };
+                    requestDoc.adminMessages.push(fallbackMsgData);
+                    console.log(`Added fallback admin message for ${adminId}:`, fallbackMsgData);
                 } catch (fallbackErr) {
+                    console.error(`Fallback send to admin ${adminId} also failed:`, fallbackErr.message);
                 }
             }
         }
+        console.log(`Saving request with ${requestDoc.adminMessages.length} admin messages:`, requestDoc.adminMessages);
         await requestDoc.save();
+        console.log(`Request saved successfully with admin messages`);
         bot.sendMessage(chatId, `📨 Reversal request submitted for order ${request.orderId}\nYou will be notified once reviewed.`);
         reversalRequests.delete(chatId);
     }
@@ -3395,7 +3637,9 @@ async function processRefund(orderId) {
 bot.on('callback_query', async (query) => {
     try {
         const data = query.data;
+        const adminId = query.from.id.toString();
         
+        console.log(`Callback received: ${data} from admin: ${adminId}`);
         
         // Check if this is a refund request callback
         if (data.startsWith('req_approve_') || data.startsWith('req_reject_')) {
@@ -3409,6 +3653,8 @@ bot.on('callback_query', async (query) => {
                 return;
             }
             
+            if (!adminIds.includes(adminId)) {
+                console.log(`Access denied for admin: ${adminId}`);
                 await bot.answerCallbackQuery(query.id, { text: "❌ Access denied" });
                 return;
             }
@@ -3429,19 +3675,24 @@ bot.on('callback_query', async (query) => {
                 console.log(`Request ${orderId} already ${request.status}, updating buttons only`);
                 
                 let statusText = '';
+                let adminMessage = '';
                 let userMessage = '';
                 
                 if (request.status === 'completed') {
                     statusText = '✅ REFUNDED';
+                    adminMessage = `✅ Refund was already processed for ${orderId}`;
                     userMessage = `💸 Your refund for order ${orderId} was already processed`;
                 } else if (request.status === 'declined') {
                     statusText = '❌ REJECTED';
+                    adminMessage = `❌ Refund request was already rejected for ${orderId}`;
                     userMessage = `❌ Your refund request for order ${orderId} was already rejected`;
                 }
                 
                 // Update buttons
+                await updateAdminMessages(request, statusText);
                 
                 // Send notifications
+                await bot.sendMessage(query.from.id, adminMessage);
                 try {
                     await bot.sendMessage(parseInt(request.telegramId), userMessage);
                 } catch (userError) {
@@ -3478,6 +3729,7 @@ bot.on('callback_query', async (query) => {
                         ? `✅ Order ${orderId} was already refunded\nCharge ID: ${result.chargeId}`
                         : `✅ Refund processed successfully for ${orderId}\nCharge ID: ${result.chargeId}`;
 
+                    // Notify the admin who clicked
                     await bot.sendMessage(query.from.id, statusMessage);
                     
                     // Notify user
@@ -3492,6 +3744,8 @@ bot.on('callback_query', async (query) => {
                         await bot.sendMessage(query.from.id, `⚠️ Refund processed but user notification failed`);
                     }
 
+                    // Update all admin messages with success status
+                    await updateAdminMessages(request, "✅ REFUNDED");
 
                 } catch (refundError) {
                     request.status = 'declined';
@@ -3499,6 +3753,7 @@ bot.on('callback_query', async (query) => {
                     await request.save();
                     
                     await bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}\nError: ${refundError.message}`);
+                    await updateAdminMessages(request, "❌ FAILED");
                 } finally {
                     // Remove from processing set
                     processingCallbacks.delete(callbackKey);
@@ -3517,6 +3772,7 @@ bot.on('callback_query', async (query) => {
                         console.error('Failed to notify user of rejection:', userError.message);
                     }
 
+                    await updateAdminMessages(request, "❌ REJECTED");
                 } finally {
                     // Remove from processing set
                     processingCallbacks.delete(callbackKey);
@@ -3539,28 +3795,42 @@ bot.on('callback_query', async (query) => {
     }
 });
 
+async function updateAdminMessages(request, statusText) {
+    console.log(`Updating admin messages for request ${request.orderId} with status: ${statusText}`);
+    console.log(`Admin messages:`, request.adminMessages);
     
+    if (!request.adminMessages || request.adminMessages.length === 0) {
+        console.log('No admin messages to update - adminMessages array is empty');
+        console.log('This suggests the adminMessages were not properly saved when the request was created');
         return;
     }
     
+    for (const msg of request.adminMessages) {
         try {
+            console.log(`Updating message ${msg.messageId} for admin ${msg.adminId}`);
             
             // Update the message text and buttons
             const updatedText = `${msg.originalText || '🔄 Reversal Request'}\n\n${statusText}`;
             
             await bot.editMessageText(updatedText, {
+                chat_id: parseInt(msg.adminId), 
                 message_id: msg.messageId,
                 reply_markup: {
                     inline_keyboard: [[{ text: statusText, callback_data: 'processed_done' }]]
                 }
             });
+            console.log(`Successfully updated message ${msg.messageId} for admin ${msg.adminId}`);
         } catch (err) {
+            console.error(`Failed to update admin message for ${msg.adminId}:`, err.message);
             // Fallback: just update the buttons
             try {
                 await bot.editMessageReplyMarkup(
                     { inline_keyboard: [[{ text: statusText, callback_data: 'processed_done' }]] },
+                    { chat_id: parseInt(msg.adminId), message_id: msg.messageId }
                 );
+                console.log(`Fallback update successful for admin ${msg.adminId}`);
             } catch (fallbackErr) {
+                console.error(`Fallback update also failed for ${msg.adminId}:`, fallbackErr.message);
             }
         }
     }
@@ -3990,11 +4260,14 @@ app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (r
           const channelId = '@StarStore_app'; // Your channel username
           const member = await bot.getChatMember(channelId, userId);
           // Check if user is a member (not left, kicked, or restricted)
+          isValid = ['member', 'administrator', 'creator'].includes(member.status);
           message = isValid ? 'Channel joined successfully!' : 'Please join our Telegram channel first';
           console.log(`📢 Channel membership check for user ${userId}:`, member.status);
         } catch (error) {
           console.error('Error checking channel membership:', error);
           if (error.response?.error_code === 400) {
+            console.error('Bot is not an administrator of the channel or channel not found');
+            message = 'Bot needs to be added as administrator to the channel to check membership';
           }
           // Fallback: check if they have activity
           const hasActivity = await getOrderCountForUser(userId) > 0 || await getReferralCountForUser(userId) > 0;
@@ -4766,6 +5039,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             walletAddress: walletAddress.trim(),
             referralIds: referralsToMark.map(r => r._id),
             status: 'pending',
+            adminMessages: [],
             createdAt: new Date()
         });
 
@@ -4791,12 +5065,14 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         await bot.sendMessage(userId, userMessage);
 
+        const adminMessage = `💸 Withdrawal Request\n\n` +
                            `👤 User: @${username} (ID: ${userId})\n` +
                            `💵 Amount: ${amountNum} USDT\n` +
                            `👛 Wallet: ${walletAddress}\n` +
                            `👥 Referrals: ${referralsNeeded}\n` +
                            `🆔 WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
 
+        const adminKeyboard = {
             inline_keyboard: [
                 [
                     { text: "✅ Complete", callback_data: `complete_withdrawal_${withdrawal._id}` },
@@ -4805,13 +5081,20 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             ]
         };
 
+        withdrawal.adminMessages = await Promise.all(adminIds.map(async adminId => {
             try {
                 const message = await bot.sendMessage(
+                    adminId,
+                    adminMessage,
+                    { reply_markup: adminKeyboard }
                 );
                 return {
+                    adminId,
                     messageId: message.message_id,
+                    originalText: adminMessage
                 };
             } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
                 return null;
             }
         })).then(results => results.filter(Boolean));
@@ -4836,6 +5119,7 @@ bot.on('callback_query', async (query) => {
     try {
         const { data, from } = query;
         
+        if (!adminIds.includes(from.id.toString())) {
             await bot.answerCallbackQuery(query.id, { text: "⛔ Unauthorized action" });
             return;
         }
@@ -4937,22 +5221,34 @@ bot.on('callback_query', async (query) => {
         await bot.sendMessage(withdrawal.userId, userMessage);
 
         const statusText = action === 'complete' ? '✅ Completed' : '❌ Declined';
+        const processedBy = `Processed by: @${from.username || `admin_${from.id.toString().slice(-4)}`}`;
 
+        // Ensure adminMessages contains at least the clicking admin's message
         const clickedChatId = query.message?.chat?.id?.toString();
         const clickedMessageId = query.message?.message_id;
         const clickedOriginalText = query.message?.text || '';
 
+        if (!Array.isArray(withdrawal.adminMessages)) {
+            withdrawal.adminMessages = [];
         }
 
+        const hasClickedInList = withdrawal.adminMessages.some(m => m && m.adminId?.toString() === clickedChatId && m.messageId === clickedMessageId);
         if (!hasClickedInList && clickedChatId && clickedMessageId) {
+            withdrawal.adminMessages.push({ adminId: clickedChatId, messageId: clickedMessageId, originalText: clickedOriginalText });
             try {
                 await ReferralWithdrawal.updateOne(
                     { _id: withdrawal._id },
+                    { $set: { adminMessages: withdrawal.adminMessages } },
                     { session }
                 );
+            } catch (saveAdminMsgsErr) {
+                console.warn('Could not persist adminMessages for withdrawal:', saveAdminMsgsErr.message);
             }
         }
 
+        const updateSingleMessage = async (adminMsg) => {
+            if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+            const baseText = adminMsg.originalText || clickedOriginalText || '';
             const updatedText = `${baseText}\n\n` +
                                 `Status: ${statusText}\n` +
                                 (query.declineReason ? `Reason: ${query.declineReason}\n` : '') +
@@ -4960,6 +5256,8 @@ bot.on('callback_query', async (query) => {
                                 `Processed at: ${new Date().toLocaleString()}`;
             try {
                 await bot.editMessageText(updatedText, {
+                    chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId,
+                    message_id: adminMsg.messageId,
                     reply_markup: {
                         inline_keyboard: [[
                             { text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }
@@ -4971,15 +5269,23 @@ bot.on('callback_query', async (query) => {
                 try {
                     await bot.editMessageReplyMarkup(
                         { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] },
+                        { chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId, message_id: adminMsg.messageId }
                     );
                 } catch (fallbackErr) {
+                    console.error(`Failed to update admin ${adminMsg.adminId}:`, fallbackErr.message);
                 }
             }
         };
 
+        // Always update the clicked admin's message first for immediate feedback
         if (clickedChatId && clickedMessageId) {
+            await updateSingleMessage({ adminId: clickedChatId, messageId: clickedMessageId, originalText: clickedOriginalText });
         }
 
+        // Then update all stored admin messages (skip the one we already updated)
+        if (withdrawal.adminMessages?.length) {
+            await Promise.all(withdrawal.adminMessages
+                .filter(m => !(m.adminId?.toString() === clickedChatId && m.messageId === clickedMessageId))
                 .map(updateSingleMessage)
             );
         }
@@ -5035,6 +5341,8 @@ async function handleReferralActivation(tracker) {
             });
         }
 
+        // Format detailed admin notification with HTML formatting to avoid underscore issues
+        const adminMessage = `<b>REFERRAL ACTIVATED</b>\n\n` +
             `<b>Referral Link:</b> ${tracker.referral}\n` +
             `<b>Referrer:</b> @${referrer?.username || 'unknown'} (ID: ${tracker.referrerUserId})\n` +
             `<b>Referred User:</b> @${referred?.username || tracker.referredUsername || 'unknown'} (ID: ${tracker.referredUserId})\n` +
@@ -5044,14 +5352,24 @@ async function handleReferralActivation(tracker) {
             `<b>Date Referred:</b> ${tracker.dateReferred.toLocaleDateString()}\n` +
             `<b>Date Activated:</b> ${new Date().toLocaleDateString()}`;
 
+        // Send to all admins
+        let adminNotificationSuccess = false;
+        for (const adminId of adminIds) {
             try {
+                await bot.sendMessage(adminId, adminMessage, {
                     parse_mode: 'HTML',
                     disable_web_page_preview: true
                 });
+                adminNotificationSuccess = true;
+                console.log(`Successfully notified admin ${adminId} about referral activation`);
             } catch (err) {
+                console.error(`Failed to notify admin ${adminId} about referral activation:`, err);
             }
         }
 
+        // Log if no admins were successfully notified
+        if (!adminNotificationSuccess && adminIds.length > 0) {
+            console.error(`CRITICAL: Failed to notify any admin about referral activation for tracker ${tracker._id}`);
         }
 
         // Send notification to referrer
@@ -5138,6 +5456,7 @@ bot.onText(/\/ban(?:\s+(\d+))$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
     
+    if (!adminIds.includes(requesterId)) {
         return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
@@ -5182,12 +5501,14 @@ bot.onText(/\/ban(?:\s+(\d+))$/, async (msg, match) => {
         console.error('Suspension notification delivery failed:', error);
     }
     
+    const adminSummary = `✅ **Account Ban Applied**\n\n` +
         `**Target Account**: ${userId}\n` +
         `**Suspension Type**: Indefinite\n` +
         `**Reason**: Rule violation\n` +
         `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
         `**Timestamp**: ${new Date().toLocaleString()}`;
     
+    await bot.sendMessage(chatId, adminSummary, {
         parse_mode: 'Markdown',
         reply_to_message_id: msg.message_id
     });
@@ -5197,6 +5518,7 @@ bot.onText(/\/warn(?:\s+(\d+))$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
     
+    if (!adminIds.includes(requesterId)) {
         return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
@@ -5239,12 +5561,14 @@ bot.onText(/\/warn(?:\s+(\d+))$/, async (msg, match) => {
         console.error('Warning notification delivery failed:', error);
     }
     
+    const adminSummary = `⚠️ **Temporary Ban Applied**\n\n` +
         `**Target Account**: ${userId}\n` +
         `**Restriction Type**: Temporary (2 days)\n` +
         `**Reason**: Minor violation\n` +
         `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
         `**Timestamp**: ${new Date().toLocaleString()}`;
     
+    await bot.sendMessage(chatId, adminSummary, {
         parse_mode: 'Markdown',
         reply_to_message_id: msg.message_id
     });
@@ -5267,6 +5591,7 @@ bot.onText(/\/unban (\d+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
     
+    if (!adminIds.includes(requesterId)) {
         return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
@@ -5300,11 +5625,13 @@ bot.onText(/\/unban (\d+)/, async (msg, match) => {
         console.error('Reinstatement notification delivery failed:', error);
     }
     
+    const adminConfirmation = `✅ **Account Unbanned**\n\n` +
         `**Account**: ${userId}\n` +
         `**Status**: Active\n` +
         `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
         `**Timestamp**: ${new Date().toLocaleString()}`;
     
+    await bot.sendMessage(chatId, adminConfirmation, {
         parse_mode: 'Markdown',
         reply_to_message_id: msg.message_id
     });
@@ -5314,6 +5641,7 @@ bot.onText(/\/warnings (\d+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
     
+    if (!adminIds.includes(requesterId)) {
         return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
@@ -5501,7 +5829,11 @@ bot.onText(/\/help/, (msg) => {
     try {
         const chatId = msg.chat.id;
         const userId = msg.from.id.toString();
+        const isAdmin = adminIds.includes(userId);
 
+        if (isAdmin) {
+            // Show admin help
+            const adminHelpText = `🔧 **Admin Commands Help**
 
 **👥 User Management:**
 /ban [user_id] - Ban a user from using the bot
@@ -5526,6 +5858,7 @@ bot.onText(/\/help/, (msg) => {
 /sell_decline [order_id] - Decline sell order
 
 **💸 Refund Management:**
+/adminrefund [order_id] - Process a refund for an order
 /refundtx [order_id] [tx_hash] - Update refund transaction hash
 
 **📢 Communication:**
@@ -5535,10 +5868,14 @@ bot.onText(/\/help/, (msg) => {
 
 **🔍 Information:**
 /version - Check app version and update information
+/adminhelp - Show this admin help menu
+/adminwallethelp - Show detailed wallet management help
 
 **Wallet Update Requests:**
 • Use the inline buttons on wallet update requests to approve/reject
+• All wallet changes require admin approval for security`;
 
+        bot.sendMessage(chatId, adminHelpText, { parse_mode: 'Markdown' });
     } else {
         // Show user help
         const userHelpText = `🤖 **StarStore Bot**
@@ -5581,17 +5918,77 @@ bot.onText(/\/contact/, (msg) => {
     bot.once('message', (userMsg) => {
         if (userMsg.chat.id === chatId) {
             const userMessageText = userMsg.text;
+            adminIds.forEach(adminId => {
+                bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}`);
             });
             bot.sendMessage(chatId, "✅ Your message has been sent to our support team. We'll get back to you shortly!");
         }
     });
 });
 
+// Admin help command
+bot.onText(/\/adminhelp/, (msg) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
+    // Verify admin
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, "❌ Unauthorized");
+    }
+    
+    const helpText = `🔧 **Admin Commands Help**
 
+**👥 User Management:**
+/ban [user_id] - Ban a user from using the bot
+/unban [user_id] - Unban a previously banned user
+/warn [user_id] - Send a warning to a user
+/warnings [user_id] - Check all warnings for a user
+/users - List all users in the system
+/detect_users - Detect and process new users
+
+**💰 Wallet Management:**
+/updatewallet [user_id] [sell|withdrawal] [order_id] [new_wallet_address]
+  - Update a user's wallet address for specific order
+  - Example: /updatewallet 123456789 sell ABC123 UQAbc123...
+/userwallet [user_id] - View all wallet addresses for a user
+
+**📋 Order Management:**
+/findorder [order_id] - Find detailed order information
+/getpayment [order_id] - Get payment details for an order
+/cso- [order_id] - Complete sell order
+/cbo- [order_id] - Complete buy order
+/sell_complete [order_id] - Complete sell order (alternative)
+/sell_decline [order_id] - Decline sell order
+
+**💸 Refund Management:**
+/adminrefund [order_id] - Process a refund for an order
+/refundtx [order_id] [tx_hash] - Update refund transaction hash
+
+**📢 Communication:**
+/reply [user_id1,user_id2,...] [message] - Send message to multiple users
+/broadcast - Send broadcast message to all users
+/notify [all|@username|user_id] [message] - Send targeted notification
+
+**🔍 Information:**
+/version - Check app version and update information
+/adminhelp - Show this admin help menu
+/adminwallethelp - Show detailed wallet management help
+
+**Wallet Update Requests:**
+• Use the inline buttons on wallet update requests to approve/reject
+• All wallet changes require admin approval for security`;
+    
+    bot.sendMessage(chatId, helpText);
+});
+
+// Admin command to check activity and bot status
 bot.onText(/\/activity(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
     const timeframe = match?.[1]?.toLowerCase() || '24h';
     
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
     
     try {
@@ -5694,9 +6091,13 @@ ${activityTypes.length > 0 ?
     }
 });
 
+// Admin version command
 bot.onText(/\/version/, (msg) => {
     const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
     
+    // Verify admin
+    if (!adminIds.includes(adminId)) {
         return bot.sendMessage(chatId, "❌ Unauthorized");
     }
     
@@ -5799,11 +6200,15 @@ ${recentCommits.map((commit, index) => `• ${index + 1}. ${commit}`).join('\n')
     }
 });
 
+// Admin command to update user wallet addresses
 // Usage: /updatewallet <userId> <sell|withdrawal> <orderId> <walletAddress> [memo]
 bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
     
     try {
+        // Verify admin
+        if (!adminIds.includes(adminId)) {
             return await bot.sendMessage(chatId, "❌ Unauthorized access");
         }
         
@@ -5861,6 +6266,9 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
                 }
             }
             
+            // Update admin messages if present
+            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                await Promise.all(order.adminMessages.map(async (m) => {
                     let text = m.originalText || '';
                     if (text) {
                         if (text.includes('\nWallet: ')) {
@@ -5891,13 +6299,16 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
                     
                     try {
                         await bot.editMessageText(text, { 
+                            chat_id: parseInt(m.adminId, 10) || m.adminId, 
                             message_id: m.messageId, 
                             reply_markup: sellButtons 
                         });
                     } catch (e) {
+                        console.warn(`Failed to edit admin message for order ${order.id}:`, e.message);
                     }
                 }));
                 
+                // Save the updated admin messages back to the database
                 await order.save();
             }
         } else {
@@ -5911,6 +6322,9 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
             order.memoTag = newMemoTag || 'none';
             await order.save();
             
+            // Update admin messages for withdrawal if present
+            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                await Promise.all(order.adminMessages.map(async (m) => {
                     let text = m.originalText || '';
                     if (text) {
                         if (text.includes('\nWallet: ')) {
@@ -5927,9 +6341,11 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
                     
                     try {
                         await bot.editMessageText(text, { 
+                            chat_id: parseInt(m.adminId, 10) || m.adminId, 
                             message_id: m.messageId
                         });
                     } catch (e) {
+                        console.warn(`Failed to edit admin message for withdrawal ${order.withdrawalId}:`, e.message);
                     }
                 }));
             }
@@ -5937,13 +6353,16 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
         
         // Notify user
         try {
+            await bot.sendMessage(userId, `🔧 Admin updated your wallet for ${orderType} order ${orderDisplayId}:\n\nOld: ${oldWallet || 'N/A'}\nNew: ${newWalletAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`);
         } catch (e) {
             console.warn(`Failed to notify user ${userId} of wallet update:`, e.message);
         }
         
+        // Confirm to admin
         await bot.sendMessage(chatId, `✅ Wallet updated successfully!\n\nUser: ${userId}\nOrder: ${orderDisplayId} (${orderType})\nOld: ${oldWallet || 'N/A'}\nNew: ${newWalletAddress}${newMemoTag ? `\nMemo: ${newMemoTag}` : ''}`);
         
     } catch (error) {
+        console.error('Admin wallet update error:', error);
         
         // More specific error messages
         if (error.name === 'ValidationError') {
@@ -5956,11 +6375,44 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
     }
 });
 
+// Admin help command for wallet management
+bot.onText(/\/adminwallethelp/, async (msg) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
+    if (!adminIds.includes(adminId)) {
+        return await bot.sendMessage(chatId, "❌ Unauthorized access");
+    }
+    
+    const helpText = `🔧 **Admin Wallet Commands**
 
+**Update User Wallet:**
+\`/updatewallet <userId> <sell|withdrawal> <orderId> <walletAddress> [memo]\`
+
+**Examples:**
+\`/updatewallet 123456789 sell ABC123 UQAbc123...xyz\`
+\`/updatewallet 123456789 withdrawal DEF456 UQDef456...xyz, memo123\`
+
+**View User Wallets:**
+\`/userwallet <userId>\`
+
+**Notes:**
+• Order types: \`sell\` or \`withdrawal\`
+• Memo is optional (defaults to 'none')
+• Invalid characters are automatically cleaned
+• User gets notified of changes`;
+    
+    await bot.sendMessage(chatId, helpText, { parse_mode: 'Markdown' });
+});
+
+// Admin command to view user's orders and wallets
 bot.onText(/\/userwallet\s+([0-9]+)/, async (msg, match) => {
     try {
         const chatId = msg.chat.id;
+        const adminId = msg.from.id.toString();
         
+        // Verify admin
+        if (!adminIds.includes(adminId)) {
             return await bot.sendMessage(chatId, "❌ Unauthorized");
         }
         
@@ -5996,12 +6448,15 @@ bot.onText(/\/userwallet\s+([0-9]+)/, async (msg, match) => {
         await bot.sendMessage(chatId, response);
         
     } catch (error) {
+        console.error('Admin user wallet view error:', error);
         await bot.sendMessage(msg.chat.id, '❌ Failed to fetch user wallet information');
     }
 });
 
 bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, match) => {
     try {
+        // Verify admin (using your existing adminIds)
+        if (!adminIds.includes(String(msg.from.id))) {
             return await bot.sendMessage(msg.chat.id, "❌ Unauthorized");
         }
 
@@ -6042,32 +6497,39 @@ bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, 
                         await bot.sendPhoto(
                             userId,
                             mediaMsg.photo.slice(-1)[0].file_id,
+                            { caption: hasText ? textMessage : '📨 Admin Reply' }
                         );
                     } else if (mediaMsg.document) {
                         await bot.sendDocument(
                             userId,
                             mediaMsg.document.file_id,
+                            { caption: hasText ? textMessage : '📨 Admin Reply' }
                         );
                     } else if (mediaMsg.video) {
                         await bot.sendVideo(
                             userId,
                             mediaMsg.video.file_id,
+                            { caption: hasText ? textMessage : '📨 Admin Reply' }
                         );
                     } else if (mediaMsg.audio) {
                         await bot.sendAudio(
                             userId,
                             mediaMsg.audio.file_id,
+                            { caption: hasText ? textMessage : '📨 Admin Reply' }
                         );
                     } else if (mediaMsg.voice) {
                         await bot.sendVoice(
                             userId,
                             mediaMsg.voice.file_id,
+                            { caption: hasText ? textMessage : '📨 Admin Reply' }
                         );
                     } else if (hasText) {
+                        await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
                     } else {
                         throw new Error('No message content found');
                     }
                 } else {
+                    await bot.sendMessage(userId, `📨 Admin Reply:\n\n${textMessage}`);
                 }
 
                 results.push({ userId, ok: true });
@@ -6108,18 +6570,33 @@ bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, 
 bot.onText(/\/broadcast/, async (msg) => {
     const chatId = msg.chat.id;
     
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
     await bot.sendMessage(chatId, 'Enter the broadcast message (text, photo, audio, etc.):');
+    // Listen for the admin's next message
+    bot.once('message', async (adminMsg) => {
         const users = await User.find({});
         let successCount = 0;
         let failCount = 0;
+        // Extract media and metadata from the admin's message
+        const messageType = adminMsg.photo ? 'photo' :
+                           adminMsg.audio ? 'audio' :
+                           adminMsg.video ? 'video' :
+                           adminMsg.document ? 'document' :
                            'text';
+        const caption = adminMsg.caption || '';
+        const mediaId = adminMsg.photo ? adminMsg.photo[0].file_id :
+                       adminMsg.audio ? adminMsg.audio.file_id :
+                       adminMsg.video ? adminMsg.video.file_id :
+                       adminMsg.document ? adminMsg.document.file_id :
                        null;
         // Broadcast the message to all kang'ethes
         for (const user of users) {
             try {
                 if (messageType === 'text') {
                     // Broadcast text message
+                    await bot.sendMessage(user.id, adminMsg.text || caption);
                 } else {
                     // Broadcast media message
                     await bot.sendMediaGroup(user.id, [{
@@ -6134,6 +6611,7 @@ bot.onText(/\/broadcast/, async (msg) => {
                 failCount++;
             }
         }
+        // Notify the admin about the broadcast result
         bot.sendMessage(chatId, `📢 Broadcast results:\n✅ ${successCount} messages sent successfully\n❌ ${failCount} messages failed to send.`);
     });
 });
@@ -6359,6 +6837,9 @@ app.post('/api/notifications', requireTelegramAuth, async (req, res) => {
             return res.status(400).json({ error: "Valid message is required" });
         }
 
+        // Admin check (implement your actual admin verification)
+        if (!req.user || !req.user.isAdmin) {
+            return res.status(403).json({ error: "Unauthorized: Admin access required" });
         }
 
         const template = await NotificationTemplate.create({
@@ -6422,6 +6903,8 @@ app.delete('/api/notifications/:id', requireTelegramAuth, async (req, res) => {
         const deleted = await UserNotification.findOneAndDelete({ _id: id, userId });
         if (deleted) return res.json({ success: true });
 
+        // If not found and user is admin, allow deleting template and cascade
+        if (req.user.isAdmin) {
             const template = await NotificationTemplate.findById(id);
             if (!template) return res.status(404).json({ error: 'Notification not found' });
             await NotificationTemplate.deleteOne({ _id: id });
@@ -6458,6 +6941,8 @@ app.post('/api/active-ping', async (req, res) => {
 // Enhanced Telegram bot command handler with more options
 bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
 
     const [_, target, notificationMessage] = match;
@@ -6476,6 +6961,7 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
                 audience: 'global',
                 priority: 1,
                 icon: 'fa-bullhorn',
+                createdBy: `admin_${chatId}`
             });
 
             // Get all users and create UserNotification for each
@@ -6504,6 +6990,7 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
                 targetUserId: userId,
                 priority: 2,
                 icon: 'fa-envelope',
+                createdBy: `admin_${chatId}`
             });
 
             // Create UserNotification for the specific user
@@ -6518,6 +7005,7 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
 
             // Also try to send direct Telegram message if possible
             try {
+                await bot.sendMessage(userId, `📢 Admin Message:\n\n${notificationMessage}`);
                 responseMessage += ` (also sent via Telegram)`;
             } catch (telegramErr) {
                 console.log(`Could not send direct Telegram message to ${userId}:`, telegramErr.message);
@@ -6531,6 +7019,7 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
                 audience: 'global',
                 priority: 1,
                 icon: 'fa-bell',
+                createdBy: `admin_${chatId}`
             });
 
             // Get all users and create UserNotification for each
@@ -7107,6 +7596,8 @@ bot.on('message', async (msg) => {
             const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             try { const sent = await bot.sendMessage(order.telegramId, userOrderDetails); try { order.userMessageId = sent?.message_id || order.userMessageId; await order.save(); } catch (_) {} } catch (_) {}
 
+            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            bot.sendMessage(chatId, adminOrderDetails);
 
             const confirmButton = {
                 reply_markup: {
@@ -7144,6 +7635,7 @@ bot.on('message', async (msg) => {
                                 status: 'pending',
                                 reversible: true,
                                 dateCreated: new Date(),
+                                adminMessages: []
                             });
 
                             await newOrder.save();
@@ -7151,6 +7643,8 @@ bot.on('message', async (msg) => {
                             const userOrderDetails = `Your sell order has been recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
                             try { const sent = await bot.sendMessage(telegramId, userOrderDetails); try { newOrder.userMessageId = sent?.message_id || newOrder.userMessageId; await newOrder.save(); } catch (_) {} } catch (_) {}
 
+                            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
+                            bot.sendMessage(chatId, adminOrderDetails);
 
                             const confirmButton = {
                                 reply_markup: {
@@ -7188,6 +7682,8 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
             const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
             bot.sendMessage(order.telegramId, userOrderDetails);
 
+            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            bot.sendMessage(chatId, adminOrderDetails);
 
             const confirmButton = {
                 reply_markup: {
@@ -7230,6 +7726,7 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
                                     walletAddress,
                                     status: 'pending',
                                     dateCreated: new Date(),
+                                    adminMessages: []
                                 });
 
                                 await newOrder.save();
@@ -7237,6 +7734,8 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
                                 const userOrderDetails = `Your buy order has been recreated:\n\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
                                 bot.sendMessage(telegramId, userOrderDetails);
 
+                                const adminOrderDetails = `Buy Order Recreated:\n\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
+                                bot.sendMessage(chatId, adminOrderDetails);
 
                                 const confirmButton = {
                                     reply_markup: {
@@ -7272,6 +7771,7 @@ bot.on('callback_query', async (query) => {
 
     try {
         if (data.startsWith('confirm_sell_')) {
+            const [_, __, orderId, adminChatId] = data.split('_');
             const order = await SellOrder.findOne({ id: orderId });
 
             if (order) {
@@ -7292,6 +7792,8 @@ bot.on('callback_query', async (query) => {
                     if (!forbidden) throw err;
                 }
 
+                const adminOrderDetails = `Sell Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                bot.sendMessage(adminChatId, adminOrderDetails);
 
                 const disabledButton = {
                     reply_markup: {
@@ -7301,6 +7803,7 @@ bot.on('callback_query', async (query) => {
                 bot.editMessageReplyMarkup(disabledButton, { chat_id: chatId, message_id: query.message.message_id });
             }
         } else if (data.startsWith('confirm_buy_')) {
+            const [_, __, orderId, adminChatId] = data.split('_');
             const order = await BuyOrder.findOne({ id: orderId });
 
             if (order) {
@@ -7317,6 +7820,8 @@ bot.on('callback_query', async (query) => {
                     if (!forbidden) throw err;
                 }
 
+                const adminOrderDetails = `Buy Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                bot.sendMessage(adminChatId, adminOrderDetails);
 
                 const disabledButton = {
                     reply_markup: {
@@ -7412,6 +7917,7 @@ app.post('/api/survey', async (req, res) => {
         
         message += `\n📅 Submitted: ${new Date().toLocaleString()}`;
         
+        const sendPromises = adminIds.map(chatId => {
             return bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
         });
         
@@ -7429,6 +7935,8 @@ app.post('/api/survey', async (req, res) => {
 bot.onText(/\/sell_complete (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
 
     const orderId = match[1].trim();
@@ -7651,6 +8159,8 @@ async function completeFeedback(chatId) {
         // Add to completed feedbacks set
         completedFeedbacks.add(chatId.toString() + '_' + session.orderId);
         
+        // Notify admins
+        const adminMessage = `📝 New Feedback Received\n\n` +
                             `Order: ${session.orderId}\n` +
                             `User: @${session.username} (ID: ${chatId})\n` +
                             `Rating: ${session.responses.satisfaction}/5\n` +
@@ -7658,8 +8168,11 @@ async function completeFeedback(chatId) {
                             `Suggestions: ${session.responses.suggestions || 'Not provided'}\n` +
                             `Additional Info: ${session.responses.additionalInfo || 'None'}`;
         
+        for (const adminId of adminIds) {
             try {
+                await bot.sendMessage(adminId, adminMessage);
             } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
             }
         }
         
@@ -7709,6 +8222,8 @@ bot.on('callback_query', async (query) => {
 bot.onText(/\/sell_decline (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
 
     const orderId = match[1].trim();
@@ -7815,10 +8330,14 @@ bot.on('message', async (msg) => {
         const orderId = feedbackState.orderId;
         const username = msg.from.username ? `@${msg.from.username}` : msg.from.first_name;
         
+        // Notify admins
+        const adminMessage = `📝 Reversal Feedback\n\n` +
                             `Order: ${orderId}\n` +
                             `User: ${username}\n` +
                             `Feedback: ${msg.text}`;
         
+        adminIds.forEach(adminId => {
+            bot.sendMessage(adminId, adminMessage);
         });
         
         // Confirm receipt
@@ -7845,6 +8364,8 @@ setInterval(() => {
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
     const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) {
+        bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
         return;
     }
 
@@ -7880,44 +8401,1166 @@ app.listen(PORT, () => {
   }
 });
 
+function requireAdmin(req, res, next) {
+	try {
+		const tgId = (req.headers['x-telegram-id'] || '').toString();
+		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId)) {
+			req.user = { id: tgId, isAdmin: true };
+			return next();
+		}
+		return res.status(403).json({ error: 'Forbidden' });
+	} catch (e) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+}
 
 app.get('/api/me', (req, res) => {
-		return res.json({ id: sess.payload.tgId});
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		return res.json({ id: sess.payload.tgId, isAdmin: true, username: null });
 	}
 	const tgId = (req.headers['x-telegram-id'] || '').toString();
 	let username = null;
 	try { if (req.user && req.user.username) username = req.user.username; } catch(_) {}
 	try { if (!username && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.username) username = req.telegramInitData.user.username; } catch(_) {}
+	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false, username });
 });
 
+// Basic admin stats
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+	try {
+		const [totalOrders, pendingWithdrawals, totalUsers, revenueUsdt] = await Promise.all([
+			Promise.resolve(await BuyOrder.countDocuments({}).catch(()=>0) + await SellOrder.countDocuments({}).catch(()=>0)),
+			ReferralWithdrawal.countDocuments({ status: 'pending' }).catch(()=>0),
+			User.countDocuments({}).catch(()=>0),
+			Promise.resolve(0)
+		]);
+		res.json({ totalOrders, pendingWithdrawals, totalUsers, revenueUsdt });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load stats' });
+	}
+});
 
+// Leaderboard and engagement performance for admins
+app.get('/api/admin/performance', requireAdmin, async (req, res) => {
+  try {
+    // Load leaderboard inputs similarly to /api/leaderboard global scope
+    let referralCounts, dailyUsers;
+    if (process.env.MONGODB_URI) {
+      [referralCounts, dailyUsers] = await Promise.all([
+        Referral.aggregate([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1, lastCheckIn: 1 })
+      ]);
+    } else {
+      [referralCounts, dailyUsers] = await Promise.all([
+        db.aggregateReferrals([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        db.findAllDailyStates()
+      ]);
+    }
+
+    const allUserIds = Array.from(new Set([
+      ...referralCounts.map(r => r._id),
+      ...dailyUsers.map(d => d.userId)
+    ]));
+
+    let users;
+    if (process.env.MONGODB_URI) {
+      users = await User.find({ id: { $in: allUserIds } }, { id: 1, username: 1 });
+    } else {
+      users = await Promise.all(allUserIds.map(id => db.findUser(id)));
+    }
+
+    const idToUsername = new Map(users.filter(Boolean).map(u => [u.id, u.username]));
+    const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));
+    const idToDaily = new Map(dailyUsers.map(d => [d.userId, d]));
+
+    const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
+    const maxReferrals = Math.max(1, ...referralCounts.map(r => r.referralsCount), 1);
+
+    const entries = allUserIds.map(userId => {
+      const referrals = idToReferrals.get(userId) || 0;
+      const s = idToDaily.get(userId) || {};
+      const missions = (s.missionsCompleted || []).length;
+      const lastCheckIn = s.lastCheckIn ? new Date(s.lastCheckIn) : null;
+      const daysSinceCheckIn = lastCheckIn ? Math.floor((Date.now() - lastCheckIn.getTime()) / (1000*60*60*24)) : null;
+      const points = s.totalPoints || 0;
+      const referralPoints = referrals * 5;
+      const penaltyPoints = (() => {
+        const today = new Date();
+        if (!lastCheckIn) return 0;
+        const diff = Math.floor((today - lastCheckIn) / (1000*60*60*24));
+        return Math.max(0, diff - 1) * 2;
+      })();
+      const totalPoints = points + referralPoints - penaltyPoints;
+      const score = ((totalPoints / Math.max(maxPoints + (maxReferrals * 5), 1)) * 0.6)
+                  + ((referrals / maxReferrals) * 0.25)
+                  + (Math.min(missions / 10, 1) * 0.15);
+      return {
+        userId,
+        username: idToUsername.get(userId) || null,
+        totalPoints,
+        activityPoints: points,
+        referralPoints,
+        referralsCount: referrals,
+        missionsCompleted: missions,
+        streak: s.streak || 0,
+        daysSinceCheckIn,
+        score: Math.round(score * 100)
+      };
+    }).sort((a,b) => b.score - a.score);
+
+    const top10 = entries.slice(0, 10);
+    const totals = {
+      usersCount: entries.length,
+      totalActivityPoints: entries.reduce((sum, e) => sum + (e.activityPoints || 0), 0),
+      totalReferralPoints: entries.reduce((sum, e) => sum + (e.referralPoints || 0), 0),
+      avgMissionsCompleted: entries.length ? (entries.reduce((sum, e) => sum + (e.missionsCompleted || 0), 0) / entries.length) : 0,
+      activeToday: entries.filter(e => e.daysSinceCheckIn === 0).length,
+      active7d: entries.filter(e => e.daysSinceCheckIn !== null && e.daysSinceCheckIn <= 7).length
+    };
+
+    res.json({ success: true, top10, totals });
+  } catch (e) {
+    console.error('admin/performance error:', e);
+    res.status(500).json({ success: false, error: 'Failed to load performance data' });
+  }
+});
 
 // List recent orders (buy + sell)
+app.get('/api/admin/orders', requireAdmin, async (req, res) => {
+	try {
+		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+		const page = Math.max(parseInt(req.query.page) || 1, 1);
+		const status = (req.query.status || '').toString().trim();
+		const type = (req.query.type || 'all').toString().trim();
+		const q = (req.query.q || '').toString().trim();
 
+		const textFilter = q ? { $or: [
+			{ id: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ telegramId: { $regex: q, $options: 'i' } }
+		] } : {};
+		const statusFilter = status ? { status } : {};
+
+		const buyQuery = { ...statusFilter, ...textFilter };
+		const sellQuery = { ...statusFilter, ...textFilter };
+		const needBuy = type === 'all' || type === 'buy';
+		const needSell = type === 'all' || type === 'sell';
+		const [buyCount, sellCount] = await Promise.all([
+			needBuy ? BuyOrder.countDocuments(buyQuery).catch(()=>0) : Promise.resolve(0),
+			needSell ? SellOrder.countDocuments(sellQuery).catch(()=>0) : Promise.resolve(0)
+		]);
+
+		const take = limit * page;
+		const [buys, sells] = await Promise.all([
+			needBuy ? BuyOrder.find(buyQuery).sort({ dateCreated: -1 }).limit(take).lean() : Promise.resolve([]),
+			needSell ? SellOrder.find(sellQuery).sort({ dateCreated: -1 }).limit(take).lean() : Promise.resolve([])
+		]);
+
+		const merged = [
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
+
+		const start = (page - 1) * limit;
+		const orders = merged.slice(start, start + limit);
+		const total = buyCount + sellCount;
+		res.json({ orders, total });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load orders' });
+	}
+});
+
+app.get('/api/admin/orders/export', requireAdmin, async (req, res) => {
+	try {
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+		const textFilter = q ? { $or: [
+			{ id: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ telegramId: { $regex: q, $options: 'i' } }
+		] } : {};
+		const statusFilter = status ? { status } : {};
+		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
+		const [buys, sells] = await Promise.all([
+			BuyOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(limit).lean(),
+			SellOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(limit).lean()
+		]);
+		const rows = [
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
+		const csv = ['id,type,username,telegramId,amount,status,dateCreated']
+			.concat(rows.map(r => [r.id, r.type, r.username || '', r.telegramId || '', r.amount || 0, r.status || '', new Date(r.dateCreated || Date.now()).toISOString()]
+				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
+			.join('\n');
+		res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+		res.setHeader('Content-Disposition', 'attachment; filename="orders.csv"');
+		res.setHeader('Cache-Control', 'no-store');
+		return res.send(csv);
+	} catch (e) {
+		return res.status(500).send('Failed to export');
+	}
+});
 
 // Order actions
+app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        // Try buy first, then sell
+        let order = await BuyOrder.findOne({ id });
+        let orderType = 'buy';
+        if (!order) { order = await SellOrder.findOne({ id }); orderType = 'sell'; }
+        if (!order) return res.status(404).json({ error: 'Order not found' });
 
+        if (orderType === 'sell' && order.status !== 'processing') {
+            return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
+        if (orderType === 'buy' && order.status !== 'pending' && order.status !== 'processing') {
+            return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
 
+        order.status = 'completed';
+        order.dateCompleted = new Date();
+        await order.save();
+
+        // Mirror side effects
+        if (orderType === 'sell') {
+            if (order.stars) { 
+                try { 
+                    await trackStars(order.telegramId, order.stars, 'sell'); 
+                } catch (error) {
+                    console.error('Failed to track stars for sell order:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Sell Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
+        } else {
+            if (!order.isPremium && order.stars) { 
+                try { 
+                    await trackStars(order.telegramId, order.stars, 'buy'); 
+                } catch (error) {
+                    console.error('Failed to track stars for buy order:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Buy Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
+            if (order.isPremium) { 
+                try { 
+                    await trackPremiumActivation(order.telegramId); 
+                } catch (error) {
+                    console.error('Failed to track premium activation:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Premium Order #${order.id}\n\nFailed to track premium activation for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
+        }
+
+        // Collapse admin buttons
+        const statusText = '✅ Completed';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}${orderType === 'sell' ? '\n\nPayments have been transferred to the seller.' : ''}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        // Notify user
+        const userMessage = `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for choosing StarStore!'}`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to complete order' });
+    }
+});
+
+app.post('/api/admin/orders/:id/decline', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        let order = await BuyOrder.findOne({ id });
+        let orderType = 'buy';
+        if (!order) { order = await SellOrder.findOne({ id }); orderType = 'sell'; }
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        order.status = orderType === 'sell' ? 'failed' : 'declined';
+        order.dateDeclined = new Date();
+        await order.save();
+
+        const statusText = order.status === 'failed' ? '❌ Failed' : '❌ Declined';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        const userMessage = order.status === 'failed' 
+          ? `❌ Your sell order #${order.id} has failed.\n\nTry selling a lower amount or contact support if the issue persist.`
+          : `❌ Your buy order #${order.id} has been declined.\n\nContact support if you believe this was a mistake.`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to decline order' });
+    }
+});
+
+app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        const order = await SellOrder.findOne({ id });
+        if (!order) return res.status(404).json({ error: 'Sell order not found' });
+
+        order.status = 'refunded';
+        order.dateRefunded = new Date();
+        await order.save();
+
+        const statusText = '💸 Refunded';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        const userMessage = `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to refund order' });
+    }
+});
 
 // List recent withdrawals
+app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
+	try {
+		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+		const page = Math.max(parseInt(req.query.page) || 1, 1);
+		const status = (req.query.status || '').toString().trim();
+		const qq = (req.query.q || '').toString().trim();
+		const statusFilter = status ? { status } : {};
+		const textFilter = qq ? { $or: [
+			{ userId: { $regex: qq, $options: 'i' } },
+			{ username: { $regex: qq, $options: 'i' } },
+			{ walletAddress: { $regex: qq, $options: 'i' } },
+		] } : {};
+		const total = await ReferralWithdrawal.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0);
+		const withdrawals = await ReferralWithdrawal.find({ ...statusFilter, ...textFilter })
+			.sort({ createdAt: -1 })
+			.skip((page - 1) * limit)
+			.limit(limit)
+			.lean();
+		res.json({ withdrawals, total });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load withdrawals' });
+	}
+});
 
+app.get('/api/admin/withdrawals/export', requireAdmin, async (req, res) => {
+	try {
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+		const statusFilter = status ? { status } : {};
+		const textFilter = q ? { $or: [
+			{ userId: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ walletAddress: { $regex: q, $options: 'i' } }
+		] } : {};
+		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
+		const withdrawals = await ReferralWithdrawal
+			.find({ ...statusFilter, ...textFilter })
+			.sort({ createdAt: -1 })
+			.limit(limit)
+			.lean();
+		const csv = ['id,userId,username,amount,walletAddress,status,reason,createdAt']
+			.concat(withdrawals.map(w => [w._id, w.userId || '', w.username || '', w.amount || 0, w.walletAddress || '', w.status || '', w.declineReason || '', new Date(w.createdAt || Date.now()).toISOString()]
+				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
+			.join('\n');
+		res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+		res.setHeader('Content-Disposition', 'attachment; filename="withdrawals.csv"');
+		res.setHeader('Cache-Control', 'no-store');
+		return res.send(csv);
+	} catch (e) {
+		return res.status(500).send('Failed to export');
+	}
+});
 
 // Complete a withdrawal
+app.post('/api/admin/withdrawals/:id/complete', requireAdmin, async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const id = req.params.id;
+        const admin = req.user?.id || 'admin';
+
+        const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(id), status: 'pending' },
+            { $set: { status: 'completed', processedBy: parseInt(admin, 10) || admin, processedAt: new Date() } },
+            { new: true, session }
+        );
+        if (!withdrawal) {
+            await session.abortTransaction();
+            return res.status(409).json({ error: 'Withdrawal not found or already processed' });
+        }
+
+        // Notify user
+        try {
+            await bot.sendMessage(withdrawal.userId, `✅ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Completed!\n\nAmount: ${withdrawal.amount} USDT\nWallet: ${withdrawal.walletAddress}\n\nFunds have been sent to your wallet.`);
+        } catch {}
+
+        // Update admin messages to collapsed status
+        const statusText = '✅ Completed';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (withdrawal.adminMessages?.length) {
+            await Promise.all(withdrawal.adminMessages.map(async (adminMsg) => {
+                if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\nStatus: ${statusText}\n${processedBy}\nProcessed at: ${new Date().toLocaleString()}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] }
+                    });
+                } catch {
+                    try {
+                        await bot.editMessageReplyMarkup(
+                            { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] },
+                            { chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId, message_id: adminMsg.messageId }
+                        );
+                    } catch {}
+                }
+            }));
+        }
+
+        await session.commitTransaction();
+        return res.json({ success: true });
+    } catch (e) {
+        await session.abortTransaction();
+        return res.status(500).json({ error: 'Failed to complete withdrawal' });
+    } finally {
+        session.endSession();
+    }
+});
 
 // Decline a withdrawal with reason
+app.post('/api/admin/withdrawals/:id/decline', requireAdmin, async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const id = req.params.id;
+        const { reason } = req.body || {};
+        const admin = req.user?.id || 'admin';
 
+        const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(id), status: 'pending' },
+            { $set: { status: 'declined', processedBy: parseInt(admin, 10) || admin, processedAt: new Date(), declineReason: reason || 'Declined' } },
+            { new: true, session }
+        );
+        if (!withdrawal) {
+            await session.abortTransaction();
+            return res.status(409).json({ error: 'Withdrawal not found or already processed' });
+        }
 
+        // Revert referral withdrawn flags
+        await Referral.updateMany(
+            { _id: { $in: withdrawal.referralIds } },
+            { $set: { withdrawn: false } },
+            { session }
+        );
 
+        // Notify user with reason
+        try {
+            await bot.sendMessage(withdrawal.userId, `❌ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Declined\nReason: ${withdrawal.declineReason}\n\nAmount: ${withdrawal.amount} USDT\nContact support for more information.`);
+        } catch {}
 
+        // Update admin messages
+        const statusText = '❌ Declined';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (withdrawal.adminMessages?.length) {
+            await Promise.all(withdrawal.adminMessages.map(async (adminMsg) => {
+                if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\nStatus: ${statusText}\nReason: ${withdrawal.declineReason}\n${processedBy}\nProcessed at: ${new Date().toLocaleString()}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] }
+                    });
+                } catch {
+                    try {
+                        await bot.editMessageReplyMarkup(
+                            { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] },
+                            { chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId, message_id: adminMsg.messageId }
+                        );
+                    } catch {}
+                }
+            }));
+        }
 
+        await session.commitTransaction();
+        return res.json({ success: true });
+    } catch (e) {
+        await session.abortTransaction();
+        return res.status(500).json({ error: 'Failed to decline withdrawal' });
+    } finally {
+        session.endSession();
+    }
+});
 
+// List referrals for admin
+app.get('/api/admin/referrals', requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const referrals = await Referral.find({}).sort({ dateReferred: -1 }).limit(limit).lean();
+        res.json({ referrals });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load referrals' });
+    }
+});
 
+// List users for admin
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const filter = {};
+        const activeSinceMin = parseInt(req.query.activeMinutes || '0', 10);
+        if (activeSinceMin > 0) {
+            filter.lastActive = { $gte: new Date(Date.now() - activeSinceMin * 60 * 1000) };
+        }
+        const users = await User.find(filter).sort({ lastActive: -1 }).limit(limit).lean();
+        res.json({ users, total: await User.countDocuments(filter).catch(()=>0) });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load users' });
+    }
+});
 
+// Force enable bot simulator endpoint (admin only)
+app.post('/api/admin/force-enable-bots', requireAdmin, async (req, res) => {
+  try {
+    // Set environment variable programmatically
+    process.env.ENABLE_BOT_SIMULATOR = '1';
+    
+    // Try to start bot simulator immediately
+    if (startBotSimulatorSafe) {
+      try {
+        await startBotSimulatorSafe({
+          useMongo: !!process.env.MONGODB_URI,
+          models: { User, DailyState, BotProfile, Activity },
+          db
+        });
+        
+        res.json({
+          success: true,
+          message: 'Bot simulator force enabled and started',
+          status: 'enabled',
+          environment: process.env.ENABLE_BOT_SIMULATOR
+        });
+      } catch (startError) {
+        res.json({
+          success: true,
+          message: 'Bot simulator enabled but start failed',
+          status: 'enabled_but_not_started',
+          environment: process.env.ENABLE_BOT_SIMULATOR,
+          startError: startError.message
+        });
+      }
+    } else {
+      res.json({
+        success: true,
+        message: 'Bot simulator enabled (restart required)',
+        status: 'enabled_restart_needed',
+        environment: process.env.ENABLE_BOT_SIMULATOR
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to enable bot simulator',
+      details: error.message
+    });
+  }
+});
 
+// Diagnostic endpoint to check bot simulator status (admin only)
+app.get('/api/admin/bot-simulator/diagnostic', requireAdmin, async (req, res) => {
+  try {
+    const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+    const botActivities = await Activity.countDocuments({ 
+      userId: { $regex: '^200000' },
+      timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    });
+    const botStates = await DailyState.countDocuments({ userId: { $regex: '^200000' } });
+    
+    // Get sample bot users
+    const sampleBots = await User.find({ id: { $regex: '^200000' } }).limit(5).select('id username');
+    
+    // Check if bot simulator is running
+    const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+    const hasStartFunction = !!startBotSimulatorSafe;
+    
+    res.json({
+      success: true,
+      diagnostic: {
+        environment: {
+          ENABLE_BOT_SIMULATOR: process.env.ENABLE_BOT_SIMULATOR,
+          isEnabled,
+          hasStartFunction
+        },
+        database: {
+          botUsers,
+          botActivities,
+          botStates,
+          sampleBots
+        },
+        expected: {
+          botUsers: 135,
+          botActivities: '20-40 per day',
+          botStates: 135
+        },
+        recommendations: []
+      }
+    });
+    
+    // Add recommendations based on findings
+    if (botUsers < 10) {
+      res.json.diagnostic?.recommendations.push('Bot seeding failed - need to restart bot simulator');
+    }
+    if (botActivities === 0 && botUsers > 0) {
+      res.json.diagnostic?.recommendations.push('Bots exist but not generating activities - check tick function');
+    }
+    if (!isEnabled) {
+      res.json.diagnostic?.recommendations.push('Set ENABLE_BOT_SIMULATOR=1 in environment variables');
+    }
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Diagnostic failed',
+      details: error.message
+    });
+  }
+});
+
+// Force restart bot simulator (admin only)
+app.post('/api/admin/bot-simulator/restart', requireAdmin, async (req, res) => {
+  try {
+    if (!startBotSimulatorSafe) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bot simulator not available'
+      });
+    }
+    
+    // Force restart the bot simulator
+    const result = startBotSimulatorSafe({
+      useMongo: !!process.env.MONGODB_URI,
+      models: { User, DailyState, BotProfile, Activity },
+      db
+    });
+    
+    res.json({
+      success: true,
+      message: 'Bot simulator restarted',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to restart bot simulator',
+      details: error.message
+    });
+  }
+});
+
+// Admin endpoint to view activity statistics
+app.get('/api/admin/activity/stats', requireAdmin, async (req, res) => {
+    try {
+        const { timeframe = '24h' } = req.query;
+        
+        // Calculate time range
+        let startTime;
+        switch (timeframe) {
+            case '1h':
+                startTime = new Date(Date.now() - 60 * 60 * 1000);
+                break;
+            case '24h':
+                startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                break;
+            case '7d':
+                startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case '30d':
+                startTime = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                break;
+            default:
+                startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        }
+
+        // Get activity statistics
+        const [
+            totalActivities,
+            recentActivities,
+            activityTypes,
+            topUsers,
+            botActivities,
+            totalUsers,
+            activeUsers
+        ] = await Promise.all([
+            Activity.countDocuments(),
+            Activity.countDocuments({ timestamp: { $gte: startTime } }),
+            Activity.aggregate([
+                { $match: { timestamp: { $gte: startTime } } },
+                { $group: { 
+                    _id: '$activityType', 
+                    count: { $sum: 1 }, 
+                    totalPoints: { $sum: '$points' },
+                    avgPoints: { $avg: '$points' }
+                }},
+                { $sort: { count: -1 } }
+            ]),
+            Activity.aggregate([
+                { $match: { timestamp: { $gte: startTime } } },
+                { $group: { 
+                    _id: '$userId', 
+                    count: { $sum: 1 }, 
+                    totalPoints: { $sum: '$points' }
+                }},
+                { $sort: { totalPoints: -1 } },
+                { $limit: 10 }
+            ]),
+            Activity.countDocuments({ 
+                userId: { $regex: '^200000' },
+                timestamp: { $gte: startTime }
+            }),
+            User.countDocuments(),
+            User.countDocuments({ lastActive: { $gte: startTime } })
+        ]);
+
+        // Get bot simulator status
+        const botSimulatorEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+        const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+
+        res.json({
+            timeframe,
+            period: {
+                start: startTime.toISOString(),
+                end: new Date().toISOString()
+            },
+            overview: {
+                totalActivities,
+                recentActivities,
+                totalUsers,
+                activeUsers,
+                botUsers,
+                botActivities
+            },
+            activityTypes,
+            topUsers,
+            botSimulator: {
+                enabled: botSimulatorEnabled,
+                botUsers,
+                recentBotActivities: botActivities
+            }
+        });
+    } catch (error) {
+        console.error('Admin activity stats error:', error);
+        res.status(500).json({ error: 'Failed to fetch activity statistics' });
+    }
+});
+
+// Admin endpoint to view recent activities
+app.get('/api/admin/activity/recent', requireAdmin, async (req, res) => {
+    try {
+        const { limit = 50, skip = 0, userId, activityType } = req.query;
+        
+        const filter = {};
+        if (userId) filter.userId = userId;
+        if (activityType) filter.activityType = activityType;
+
+        const activities = await Activity.find(filter)
+            .sort({ timestamp: -1 })
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
+            .lean();
+
+        const total = await Activity.countDocuments(filter);
+
+        res.json({
+            activities,
+            pagination: {
+                total,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                hasMore: (parseInt(skip) + parseInt(limit)) < total
+            }
+        });
+    } catch (error) {
+        console.error('Admin recent activities error:', error);
+        res.status(500).json({ error: 'Failed to fetch recent activities' });
+    }
+});
+
+// Admin endpoint to enable/disable bot simulator
+app.post('/api/admin/bot-simulator/enable', requireAdmin, async (req, res) => {
+    try {
+        process.env.ENABLE_BOT_SIMULATOR = '1';
+        
+        // Try to start bot simulator if not already running
+        if (startBotSimulatorSafe) {
+            try {
+                startBotSimulatorSafe({
+                    useMongo: !!process.env.MONGODB_URI,
+                    models: { User, DailyState, BotProfile, Activity },
+                    db
+                });
+                console.log('🤖 Bot simulator enabled via admin command');
+            } catch (e) {
+                console.warn('Failed to start bot simulator:', e.message);
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: 'Bot simulator enabled. Note: Changes will be lost on server restart. Update environment variables for persistence.',
+            enabled: true
+        });
+    } catch (error) {
+        console.error('Enable bot simulator error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to enable bot simulator',
+            details: error.message 
+        });
+    }
+});
+
+// Admin endpoint to test bot simulator
+app.post('/api/admin/bot-simulator/test', requireAdmin, async (req, res) => {
+    try {
+        const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+        
+        if (!isEnabled) {
+            return res.json({
+                success: false,
+                message: 'Bot simulator is disabled. Set ENABLE_BOT_SIMULATOR=1 to enable.',
+                enabled: false
+            });
+        }
+
+        // Check if bot simulator is actually working
+        const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+        const recentBotActivity = await Activity.countDocuments({
+            userId: { $regex: '^200000' },
+            timestamp: { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+        });
+
+        // Try to create a test bot user
+        const testBotId = '200999999';
+        const existingTestBot = await User.findOne({ id: testBotId });
+        
+        if (!existingTestBot) {
+            await User.create({
+                id: testBotId,
+                username: 'test_bot_admin',
+                lastActive: new Date(),
+                createdAt: new Date()
+            });
+        }
+
+        res.json({
+            success: true,
+            enabled: true,
+            stats: {
+                botUsers,
+                recentBotActivity,
+                testBotCreated: !existingTestBot
+            },
+            message: `Bot simulator is enabled. Found ${botUsers} bot users with ${recentBotActivity} recent activities.`
+        });
+    } catch (error) {
+        console.error('Bot simulator test error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to test bot simulator',
+            details: error.message 
+        });
+    }
+});
 
 // Enhanced notification system - sends both Telegram messages and creates database notifications
+app.post('/api/admin/notify', requireAdmin, async (req, res) => {
+    try {
+        const { target, message, title, sendTelegram = true, createDbNotification = true } = req.body || {};
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ error: 'Message required' });
+        }
 
+        const telegramSent = [];
+        const dbNotificationsCreated = [];
+        let template = null;
 
+        // Create notification template if database notifications are requested
+        if (createDbNotification) {
+            const notificationTitle = title || 'Admin Notification 📢';
+            template = await NotificationTemplate.create({
+                title: notificationTitle,
+                message: message,
+                audience: (!target || target === 'all' || target === 'active') ? 'global' : 'user',
+                targetUserId: (/^\d+$/.test(target)) ? target : null,
+                priority: 1,
+                icon: 'fa-bullhorn',
+                createdBy: `admin_api_${req.user.id}`
+            });
+        }
+
+        if (!target || target === 'all') {
+            const users = await User.find({}, { id: 1 }).limit(10000);
+            
+            // Send Telegram messages
+            if (sendTelegram) {
+                for (const u of users) {
+                    try { 
+                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
+                        telegramSent.push(u.id); 
+                    } catch {}
+                }
+            }
+
+            // Create database notifications
+            if (createDbNotification && template) {
+                const userNotifications = users.map(user => ({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                }));
+                
+                if (userNotifications.length > 0) {
+                    await UserNotification.insertMany(userNotifications);
+                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
+                }
+            }
+        } else if (target === 'active') {
+            // Active users in last 24h
+            const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const users = await User.find({ lastActive: { $gte: since } }, { id: 1 }).limit(10000);
+            
+            // Send Telegram messages
+            if (sendTelegram) {
+                for (const u of users) {
+                    try { 
+                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
+                        telegramSent.push(u.id); 
+                    } catch {}
+                }
+            }
+
+            // Create database notifications
+            if (createDbNotification && template) {
+                const userNotifications = users.map(user => ({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                }));
+                
+                if (userNotifications.length > 0) {
+                    await UserNotification.insertMany(userNotifications);
+                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
+                }
+            }
+        } else if (/^@/.test(target)) {
+            const username = target.replace(/^@/, '');
+            const user = await User.findOne({ username });
+            if (!user) return res.status(404).json({ error: 'User not found' });
+            
+            // Send Telegram message
+            if (sendTelegram) {
+                try {
+                    await bot.sendMessage(user.id, `📢 Personal Admin Message:\n\n${message}`); 
+                    telegramSent.push(user.id);
+                } catch (err) {
+                    console.log(`Failed to send Telegram message to @${username}:`, err.message);
+                }
+            }
+
+            // Create database notification
+            if (createDbNotification && template) {
+                template.audience = 'user';
+                template.targetUserId = user.id.toString();
+                await template.save();
+
+                await UserNotification.create({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                });
+                dbNotificationsCreated.push(user.id.toString());
+            }
+        } else if (/^\d+$/.test(target)) {
+            // Send Telegram message
+            if (sendTelegram) {
+                try {
+                    await bot.sendMessage(target, `📢 Personal Admin Message:\n\n${message}`); 
+                    telegramSent.push(target);
+                } catch (err) {
+                    console.log(`Failed to send Telegram message to ${target}:`, err.message);
+                }
+            }
+
+            // Create database notification
+            if (createDbNotification && template) {
+                template.audience = 'user';
+                template.targetUserId = target;
+                await template.save();
+
+                await UserNotification.create({
+                    userId: target,
+                    templateId: template._id,
+                    read: false
+                });
+                dbNotificationsCreated.push(target);
+            }
+        } else {
+            return res.status(400).json({ error: 'Invalid target' });
+        }
+        
+        res.json({ 
+            success: true, 
+            telegramSent: telegramSent.length,
+            dbNotificationsCreated: dbNotificationsCreated.length,
+            templateId: template?._id
+        });
+    } catch (error) {
+        console.error('Admin notify error:', error);
+        res.status(500).json({ error: 'Failed to send notification' });
+    }
+});
+
+// Admin endpoint to view all notifications and templates
+app.get('/api/admin/notifications', requireAdmin, async (req, res) => {
+    try {
+        const { limit = 50, skip = 0, type = 'all' } = req.query;
+
+        let query = {};
+        if (type === 'global') query.audience = 'global';
+        if (type === 'user') query.audience = 'user';
+
+        const templates = await NotificationTemplate.find(query)
+            .sort({ createdAt: -1 })
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
+            .lean();
+
+        const templateStats = await Promise.all(templates.map(async (template) => {
+            const userNotificationCount = await UserNotification.countDocuments({ templateId: template._id });
+            const unreadCount = await UserNotification.countDocuments({ templateId: template._id, read: false });
+            
+            return {
+                ...template,
+                totalRecipients: userNotificationCount,
+                unreadCount: unreadCount,
+                readCount: userNotificationCount - unreadCount
+            };
+        }));
+
+        const totalTemplates = await NotificationTemplate.countDocuments(query);
+        const totalUserNotifications = await UserNotification.countDocuments();
+        const totalUnread = await UserNotification.countDocuments({ read: false });
+
+        res.json({
+            templates: templateStats,
+            pagination: {
+                total: totalTemplates,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                hasMore: (parseInt(skip) + parseInt(limit)) < totalTemplates
+            },
+            stats: {
+                totalTemplates,
+                totalUserNotifications,
+                totalUnread,
+                totalRead: totalUserNotifications - totalUnread
+            }
+        });
+    } catch (error) {
+        console.error('Admin notifications fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch notifications' });
+    }
+});
+
+// Admin endpoint to delete notification templates and cascade to user notifications
+app.delete('/api/admin/notifications/:templateId', requireAdmin, async (req, res) => {
+    try {
+        const { templateId } = req.params;
+        
+        // Delete the template
+        const deletedTemplate = await NotificationTemplate.findByIdAndDelete(templateId);
+        if (!deletedTemplate) {
+            return res.status(404).json({ error: 'Notification template not found' });
+        }
+
+        // Delete all associated user notifications
+        const deletedUserNotifications = await UserNotification.deleteMany({ templateId });
+
+        res.json({ 
+            success: true, 
+            deletedTemplate: deletedTemplate.title,
+            deletedUserNotifications: deletedUserNotifications.deletedCount
+        });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to send notification' });
+    }
+});
 
 function parseCookies(cookieHeader) {
 	const out = {};
@@ -7937,6 +9580,8 @@ function base64url(input) {
 	return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
+function signAdminToken(payload, ttlMs) {
+	const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
 	const header = { alg: 'HS256', typ: 'JWT' };
 	const exp = Date.now() + (ttlMs || 12 * 60 * 60 * 1000);
 	const body = { ...payload, exp };
@@ -7946,7 +9591,9 @@ function base64url(input) {
 	return `${h}.${b}.${sig}`;
 }
 
+function verifyAdminToken(token) {
 	try {
+		const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
 		const [h, b, sig] = token.split('.');
 		const expected = require('crypto').createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 		if (expected !== sig) return null;
@@ -7958,26 +9605,242 @@ function base64url(input) {
 	}
 }
 
+function getAdminSession(req) {
 	const cookies = parseCookies(req.headers.cookie || '');
+	const token = cookies['admin_session'];
 	if (!token) return null;
+	const payload = verifyAdminToken(token);
 	if (!payload || !payload.sid || !payload.tgId) return null;
 	return { token, payload };
 }
 
+function requireAdmin(req, res, next) {
+	// Backward-compatible GET-only header auth, or cookie session with CSRF for mutations
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+			const csrf = req.headers['x-csrf-token'];
+			if (!csrf || csrf !== sess.payload.sid) {
+				return res.status(403).json({ error: 'CSRF check failed' });
+			}
+		}
+		req.user = { id: sess.payload.tgId, isAdmin: true };
+		return next();
+	}
+	try {
+		const tgId = (req.headers['x-telegram-id'] || '').toString();
+		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId) && (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS')) {
+			req.user = { id: tgId, isAdmin: true };
+			return next();
+		}
+		return res.status(403).json({ error: 'Forbidden' });
+	} catch (e) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+}
 
 app.get('/api/me', (req, res) => {
-		return res.json({ id: sess.payload.tgId});
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		return res.json({ id: sess.payload.tgId, isAdmin: true });
 	}
 	const tgId = (req.headers['x-telegram-id'] || '').toString();
+	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false });
 });
 
+app.get('/api/admin/csrf', (req, res) => {
+	const sess = getAdminSession(req);
+	if (!sess || !adminIds.includes(sess.payload.tgId)) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+	return res.json({ csrfToken: sess.payload.sid });
+});
 
+app.post('/api/admin/auth/send-otp', async (req, res) => {
+	try {
+		const tgId = (req.body?.tgId || '').toString().trim();
+		
+		console.log('🔐 Admin OTP send attempt:', {
+			tgId,
+			adminIds: adminIds,
+			adminIdsType: typeof adminIds,
+			adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array',
+			includes: adminIds.includes(tgId)
+		});
+		
+		if (!tgId || !/^\d+$/.test(tgId)) {
+			console.log('❌ Invalid Telegram ID format');
+			return res.status(400).json({ error: 'Invalid Telegram ID' });
+		}
+		
+		if (!adminIds.includes(tgId)) {
+			console.log('❌ Telegram ID not in admin list:', { tgId, adminIds });
+			return res.status(403).json({ error: 'Not authorized - ID not in admin list' });
+		}
+		const code = (Math.floor(100000 + Math.random() * 900000)).toString();
+		const now = Date.now();
+		global.__adminOtpStore = global.__adminOtpStore || new Map();
+		const prev = global.__adminOtpStore.get(tgId);
+		if (prev && prev.nextAllowedAt && now < prev.nextAllowedAt) {
+			const waitSec = Math.ceil((prev.nextAllowedAt - now) / 1000);
+			return res.status(429).json({ error: `Please wait ${waitSec}s before requesting another code` });
+		}
+		global.__adminOtpStore.set(tgId, { code, expiresAt: now + 5 * 60 * 1000, nextAllowedAt: now + 60 * 1000 });
+		try {
+			console.log(`[ADMIN OTP] Sending code to ${tgId} ...`);
+			await bot.sendMessage(tgId, `StarStore Admin Login Code\n\nYour code: ${code}\n\nThis code expires in 5 minutes.`);
+			console.log(`[ADMIN OTP] Code delivered to ${tgId}`);
+		} catch (err) {
+			console.error(`[ADMIN OTP] Delivery failed to ${tgId}:`, err?.message || err);
+			return res.status(500).json({ error: 'Failed to deliver OTP. Ensure you have started the bot and try again.' });
+		}
+		return res.json({ success: true });
+	} catch (e) {
+		console.error('[ADMIN OTP] Unexpected error:', e?.message || e);
+		return res.status(500).json({ error: 'Failed to send OTP' });
+	}
+});
 
+app.post('/api/admin/auth/verify-otp', (req, res) => {
+	try {
+		const tgId = (req.body?.tgId || '').toString().trim();
+		const code = (req.body?.code || '').toString().trim();
+		
+		console.log('🔐 Admin OTP verify attempt:', {
+			tgId,
+			code: code ? '***' + code.slice(-2) : 'none',
+			adminIds: adminIds,
+			adminIdsIncludes: adminIds.includes(tgId)
+		});
+		
+		if (!tgId || !/^\d+$/.test(tgId) || !code) {
+			console.log('❌ Invalid credentials provided');
+			return res.status(400).json({ error: 'Invalid credentials' });
+		}
+		
+		if (!adminIds.includes(tgId)) {
+			console.log('❌ Not in admin list:', { tgId, adminIds });
+			return res.status(403).json({ error: 'Not authorized - ID not in admin list' });
+		}
+		
+		global.__adminOtpStore = global.__adminOtpStore || new Map();
+		const rec = global.__adminOtpStore.get(tgId);
+		
+		console.log('🔐 OTP record check:', {
+			hasRecord: !!rec,
+			codeMatch: rec ? rec.code === code : false,
+			expired: rec ? Date.now() > rec.expiresAt : true
+		});
+		
+		if (!rec || rec.code !== code || Date.now() > rec.expiresAt) {
+			console.log('❌ Invalid or expired OTP');
+			return res.status(401).json({ error: 'Invalid or expired code' });
+		}
+		
+		global.__adminOtpStore.delete(tgId);
+		const sid = require('crypto').randomBytes(16).toString('hex');
+		const token = signAdminToken({ tgId, sid }, 12 * 60 * 60 * 1000);
+		const isProd = process.env.NODE_ENV === 'production';
+		const cookie = `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Strict${isProd ? '; Secure' : ''}; Max-Age=${12 * 60 * 60}`;
+		res.setHeader('Set-Cookie', cookie);
+		
+		console.log('✅ Admin OTP verification successful for:', tgId);
+		return res.json({ success: true, csrfToken: sid });
+	} catch (error) {
+		console.error('❌ Admin OTP verification error:', error);
+		return res.status(500).json({ error: 'Failed to verify OTP' });
+	}
+});
 
+app.post('/api/admin/logout', (req, res) => {
+	try {
+		res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0');
+		return res.json({ success: true });
+	} catch {
+		return res.json({ success: true });
+	}
+});
 
+// Modern admin auth verification endpoint
+app.get('/api/admin/auth/verify', (req, res) => {
+	const telegramId = req.headers['x-telegram-id'];
+	console.log('🔐 Admin auth verify attempt:', {
+		telegramId,
+		adminIds: adminIds,
+		adminIdsType: typeof adminIds,
+		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array'
+	});
+	
+	if (!telegramId) {
+		return res.status(401).json({ error: 'No telegram ID provided' });
+	}
+	
+	const isAdmin = Array.isArray(adminIds) && adminIds.includes(telegramId);
+	console.log('🔐 Admin check result:', { telegramId, isAdmin, adminIds });
+	
+	if (!isAdmin) {
+		return res.status(403).json({ error: 'Access denied - ID not in admin list' });
+	}
+	
+	res.json({
+		success: true,
+		user: {
+			telegramId,
+			isAdmin: true
+		}
+	});
+});
 
+// Debug endpoint to check admin configuration
+app.get('/api/admin/debug/config', (req, res) => {
+	const telegramId = req.headers['x-telegram-id'];
+	
+	res.json({
+		requestedId: telegramId,
+		adminIds: adminIds,
+		adminIdsType: typeof adminIds,
+		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array',
+		isAdmin: Array.isArray(adminIds) && adminIds.includes(telegramId),
+		envVars: {
+			hasAdminTelegramIds: !!process.env.ADMIN_TELEGRAM_IDS,
+			hasAdminIds: !!process.env.ADMIN_IDS,
+			adminTelegramIdsValue: process.env.ADMIN_TELEGRAM_IDS ? '***set***' : 'not set',
+			adminIdsValue: process.env.ADMIN_IDS ? '***set***' : 'not set'
+		}
+	});
+});
 
+// Enhanced admin stats endpoint for modern dashboard
+app.get('/api/admin/dashboard/stats', requireAdmin, async (req, res) => {
+	try {
+		// Get existing stats and enhance them
+		const orders = await db.getOrders();
+		const users = await db.getUsers();
+		const withdrawals = await db.getWithdrawals();
+		
+		const stats = {
+			totalUsers: users.length,
+			totalOrders: orders.length,
+			totalRevenue: orders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0),
+			pendingOrders: orders.filter(o => o.status === 'pending').length,
+			completedOrders: orders.filter(o => o.status === 'completed').length,
+			activeUsers24h: users.filter(u => {
+				const lastActive = new Date(u.lastActive || u.createdAt);
+				return Date.now() - lastActive.getTime() < 24 * 60 * 60 * 1000;
+			}).length,
+			totalWithdrawals: withdrawals.length,
+			pendingWithdrawals: withdrawals.filter(w => w.status === 'pending').length,
+			lastUpdated: new Date().toISOString()
+		};
+		
+		res.json(stats);
+	} catch (error) {
+		console.error('Enhanced admin stats error:', error);
+		res.status(500).json({ error: 'Failed to fetch enhanced stats' });
+	}
+});
 
+// Simple SMTP email sender for newsletter (admin-only)
 let smtpTransport = null;
 try {
     const nodemailer = require('nodemailer');
@@ -7993,8 +9856,10 @@ try {
     console.warn('Nodemailer not available; email sending disabled');
 }
 
+// Admin send newsletter email to all subscribers
 app.post('/api/newsletter/send', async (req, res) => {
     try {
+        if (!req.user?.isAdmin) return res.status(403).json({ success: false, error: 'Forbidden' });
         if (!smtpTransport) return res.status(500).json({ success: false, error: 'Email service not configured' });
         const subject = String(req.body?.subject || '').trim();
         const html = String(req.body?.html || '').trim();
@@ -8086,7 +9951,10 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
             console.error('Welcome email failed:', err?.message || err);
         }
 
+        // Notify admins in real-time via Telegram
         const text = `📬 New newsletter subscriber: ${email}`;
+        for (const adminId of adminIds) {
+            try { await bot.sendMessage(adminId, text); } catch (_) {}
         }
 
         return res.json({ success: true, message: 'Subscribed successfully.' });

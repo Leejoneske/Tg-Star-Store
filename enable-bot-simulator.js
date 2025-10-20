@@ -57,4 +57,3 @@ console.log('\n📋 Next Steps:');
 console.log('1. Set ENABLE_BOT_SIMULATOR=1 in your Railway environment variables');
 console.log('2. Redeploy your application');
 console.log('3. Use /activity command to check if bots are working');
-console.log('4. Check /api/admin/activity/stats endpoint for detailed stats');

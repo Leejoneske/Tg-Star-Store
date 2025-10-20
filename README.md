@@ -1,6 +1,5 @@
 # StarStore - Telegram Mini App
 
-A comprehensive Telegram Mini App for purchasing Telegram Stars and Premium subscriptions with advanced referral system, payment processing, and admin management.
 
 ## 🌟 Features
 
@@ -10,7 +9,6 @@ A comprehensive Telegram Mini App for purchasing Telegram Stars and Premium subs
 - **Referral System**: Earn 0.5 USDT for each successful referral
 - **Withdrawal System**: Withdraw referral earnings to TON wallet
 - **Real-time Notifications**: Instant notifications for all activities
-- **Admin Panel**: Comprehensive admin management system
 
 ### Advanced Features
 - **Payment Processing**: Secure Telegram Payments integration
@@ -65,8 +63,6 @@ PROVIDER_TOKEN=your_provider_token_here
 # Database Configuration
 MONGODB_URI=mongodb://localhost:27017/starstore
 
-# Admin Configuration
-ADMIN_IDS=123456789,987654321
 ```
 
 ### Optional Variables
@@ -89,7 +85,6 @@ RATE_LIMIT_MAX_REQUESTS=100
 ```
 ├── server.js              # Main application entry point
 ├── managers/              # Business logic managers
-│   ├── adminManager.js    # Admin commands and management
 │   ├── paymentManager.js  # Payment processing
 │   ├── userInteractionManager.js # User interactions
 │   ├── callbackManager.js # Callback query handling
@@ -219,7 +214,6 @@ sudo journalctl -u starstore -p err
 ./scripts/monitor.sh
 ```
 
-## 🛠️ Admin Commands
 
 ### User Management
 - `/ban <user_id>` - Ban user
@@ -240,7 +234,6 @@ sudo journalctl -u starstore -p err
 - `/detect_users` - Count total users
 
 ### Payment Management
-- `/adminrefund <tx_id>` - Admin refund
 - `/refundtx <tx_id> <user_id>` - Refund transaction
 - `/getpayment <tx_id>` - Get payment details
 
@@ -332,7 +325,6 @@ For support and questions:
 ### Version History
 - **v1.0.0** - Initial release with core features
 - **v1.1.0** - Added referral system
-- **v1.2.0** - Enhanced admin panel
 - **v1.3.0** - Added notification system
 - **v1.4.0** - Production optimizations
 

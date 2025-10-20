@@ -1205,31 +1205,21 @@ function isValidWalletAddress(address) {
 // Stars amount handling
 function incrementStars() {
     const currentValue = parseInt(starsInput.value) || 0;
-    const isAdmin = Boolean(Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
-    starsInput.value = isAdmin ? currentValue + 5 : Math.min(currentValue + 5, 80000);
     calculateTonAmount();
 }
 
 function decrementStars() {
     const currentValue = parseInt(starsInput.value) || 0;
-    const isAdmin = Boolean(Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
-    starsInput.value = isAdmin ? Math.max(currentValue - 5, 0) : Math.max(currentValue - 5, 50);
     calculateTonAmount();
 }
 
 function setStarsAmount(amount) {
-    const isAdmin = Boolean(Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
-    if (!isAdmin && amount < 50) amount = 50;
-    if (!isAdmin && amount > 80000) amount = 80000;
     starsInput.value = amount;
     calculateTonAmount();
 }
 
 function calculateTonAmount() {
-    // Ensure value stays within bounds unless admin
     let stars = parseInt(starsInput.value) || 0;
-    const isAdmin = Boolean(Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
-    if (!isAdmin) {
         if (stars < 50) { stars = 50; starsInput.value = 50; }
         else if (stars > 80000) { stars = 80000; starsInput.value = 80000; }
     } else {
@@ -1242,7 +1232,6 @@ function calculateTonAmount() {
 }
 
 // Update the input field attributes to reflect new limits
-// Defaults for non-admin; may be relaxed after admin check
 starsInput.min = "50";
 starsInput.max = "80000";
 starsInput.value = "50"; 
@@ -1833,7 +1822,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
     }
 
-    // Check admin status to relax UI limits for admins
     try {
         const tgId = Telegram?.WebApp?.initDataUnsafe?.user?.id;
         if (tgId) {
@@ -1841,13 +1829,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 headers: { 'x-telegram-id': tgId }
             });
             const me = await resp.json();
-            if (me?.isAdmin) {
-                window.__isAdmin = true;
                 starsInput.min = "0";
                 starsInput.removeAttribute('max');
                 // Update UI hint
                 const badge = document.querySelector('[data-translate="minimumSell"]');
-                if (badge) badge.textContent = 'Admin: no min/max';
             }
         }
     } catch (_) {}
