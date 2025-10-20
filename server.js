@@ -439,7 +439,7 @@ app.use((err, req, res, next) => {
   if (req.path && req.path.startsWith('/api/')) {
     return res.status(500).json({ error: 'Internal server error' });
   }
-  const abs = path.join(__dirname, 'public', '500.html');
+  const abs = path.join(__dirname, 'public', 'errors', '500.html');
   return res.status(500).sendFile(abs, (sendErr) => {
     if (sendErr) return res.status(500).send('Internal Server Error');
   });

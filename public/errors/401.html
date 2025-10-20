@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>503 - Service Unavailable | StarStore</title>
-    <meta name="description" content="Service temporarily unavailable - we'll be back soon.">
+    <title>401 - Unauthorized | StarStore</title>
+    <meta name="description" content="Unauthorized access - please log in to continue.">
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" href="/favicon.png" type="image/png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,35 +13,35 @@
 <body>
     <div class="error-container">
         <div class="error-icon">
-            <i class="fas fa-tools"></i>
+            <i class="fas fa-lock"></i>
         </div>
         
-        <div class="error-code">503</div>
+        <div class="error-code">401</div>
         
-        <h1 class="error-title">Service Unavailable</h1>
+        <h1 class="error-title">Unauthorized</h1>
         
         <p class="error-message">
-            StarStore is temporarily unavailable for maintenance. We're working hard to get everything back online as soon as possible.
+            You need to be authenticated to access this resource. Please log in with your Telegram account to continue.
         </p>
         
         <div class="error-actions">
-            <button onclick="location.reload()" class="btn btn-primary">
-                <i class="fas fa-redo"></i>
-                Check Again
-            </button>
-            <a href="/support" class="btn btn-secondary">
-                <i class="fas fa-question-circle"></i>
-                Contact Support
+            <a href="/" class="btn btn-primary">
+                <i class="fab fa-telegram"></i>
+                Open in Telegram
             </a>
+            <button onclick="history.back()" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Go Back
+            </button>
         </div>
         
         <div class="error-details">
-            <h4>Maintenance in progress:</h4>
+            <h4>Authentication required:</h4>
             <ul>
-                <li>Scheduled maintenance or updates</li>
-                <li>Service will resume shortly</li>
-                <li>No data has been lost</li>
-                <li>Check back in a few minutes</li>
+                <li>Open StarStore through Telegram Mini Apps</li>
+                <li>Make sure you're logged into Telegram</li>
+                <li>Check your internet connection</li>
+                <li>Try refreshing the page</li>
             </ul>
         </div>
         

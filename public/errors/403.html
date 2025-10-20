@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>503 - Service Unavailable | StarStore</title>
-    <meta name="description" content="Service temporarily unavailable - we'll be back soon.">
+    <title>403 - Access Denied | StarStore</title>
+    <meta name="description" content="Access denied - you don't have permission to access this resource.">
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" href="/favicon.png" type="image/png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,22 +13,22 @@
 <body>
     <div class="error-container">
         <div class="error-icon">
-            <i class="fas fa-tools"></i>
+            <i class="fas fa-ban"></i>
         </div>
         
-        <div class="error-code">503</div>
+        <div class="error-code">403</div>
         
-        <h1 class="error-title">Service Unavailable</h1>
+        <h1 class="error-title">Access Denied</h1>
         
         <p class="error-message">
-            StarStore is temporarily unavailable for maintenance. We're working hard to get everything back online as soon as possible.
+            You don't have permission to access this resource. This area may be restricted or require special authorization.
         </p>
         
         <div class="error-actions">
-            <button onclick="location.reload()" class="btn btn-primary">
-                <i class="fas fa-redo"></i>
-                Check Again
-            </button>
+            <a href="/" class="btn btn-primary">
+                <i class="fas fa-home"></i>
+                Go Home
+            </a>
             <a href="/support" class="btn btn-secondary">
                 <i class="fas fa-question-circle"></i>
                 Contact Support
@@ -36,12 +36,12 @@
         </div>
         
         <div class="error-details">
-            <h4>Maintenance in progress:</h4>
+            <h4>Possible reasons:</h4>
             <ul>
-                <li>Scheduled maintenance or updates</li>
-                <li>Service will resume shortly</li>
-                <li>No data has been lost</li>
-                <li>Check back in a few minutes</li>
+                <li>You don't have the required permissions</li>
+                <li>Your session may have expired</li>
+                <li>This resource is restricted</li>
+                <li>Contact support if you believe this is an error</li>
             </ul>
         </div>
         

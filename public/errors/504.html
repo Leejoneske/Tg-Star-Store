@@ -1,30 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>504 - Gateway Timeout</title>
-	<style>
-		body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial;background:#f8fafc;color:#111827;display:flex;min-height:100vh;align-items:center;justify-content:center}
-		.container{max-width:560px;width:92%;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px;box-shadow:0 4px 24px rgba(0,0,0,.06);text-align:center}
-		.code{font-size:56px;font-weight:800;color:#ef4444;margin-bottom:8px}
-		h1{font-size:22px;margin:0 0 8px}
-		p{margin:0 0 16px;color:#6b7280}
-		.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-		.btn{appearance:none;border:1px solid #e5e7eb;background:#fff;color:#111827;border-radius:10px;padding:10px 14px;text-decoration:none;display:inline-block;font-weight:600}
-		.btn.primary{background:#111827;color:#fff;border-color:#111827}
-	</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>504 - Gateway Timeout | StarStore</title>
+    <meta name="description" content="Gateway timeout - the server took too long to respond.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/error-pages.css">
 </head>
 <body>
-	<div class="container">
-		<div class="code">504</div>
-		<h1>Gateway Timeout</h1>
-		<p>The server took too long to respond. Please refresh or try again shortly.</p>
-		<div class="actions">
-			<a class="btn primary" href="/">Go home</a>
-			<a class="btn" href="/app/support.html">Contact support</a>
-		</div>
-	</div>
+    <div class="error-container">
+        <div class="error-icon">
+            <i class="fas fa-clock"></i>
+        </div>
+        
+        <div class="error-code">504</div>
+        
+        <h1 class="error-title">Gateway Timeout</h1>
+        
+        <p class="error-message">
+            The server took too long to respond to your request. This might be due to high traffic or temporary server issues.
+        </p>
+        
+        <div class="error-actions">
+            <button onclick="location.reload()" class="btn btn-primary">
+                <i class="fas fa-redo"></i>
+                Try Again
+            </button>
+            <a href="/" class="btn btn-secondary">
+                <i class="fas fa-home"></i>
+                Go Home
+            </a>
+        </div>
+        
+        <div class="error-details">
+            <h4>What you can try:</h4>
+            <ul>
+                <li>Wait a moment and try again</li>
+                <li>Check your internet connection</li>
+                <li>The server might be experiencing high load</li>
+                <li>Contact support if this continues</li>
+            </ul>
+        </div>
+        
+        <a href="/" class="brand-link">
+            <div class="star-icon">★</div>
+            Back to StarStore
+        </a>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
 </body>
 </html>
-

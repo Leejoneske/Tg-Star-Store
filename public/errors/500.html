@@ -3,90 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>500 - Internal Server Error</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial;background:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#111827}
-
-        .error-container{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.06);padding:32px;text-align:center;max-width:560px;width:92%;border:1px solid #e5e7eb}
-
-        .sub{color:#6b7280;margin:8px 0 16px}
-
-        .error-code{font-size:56px;font-weight:800;color:#ef4444;margin-bottom:8px}
-
-        .error-title{font-size:22px;font-weight:700;margin-bottom:6px}
-
-        .error-message{font-size:15px;color:#6b7280;line-height:1.6;margin-bottom:20px}
-
-        .divider{height:1px;background:#e5e7eb;margin:16px 0}
-
-        .action-buttons{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-
-        .btn{padding:10px 14px;border:1px solid #e5e7eb;border-radius:10px;font-weight:600;text-decoration:none;display:inline-block}
-        .btn.primary{background:#111827;color:#fff;border-color:#111827}
-
-        .btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #dc2626;
-            transform: translateY(-2px);
-        }
-
-        .retry-indicator {
-            margin-top: 20px;
-            font-size: 12px;
-            color: #9ca3af;
-        }
-
-        .retry-countdown {
-            font-weight: 600;
-            color: #667eea;
-        }
-
-        @media (max-width: 480px) {
-            .error-container {
-                padding: 40px 20px;
-            }
-
-            .error-code {
-                font-size: 60px;
-            }
-
-            .error-title {
-                font-size: 24px;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-            }
-        }
-
-        .telegram-fullscreen .error-container {
-            border-radius: 0;
-            box-shadow: none;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-    </style>
+    <title>500 - Internal Server Error | StarStore</title>
+    <meta name="description" content="Internal server error - we're working to fix this issue.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/error-pages.css">
 </head>
 <body>
     <div class="error-container">
         <div class="error-icon">
-            <i class="fas fa-exclamation-triangle"></i>
+            <i class="fas fa-server"></i>
         </div>
         
         <div class="error-code">500</div>
@@ -94,111 +21,36 @@
         <h1 class="error-title">Internal Server Error</h1>
         
         <p class="error-message">
-            Something went wrong on our end. Our team has been notified and is working to fix the issue.
+            Something went wrong on our end. We're aware of this issue and working to fix it as quickly as possible.
         </p>
-
-        <div class="error-details">
-            <h4>
-                <i class="fas fa-info-circle"></i>
-                What happened?
-            </h4>
-            <ul>
-                <li>Our servers encountered an unexpected error</li>
-                <li>This is not your fault - it's a technical issue</li>
-                <li>We're working to resolve it as quickly as possible</li>
-            </ul>
-        </div>
-
-        <div class="action-buttons">
-            <button class="btn btn-primary" onclick="retryPage()">
-                <i class="fas fa-redo"></i>
-                Try Again
-            </button>
-            
-            <a href="/" class="btn btn-secondary">
+        
+        <div class="error-actions">
+            <a href="/" class="btn btn-primary">
                 <i class="fas fa-home"></i>
                 Go Home
             </a>
-            
-            <button class="btn btn-danger" onclick="reportIssue()">
-                <i class="fas fa-bug"></i>
-                Report Issue
+            <button onclick="location.reload()" class="btn btn-secondary">
+                <i class="fas fa-redo"></i>
+                Try Again
             </button>
         </div>
-
-        <div class="retry-indicator">
-            Auto-retry in <span class="retry-countdown" id="countdown">30</span> seconds
-        </div>
-    </div>
-
-    <script>
-        // Initialize Telegram WebApp if available
-        if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.ready();
-            window.Telegram.WebApp.expand();
-            document.body.classList.add('telegram-fullscreen');
-        }
-
-        // Auto-retry countdown
-        let countdown = 30;
-        const countdownElement = document.getElementById('countdown');
         
-        const countdownTimer = setInterval(() => {
-            countdown--;
-            countdownElement.textContent = countdown;
-            
-            if (countdown <= 0) {
-                clearInterval(countdownTimer);
-                retryPage();
-            }
-        }, 1000);
-
-        // Retry function
-        function retryPage() {
-            clearInterval(countdownTimer);
-            window.location.reload();
-        }
-
-        // Report issue function
-        function reportIssue() {
-            const userAgent = navigator.userAgent;
-            const url = window.location.href;
-            const timestamp = new Date().toISOString();
-            
-            const issueData = {
-                error: '500 Internal Server Error',
-                url: url,
-                timestamp: timestamp,
-                userAgent: userAgent,
-                telegramUser: window.Telegram?.WebApp?.initDataUnsafe?.user || 'Not available'
-            };
-
-            // You can implement reporting to your backend here
-            console.log('Issue Report:', issueData);
-            
-            // For now, show a simple alert
-            alert('Issue reported. Our team will investigate. Thank you for your patience.');
-        }
-
-        // Check if we can reach the server
-        async function checkServerStatus() {
-            try {
-                const response = await fetch('/api/health', { 
-                    method: 'HEAD',
-                    cache: 'no-cache'
-                });
-                if (response.ok) {
-                    // Server is back up, redirect to home
-                    window.location.href = '/';
-                }
-            } catch (error) {
-                // Server still down, continue showing error
-                console.log('Server still unavailable');
-            }
-        }
-
-        // Check server status every 10 seconds
-        setInterval(checkServerStatus, 10000);
-    </script>
+        <div class="error-details">
+            <h4>What you can try:</h4>
+            <ul>
+                <li>Refresh the page in a few minutes</li>
+                <li>Check our status page for updates</li>
+                <li>Clear your browser cache</li>
+                <li>Contact support if the issue persists</li>
+            </ul>
+        </div>
+        
+        <a href="/" class="brand-link">
+            <div class="star-icon">★</div>
+            Back to StarStore
+        </a>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
 </body>
 </html>
