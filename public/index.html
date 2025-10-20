@@ -541,7 +541,7 @@
 }
 
 .notification-button:hover {
-    background-color: #f3f4f6;
+    background-color: rgba(0,0,0,0.05);
 }
 
 .notification-badge {
@@ -572,11 +572,11 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: rgba(0,0,0,0.5);
-    backdrop-filter: blur(5px);
+    background-color: rgba(0,0,0,0.4);
+    backdrop-filter: blur(8px);
     opacity: 0;
     pointer-events: auto;
-    transition: opacity 0.2s ease;
+    transition: all 0.3s ease;
 }
 
 .notification-overlay.active {
@@ -587,12 +587,19 @@
     position: relative;
     pointer-events: auto;
     width: 90%;
-    max-width: 400px;
-    max-height: 80vh;
+    max-width: 500px;
+    max-height: 85vh;
     overflow: hidden;
-    border-radius: 12px;
+    border-radius: 16px;
     background: white;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    transform: translateY(20px) scale(0.95);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.notification-overlay.active .notification-content-container {
+    transform: translateY(0) scale(1);
 }
 
 
@@ -884,11 +891,11 @@
                     <p style="font-size: 14px; color: #999; margin: 4px 0 0 0;">Buy & Sell Telegram Stars</p>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button style="position: relative; padding: 8px; border-radius: 50%; background: rgba(0,0,0,0.1); border: none; cursor: pointer; transition: background 0.2s;" id="notificationButton">
+                    <button style="position: relative; padding: 8px; border-radius: 50%; background: transparent; border: none; cursor: pointer; transition: background 0.2s;" id="notificationButton" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
                         <svg style="width: 20px; height: 20px; color: #666;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                         </svg>
-                        <div class="notification-badge hidden" id="notificationBadge" style="position: absolute; top: 4px; right: 4px; background: #ff4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px;">0</div>
+                        <div class="notification-badge hidden" id="notificationBadge" style="position: absolute; top: 2px; right: 2px; background: #007AFF; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,122,255,0.3);">0</div>
                     </button>
                     <select id="languageSelect" style="padding: 8px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 8px; background: white; color: #333; cursor: pointer;">
                         <option value="en">English</option>
