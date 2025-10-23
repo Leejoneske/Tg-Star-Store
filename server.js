@@ -7535,6 +7535,441 @@ app.get('/api/referrals/:userId', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+// ============================================================================
+// AMBASSADOR DASHBOARD INTEGRATION ENDPOINTS
+// Added for seamless integration with Ambassador Dashboard
+// ============================================================================
+
+// Get user information by Telegram ID (for Ambassador app)
+app.get('/api/users/:telegramId', async (req, res) => {
+    try {
+        const { telegramId } = req.params;
+        
+        // Find user in MongoDB
+        const user = await User.findOne({ id: telegramId }).lean();
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Get comprehensive user stats
+        const totalReferrals = await Referral.countDocuments({ referrerUserId: telegramId });
+        const activeReferrals = await Referral.countDocuments({ referrerUserId: telegramId, status: 'active' });
+        const pendingReferrals = await Referral.countDocuments({ referrerUserId: telegramId, status: 'pending' });
+        
+        const totalEarnings = await ReferralWithdrawal.aggregate([
+            { $match: { userId: telegramId, status: 'completed' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+
+        // Get transaction stats
+        const buyOrders = await BuyOrder.countDocuments({ telegramId, status: 'completed' });
+        const sellOrders = await SellOrder.countDocuments({ telegramId, status: 'completed' });
+        
+        const totalStarsEarned = await BuyOrder.aggregate([
+            { $match: { telegramId, status: 'completed' } },
+            { $group: { _id: null, total: { $sum: '$stars' } } }
+        ]);
+
+        const userData = {
+            id: user.id,
+            username: user.username,
+            telegramId: user.id,
+            totalReferrals,
+            activeReferrals,
+            pendingReferrals,
+            totalEarnings: totalEarnings[0]?.total || 0,
+            buyOrders,
+            sellOrders,
+            totalStarsEarned: totalStarsEarned[0]?.total || 0,
+            createdAt: user.createdAt,
+            lastActive: user.lastActive,
+            ambassadorEmail: user.ambassadorEmail,
+            ambassadorFullName: user.ambassadorFullName,
+            ambassadorTier: user.ambassadorTier,
+            ambassadorReferralCode: user.ambassadorReferralCode,
+            ambassadorSyncedAt: user.ambassadorSyncedAt
+        };
+        
+        res.json(userData);
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ error: 'Failed to fetch user' });
+    }
+});
+
+// Get all users data for Ambassador admin dashboard
+app.get('/api/admin/users-data', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const page = parseInt(req.query.page) || 1;
+        const skip = (page - 1) * limit;
+        
+        // Get users with comprehensive data
+        const users = await User.find({})
+            .sort({ lastActive: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        const enrichedUsers = await Promise.all(users.map(async (user) => {
+            const [
+                totalReferrals,
+                activeReferrals,
+                pendingReferrals,
+                totalEarnings,
+                buyOrders,
+                sellOrders,
+                totalStarsEarned,
+                recentReferrals
+            ] = await Promise.all([
+                Referral.countDocuments({ referrerUserId: user.id }),
+                Referral.countDocuments({ referrerUserId: user.id, status: 'active' }),
+                Referral.countDocuments({ referrerUserId: user.id, status: 'pending' }),
+                ReferralWithdrawal.aggregate([
+                    { $match: { userId: user.id, status: 'completed' } },
+                    { $group: { _id: null, total: { $sum: '$amount' } } }
+                ]),
+                BuyOrder.countDocuments({ telegramId: user.id, status: 'completed' }),
+                SellOrder.countDocuments({ telegramId: user.id, status: 'completed' }),
+                BuyOrder.aggregate([
+                    { $match: { telegramId: user.id, status: 'completed' } },
+                    { $group: { _id: null, total: { $sum: '$stars' } } }
+                ]),
+                Referral.find({ referrerUserId: user.id })
+                    .sort({ dateReferred: -1 })
+                    .limit(5)
+                    .lean()
+            ]);
+
+            return {
+                id: user.id,
+                username: user.username,
+                createdAt: user.createdAt,
+                lastActive: user.lastActive,
+                totalReferrals,
+                activeReferrals,
+                pendingReferrals,
+                totalEarnings: totalEarnings[0]?.total || 0,
+                buyOrders,
+                sellOrders,
+                totalStarsEarned: totalStarsEarned[0]?.total || 0,
+                recentReferrals: recentReferrals.length,
+                isAmbassador: !!user.ambassadorEmail,
+                ambassadorTier: user.ambassadorTier,
+                ambassadorSyncedAt: user.ambassadorSyncedAt
+            };
+        }));
+
+        const totalUsers = await User.countDocuments({});
+        
+        res.json({
+            users: enrichedUsers,
+            pagination: {
+                page,
+                limit,
+                total: totalUsers,
+                pages: Math.ceil(totalUsers / limit),
+                hasMore: skip + limit < totalUsers
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching users data:', error);
+        res.status(500).json({ error: 'Failed to fetch users data' });
+    }
+});
+
+// Get comprehensive referrals data for admin
+app.get('/api/admin/referrals-data', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const page = parseInt(req.query.page) || 1;
+        const skip = (page - 1) * limit;
+        
+        const referrals = await Referral.find({})
+            .sort({ dateReferred: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        const enrichedReferrals = await Promise.all(referrals.map(async (referral) => {
+            const [referrer, referred] = await Promise.all([
+                User.findOne({ id: referral.referrerUserId }).lean(),
+                User.findOne({ id: referral.referredUserId }).lean()
+            ]);
+
+            return {
+                id: referral._id,
+                referrerUserId: referral.referrerUserId,
+                referredUserId: referral.referredUserId,
+                referrerUsername: referrer?.username || 'Unknown',
+                referredUsername: referred?.username || 'Unknown',
+                status: referral.status,
+                dateReferred: referral.dateReferred,
+                withdrawn: referral.withdrawn,
+                referrerIsAmbassador: !!referrer?.ambassadorEmail,
+                referrerTier: referrer?.ambassadorTier
+            };
+        }));
+
+        const totalReferrals = await Referral.countDocuments({});
+        
+        res.json({
+            referrals: enrichedReferrals,
+            pagination: {
+                page,
+                limit,
+                total: totalReferrals,
+                pages: Math.ceil(totalReferrals / limit),
+                hasMore: skip + limit < totalReferrals
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching referrals data:', error);
+        res.status(500).json({ error: 'Failed to fetch referrals data' });
+    }
+});
+
+// Get comprehensive transactions data for admin
+app.get('/api/admin/transactions-data', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const page = parseInt(req.query.page) || 1;
+        const skip = (page - 1) * limit;
+        
+        // Get both buy and sell orders
+        const [buyOrders, sellOrders] = await Promise.all([
+            BuyOrder.find({})
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(Math.floor(limit / 2))
+                .lean(),
+            SellOrder.find({})
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(Math.floor(limit / 2))
+                .lean()
+        ]);
+
+        // Combine and format transactions
+        const transactions = [
+            ...buyOrders.map(order => ({
+                id: order.id,
+                type: 'buy',
+                telegramId: order.telegramId,
+                username: order.username,
+                amount: order.amount,
+                stars: order.stars,
+                status: order.status,
+                createdAt: order.createdAt,
+                isPremium: order.isPremium,
+                premiumDuration: order.premiumDuration
+            })),
+            ...sellOrders.map(order => ({
+                id: order.id,
+                type: 'sell',
+                telegramId: order.telegramId,
+                username: order.username,
+                amount: order.amount,
+                stars: order.stars,
+                status: order.status,
+                createdAt: order.createdAt,
+                walletAddress: order.walletAddress
+            }))
+        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        const [totalBuyOrders, totalSellOrders] = await Promise.all([
+            BuyOrder.countDocuments({}),
+            SellOrder.countDocuments({})
+        ]);
+        
+        res.json({
+            transactions,
+            pagination: {
+                page,
+                limit,
+                total: totalBuyOrders + totalSellOrders,
+                pages: Math.ceil((totalBuyOrders + totalSellOrders) / limit),
+                hasMore: skip + limit < (totalBuyOrders + totalSellOrders)
+            },
+            stats: {
+                totalBuyOrders,
+                totalSellOrders,
+                totalTransactions: totalBuyOrders + totalSellOrders
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching transactions data:', error);
+        res.status(500).json({ error: 'Failed to fetch transactions data' });
+    }
+});
+
+// Get dashboard analytics for admin
+app.get('/api/admin/analytics', async (req, res) => {
+    try {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const [
+            totalUsers,
+            totalReferrals,
+            activeReferrals,
+            totalTransactions,
+            todayUsers,
+            weekUsers,
+            monthUsers,
+            todayReferrals,
+            weekReferrals,
+            monthReferrals,
+            totalEarnings,
+            totalStarsTraded
+        ] = await Promise.all([
+            User.countDocuments({}),
+            Referral.countDocuments({}),
+            Referral.countDocuments({ status: 'active' }),
+            BuyOrder.countDocuments({ status: 'completed' }) + await SellOrder.countDocuments({ status: 'completed' }),
+            User.countDocuments({ createdAt: { $gte: today } }),
+            User.countDocuments({ createdAt: { $gte: thisWeek } }),
+            User.countDocuments({ createdAt: { $gte: thisMonth } }),
+            Referral.countDocuments({ dateReferred: { $gte: today } }),
+            Referral.countDocuments({ dateReferred: { $gte: thisWeek } }),
+            Referral.countDocuments({ dateReferred: { $gte: thisMonth } }),
+            ReferralWithdrawal.aggregate([
+                { $match: { status: 'completed' } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]),
+            BuyOrder.aggregate([
+                { $match: { status: 'completed' } },
+                { $group: { _id: null, total: { $sum: '$stars' } } }
+            ])
+        ]);
+
+        res.json({
+            overview: {
+                totalUsers,
+                totalReferrals,
+                activeReferrals,
+                totalTransactions,
+                conversionRate: totalReferrals > 0 ? ((activeReferrals / totalReferrals) * 100).toFixed(2) : 0
+            },
+            growth: {
+                today: { users: todayUsers, referrals: todayReferrals },
+                week: { users: weekUsers, referrals: weekReferrals },
+                month: { users: monthUsers, referrals: monthReferrals }
+            },
+            financial: {
+                totalEarnings: totalEarnings[0]?.total || 0,
+                totalStarsTraded: totalStarsTraded[0]?.total || 0
+            },
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error fetching analytics:', error);
+        res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+});
+
+// Sync ambassador data (called from Ambassador app)
+app.post('/api/ambassador/sync', async (req, res) => {
+    try {
+        const { telegramId, email, fullName, tier, referralCode } = req.body;
+        
+        if (!telegramId) {
+            return res.status(400).json({ error: 'Telegram ID is required' });
+        }
+
+        // Store ambassador info in the User collection with additional fields
+        const result = await User.findOneAndUpdate(
+            { id: telegramId },
+            { 
+                $set: {
+                    ambassadorEmail: email,
+                    ambassadorFullName: fullName,
+                    ambassadorTier: tier,
+                    ambassadorReferralCode: referralCode,
+                    ambassadorSyncedAt: new Date()
+                }
+            },
+            { upsert: false, new: true }
+        );
+
+        if (!result) {
+            return res.status(404).json({ error: 'User not found. Please interact with the bot first.' });
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Ambassador data synced successfully',
+            user: {
+                id: result.id,
+                username: result.username,
+                ambassadorTier: result.ambassadorTier,
+                syncedAt: result.ambassadorSyncedAt
+            }
+        });
+    } catch (error) {
+        console.error('Error syncing ambassador data:', error);
+        res.status(500).json({ error: 'Failed to sync ambassador data' });
+    }
+});
+
+// Register webhook endpoint (for Ambassador app to register for updates)
+app.post('/api/webhook/register', async (req, res) => {
+    try {
+        const { url, events, source } = req.body;
+        
+        if (!url || !events || !Array.isArray(events)) {
+            return res.status(400).json({ error: 'URL and events array are required' });
+        }
+
+        // Log webhook registration (enhance this to store in DB if needed)
+        console.log(`🔗 Webhook registered: ${url} for events: ${events.join(', ')} from ${source}`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Webhook registered successfully',
+            url,
+            events,
+            registeredAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error registering webhook:', error);
+        res.status(500).json({ error: 'Failed to register webhook' });
+    }
+});
+
+// Health check endpoint for Ambassador app connection testing
+app.get('/api/health', async (req, res) => {
+    try {
+        // Test database connection
+        const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+        const userCount = await User.countDocuments({});
+        
+        res.json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            service: 'StarStore',
+            version: '1.0.0',
+            database: dbStatus,
+            userCount,
+            uptime: process.uptime()
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            timestamp: new Date().toISOString(),
+            error: error.message
+        });
+    }
+});
+
+// ============================================================================
+// END OF AMBASSADOR DASHBOARD INTEGRATION ENDPOINTS
+// ============================================================================
+
 // Handle both /referrals command and plain text "referrals"
 bot.onText(/\/referrals|referrals/i, async (msg) => {
     const chatId = msg.chat.id;
