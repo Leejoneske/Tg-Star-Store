@@ -64,7 +64,8 @@
                 script.onload = () => {
                     console.log('Version display script loaded');
                     if (window.versionDisplay) {
-                        // Version display info available
+                        console.log('Version Display Info:', window.versionDisplay.getVersionInfo());
+                        console.log('Display Version:', window.versionDisplay.getDisplayVersion());
                     }
                 };
                 document.head.appendChild(script);
