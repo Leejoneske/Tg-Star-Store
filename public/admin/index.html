@@ -4,50 +4,495 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - StarStore</title>
-    <link rel="stylesheet" href="/css/admin-shared.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <title>StarStore Admin Dashboard</title>
+    <link rel="icon" href="/favicon.png" type="image/png">
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/admin-modern.css">
+    
+    <!-- Fallback CSS in case external CSS fails -->
+    <style>
+        /* Critical CSS for login page */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 50%, #3730a3 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .fixed { position: fixed; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .z-40 { z-index: 40; }
+        .z-50 { z-index: 50; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .hidden { display: none !important; }
+        .bg-white { background-color: white; }
+        .rounded-3xl { border-radius: 1.5rem; }
+        .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        .p-10 { padding: 2.5rem; }
+        .w-full { width: 100%; }
+        .max-w-lg { max-width: 32rem; }
+        .mx-6 { margin-left: 1.5rem; margin-right: 1.5rem; }
+        .relative { position: relative; }
+        .text-center { text-align: center; }
+        .mb-10 { margin-bottom: 2.5rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .w-20 { width: 5rem; }
+        .h-20 { height: 5rem; }
+        .rounded-2xl { border-radius: 1rem; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+        .font-bold { font-weight: 700; }
+        .text-gray-900 { color: #111827; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .text-gray-600 { color: #4b5563; }
+        .font-medium { font-weight: 500; }
+        .space-y-6 > * + * { margin-top: 1.5rem; }
+        .space-y-2 > * + * { margin-top: 0.5rem; }
+        .block { display: block; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .font-semibold { font-weight: 600; }
+        .text-gray-700 { color: #374151; }
+        .px-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+        .border-2 { border-width: 2px; }
+        .border-gray-200 { border-color: #e5e7eb; }
+        .rounded-xl { border-radius: 0.75rem; }
+        .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+        .placeholder-gray-400::placeholder { color: #9ca3af; }
+        .bg-gray-50 { background-color: #f9fafb; }
+        .text-blue-500 { color: #3b82f6; }
+        .text-white { color: white; }
+        .bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
+        .from-blue-600 { --tw-gradient-from: #2563eb; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(37, 99, 235, 0)); }
+        .to-purple-600 { --tw-gradient-to: #9333ea; }
+        .cursor-pointer { cursor: pointer; }
+        .transition-all { transition: all 0.3s ease; }
+        .hover\:scale-105:hover { transform: scale(1.05); }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Button styling */
+        button {
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-1px);
+        }
+        
+        /* Input styling */
+        input {
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+    </style>
 </head>
-<body>
-    <!-- Authentication Screen -->
-    <div id="auth-screen" class="fixed inset-0 flex items-center justify-center bg-gray-50 z-50">
-        <div class="card" style="max-width: 400px; width: 100%; margin: 20px;">
-            <div class="card-header text-center">
-                <div class="flex items-center justify-center mb-4">
-                    <div class="stat-icon primary">
-                        <i class="fas fa-shield-alt text-xl"></i>
-                    </div>
-                </div>
-                <h2 class="text-xl font-bold">Admin Login</h2>
-                <p class="text-sm text-gray-600">Enter your Telegram ID to access the admin panel</p>
+<body class="bg-gray-50">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+        <div class="text-center">
+            <div class="loading-spinner"></div>
+            <p class="mt-4 text-gray-600 font-medium">Loading Admin Dashboard...</p>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 z-40 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black bg-opacity-30 backdrop-blur-sm"></div>
+        
+        <div class="relative bg-white rounded-3xl shadow-2xl p-10 w-full max-w-lg mx-6 transform transition-all animate-fade-in">
+            <!-- Background Pattern -->
+            <div class="absolute inset-0 rounded-3xl overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full -translate-y-16 translate-x-16 opacity-50"></div>
+                <div class="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-indigo-100 to-blue-100 rounded-full translate-y-12 -translate-x-12 opacity-50"></div>
             </div>
             
-            <div class="card-body">
-                <div class="form-group">
-                    <label class="form-label">Telegram ID</label>
-                    <input type="text" id="tgIdInput" class="form-input" placeholder="Enter your Telegram ID">
-                </div>
-                
-                <button id="sendOtpBtn" class="btn btn-primary w-full mb-4">
-                    <i class="fas fa-paper-plane"></i>
-                    Send Verification Code
-                </button>
-                
-                <div class="form-group">
-                    <label class="form-label">Verification Code</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="otpInput" class="form-input" placeholder="000000" maxlength="6">
-                        <button id="verifyOtpBtn" class="btn btn-success">
-                            <i class="fas fa-check"></i>
-                            Verify
-                        </button>
+            <div class="relative z-10">
+                <!-- Header -->
+                <div class="text-center mb-10">
+                    <div class="relative mb-6">
+                        <div class="w-20 h-20 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                            <i class="fas fa-star text-3xl text-white"></i>
+                        </div>
+                        <div class="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                            <i class="fas fa-shield-alt text-xs text-white"></i>
+                        </div>
                     </div>
-                    <div id="otpTimer" class="text-xs text-gray-500 mt-2 hidden"></div>
+                    <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2">
+                        StarStore Admin
+                    </h1>
+                    <p class="text-gray-600 font-medium">Secure Dashboard Access</p>
+                    <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mt-4"></div>
                 </div>
                 
-                <div id="authMessage" class="text-sm text-center hidden"></div>
+                <form id="login-form" class="space-y-6" onsubmit="return false;">
+                    <!-- Telegram ID Input -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fab fa-telegram-plane text-blue-500 mr-2"></i>
+                            Telegram ID
+                        </label>
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                id="telegram-id" 
+                                class="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-gray-50 focus:bg-white text-lg font-medium placeholder-gray-400" 
+                                placeholder="Enter your Telegram ID" 
+                                required
+                                onkeypress="if(event.key==='Enter') handleSendOTP()"
+                                oninput="console.log('Input changed:', this.value)"
+                            >
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-4">
+                                <i class="fas fa-user text-gray-400"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 ml-1">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Your unique Telegram user ID
+                        </p>
+                    </div>
+                    
+                    <!-- Send OTP Button -->
+                    <button 
+                        type="button" 
+                        id="send-otp-btn" 
+                        class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                        onclick="handleSendOTP()"
+                    >
+                        <i class="fas fa-paper-plane mr-3"></i>
+                        Send Verification Code
+                    </button>
+                    
+                    <!-- OTP Section -->
+                    <div id="otp-section" class="hidden space-y-4 animate-slide-down">
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                            <div class="flex items-center mb-3">
+                                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                                    <i class="fas fa-key text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-blue-800">Verification Code</h4>
+                                    <p class="text-xs text-blue-600">Check your Telegram for the code</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-3">
+                                <input 
+                                    type="text" 
+                                    id="otp-input" 
+                                    class="flex-1 px-4 py-3 border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-center text-lg font-mono tracking-widest" 
+                                    placeholder="000000" 
+                                    maxlength="6"
+                                >
+                                <button 
+                                    type="button" 
+                                    id="verify-otp-btn" 
+                                    class="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all duration-300 transform hover:scale-105 shadow-md"
+                                    onclick="handleVerifyOTP()"
+                                >
+                                    <i class="fas fa-check text-lg"></i>
+                                </button>
+                            </div>
+                            
+                            <div id="otp-timer" class="text-sm text-blue-600 mt-3 font-medium hidden">
+                                <i class="fas fa-clock mr-1"></i>
+                                <span id="timer-text">Code expires in 5:00</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Message -->
+                    <div id="login-message" class="text-center hidden">
+                        <div class="inline-flex items-center px-4 py-2 rounded-lg">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <span id="message-text"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Security Notice -->
+                    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mt-6">
+                        <div class="flex items-start">
+                            <div class="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                                <i class="fas fa-lock text-white text-xs"></i>
+                            </div>
+                            <div>
+                                <h5 class="font-semibold text-gray-700 text-sm">Secure Access</h5>
+                                <p class="text-xs text-gray-600 mt-1">
+                                    Only authorized administrators can access this dashboard. 
+                                    Your session is encrypted and monitored for security.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg transform -translate-x-full lg:translate-x-0 transition-transform duration-300 z-30">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-star text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">StarStore</h1>
+                        <p class="text-sm text-gray-500">Admin Dashboard</p>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="p-4 space-y-2">
+                <a href="#dashboard" class="nav-link active" data-section="dashboard">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#orders" class="nav-link" data-section="orders">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Orders</span>
+                </a>
+                <a href="#users" class="nav-link" data-section="users">
+                    <i class="fas fa-users"></i>
+                    <span>Users</span>
+                </a>
+                <a href="#analytics" class="nav-link" data-section="analytics">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </a>
+                <a href="#notifications" class="nav-link" data-section="notifications">
+                    <i class="fas fa-bell"></i>
+                    <span>Notifications</span>
+                </a>
+                <a href="#system" class="nav-link" data-section="system">
+                    <i class="fas fa-cog"></i>
+                    <span>System</span>
+                </a>
+            </nav>
+            
+            <div class="absolute bottom-4 left-4 right-4">
+                <button id="logout-btn" class="w-full flex items-center justify-center space-x-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden hidden"></div>
+
+        <!-- Main Content -->
+        <main class="lg:ml-64 min-h-screen">
+            <!-- Top Bar -->
+            <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <button id="sidebar-toggle" class="lg:hidden p-2 rounded-lg hover:bg-gray-100">
+                            <i class="fas fa-bars text-gray-600"></i>
+                        </button>
+                        <h2 id="page-title" class="text-2xl font-bold text-gray-900">Dashboard</h2>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-white text-sm"></i>
+                            </div>
+                            <span id="admin-name" class="text-sm font-medium text-gray-700">Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Sections -->
+            <div class="p-6">
+                <!-- Dashboard Section -->
+                <section id="dashboard-section" class="section active">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="stat-card">
+                            <div class="stat-icon bg-blue-500">
+                                <i class="fas fa-users text-white"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-title">Total Users</h3>
+                                <p class="stat-value" id="total-users">0</p>
+                                <p class="stat-change positive">+12% from last month</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon bg-green-500">
+                                <i class="fas fa-shopping-cart text-white"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-title">Total Orders</h3>
+                                <p class="stat-value" id="total-orders">0</p>
+                                <p class="stat-change positive">+8% from last month</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon bg-purple-500">
+                                <i class="fas fa-dollar-sign text-white"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-title">Total Revenue</h3>
+                                <p class="stat-value" id="total-revenue">$0</p>
+                                <p class="stat-change positive">+15% from last month</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon bg-orange-500">
+                                <i class="fas fa-clock text-white"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-title">Pending Orders</h3>
+                                <p class="stat-value" id="pending-orders">0</p>
+                                <p class="stat-change neutral">No change</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">Revenue Trend</h3>
+                                <div class="chart-controls">
+                                    <select id="revenue-period" class="text-sm border border-gray-300 rounded px-3 py-1">
+                                        <option value="7d">Last 7 Days</option>
+                                        <option value="30d">Last 30 Days</option>
+                                        <option value="90d">Last 90 Days</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="revenue-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">Order Status Distribution</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="orders-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="activity-card">
+                        <div class="activity-header">
+                            <h3 class="activity-title">Recent Activity</h3>
+                            <button class="activity-refresh" id="refresh-activity">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="activity-list" id="activity-list">
+                            <!-- Activity items will be loaded here -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Other sections (Orders, Users, etc.) can be added here -->
+                <section id="orders-section" class="section">
+                    <div class="section-header">
+                        <h3 class="section-title">Order Management</h3>
+                    </div>
+                    <div class="bg-white rounded-lg p-8 text-center">
+                        <i class="fas fa-shopping-cart text-4xl text-gray-400 mb-4"></i>
+                        <h4 class="text-lg font-semibold text-gray-700 mb-2">Order Management</h4>
+                        <p class="text-gray-500">Advanced order management features coming soon...</p>
+                    </div>
+                </section>
+
+                <section id="users-section" class="section">
+                    <div class="section-header">
+                        <h3 class="section-title">User Management</h3>
+                    </div>
+                    <div class="bg-white rounded-lg p-8 text-center">
+                        <i class="fas fa-users text-4xl text-gray-400 mb-4"></i>
+                        <h4 class="text-lg font-semibold text-gray-700 mb-2">User Management</h4>
+                        <p class="text-gray-500">Comprehensive user management tools coming soon...</p>
+                    </div>
+                </section>
+
+                <section id="analytics-section" class="section">
+                    <div class="section-header">
+                        <h3 class="section-title">Analytics & Reports</h3>
+                    </div>
+                    <div class="bg-white rounded-lg p-8 text-center">
+                        <i class="fas fa-chart-line text-4xl text-gray-400 mb-4"></i>
+                        <h4 class="text-lg font-semibold text-gray-700 mb-2">Analytics & Reports</h4>
+                        <p class="text-gray-500">Advanced analytics and reporting features coming soon...</p>
+                    </div>
+                </section>
+
+                <section id="notifications-section" class="section">
+                    <div class="section-header">
+                        <h3 class="section-title">Notification Center</h3>
+                    </div>
+                    <div class="bg-white rounded-lg p-8 text-center">
+                        <i class="fas fa-bell text-4xl text-gray-400 mb-4"></i>
+                        <h4 class="text-lg font-semibold text-gray-700 mb-2">Notification Center</h4>
+                        <p class="text-gray-500">Notification management system coming soon...</p>
+                    </div>
+                </section>
+
+                <section id="system-section" class="section">
+                    <div class="section-header">
+                        <h3 class="section-title">System Management</h3>
+                    </div>
+                    <div class="bg-white rounded-lg p-8 text-center">
+                        <i class="fas fa-cog text-4xl text-gray-400 mb-4"></i>
+                        <h4 class="text-lg font-semibold text-gray-700 mb-2">System Management</h4>
+                        <p class="text-gray-500">System monitoring and management tools coming soon...</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/admin/main.js"></script>
     </div>
 
     <!-- Mobile Overlay -->
@@ -486,858 +931,5 @@
         </main>
     </div>
 
-    <script>
-        // Admin Dashboard - Clean WhatsApp-Inspired Design
-        class AdminDashboard {
-            constructor() {
-                this.currentUser = null;
-                this.csrfToken = null;
-                this.currentView = 'dashboard';
-                this.ordersPage = 1;
-                this.withdrawalsPage = 1;
-                this.init();
-            }
-
-            async init() {
-                this.setupEventListeners();
-                await this.checkAuth();
-            }
-
-            setupEventListeners() {
-                // Authentication
-                document.getElementById('sendOtpBtn')?.addEventListener('click', () => this.sendOTP());
-                document.getElementById('verifyOtpBtn')?.addEventListener('click', () => this.verifyOTP());
-                document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
-
-                // Navigation
-                document.querySelectorAll('.nav-link').forEach(link => {
-                    link.addEventListener('click', (e) => {
-                        const view = e.currentTarget.getAttribute('data-view');
-                        this.navigateTo(view);
-                    });
-                });
-
-                // Orders
-                document.getElementById('ordersStatus')?.addEventListener('change', () => this.loadOrders());
-                document.getElementById('ordersSearch')?.addEventListener('input', this.debounce(() => this.loadOrders(), 500));
-                document.getElementById('ordersPrev')?.addEventListener('click', () => this.changeOrdersPage(-1));
-                document.getElementById('ordersNext')?.addEventListener('click', () => this.changeOrdersPage(1));
-
-                // Withdrawals
-                document.getElementById('withdrawalsStatus')?.addEventListener('change', () => this.loadWithdrawals());
-                document.getElementById('withdrawalsSearch')?.addEventListener('input', this.debounce(() => this.loadWithdrawals(), 500));
-                document.getElementById('withdrawalsPrev')?.addEventListener('click', () => this.changeWithdrawalsPage(-1));
-                document.getElementById('withdrawalsNext')?.addEventListener('click', () => this.changeWithdrawalsPage(1));
-
-                // Notifications
-                document.getElementById('notifyMessage')?.addEventListener('input', (e) => this.updateMessageLength(e));
-                document.getElementById('notifySend')?.addEventListener('click', () => this.sendNotification());
-
-                // Mobile menu
-                document.getElementById('mobileMenuBtn')?.addEventListener('click', () => this.toggleMobileMenu());
-                document.getElementById('mobileOverlay')?.addEventListener('click', () => this.closeMobileMenu());
-                
-                // Keyboard events
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape') {
-                        this.closeMobileMenu();
-                    }
-                });
-
-                // Orders filters
-                document.getElementById('ordersType')?.addEventListener('change', () => { this.ordersPage = 1; this.loadOrders(); });
-                document.getElementById('ordersStatus')?.addEventListener('change', () => { this.ordersPage = 1; this.loadOrders(); });
-                document.getElementById('ordersSearch')?.addEventListener('input', this.debounce(() => { this.ordersPage = 1; this.loadOrders(); }, 400));
-
-                // Users filters
-                document.getElementById('usersActiveWindow')?.addEventListener('change', () => { this.usersPage = 1; this.loadUsers(); });
-
-                // Refresh
-                document.getElementById('refreshBtn')?.addEventListener('click', () => this.refreshCurrentView());
-
-                // Bot management
-                document.getElementById('toggleBotSimulator')?.addEventListener('click', () => this.toggleBotSimulator());
-            }
-
-            async checkAuth() {
-                try {
-                    const response = await fetch('/api/me');
-                    const user = await response.json();
-                    
-                    if (user.isAdmin) {
-                        this.currentUser = user;
-                        this.showAdminInterface();
-                        // Load CSRF for session-backed requests
-                        try {
-                            const csrfRes = await fetch('/api/admin/csrf');
-                            if (csrfRes.ok) {
-                                const csrfData = await csrfRes.json();
-                                this.csrfToken = csrfData.csrfToken;
-                            }
-                        } catch {}
-                        // Remove auth overlay to avoid any overlap
-                        const authEl = document.getElementById('auth-screen');
-                        if (authEl && authEl.parentNode) authEl.parentNode.removeChild(authEl);
-                        await this.loadDashboard();
-                    } else {
-                        this.showAuthInterface();
-                    }
-                } catch (error) {
-                    console.error('Auth check failed:', error);
-                    this.showAuthInterface();
-                }
-            }
-
-            async sendOTP() {
-                const tgId = document.getElementById('tgIdInput').value.trim();
-                if (!tgId) {
-                    this.showNotification('Please enter your Telegram ID', 'error');
-                    return;
-                }
-
-                const btn = document.getElementById('sendOtpBtn');
-                btn.disabled = true;
-                btn.innerHTML = '<i class="spinner"></i> Sending...';
-
-                try {
-                    const response = await fetch('/api/admin/auth/send-otp', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tgId })
-                    });
-
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        this.showNotification('Verification code sent to your Telegram!', 'success');
-                        this.startOTPTimer();
-                        document.getElementById('otpInput').focus();
-                    } else {
-                        this.showNotification(result.error || 'Failed to send code', 'error');
-                    }
-                } catch (error) {
-                    this.showNotification('Network error. Please try again.', 'error');
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Verification Code';
-                }
-            }
-
-            async verifyOTP() {
-                const tgId = document.getElementById('tgIdInput').value.trim();
-                const code = document.getElementById('otpInput').value.trim();
-                
-                if (!code) {
-                    this.showNotification('Please enter the verification code', 'error');
-                    return;
-                }
-
-                const btn = document.getElementById('verifyOtpBtn');
-                btn.disabled = true;
-                btn.innerHTML = '<i class="spinner"></i> Verifying...';
-
-                try {
-                    const response = await fetch('/api/admin/auth/verify-otp', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tgId, code })
-                    });
-
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        this.csrfToken = result.csrfToken;
-                        this.currentUser = { id: tgId, isAdmin: true };
-                        this.showNotification('Login successful!', 'success');
-                        this.showAdminInterface();
-                        // Hard remove auth overlay from DOM to prevent overlap
-                        const authEl = document.getElementById('auth-screen');
-                        if (authEl) {
-                            authEl.parentNode && authEl.parentNode.removeChild(authEl);
-                        }
-                        // Ensure mobile menu/overlay are closed
-                        this.closeMobileMenu();
-                        await this.loadDashboard();
-                    } else {
-                        this.showNotification(result.error || 'Invalid code', 'error');
-                    }
-                } catch (error) {
-                    this.showNotification('Network error. Please try again.', 'error');
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-check"></i> Verify';
-                }
-            }
-
-            async logout() {
-                try {
-                    await fetch('/api/admin/logout', { method: 'POST' });
-                    this.currentUser = null;
-                    this.csrfToken = null;
-                    this.showAuthInterface();
-                    this.showNotification('Logged out successfully', 'success');
-                } catch (error) {
-                    console.error('Logout error:', error);
-                }
-            }
-
-            showAuthInterface() {
-                document.getElementById('auth-screen').classList.remove('hidden');
-                document.getElementById('admin-interface').classList.add('hidden');
-                // Close mobile menu if open
-                this.closeMobileMenu();
-            }
-
-            showAdminInterface() {
-                const auth = document.getElementById('auth-screen');
-                if (auth) auth.classList.add('hidden');
-                document.getElementById('admin-interface').classList.remove('hidden');
-                // Close mobile menu if open
-                this.closeMobileMenu();
-            }
-
-            navigateTo(view) {
-                this.currentView = view;
-                
-                // Update navigation
-                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-                document.querySelector(`[data-view="${view}"]`).classList.add('active');
-                
-                // Update page title
-                const titles = {
-                    dashboard: 'Dashboard',
-                    orders: 'Orders',
-                    withdrawals: 'Withdrawals',
-                    notifications: 'Notifications',
-                    bots: 'Bot Management',
-                    settings: 'Settings'
-                };
-                document.getElementById('pageTitle').textContent = titles[view] || 'Dashboard';
-                
-                // Show/hide views
-                document.querySelectorAll('[id$="-view"]').forEach(v => v.classList.add('hidden'));
-                document.getElementById(`${view}-view`).classList.remove('hidden');
-                
-                // Close mobile menu on navigation
-                this.closeMobileMenu();
-                
-                // Load data for the view
-                this.loadViewData(view);
-            }
-
-            async loadViewData(view) {
-                switch (view) {
-                    case 'dashboard':
-                        await this.loadDashboard();
-                        break;
-                    case 'orders':
-                        await this.loadOrders();
-                        break;
-                    case 'users':
-                        await this.loadUsers();
-                        break;
-                    case 'withdrawals':
-                        await this.loadWithdrawals();
-                        break;
-                    case 'bots':
-                        await this.loadBotStatus();
-                        break;
-                }
-            }
-
-            async loadDashboard() {
-                try {
-                    const response = await fetch('/api/admin/stats');
-                    const stats = await response.json();
-                    
-                    document.getElementById('totalOrders').textContent = stats.totalOrders || 0;
-                    document.getElementById('pendingWithdrawals').textContent = stats.pendingWithdrawals || 0;
-                    document.getElementById('totalUsers').textContent = stats.totalUsers || 0;
-                    document.getElementById('revenue').textContent = `$${stats.revenueUsdt || 0}`;
-                    
-                    this.updateTimestamp();
-                } catch (error) {
-                    console.error('Failed to load dashboard:', error);
-                    this.showNotification('Failed to load dashboard data', 'error');
-                }
-            }
-
-            async loadOrders() {
-                const status = document.getElementById('ordersStatus').value;
-                const type = document.getElementById('ordersType')?.value || 'all';
-                const query = document.getElementById('ordersSearch').value;
-                
-                try {
-                    const params = new URLSearchParams({
-                        page: this.ordersPage,
-                        limit: 20,
-                        ...(status && { status }),
-                        ...(type && { type }),
-                        ...(query && { q: query })
-                    });
-
-                    const response = await fetch(`/api/admin/orders?${params}`);
-                    const data = await response.json();
-                    
-                    this.renderOrdersTable(data.orders || []);
-                    this.updateOrdersPagination(data.total || 0);
-                } catch (error) {
-                    console.error('Failed to load orders:', error);
-                    this.showNotification('Failed to load orders', 'error');
-                }
-            }
-
-            renderOrdersTable(orders) {
-                const table = document.getElementById('ordersTable');
-                if (!table) return;
-
-                if (orders.length === 0) {
-                    table.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">
-                                <i class="fas fa-shopping-cart"></i>
-                            </div>
-                            <p>No orders found</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                const tableHTML = `
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Order ID</th>
-                                <th>Type</th>
-                                <th>User</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${orders.map(order => `
-                                <tr>
-                                    <td class="font-medium">${order.id}</td>
-                                    <td>
-                                        <span class="badge ${order.type === 'buy' ? 'badge-info' : 'badge-success'}">
-                                            ${order.type.toUpperCase()}
-                                        </span>
-                                    </td>
-                                    <td>@${order.username}</td>
-                                    <td>${order.amount} USDT</td>
-                                    <td>
-                                        <span class="badge badge-${order.status}">${order.status}</span>
-                                    </td>
-                                    <td class="text-sm">${new Date(order.dateCreated).toLocaleDateString()}</td>
-                                    <td>
-                                        <div class="flex gap-2">
-                                            ${order.status === 'pending' ? `
-                                                <button onclick="adminDashboard.completeOrder('${order.id}')" class="btn btn-success btn-sm">
-                                                    <i class="fas fa-check"></i>
-                                                </button>
-                                                <button onclick="adminDashboard.declineOrder('${order.id}')" class="btn btn-danger btn-sm">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            ` : ''}
-                                        </div>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-
-                table.innerHTML = tableHTML;
-            }
-
-            async loadUsers() {
-                try {
-                    const minutes = parseInt(document.getElementById('usersActiveWindow').value || '0', 10) || 0;
-                    const params = new URLSearchParams({ limit: 200, ...(minutes > 0 && { activeMinutes: minutes }) });
-                    const response = await fetch(`/api/admin/users?${params}`);
-                    const data = await response.json();
-                    this.renderUsersTable(data.users || [], data.total || 0);
-                } catch (error) {
-                    console.error('Failed to load users:', error);
-                    this.showNotification('Failed to load users', 'error');
-                }
-            }
-
-            renderUsersTable(users, total) {
-                const el = document.getElementById('usersTable');
-                if (!el) return;
-                if (!users.length) {
-                    el.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon"><i class="fas fa-users"></i></div>
-                            <p>No users found</p>
-                        </div>`;
-                    return;
-                }
-                el.innerHTML = `
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>User ID</th>
-                                <th>Username</th>
-                                <th>Last Active</th>
-                                <th>Created</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${users.map(u => `
-                                <tr>
-                                    <td>${u.id}</td>
-                                    <td>${u.username ? '@'+u.username : '-'}</td>
-                                    <td>${u.lastActive ? new Date(u.lastActive).toLocaleString() : '-'}</td>
-                                    <td>${u.createdAt ? new Date(u.createdAt).toLocaleString() : '-'}</td>
-                                </tr>`).join('')}
-                        </tbody>
-                    </table>`;
-            }
-
-            async loadWithdrawals() {
-                const status = document.getElementById('withdrawalsStatus').value;
-                const query = document.getElementById('withdrawalsSearch').value;
-                
-                try {
-                    const params = new URLSearchParams({
-                        page: this.withdrawalsPage,
-                        limit: 20,
-                        ...(status && { status }),
-                        ...(query && { q: query })
-                    });
-
-                    const response = await fetch(`/api/admin/withdrawals?${params}`);
-                    const data = await response.json();
-                    
-                    this.renderWithdrawalsTable(data.withdrawals || []);
-                    this.updateWithdrawalsPagination(data.total || 0);
-                } catch (error) {
-                    console.error('Failed to load withdrawals:', error);
-                    this.showNotification('Failed to load withdrawals', 'error');
-                }
-            }
-
-            renderWithdrawalsTable(withdrawals) {
-                const table = document.getElementById('withdrawalsTable');
-                if (!table) return;
-
-                if (withdrawals.length === 0) {
-                    table.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">
-                                <i class="fas fa-credit-card"></i>
-                            </div>
-                            <p>No withdrawals found</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                const tableHTML = `
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>User</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${withdrawals.map(withdrawal => `
-                                <tr>
-                                    <td class="font-medium">${withdrawal.id}</td>
-                                    <td>@${withdrawal.username}</td>
-                                    <td>${withdrawal.amount} USDT</td>
-                                    <td>
-                                        <span class="badge badge-${withdrawal.status}">${withdrawal.status}</span>
-                                    </td>
-                                    <td class="text-sm">${new Date(withdrawal.dateCreated).toLocaleDateString()}</td>
-                                    <td>
-                                        <div class="flex gap-2">
-                                            ${withdrawal.status === 'pending' ? `
-                                                <button onclick="adminDashboard.completeWithdrawal('${withdrawal.id}')" class="btn btn-success btn-sm">
-                                                    <i class="fas fa-check"></i>
-                                                </button>
-                                                <button onclick="adminDashboard.declineWithdrawal('${withdrawal.id}')" class="btn btn-danger btn-sm">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            ` : ''}
-                                        </div>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-
-                table.innerHTML = tableHTML;
-            }
-
-            async sendNotification() {
-                const target = document.getElementById('notifyTarget').value.trim();
-                const message = document.getElementById('notifyMessage').value.trim();
-                
-                if (!target || !message) {
-                    this.showNotification('Please fill in all fields', 'error');
-                    return;
-                }
-
-                const btn = document.getElementById('notifySend');
-                btn.disabled = true;
-                btn.innerHTML = '<i class="spinner"></i> Sending...';
-
-                try {
-                    const response = await fetch('/api/admin/notify', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-csrf-token': this.csrfToken
-                        },
-                        body: JSON.stringify({ target, message })
-                    });
-
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        this.showNotification('Notification sent successfully!', 'success');
-                        document.getElementById('notifyMessage').value = '';
-                        document.getElementById('notifyTarget').value = '';
-                    } else {
-                        this.showNotification(result.error || 'Failed to send notification', 'error');
-                    }
-                } catch (error) {
-                    this.showNotification('Network error. Please try again.', 'error');
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Message';
-                }
-            }
-
-            // Utility methods
-            showNotification(message, type = 'info') {
-                const notification = document.createElement('div');
-                notification.className = `notification ${type}`;
-                notification.textContent = message;
-                document.body.appendChild(notification);
-                
-                setTimeout(() => {
-                    notification.remove();
-                }, 5000);
-            }
-
-            updateMessageLength(event) {
-                const length = event.target.value.length;
-                const lengthElement = document.getElementById('messageLength');
-                if (lengthElement) {
-                    lengthElement.textContent = length;
-                    lengthElement.className = `text-xs ${length > 450 ? 'text-red-500' : length > 350 ? 'text-yellow-500' : 'text-gray-500'}`;
-                }
-            }
-
-            updateTimestamp() {
-                const timestamp = document.getElementById('lastUpdate');
-                if (timestamp) {
-                    const now = new Date();
-                    timestamp.textContent = now.toLocaleTimeString();
-                }
-            }
-
-            startOTPTimer() {
-                const timerElement = document.getElementById('otpTimer');
-                if (timerElement) {
-                    timerElement.classList.remove('hidden');
-                    let seconds = 60;
-                    const interval = setInterval(() => {
-                        timerElement.textContent = `Resend available in ${seconds}s`;
-                        seconds--;
-                        if (seconds < 0) {
-                            clearInterval(interval);
-                            timerElement.classList.add('hidden');
-                        }
-                    }, 1000);
-                }
-            }
-
-            toggleMobileMenu() {
-                const sidebar = document.querySelector('.sidebar');
-                const overlay = document.getElementById('mobileOverlay');
-                
-                if (sidebar.classList.contains('open')) {
-                    this.closeMobileMenu();
-                } else {
-                    sidebar.classList.add('open');
-                    overlay.classList.add('open');
-                }
-            }
-
-            closeMobileMenu() {
-                const sidebar = document.querySelector('.sidebar');
-                const overlay = document.getElementById('mobileOverlay');
-                
-                sidebar.classList.remove('open');
-                overlay.classList.remove('open');
-            }
-
-            debounce(func, wait) {
-                let timeout;
-                return function executedFunction(...args) {
-                    const later = () => {
-                        clearTimeout(timeout);
-                        func(...args);
-                    };
-                    clearTimeout(timeout);
-                    timeout = setTimeout(later, wait);
-                };
-            }
-
-            changeOrdersPage(delta) {
-                this.ordersPage = Math.max(1, this.ordersPage + delta);
-                this.loadOrders();
-            }
-
-            changeWithdrawalsPage(delta) {
-                this.withdrawalsPage = Math.max(1, this.withdrawalsPage + delta);
-                this.loadWithdrawals();
-            }
-
-            updateOrdersPagination(total) {
-                const pageElement = document.getElementById('ordersPage');
-                const countElement = document.getElementById('ordersCount');
-                if (pageElement) pageElement.textContent = this.ordersPage;
-                if (countElement) countElement.textContent = `${total} orders`;
-            }
-
-            updateWithdrawalsPagination(total) {
-                const pageElement = document.getElementById('withdrawalsPage');
-                const countElement = document.getElementById('withdrawalsCount');
-                if (pageElement) pageElement.textContent = this.withdrawalsPage;
-                if (countElement) countElement.textContent = `${total} withdrawals`;
-            }
-
-            async refreshCurrentView() {
-                await this.loadViewData(this.currentView);
-            }
-
-            async loadBotStatus() {
-                try {
-                    const response = await fetch('/api/admin/bot-simulator/status', {
-                        headers: {
-                            'x-csrf-token': this.csrfToken
-                        }
-                    });
-                    const status = await response.json();
-                    
-                    const statusElement = document.getElementById('botSimulatorStatus');
-                    const countElement = document.getElementById('botCount');
-                    const toggleButton = document.getElementById('toggleBotSimulator');
-                    
-                    if (statusElement) {
-                        const badge = status.running ? 
-                            '<span class="badge badge-success">Running</span>' :
-                            status.available ? 
-                                '<span class="badge badge-warning">Stopped</span>' :
-                                '<span class="badge badge-danger">Unavailable</span>';
-                        
-                        statusElement.innerHTML = `
-                            ${badge}
-                            <button id="toggleBotSimulator" class="btn btn-secondary btn-sm" ${!status.available ? 'disabled' : ''}>
-                                <i class="fas fa-power-off"></i>
-                                ${status.running ? 'Stop' : 'Start'}
-                            </button>
-                        `;
-                        
-                        // Re-attach event listener
-                        document.getElementById('toggleBotSimulator')?.addEventListener('click', () => this.toggleBotSimulator());
-                    }
-                    
-                    if (countElement) {
-                        countElement.textContent = status.botCount || 0;
-                    }
-                } catch (error) {
-                    console.error('Failed to load bot status:', error);
-                    this.showNotification('Failed to load bot status', 'error');
-                }
-            }
-
-            async toggleBotSimulator() {
-                const button = document.getElementById('toggleBotSimulator');
-                if (button.disabled) return;
-                
-                button.disabled = true;
-                const originalText = button.innerHTML;
-                button.innerHTML = '<i class="spinner"></i> Processing...';
-
-                try {
-                    const response = await fetch('/api/admin/bot-simulator/toggle', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-csrf-token': this.csrfToken
-                        }
-                    });
-
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        this.showNotification(result.message, 'success');
-                        if (result.note) {
-                            this.showNotification(result.note, 'warning');
-                        }
-                        await this.loadBotStatus();
-                    } else {
-                        this.showNotification(result.error || 'Failed to toggle bot simulator', 'error');
-                    }
-                } catch (error) {
-                    this.showNotification('Network error. Please try again.', 'error');
-                } finally {
-                    button.disabled = false;
-                    button.innerHTML = originalText;
-                }
-            }
-
-            async exportOrders() {
-                try {
-                    const response = await fetch('/api/admin/orders/export');
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'orders-export.csv';
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    this.showNotification('Orders exported successfully', 'success');
-                } catch (error) {
-                    this.showNotification('Failed to export orders', 'error');
-                }
-            }
-
-            async exportWithdrawals() {
-                try {
-                    const response = await fetch('/api/admin/withdrawals/export');
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'withdrawals-export.csv';
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    this.showNotification('Withdrawals exported successfully', 'success');
-                } catch (error) {
-                    this.showNotification('Failed to export withdrawals', 'error');
-                }
-            }
-
-            // Order actions
-            async completeOrder(orderId) {
-                if (!confirm('Are you sure you want to complete this order?')) return;
-                
-                try {
-                    const response = await fetch(`/api/admin/orders/${orderId}/complete`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-csrf-token': this.csrfToken
-                        }
-                    });
-
-                    const result = await response.json();
-                    if (result.success) {
-                        this.showNotification('Order completed successfully!', 'success');
-                        this.loadOrders();
-                    } else {
-                        this.showNotification(result.error || 'Failed to complete order', 'error');
-                    }
-                } catch (error) {
-                    this.showNotification('Network error. Please try again.', 'error');
-                }
-            }
-
-            async declineOrder(orderId) {
-                if (!confirm('Are you sure you want to decline this order?')) return;
-                
-                try {
-                    const response = await fetch(`/api/admin/orders/${orderId}/decline`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-csrf-token': this.csrfToken
-                        }
-                    });
-
-                    const result = await response.json();
-                    if (result.success) {
-                        this.showNotification('Order declined successfully!', 'success');
-                        this.loadOrders();
-                    } else {
-                        this.showNotification(result.error || 'Failed to decline order', 'error');
-                    }
-                } catch (error) {
-                    this.showNotification('Network error. Please try again.', 'error');
-                }
-            }
-
-            // Withdrawal actions
-            async completeWithdrawal(withdrawalId) {
-                if (!confirm('Are you sure you want to complete this withdrawal?')) return;
-                
-                try {
-                    const response = await fetch(`/api/admin/withdrawals/${withdrawalId}/complete`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-csrf-token': this.csrfToken
-                        }
-                    });
-
-                    const result = await response.json();
-                    if (result.success) {
-                        this.showNotification('Withdrawal completed successfully!', 'success');
-                        this.loadWithdrawals();
-                    } else {
-                        this.showNotification(result.error || 'Failed to complete withdrawal', 'error');
-                    }
-                } catch (error) {
-                    this.showNotification('Network error. Please try again.', 'error');
-                }
-            }
-
-            async declineWithdrawal(withdrawalId) {
-                if (!confirm('Are you sure you want to decline this withdrawal?')) return;
-                
-                try {
-                    const response = await fetch(`/api/admin/withdrawals/${withdrawalId}/decline`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-csrf-token': this.csrfToken
-                        }
-                    });
-
-                    const result = await response.json();
-                    if (result.success) {
-                        this.showNotification('Withdrawal declined successfully!', 'success');
-                        this.loadWithdrawals();
-                    } else {
-                        this.showNotification(result.error || 'Failed to decline withdrawal', 'error');
-                    }
-                } catch (error) {
-                    this.showNotification('Network error. Please try again.', 'error');
-                }
-            }
-        }
-
-        // Initialize admin dashboard
-        let adminDashboard;
-        document.addEventListener('DOMContentLoaded', function() {
-            adminDashboard = new AdminDashboard();
-        });
-    </script>
 </body>
 </html>

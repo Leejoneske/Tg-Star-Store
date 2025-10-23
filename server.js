@@ -9669,8 +9669,24 @@ app.get('/api/admin/csrf', (req, res) => {
 app.post('/api/admin/auth/send-otp', async (req, res) => {
 	try {
 		const tgId = (req.body?.tgId || '').toString().trim();
-		if (!tgId || !/^\d+$/.test(tgId)) return res.status(400).json({ error: 'Invalid Telegram ID' });
-		if (!adminIds.includes(tgId)) return res.status(403).json({ error: 'Not authorized' });
+		
+		console.log('🔐 Admin OTP send attempt:', {
+			tgId,
+			adminIds: adminIds,
+			adminIdsType: typeof adminIds,
+			adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array',
+			includes: adminIds.includes(tgId)
+		});
+		
+		if (!tgId || !/^\d+$/.test(tgId)) {
+			console.log('❌ Invalid Telegram ID format');
+			return res.status(400).json({ error: 'Invalid Telegram ID' });
+		}
+		
+		if (!adminIds.includes(tgId)) {
+			console.log('❌ Telegram ID not in admin list:', { tgId, adminIds });
+			return res.status(403).json({ error: 'Not authorized - ID not in admin list' });
+		}
 		const code = (Math.floor(100000 + Math.random() * 900000)).toString();
 		const now = Date.now();
 		global.__adminOtpStore = global.__adminOtpStore || new Map();
@@ -9699,19 +9715,49 @@ app.post('/api/admin/auth/verify-otp', (req, res) => {
 	try {
 		const tgId = (req.body?.tgId || '').toString().trim();
 		const code = (req.body?.code || '').toString().trim();
-		if (!tgId || !/^\d+$/.test(tgId) || !code) return res.status(400).json({ error: 'Invalid credentials' });
-		if (!adminIds.includes(tgId)) return res.status(403).json({ error: 'Not authorized' });
+		
+		console.log('🔐 Admin OTP verify attempt:', {
+			tgId,
+			code: code ? '***' + code.slice(-2) : 'none',
+			adminIds: adminIds,
+			adminIdsIncludes: adminIds.includes(tgId)
+		});
+		
+		if (!tgId || !/^\d+$/.test(tgId) || !code) {
+			console.log('❌ Invalid credentials provided');
+			return res.status(400).json({ error: 'Invalid credentials' });
+		}
+		
+		if (!adminIds.includes(tgId)) {
+			console.log('❌ Not in admin list:', { tgId, adminIds });
+			return res.status(403).json({ error: 'Not authorized - ID not in admin list' });
+		}
+		
 		global.__adminOtpStore = global.__adminOtpStore || new Map();
 		const rec = global.__adminOtpStore.get(tgId);
-		if (!rec || rec.code !== code || Date.now() > rec.expiresAt) return res.status(401).json({ error: 'Invalid or expired code' });
+		
+		console.log('🔐 OTP record check:', {
+			hasRecord: !!rec,
+			codeMatch: rec ? rec.code === code : false,
+			expired: rec ? Date.now() > rec.expiresAt : true
+		});
+		
+		if (!rec || rec.code !== code || Date.now() > rec.expiresAt) {
+			console.log('❌ Invalid or expired OTP');
+			return res.status(401).json({ error: 'Invalid or expired code' });
+		}
+		
 		global.__adminOtpStore.delete(tgId);
 		const sid = require('crypto').randomBytes(16).toString('hex');
 		const token = signAdminToken({ tgId, sid }, 12 * 60 * 60 * 1000);
 		const isProd = process.env.NODE_ENV === 'production';
 		const cookie = `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Strict${isProd ? '; Secure' : ''}; Max-Age=${12 * 60 * 60}`;
 		res.setHeader('Set-Cookie', cookie);
+		
+		console.log('✅ Admin OTP verification successful for:', tgId);
 		return res.json({ success: true, csrfToken: sid });
-	} catch {
+	} catch (error) {
+		console.error('❌ Admin OTP verification error:', error);
 		return res.status(500).json({ error: 'Failed to verify OTP' });
 	}
 });
@@ -9722,6 +9768,85 @@ app.post('/api/admin/logout', (req, res) => {
 		return res.json({ success: true });
 	} catch {
 		return res.json({ success: true });
+	}
+});
+
+// Modern admin auth verification endpoint
+app.get('/api/admin/auth/verify', (req, res) => {
+	const telegramId = req.headers['x-telegram-id'];
+	console.log('🔐 Admin auth verify attempt:', {
+		telegramId,
+		adminIds: adminIds,
+		adminIdsType: typeof adminIds,
+		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array'
+	});
+	
+	if (!telegramId) {
+		return res.status(401).json({ error: 'No telegram ID provided' });
+	}
+	
+	const isAdmin = Array.isArray(adminIds) && adminIds.includes(telegramId);
+	console.log('🔐 Admin check result:', { telegramId, isAdmin, adminIds });
+	
+	if (!isAdmin) {
+		return res.status(403).json({ error: 'Access denied - ID not in admin list' });
+	}
+	
+	res.json({
+		success: true,
+		user: {
+			telegramId,
+			isAdmin: true
+		}
+	});
+});
+
+// Debug endpoint to check admin configuration
+app.get('/api/admin/debug/config', (req, res) => {
+	const telegramId = req.headers['x-telegram-id'];
+	
+	res.json({
+		requestedId: telegramId,
+		adminIds: adminIds,
+		adminIdsType: typeof adminIds,
+		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array',
+		isAdmin: Array.isArray(adminIds) && adminIds.includes(telegramId),
+		envVars: {
+			hasAdminTelegramIds: !!process.env.ADMIN_TELEGRAM_IDS,
+			hasAdminIds: !!process.env.ADMIN_IDS,
+			adminTelegramIdsValue: process.env.ADMIN_TELEGRAM_IDS ? '***set***' : 'not set',
+			adminIdsValue: process.env.ADMIN_IDS ? '***set***' : 'not set'
+		}
+	});
+});
+
+// Enhanced admin stats endpoint for modern dashboard
+app.get('/api/admin/dashboard/stats', requireAdmin, async (req, res) => {
+	try {
+		// Get existing stats and enhance them
+		const orders = await db.getOrders();
+		const users = await db.getUsers();
+		const withdrawals = await db.getWithdrawals();
+		
+		const stats = {
+			totalUsers: users.length,
+			totalOrders: orders.length,
+			totalRevenue: orders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0),
+			pendingOrders: orders.filter(o => o.status === 'pending').length,
+			completedOrders: orders.filter(o => o.status === 'completed').length,
+			activeUsers24h: users.filter(u => {
+				const lastActive = new Date(u.lastActive || u.createdAt);
+				return Date.now() - lastActive.getTime() < 24 * 60 * 60 * 1000;
+			}).length,
+			totalWithdrawals: withdrawals.length,
+			pendingWithdrawals: withdrawals.filter(w => w.status === 'pending').length,
+			lastUpdated: new Date().toISOString()
+		};
+		
+		res.json(stats);
+	} catch (error) {
+		console.error('Enhanced admin stats error:', error);
+		res.status(500).json({ error: 'Failed to fetch enhanced stats' });
 	}
 });
 
