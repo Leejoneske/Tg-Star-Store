@@ -97,7 +97,11 @@ app.use(cors({
             /^https:\/\/.*\.vercel\.app$/,
             /^https:\/\/(www\.)?starstore\.site$/,
             /^https:\/\/(www\.)?walletbot\.me$/,
-            /^https:\/\/.*\.railway\.app$/
+            /^https:\/\/.*\.railway\.app$/,
+            // Ambassador app domains
+            /^https:\/\/amb-starstore\.vercel\.app$/,
+            /^https:\/\/amb\.starstore\.site$/,
+            /^https:\/\/.*ambassador.*\.vercel\.app$/
         ];
         
         const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
@@ -111,9 +115,37 @@ app.use(cors({
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-telegram-id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data', 'x-telegram-id', 'x-api-key'],
     exposedHeaders: ['Content-Disposition']
 }));
+
+// Ambassador App Authentication Middleware
+const AMBASSADOR_API_KEY = process.env.AMBASSADOR_API_KEY || 'amb_starstore_secure_key_2024';
+
+const authenticateAmbassadorApp = (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+    const userAgent = req.headers['user-agent'];
+    
+    // Check if request is from Ambassador app
+    if (userAgent && userAgent.includes('Ambassador-Dashboard')) {
+        if (apiKey === AMBASSADOR_API_KEY) {
+            // Allow ambassador app requests
+            req.isAmbassadorApp = true;
+            console.log('✅ Ambassador app authenticated successfully');
+            return next();
+        } else {
+            console.log('❌ Invalid API key for ambassador app:', apiKey);
+            return res.status(401).json({ error: 'Invalid API key for ambassador app' });
+        }
+    }
+    
+    // For non-ambassador requests, continue with normal flow
+    next();
+};
+
+// Apply ambassador authentication middleware
+app.use(authenticateAmbassadorApp);
+
 // Add error handling for body parsing
 app.use(express.json({ 
     limit: '10mb',
@@ -4737,7 +4769,14 @@ function validateTelegramUser(req, res, next) {
     next();
 }
 
-app.get('/api/referral-stats/:userId', validateTelegramUser, async (req, res) => {
+app.get('/api/referral-stats/:userId', (req, res, next) => {
+    // Skip Telegram validation for ambassador app
+    if (req.isAmbassadorApp) {
+        return next();
+    }
+    // Apply normal validation for other requests
+    validateTelegramUser(req, res, next);
+}, async (req, res) => {
     try {
         const userId = req.params.userId;
         console.log(`Fetching referral data for user: ${userId}`);
@@ -7962,6 +8001,50 @@ app.get('/api/health', async (req, res) => {
             status: 'error',
             timestamp: new Date().toISOString(),
             error: error.message
+        });
+    }
+});
+
+// Webhook registration endpoint for ambassador app
+app.post('/api/webhook/register', (req, res, next) => {
+    // Only allow ambassador app to register webhooks
+    if (req.isAmbassadorApp) {
+        return next();
+    }
+    res.status(401).json({ error: 'Unauthorized webhook registration' });
+}, async (req, res) => {
+    try {
+        const { url, events, source } = req.body;
+        
+        if (!url || !events || !Array.isArray(events)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'URL and events array are required' 
+            });
+        }
+        
+        // Store webhook configuration
+        const webhookConfig = {
+            url,
+            events,
+            source: source || 'ambassador-app',
+            registeredAt: new Date(),
+            active: true
+        };
+        
+        console.log('✅ Webhook registered for ambassador app:', webhookConfig);
+        
+        res.json({ 
+            success: true, 
+            data: true,
+            message: 'Webhook registered successfully' 
+        });
+        
+    } catch (error) {
+        console.error('❌ Webhook registration error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to register webhook' 
         });
     }
 });
