@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
@@ -341,6 +342,140 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
     return res.status(500).json({ success: false, error: 'We could not add you to the waitlist. Please try again later.' });
   }
 });
+
+// ========== AMBASSADOR APP AUTOFILL ENDPOINTS ==========
+
+// Get user data for ambassador form autofill
+// Called by: Ambassador Dashboard Apply form
+app.get('/api/ambassador/user/:telegramId', async (req, res) => {
+  try {
+    const { telegramId } = req.params;
+    
+    if (!telegramId || !/^\d+$/.test(telegramId)) {
+      return res.status(400).json({ success: false, error: 'Invalid Telegram ID' });
+    }
+
+    // Try to find user in database
+    let userData = null;
+    
+    if (User) {
+      try {
+        const user = await User.findOne({ id: telegramId }).lean();
+        if (user) {
+          userData = {
+            id: String(user.id),
+            username: user.username || null,
+            firstName: user.firstName || user.first_name || null,
+            lastName: user.lastName || user.last_name || null
+          };
+        }
+      } catch (dbErr) {
+        console.error('User lookup error:', dbErr.message);
+      }
+    }
+
+    if (userData) {
+      return res.json({ 
+        success: true, 
+        user: userData 
+      });
+    }
+
+    return res.status(404).json({ 
+      success: false, 
+      error: 'User not found. Make sure you have used the StarStore bot before.' 
+    });
+  } catch (e) {
+    console.error('Ambassador user lookup error:', e.message);
+    return res.status(500).json({ success: false, error: 'Failed to fetch user data' });
+  }
+});
+
+// Handle redirect from Telegram bot with user data
+// Bot sends user here after they click "Connect Ambassador Account"
+app.get('/api/ambassador/auth/callback', async (req, res) => {
+  try {
+    const { tg_id, tg_username, tg_name, redirect } = req.query;
+    
+    if (!tg_id) {
+      return res.status(400).send('Missing Telegram ID');
+    }
+
+    // Build redirect URL with user data
+    const redirectUrl = redirect || 'https://amb.starstore.site/apply';
+    const separator = redirectUrl.includes('?') ? '&' : '?';
+    const params = new URLSearchParams({
+      tg_id: String(tg_id),
+      ...(tg_username && { tg_username: String(tg_username) }),
+      ...(tg_name && { tg_name: String(tg_name) })
+    });
+
+    return res.redirect(`${redirectUrl}${separator}${params.toString()}`);
+  } catch (e) {
+    console.error('Ambassador auth callback error:', e.message);
+    return res.status(500).send('Authentication failed');
+  }
+});
+
+// Bot command handler for ambassador connect
+// Add this to your bot.onText handlers or bot.on('message') handler
+// Example usage: User sends /start amb_connect_<encoded_redirect>
+// This function should be called from your bot message handler
+const handleAmbassadorConnect = async (msg, match) => {
+  const chatId = msg.chat.id;
+  const user = msg.from;
+  
+  try {
+    // Extract redirect URL from start param
+    let redirectUrl = 'https://amb.starstore.site/apply';
+    if (match && match[1]) {
+      const startParam = match[1];
+      if (startParam.startsWith('amb_connect_')) {
+        try {
+          redirectUrl = decodeURIComponent(startParam.replace('amb_connect_', ''));
+        } catch (e) {
+          // Keep default redirect
+        }
+      }
+    }
+
+    const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+    
+    // Build callback URL with user data
+    const callbackUrl = `https://${SERVER_URL}/api/ambassador/auth/callback?` + 
+      new URLSearchParams({
+        tg_id: String(user.id),
+        ...(user.username && { tg_username: user.username }),
+        tg_name: fullName,
+        redirect: redirectUrl
+      }).toString();
+
+    await bot.sendMessage(chatId, 
+      `🌟 *Ambassador Account Connection*\n\n` +
+      `Click the button below to connect your Telegram account to the Ambassador Dashboard.\n\n` +
+      `Your details:\n` +
+      `• Name: ${fullName}\n` +
+      `• Username: ${user.username ? '@' + user.username : 'Not set'}\n` +
+      `• ID: \`${user.id}\``,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '✅ Connect & Continue', url: callbackUrl }
+          ]]
+        }
+      }
+    );
+  } catch (e) {
+    console.error('Ambassador connect handler error:', e.message);
+    await bot.sendMessage(chatId, '❌ Failed to process ambassador connection. Please try again.');
+  }
+};
+
+// Export for use in bot handlers
+if (typeof module !== 'undefined') {
+  module.exports = { handleAmbassadorConnect };
+}
 
 // Legacy redirects for ambassador URL spelling change
 app.get(['/ambasador', '/ambasador.html'], (req, res) => {
