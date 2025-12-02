@@ -418,57 +418,57 @@ app.get('/api/ambassador/auth/callback', async (req, res) => {
 });
 
 // Bot command handler for ambassador connect
-// Add this to your bot.onText handlers or bot.on('message') handler
-// Example usage: User sends /start amb_connect_<encoded_redirect>
-// This function should be called from your bot message handler
+// Called when user starts bot with /start amb_connect_<encoded_redirect>
 const handleAmbassadorConnect = async (msg, match) => {
   const chatId = msg.chat.id;
   const user = msg.from;
   
   try {
-    // Extract redirect URL from start param
+    // Extract redirect URL from deep link parameter
     let redirectUrl = 'https://amb.starstore.site/apply';
-    if (match && match[1]) {
-      const startParam = match[1];
-      if (startParam.startsWith('amb_connect_')) {
-        try {
-          redirectUrl = decodeURIComponent(startParam.replace('amb_connect_', ''));
-        } catch (e) {
-          // Keep default redirect
-        }
+    const deepLinkParam = match && match[1] ? match[1].trim() : '';
+    
+    if (deepLinkParam.startsWith('amb_connect_')) {
+      try {
+        const encodedUrl = deepLinkParam.replace('amb_connect_', '');
+        redirectUrl = decodeURIComponent(encodedUrl);
+      } catch (e) {
+        console.error('Failed to decode redirect URL:', e.message);
+        // Keep default redirect
       }
     }
 
     const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
     
-    // Build callback URL with user data
-    const callbackUrl = `https://${SERVER_URL}/api/ambassador/auth/callback?` + 
-      new URLSearchParams({
-        tg_id: String(user.id),
-        ...(user.username && { tg_username: user.username }),
-        tg_name: fullName,
-        redirect: redirectUrl
-      }).toString();
+    // Build return URL with user data as query params (direct to apply page)
+    const separator = redirectUrl.includes('?') ? '&' : '?';
+    const returnUrl = `${redirectUrl}${separator}` + new URLSearchParams({
+      tg_id: String(user.id),
+      ...(user.username && { tg_username: user.username }),
+      tg_name: fullName
+    }).toString();
 
+    // Send message with button to return to form with prefilled data
     await bot.sendMessage(chatId, 
-      `🌟 *Ambassador Account Connection*\n\n` +
-      `Click the button below to connect your Telegram account to the Ambassador Dashboard.\n\n` +
-      `Your details:\n` +
-      `• Name: ${fullName}\n` +
-      `• Username: ${user.username ? '@' + user.username : 'Not set'}\n` +
-      `• ID: \`${user.id}\``,
+      `✅ *Connection Successful!*\n\n` +
+      `Click the button below to return to the application form with your details auto-filled:\n\n` +
+      `📱 Telegram ID: \`${user.id}\`\n` +
+      `👤 Username: ${user.username ? '@' + user.username : 'Not set'}\n` +
+      `📝 Name: ${fullName || 'Not set'}`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [[
-            { text: '✅ Connect & Continue', url: callbackUrl }
+            { text: '🔗 Return to Application Form', url: returnUrl }
           ]]
         }
       }
     );
+    
+    console.log(`✅ Ambassador connect: User ${user.id} returning to ${returnUrl}`);
   } catch (e) {
     console.error('Ambassador connect handler error:', e.message);
-    await bot.sendMessage(chatId, '❌ Failed to process ambassador connection. Please try again.');
+    await bot.sendMessage(chatId, '❌ Failed to process ambassador connection. Please try again or fill the form manually.');
   }
 };
 
@@ -5886,6 +5886,12 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = msg.from.username || 'user';
     const deepLinkParam = match[1]?.trim();
+    
+    // Handle ambassador connect flow first
+    if (deepLinkParam?.startsWith('amb_connect_')) {
+        await handleAmbassadorConnect(msg, match);
+        return;
+    }
     
     try {
         let user = await User.findOne({ id: chatId });
