@@ -1,0 +1,29 @@
+<html>
+<head>
+    <title>Store</title>
+    <style>
+        /* Styling for the withdrawn amount */
+        #withdrawnAmount {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div data-translate="withdrawn"></div>
+    <div id="withdrawnAmount">$0.00</div>
+    <script>
+        // JavaScript managing balance states
+        var state = {
+            stats: {
+                withdrawnAmount: 0
+            }
+        };
+
+        // Function to update the withdrawn amount
+        function updateWithdrawnAmount(amount) {
+            state.stats.withdrawnAmount = amount;
+            document.getElementById('withdrawnAmount').innerText = '$' + amount;
+        }
+    </script>
+</body>
+</html>
