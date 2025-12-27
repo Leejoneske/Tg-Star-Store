@@ -2623,7 +2623,7 @@ async function handleConfirmedAction(query, data, adminUsername) {
         const userMessage = order.status === 'completed' 
             ? `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for your choosing StarStore!'}`
             : order.status === 'failed'
-            ? `❌ Your sell order #${order.id} has failed.\n\nTry selling a lower amount or contact support if the issue persist.`
+            ? `❌ Your sell order #${order.id} has failed.\n\nContact support if the issue persist.`
             : order.status === 'refunded'
             ? `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`
             : `❌ Your buy order #${order.id} has been declined.\n\nContact support if you believe this was a mistake.`;
