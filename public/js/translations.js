@@ -299,7 +299,7 @@ const translations = {
         contactSupportDesc: "Get help from our team",
         contactBtn: "Contact Support",
         footerPowered: "Powered by",
-        copyright: "© 2025 StarStore. All rights reserved.",
+        copyright: "© 2026 StarStore. All rights reserved.",
         
         // Settings Section
         settings: "Settings & Features",
@@ -812,7 +812,7 @@ const translations = {
         contactSupportDesc: "Получите помощь от нашей команды",
         contactBtn: "Связаться с поддержкой",
         footerPowered: "Работает на",
-        copyright: "© 2025 StarStore. Все права защищены.",
+        copyright: "© 2026 StarStore. Все права защищены.",
         
         // Settings Section
         settings: "Настройки и функции",
@@ -1222,7 +1222,7 @@ try {
         contactText: "कोई प्रश्न हैं या सहायता चाहिए? हमारी टीम आपकी मदद के लिए हमेशा तैयार है!",
         contactBtn: "सपोर्ट से संपर्क करें",
         contactSupportDesc: "हमारी टीम से मदद लें",
-        copyright: "© 2025 StarStore. सभी अधिकार सुरक्षित।",
+        copyright: "© 2026 StarStore. सभी अधिकार सुरक्षित।",
         
         // Settings Section
         settings: "सेटिंग्स और सुविधाएं",
@@ -1418,7 +1418,7 @@ try {
         contactText: "هل لديك أسئلة أو تحتاج مساعدة؟ فريقنا هنا لمساعدتك على مدار الساعة!",
         contactBtn: "اتصل بالدعم",
         contactSupportDesc: "احصل على المساعدة من فريقنا",
-        copyright: "© 2025 StarStore. جميع الحقوق محفوظة.",
+        copyright: "© 2026 StarStore. جميع الحقوق محفوظة.",
         
         // Settings Section
         settings: "الإعدادات والميزات",
