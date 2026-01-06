@@ -3307,7 +3307,7 @@ async function cleanupExpiredOrders() {
                     await bot.sendMessage(
                         adminIds[0], 
                         `🧹 System Cleanup:\n\n` +
-                        `Cleaned up ${updateResult.modifiedCount} expired sell #${order.id} orders\n` +
+                        `Cleaned up ${updateResult.modifiedCount} expired sell orders\n` +
                         `Time: ${new Date().toLocaleString()}`
                     );
                 } catch (err) {
