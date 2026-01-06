@@ -8096,6 +8096,39 @@ app.post('/api/ambassador/sync', async (req, res) => {
     }
 });
 
+// Get all ambassador waitlist entries (for admin sync)
+app.get('/api/admin/ambassador-waitlist', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        
+        if (!global.AmbassadorWaitlist) {
+            return res.json({ waitlist: [], total: 0 });
+        }
+        
+        const waitlist = await global.AmbassadorWaitlist.find({})
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean();
+        
+        const total = await global.AmbassadorWaitlist.countDocuments({});
+        
+        res.json({
+            waitlist: waitlist.map(entry => ({
+                id: entry.id,
+                fullName: entry.fullName,
+                username: entry.username,
+                email: entry.email,
+                socials: entry.socials,
+                createdAt: entry.createdAt
+            })),
+            total
+        });
+    } catch (error) {
+        console.error('Error fetching ambassador waitlist:', error);
+        res.status(500).json({ error: 'Failed to fetch waitlist' });
+    }
+});
+
 // Register webhook endpoint (for Ambassador app to register for updates)
 app.post('/api/webhook/register', async (req, res) => {
     try {
