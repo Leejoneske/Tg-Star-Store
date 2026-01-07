@@ -8096,37 +8096,44 @@ app.post('/api/ambassador/sync', async (req, res) => {
     }
 });
 
-// Get all ambassador waitlist entries (for admin sync)
+// ========== AMBASSADOR WAITLIST ADMIN ENDPOINT ==========
+// GET /api/admin/ambassador-waitlist - Fetch all ambassador waitlist entries
 app.get('/api/admin/ambassador-waitlist', async (req, res) => {
-    try {
-        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
-        
-        if (!global.AmbassadorWaitlist) {
-            return res.json({ waitlist: [], total: 0 });
-        }
-        
-        const waitlist = await global.AmbassadorWaitlist.find({})
-            .sort({ createdAt: -1 })
-            .limit(limit)
-            .lean();
-        
-        const total = await global.AmbassadorWaitlist.countDocuments({});
-        
-        res.json({
-            waitlist: waitlist.map(entry => ({
-                id: entry.id,
-                fullName: entry.fullName,
-                username: entry.username,
-                email: entry.email,
-                socials: entry.socials,
-                createdAt: entry.createdAt
-            })),
-            total
-        });
-    } catch (error) {
-        console.error('Error fetching ambassador waitlist:', error);
-        res.status(500).json({ error: 'Failed to fetch waitlist' });
+  try {
+    // Verify request is from Ambassador app
+    if (!req.isAmbassadorApp) {
+      return res.status(401).json({ success: false, error: 'Unauthorized - Ambassador app authentication required' });
     }
+
+    let waitlist = [];
+    
+    if (process.env.MONGODB_URI && global.AmbassadorWaitlist) {
+      // Fetch from MongoDB
+      waitlist = await global.AmbassadorWaitlist.find({}).lean();
+    } else if (db && typeof db.listAmbassadorWaitlist === 'function') {
+      // Fallback to file DB
+      waitlist = (await db.listAmbassadorWaitlist()) || [];
+    }
+
+    console.log(`✅ Ambassador waitlist fetched: ${waitlist.length} entries`);
+
+    return res.json({
+      success: true,
+      waitlist: waitlist.map(entry => ({
+        id: entry.id || entry._id?.toString(),
+        _id: entry._id?.toString(),
+        email: entry.email,
+        fullName: entry.fullName,
+        username: entry.username,
+        socials: entry.socials,
+        createdAt: entry.createdAt
+      })),
+      total: waitlist.length
+    });
+  } catch (e) {
+    console.error('Ambassador waitlist fetch error:', e.message);
+    return res.status(500).json({ success: false, error: 'Failed to fetch waitlist' });
+  }
 });
 
 // Register webhook endpoint (for Ambassador app to register for updates)
