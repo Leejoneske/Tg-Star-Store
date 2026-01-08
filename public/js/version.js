@@ -3,7 +3,7 @@
 
 class VersionManager {
     constructor() {
-        this.version = '1.12.28'; // Fallback version - should match package.json (1.12.28)
+        this.version = '2.1.8'; // Fallback version - should match package.json (2.1.8)
         this.buildDate = '2025-10-17';
         this.init();
     }
