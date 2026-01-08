@@ -6850,9 +6850,9 @@ bot.onText(/^\/userlogs\s+(\S+)(?:\s+(\d+))?/i, async (msg, match) => {
         }
         
         let reportText = `📊 **Activity Log for @${user.username}** (ID: ${user.id})\n\n`;
-        reportText += `**Last Active:** ${user.lastActive.toLocaleString()}\n`;
-        reportText += `**Current Location:** ${user.lastLocation?.city || 'Unknown'}, ${user.lastLocation?.country || 'Unknown'}\n`;
-        reportText += `**Last Device:** ${user.lastDevice?.browser || 'Unknown'} on ${user.lastDevice?.os || 'Unknown'}\n\n`;
+        reportText += `**Last Active:** ${user.lastActive?.toLocaleString() || 'Never'}\n`;
+        reportText += `**Current Location:** ${user.lastLocation?.city || 'Not tracked yet'}, ${user.lastLocation?.country || 'N/A'}\n`;
+        reportText += `**Last Device:** ${user.lastDevice?.browser || 'Not tracked'} on ${user.lastDevice?.os || 'N/A'}\n\n`;
         reportText += `**Recent Activities (${logs.length} of ${limit}):**\n\n`;
         
         logs.forEach((log, idx) => {
@@ -6953,8 +6953,8 @@ bot.onText(/^\/userlocation\s+(\S+)/i, async (msg, match) => {
         }
         
         let reportText = `📍 **Location History for @${user.username}** (ID: ${user.id})\n\n`;
-        reportText += `**Current Location:** ${user.lastLocation?.city || 'Unknown'}, ${user.lastLocation?.country || 'Unknown'}\n`;
-        reportText += `**Last IP:** ${user.lastLocation?.ip || 'Unknown'}\n\n`;
+        reportText += `**Current Location:** ${user.lastLocation?.city || 'Not tracked yet'}, ${user.lastLocation?.country || 'N/A'}\n`;
+        reportText += `**Last IP:** ${user.lastLocation?.ip || 'Not available'}\n\n`;
         
         if (user.locationHistory && user.locationHistory.length > 0) {
             reportText += `**Location History (${user.locationHistory.length} entries):**\n\n`;
@@ -6968,7 +6968,7 @@ bot.onText(/^\/userlocation\s+(\S+)/i, async (msg, match) => {
                 reportText += `   🕐 ${new Date(loc.timestamp).toLocaleString()}\n\n`;
             });
         } else {
-            reportText += `ℹ️ No location history available`;
+            reportText += `ℹ️ No location history yet. Location data will be tracked on user's next interaction after the update.`;
         }
         
         bot.sendMessage(chatId, reportText);
