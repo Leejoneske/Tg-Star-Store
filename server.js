@@ -2287,19 +2287,31 @@ Need help? Contact @StarStore_Chat`;
 
         await bot.sendMessage(telegramId, userMessage);
 
-        // Track user activity (buy order created)
+        // Track user activity (buy order created) and get location data
+        let userLocation = 'Location: Not available';
+        try {
+            // Extract IP from request (should have it from web request)
+            const ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
+                .toString().split(',')[0].trim();
+            
+            // Only try to get geolocation if we have a valid IP (not from Telegram)
+            if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1') {
+                const geo = await getGeolocation(ip);
+                if (geo.country !== 'Unknown') {
+                    userLocation = `Location: ${geo.city || 'Unknown'}, ${geo.country}`;
+                }
+            }
+        } catch (err) {
+            console.error('Error getting location for buy order:', err.message);
+        }
+        
+        // Now track activity (without waiting for location, since we got it above)
         await trackUserActivity(telegramId, username, 'order_created', {
             orderId: order.id,
             orderType: isPremium ? 'premium_buy' : 'buy',
             amount: amount,
             isPremium: isPremium
         }, req, null);
-
-        // Get user location for admin message
-        const user = await User.findOne({ id: telegramId });
-        const userLocation = user?.lastLocation ? 
-            `Location: ${user.lastLocation.city || 'Unknown'}, ${user.lastLocation.country || 'Unknown'}` : 
-            'Location: Not available';
 
         // Create enhanced admin message with Telegram ID and location
         let adminMessage = `🛒 New ${isPremium ? 'Premium' : 'Buy'} Order!\n\nOrder ID: ${order.id}\nUser: @${username} (ID: ${telegramId})\n${userLocation}\nAmount: ${amount} USDT`;
@@ -2968,16 +2980,15 @@ bot.on("successful_payment", async (msg) => {
   
     const userDisplayName = await getUserDisplayName(order.telegramId);
     
-    // Get user location (refetch after trackUserActivity updated it)
-    const user = await User.findOne({ id: userId });
-    const userLocation = user?.lastLocation ? 
-        `Location: ${user.lastLocation.city || 'Unknown'}, ${user.lastLocation.country || 'Unknown'}` : 
-        'Location: Not available';
+    // Location not available for Telegram payments (no IP data)
+    // If you need location tracking for sell orders, capture it when wallet address is submitted
+    const userLocationInfo = order.userLocation ? 
+        `\nLocation: ${order.userLocation.city || 'Unknown'}, ${order.userLocation.country || 'Unknown'}` : 
+        '';
     
     const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
-        `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` +
-        `${userLocation}\n` +
+        `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})${userLocationInfo}\n` +
         `Stars: ${order.stars}\n` +
         `Wallet: ${order.walletAddress}\n` +  
         `Memo: ${order.memoTag || 'None'}`;
