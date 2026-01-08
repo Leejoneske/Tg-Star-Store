@@ -3301,6 +3301,14 @@ async function cleanupExpiredOrders() {
         );
         
         if (updateResult.modifiedCount > 0) {
+            // Prepare a detailed list of expired orders for admin review
+            const expiredListLines = expiredOrders.map(o => {
+                const userLabel = o.username ? `@${o.username}` : `ID:${o.telegramId}`;
+                return `#${o.id} — ${userLabel} — ${o.stars} stars`;
+            });
+
+            const expiredListText = expiredListLines.length > 0 ? expiredListLines.join('\n') : 'None';
+
             // Send notification to admin channel or first admin instead of console
             if (adminIds && adminIds.length > 0) {
                 try {
@@ -3308,15 +3316,18 @@ async function cleanupExpiredOrders() {
                         adminIds[0], 
                         `🧹 System Cleanup:\n\n` +
                         `Cleaned up ${updateResult.modifiedCount} expired sell orders\n` +
-                        `Time: ${new Date().toLocaleString()}`
+                        `Time: ${new Date().toLocaleString()}\n\n` +
+                        `Expired Orders:\n${expiredListText}`
                     );
                 } catch (err) {
                     console.error('Failed to notify admin about cleanup:', err);
                     // Fallback to console if admin notification fails
                     console.log(`Cleaned up ${updateResult.modifiedCount} expired sell orders`);
+                    console.log('Expired Orders:', expiredListText);
                 }
             } else {
                 console.log(`Cleaned up ${updateResult.modifiedCount} expired sell orders`);
+                console.log('Expired Orders:', expiredListText);
             }
         }
     } catch (error) {
