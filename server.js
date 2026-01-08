@@ -2485,6 +2485,121 @@ async function detectUsernameChange(userId, currentUsername) {
     }
 }
 
+// Centralized username update processor - updates all affected messages and database
+async function processUsernameUpdate(userId, oldUsername, newUsername) {
+    try {
+        if (!oldUsername || !newUsername || oldUsername === newUsername) {
+            return; // No change needed
+        }
+
+        // Update User record
+        try {
+            await User.updateOne({ id: userId }, { username: newUsername });
+        } catch (_) {}
+
+        // Update all sell orders
+        const sellOrders = await SellOrder.find({ username: oldUsername, telegramId: userId });
+        for (const order of sellOrders) {
+            order.username = newUsername;
+            
+            // Edit user's original order message if tracked
+            if (order.userMessageId) {
+                const originalText = `✅ Payment successful!\\n\\n` +
+                    `Order ID: ${order.id}\\n` +
+                    `Stars: ${order.stars}\\n` +
+                    `Wallet: ${order.walletAddress}\\n` +
+                    `${order.memoTag ? `Memo: ${order.memoTag}\\n` : ''}` +
+                    `\\nStatus: Processing (21-day hold)\\n\\n` +
+                    `Funds will be released to your wallet after the hold period.`;
+                try { await bot.editMessageText(originalText, { chat_id: order.telegramId, message_id: order.userMessageId }); } catch (_) {}
+            }
+            
+            // Edit all admin messages for this order
+            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                await Promise.all(order.adminMessages.map(async (m) => {
+                    let text = m.originalText || '';
+                    if (text) {
+                        text = text.replace(new RegExp(`@${oldUsername}`, 'g'), `@${newUsername}`);
+                        text = text.replace(new RegExp(oldUsername, 'g'), newUsername);
+                    }
+                    m.originalText = text;
+                    
+                    const sellButtons = {
+                        inline_keyboard: [[
+                            { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                            { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                            { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                        ]]
+                    };
+                    try {
+                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: sellButtons });
+                    } catch (_) {}
+                }));
+            }
+            
+            await order.save();
+        }
+
+        // Update all buy orders
+        const buyOrders = await BuyOrder.find({ username: oldUsername, telegramId: userId });
+        for (const order of buyOrders) {
+            order.username = newUsername;
+            
+            // Edit all admin messages for this order
+            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                await Promise.all(order.adminMessages.map(async (m) => {
+                    let text = m.originalText || '';
+                    if (text) {
+                        text = text.replace(new RegExp(`@${oldUsername}`, 'g'), `@${newUsername}`);
+                        text = text.replace(new RegExp(oldUsername, 'g'), newUsername);
+                    }
+                    m.originalText = text;
+                    
+                    const buyButtons = {
+                        inline_keyboard: [[
+                            { text: "✅ Complete", callback_data: `complete_buy_${order.id}` },
+                            { text: "❌ Decline", callback_data: `decline_buy_${order.id}` }
+                        ]]
+                    };
+                    try {
+                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: buyButtons });
+                    } catch (_) {}
+                }));
+            }
+            
+            await order.save();
+        }
+
+        // Update all referral withdrawals
+        const withdrawals = await ReferralWithdrawal.find({ username: oldUsername, userId });
+        for (const wd of withdrawals) {
+            wd.username = newUsername;
+            
+            // Edit all admin messages for this withdrawal
+            if (Array.isArray(wd.adminMessages) && wd.adminMessages.length) {
+                await Promise.all(wd.adminMessages.map(async (m) => {
+                    let text = m.originalText || '';
+                    if (text) {
+                        text = text.replace(new RegExp(`@${oldUsername}`, 'g'), `@${newUsername}`);
+                        text = text.replace(new RegExp(oldUsername, 'g'), newUsername);
+                    }
+                    m.originalText = text;
+                    
+                    try {
+                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                    } catch (_) {}
+                }));
+            }
+            
+            await wd.save();
+        }
+
+        console.log(`✅ Username updated in database and messages: @${oldUsername} → @${newUsername} (User: ${userId})`);
+    } catch (error) {
+        console.error(`Error processing username update for user ${userId}:`, error);
+    }
+}
+
 // Find all orders and messages that reference an old username
 async function findAffectedOrders(oldUsername) {
     const affected = { sell: [], buy: [], withdrawal: [] };
@@ -2867,12 +2982,21 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
 bot.on('callback_query', async (query) => {
     try {
         const data = query.data;
+        const userId = query.from.id.toString();
+        const username = query.from.username || '';
         const adminUsername = query.from.username ? query.from.username : `User_${query.from.id}`;
+
+        // Auto-detect and update username in real-time on ANY button interaction
+        if (username) {
+            const usernameChange = await detectUsernameChange(userId, username);
+            if (usernameChange) {
+                await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
+            }
+        }
 
         // Wallet multi-select toggles
         if (data.startsWith('wallet_sel_')) {
             const chatId = query.message.chat.id;
-            const userId = query.from.id.toString();
             let bucket = walletSelections.get(userId);
             if (!bucket || !bucket.timestamp) {
                 bucket = { selections: new Set(), timestamp: Date.now() };
@@ -3835,6 +3959,19 @@ bot.onText(/^\/findorder (.+)/i, async (msg, match) => {
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const userId = chatId.toString();
+    const username = msg.from.username || '';
+
+    // Auto-detect and update username in real-time on ANY message
+    if (username) {
+        const usernameChange = await detectUsernameChange(userId, username);
+        if (usernameChange) {
+            await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
+            try {
+                await bot.sendMessage(userId, `✅ Username change detected and updated: @${usernameChange.oldUsername} → @${usernameChange.newUsername}`);
+            } catch (_) {}
+        }
+    }
+
     const request = reversalRequests.get(chatId);
     
     // Skip if no reversal request in progress, no text, or if it's a command (handled by onText)
@@ -6208,64 +6345,14 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
         const userId = msg.from.id.toString();
         const username = msg.from.username || '';
 
-        // Detect username changes
+        // Auto-detect and immediately update username in real-time
         if (username) {
             const usernameChange = await detectUsernameChange(userId, username);
             if (usernameChange) {
-                // Username changed! Create update request for admins
-                const affectedOrders = await findAffectedOrders(usernameChange.oldUsername);
-                const affectedCount = affectedOrders.sell.length + affectedOrders.buy.length + affectedOrders.withdrawal.length;
-                
-                if (affectedCount > 0) {
-                    const requestDoc = await UsernameUpdateRequest.create({
-                        userId,
-                        oldUsername: usernameChange.oldUsername,
-                        newUsername: usernameChange.newUsername,
-                        affectedOrderIds: [
-                            ...affectedOrders.sell.map(o => o.id),
-                            ...affectedOrders.buy.map(o => o.id),
-                            ...affectedOrders.withdrawal.map(o => o.id)
-                        ],
-                        affectedOrderTypes: [
-                            ...affectedOrders.sell.map(() => 'sell'),
-                            ...affectedOrders.buy.map(() => 'buy'),
-                            ...affectedOrders.withdrawal.map(() => 'withdrawal')
-                        ]
-                    });
-
-                    const adminText = `🔄 Username Update Request\\n\\n` +
-                        `User: @${usernameChange.newUsername} (ID: ${userId})\\n` +
-                        `Old Username: @${usernameChange.oldUsername}\\n` +
-                        `New Username: @${usernameChange.newUsername}\\n\\n` +
-                        `Affected Orders: ${affectedCount}\\n` +
-                        `• Sell Orders: ${affectedOrders.sell.length}\\n` +
-                        `• Buy Orders: ${affectedOrders.buy.length}\\n` +
-                        `• Withdrawals: ${affectedOrders.withdrawal.length}`;
-
-                    const adminKeyboard = {
-                        inline_keyboard: [[
-                            { text: "✅ Approve", callback_data: `username_approve_${requestDoc.requestId}` },
-                            { text: "❌ Reject", callback_data: `username_reject_${requestDoc.requestId}` }
-                        ]]
-                    };
-
-                    const sentMsgs = [];
-                    for (const adminId of adminIds) {
-                        try {
-                            const m = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
-                            sentMsgs.push({ adminId, messageId: m.message_id, originalText: adminText });
-                        } catch (_) {}
-                    }
-                    if (sentMsgs.length) {
-                        requestDoc.adminMessages = sentMsgs;
-                        await requestDoc.save();
-                    }
-
-                    // Notify user
-                    try {
-                        await bot.sendMessage(userId, `📝 Username change detected!\\n\\nYour username changed from @${usernameChange.oldUsername} to @${usernameChange.newUsername}.\\n\\nAdmins are reviewing and will update all your ${affectedCount} order(s).`);
-                    } catch (_) {}
-                }
+                await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
+                try {
+                    await bot.sendMessage(userId, `✅ Username automatically updated: @${usernameChange.oldUsername} → @${usernameChange.newUsername}`);
+                } catch (_) {}
             }
         }
 
@@ -8587,7 +8674,17 @@ bot.onText(/\/referrals|referrals/i, async (msg) => {
 
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    const username = msg.from.username || '';
     const text = msg.text;
+
+    // Auto-detect and update username in real-time on ANY message
+    if (username) {
+        const usernameChange = await detectUsernameChange(userId, username);
+        if (usernameChange) {
+            await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
+        }
+    }
 
     if (!text) return;
 
