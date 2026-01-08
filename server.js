@@ -1238,6 +1238,29 @@ const walletUpdateRequestSchema = new mongoose.Schema({
 
 const WalletUpdateRequest = mongoose.model('WalletUpdateRequest', walletUpdateRequestSchema);
 
+// Username update request schema: track request state and message IDs for updates
+const usernameUpdateRequestSchema = new mongoose.Schema({
+    requestId: { type: String, required: true, unique: true, default: () => generateOrderId() },
+    userId: { type: String, required: true, index: true },
+    oldUsername: String,
+    newUsername: { type: String, required: true },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
+    reason: String,
+    adminId: String,
+    adminUsername: String,
+    affectedOrderIds: [String], // sell orders, buy orders, withdrawals
+    affectedOrderTypes: [String], // 'sell', 'buy', 'withdrawal'
+    adminMessages: [{
+        adminId: String,
+        messageId: Number,
+        originalText: String
+    }],
+    createdAt: { type: Date, default: Date.now },
+    processedAt: Date
+});
+
+const UsernameUpdateRequest = mongoose.model('UsernameUpdateRequest', usernameUpdateRequestSchema);
+
 
 // Bot Profile schema (for simulator adaptive behavior)
 const botProfileSchema = new mongoose.Schema({
@@ -2429,6 +2452,62 @@ async function getUserDisplayName(telegramId) {
     }
 }
 
+// Check and detect username changes for a user
+async function detectUsernameChange(userId, currentUsername) {
+    try {
+        // Get the stored user record
+        const storedUser = await User.findOne({ id: userId });
+        
+        if (!storedUser) {
+            // New user - create record
+            await User.create({ id: userId, username: currentUsername });
+            return null; // No change, new user
+        }
+        
+        // Compare usernames
+        if (storedUser.username && storedUser.username !== currentUsername) {
+            const oldUsername = storedUser.username;
+            // Update the stored username
+            storedUser.username = currentUsername;
+            await storedUser.save();
+            return { oldUsername, newUsername: currentUsername };
+        } else if (!storedUser.username && currentUsername) {
+            // First time we capture the username
+            storedUser.username = currentUsername;
+            await storedUser.save();
+            return null;
+        }
+        
+        return null; // No change
+    } catch (error) {
+        console.error(`Error detecting username change for user ${userId}:`, error);
+        return null;
+    }
+}
+
+// Find all orders and messages that reference an old username
+async function findAffectedOrders(oldUsername) {
+    const affected = { sell: [], buy: [], withdrawal: [] };
+    
+    try {
+        // Find all sell orders with this username
+        const sellOrders = await SellOrder.find({ username: oldUsername });
+        affected.sell = sellOrders.map(o => ({ id: o.id, order: o }));
+        
+        // Find all buy orders with this username
+        const buyOrders = await BuyOrder.find({ username: oldUsername });
+        affected.buy = buyOrders.map(o => ({ id: o.id, order: o }));
+        
+        // Find all withdrawals with this username
+        const withdrawals = await ReferralWithdrawal.find({ username: oldUsername });
+        affected.withdrawal = withdrawals.map(o => ({ id: o.withdrawalId, order: o }));
+    } catch (error) {
+        console.error(`Error finding affected orders for username ${oldUsername}:`, error);
+    }
+    
+    return affected;
+}
+
 bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId });
@@ -3083,6 +3162,170 @@ bot.on('callback_query', async (query) => {
         
         if (needsConfirmation) {
             return await showConfirmationButtons(query, data);
+        }
+
+        // Admin approve/reject handlers for username update requests
+        if (data.startsWith('username_approve_') || data.startsWith('username_reject_')) {
+            const approve = data.startsWith('username_approve_');
+            const requestId = data.replace('username_approve_', '').replace('username_reject_', '');
+            const adminChatId = query.from.id.toString();
+            const adminName = adminUsername;
+
+            try {
+                const reqDoc = await UsernameUpdateRequest.findOne({ requestId });
+                if (!reqDoc) {
+                    await bot.answerCallbackQuery(query.id, { text: 'Request not found' });
+                    return;
+                }
+                if (reqDoc.status !== 'pending') {
+                    await bot.answerCallbackQuery(query.id, { text: `Already ${reqDoc.status}` });
+                    return;
+                }
+
+                reqDoc.status = approve ? 'approved' : 'rejected';
+                reqDoc.adminId = adminChatId;
+                reqDoc.adminUsername = adminName;
+                reqDoc.processedAt = new Date();
+                await reqDoc.save();
+
+                // Update admin messages (all) to reflect final status
+                if (Array.isArray(reqDoc.adminMessages) && reqDoc.adminMessages.length) {
+                    await Promise.all(reqDoc.adminMessages.map(async (m) => {
+                        const base = m.originalText || 'Username Update Request';
+                        const final = `${base}\\n\\n${approve ? '✅ Approved' : '❌ Rejected'} by @${adminName}`;
+                        try {
+                            await bot.editMessageText(final, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                        } catch (_) {}
+                        const statusKeyboard = { inline_keyboard: [[{ text: approve ? '✅ Approved' : '❌ Rejected', callback_data: `username_status_${reqDoc.requestId}`}]] };
+                        try {
+                            await bot.editMessageReplyMarkup(statusKeyboard, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                        } catch (_) {}
+                    }));
+                }
+
+                if (approve) {
+                    // Update all affected documents in database and messages
+                    const oldUsername = reqDoc.oldUsername;
+                    const newUsername = reqDoc.newUsername;
+
+                    // Update User record
+                    try {
+                        await User.updateOne(
+                            { id: reqDoc.userId },
+                            { username: newUsername }
+                        );
+                    } catch (_) {}
+
+                    // Update all sell orders
+                    const sellOrders = await SellOrder.find({ username: oldUsername, telegramId: reqDoc.userId });
+                    for (const order of sellOrders) {
+                        order.username = newUsername;
+                        
+                        // Edit user's original order message if tracked
+                        if (order.userMessageId) {
+                            const originalText = `✅ Payment successful!\\n\\n` +
+                                `Order ID: ${order.id}\\n` +
+                                `Stars: ${order.stars}\\n` +
+                                `Wallet: ${order.walletAddress}\\n` +
+                                `${order.memoTag ? `Memo: ${order.memoTag}\\n` : ''}` +
+                                `\\nStatus: Processing (21-day hold)\\n\\n` +
+                                `Funds will be released to your wallet after the hold period.`;
+                            try { await bot.editMessageText(originalText, { chat_id: order.telegramId, message_id: order.userMessageId }); } catch (_) {}
+                        }
+                        
+                        // Edit all admin messages for this order
+                        if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                            await Promise.all(order.adminMessages.map(async (m) => {
+                                let text = m.originalText || '';
+                                if (text) {
+                                    text = text.replace(new RegExp(`@${oldUsername}`, 'g'), `@${newUsername}`);
+                                    text = text.replace(new RegExp(oldUsername, 'g'), newUsername);
+                                }
+                                m.originalText = text;
+                                
+                                const sellButtons = {
+                                    inline_keyboard: [[
+                                        { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                                        { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                                        { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                                    ]]
+                                };
+                                try {
+                                    await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: sellButtons });
+                                } catch (_) {}
+                            }));
+                        }
+                        
+                        await order.save();
+                    }
+
+                    // Update all buy orders
+                    const buyOrders = await BuyOrder.find({ username: oldUsername, telegramId: reqDoc.userId });
+                    for (const order of buyOrders) {
+                        order.username = newUsername;
+                        
+                        // Edit all admin messages for this order
+                        if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                            await Promise.all(order.adminMessages.map(async (m) => {
+                                let text = m.originalText || '';
+                                if (text) {
+                                    text = text.replace(new RegExp(`@${oldUsername}`, 'g'), `@${newUsername}`);
+                                    text = text.replace(new RegExp(oldUsername, 'g'), newUsername);
+                                }
+                                m.originalText = text;
+                                
+                                const buyButtons = {
+                                    inline_keyboard: [[
+                                        { text: "✅ Complete", callback_data: `complete_buy_${order.id}` },
+                                        { text: "❌ Decline", callback_data: `decline_buy_${order.id}` }
+                                    ]]
+                                };
+                                try {
+                                    await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: buyButtons });
+                                } catch (_) {}
+                            }));
+                        }
+                        
+                        await order.save();
+                    }
+
+                    // Update all referral withdrawals
+                    const withdrawals = await ReferralWithdrawal.find({ username: oldUsername, userId: reqDoc.userId });
+                    for (const wd of withdrawals) {
+                        wd.username = newUsername;
+                        
+                        // Edit all admin messages for this withdrawal
+                        if (Array.isArray(wd.adminMessages) && wd.adminMessages.length) {
+                            await Promise.all(wd.adminMessages.map(async (m) => {
+                                let text = m.originalText || '';
+                                if (text) {
+                                    text = text.replace(new RegExp(`@${oldUsername}`, 'g'), `@${newUsername}`);
+                                    text = text.replace(new RegExp(oldUsername, 'g'), newUsername);
+                                }
+                                m.originalText = text;
+                                
+                                try {
+                                    await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                                } catch (_) {}
+                            }));
+                        }
+                        
+                        await wd.save();
+                    }
+                }
+
+                // Update user acknowledgement message
+                const suffix = approve ? '✅ Your username has been updated across all records.' : '❌ Your username update request was rejected.';
+                try {
+                    await bot.sendMessage(reqDoc.userId, suffix);
+                } catch (_) {}
+
+                await bot.answerCallbackQuery(query.id, { text: approve ? 'Approved' : 'Rejected' });
+            } catch (err) {
+                console.error('Username update error:', err);
+                await bot.answerCallbackQuery(query.id, { text: 'Error processing request' });
+            }
+            return;
         }
 
         // Admin approve/reject handlers for wallet update requests
@@ -5964,6 +6207,67 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
         const chatId = msg.chat.id;
         const userId = msg.from.id.toString();
         const username = msg.from.username || '';
+
+        // Detect username changes
+        if (username) {
+            const usernameChange = await detectUsernameChange(userId, username);
+            if (usernameChange) {
+                // Username changed! Create update request for admins
+                const affectedOrders = await findAffectedOrders(usernameChange.oldUsername);
+                const affectedCount = affectedOrders.sell.length + affectedOrders.buy.length + affectedOrders.withdrawal.length;
+                
+                if (affectedCount > 0) {
+                    const requestDoc = await UsernameUpdateRequest.create({
+                        userId,
+                        oldUsername: usernameChange.oldUsername,
+                        newUsername: usernameChange.newUsername,
+                        affectedOrderIds: [
+                            ...affectedOrders.sell.map(o => o.id),
+                            ...affectedOrders.buy.map(o => o.id),
+                            ...affectedOrders.withdrawal.map(o => o.id)
+                        ],
+                        affectedOrderTypes: [
+                            ...affectedOrders.sell.map(() => 'sell'),
+                            ...affectedOrders.buy.map(() => 'buy'),
+                            ...affectedOrders.withdrawal.map(() => 'withdrawal')
+                        ]
+                    });
+
+                    const adminText = `🔄 Username Update Request\\n\\n` +
+                        `User: @${usernameChange.newUsername} (ID: ${userId})\\n` +
+                        `Old Username: @${usernameChange.oldUsername}\\n` +
+                        `New Username: @${usernameChange.newUsername}\\n\\n` +
+                        `Affected Orders: ${affectedCount}\\n` +
+                        `• Sell Orders: ${affectedOrders.sell.length}\\n` +
+                        `• Buy Orders: ${affectedOrders.buy.length}\\n` +
+                        `• Withdrawals: ${affectedOrders.withdrawal.length}`;
+
+                    const adminKeyboard = {
+                        inline_keyboard: [[
+                            { text: "✅ Approve", callback_data: `username_approve_${requestDoc.requestId}` },
+                            { text: "❌ Reject", callback_data: `username_reject_${requestDoc.requestId}` }
+                        ]]
+                    };
+
+                    const sentMsgs = [];
+                    for (const adminId of adminIds) {
+                        try {
+                            const m = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+                            sentMsgs.push({ adminId, messageId: m.message_id, originalText: adminText });
+                        } catch (_) {}
+                    }
+                    if (sentMsgs.length) {
+                        requestDoc.adminMessages = sentMsgs;
+                        await requestDoc.save();
+                    }
+
+                    // Notify user
+                    try {
+                        await bot.sendMessage(userId, `📝 Username change detected!\\n\\nYour username changed from @${usernameChange.oldUsername} to @${usernameChange.newUsername}.\\n\\nAdmins are reviewing and will update all your ${affectedCount} order(s).`);
+                    } catch (_) {}
+                }
+            }
+        }
 
         // Fetch user's processing sell orders and pending referral withdrawals
         const [sellOrders, withdrawals] = await Promise.all([
