@@ -1015,12 +1015,102 @@ const userSchema = new mongoose.Schema({
     id: { type: String, index: true },
     username: { type: String, index: true },
     createdAt: { type: Date, default: Date.now, index: true },
-    lastActive: { type: Date, default: Date.now, index: true }
+    lastActive: { type: Date, default: Date.now, index: true },
+    // Location tracking
+    lastLocation: {
+        country: String,
+        countryCode: String,
+        city: String,
+        ip: String,
+        timestamp: { type: Date, default: Date.now }
+    },
+    locationHistory: [{
+        country: String,
+        countryCode: String,
+        city: String,
+        ip: String,
+        timestamp: { type: Date, default: Date.now }
+    }],
+    // Device tracking
+    lastDevice: {
+        userAgent: String,
+        browser: String,
+        os: String,
+        timestamp: { type: Date, default: Date.now }
+    },
+    devices: [{
+        userAgent: String,
+        browser: String,
+        os: String,
+        lastSeen: { type: Date, default: Date.now },
+        country: String
+    }],
+    // Additional user info
+    telegramLanguage: String,
+    timezone: String
 });
 
 const bannedUserSchema = new mongoose.Schema({
     users: Array
 });
+
+// User Activity Log - tracks all user interactions
+const userActivityLogSchema = new mongoose.Schema({
+    userId: { type: String, required: true, index: true },
+    username: String,
+    timestamp: { type: Date, default: Date.now, index: true },
+    actionType: { 
+        type: String, 
+        enum: ['message', 'button_click', 'command', 'api_call', 'order_created', 'order_completed', 'login'],
+        required: true,
+        index: true
+    },
+    actionDetails: {
+        command: String,
+        orderId: String,
+        orderType: String,
+        endpoint: String,
+        buttonData: String,
+        messageText: String
+    },
+    location: {
+        country: String,
+        countryCode: String,
+        city: String,
+        ip: String
+    },
+    device: {
+        userAgent: String,
+        browser: String,
+        os: String
+    },
+    status: { type: String, enum: ['success', 'failed', 'error'], default: 'success' },
+    errorMessage: String
+});
+
+const UserActivityLog = mongoose.model('UserActivityLog', userActivityLogSchema);
+
+// Device Tracker - identify and track different devices per user
+const deviceTrackerSchema = new mongoose.Schema({
+    userId: { type: String, required: true, index: true },
+    username: String,
+    userAgent: { type: String, index: true },
+    browser: String,
+    os: String,
+    firstSeen: { type: Date, default: Date.now },
+    lastSeen: { type: Date, default: Date.now, index: true },
+    locations: [{
+        country: String,
+        countryCode: String,
+        city: String,
+        ip: String,
+        timestamp: { type: Date, default: Date.now }
+    }],
+    deviceHash: String, // Fingerprint for device
+    isVerified: { type: Boolean, default: false }
+});
+
+const DeviceTracker = mongoose.model('DeviceTracker', deviceTrackerSchema);
 
 const cacheSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
@@ -2600,6 +2690,193 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
     }
 }
 
+// Geolocation service - get country and city from IP
+async function getGeolocation(ip) {
+    if (!ip || ip === 'localhost' || ip === '127.0.0.1') {
+        return { country: 'Unknown', countryCode: 'XX', city: 'Local' };
+    }
+    try {
+        const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { timeout: 3000 });
+        if (response.ok) {
+            const data = await response.json();
+            return {
+                country: data.country_name || 'Unknown',
+                countryCode: data.country_code || 'XX',
+                city: data.city || data.region_code || 'Unknown'
+            };
+        }
+    } catch (error) {
+        console.error(`Geolocation error for IP ${ip}:`, error.message);
+    }
+    return { country: 'Unknown', countryCode: 'XX', city: 'Unknown' };
+}
+
+// Parse user agent to get browser and OS info
+function parseUserAgent(userAgent = '') {
+    let browser = 'Unknown';
+    let os = 'Unknown';
+    
+    // Browser detection
+    if (userAgent.includes('Chrome')) browser = 'Chrome';
+    else if (userAgent.includes('Safari')) browser = 'Safari';
+    else if (userAgent.includes('Firefox')) browser = 'Firefox';
+    else if (userAgent.includes('Edge')) browser = 'Edge';
+    else if (userAgent.includes('Opera')) browser = 'Opera';
+    else if (userAgent.includes('TelegramClient')) browser = 'Telegram';
+    
+    // OS detection
+    if (userAgent.includes('Windows')) os = 'Windows';
+    else if (userAgent.includes('Mac')) os = 'macOS';
+    else if (userAgent.includes('Linux')) os = 'Linux';
+    else if (userAgent.includes('Android')) os = 'Android';
+    else if (userAgent.includes('iPhone') || userAgent.includes('iPad')) os = 'iOS';
+    
+    return { browser, os };
+}
+
+// Track user activity and location
+async function trackUserActivity(userId, username, actionType, actionDetails = {}, req = null, msg = null) {
+    try {
+        // Extract IP and user agent
+        let ip = 'unknown';
+        let userAgent = 'unknown';
+        
+        if (req) {
+            ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
+                .toString().split(',')[0].trim();
+            userAgent = (req.headers?.['user-agent'] || 'unknown').toString();
+        } else if (msg) {
+            userAgent = `Telegram-Bot-${msg.from?.id || 'unknown'}`;
+            ip = 'telegram';
+        }
+        
+        // Get geolocation
+        const geo = await getGeolocation(ip);
+        const { browser, os } = parseUserAgent(userAgent);
+        
+        // Get user
+        const user = await User.findOne({ id: userId });
+        
+        if (user) {
+            // Update last active
+            user.lastActive = new Date();
+            
+            // Update location
+            user.lastLocation = {
+                country: geo.country,
+                countryCode: geo.countryCode,
+                city: geo.city,
+                ip,
+                timestamp: new Date()
+            };
+            
+            // Add to location history (keep last 20)
+            if (!user.locationHistory) user.locationHistory = [];
+            user.locationHistory.push({
+                country: geo.country,
+                countryCode: geo.countryCode,
+                city: geo.city,
+                ip,
+                timestamp: new Date()
+            });
+            if (user.locationHistory.length > 20) {
+                user.locationHistory = user.locationHistory.slice(-20);
+            }
+            
+            // Update device info
+            user.lastDevice = {
+                userAgent,
+                browser,
+                os,
+                timestamp: new Date()
+            };
+            
+            // Track device
+            if (!user.devices) user.devices = [];
+            const existingDevice = user.devices.find(d => d.userAgent === userAgent);
+            if (existingDevice) {
+                existingDevice.lastSeen = new Date();
+                existingDevice.country = geo.country;
+            } else {
+                user.devices.push({
+                    userAgent,
+                    browser,
+                    os,
+                    lastSeen: new Date(),
+                    country: geo.country
+                });
+                if (user.devices.length > 10) {
+                    user.devices = user.devices.slice(-10);
+                }
+            }
+            
+            await user.save();
+        }
+        
+        // Create activity log
+        await UserActivityLog.create({
+            userId,
+            username: username || user?.username || 'Unknown',
+            timestamp: new Date(),
+            actionType,
+            actionDetails,
+            location: {
+                country: geo.country,
+                countryCode: geo.countryCode,
+                city: geo.city,
+                ip
+            },
+            device: {
+                userAgent,
+                browser,
+                os
+            },
+            status: 'success'
+        });
+        
+        // Track device
+        let deviceTracker = await DeviceTracker.findOne({ 
+            userId, 
+            userAgent 
+        });
+        
+        if (!deviceTracker) {
+            deviceTracker = new DeviceTracker({
+                userId,
+                username: username || user?.username || 'Unknown',
+                userAgent,
+                browser,
+                os,
+                firstSeen: new Date(),
+                lastSeen: new Date(),
+                locations: [{
+                    country: geo.country,
+                    countryCode: geo.countryCode,
+                    city: geo.city,
+                    ip,
+                    timestamp: new Date()
+                }]
+            });
+        } else {
+            deviceTracker.lastSeen = new Date();
+            deviceTracker.locations.push({
+                country: geo.country,
+                countryCode: geo.countryCode,
+                city: geo.city,
+                ip,
+                timestamp: new Date()
+            });
+            if (deviceTracker.locations.length > 50) {
+                deviceTracker.locations = deviceTracker.locations.slice(-50);
+            }
+        }
+        
+        await deviceTracker.save();
+    } catch (error) {
+        console.error(`Error tracking activity for user ${userId}:`, error.message);
+    }
+}
+
 // Find all orders and messages that reference an old username
 async function findAffectedOrders(oldUsername) {
     const affected = { sell: [], buy: [], withdrawal: [] };
@@ -2626,6 +2903,7 @@ async function findAffectedOrders(oldUsername) {
 bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId });
+    const userId = msg.from.id.toString();
 
     if (!order) {
         return await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Contact support.");
@@ -2643,6 +2921,13 @@ bot.on("successful_payment", async (msg) => {
         await bot.sendMessage(msg.chat.id, "❌ This order has already been processed. If you were charged multiple times, contact support.");
         return;
     }
+
+    // Track activity (payment)
+    await trackUserActivity(userId, msg.from.username, 'order_completed', {
+        orderId: order.id,
+        orderType: 'sell',
+        stars: order.stars
+    }, null, msg);
 
     order.telegram_payment_charge_id = msg.successful_payment.telegram_payment_charge_id;
     order.status = "processing"; 
@@ -2667,9 +2952,20 @@ bot.on("successful_payment", async (msg) => {
   
     const userDisplayName = await getUserDisplayName(order.telegramId);
     
+    // Get user location
+    const user = await User.findOne({ id: userId });
+    const userLocation = user?.lastLocation ? 
+        `📍 ${user.lastLocation.city || 'Unknown'}, ${user.lastLocation.country || 'Unknown'}` : 
+        '📍 Location not available';
+    const userDevice = user?.lastDevice ? 
+        `📱 ${user.lastDevice.browser} on ${user.lastDevice.os}` :
+        '📱 Device info not available';
+    
     const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
-        `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` + 
+        `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` +
+        `${userLocation}\n` +
+        `${userDevice}\n` +
         `Stars: ${order.stars}\n` +
         `Wallet: ${order.walletAddress}\n` +  
         `Memo: ${order.memoTag || 'None'}`;
@@ -6519,6 +6815,169 @@ bot.onText(/\/contact/, (msg) => {
 });
 
 // Admin help command
+// Admin command: View user activity logs
+bot.onText(/^\/userlogs\s+(\S+)(?:\s+(\d+))?/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const userQuery = match[1]; // user ID or username
+    const limit = Math.min(parseInt(match[2]) || 10, 50);
+    
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, "❌ Unauthorized");
+    }
+    
+    try {
+        // Find user
+        let user = await User.findOne({ 
+            $or: [
+                { id: userQuery },
+                { username: userQuery.replace('@', '') }
+            ]
+        });
+        
+        if (!user) {
+            return bot.sendMessage(chatId, `❌ User not found: ${userQuery}`);
+        }
+        
+        // Get activity logs
+        const logs = await UserActivityLog.find({ userId: user.id })
+            .sort({ timestamp: -1 })
+            .limit(limit)
+            .lean();
+        
+        if (logs.length === 0) {
+            return bot.sendMessage(chatId, `ℹ️ No activity logs found for user: @${user.username} (${user.id})`);
+        }
+        
+        let reportText = `📊 **Activity Log for @${user.username}** (ID: ${user.id})\n\n`;
+        reportText += `**Last Active:** ${user.lastActive.toLocaleString()}\n`;
+        reportText += `**Current Location:** ${user.lastLocation?.city || 'Unknown'}, ${user.lastLocation?.country || 'Unknown'}\n`;
+        reportText += `**Last Device:** ${user.lastDevice?.browser || 'Unknown'} on ${user.lastDevice?.os || 'Unknown'}\n\n`;
+        reportText += `**Recent Activities (${logs.length} of ${limit}):**\n\n`;
+        
+        logs.forEach((log, idx) => {
+            const emoji = log.actionType === 'order_completed' ? '✅' : 
+                         log.actionType === 'command' ? '⚙️' :
+                         log.actionType === 'button_click' ? '🔘' : '📝';
+            reportText += `${idx + 1}. ${emoji} ${log.actionType}\n`;
+            reportText += `   📍 ${log.location.city}, ${log.location.country}\n`;
+            reportText += `   🕐 ${log.timestamp.toLocaleString()}\n`;
+            if (log.actionDetails.orderId) {
+                reportText += `   Order: ${log.actionDetails.orderId}\n`;
+            }
+            reportText += '\n';
+        });
+        
+        bot.sendMessage(chatId, reportText);
+    } catch (error) {
+        console.error('Error fetching user logs:', error);
+        bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    }
+});
+
+// Admin command: View user device history
+bot.onText(/^\/userdevices\s+(\S+)/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const userQuery = match[1];
+    
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, "❌ Unauthorized");
+    }
+    
+    try {
+        // Find user
+        let user = await User.findOne({ 
+            $or: [
+                { id: userQuery },
+                { username: userQuery.replace('@', '') }
+            ]
+        });
+        
+        if (!user) {
+            return bot.sendMessage(chatId, `❌ User not found: ${userQuery}`);
+        }
+        
+        // Get device trackers
+        const devices = await DeviceTracker.find({ userId: user.id })
+            .sort({ lastSeen: -1 })
+            .lean();
+        
+        if (devices.length === 0) {
+            return bot.sendMessage(chatId, `ℹ️ No devices found for user: @${user.username}`);
+        }
+        
+        let reportText = `📱 **Device History for @${user.username}** (ID: ${user.id})\n\n`;
+        
+        devices.forEach((device, idx) => {
+            reportText += `**Device ${idx + 1}:**\n`;
+            reportText += `🌐 ${device.browser} on ${device.os}\n`;
+            reportText += `⏱️ First Seen: ${new Date(device.firstSeen).toLocaleString()}\n`;
+            reportText += `⏱️ Last Seen: ${new Date(device.lastSeen).toLocaleString()}\n`;
+            if (device.locations && device.locations.length > 0) {
+                const lastLoc = device.locations[device.locations.length - 1];
+                reportText += `📍 Last Location: ${lastLoc.city}, ${lastLoc.country}\n`;
+                reportText += `📍 Locations Used: ${new Set(device.locations.map(l => l.country)).size} different countries\n`;
+            }
+            reportText += '\n';
+        });
+        
+        bot.sendMessage(chatId, reportText);
+    } catch (error) {
+        console.error('Error fetching device history:', error);
+        bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    }
+});
+
+// Admin command: View user location history
+bot.onText(/^\/userlocation\s+(\S+)/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const userQuery = match[1];
+    
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, "❌ Unauthorized");
+    }
+    
+    try {
+        // Find user
+        let user = await User.findOne({ 
+            $or: [
+                { id: userQuery },
+                { username: userQuery.replace('@', '') }
+            ]
+        });
+        
+        if (!user) {
+            return bot.sendMessage(chatId, `❌ User not found: ${userQuery}`);
+        }
+        
+        let reportText = `📍 **Location History for @${user.username}** (ID: ${user.id})\n\n`;
+        reportText += `**Current Location:** ${user.lastLocation?.city || 'Unknown'}, ${user.lastLocation?.country || 'Unknown'}\n`;
+        reportText += `**Last IP:** ${user.lastLocation?.ip || 'Unknown'}\n\n`;
+        
+        if (user.locationHistory && user.locationHistory.length > 0) {
+            reportText += `**Location History (${user.locationHistory.length} entries):**\n\n`;
+            
+            const uniqueCountries = new Set(user.locationHistory.map(l => l.country));
+            reportText += `Countries visited: ${Array.from(uniqueCountries).join(', ')}\n\n`;
+            
+            user.locationHistory.slice().reverse().forEach((loc, idx) => {
+                reportText += `${idx + 1}. ${loc.city}, ${loc.country}\n`;
+                reportText += `   IP: ${loc.ip}\n`;
+                reportText += `   🕐 ${new Date(loc.timestamp).toLocaleString()}\n\n`;
+            });
+        } else {
+            reportText += `ℹ️ No location history available`;
+        }
+        
+        bot.sendMessage(chatId, reportText);
+    } catch (error) {
+        console.error('Error fetching location history:', error);
+        bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    }
+});
+
 bot.onText(/\/adminhelp/, (msg) => {
     const chatId = msg.chat.id;
     const adminId = msg.from.id.toString();
@@ -6538,7 +6997,12 @@ bot.onText(/\/adminhelp/, (msg) => {
 /users - List all users in the system
 /detect_users - Detect and process new users
 
-**💰 Wallet Management:**
+**� User Activity & Location Logs:**
+/userlogs [user_id|@username] [limit] - View user activity logs (default 10, max 50)
+/userlocation [user_id|@username] - View user location history
+/userdevices [user_id|@username] - View user device history
+
+**�💰 Wallet Management:**
 /updatewallet [user_id] [sell|withdrawal] [order_id] [new_wallet_address]
   - Update a user's wallet address for specific order
   - Example: /updatewallet 123456789 sell ABC123 UQAbc123...
