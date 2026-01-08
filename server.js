@@ -2287,8 +2287,22 @@ Need help? Contact @StarStore_Chat`;
 
         await bot.sendMessage(telegramId, userMessage);
 
-        // Create enhanced admin message with Telegram ID
-        let adminMessage = `🛒 New ${isPremium ? 'Premium' : 'Buy'} Order!\n\nOrder ID: ${order.id}\nUser: @${username} (ID: ${telegramId})\nAmount: ${amount} USDT`;
+        // Track user activity (buy order created)
+        await trackUserActivity(telegramId, username, 'order_created', {
+            orderId: order.id,
+            orderType: isPremium ? 'premium_buy' : 'buy',
+            amount: amount,
+            isPremium: isPremium
+        }, req, null);
+
+        // Get user location for admin message
+        const user = await User.findOne({ id: telegramId });
+        const userLocation = user?.lastLocation ? 
+            `Location: ${user.lastLocation.city || 'Unknown'}, ${user.lastLocation.country || 'Unknown'}` : 
+            'Location: Not available';
+
+        // Create enhanced admin message with Telegram ID and location
+        let adminMessage = `🛒 New ${isPremium ? 'Premium' : 'Buy'} Order!\n\nOrder ID: ${order.id}\nUser: @${username} (ID: ${telegramId})\n${userLocation}\nAmount: ${amount} USDT`;
         
         if (isPremium) {
             adminMessage += `\nDuration: ${premiumDuration} months`;
@@ -2922,7 +2936,7 @@ bot.on("successful_payment", async (msg) => {
         return;
     }
 
-    // Track activity (payment)
+    // Track activity (payment) - this updates user location in DB
     await trackUserActivity(userId, msg.from.username, 'order_completed', {
         orderId: order.id,
         orderType: 'sell',
@@ -2952,20 +2966,16 @@ bot.on("successful_payment", async (msg) => {
   
     const userDisplayName = await getUserDisplayName(order.telegramId);
     
-    // Get user location
+    // Get user location (refetch after trackUserActivity updated it)
     const user = await User.findOne({ id: userId });
     const userLocation = user?.lastLocation ? 
-        `📍 ${user.lastLocation.city || 'Unknown'}, ${user.lastLocation.country || 'Unknown'}` : 
-        '📍 Location not available';
-    const userDevice = user?.lastDevice ? 
-        `📱 ${user.lastDevice.browser} on ${user.lastDevice.os}` :
-        '📱 Device info not available';
+        `Location: ${user.lastLocation.city || 'Unknown'}, ${user.lastLocation.country || 'Unknown'}` : 
+        'Location: Not available';
     
     const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
         `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` +
         `${userLocation}\n` +
-        `${userDevice}\n` +
         `Stars: ${order.stars}\n` +
         `Wallet: ${order.walletAddress}\n` +  
         `Memo: ${order.memoTag || 'None'}`;
