@@ -4,6 +4,7 @@ const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const compression = require('compression');
 const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
@@ -169,6 +170,24 @@ app.use((error, req, res, next) => {
     }
     next(error);
 });
+
+// Compression middleware with proper error handling
+// Compress responses only for specific types and size thresholds
+app.use(compression({
+    // Only compress if response is larger than 1KB
+    threshold: 1024,
+    // Don't compress these types
+    filter: (req, res) => {
+        // Don't compress if response has no-compression flag
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        // Use compression filter default
+        return compression.filter(req, res);
+    },
+    // Compression level (0-9, higher = better compression but slower)
+    level: 6
+}));
 // Serve static with sensible defaults for SEO and caching
 app.use(express.static('public', {
   extensions: ['html'],
@@ -4787,22 +4806,30 @@ app.get('/api/sticker/:sticker_id/json', async (req, res) => {
     const tgRes = await fetch(telegramUrl);
     const buffer = await tgRes.arrayBuffer();
 
+    // Only try to decompress if we have valid gzip data
     zlib.unzip(Buffer.from(buffer), (err, jsonBuffer) => {
       if (err) {
-        console.error('Decompression error:', err);
-        return res.status(500).json({ error: 'Failed to decode sticker' });
+        console.error('Decompression error:', err.code, err.message);
+        // Try parsing as-is if gzip fails (might not be compressed)
+        try {
+          const json = JSON.parse(Buffer.from(buffer).toString());
+          return res.json(json);
+        } catch (parseErr) {
+          return res.status(500).json({ error: 'Failed to decode sticker: ' + err.code });
+        }
       }
 
       try {
         const json = JSON.parse(jsonBuffer.toString());
         res.json(json);
       } catch (e) {
-        res.status(500).json({ error: 'Invalid JSON' });
+        console.error('Sticker JSON parse error:', e.message);
+        res.status(500).json({ error: 'Invalid sticker JSON' });
       }
     });
 
   } catch (e) {
-    console.error(e);
+    console.error('Sticker fetch error:', e);
     res.status(500).json({ error: 'Internal error' });
   }
 });
