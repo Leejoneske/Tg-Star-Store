@@ -2760,13 +2760,19 @@ async function trackUserActivity(userId, username, actionType, actionDetails = {
                 .toString().split(',')[0].trim();
             userAgent = (req.headers?.['user-agent'] || 'unknown').toString();
         } else if (msg) {
-            userAgent = `Telegram-Bot-${msg.from?.id || 'unknown'}`;
-            ip = 'telegram';
+            // For Telegram messages, try to extract from the update context if available
+            // Otherwise use telegram as identifier
+            userAgent = `Telegram-${msg.from?.id || 'unknown'}`;
+            ip = 'unknown'; // Can't get real IP from Telegram, set as unknown
         }
+        
+        console.log(`[TRACK] User ${userId} (${username}): ${actionType} - IP: ${ip}, UA: ${userAgent.substring(0, 50)}`);
         
         // Get geolocation
         const geo = await getGeolocation(ip);
         const { browser, os } = parseUserAgent(userAgent);
+        
+        console.log(`[GEO] User ${userId}: ${geo.city}, ${geo.country}`);
         
         // Get user
         const user = await User.findOne({ id: userId });
@@ -2783,6 +2789,8 @@ async function trackUserActivity(userId, username, actionType, actionDetails = {
                 ip,
                 timestamp: new Date()
             };
+            
+            console.log(`[SAVE] User ${userId} location updated: ${geo.city}, ${geo.country}`);
             
             // Add to location history (keep last 20)
             if (!user.locationHistory) user.locationHistory = [];
@@ -2825,6 +2833,9 @@ async function trackUserActivity(userId, username, actionType, actionDetails = {
             }
             
             await user.save();
+            console.log(`[DB] User ${userId} saved successfully`);
+        } else {
+            console.warn(`[WARN] User ${userId} not found in database`);
         }
         
         // Create activity log
@@ -2886,8 +2897,9 @@ async function trackUserActivity(userId, username, actionType, actionDetails = {
         }
         
         await deviceTracker.save();
+        console.log(`[TRACK-OK] User ${userId} activity logged successfully`);
     } catch (error) {
-        console.error(`Error tracking activity for user ${userId}:`, error.message);
+        console.error(`[TRACK-ERR] Error tracking activity for user ${userId}:`, error.message, error.stack);
     }
 }
 
