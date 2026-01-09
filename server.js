@@ -2458,6 +2458,31 @@ app.post("/api/sell-orders", async (req, res) => {
             });
         }
 
+        // Extract and get location from request (web-based sell order)
+        let userLocation = null;
+        try {
+            let ip = req.headers?.['x-forwarded-for'] || req.headers?.['cf-connecting-ip'] || req.socket?.remoteAddress || 'unknown';
+            if (typeof ip === 'string') {
+                ip = ip.split(',')[0].trim();
+            }
+            
+            if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
+                const geo = await getGeolocation(ip);
+                if (geo.country !== 'Unknown') {
+                    userLocation = {
+                        city: geo.city,
+                        country: geo.country,
+                        countryCode: geo.countryCode,
+                        timestamp: new Date()
+                    };
+                    console.log(`[SELL-ORDER] Location captured: ${geo.city}, ${geo.country}`);
+                }
+            }
+        } catch (err) {
+            console.error('Error capturing location for sell order:', err.message);
+            // Continue without location - it's not critical
+        }
+
         // Generate unique session token for this user and order
         const sessionToken = generateSessionToken(telegramId);
         const sessionExpiry = new Date(Date.now() + 15 * 60 * 1000); 
@@ -2476,7 +2501,8 @@ app.post("/api/sell-orders", async (req, res) => {
             adminMessages: [],
             sessionToken: sessionToken, 
             sessionExpiry: sessionExpiry, 
-            userLocked: telegramId 
+            userLocked: telegramId,
+            userLocation: userLocation
         });
 
         let paymentLink = null;
@@ -3089,15 +3115,15 @@ bot.on("successful_payment", async (msg) => {
   
     const userDisplayName = await getUserDisplayName(order.telegramId);
     
-    // Location not available for Telegram payments (no IP data)
-    // If you need location tracking for sell orders, capture it when wallet address is submitted
+    // Format location info for admin message
     const userLocationInfo = order.userLocation ? 
-        `\nLocation: ${order.userLocation.city || 'Unknown'}, ${order.userLocation.country || 'Unknown'}` : 
+        `Location: ${order.userLocation.city || 'Unknown'}, ${order.userLocation.country || 'Unknown'}` : 
         '';
     
     const adminMessage = `💰 New Payment Received!\n\n` +
         `Order ID: ${order.id}\n` +
-        `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})${userLocationInfo}\n` +
+        `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` +
+        (userLocationInfo ? `${userLocationInfo}\n` : '') +
         `Stars: ${order.stars}\n` +
         `Wallet: ${order.walletAddress}\n` +  
         `Memo: ${order.memoTag || 'None'}`;
