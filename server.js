@@ -171,23 +171,22 @@ app.use((error, req, res, next) => {
     next(error);
 });
 
-// Compression middleware with proper error handling
-// Compress responses only for specific types and size thresholds
+// Compression middleware disabled due to Z_DATA_ERROR issues in production
+// The gzip compression is causing decompression errors on some clients
+// Railway/edge proxies handle compression automatically if needed
+// Uncomment below if needed, but test thoroughly in production first
+/*
 app.use(compression({
-    // Only compress if response is larger than 1KB
     threshold: 1024,
-    // Don't compress these types
     filter: (req, res) => {
-        // Don't compress if response has no-compression flag
         if (req.headers['x-no-compression']) {
             return false;
         }
-        // Use compression filter default
         return compression.filter(req, res);
     },
-    // Compression level (0-9, higher = better compression but slower)
     level: 6
 }));
+*/
 // Serve static with sensible defaults for SEO and caching
 app.use(express.static('public', {
   extensions: ['html'],
@@ -2590,12 +2589,24 @@ async function getUserDisplayName(telegramId) {
 // Check and detect username changes for a user
 async function detectUsernameChange(userId, currentUsername) {
     try {
-        // Get the stored user record
+        // Use findOneAndUpdate with upsert to avoid race conditions
         const storedUser = await User.findOne({ id: userId });
         
         if (!storedUser) {
-            // New user - create record
-            await User.create({ id: userId, username: currentUsername });
+            // New user - use upsert to prevent race conditions from simultaneous requests
+            try {
+                await User.findOneAndUpdate(
+                    { id: userId },
+                    { $set: { id: userId, username: currentUsername, lastActive: new Date() } },
+                    { upsert: true, new: false }
+                );
+            } catch (e) {
+                // E11000 duplicate key error means user was created by another simultaneous request
+                // This is fine, just continue
+                if (e.code !== 11000) {
+                    throw e;
+                }
+            }
             return null; // No change, new user
         }
         
@@ -2615,7 +2626,7 @@ async function detectUsernameChange(userId, currentUsername) {
         
         return null; // No change
     } catch (error) {
-        console.error(`Error detecting username change for user ${userId}:`, error);
+        console.error(`Error detecting username change for user ${userId}:`, error.message);
         return null;
     }
 }
