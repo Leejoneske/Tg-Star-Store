@@ -9576,8 +9576,22 @@ bot.on('message', async (msg) => {
     const username = msg.from.username || 'user';
 
     try {
+        // Skip /start command since it already adds users to the database
+        if (msg.text && msg.text.startsWith('/start')) {
+            return;
+        }
+
+        // Only cache users who are NOT already in the User database
+        const existingUser = await User.findOne({ id: chatId });
+        if (existingUser) {
+            // User already in database, no need to cache
+            return;
+        }
+
+        // Check if already in cache
         const existingCache = await Cache.findOne({ id: chatId });
         if (!existingCache) {
+            // Only add to cache if they're not already a saved user
             await Cache.create({ id: chatId, username: username });
         }
     } catch (error) {
@@ -9591,28 +9605,38 @@ bot.onText(/\/detect_users/, async (msg) => {
     try {
         const cachedUsers = await Cache.find({});
         let totalDetected = cachedUsers.length;
-        let totalAdded = 0;
+        let totalNew = 0;
+        let totalAlreadySaved = 0;
         let totalFailed = 0;
 
         for (const user of cachedUsers) {
             try {
-                try {
-                    await User.findOneAndUpdate(
-                        { id: user.id },
-                        { $set: { id: user.id, username: user.username, createdAt: new Date(), lastActive: new Date() } },
-                        { upsert: true, new: true }
-                    );
-                    totalAdded++;
-                } catch (createErr) {
-                    // Handle E11000 duplicate key error - already exists
-                    if (createErr.code === 11000) {
-                        totalAdded++;
-                    } else {
-                        throw createErr;
+                // Check if user is already in database
+                const existingUser = await User.findOne({ id: user.id });
+                
+                if (existingUser) {
+                    // User already saved
+                    totalAlreadySaved++;
+                } else {
+                    // Try to add new user
+                    try {
+                        await User.findOneAndUpdate(
+                            { id: user.id },
+                            { $set: { id: user.id, username: user.username, createdAt: new Date(), lastActive: new Date() } },
+                            { upsert: true, new: true }
+                        );
+                        totalNew++;
+                    } catch (createErr) {
+                        // Handle E11000 duplicate key error
+                        if (createErr.code === 11000) {
+                            totalNew++;
+                        } else {
+                            throw createErr;
+                        }
                     }
                 }
             } catch (error) {
-                console.error(`Failed to add user ${user.id}:`, error);
+                console.error(`Failed to process user ${user.id}:`, error);
                 totalFailed++;
             }
         }
@@ -9620,7 +9644,7 @@ bot.onText(/\/detect_users/, async (msg) => {
         // Clear the cache after processing
         await Cache.deleteMany({});
 
-        const reportMessage = `User Detection Report:\n\nTotal Detected: ${totalDetected}\nTotal Added: ${totalAdded}\nTotal Failed: ${totalFailed}`;
+        const reportMessage = `📊 User Detection Report:\n\n📌 Total Detected: ${totalDetected}\n✅ Newly Added: ${totalNew}\n👤 Already Saved: ${totalAlreadySaved}\n❌ Failed: ${totalFailed}`;
         bot.sendMessage(chatId, reportMessage);
     } catch (error) {
         console.error('Error detecting users:', error);
