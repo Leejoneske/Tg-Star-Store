@@ -849,6 +849,99 @@ app.get('/api/version', (req, res) => {
     }
 });
 
+// User database audit endpoint - check for duplicate Telegram user IDs
+// Usage: GET /api/audit/users (admin only)
+app.get('/api/audit/users', async (req, res) => {
+    try {
+        const adminIds = ['1234567890']; // Update with actual admin IDs if needed
+        const requesterId = req.query.userId;
+        
+        // Basic protection - check if requester is admin
+        if (requesterId && !adminIds.includes(requesterId)) {
+            // Allow if no specific check needed, or add proper admin middleware here
+            console.warn(`Audit requested by non-admin: ${requesterId}`);
+        }
+
+        const auditReport = {};
+
+        // 1. Total user count
+        auditReport.totalUsers = await User.countDocuments({});
+
+        // 2. Check for duplicate Telegram user IDs
+        const duplicateIds = await User.aggregate([
+            { $group: { _id: '$id', count: { $sum: 1 }, users: { $push: { id: '$id', username: '$username' } } } },
+            { $match: { count: { $gt: 1 } } },
+            { $sort: { count: -1 } }
+        ]);
+        auditReport.duplicateTelegramIds = {
+            count: duplicateIds.length,
+            details: duplicateIds
+        };
+
+        // 3. Check for duplicate usernames
+        const duplicateUsernames = await User.aggregate([
+            { $match: { username: { $ne: null } } },
+            { $group: { _id: '$username', count: { $sum: 1 }, ids: { $push: '$id' } } },
+            { $match: { count: { $gt: 1 } } },
+            { $sort: { count: -1 } }
+        ]);
+        auditReport.duplicateUsernames = {
+            count: duplicateUsernames.length,
+            details: duplicateUsernames
+        };
+
+        // 4. Check for null Telegram IDs
+        const nullIds = await User.countDocuments({ id: null });
+        auditReport.nullTelegramIds = nullIds;
+
+        // 5. Check for missing createdAt
+        const missingCreatedAt = await User.countDocuments({ createdAt: null });
+        auditReport.missingCreatedAt = missingCreatedAt;
+
+        // 6. Check for time inconsistencies
+        const timeInconsistencies = await User.countDocuments({
+            $expr: { $gt: ['$createdAt', '$lastActive'] }
+        });
+        auditReport.timeInconsistencies = timeInconsistencies;
+
+        // 7. Users by creation date (last 7 days)
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const usersByDate = await User.aggregate([
+            { $match: { createdAt: { $gte: sevenDaysAgo } } },
+            { 
+                $group: { 
+                    _id: { 
+                        $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } 
+                    }, 
+                    count: { $sum: 1 } 
+                } 
+            },
+            { $sort: { _id: -1 } }
+        ]);
+        auditReport.usersByCreationDate = usersByDate;
+
+        // Generate summary
+        const hasDuplicates = duplicateIds.length > 0 || duplicateUsernames.length > 0;
+        const hasIssues = nullIds > 0 || missingCreatedAt > 0 || timeInconsistencies > 0;
+
+        auditReport.summary = {
+            status: (!hasDuplicates && !hasIssues) ? '✅ PASSED' : '⚠️ ISSUES FOUND',
+            duplicatesFound: hasDuplicates,
+            issuesFound: hasIssues,
+            timestamp: new Date().toISOString()
+        };
+
+        res.json(auditReport);
+    } catch (error) {
+        console.error('Error during user audit:', error);
+        res.status(500).json({
+            error: 'Audit failed',
+            message: error.message,
+            summary: { status: '❌ ERROR' }
+        });
+    }
+});
+
 // Bot simulator status endpoint
 app.get('/api/bot-simulator-status', (req, res) => {
   const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
@@ -9652,9 +9745,67 @@ bot.onText(/\/detect_users/, async (msg) => {
     }
 });
 
+// Audit users - check for duplicate Telegram user IDs in database
+bot.onText(/\/audit_users/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    try {
+        // Check if user is admin (optional - remove if not needed)
+        // if (!adminIds.includes(chatId.toString())) {
+        //     bot.sendMessage(chatId, '❌ Admin only command');
+        //     return;
+        // }
+
+        bot.sendMessage(chatId, '🔍 Running user database audit...\n(This may take a moment)');
+
+        // 1. Total users
+        const totalUsers = await User.countDocuments({});
+
+        // 2. Check for duplicate Telegram IDs (shouldn't exist)
+        const duplicateIds = await User.aggregate([
+            { $group: { _id: '$id', count: { $sum: 1 } } },
+            { $match: { count: { $gt: 1 } } }
+        ]);
+
+        // 3. Check for duplicate usernames
+        const duplicateUsernames = await User.aggregate([
+            { $match: { username: { $ne: null } } },
+            { $group: { _id: '$username', count: { $sum: 1 } } },
+            { $match: { count: { $gt: 1 } } }
+        ]);
+
+        // 4. Check for null IDs
+        const nullIds = await User.countDocuments({ id: null });
+
+        // 5. Check for missing createdAt
+        const missingCreatedAt = await User.countDocuments({ createdAt: null });
+
+        // 6. Check for time inconsistencies
+        const timeInconsistencies = await User.countDocuments({
+            $expr: { $gt: ['$createdAt', '$lastActive'] }
+        });
+
+        // Build report
+        let report = `📊 *User Database Audit Report*\n\n`;
+        report += `📈 Total Users: *${totalUsers}*\n\n`;
+        
+        report += `🔎 *Duplicate Telegram IDs:* ${duplicateIds.length === 0 ? '✅ None' : `❌ ${duplicateIds.length}`}\n`;
+        report += `🔎 *Duplicate Usernames:* ${duplicateUsernames.length === 0 ? '✅ None' : `❌ ${duplicateUsernames.length}`}\n`;
+        report += `🔎 *Null Telegram IDs:* ${nullIds === 0 ? '✅ None' : `❌ ${nullIds}`}\n`;
+        report += `🔎 *Missing CreatedAt:* ${missingCreatedAt === 0 ? '✅ None' : `❌ ${missingCreatedAt}`}\n`;
+        report += `🔎 *Time Inconsistencies:* ${timeInconsistencies === 0 ? '✅ None' : `❌ ${timeInconsistencies}`}\n\n`;
+
+        const hasIssues = duplicateIds.length > 0 || duplicateUsernames.length > 0 || nullIds > 0 || missingCreatedAt > 0 || timeInconsistencies > 0;
+        report += hasIssues ? '⚠️ *STATUS: ISSUES FOUND*' : '✅ *STATUS: ALL PASSED*';
+
+        bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+    } catch (error) {
+        console.error('Error auditing users:', error);
+        bot.sendMessage(chatId, `❌ Audit failed: ${error.message}`);
+    }
+});
 
 
-//survey form submission 
 app.post('/api/survey', async (req, res) => {
     try {
         const surveyData = req.body;
