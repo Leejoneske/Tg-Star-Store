@@ -1,5 +1,10 @@
 
 require('dotenv').config();
+
+// Suppress punycode deprecation warning (from tldts dependency)
+// Safe to ignore - Node.js built-in punycode is still stable for domain parsing
+process.noDeprecation = true;
+
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
@@ -2308,16 +2313,28 @@ Need help? Contact @StarStore_Chat`;
         // Track user activity (buy order created) and get location data
         let userLocation = 'Location: Not available';
         try {
-            // Extract IP from request (should have it from web request)
-            const ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
-                .toString().split(',')[0].trim();
+            // Extract IP from request - x-forwarded-for is set by Railway proxies
+            let ip = req.headers?.['x-forwarded-for'] || req.headers?.['cf-connecting-ip'] || req.socket?.remoteAddress || 'unknown';
+            
+            // Handle multiple IPs in x-forwarded-for (take first one)
+            if (typeof ip === 'string') {
+                ip = ip.split(',')[0].trim();
+            }
+            
+            console.log(`[BUY-ORDER] IP extraction: x-forwarded-for=${req.headers?.['x-forwarded-for']}, final-ip=${ip}`);
             
             // Only try to get geolocation if we have a valid IP (not from Telegram)
-            if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1') {
+            if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
+                console.log(`[BUY-ORDER] Attempting geolocation for IP: ${ip}`);
                 const geo = await getGeolocation(ip);
+                console.log(`[BUY-ORDER] Geolocation result: ${geo.city}, ${geo.country}`);
+                
                 if (geo.country !== 'Unknown') {
                     userLocation = `Location: ${geo.city || 'Unknown'}, ${geo.country}`;
+                    console.log(`[BUY-ORDER] Location set: ${userLocation}`);
                 }
+            } else {
+                console.log(`[BUY-ORDER] Skipped geolocation: IP is ${ip}`);
             }
         } catch (err) {
             console.error('Error getting location for buy order:', err.message);
@@ -2748,21 +2765,37 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
 
 // Geolocation service - get country and city from IP
 async function getGeolocation(ip) {
-    if (!ip || ip === 'localhost' || ip === '127.0.0.1') {
+    if (!ip || ip === 'localhost' || ip === '127.0.0.1' || ip === '::1') {
         return { country: 'Unknown', countryCode: 'XX', city: 'Local' };
     }
     try {
-        const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { timeout: 3000 });
+        // Use a timeout of 5 seconds for the geolocation API call
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { 
+            signal: controller.signal 
+        });
+        clearTimeout(timeoutId);
+        
         if (response.ok) {
             const data = await response.json();
-            return {
+            const result = {
                 country: data.country_name || 'Unknown',
                 countryCode: data.country_code || 'XX',
                 city: data.city || data.region_code || 'Unknown'
             };
+            console.log(`[GEO] IP ${ip} → ${result.city}, ${result.country}`);
+            return result;
+        } else {
+            console.warn(`[GEO] API returned status ${response.status} for IP ${ip}`);
         }
     } catch (error) {
-        console.error(`Geolocation error for IP ${ip}:`, error.message);
+        if (error.name === 'AbortError') {
+            console.warn(`[GEO] Timeout getting geolocation for IP ${ip}`);
+        } else {
+            console.error(`[GEO] Error for IP ${ip}:`, error.message);
+        }
     }
     return { country: 'Unknown', countryCode: 'XX', city: 'Unknown' };
 }
