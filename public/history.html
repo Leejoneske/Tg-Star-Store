@@ -157,6 +157,10 @@
             background: #fef2f2;
             color: #991b1b;
         }
+        .status-expired {
+            background: #f5f3ff;
+            color: #7c3aed;
+        }
         .status-active {
             background: #ecfdf5;
             color: #059669;
@@ -260,7 +264,7 @@
                     <div class="chart-container mb-4">
                         <canvas id="transactionChart"></canvas>
                     </div>
-                    <div class="grid grid-cols-4 gap-3">
+                    <div class="grid grid-cols-5 gap-2">
                         <div class="stat-box text-center">
                             <div class="text-green-600 text-xl font-semibold" id="completedCount">0</div>
                             <div class="text-xs text-gray-600" data-translate="completed">Completed</div>
@@ -277,6 +281,10 @@
                             <div class="text-red-800 text-xl font-semibold" id="failedCount">0</div>
                             <div class="text-xs text-gray-600" data-translate="failed">Failed</div>
                         </div>
+                        <div class="stat-box text-center">
+                            <div class="text-purple-600 text-xl font-semibold" id="expiredCount">0</div>
+                            <div class="text-xs text-gray-600" data-translate="expired">Expired</div>
+                        </div>
                     </div>
                 </div>
                 
@@ -286,6 +294,7 @@
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-translate="processing">Processing</button>
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="declined" data-translate="declined">Declined</button>
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="failed" data-translate="failed">Failed</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="expired" data-translate="expired">Expired</button>
                 </div>
                 
                 <div class="relative mb-6">
@@ -691,6 +700,10 @@ function updateTransactionList() {
                     statusClass = 'status-failed';
                     statusText = TranslationUtils.get('failed');
                     break;
+                case 'expired':
+                    statusClass = 'status-expired';
+                    statusText = TranslationUtils.get('expired');
+                    break;
             }
             
             txnCard.innerHTML = `
@@ -799,6 +812,7 @@ function updateTransactionCounts(transactions) {
     document.getElementById('processingCount').textContent = transactions.filter(t => t.status === 'processing').length;
     document.getElementById('declinedCount').textContent = transactions.filter(t => t.status === 'declined').length;
     document.getElementById('failedCount').textContent = transactions.filter(t => t.status === 'failed').length;
+    document.getElementById('expiredCount').textContent = transactions.filter(t => t.status === 'expired').length;
 }
 
 function updateTransactionChart() {
@@ -990,6 +1004,10 @@ function showTransactionDetails(transaction) {
         case 'failed':
             statusClass = 'status-failed';
             statusText = TranslationUtils.get('failed');
+            break;
+        case 'expired':
+            statusClass = 'status-expired';
+            statusText = TranslationUtils.get('expired');
             break;
     }
     
