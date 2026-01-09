@@ -264,7 +264,7 @@
                     <div class="chart-container mb-4">
                         <canvas id="transactionChart"></canvas>
                     </div>
-                    <div class="grid grid-cols-5 gap-2">
+                    <div class="grid grid-cols-4 gap-3">
                         <div class="stat-box text-center">
                             <div class="text-green-600 text-xl font-semibold" id="completedCount">0</div>
                             <div class="text-xs text-gray-600" data-translate="completed">Completed</div>
@@ -277,14 +277,6 @@
                             <div class="text-red-600 text-xl font-semibold" id="declinedCount">0</div>
                             <div class="text-xs text-gray-600" data-translate="declined">Declined</div>
                         </div>
-                        <div class="stat-box text-center">
-                            <div class="text-red-800 text-xl font-semibold" id="failedCount">0</div>
-                            <div class="text-xs text-gray-600" data-translate="failed">Failed</div>
-                        </div>
-                        <div class="stat-box text-center">
-                            <div class="text-purple-600 text-xl font-semibold" id="expiredCount">0</div>
-                            <div class="text-xs text-gray-600" data-translate="expired">Expired</div>
-                        </div>
                     </div>
                 </div>
                 
@@ -294,7 +286,6 @@
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-translate="processing">Processing</button>
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="declined" data-translate="declined">Declined</button>
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="failed" data-translate="failed">Failed</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="expired" data-translate="expired">Expired</button>
                 </div>
                 
                 <div class="relative mb-6">
@@ -643,7 +634,14 @@ function mapReferralStatus(status) {
 function updateTransactionList() {
     
     let filteredTransactions = transactionHistory.filter(txn => {
-        if (currentTransactionFilter !== 'all' && txn.status !== currentTransactionFilter) return false;
+        // For declined filter, include declined, failed, and expired statuses
+        if (currentTransactionFilter !== 'all') {
+            if (currentTransactionFilter === 'declined') {
+                if (txn.status !== 'declined' && txn.status !== 'failed' && txn.status !== 'expired') return false;
+            } else {
+                if (txn.status !== currentTransactionFilter) return false;
+            }
+        }
         if (currentTransactionSearch) {
             const searchLower = currentTransactionSearch.toLowerCase();
             return (
@@ -810,9 +808,8 @@ function updateReferralList() {
 function updateTransactionCounts(transactions) {
     document.getElementById('completedCount').textContent = transactions.filter(t => t.status === 'completed').length;
     document.getElementById('processingCount').textContent = transactions.filter(t => t.status === 'processing').length;
-    document.getElementById('declinedCount').textContent = transactions.filter(t => t.status === 'declined').length;
-    document.getElementById('failedCount').textContent = transactions.filter(t => t.status === 'failed').length;
-    document.getElementById('expiredCount').textContent = transactions.filter(t => t.status === 'expired').length;
+    const declinedCount = transactions.filter(t => t.status === 'declined' || t.status === 'failed' || t.status === 'expired').length;
+    document.getElementById('declinedCount').textContent = declinedCount;
 }
 
 function updateTransactionChart() {
