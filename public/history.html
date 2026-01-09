@@ -609,16 +609,10 @@ function loadReferralHistory() {
 }
 
 function mapOrderStatus(status) {
-    const statusMap = {
-        'completed': 'completed',
-        'processing': 'processing',
-        'pending': 'pending',
-        'failed': 'declined',
-        'declined': 'declined',
-        'refunded': 'declined'
-    };
+    // Don't map statuses - use them as-is
+    // This allows frontend to display the actual status (failed, expired, declined, etc)
     if (!status || typeof status !== 'string') return 'processing';
-    return statusMap[status.toLowerCase()] || 'processing';
+    return status.toLowerCase();
 }
 
 function mapReferralStatus(status) {
