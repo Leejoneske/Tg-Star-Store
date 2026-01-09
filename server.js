@@ -9,7 +9,6 @@ const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const compression = require('compression');
 const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
@@ -17,6 +16,10 @@ const fetch = require('node-fetch');
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
+
+// Simple in-memory geolocation cache to avoid API rate limiting
+const geoCache = new Map();
+const GEO_CACHE_TTL = 24 * 60 * 60 * 1000; // Cache for 24 hours
 // Optional bot simulator (to avoid bloating monolith logic)
 let startBotSimulatorSafe = null;
 try {
@@ -2768,27 +2771,57 @@ async function getGeolocation(ip) {
     if (!ip || ip === 'localhost' || ip === '127.0.0.1' || ip === '::1') {
         return { country: 'Unknown', countryCode: 'XX', city: 'Local' };
     }
+    
+    // Check cache first
+    const cached = geoCache.get(ip);
+    if (cached && Date.now() - cached.timestamp < GEO_CACHE_TTL) {
+        console.log(`[GEO-CACHE] IP ${ip} → ${cached.city}, ${cached.country}`);
+        return { country: cached.country, countryCode: cached.countryCode, city: cached.city };
+    }
+    
     try {
-        // Use a timeout of 5 seconds for the geolocation API call
+        // Use AbortController for timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { 
+        // Try ipapi.co first
+        let response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { 
             signal: controller.signal 
         });
         clearTimeout(timeoutId);
         
+        // If rate limited, try fallback provider
+        if (response.status === 429) {
+            console.warn(`[GEO] Rate limited on ipapi.co, trying fallback...`);
+            
+            const controller2 = new AbortController();
+            const timeoutId2 = setTimeout(() => controller2.abort(), 5000);
+            response = await fetch(`https://ip-api.com/json/${ip}?fields=status,country,countryCode,city`, {
+                signal: controller2.signal
+            });
+            clearTimeout(timeoutId2);
+        }
+        
         if (response.ok) {
             const data = await response.json();
+            
+            // Handle both API response formats
             const result = {
-                country: data.country_name || 'Unknown',
-                countryCode: data.country_code || 'XX',
+                country: data.country_name || data.country || 'Unknown',
+                countryCode: data.country_code || data.countryCode || 'XX',
                 city: data.city || data.region_code || 'Unknown'
             };
-            console.log(`[GEO] IP ${ip} → ${result.city}, ${result.country}`);
+            
+            // Cache the result
+            geoCache.set(ip, { ...result, timestamp: Date.now() });
+            console.log(`[GEO] IP ${ip} → ${result.city}, ${result.country} (cached)`);
             return result;
         } else {
             console.warn(`[GEO] API returned status ${response.status} for IP ${ip}`);
+            // Return cached "Unknown" to avoid repeated failed requests
+            const unknown = { country: 'Unknown', countryCode: 'XX', city: 'Unknown' };
+            geoCache.set(ip, { ...unknown, timestamp: Date.now() });
+            return unknown;
         }
     } catch (error) {
         if (error.name === 'AbortError') {
@@ -2796,8 +2829,12 @@ async function getGeolocation(ip) {
         } else {
             console.error(`[GEO] Error for IP ${ip}:`, error.message);
         }
+        
+        // Cache the error to prevent retry storms
+        const unknown = { country: 'Unknown', countryCode: 'XX', city: 'Unknown' };
+        geoCache.set(ip, { ...unknown, timestamp: Date.now() });
+        return unknown;
     }
-    return { country: 'Unknown', countryCode: 'XX', city: 'Unknown' };
 }
 
 // Parse user agent to get browser and OS info
