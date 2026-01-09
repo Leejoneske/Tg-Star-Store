@@ -286,6 +286,7 @@
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-translate="processing">Processing</button>
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="declined" data-translate="declined">Declined</button>
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="failed" data-translate="failed">Failed</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="expired" data-translate="expired">Expired</button>
                 </div>
                 
                 <div class="relative mb-6">
@@ -634,14 +635,17 @@ function mapReferralStatus(status) {
 function updateTransactionList() {
     
     let filteredTransactions = transactionHistory.filter(txn => {
-        // For declined filter, include declined, failed, and expired statuses
+        // Filter by status
         if (currentTransactionFilter !== 'all') {
+            // For declined filter, include declined, failed, and expired statuses
             if (currentTransactionFilter === 'declined') {
                 if (txn.status !== 'declined' && txn.status !== 'failed' && txn.status !== 'expired') return false;
             } else {
+                // For other filters, match exactly
                 if (txn.status !== currentTransactionFilter) return false;
             }
         }
+        // Filter by search
         if (currentTransactionSearch) {
             const searchLower = currentTransactionSearch.toLowerCase();
             return (
