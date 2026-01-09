@@ -2779,62 +2779,71 @@ async function getGeolocation(ip) {
         return { country: cached.country, countryCode: cached.countryCode, city: cached.city };
     }
     
-    try {
-        // Use AbortController for timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        // Try ipapi.co first
-        let response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { 
-            signal: controller.signal 
-        });
-        clearTimeout(timeoutId);
-        
-        // If rate limited, try fallback provider
-        if (response.status === 429) {
-            console.warn(`[GEO] Rate limited on ipapi.co, trying fallback...`);
-            
-            const controller2 = new AbortController();
-            const timeoutId2 = setTimeout(() => controller2.abort(), 5000);
-            response = await fetch(`https://ip-api.com/json/${ip}?fields=status,country,countryCode,city`, {
-                signal: controller2.signal
-            });
-            clearTimeout(timeoutId2);
-        }
-        
-        if (response.ok) {
-            const data = await response.json();
-            
-            // Handle both API response formats
-            const result = {
-                country: data.country_name || data.country || 'Unknown',
-                countryCode: data.country_code || data.countryCode || 'XX',
+    // Try multiple providers in order
+    const providers = [
+        {
+            name: 'ipapi.co',
+            url: `https://ipapi.co/${encodeURIComponent(ip)}/json/`,
+            parse: (data) => ({
+                country: data.country_name || 'Unknown',
+                countryCode: data.country_code || 'XX',
                 city: data.city || data.region_code || 'Unknown'
-            };
+            })
+        },
+        {
+            name: 'ip-api.com',
+            url: `https://ip-api.com/json/${ip}?fields=status,country,countryCode,city`,
+            parse: (data) => ({
+                country: data.country || 'Unknown',
+                countryCode: data.countryCode || 'XX',
+                city: data.city || 'Unknown'
+            })
+        },
+        {
+            name: 'ipinfo.io',
+            url: `https://ipinfo.io/${ip}/json`,
+            parse: (data) => {
+                const city = data.city || 'Unknown';
+                const country = data.country || 'Unknown';
+                return { country, countryCode: country.substring(0, 2).toUpperCase(), city };
+            }
+        }
+    ];
+    
+    for (const provider of providers) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
             
-            // Cache the result
-            geoCache.set(ip, { ...result, timestamp: Date.now() });
-            console.log(`[GEO] IP ${ip} → ${result.city}, ${result.country} (cached)`);
-            return result;
-        } else {
-            console.warn(`[GEO] API returned status ${response.status} for IP ${ip}`);
-            // Return cached "Unknown" to avoid repeated failed requests
-            const unknown = { country: 'Unknown', countryCode: 'XX', city: 'Unknown' };
-            geoCache.set(ip, { ...unknown, timestamp: Date.now() });
-            return unknown;
+            const response = await fetch(provider.url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+                const data = await response.json();
+                const result = provider.parse(data);
+                
+                // Cache the result
+                geoCache.set(ip, { ...result, timestamp: Date.now() });
+                console.log(`[GEO] IP ${ip} → ${result.city}, ${result.country} (${provider.name})`);
+                return result;
+            } else if (response.status === 429 || response.status === 403) {
+                console.warn(`[GEO] ${provider.name} returned status ${response.status}, trying next provider...`);
+                continue; // Try next provider
+            } else {
+                console.warn(`[GEO] ${provider.name} returned status ${response.status}, trying next provider...`);
+                continue;
+            }
+        } catch (error) {
+            console.warn(`[GEO] ${provider.name} failed (${error.name}), trying next provider...`);
+            continue;
         }
-    } catch (error) {
-        if (error.name === 'AbortError') {
-            console.warn(`[GEO] Timeout getting geolocation for IP ${ip}`);
-        } else {
-            console.error(`[GEO] Error for IP ${ip}:`, error.message);
-        }
-        
-        // Cache the error to prevent retry storms
-        const unknown = { country: 'Unknown', countryCode: 'XX', city: 'Unknown' };
-        geoCache.set(ip, { ...unknown, timestamp: Date.now() });
-        return unknown;
     }
+    
+    // All providers failed - cache and return unknown
+    console.warn(`[GEO] All geolocation providers failed for IP ${ip}`);
+    const unknown = { country: 'Unknown', countryCode: 'XX', city: 'Unknown' };
+    geoCache.set(ip, { ...unknown, timestamp: Date.now() });
+    return unknown;
 }
 
 // Parse user agent to get browser and OS info
