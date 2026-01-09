@@ -29,12 +29,12 @@ class RailwayVersionGenerator {
             };
 
             try {
-                gitInfo.commitHash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
-                gitInfo.branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
-                const commitDate = execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim();
+                gitInfo.commitHash = execSync('git rev-parse --short HEAD', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+                gitInfo.branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+                const commitDate = execSync('git log -1 --format=%ci', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
                 gitInfo.commitDate = new Date(commitDate).toISOString().split('T')[0];
             } catch (gitError) {
-                console.log('Git info not available, using defaults');
+                // Silently use defaults (git not available in Docker environments)
             }
 
             return {

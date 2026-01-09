@@ -4887,16 +4887,16 @@ app.get('/api/sticker/:sticker_id/json', async (req, res) => {
     const tgRes = await fetch(telegramUrl);
     const buffer = await tgRes.arrayBuffer();
 
-    // Only try to decompress if we have valid gzip data
+    // Try to decompress - silently fallback to raw parsing if not gzip
     zlib.unzip(Buffer.from(buffer), (err, jsonBuffer) => {
       if (err) {
-        console.error('Decompression error:', err.code, err.message);
-        // Try parsing as-is if gzip fails (might not be compressed)
+        // Silently try parsing as-is (might not be compressed)
         try {
           const json = JSON.parse(Buffer.from(buffer).toString());
           return res.json(json);
         } catch (parseErr) {
-          return res.status(500).json({ error: 'Failed to decode sticker: ' + err.code });
+          // Only log if both methods fail
+          return res.status(500).json({ error: 'Failed to decode sticker' });
         }
       }
 
@@ -4904,7 +4904,7 @@ app.get('/api/sticker/:sticker_id/json', async (req, res) => {
         const json = JSON.parse(jsonBuffer.toString());
         res.json(json);
       } catch (e) {
-        console.error('Sticker JSON parse error:', e.message);
+        // Silent fail on invalid JSON
         res.status(500).json({ error: 'Invalid sticker JSON' });
       }
     });
