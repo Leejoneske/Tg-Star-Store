@@ -943,7 +943,14 @@ const buyOrderSchema = new mongoose.Schema({
         default: 0
     },
     starsPerRecipient: Number,
-    premiumDurationPerRecipient: Number
+    premiumDurationPerRecipient: Number,
+    userLocation: {
+        city: String,
+        country: String,
+        countryCode: String,
+        ip: String,
+        timestamp: Date
+    }
 });
 
 const sellOrderSchema = new mongoose.Schema({
@@ -1026,6 +1033,13 @@ const sellOrderSchema = new mongoose.Schema({
             enum: ['order', 'refund', 'reversal']
         }
     }],
+    userLocation: {
+        city: String,
+        country: String,
+        countryCode: String,
+        ip: String,
+        timestamp: Date
+    },
     dateCreated: {
         type: Date,
         default: Date.now
