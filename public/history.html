@@ -153,6 +153,10 @@
             background: #fef2f2;
             color: #dc2626;
         }
+        .status-failed {
+            background: #fef2f2;
+            color: #991b1b;
+        }
         .status-active {
             background: #ecfdf5;
             color: #059669;
@@ -256,7 +260,7 @@
                     <div class="chart-container mb-4">
                         <canvas id="transactionChart"></canvas>
                     </div>
-                    <div class="grid grid-cols-3 gap-3">
+                    <div class="grid grid-cols-4 gap-3">
                         <div class="stat-box text-center">
                             <div class="text-green-600 text-xl font-semibold" id="completedCount">0</div>
                             <div class="text-xs text-gray-600" data-translate="completed">Completed</div>
@@ -269,6 +273,10 @@
                             <div class="text-red-600 text-xl font-semibold" id="declinedCount">0</div>
                             <div class="text-xs text-gray-600" data-translate="declined">Declined</div>
                         </div>
+                        <div class="stat-box text-center">
+                            <div class="text-red-800 text-xl font-semibold" id="failedCount">0</div>
+                            <div class="text-xs text-gray-600" data-translate="failed">Failed</div>
+                        </div>
                     </div>
                 </div>
                 
@@ -277,6 +285,7 @@
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="completed" data-translate="completed">Completed</button>
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-translate="processing">Processing</button>
                     <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="declined" data-translate="declined">Declined</button>
+                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="failed" data-translate="failed">Failed</button>
                 </div>
                 
                 <div class="relative mb-6">
@@ -678,6 +687,10 @@ function updateTransactionList() {
                     statusClass = 'status-declined';
                     statusText = TranslationUtils.get('declined');
                     break;
+                case 'failed':
+                    statusClass = 'status-failed';
+                    statusText = TranslationUtils.get('failed');
+                    break;
             }
             
             txnCard.innerHTML = `
@@ -785,6 +798,7 @@ function updateTransactionCounts(transactions) {
     document.getElementById('completedCount').textContent = transactions.filter(t => t.status === 'completed').length;
     document.getElementById('processingCount').textContent = transactions.filter(t => t.status === 'processing').length;
     document.getElementById('declinedCount').textContent = transactions.filter(t => t.status === 'declined').length;
+    document.getElementById('failedCount').textContent = transactions.filter(t => t.status === 'failed').length;
 }
 
 function updateTransactionChart() {
@@ -972,6 +986,10 @@ function showTransactionDetails(transaction) {
         case 'declined':
             statusClass = 'status-declined';
             statusText = TranslationUtils.get('declined');
+            break;
+        case 'failed':
+            statusClass = 'status-failed';
+            statusText = TranslationUtils.get('failed');
             break;
     }
     
