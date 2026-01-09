@@ -973,8 +973,19 @@ const sellOrderSchema = new mongoose.Schema({
     userMessageId: Number,
     status: {
         type: String,
-        enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed', 'expired'], 
-        default: 'pending'
+        enum: ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed', 'expired'],
+        validate: {
+            validator: function(v) {
+                // Allow lowercase 'processing' and convert if needed
+                return ['pending', 'processing', 'completed', 'declined', 'reversed', 'refunded', 'failed', 'expired'].includes((v || '').toLowerCase());
+            },
+            message: '`{VALUE}` is not a valid status'
+        },
+        default: 'pending',
+        set: function(v) {
+            // Normalize status to lowercase
+            return (v || 'pending').toLowerCase();
+        }
     },
     telegram_payment_charge_id: {
         type: String,
@@ -2815,7 +2826,6 @@ async function getGeolocation(ip) {
     // Check cache first
     const cached = geoCache.get(ip);
     if (cached && Date.now() - cached.timestamp < GEO_CACHE_TTL) {
-        console.log(`[GEO-CACHE] IP ${ip} → ${cached.city}, ${cached.country}`);
         return { country: cached.country, countryCode: cached.countryCode, city: cached.city };
     }
     
@@ -2850,37 +2860,44 @@ async function getGeolocation(ip) {
         }
     ];
     
+    let lastError = null;
     for (const provider of providers) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // Increased timeout to 5s
             
             const response = await fetch(provider.url, { signal: controller.signal });
             clearTimeout(timeoutId);
             
             if (response.ok) {
-                const data = await response.json();
-                const result = provider.parse(data);
-                
-                // Cache the result
-                geoCache.set(ip, { ...result, timestamp: Date.now() });
-                console.log(`[GEO] IP ${ip} → ${result.city}, ${result.country} (${provider.name})`);
-                return result;
+                try {
+                    const data = await response.json();
+                    const result = provider.parse(data);
+                    
+                    // Cache the result
+                    geoCache.set(ip, { ...result, timestamp: Date.now() });
+                    return result;
+                } catch (parseErr) {
+                    console.warn(`[GEO] ${provider.name} parse error, trying next provider...`);
+                    lastError = parseErr;
+                    continue;
+                }
             } else if (response.status === 429 || response.status === 403) {
-                console.warn(`[GEO] ${provider.name} returned status ${response.status}, trying next provider...`);
-                continue; // Try next provider
+                // Rate limited or forbidden - try next provider silently
+                lastError = `${provider.name} status ${response.status}`;
+                continue;
             } else {
-                console.warn(`[GEO] ${provider.name} returned status ${response.status}, trying next provider...`);
+                lastError = `${provider.name} returned status ${response.status}`;
                 continue;
             }
         } catch (error) {
-            console.warn(`[GEO] ${provider.name} failed (${error.name}), trying next provider...`);
+            // Network error, timeout, or abort - try next provider
+            lastError = `${provider.name} error: ${error.name}`;
             continue;
         }
     }
     
-    // All providers failed - cache and return unknown
-    console.warn(`[GEO] All geolocation providers failed for IP ${ip}`);
+    // All providers failed - return unknown with cache
     const unknown = { country: 'Unknown', countryCode: 'XX', city: 'Unknown' };
     geoCache.set(ip, { ...unknown, timestamp: Date.now() });
     return unknown;
@@ -3206,10 +3223,20 @@ async function showConfirmationButtons(query, originalAction) {
     };
     
     try {
-        await bot.editMessageReplyMarkup(confirmationKeyboard, {
-            chat_id: query.message.chat.id,
-            message_id: query.message.message_id
-        });
+        // Check if the keyboard is already the confirmation keyboard - avoid "message not modified" error
+        const currentMarkup = query.message.reply_markup;
+        const isAlreadyConfirmation = currentMarkup && 
+            currentMarkup.inline_keyboard && 
+            currentMarkup.inline_keyboard.length === 1 &&
+            currentMarkup.inline_keyboard[0].length === 2 &&
+            currentMarkup.inline_keyboard[0][0].callback_data.startsWith('confirm_');
+        
+        if (!isAlreadyConfirmation) {
+            await bot.editMessageReplyMarkup(confirmationKeyboard, {
+                chat_id: query.message.chat.id,
+                message_id: query.message.message_id
+            });
+        }
         
         await bot.answerCallbackQuery(query.id, { 
             text: `Are you sure you want to ${actionText}?` 
@@ -6764,8 +6791,22 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     
     try {
         let user = await User.findOne({ id: chatId });
-        if (!user) user = await User.create({ id: chatId, username });
-        else {
+        if (!user) {
+            try {
+                user = await User.findOneAndUpdate(
+                    { id: chatId },
+                    { $set: { id: chatId, username, createdAt: new Date(), lastActive: new Date() } },
+                    { upsert: true, new: true }
+                );
+            } catch (createErr) {
+                // Handle E11000 duplicate key error by retrying with findOne
+                if (createErr.code === 11000) {
+                    user = await User.findOne({ id: chatId });
+                } else {
+                    throw createErr;
+                }
+            }
+        } else {
             try { await User.updateOne({ id: chatId }, { $set: { username, lastActive: new Date() } }); } catch {}
         }
         
@@ -9555,10 +9596,20 @@ bot.onText(/\/detect_users/, async (msg) => {
 
         for (const user of cachedUsers) {
             try {
-                const existingUser = await User.findOne({ id: user.id });
-                if (!existingUser) {
-                    await User.create({ id: user.id, username: user.username });
+                try {
+                    await User.findOneAndUpdate(
+                        { id: user.id },
+                        { $set: { id: user.id, username: user.username, createdAt: new Date(), lastActive: new Date() } },
+                        { upsert: true, new: true }
+                    );
                     totalAdded++;
+                } catch (createErr) {
+                    // Handle E11000 duplicate key error - already exists
+                    if (createErr.code === 11000) {
+                        totalAdded++;
+                    } else {
+                        throw createErr;
+                    }
                 }
             } catch (error) {
                 console.error(`Failed to add user ${user.id}:`, error);
@@ -10999,15 +11050,23 @@ app.post('/api/admin/bot-simulator/test', requireAdmin, async (req, res) => {
 
         // Try to create a test bot user
         const testBotId = '200999999';
+        let testBotCreated = false;
         const existingTestBot = await User.findOne({ id: testBotId });
         
         if (!existingTestBot) {
-            await User.create({
-                id: testBotId,
-                username: 'test_bot_admin',
-                lastActive: new Date(),
-                createdAt: new Date()
-            });
+            try {
+                await User.findOneAndUpdate(
+                    { id: testBotId },
+                    { $set: { id: testBotId, username: 'test_bot_admin', lastActive: new Date(), createdAt: new Date() } },
+                    { upsert: true, new: true }
+                );
+                testBotCreated = true;
+            } catch (createErr) {
+                // Handle E11000 duplicate key error - already exists
+                if (createErr.code !== 11000) {
+                    throw createErr;
+                }
+            }
         }
 
         res.json({
@@ -11016,7 +11075,7 @@ app.post('/api/admin/bot-simulator/test', requireAdmin, async (req, res) => {
             stats: {
                 botUsers,
                 recentBotActivity,
-                testBotCreated: !existingTestBot
+                testBotCreated
             },
             message: `Bot simulator is enabled. Found ${botUsers} bot users with ${recentBotActivity} recent activities.`
         });
