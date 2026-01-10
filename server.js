@@ -9694,54 +9694,184 @@ bot.on('message', async (msg) => {
 
 bot.onText(/\/detect_users/, async (msg) => {
     const chatId = msg.chat.id;
+    const startTime = Date.now();
 
     try {
-        const cachedUsers = await Cache.find({});
-        let totalDetected = cachedUsers.length;
+        if (!adminIds.includes(chatId.toString())) {
+            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        }
+
+        await bot.sendMessage(chatId, '🔍 Detecting all users from bot interactions...\n⏳ (This may take a moment)');
+
+        // Collect all unique user IDs from ALL interaction sources
+        const userIds = new Set();
+        const userMap = new Map(); // Store user info for upsert
+
+        console.log('🔍 Scanning all user interaction sources...');
+
+        // 1. From BUY orders
+        const buyOrders = await BuyOrder.find({}, { telegramId: 1, username: 1 }).lean();
+        console.log(`   • Found ${buyOrders.length} buy orders`);
+        for (const order of buyOrders) {
+            if (order.telegramId) {
+                userIds.add(order.telegramId);
+                if (!userMap.has(order.telegramId)) {
+                    userMap.set(order.telegramId, { id: order.telegramId, username: order.username });
+                }
+            }
+        }
+
+        // 2. From SELL orders
+        const sellOrders = await SellOrder.find({}, { telegramId: 1, username: 1 }).lean();
+        console.log(`   • Found ${sellOrders.length} sell orders`);
+        for (const order of sellOrders) {
+            if (order.telegramId) {
+                userIds.add(order.telegramId);
+                if (!userMap.has(order.telegramId)) {
+                    userMap.set(order.telegramId, { id: order.telegramId, username: order.username });
+                }
+            }
+        }
+
+        // 3. From DAILY activity/check-ins
+        const dailyStates = await DailyState.find({}, { userId: 1 }).lean();
+        console.log(`   • Found ${dailyStates.length} daily state records`);
+        for (const state of dailyStates) {
+            if (state.userId) {
+                userIds.add(state.userId);
+                if (!userMap.has(state.userId)) {
+                    userMap.set(state.userId, { id: state.userId, username: null });
+                }
+            }
+        }
+
+        // 4. From REFERRALS (both referrer and referred)
+        const referrals = await Referral.find({}, { referrerUserId: 1, referredUserId: 1 }).lean();
+        console.log(`   • Found ${referrals.length} referral records`);
+        for (const ref of referrals) {
+            if (ref.referrerUserId) {
+                userIds.add(ref.referrerUserId);
+                if (!userMap.has(ref.referrerUserId)) {
+                    userMap.set(ref.referrerUserId, { id: ref.referrerUserId, username: null });
+                }
+            }
+            if (ref.referredUserId) {
+                userIds.add(ref.referredUserId);
+                if (!userMap.has(ref.referredUserId)) {
+                    userMap.set(ref.referredUserId, { id: ref.referredUserId, username: null });
+                }
+            }
+        }
+
+        // 5. From REFERRAL WITHDRAWALS
+        const withdrawals = await ReferralWithdrawal.find({}, { userId: 1, username: 1 }).lean();
+        console.log(`   • Found ${withdrawals.length} withdrawal records`);
+        for (const wd of withdrawals) {
+            if (wd.userId) {
+                userIds.add(wd.userId);
+                if (!userMap.has(wd.userId)) {
+                    userMap.set(wd.userId, { id: wd.userId, username: wd.username });
+                }
+            }
+        }
+
+        // 6. From WARNINGS/BANS
+        const warnings = await Warning.find({}, { userId: 1 }).lean();
+        console.log(`   • Found ${warnings.length} warning/ban records`);
+        for (const warn of warnings) {
+            if (warn.userId) {
+                userIds.add(warn.userId);
+                if (!userMap.has(warn.userId)) {
+                    userMap.set(warn.userId, { id: warn.userId, username: null });
+                }
+            }
+        }
+
+        // 7. From CACHE (legacy)
+        const cachedUsers = await Cache.find({}, { id: 1, username: 1 }).lean();
+        console.log(`   • Found ${cachedUsers.length} cached users`);
+        for (const cached of cachedUsers) {
+            if (cached.id) {
+                userIds.add(cached.id);
+                if (!userMap.has(cached.id)) {
+                    userMap.set(cached.id, { id: cached.id, username: cached.username });
+                }
+            }
+        }
+
+        // Now process all detected users
+        console.log(`\n📊 Processing ${userIds.size} unique users...`);
         let totalNew = 0;
         let totalAlreadySaved = 0;
         let totalFailed = 0;
 
-        for (const user of cachedUsers) {
+        // Check existing users efficiently
+        const existingUsers = await User.find({ id: { $in: Array.from(userIds) } }, { id: 1 }).lean();
+        const existingUserIds = new Set(existingUsers.map(u => u.id));
+
+        // Process each user
+        for (const userId of userIds) {
             try {
-                // Check if user is already in database
-                const existingUser = await User.findOne({ id: user.id });
-                
-                if (existingUser) {
-                    // User already saved
+                if (existingUserIds.has(userId)) {
+                    // User already in database
                     totalAlreadySaved++;
                 } else {
-                    // Try to add new user
+                    // Add new user
+                    const userData = userMap.get(userId) || { id: userId, username: null };
                     try {
                         await User.findOneAndUpdate(
-                            { id: user.id },
-                            { $set: { id: user.id, username: user.username, createdAt: new Date(), lastActive: new Date() } },
+                            { id: userId },
+                            { 
+                                $set: { 
+                                    id: userId, 
+                                    username: userData.username || null,
+                                    createdAt: new Date(),
+                                    lastActive: new Date()
+                                } 
+                            },
                             { upsert: true, new: true }
                         );
                         totalNew++;
                     } catch (createErr) {
-                        // Handle E11000 duplicate key error
+                        // Handle E11000 duplicate key error (race condition)
                         if (createErr.code === 11000) {
-                            totalNew++;
+                            totalAlreadySaved++;
                         } else {
                             throw createErr;
                         }
                     }
                 }
             } catch (error) {
-                console.error(`Failed to process user ${user.id}:`, error);
+                console.error(`Failed to process user ${userId}:`, error);
                 totalFailed++;
             }
         }
 
-        // Clear the cache after processing
+        // Clear cache after successful processing
         await Cache.deleteMany({});
 
-        const reportMessage = `📊 User Detection Report:\n\n📌 Total Detected: ${totalDetected}\n✅ Newly Added: ${totalNew}\n👤 Already Saved: ${totalAlreadySaved}\n❌ Failed: ${totalFailed}`;
-        bot.sendMessage(chatId, reportMessage);
+        const duration = Date.now() - startTime;
+        const reportMessage = 
+            `📊 *User Detection Report*\n\n` +
+            `🔍 *Total Users Detected:* ${userIds.size}\n` +
+            `✅ *Newly Added:* ${totalNew}\n` +
+            `👤 *Already Saved:* ${totalAlreadySaved}\n` +
+            `❌ *Failed:* ${totalFailed}\n\n` +
+            `📈 *Sources Scanned:*\n` +
+            `  • Buy Orders\n` +
+            `  • Sell Orders\n` +
+            `  • Daily Activity\n` +
+            `  • Referrals\n` +
+            `  • Withdrawals\n` +
+            `  • Warnings/Bans\n` +
+            `  • Cache\n\n` +
+            `⏱️ *Duration:* ${duration}ms`;
+        
+        bot.sendMessage(chatId, reportMessage, { parse_mode: 'Markdown' });
+        console.log(`✅ User detection completed in ${duration}ms`);
     } catch (error) {
         console.error('Error detecting users:', error);
-        bot.sendMessage(chatId, 'An error occurred while detecting users.');
+        bot.sendMessage(chatId, `❌ User detection failed: ${error.message}`);
     }
 });
 
