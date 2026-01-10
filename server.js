@@ -9748,6 +9748,8 @@ bot.onText(/\/detect_users/, async (msg) => {
 // Audit users - check for duplicate Telegram user IDs in database
 bot.onText(/\/audit_users/, async (msg) => {
     const chatId = msg.chat.id;
+    const auditStartTime = Date.now();
+    const AUDIT_TIMEOUT = 25000; // 25 second timeout (safer than 30s Telegram limit)
 
     try {
         // Check if user is admin (optional - remove if not needed)
@@ -9756,34 +9758,50 @@ bot.onText(/\/audit_users/, async (msg) => {
         //     return;
         // }
 
-        bot.sendMessage(chatId, '🔍 Running user database audit...\n(This may take a moment)');
+        bot.sendMessage(chatId, '🔍 Running user database audit...\n⏱️ (This may take 3-15 seconds)');
 
-        // 1. Total users
-        const totalUsers = await User.countDocuments({});
+        // Run all queries in parallel for better performance
+        const [
+            totalUsers,
+            duplicateIds,
+            duplicateUsernames,
+            nullIds,
+            missingCreatedAt,
+            timeInconsistencies
+        ] = await Promise.all([
+            // 1. Total users - fastest query
+            User.countDocuments({}).maxTimeMS(5000),
 
-        // 2. Check for duplicate Telegram IDs (shouldn't exist)
-        const duplicateIds = await User.aggregate([
-            { $group: { _id: '$id', count: { $sum: 1 } } },
-            { $match: { count: { $gt: 1 } } }
+            // 2. Check for duplicate Telegram IDs - uses aggregation pipeline
+            User.aggregate([
+                { $group: { _id: '$id', count: { $sum: 1 } } },
+                { $match: { count: { $gt: 1 } } }
+            ]).allowDiskUse(true).maxTimeMS(10000),
+
+            // 3. Check for duplicate usernames - filters first to reduce data
+            User.aggregate([
+                { $match: { username: { $ne: null } } },
+                { $group: { _id: '$username', count: { $sum: 1 } } },
+                { $match: { count: { $gt: 1 } } }
+            ]).allowDiskUse(true).maxTimeMS(10000),
+
+            // 4. Check for null IDs - simple count
+            User.countDocuments({ id: null }).maxTimeMS(5000),
+
+            // 5. Check for missing createdAt - simple count
+            User.countDocuments({ createdAt: null }).maxTimeMS(5000),
+
+            // 6. Check for time inconsistencies - expression query
+            User.countDocuments({
+                $expr: { $gt: ['$createdAt', '$lastActive'] }
+            }).maxTimeMS(10000)
         ]);
 
-        // 3. Check for duplicate usernames
-        const duplicateUsernames = await User.aggregate([
-            { $match: { username: { $ne: null } } },
-            { $group: { _id: '$username', count: { $sum: 1 } } },
-            { $match: { count: { $gt: 1 } } }
-        ]);
+        const auditDuration = Date.now() - auditStartTime;
 
-        // 4. Check for null IDs
-        const nullIds = await User.countDocuments({ id: null });
-
-        // 5. Check for missing createdAt
-        const missingCreatedAt = await User.countDocuments({ createdAt: null });
-
-        // 6. Check for time inconsistencies
-        const timeInconsistencies = await User.countDocuments({
-            $expr: { $gt: ['$createdAt', '$lastActive'] }
-        });
+        // Check if audit took too long (might be incomplete/slow)
+        const isSlowAudit = auditDuration > 20000;
+        const speedWarning = isSlowAudit ? '⚠️ *WARNING: Audit took longer than expected*\n' : '';
 
         // Build report
         let report = `📊 *User Database Audit Report*\n\n`;
@@ -9797,11 +9815,28 @@ bot.onText(/\/audit_users/, async (msg) => {
 
         const hasIssues = duplicateIds.length > 0 || duplicateUsernames.length > 0 || nullIds > 0 || missingCreatedAt > 0 || timeInconsistencies > 0;
         report += hasIssues ? '⚠️ *STATUS: ISSUES FOUND*' : '✅ *STATUS: ALL PASSED*';
+        report += `\n\n⏱️ *Duration:* ${auditDuration}ms`;
+        
+        if (speedWarning) {
+            report = speedWarning + report;
+        }
 
         bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
     } catch (error) {
+        const auditDuration = Date.now() - auditStartTime;
         console.error('Error auditing users:', error);
-        bot.sendMessage(chatId, `❌ Audit failed: ${error.message}`);
+        
+        let errorMsg = `❌ Audit failed`;
+        if (error.name === 'MongoServerSelectionError') {
+            errorMsg += ': Database connection issue';
+        } else if (error.name === 'MongoServerError' && error.message.includes('exceeded')) {
+            errorMsg += ': Audit took too long (database timeout)';
+        } else {
+            errorMsg += `: ${error.message}`;
+        }
+        
+        errorMsg += `\n⏱️ Duration: ${auditDuration}ms`;
+        bot.sendMessage(chatId, errorMsg);
     }
 });
 
