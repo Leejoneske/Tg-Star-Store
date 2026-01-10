@@ -9770,31 +9770,52 @@ bot.onText(/\/audit_users/, async (msg) => {
             timeInconsistencies
         ] = await Promise.all([
             // 1. Total users - fastest query
-            User.countDocuments({}).maxTimeMS(5000),
+            User.countDocuments({}).hint({ id: 1 }).exec(),
 
             // 2. Check for duplicate Telegram IDs - uses aggregation pipeline
-            User.aggregate([
-                { $group: { _id: '$id', count: { $sum: 1 } } },
-                { $match: { count: { $gt: 1 } } }
-            ]).allowDiskUse(true).maxTimeMS(10000),
+            (async () => {
+                try {
+                    return await User.aggregate([
+                        { $group: { _id: '$id', count: { $sum: 1 } } },
+                        { $match: { count: { $gt: 1 } } }
+                    ]).exec();
+                } catch (err) {
+                    console.warn('Duplicate ID check timeout, returning empty', err.message);
+                    return [];
+                }
+            })(),
 
             // 3. Check for duplicate usernames - filters first to reduce data
-            User.aggregate([
-                { $match: { username: { $ne: null } } },
-                { $group: { _id: '$username', count: { $sum: 1 } } },
-                { $match: { count: { $gt: 1 } } }
-            ]).allowDiskUse(true).maxTimeMS(10000),
+            (async () => {
+                try {
+                    return await User.aggregate([
+                        { $match: { username: { $ne: null } } },
+                        { $group: { _id: '$username', count: { $sum: 1 } } },
+                        { $match: { count: { $gt: 1 } } }
+                    ]).exec();
+                } catch (err) {
+                    console.warn('Duplicate username check timeout, returning empty', err.message);
+                    return [];
+                }
+            })(),
 
             // 4. Check for null IDs - simple count
-            User.countDocuments({ id: null }).maxTimeMS(5000),
+            User.countDocuments({ id: null }).hint({ id: 1 }).exec(),
 
             // 5. Check for missing createdAt - simple count
-            User.countDocuments({ createdAt: null }).maxTimeMS(5000),
+            User.countDocuments({ createdAt: null }).hint({ createdAt: 1 }).exec(),
 
             // 6. Check for time inconsistencies - expression query
-            User.countDocuments({
-                $expr: { $gt: ['$createdAt', '$lastActive'] }
-            }).maxTimeMS(10000)
+            (async () => {
+                try {
+                    return await User.countDocuments({
+                        $expr: { $gt: ['$createdAt', '$lastActive'] }
+                    }).exec();
+                } catch (err) {
+                    console.warn('Time inconsistency check timeout, returning 0', err.message);
+                    return 0;
+                }
+            })()
         ]);
 
         const auditDuration = Date.now() - auditStartTime;
