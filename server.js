@@ -2185,6 +2185,9 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     try {
         const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTelegramUser, totalAmount, isTestnet } = req.body;
 
+        // === SYNC USER DATA ON EVERY INTERACTION ===
+        await syncUserData(telegramId, username, 'order_create', req);
+
         // Get admin status early for logging
         const requesterIsAdmin = Boolean(req.user?.isAdmin);
 
@@ -2405,7 +2408,8 @@ Need help? Contact @StarStore_Chat`;
             premiumDurationPerRecipient,
             transactionHash: transactionHash || null,
             transactionVerified: false, // Always start as unverified
-            verificationAttempts: 0
+            verificationAttempts: 0,
+            userLocation: null // Will be set below after geolocation
         });
 
         await order.save();
@@ -2437,6 +2441,7 @@ Need help? Contact @StarStore_Chat`;
 
         // Track user activity (buy order created) and get location data
         let userLocation = 'Location: Not available';
+        let locationGeo = null;
         try {
             // Extract IP from request - x-forwarded-for is set by Railway proxies
             let ip = req.headers?.['x-forwarded-for'] || req.headers?.['cf-connecting-ip'] || req.socket?.remoteAddress || 'unknown';
@@ -2451,11 +2456,19 @@ Need help? Contact @StarStore_Chat`;
             // Only try to get geolocation if we have a valid IP (not from Telegram)
             if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
                 console.log(`[BUY-ORDER] Attempting geolocation for IP: ${ip}`);
-                const geo = await getGeolocation(ip);
-                console.log(`[BUY-ORDER] Geolocation result: ${geo.city}, ${geo.country}`);
+                locationGeo = await getGeolocation(ip);
+                console.log(`[BUY-ORDER] Geolocation result: ${locationGeo.city}, ${locationGeo.country}`);
                 
-                if (geo.country !== 'Unknown') {
-                    userLocation = `Location: ${geo.city || 'Unknown'}, ${geo.country}`;
+                if (locationGeo.country !== 'Unknown') {
+                    userLocation = `Location: ${locationGeo.city || 'Unknown'}, ${locationGeo.country}`;
+                    // Store in order as well
+                    order.userLocation = {
+                        city: locationGeo.city,
+                        country: locationGeo.country,
+                        countryCode: locationGeo.countryCode,
+                        ip: ip,
+                        timestamp: new Date()
+                    };
                     console.log(`[BUY-ORDER] Location set: ${userLocation}`);
                 }
             } else {
@@ -2465,13 +2478,13 @@ Need help? Contact @StarStore_Chat`;
             console.error('Error getting location for buy order:', err.message);
         }
         
-        // Now track activity (without waiting for location, since we got it above)
+        // Now track activity with location data (pass locationGeo to override)
         await trackUserActivity(telegramId, username, 'order_created', {
             orderId: order.id,
             orderType: isPremium ? 'premium_buy' : 'buy',
             amount: amount,
             isPremium: isPremium
-        }, req, null);
+        }, req, null, locationGeo);
 
         // Create enhanced admin message with Telegram ID and location
         let adminMessage = `🛒 New ${isPremium ? 'Premium' : 'Buy'} Order!\n\nOrder ID: ${order.id}\nUser: @${username} (ID: ${telegramId})\n${userLocation}\nAmount: ${amount} USDT`;
@@ -2544,6 +2557,9 @@ app.post("/api/sell-orders", async (req, res) => {
             walletAddress, 
             memoTag = '' 
         } = req.body;
+        
+        // === SYNC USER DATA ON EVERY INTERACTION ===
+        await syncUserData(telegramId, username, 'sell_order_create', req);
         
         if (!telegramId || stars === undefined || stars === null || !walletAddress) {
             return res.status(400).json({ error: "Missing required fields" });
@@ -3023,8 +3039,189 @@ function parseUserAgent(userAgent = '') {
     return { browser, os };
 }
 
+// === UNIFIED USER DATA SYNC SYSTEM ===
+// Syncs all user data on every interaction - prevents race conditions and missing data
+async function syncUserData(telegramId, username, interactionType = 'unknown', req = null, msg = null) {
+    if (!telegramId) return null;
+    
+    try {
+        // Extract IP and location data
+        let ip = 'unknown';
+        let userAgent = 'unknown';
+        let geo = null;
+        
+        if (req) {
+            ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
+                .toString().split(',')[0].trim();
+            userAgent = (req.headers?.['user-agent'] || 'unknown').toString();
+        } else if (msg) {
+            userAgent = `Telegram-${msg.from?.id || 'unknown'}`;
+            ip = 'unknown';
+        }
+        
+        // Only get geolocation if we have a valid IP
+        if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
+            geo = await getGeolocation(ip);
+        }
+        
+        // Parse user agent
+        const { browser, os } = parseUserAgent(userAgent);
+        
+        // 1. CHECK/CREATE USER
+        let user = await User.findOne({ id: telegramId });
+        
+        if (!user) {
+            // User doesn't exist - create with all available data
+            user = new User({
+                id: telegramId,
+                username: username || null,
+                createdAt: new Date(),
+                lastActive: new Date()
+            });
+            
+            if (geo && geo.country !== 'Unknown') {
+                user.lastLocation = {
+                    country: geo.country,
+                    countryCode: geo.countryCode,
+                    city: geo.city,
+                    ip,
+                    timestamp: new Date()
+                };
+                user.locationHistory = [user.lastLocation];
+            }
+            
+            user.lastDevice = {
+                userAgent,
+                browser,
+                os,
+                timestamp: new Date()
+            };
+            user.devices = [{
+                userAgent,
+                browser,
+                os,
+                lastSeen: new Date(),
+                country: geo?.country || 'Unknown'
+            }];
+            
+            await user.save();
+            console.log(`[SYNC] New user created: ${telegramId} (@${username})`);
+        } else {
+            // User exists - update if needed
+            let hasChanges = false;
+            
+            // 2. CHECK/UPDATE USERNAME
+            if (username && user.username !== username) {
+                user.username = username;
+                hasChanges = true;
+                console.log(`[SYNC] Username updated: ${telegramId} -> @${username}`);
+            }
+            
+            // 3. UPDATE LAST ACTIVE
+            user.lastActive = new Date();
+            hasChanges = true;
+            
+            // 4. CHECK/UPDATE LOCATION
+            if (geo && geo.country !== 'Unknown') {
+                // Update location only if:
+                // - User has no location yet, OR
+                // - Location changed, OR
+                // - Location data is old (>30 days)
+                const hasValidLocation = user.lastLocation && user.lastLocation.country !== 'Unknown';
+                const locationExpired = !hasValidLocation || 
+                    (user.lastLocation.timestamp && 
+                     Date.now() - user.lastLocation.timestamp > 30 * 24 * 60 * 60 * 1000);
+                const locationChanged = hasValidLocation && user.lastLocation.country !== geo.country;
+                
+                if (!hasValidLocation || locationExpired || locationChanged) {
+                    user.lastLocation = {
+                        country: geo.country,
+                        countryCode: geo.countryCode,
+                        city: geo.city,
+                        ip,
+                        timestamp: new Date()
+                    };
+                    
+                    if (!user.locationHistory) user.locationHistory = [];
+                    user.locationHistory.push(user.lastLocation);
+                    if (user.locationHistory.length > 50) {
+                        user.locationHistory = user.locationHistory.slice(-50);
+                    }
+                    
+                    if (!hasValidLocation) {
+                        console.log(`[SYNC] Location saved for ${telegramId}: ${geo.city}, ${geo.country}`);
+                    } else if (locationChanged) {
+                        console.log(`[SYNC] Location changed for ${telegramId}: ${user.lastLocation.country}`);
+                    }
+                    hasChanges = true;
+                }
+            }
+            
+            // 5. UPDATE/TRACK DEVICE
+            const existingDevice = user.devices?.find(d => d.userAgent === userAgent);
+            if (existingDevice) {
+                existingDevice.lastSeen = new Date();
+                if (geo?.country) existingDevice.country = geo.country;
+            } else {
+                if (!user.devices) user.devices = [];
+                user.devices.push({
+                    userAgent,
+                    browser,
+                    os,
+                    lastSeen: new Date(),
+                    country: geo?.country || 'Unknown'
+                });
+                if (user.devices.length > 20) {
+                    user.devices = user.devices.slice(-20);
+                }
+                hasChanges = true;
+                console.log(`[SYNC] New device tracked for ${telegramId}`);
+            }
+            
+            user.lastDevice = {
+                userAgent,
+                browser,
+                os,
+                timestamp: new Date()
+            };
+            
+            if (hasChanges) {
+                await user.save();
+            }
+        }
+        
+        // 6. LOG INTERACTION
+        try {
+            await UserActivityLog.create({
+                userId: telegramId,
+                username: username || user?.username || 'Unknown',
+                actionType: interactionType,
+                location: geo ? {
+                    country: geo.country,
+                    countryCode: geo.countryCode,
+                    city: geo.city,
+                    ip
+                } : null,
+                device: {
+                    userAgent,
+                    browser,
+                    os
+                },
+                timestamp: new Date()
+            });
+        } catch (logErr) {
+            console.error(`[SYNC] Failed to log activity for ${telegramId}:`, logErr.message);
+        }
+        
+        return user;
+    } catch (error) {
+        console.error(`[SYNC] Error syncing user data for ${telegramId}:`, error);
+        return null;
+    }
+}
+
 // Track user activity and location
-async function trackUserActivity(userId, username, actionType, actionDetails = {}, req = null, msg = null) {
+async function trackUserActivity(userId, username, actionType, actionDetails = {}, req = null, msg = null, overrideLocation = null) {
     try {
         // Extract IP and user agent
         let ip = 'unknown';
@@ -3041,8 +3238,11 @@ async function trackUserActivity(userId, username, actionType, actionDetails = {
             ip = 'unknown'; // Can't get real IP from Telegram, set as unknown
         }
         
-        // Get geolocation
-        const geo = await getGeolocation(ip);
+        // Use override location if provided, otherwise get geolocation
+        let geo = overrideLocation;
+        if (!geo) {
+            geo = await getGeolocation(ip);
+        }
         const { browser, os } = parseUserAgent(userAgent);
         
         // Get user
@@ -3195,6 +3395,10 @@ bot.on("successful_payment", async (msg) => {
     const orderId = msg.successful_payment.invoice_payload;
     const order = await SellOrder.findOne({ id: orderId });
     const userId = msg.from.id.toString();
+    const username = msg.from.username;
+
+    // === SYNC USER DATA ON EVERY INTERACTION ===
+    await syncUserData(userId, username, 'payment_success', null, msg);
 
     if (!order) {
         return await bot.sendMessage(msg.chat.id, "❌ Payment was successful, but the order was not found. Contact support.");
@@ -3213,12 +3417,22 @@ bot.on("successful_payment", async (msg) => {
         return;
     }
 
+    // Convert order location to geo object format for trackUserActivity
+    let locationGeo = null;
+    if (order.userLocation) {
+        locationGeo = {
+            country: order.userLocation.country,
+            countryCode: order.userLocation.countryCode,
+            city: order.userLocation.city
+        };
+    }
+
     // Track activity (payment) - this updates user location in DB
     await trackUserActivity(userId, msg.from.username, 'order_completed', {
         orderId: order.id,
         orderType: 'sell',
         stars: order.stars
-    }, null, msg);
+    }, null, msg, locationGeo);
 
     order.telegram_payment_charge_id = msg.successful_payment.telegram_payment_charge_id;
     order.status = "processing"; 
@@ -5602,6 +5816,11 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
 app.post('/api/daily/checkin', requireTelegramAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const username = req.user.username;
+    
+    // === SYNC USER DATA ON EVERY INTERACTION ===
+    await syncUserData(userId, username, 'daily_checkin', req);
+    
     // Enhanced debounce: prevent duplicate rapid check-ins (3s window)
     const nowTs = Date.now();
     if (!global.__recentCheckins) global.__recentCheckins = new Map();
@@ -9886,25 +10105,109 @@ bot.onText(/\/detect_users/, async (msg) => {
         // Clear cache after successful processing
         await Cache.deleteMany({});
 
+        // === COMPREHENSIVE DATA ANALYSIS ===
+        // Get all users with detailed stats
+        const allUsers = await User.find({}, { 
+            id: 1, 
+            username: 1, 
+            createdAt: 1, 
+            lastActive: 1,
+            lastLocation: 1,
+            devices: 1
+        }).lean();
+        
+        // Analyze data completeness
+        let usersWithUsername = 0;
+        let usersWithLocation = 0;
+        let usersWithDevices = 0;
+        let usersActive24h = 0;
+        let usersActive7d = 0;
+        let usersInactive30d = 0;
+        let completeDataCount = 0;
+        const now = new Date();
+        const day24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const day7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const day30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        
+        for (const user of allUsers) {
+            if (user.username) usersWithUsername++;
+            if (user.lastLocation && user.lastLocation.country !== 'Unknown') usersWithLocation++;
+            if (user.devices && user.devices.length > 0) usersWithDevices++;
+            
+            if (user.lastActive >= day24h) usersActive24h++;
+            if (user.lastActive >= day7d) usersActive7d++;
+            if (user.lastActive < day30d) usersInactive30d++;
+            
+            // Complete data = has username + location + device info
+            if (user.username && user.lastLocation && user.lastLocation.country !== 'Unknown' && user.devices && user.devices.length > 0) {
+                completeDataCount++;
+            }
+        }
+        
+        const totalUsers = allUsers.length;
+        const locationCoverage = totalUsers > 0 ? ((usersWithLocation / totalUsers) * 100).toFixed(1) : 0;
+        const usernameCoverage = totalUsers > 0 ? ((usersWithUsername / totalUsers) * 100).toFixed(1) : 0;
+        const deviceCoverage = totalUsers > 0 ? ((usersWithDevices / totalUsers) * 100).toFixed(1) : 0;
+        const completeDataCoverage = totalUsers > 0 ? ((completeDataCount / totalUsers) * 100).toFixed(1) : 0;
+        
+        // Get recent interactions
+        const recentInteractions = await UserActivityLog.countDocuments({
+            timestamp: { $gte: day24h }
+        });
+        
+        // Top locations
+        const topLocations = await User.aggregate([
+            { $match: { 'lastLocation.country': { $nin: [null, undefined, 'Unknown'] } } },
+            { $group: { _id: '$lastLocation.country', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]);
+
         const duration = Date.now() - startTime;
         const reportMessage = 
-            `📊 *User Detection Report*\n\n` +
-            `*Total Users Detected:* ${userIds.size}\n` +
-            `*Newly Added:* ${totalNew}\n` +
-            `*Already Saved:* ${totalAlreadySaved}\n` +
-            `*Failed:* ${totalFailed}\n\n` +
-            `*Sources Scanned:*\n` +
+            `📊 *COMPREHENSIVE USER ANALYTICS REPORT*\n\n` +
+            
+            `*═══ DETECTION SUMMARY ═══*\n` +
+            `Total Detected: ${userIds.size}\n` +
+            `Newly Added: ${totalNew}\n` +
+            `Already Saved: ${totalAlreadySaved}\n` +
+            `Failed: ${totalFailed}\n\n` +
+            
+            `*═══ DATABASE STATS ═══*\n` +
+            `Total Users in DB: ${totalUsers}\n` +
+            `Users Added (All-time): ${totalUsers}\n\n` +
+            
+            `*═══ DATA COMPLETENESS ═══*\n` +
+            `✅ With Username: ${usersWithUsername}/${totalUsers} (${usernameCoverage}%)\n` +
+            `📍 With Location: ${usersWithLocation}/${totalUsers} (${locationCoverage}%)\n` +
+            `💻 With Device Info: ${usersWithDevices}/${totalUsers} (${deviceCoverage}%)\n` +
+            `🎯 Complete Profile: ${completeDataCount}/${totalUsers} (${completeDataCoverage}%)\n\n` +
+            
+            `*═══ ACTIVITY METRICS ═══*\n` +
+            `Active (24h): ${usersActive24h} users\n` +
+            `Active (7d): ${usersActive7d} users\n` +
+            `Inactive (30d+): ${usersInactive30d} users\n` +
+            `Recent Interactions (24h): ${recentInteractions} actions\n\n` +
+            
+            `*═══ TOP 5 LOCATIONS ═══*\n` +
+            (topLocations.length > 0 ? 
+                topLocations.map((loc, i) => `${i+1}. ${loc._id}: ${loc.count} users`).join('\n') :
+                'No location data available') +
+            `\n\n` +
+            
+            `*═══ PROCESSING ═══*\n` +
+            `Duration: ${duration}ms\n` +
+            `Scanned Sources:\n` +
             `  • Buy Orders\n` +
             `  • Sell Orders\n` +
             `  • Daily Activity\n` +
             `  • Referrals\n` +
             `  • Withdrawals\n` +
             `  • Warnings/Bans\n` +
-            `  • Cache\n\n` +
-            `*Duration:* ${duration}ms`;
+            `  • Cache`;
         
         bot.sendMessage(chatId, reportMessage, { parse_mode: 'Markdown' });
-        console.log(`[ADMIN-ACTION] detect_users completed by @${adminUsername} in ${duration}ms (detected: ${userIds.size}, new: ${totalNew})`);
+        console.log(`[ADMIN-ACTION] detect_users completed by @${adminUsername} in ${duration}ms - Data Quality: ${completeDataCoverage}% complete profiles`);
     } catch (error) {
         console.error(`[ADMIN-ACTION] detect_users error by @${adminUsername}:`, error);
         bot.sendMessage(chatId, `❌ User detection failed: ${error.message}`);
