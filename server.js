@@ -10081,16 +10081,16 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
         const totalUsers = await User.countDocuments({});
         const usersWithoutLocation = totalUsers - totalUsersWithLocation;
 
-        let report = `*Geographic User Distribution*\n\n`;
-        report += `Total Users: ${totalUsers}\n`;
-        report += `With Location: ${totalUsersWithLocation}\n`;
-        report += `Without Location: ${usersWithoutLocation}\n`;
-        report += `Countries Represented: ${Object.keys(countryStats).length}\n\n`;
-        report += `*Top Countries:*\n`;
+        let report = `<b>Geographic User Distribution</b>\n\n`;
+        report += `Total Users: <code>${totalUsers}</code>\n`;
+        report += `With Location: <code>${totalUsersWithLocation}</code>\n`;
+        report += `Without Location: <code>${usersWithoutLocation}</code>\n`;
+        report += `Countries Represented: <code>${Object.keys(countryStats).length}</code>\n\n`;
+        report += `<b>Top Countries:</b>\n`;
 
         sortedCountries.forEach(([country, count], index) => {
             const percentage = ((count / totalUsersWithLocation) * 100).toFixed(1);
-            report += `${index + 1}. ${country}: ${count} users (${percentage}%)\n`;
+            report += `${index + 1}. ${country}: <code>${count}</code> users (<code>${percentage}%</code>)\n`;
         });
 
         // Add city breakdown if requested
@@ -10099,23 +10099,23 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 20); // Top 20 cities
 
-            report += `\n*Top Cities:*\n`;
+            report += `\n<b>Top Cities:</b>\n`;
             sortedCities.forEach(([city, count], index) => {
                 const percentage = ((count / totalUsersWithLocation) * 100).toFixed(1);
-                report += `${index + 1}. ${city}: ${count} users (${percentage}%)\n`;
+                report += `${index + 1}. ${city}: <code>${count}</code> users (<code>${percentage}%</code>)\n`;
             });
         }
 
         const duration = Date.now() - analysisStart;
-        report += `\n*Duration:* ${duration}ms`;
+        report += `\n<b>Duration:</b> <code>${duration}ms</code>`;
         if (includesCities) {
-            report += `\nTip: Use /geo_analysis for countries only`;
+            report += `\n\nTip: Use /geo_analysis for countries only`;
         } else {
-            report += `\nTip: Use /geo_analysis cities for city breakdown`;
+            report += `\n\nTip: Use /geo_analysis cities for city breakdown`;
         }
 
         console.log(`[ADMIN-ACTION] geo_analysis completed by @${adminUsername} in ${duration}ms`);
-        bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+        bot.sendMessage(chatId, report, { parse_mode: 'HTML' });
     } catch (error) {
         console.error(`[ADMIN-ACTION] geo_analysis error by @${adminUsername} (${adminId}):`, error);
         bot.sendMessage(chatId, `❌ Analysis failed: ${error.message}`);
