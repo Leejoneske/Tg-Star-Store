@@ -67,10 +67,10 @@ window.ReconnectManager = (() => {
                 </div>
             </div>
 
-            <!-- Connection Status Indicator - Green dot in center top -->
-            <div id="connection-status-indicator" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none">
-                <div class="bg-green-500 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 animate-pulse">
-                    <div class="w-3 h-3 bg-white rounded-full"></div>
+            <!-- Connection Status Indicator - Green dot in center -->
+            <div id="connection-status-indicator" class="fixed z-40 pointer-events-none" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex;">
+                <div style="background-color: #22c55e; color: white; padding: 12px 24px; border-radius: 9999px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;">
+                    <div style="width: 12px; height: 12px; background-color: white; border-radius: 50%;"></div>
                     <span>Connected</span>
                 </div>
             </div>
@@ -332,7 +332,7 @@ window.ReconnectManager = (() => {
         
         // Hide status indicator when showing overlay
         if (reconnectUI.statusIndicator) {
-            reconnectUI.statusIndicator.classList.add('hidden');
+            reconnectUI.statusIndicator.style.display = 'none';
         }
         
         reconnectUI.overlay.classList.remove('hidden');
@@ -355,7 +355,7 @@ window.ReconnectManager = (() => {
         
         // Show status indicator when hiding overlay
         if (reconnectUI.statusIndicator) {
-            reconnectUI.statusIndicator.classList.remove('hidden');
+            reconnectUI.statusIndicator.style.display = 'flex';
         }
     };
 
