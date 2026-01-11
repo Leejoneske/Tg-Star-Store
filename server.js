@@ -10214,6 +10214,102 @@ bot.onText(/\/detect_users/, async (msg) => {
     }
 });
 
+// Ping inactive users - send reminders to encourage activity
+bot.onText(/\/ping_users\s?(\d+)?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
+    const inactiveDays = parseInt(match[1]) || 7; // Default: inactive for 7+ days
+    const startTime = Date.now();
+
+    try {
+        if (!adminIds.includes(adminId)) {
+            console.warn(`[SECURITY] Unauthorized ping_users attempt by user ${adminId} (@${adminUsername})`);
+            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        }
+
+        console.log(`[ADMIN-ACTION] ping_users command initiated by @${adminUsername} (${adminId}) - targeting inactive ${inactiveDays}+ days`);
+
+        await bot.sendMessage(chatId, `📢 Sending reminders to inactive users (${inactiveDays}+ days)...\nThis may take a moment.`);
+
+        // Find users inactive for specified days
+        const inactiveSince = new Date(Date.now() - inactiveDays * 24 * 60 * 60 * 1000);
+        const inactiveUsers = await User.find({
+            lastActive: { $lt: inactiveSince },
+            id: { $exists: true, $ne: null }
+        }, { id: 1, username: 1, lastActive: 1, lastLocation: 1 }).lean();
+
+        console.log(`[ADMIN-ACTION] Found ${inactiveUsers.length} inactive users to ping`);
+
+        let successCount = 0;
+        let failureCount = 0;
+        const errors = [];
+
+        // Send reminders in batches to avoid rate limiting
+        for (let i = 0; i < inactiveUsers.length; i++) {
+            const user = inactiveUsers[i];
+            try {
+                const daysInactive = Math.floor((Date.now() - new Date(user.lastActive).getTime()) / (1000 * 60 * 60 * 24));
+                
+                const reminderMessage = `👋 *Hey @${user.username || 'User'}!*
+
+We haven't seen you in ${daysInactive} days! 
+
+🌟 *Here's what you're missing:*
+  • Daily check-ins for rewards
+  • Star trading opportunities
+  • Referral bonuses
+  • Exclusive features
+
+💰 *Come back and join us:*
+Open StarStore and start earning! 🚀
+
+\`${user.lastLocation ? `📍 Last seen: ${user.lastLocation.city || ''}, ${user.lastLocation.country || 'Unknown'}` : ''}\``;
+
+                await bot.sendMessage(user.id, reminderMessage, { 
+                    parse_mode: 'Markdown',
+                    disable_web_page_preview: true
+                });
+                
+                successCount++;
+                
+                // Small delay to avoid rate limiting (100ms between messages)
+                if (i < inactiveUsers.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            } catch (pingError) {
+                failureCount++;
+                errors.push(`User ${user.id}: ${pingError.message}`);
+                console.warn(`[ADMIN-ACTION] Failed to ping user ${user.id}:`, pingError.message);
+            }
+        }
+
+        // Log summary
+        await syncUserData(adminId, adminUsername, 'ping_users_command', { success: successCount, failed: failureCount });
+
+        const duration = Date.now() - startTime;
+        const pingReport = 
+            `📊 *Ping Campaign Report*\n\n` +
+            `*Campaign Settings:*\n` +
+            `Inactive Period: ${inactiveDays}+ days\n` +
+            `Target Users: ${inactiveUsers.length}\n\n` +
+            `*Results:*\n` +
+            `✅ Successfully Sent: ${successCount}\n` +
+            `❌ Failed: ${failureCount}\n` +
+            `Success Rate: ${inactiveUsers.length > 0 ? ((successCount / inactiveUsers.length) * 100).toFixed(1) : 0}%\n\n` +
+            `*Processing:*\n` +
+            `Duration: ${duration}ms\n` +
+            `Avg per user: ${inactiveUsers.length > 0 ? (duration / inactiveUsers.length).toFixed(0) : 0}ms` +
+            (errors.length > 0 && errors.length <= 5 ? `\n\n*Recent Errors:*\n${errors.slice(0, 5).join('\n')}` : '');
+
+        bot.sendMessage(chatId, pingReport, { parse_mode: 'Markdown' });
+        console.log(`[ADMIN-ACTION] ping_users completed by @${adminUsername} in ${duration}ms - Sent: ${successCount}, Failed: ${failureCount}`);
+    } catch (error) {
+        console.error(`[ADMIN-ACTION] ping_users error by @${adminUsername}:`, error);
+        bot.sendMessage(chatId, `❌ Ping campaign failed: ${error.message}`);
+    }
+});
+
 // Audit users - check for duplicate Telegram user IDs in database
 bot.onText(/\/audit_users/, async (msg) => {
     const chatId = msg.chat.id;
