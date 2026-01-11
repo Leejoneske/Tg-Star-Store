@@ -1296,6 +1296,10 @@ const referralWithdrawalSchema = new mongoose.Schema({
         messageId: Number,
         originalText: String
     }],
+    userLocation: {
+        city: String,
+        country: String
+    },
     processedBy: { type: Number },
     processedAt: { type: Date },
     declineReason: { type: String },
@@ -6205,6 +6209,26 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         const username = user.username || `@user`;
 
+        // Get location data
+        let userLocation = null;
+        try {
+            let ip = req.headers?.['x-forwarded-for'] || req.headers?.['cf-connecting-ip'] || req.socket?.remoteAddress || 'unknown';
+            
+            if (typeof ip === 'string') {
+                ip = ip.split(',')[0].trim();
+            }
+            
+            if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
+                const geo = await getGeolocation(ip);
+                if (geo.country !== 'Unknown') {
+                    userLocation = { city: geo.city || 'Unknown', country: geo.country };
+                }
+            }
+        } catch (err) {
+            console.error('Error getting location for withdrawal:', err.message);
+            // Continue without location
+        }
+
         const withdrawal = new ReferralWithdrawal({
             userId,
             username: username,
@@ -6213,6 +6237,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             referralIds: referralsToMark.map(r => r._id),
             status: 'pending',
             adminMessages: [],
+            userLocation: userLocation,
             createdAt: new Date()
         });
 
@@ -6239,11 +6264,12 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         await bot.sendMessage(userId, userMessage);
 
         const adminMessage = `💸 Withdrawal Request\n\n` +
-                           `👤 User: @${username} (ID: ${userId})\n` +
-                           `💵 Amount: ${amountNum} USDT\n` +
-                           `👛 Wallet: ${walletAddress}\n` +
-                           `👥 Referrals: ${referralsNeeded}\n` +
-                           `🆔 WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
+                           `User: @${username} (ID: ${userId})\n` +
+                           `Amount: ${amountNum} USDT\n` +
+                           `Wallet: ${walletAddress}\n` +
+                           `Referrals: ${referralsNeeded}\n` +
+                           `Location: ${withdrawal.userLocation ? `${withdrawal.userLocation.city || 'Unknown'}, ${withdrawal.userLocation.country || 'Unknown'}` : 'Unknown'}\n` +
+                           `WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
 
         const adminKeyboard = {
             inline_keyboard: [
@@ -7345,22 +7371,22 @@ bot.onText(/\/activity(?:\s+(.+))?/, async (msg, match) => {
 
         const activityText = `📊 <b>Activity Statistics</b>
 
-<b>📈 ${displayPeriod}:</b>
+<b>${displayPeriod}:</b>
 • Activities: <code>${recentActivities}</code> (Total: <code>${totalActivities}</code>)
 • Active Users: <code>${activeUsers}</code> / <code>${totalUsers}</code>
 
-<b>🤖 Bot Simulator:</b>
+<b>Bot Simulator:</b>
 • Status: ${botSimulatorEnabled ? '✅ Enabled' : '❌ Disabled'}
 • Bot Users: <code>${botUsers}</code>
 • Bot Activities: <code>${botActivities}</code>
 
-<b>🎯 Top Activity Types:</b>
+<b>Top Activity Types:</b>
 ${activityTypes.length > 0 ? 
     activityTypes.map(type => `• ${type._id}: <code>${type.count}</code> (${type.totalPoints} pts)`).join('\n') : 
     '• No recent activities'
 }
 
-<b>💡 Commands:</b>
+<b>Commands:</b>
 • <code>/activity 1h</code> - Last hour stats
 • <code>/activity 24h</code> - Last 24 hours (default)
 • <code>/activity 7d</code> - Last 7 days`;
@@ -9701,7 +9727,7 @@ bot.onText(/\/detect_users/, async (msg) => {
             return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
         }
 
-        await bot.sendMessage(chatId, '🔍 Detecting all users from bot interactions...\n⏳ (This may take a moment)');
+        await bot.sendMessage(chatId, '🔍 Detecting all users from bot interactions...');
 
         // Collect all unique user IDs from ALL interaction sources
         const userIds = new Set();
@@ -9800,7 +9826,7 @@ bot.onText(/\/detect_users/, async (msg) => {
         }
 
         // Now process all detected users
-        console.log(`\n📊 Processing ${userIds.size} unique users...`);
+        console.log(`Processing ${userIds.size} unique users...`);
         let totalNew = 0;
         let totalAlreadySaved = 0;
         let totalFailed = 0;
@@ -9853,11 +9879,11 @@ bot.onText(/\/detect_users/, async (msg) => {
         const duration = Date.now() - startTime;
         const reportMessage = 
             `📊 *User Detection Report*\n\n` +
-            `🔍 *Total Users Detected:* ${userIds.size}\n` +
-            `✅ *Newly Added:* ${totalNew}\n` +
-            `👤 *Already Saved:* ${totalAlreadySaved}\n` +
-            `❌ *Failed:* ${totalFailed}\n\n` +
-            `📈 *Sources Scanned:*\n` +
+            `*Total Users Detected:* ${userIds.size}\n` +
+            `*Newly Added:* ${totalNew}\n` +
+            `*Already Saved:* ${totalAlreadySaved}\n` +
+            `*Failed:* ${totalFailed}\n\n` +
+            `*Sources Scanned:*\n` +
             `  • Buy Orders\n` +
             `  • Sell Orders\n` +
             `  • Daily Activity\n` +
@@ -9865,7 +9891,7 @@ bot.onText(/\/detect_users/, async (msg) => {
             `  • Withdrawals\n` +
             `  • Warnings/Bans\n` +
             `  • Cache\n\n` +
-            `⏱️ *Duration:* ${duration}ms`;
+            `*Duration:* ${duration}ms`;
         
         bot.sendMessage(chatId, reportMessage, { parse_mode: 'Markdown' });
         console.log(`✅ User detection completed in ${duration}ms`);
@@ -9888,7 +9914,7 @@ bot.onText(/\/audit_users/, async (msg) => {
         //     return;
         // }
 
-        bot.sendMessage(chatId, '🔍 Running user database audit...\n⏱️ (This may take 3-15 seconds)');
+        bot.sendMessage(chatId, '🔍 Running user database audit...');
 
         // Run all queries in parallel for better performance
         const [
@@ -9956,17 +9982,17 @@ bot.onText(/\/audit_users/, async (msg) => {
 
         // Build report
         let report = `📊 *User Database Audit Report*\n\n`;
-        report += `📈 Total Users: *${totalUsers}*\n\n`;
+        report += `Total Users: *${totalUsers}*\n\n`;
         
-        report += `🔎 *Duplicate Telegram IDs:* ${duplicateIds.length === 0 ? '✅ None' : `❌ ${duplicateIds.length}`}\n`;
-        report += `🔎 *Duplicate Usernames:* ${duplicateUsernames.length === 0 ? '✅ None' : `❌ ${duplicateUsernames.length}`}\n`;
-        report += `🔎 *Null Telegram IDs:* ${nullIds === 0 ? '✅ None' : `❌ ${nullIds}`}\n`;
-        report += `🔎 *Missing CreatedAt:* ${missingCreatedAt === 0 ? '✅ None' : `❌ ${missingCreatedAt}`}\n`;
-        report += `🔎 *Time Inconsistencies:* ${timeInconsistencies === 0 ? '✅ None' : `❌ ${timeInconsistencies}`}\n\n`;
+        report += `*Duplicate Telegram IDs:* ${duplicateIds.length === 0 ? '✅ None' : `❌ ${duplicateIds.length}`}\n`;
+        report += `*Duplicate Usernames:* ${duplicateUsernames.length === 0 ? '✅ None' : `❌ ${duplicateUsernames.length}`}\n`;
+        report += `*Null Telegram IDs:* ${nullIds === 0 ? '✅ None' : `❌ ${nullIds}`}\n`;
+        report += `*Missing CreatedAt:* ${missingCreatedAt === 0 ? '✅ None' : `❌ ${missingCreatedAt}`}\n`;
+        report += `*Time Inconsistencies:* ${timeInconsistencies === 0 ? '✅ None' : `❌ ${timeInconsistencies}`}\n\n`;
 
         const hasIssues = duplicateIds.length > 0 || duplicateUsernames.length > 0 || nullIds > 0 || missingCreatedAt > 0 || timeInconsistencies > 0;
         report += hasIssues ? '⚠️ *STATUS: ISSUES FOUND*' : '✅ *STATUS: ALL PASSED*';
-        report += `\n\n⏱️ *Duration:* ${auditDuration}ms`;
+        report += `\n\n*Duration:* ${auditDuration}ms`;
         
         if (speedWarning) {
             report = speedWarning + report;
