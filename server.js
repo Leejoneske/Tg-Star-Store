@@ -9302,24 +9302,24 @@ app.post('/api/webhook/register', async (req, res) => {
 // Health check endpoint for Ambassador app connection testing
 app.get('/api/health', async (req, res) => {
     try {
-        // Test database connection
+        // Quick health check - no sensitive data
         const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-        const userCount = await User.countDocuments({});
         
-        res.json({
-            status: 'ok',
+        // Don't count all users for every health check - expensive operation
+        // Just verify database can respond quickly
+        const isDbHealthy = mongoose.connection.readyState === 1;
+        
+        res.status(isDbHealthy ? 200 : 503).json({
+            status: isDbHealthy ? 'ok' : 'degraded',
             timestamp: new Date().toISOString(),
             service: 'StarStore',
-            version: '1.0.0',
-            database: dbStatus,
-            userCount,
-            uptime: process.uptime()
+            version: '1.0.0'
         });
     } catch (error) {
-        res.status(500).json({
+        console.error('[HEALTH-CHECK] Error:', error.message);
+        res.status(503).json({
             status: 'error',
-            timestamp: new Date().toISOString(),
-            error: error.message
+            timestamp: new Date().toISOString()
         });
     }
 });
