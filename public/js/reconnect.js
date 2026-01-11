@@ -67,9 +67,19 @@ window.ReconnectManager = (() => {
                 </div>
             </div>
 
-            <!-- Connection Status Indicator - Green dot in center -->
-            <div id="connection-status-indicator" class="fixed z-40 pointer-events-none" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex;">
-                <div style="background-color: #22c55e; color: white; padding: 12px 24px; border-radius: 9999px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;">
+            <!-- Connection Status Indicator - Always visible when connected -->
+            <style>
+                @keyframes reconnect-pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.7; }
+                }
+                #connection-status-indicator {
+                    animation: reconnect-pulse 2s ease-in-out infinite;
+                }
+            </style>
+
+            <div id="connection-status-indicator" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 40; pointer-events: none;">
+                <div style="background-color: #22c55e; color: white; padding: 12px 24px; border-radius: 9999px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
                     <div style="width: 12px; height: 12px; background-color: white; border-radius: 50%;"></div>
                     <span>Connected</span>
                 </div>
