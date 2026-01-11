@@ -1296,6 +1296,10 @@ const referralWithdrawalSchema = new mongoose.Schema({
         messageId: Number,
         originalText: String
     }],
+    userLocation: {
+        city: String,
+        country: String
+    },
     processedBy: { type: Number },
     processedAt: { type: Date },
     declineReason: { type: String },
@@ -6205,6 +6209,26 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         const username = user.username || `@user`;
 
+        // Get location data
+        let userLocation = null;
+        try {
+            let ip = req.headers?.['x-forwarded-for'] || req.headers?.['cf-connecting-ip'] || req.socket?.remoteAddress || 'unknown';
+            
+            if (typeof ip === 'string') {
+                ip = ip.split(',')[0].trim();
+            }
+            
+            if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
+                const geo = await getGeolocation(ip);
+                if (geo.country !== 'Unknown') {
+                    userLocation = { city: geo.city || 'Unknown', country: geo.country };
+                }
+            }
+        } catch (err) {
+            console.error('Error getting location for withdrawal:', err.message);
+            // Continue without location
+        }
+
         const withdrawal = new ReferralWithdrawal({
             userId,
             username: username,
@@ -6213,6 +6237,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             referralIds: referralsToMark.map(r => r._id),
             status: 'pending',
             adminMessages: [],
+            userLocation: userLocation,
             createdAt: new Date()
         });
 
@@ -6239,11 +6264,12 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         await bot.sendMessage(userId, userMessage);
 
         const adminMessage = `💸 Withdrawal Request\n\n` +
-                           `👤 User: @${username} (ID: ${userId})\n` +
-                           `💵 Amount: ${amountNum} USDT\n` +
-                           `👛 Wallet: ${walletAddress}\n` +
-                           `👥 Referrals: ${referralsNeeded}\n` +
-                           `🆔 WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
+                           `User: @${username} (ID: ${userId})\n` +
+                           `Amount: ${amountNum} USDT\n` +
+                           `Wallet: ${walletAddress}\n` +
+                           `Referrals: ${referralsNeeded}\n` +
+                           `Location: ${withdrawal.userLocation ? `${withdrawal.userLocation.city || 'Unknown'}, ${withdrawal.userLocation.country || 'Unknown'}` : 'Unknown'}\n` +
+                           `WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
 
         const adminKeyboard = {
             inline_keyboard: [
@@ -7280,11 +7306,15 @@ bot.onText(/\/adminhelp/, (msg) => {
 bot.onText(/\/activity(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
     const timeframe = match?.[1]?.toLowerCase() || '24h';
     
     if (!adminIds.includes(adminId)) {
+        console.warn(`[SECURITY] Unauthorized activity attempt by user ${adminId} (@${adminUsername})`);
         return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
+    
+    console.log(`[ADMIN-ACTION] activity command initiated by @${adminUsername} (${adminId}) for timeframe: ${timeframe}`);
     
     try {
         await bot.sendMessage(chatId, '📊 Fetching activity statistics...');
@@ -7345,22 +7375,22 @@ bot.onText(/\/activity(?:\s+(.+))?/, async (msg, match) => {
 
         const activityText = `📊 <b>Activity Statistics</b>
 
-<b>📈 ${displayPeriod}:</b>
+<b>${displayPeriod}:</b>
 • Activities: <code>${recentActivities}</code> (Total: <code>${totalActivities}</code>)
 • Active Users: <code>${activeUsers}</code> / <code>${totalUsers}</code>
 
-<b>🤖 Bot Simulator:</b>
+<b>Bot Simulator:</b>
 • Status: ${botSimulatorEnabled ? '✅ Enabled' : '❌ Disabled'}
 • Bot Users: <code>${botUsers}</code>
 • Bot Activities: <code>${botActivities}</code>
 
-<b>🎯 Top Activity Types:</b>
+<b>Top Activity Types:</b>
 ${activityTypes.length > 0 ? 
     activityTypes.map(type => `• ${type._id}: <code>${type.count}</code> (${type.totalPoints} pts)`).join('\n') : 
     '• No recent activities'
 }
 
-<b>💡 Commands:</b>
+<b>Commands:</b>
 • <code>/activity 1h</code> - Last hour stats
 • <code>/activity 24h</code> - Last 24 hours (default)
 • <code>/activity 7d</code> - Last 7 days`;
@@ -7380,8 +7410,9 @@ ${activityTypes.length > 0 ?
             );
         }
         
+        console.log(`[ADMIN-ACTION] activity command completed by @${adminUsername}`);
     } catch (error) {
-        console.error('Activity command error:', error);
+        console.error(`[ADMIN-ACTION] activity command error by @${adminUsername}:`, error);
         await bot.sendMessage(chatId, `❌ Error fetching activity statistics: ${error.message}`);
     }
 });
@@ -9694,20 +9725,25 @@ bot.on('message', async (msg) => {
 
 bot.onText(/\/detect_users/, async (msg) => {
     const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
     const startTime = Date.now();
 
     try {
-        if (!adminIds.includes(chatId.toString())) {
+        if (!adminIds.includes(adminId)) {
+            console.warn(`[SECURITY] Unauthorized detect_users attempt by user ${adminId} (@${adminUsername})`);
             return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
         }
 
-        await bot.sendMessage(chatId, '🔍 Detecting all users from bot interactions...\n⏳ (This may take a moment)');
+        console.log(`[ADMIN-ACTION] detect_users command initiated by @${adminUsername} (${adminId})`);
+
+        await bot.sendMessage(chatId, '🔍 Detecting all users from bot interactions...');
 
         // Collect all unique user IDs from ALL interaction sources
         const userIds = new Set();
         const userMap = new Map(); // Store user info for upsert
 
-        console.log('🔍 Scanning all user interaction sources...');
+        console.log('[ADMIN-ACTION] Scanning all user interaction sources...');
 
         // 1. From BUY orders
         const buyOrders = await BuyOrder.find({}, { telegramId: 1, username: 1 }).lean();
@@ -9800,7 +9836,7 @@ bot.onText(/\/detect_users/, async (msg) => {
         }
 
         // Now process all detected users
-        console.log(`\n📊 Processing ${userIds.size} unique users...`);
+        console.log(`Processing ${userIds.size} unique users...`);
         let totalNew = 0;
         let totalAlreadySaved = 0;
         let totalFailed = 0;
@@ -9853,11 +9889,11 @@ bot.onText(/\/detect_users/, async (msg) => {
         const duration = Date.now() - startTime;
         const reportMessage = 
             `📊 *User Detection Report*\n\n` +
-            `🔍 *Total Users Detected:* ${userIds.size}\n` +
-            `✅ *Newly Added:* ${totalNew}\n` +
-            `👤 *Already Saved:* ${totalAlreadySaved}\n` +
-            `❌ *Failed:* ${totalFailed}\n\n` +
-            `📈 *Sources Scanned:*\n` +
+            `*Total Users Detected:* ${userIds.size}\n` +
+            `*Newly Added:* ${totalNew}\n` +
+            `*Already Saved:* ${totalAlreadySaved}\n` +
+            `*Failed:* ${totalFailed}\n\n` +
+            `*Sources Scanned:*\n` +
             `  • Buy Orders\n` +
             `  • Sell Orders\n` +
             `  • Daily Activity\n` +
@@ -9865,12 +9901,12 @@ bot.onText(/\/detect_users/, async (msg) => {
             `  • Withdrawals\n` +
             `  • Warnings/Bans\n` +
             `  • Cache\n\n` +
-            `⏱️ *Duration:* ${duration}ms`;
+            `*Duration:* ${duration}ms`;
         
         bot.sendMessage(chatId, reportMessage, { parse_mode: 'Markdown' });
-        console.log(`✅ User detection completed in ${duration}ms`);
+        console.log(`[ADMIN-ACTION] detect_users completed by @${adminUsername} in ${duration}ms (detected: ${userIds.size}, new: ${totalNew})`);
     } catch (error) {
-        console.error('Error detecting users:', error);
+        console.error(`[ADMIN-ACTION] detect_users error by @${adminUsername}:`, error);
         bot.sendMessage(chatId, `❌ User detection failed: ${error.message}`);
     }
 });
@@ -9878,17 +9914,21 @@ bot.onText(/\/detect_users/, async (msg) => {
 // Audit users - check for duplicate Telegram user IDs in database
 bot.onText(/\/audit_users/, async (msg) => {
     const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
     const auditStartTime = Date.now();
     const AUDIT_TIMEOUT = 25000; // 25 second timeout (safer than 30s Telegram limit)
 
     try {
-        // Check if user is admin (optional - remove if not needed)
-        // if (!adminIds.includes(chatId.toString())) {
-        //     bot.sendMessage(chatId, '❌ Admin only command');
-        //     return;
-        // }
+        // Security check - admin only
+        if (!adminIds.includes(adminId)) {
+            console.warn(`[SECURITY] Unauthorized audit_users attempt by user ${adminId} (@${adminUsername})`);
+            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        }
 
-        bot.sendMessage(chatId, '🔍 Running user database audit...\n⏱️ (This may take 3-15 seconds)');
+        console.log(`[ADMIN-ACTION] audit_users command initiated by @${adminUsername} (${adminId})`);
+
+        bot.sendMessage(chatId, '🔍 Running user database audit...');
 
         // Run all queries in parallel for better performance
         const [
@@ -9956,26 +9996,27 @@ bot.onText(/\/audit_users/, async (msg) => {
 
         // Build report
         let report = `📊 *User Database Audit Report*\n\n`;
-        report += `📈 Total Users: *${totalUsers}*\n\n`;
+        report += `Total Users: *${totalUsers}*\n\n`;
         
-        report += `🔎 *Duplicate Telegram IDs:* ${duplicateIds.length === 0 ? '✅ None' : `❌ ${duplicateIds.length}`}\n`;
-        report += `🔎 *Duplicate Usernames:* ${duplicateUsernames.length === 0 ? '✅ None' : `❌ ${duplicateUsernames.length}`}\n`;
-        report += `🔎 *Null Telegram IDs:* ${nullIds === 0 ? '✅ None' : `❌ ${nullIds}`}\n`;
-        report += `🔎 *Missing CreatedAt:* ${missingCreatedAt === 0 ? '✅ None' : `❌ ${missingCreatedAt}`}\n`;
-        report += `🔎 *Time Inconsistencies:* ${timeInconsistencies === 0 ? '✅ None' : `❌ ${timeInconsistencies}`}\n\n`;
+        report += `*Duplicate Telegram IDs:* ${duplicateIds.length === 0 ? '✅ None' : `❌ ${duplicateIds.length}`}\n`;
+        report += `*Duplicate Usernames:* ${duplicateUsernames.length === 0 ? '✅ None' : `❌ ${duplicateUsernames.length}`}\n`;
+        report += `*Null Telegram IDs:* ${nullIds === 0 ? '✅ None' : `❌ ${nullIds}`}\n`;
+        report += `*Missing CreatedAt:* ${missingCreatedAt === 0 ? '✅ None' : `❌ ${missingCreatedAt}`}\n`;
+        report += `*Time Inconsistencies:* ${timeInconsistencies === 0 ? '✅ None' : `❌ ${timeInconsistencies}`}\n\n`;
 
         const hasIssues = duplicateIds.length > 0 || duplicateUsernames.length > 0 || nullIds > 0 || missingCreatedAt > 0 || timeInconsistencies > 0;
         report += hasIssues ? '⚠️ *STATUS: ISSUES FOUND*' : '✅ *STATUS: ALL PASSED*';
-        report += `\n\n⏱️ *Duration:* ${auditDuration}ms`;
+        report += `\n\n*Duration:* ${auditDuration}ms`;
         
         if (speedWarning) {
             report = speedWarning + report;
         }
 
         bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+        console.log(`[ADMIN-ACTION] audit_users completed by @${adminUsername} in ${auditDuration}ms`);
     } catch (error) {
         const auditDuration = Date.now() - auditStartTime;
-        console.error('Error auditing users:', error);
+        console.error(`[ADMIN-ACTION] audit_users error by @${adminUsername}:`, error);
         
         let errorMsg = `❌ Audit failed`;
         if (error.name === 'MongoServerSelectionError') {
@@ -9991,6 +10032,95 @@ bot.onText(/\/audit_users/, async (msg) => {
     }
 });
 
+// Geographic analysis - analyze user distribution by country
+bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
+    const includesCities = match?.[1]?.toLowerCase() === 'cities';
+    const analysisStart = Date.now();
+
+    try {
+        // Security check - admin only
+        if (!adminIds.includes(adminId)) {
+            console.warn(`[SECURITY] Unauthorized geo_analysis attempt by user ${adminId} (@${adminUsername})`);
+            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        }
+
+        console.log(`[ADMIN-ACTION] geo_analysis command initiated by @${adminUsername} (${adminId})`);
+        
+        await bot.sendMessage(chatId, 'Analyzing geographic distribution...');
+
+        // Get all users with location data
+        const users = await User.find({
+            'lastLocation.country': { $ne: null }
+        }, { 'lastLocation.country': 1, 'lastLocation.city': 1 }).lean();
+
+        // Aggregate by country
+        const countryStats = {};
+        const cityStats = {};
+        
+        for (const user of users) {
+            if (user.lastLocation?.country) {
+                const country = user.lastLocation.country;
+                countryStats[country] = (countryStats[country] || 0) + 1;
+                
+                if (includesCities && user.lastLocation?.city) {
+                    const cityKey = `${user.lastLocation.city}, ${country}`;
+                    cityStats[cityKey] = (cityStats[cityKey] || 0) + 1;
+                }
+            }
+        }
+
+        // Sort countries by user count (descending)
+        const sortedCountries = Object.entries(countryStats)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 50); // Top 50 countries
+
+        const totalUsersWithLocation = users.length;
+        const totalUsers = await User.countDocuments({});
+        const usersWithoutLocation = totalUsers - totalUsersWithLocation;
+
+        let report = `*Geographic User Distribution*\n\n`;
+        report += `Total Users: ${totalUsers}\n`;
+        report += `With Location: ${totalUsersWithLocation}\n`;
+        report += `Without Location: ${usersWithoutLocation}\n`;
+        report += `Countries Represented: ${Object.keys(countryStats).length}\n\n`;
+        report += `*Top Countries:*\n`;
+
+        sortedCountries.forEach(([country, count], index) => {
+            const percentage = ((count / totalUsersWithLocation) * 100).toFixed(1);
+            report += `${index + 1}. ${country}: ${count} users (${percentage}%)\n`;
+        });
+
+        // Add city breakdown if requested
+        if (includesCities && Object.keys(cityStats).length > 0) {
+            const sortedCities = Object.entries(cityStats)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 20); // Top 20 cities
+
+            report += `\n*Top Cities:*\n`;
+            sortedCities.forEach(([city, count], index) => {
+                const percentage = ((count / totalUsersWithLocation) * 100).toFixed(1);
+                report += `${index + 1}. ${city}: ${count} users (${percentage}%)\n`;
+            });
+        }
+
+        const duration = Date.now() - analysisStart;
+        report += `\n*Duration:* ${duration}ms`;
+        if (includesCities) {
+            report += `\nTip: Use /geo_analysis for countries only`;
+        } else {
+            report += `\nTip: Use /geo_analysis cities for city breakdown`;
+        }
+
+        console.log(`[ADMIN-ACTION] geo_analysis completed by @${adminUsername} in ${duration}ms`);
+        bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+    } catch (error) {
+        console.error(`[ADMIN-ACTION] geo_analysis error by @${adminUsername} (${adminId}):`, error);
+        bot.sendMessage(chatId, `❌ Analysis failed: ${error.message}`);
+    }
+});
 
 app.post('/api/survey', async (req, res) => {
     try {
