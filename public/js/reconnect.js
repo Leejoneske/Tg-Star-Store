@@ -16,7 +16,9 @@ window.ReconnectManager = (() => {
         currentDelay: 1000,
         reconnectTimeout: null,
         healthCheckInterval: null,
-        lastSuccessfulConnection: Date.now()
+        lastSuccessfulConnection: Date.now(),
+        showOverlayDelay: 3000, // Show overlay after 3 seconds of disconnection
+        showOverlayTimeout: null // Track the show overlay timeout
     };
 
     // UI elements
@@ -65,6 +67,14 @@ window.ReconnectManager = (() => {
                 </div>
             </div>
 
+            <!-- Connection Status Indicator - Green dot in center top -->
+            <div id="connection-status-indicator" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none">
+                <div class="bg-green-500 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 animate-pulse">
+                    <div class="w-3 h-3 bg-white rounded-full"></div>
+                    <span>Connected</span>
+                </div>
+            </div>
+
             <div id="reconnect-toast" class="hidden fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-40 animate-pulse">
                 Connection restored
             </div>
@@ -77,7 +87,8 @@ window.ReconnectManager = (() => {
             retryCountdown: document.getElementById('retry-countdown'),
             manualRetry: document.getElementById('manual-retry-btn'),
             cancel: document.getElementById('retry-cancel-btn'),
-            toast: document.getElementById('reconnect-toast')
+            toast: document.getElementById('reconnect-toast'),
+            statusIndicator: document.getElementById('connection-status-indicator')
         };
 
         // Event listeners
@@ -177,7 +188,17 @@ window.ReconnectManager = (() => {
             state.reconnectAttempts = 0;
             state.currentDelay = state.baseDelay;
             
-            showReconnectUI();
+            // Clear any existing delay timeout
+            if (state.showOverlayTimeout) {
+                clearTimeout(state.showOverlayTimeout);
+            }
+            
+            // Show UI after 3 second delay to prevent flashing on quick reconnects
+            state.showOverlayTimeout = setTimeout(() => {
+                showReconnectUI();
+                state.showOverlayTimeout = null;
+            }, state.showOverlayDelay);
+            
             startReconnectProcess();
             
             // Trigger custom event for app state freeze
@@ -307,18 +328,34 @@ window.ReconnectManager = (() => {
      * Show reconnect overlay
      */
     const showReconnectUI = () => {
-        if (reconnectUI?.overlay) {
-            reconnectUI.overlay.classList.remove('hidden');
-            updateReconnectUI();
+        if (!reconnectUI?.overlay) return;
+        
+        // Hide status indicator when showing overlay
+        if (reconnectUI.statusIndicator) {
+            reconnectUI.statusIndicator.classList.add('hidden');
         }
+        
+        reconnectUI.overlay.classList.remove('hidden');
+        updateReconnectUI();
     };
 
     /**
      * Hide reconnect overlay
      */
     const hideReconnectUI = () => {
-        if (reconnectUI?.overlay) {
-            reconnectUI.overlay.classList.add('hidden');
+        if (!reconnectUI?.overlay) return;
+        
+        // Clear any pending overlay timeout
+        if (state.showOverlayTimeout) {
+            clearTimeout(state.showOverlayTimeout);
+            state.showOverlayTimeout = null;
+        }
+        
+        reconnectUI.overlay.classList.add('hidden');
+        
+        // Show status indicator when hiding overlay
+        if (reconnectUI.statusIndicator) {
+            reconnectUI.statusIndicator.classList.remove('hidden');
         }
     };
 
