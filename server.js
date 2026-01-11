@@ -2437,6 +2437,7 @@ Need help? Contact @StarStore_Chat`;
 
         // Track user activity (buy order created) and get location data
         let userLocation = 'Location: Not available';
+        let locationGeo = null;
         try {
             // Extract IP from request - x-forwarded-for is set by Railway proxies
             let ip = req.headers?.['x-forwarded-for'] || req.headers?.['cf-connecting-ip'] || req.socket?.remoteAddress || 'unknown';
@@ -2451,11 +2452,11 @@ Need help? Contact @StarStore_Chat`;
             // Only try to get geolocation if we have a valid IP (not from Telegram)
             if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
                 console.log(`[BUY-ORDER] Attempting geolocation for IP: ${ip}`);
-                const geo = await getGeolocation(ip);
-                console.log(`[BUY-ORDER] Geolocation result: ${geo.city}, ${geo.country}`);
+                locationGeo = await getGeolocation(ip);
+                console.log(`[BUY-ORDER] Geolocation result: ${locationGeo.city}, ${locationGeo.country}`);
                 
-                if (geo.country !== 'Unknown') {
-                    userLocation = `Location: ${geo.city || 'Unknown'}, ${geo.country}`;
+                if (locationGeo.country !== 'Unknown') {
+                    userLocation = `Location: ${locationGeo.city || 'Unknown'}, ${locationGeo.country}`;
                     console.log(`[BUY-ORDER] Location set: ${userLocation}`);
                 }
             } else {
@@ -2465,13 +2466,13 @@ Need help? Contact @StarStore_Chat`;
             console.error('Error getting location for buy order:', err.message);
         }
         
-        // Now track activity (without waiting for location, since we got it above)
+        // Now track activity with location data (pass locationGeo to override)
         await trackUserActivity(telegramId, username, 'order_created', {
             orderId: order.id,
             orderType: isPremium ? 'premium_buy' : 'buy',
             amount: amount,
             isPremium: isPremium
-        }, req, null);
+        }, req, null, locationGeo);
 
         // Create enhanced admin message with Telegram ID and location
         let adminMessage = `🛒 New ${isPremium ? 'Premium' : 'Buy'} Order!\n\nOrder ID: ${order.id}\nUser: @${username} (ID: ${telegramId})\n${userLocation}\nAmount: ${amount} USDT`;
@@ -3024,7 +3025,7 @@ function parseUserAgent(userAgent = '') {
 }
 
 // Track user activity and location
-async function trackUserActivity(userId, username, actionType, actionDetails = {}, req = null, msg = null) {
+async function trackUserActivity(userId, username, actionType, actionDetails = {}, req = null, msg = null, overrideLocation = null) {
     try {
         // Extract IP and user agent
         let ip = 'unknown';
@@ -3041,8 +3042,11 @@ async function trackUserActivity(userId, username, actionType, actionDetails = {
             ip = 'unknown'; // Can't get real IP from Telegram, set as unknown
         }
         
-        // Get geolocation
-        const geo = await getGeolocation(ip);
+        // Use override location if provided, otherwise get geolocation
+        let geo = overrideLocation;
+        if (!geo) {
+            geo = await getGeolocation(ip);
+        }
         const { browser, os } = parseUserAgent(userAgent);
         
         // Get user
@@ -3213,12 +3217,22 @@ bot.on("successful_payment", async (msg) => {
         return;
     }
 
+    // Convert order location to geo object format for trackUserActivity
+    let locationGeo = null;
+    if (order.userLocation) {
+        locationGeo = {
+            country: order.userLocation.country,
+            countryCode: order.userLocation.countryCode,
+            city: order.userLocation.city
+        };
+    }
+
     // Track activity (payment) - this updates user location in DB
     await trackUserActivity(userId, msg.from.username, 'order_completed', {
         orderId: order.id,
         orderType: 'sell',
         stars: order.stars
-    }, null, msg);
+    }, null, msg, locationGeo);
 
     order.telegram_payment_charge_id = msg.successful_payment.telegram_payment_charge_id;
     order.status = "processing"; 
