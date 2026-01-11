@@ -7306,11 +7306,15 @@ bot.onText(/\/adminhelp/, (msg) => {
 bot.onText(/\/activity(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
     const timeframe = match?.[1]?.toLowerCase() || '24h';
     
     if (!adminIds.includes(adminId)) {
+        console.warn(`[SECURITY] Unauthorized activity attempt by user ${adminId} (@${adminUsername})`);
         return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
+    
+    console.log(`[ADMIN-ACTION] activity command initiated by @${adminUsername} (${adminId}) for timeframe: ${timeframe}`);
     
     try {
         await bot.sendMessage(chatId, '📊 Fetching activity statistics...');
@@ -7406,8 +7410,9 @@ ${activityTypes.length > 0 ?
             );
         }
         
+        console.log(`[ADMIN-ACTION] activity command completed by @${adminUsername}`);
     } catch (error) {
-        console.error('Activity command error:', error);
+        console.error(`[ADMIN-ACTION] activity command error by @${adminUsername}:`, error);
         await bot.sendMessage(chatId, `❌ Error fetching activity statistics: ${error.message}`);
     }
 });
@@ -9720,12 +9725,17 @@ bot.on('message', async (msg) => {
 
 bot.onText(/\/detect_users/, async (msg) => {
     const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
     const startTime = Date.now();
 
     try {
-        if (!adminIds.includes(chatId.toString())) {
+        if (!adminIds.includes(adminId)) {
+            console.warn(`[SECURITY] Unauthorized detect_users attempt by user ${adminId} (@${adminUsername})`);
             return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
         }
+
+        console.log(`[ADMIN-ACTION] detect_users command initiated by @${adminUsername} (${adminId})`);
 
         await bot.sendMessage(chatId, '🔍 Detecting all users from bot interactions...');
 
@@ -9733,7 +9743,7 @@ bot.onText(/\/detect_users/, async (msg) => {
         const userIds = new Set();
         const userMap = new Map(); // Store user info for upsert
 
-        console.log('🔍 Scanning all user interaction sources...');
+        console.log('[ADMIN-ACTION] Scanning all user interaction sources...');
 
         // 1. From BUY orders
         const buyOrders = await BuyOrder.find({}, { telegramId: 1, username: 1 }).lean();
@@ -9894,9 +9904,9 @@ bot.onText(/\/detect_users/, async (msg) => {
             `*Duration:* ${duration}ms`;
         
         bot.sendMessage(chatId, reportMessage, { parse_mode: 'Markdown' });
-        console.log(`✅ User detection completed in ${duration}ms`);
+        console.log(`[ADMIN-ACTION] detect_users completed by @${adminUsername} in ${duration}ms (detected: ${userIds.size}, new: ${totalNew})`);
     } catch (error) {
-        console.error('Error detecting users:', error);
+        console.error(`[ADMIN-ACTION] detect_users error by @${adminUsername}:`, error);
         bot.sendMessage(chatId, `❌ User detection failed: ${error.message}`);
     }
 });
@@ -9904,15 +9914,19 @@ bot.onText(/\/detect_users/, async (msg) => {
 // Audit users - check for duplicate Telegram user IDs in database
 bot.onText(/\/audit_users/, async (msg) => {
     const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
     const auditStartTime = Date.now();
     const AUDIT_TIMEOUT = 25000; // 25 second timeout (safer than 30s Telegram limit)
 
     try {
-        // Check if user is admin (optional - remove if not needed)
-        // if (!adminIds.includes(chatId.toString())) {
-        //     bot.sendMessage(chatId, '❌ Admin only command');
-        //     return;
-        // }
+        // Security check - admin only
+        if (!adminIds.includes(adminId)) {
+            console.warn(`[SECURITY] Unauthorized audit_users attempt by user ${adminId} (@${adminUsername})`);
+            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        }
+
+        console.log(`[ADMIN-ACTION] audit_users command initiated by @${adminUsername} (${adminId})`);
 
         bot.sendMessage(chatId, '🔍 Running user database audit...');
 
@@ -9999,9 +10013,10 @@ bot.onText(/\/audit_users/, async (msg) => {
         }
 
         bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+        console.log(`[ADMIN-ACTION] audit_users completed by @${adminUsername} in ${auditDuration}ms`);
     } catch (error) {
         const auditDuration = Date.now() - auditStartTime;
-        console.error('Error auditing users:', error);
+        console.error(`[ADMIN-ACTION] audit_users error by @${adminUsername}:`, error);
         
         let errorMsg = `❌ Audit failed`;
         if (error.name === 'MongoServerSelectionError') {
@@ -10020,15 +10035,21 @@ bot.onText(/\/audit_users/, async (msg) => {
 // Geographic analysis - analyze user distribution by country
 bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
     const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
     const includesCities = match?.[1]?.toLowerCase() === 'cities';
     const analysisStart = Date.now();
 
     try {
-        if (!adminIds.includes(chatId.toString())) {
+        // Security check - admin only
+        if (!adminIds.includes(adminId)) {
+            console.warn(`[SECURITY] Unauthorized geo_analysis attempt by user ${adminId} (@${adminUsername})`);
             return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
         }
 
-        await bot.sendMessage(chatId, '🌍 Analyzing geographic distribution...');
+        console.log(`[ADMIN-ACTION] geo_analysis command initiated by @${adminUsername} (${adminId})`);
+        
+        await bot.sendMessage(chatId, 'Analyzing geographic distribution...');
 
         // Get all users with location data
         const users = await User.find({
@@ -10060,11 +10081,11 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
         const totalUsers = await User.countDocuments({});
         const usersWithoutLocation = totalUsers - totalUsersWithLocation;
 
-        let report = `🌍 *Geographic User Distribution*\n\n`;
-        report += `📊 Total Users: ${totalUsers}\n`;
-        report += `📍 With Location: ${totalUsersWithLocation}\n`;
-        report += `❌ Without Location: ${usersWithoutLocation}\n`;
-        report += `🌐 Countries Represented: ${Object.keys(countryStats).length}\n\n`;
+        let report = `*Geographic User Distribution*\n\n`;
+        report += `Total Users: ${totalUsers}\n`;
+        report += `With Location: ${totalUsersWithLocation}\n`;
+        report += `Without Location: ${usersWithoutLocation}\n`;
+        report += `Countries Represented: ${Object.keys(countryStats).length}\n\n`;
         report += `*Top Countries:*\n`;
 
         sortedCountries.forEach(([country, count], index) => {
@@ -10086,17 +10107,18 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
         }
 
         const duration = Date.now() - analysisStart;
-        report += `\n⏱️ Analysis completed in ${duration}ms`;
+        report += `\n*Duration:* ${duration}ms`;
         if (includesCities) {
-            report += `\n💡 Use <code>/geo_analysis</code> for countries only`;
+            report += `\nTip: Use /geo_analysis for countries only`;
         } else {
-            report += `\n💡 Use <code>/geo_analysis cities</code> for city breakdown`;
+            report += `\nTip: Use /geo_analysis cities for city breakdown`;
         }
 
+        console.log(`[ADMIN-ACTION] geo_analysis completed by @${adminUsername} in ${duration}ms`);
         bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
     } catch (error) {
-        console.error('Error analyzing geographic data:', error);
-        bot.sendMessage(chatId, `❌ Geographic analysis failed: ${error.message}`);
+        console.error(`[ADMIN-ACTION] geo_analysis error by @${adminUsername} (${adminId}):`, error);
+        bot.sendMessage(chatId, `❌ Analysis failed: ${error.message}`);
     }
 });
 
