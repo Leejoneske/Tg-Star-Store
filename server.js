@@ -1191,7 +1191,10 @@ const userSchema = new mongoose.Schema({
     }],
     // Additional user info
     telegramLanguage: String,
-    timezone: String
+    timezone: String,
+    // Silent ping tracking
+    lastPingDate: { type: Date, default: null, index: true },
+    pingCount: { type: Number, default: 0 }
 });
 
 const bannedUserSchema = new mongoose.Schema({
@@ -10214,7 +10217,7 @@ bot.onText(/\/detect_users/, async (msg) => {
     }
 });
 
-// Ping inactive users - send reminders to encourage activity
+// Ping inactive users - SILENTLY mark users and wait for natural interactions to sync data
 bot.onText(/\/ping_users\s?(\d+)?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const adminId = msg.from.id.toString();
@@ -10228,82 +10231,90 @@ bot.onText(/\/ping_users\s?(\d+)?/, async (msg, match) => {
             return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
         }
 
-        console.log(`[ADMIN-ACTION] ping_users command initiated by @${adminUsername} (${adminId}) - targeting inactive ${inactiveDays}+ days`);
-
-        await bot.sendMessage(chatId, `📢 Sending reminders to inactive users (${inactiveDays}+ days)...\nThis may take a moment.`);
+        console.log(`[ADMIN-ACTION] ping_users command initiated by @${adminUsername} (${adminId}) - SILENT targeting inactive ${inactiveDays}+ days`);
 
         // Find users inactive for specified days
         const inactiveSince = new Date(Date.now() - inactiveDays * 24 * 60 * 60 * 1000);
         const inactiveUsers = await User.find({
             lastActive: { $lt: inactiveSince },
             id: { $exists: true, $ne: null }
-        }, { id: 1, username: 1, lastActive: 1, lastLocation: 1 }).lean();
+        }, { id: 1, username: 1, lastActive: 1, lastLocation: 1, lastDevice: 1, devices: 1 }).lean();
 
-        console.log(`[ADMIN-ACTION] Found ${inactiveUsers.length} inactive users to ping`);
+        console.log(`[ADMIN-ACTION] Found ${inactiveUsers.length} inactive users for silent ping`);
 
-        let successCount = 0;
-        let failureCount = 0;
-        const errors = [];
+        // === SILENTLY MARK USERS (No messages sent) ===
+        // Just mark them with lastPingDate for tracking
+        let markedCount = 0;
+        let failCount = 0;
 
-        // Send reminders in batches to avoid rate limiting
-        for (let i = 0; i < inactiveUsers.length; i++) {
-            const user = inactiveUsers[i];
+        for (const user of inactiveUsers) {
             try {
-                const daysInactive = Math.floor((Date.now() - new Date(user.lastActive).getTime()) / (1000 * 60 * 60 * 24));
-                
-                const reminderMessage = `👋 *Hey @${user.username || 'User'}!*
-
-We haven't seen you in ${daysInactive} days! 
-
-🌟 *Here's what you're missing:*
-  • Daily check-ins for rewards
-  • Star trading opportunities
-  • Referral bonuses
-  • Exclusive features
-
-💰 *Come back and join us:*
-Open StarStore and start earning! 🚀
-
-\`${user.lastLocation ? `📍 Last seen: ${user.lastLocation.city || ''}, ${user.lastLocation.country || 'Unknown'}` : ''}\``;
-
-                await bot.sendMessage(user.id, reminderMessage, { 
-                    parse_mode: 'Markdown',
-                    disable_web_page_preview: true
-                });
-                
-                successCount++;
-                
-                // Small delay to avoid rate limiting (100ms between messages)
-                if (i < inactiveUsers.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-            } catch (pingError) {
-                failureCount++;
-                errors.push(`User ${user.id}: ${pingError.message}`);
-                console.warn(`[ADMIN-ACTION] Failed to ping user ${user.id}:`, pingError.message);
+                await User.findOneAndUpdate(
+                    { id: user.id },
+                    {
+                        $set: { lastPingDate: new Date() },
+                        $inc: { pingCount: 1 }
+                    },
+                    { new: true }
+                );
+                markedCount++;
+            } catch (err) {
+                failCount++;
+                console.warn(`[ADMIN-ACTION] Failed to mark user ${user.id}:`, err.message);
             }
         }
 
-        // Log summary
-        await syncUserData(adminId, adminUsername, 'ping_users_command', { success: successCount, failed: failureCount });
+        // Analyze current data
+        let usersWithLocation = 0;
+        let usersWithDevice = 0;
+        let usersWithUsername = 0;
+        let avgDaysInactive = 0;
+
+        for (const user of inactiveUsers) {
+            if (user.lastLocation && user.lastLocation.country !== 'Unknown') usersWithLocation++;
+            if (user.devices && user.devices.length > 0) usersWithDevice++;
+            if (user.username) usersWithUsername++;
+            
+            const daysInactive = Math.floor((Date.now() - new Date(user.lastActive).getTime()) / (1000 * 60 * 60 * 24));
+            avgDaysInactive += daysInactive;
+        }
+
+        avgDaysInactive = inactiveUsers.length > 0 ? (avgDaysInactive / inactiveUsers.length).toFixed(1) : 0;
+
+        // Log to admin activity
+        await syncUserData(adminId, adminUsername, 'ping_users_silent_command', { 
+            targetCount: inactiveUsers.length,
+            marked: markedCount,
+            failed: failCount
+        });
 
         const duration = Date.now() - startTime;
         const pingReport = 
-            `📊 *Ping Campaign Report*\n\n` +
+            `🔇 *SILENT PING REPORT*\n\n` +
             `*Campaign Settings:*\n` +
             `Inactive Period: ${inactiveDays}+ days\n` +
             `Target Users: ${inactiveUsers.length}\n\n` +
-            `*Results:*\n` +
-            `✅ Successfully Sent: ${successCount}\n` +
-            `❌ Failed: ${failureCount}\n` +
-            `Success Rate: ${inactiveUsers.length > 0 ? ((successCount / inactiveUsers.length) * 100).toFixed(1) : 0}%\n\n` +
+            `*Action Taken:*\n` +
+            `✅ Silently Marked: ${markedCount} users\n` +
+            `❌ Failed: ${failCount}\n` +
+            `Mark Success Rate: ${inactiveUsers.length > 0 ? ((markedCount / inactiveUsers.length) * 100).toFixed(1) : 0}%\n\n` +
+            `*Current Data Status:*\n` +
+            `📍 With Location: ${usersWithLocation}/${inactiveUsers.length} (${inactiveUsers.length > 0 ? ((usersWithLocation / inactiveUsers.length) * 100).toFixed(1) : 0}%)\n` +
+            `💻 With Device Info: ${usersWithDevice}/${inactiveUsers.length} (${inactiveUsers.length > 0 ? ((usersWithDevice / inactiveUsers.length) * 100).toFixed(1) : 0}%)\n` +
+            `👤 With Username: ${usersWithUsername}/${inactiveUsers.length} (${inactiveUsers.length > 0 ? ((usersWithUsername / inactiveUsers.length) * 100).toFixed(1) : 0}%)\n` +
+            `⏱️ Avg Days Inactive: ${avgDaysInactive} days\n\n` +
             `*Processing:*\n` +
             `Duration: ${duration}ms\n` +
-            `Avg per user: ${inactiveUsers.length > 0 ? (duration / inactiveUsers.length).toFixed(0) : 0}ms` +
-            (errors.length > 0 && errors.length <= 5 ? `\n\n*Recent Errors:*\n${errors.slice(0, 5).join('\n')}` : '');
+            `Marked per second: ${duration > 0 ? (markedCount / (duration / 1000)).toFixed(0) : 0} users/sec\n\n` +
+            `*How It Works:*\n` +
+            `🔇 No messages sent to users\n` +
+            `🔇 No notifications sent\n` +
+            `🔇 Completely silent\n` +
+            `✅ Users marked internally\n` +
+            `✅ Data will sync on next interaction`;
 
         bot.sendMessage(chatId, pingReport, { parse_mode: 'Markdown' });
-        console.log(`[ADMIN-ACTION] ping_users completed by @${adminUsername} in ${duration}ms - Sent: ${successCount}, Failed: ${failureCount}`);
+        console.log(`[ADMIN-ACTION] SILENT ping_users completed by @${adminUsername} in ${duration}ms - Marked: ${markedCount}, Failed: ${failCount}`);
     } catch (error) {
         console.error(`[ADMIN-ACTION] ping_users error by @${adminUsername}:`, error);
         bot.sendMessage(chatId, `❌ Ping campaign failed: ${error.message}`);
