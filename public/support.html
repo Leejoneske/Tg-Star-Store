@@ -98,42 +98,54 @@ document.addEventListener('DOMContentLoaded',function(){
         let smartsuppCheckInterval;
 
         /**
-         * Setup Telegram WebApp back button for closing support page
-         * Uses native Telegram functionality to gracefully close the window
+         * Monitor Smartsupp widget for close button clicks
+         * When X close button is clicked, close the entire support page
          */
-        function setupTelegramBackButton() {
-            if (!window.Telegram?.WebApp?.BackButton) {
-                console.log('Telegram WebApp BackButton not available');
-                return;
-            }
-
-            try {
-                // Show the back button
-                Telegram.WebApp.BackButton.show();
-                
-                // Handle back button click - close support window
-                Telegram.WebApp.BackButton.onClick(() => {
-                    closeSupport();
-                });
-                
-                console.log('Telegram back button configured for support page');
-            } catch (error) {
-                console.error('Error setting up Telegram back button:', error);
-            }
+        function setupSmartsuppCloseHandler() {
+            // Monitor for widget visibility changes - when widget closes, exit support page
+            let wasOpen = false;
+            let checkAttempts = 0;
+            
+            const monitorSmartsuppState = setInterval(() => {
+                try {
+                    // Check if smartsupp widget/chat is open via its DOM state
+                    const smartsuppFrame = document.querySelector('iframe[src*="smartsupp"]');
+                    const smartsuppWidget = document.querySelector('.smartsupp-widget');
+                    
+                    // More reliable: check if there's a visible close trigger or if widget is minimized
+                    const isWidgetVisible = smartsuppFrame || smartsuppWidget;
+                    
+                    if (smartsuppLoaded && wasOpen && !isWidgetVisible) {
+                        // Widget was closed by user clicking X
+                        console.log('Smartsupp widget closed - exiting support page');
+                        clearInterval(monitorSmartsuppState);
+                        closeSupport();
+                        return;
+                    }
+                    
+                    if (isWidgetVisible && !wasOpen) {
+                        wasOpen = true;
+                        console.log('Smartsupp widget detected as open');
+                    }
+                    
+                    checkAttempts++;
+                    if (checkAttempts > 100) {
+                        // Timeout - stop monitoring after 10 seconds
+                        clearInterval(monitorSmartsuppState);
+                    }
+                } catch (error) {
+                    console.log('Monitoring smartsupp state');
+                }
+            }, 100);
         }
 
         /**
          * Close support page and return to main app
          */
         function closeSupport() {
-            console.log('Closing support page');
+            console.log('Closing support page and returning to app');
             
             try {
-                // Hide back button
-                if (window.Telegram?.WebApp?.BackButton) {
-                    Telegram.WebApp.BackButton.hide();
-                }
-                
                 // Close any open chat widgets
                 if (window.smartsupp) {
                     try { smartsupp('chat:close'); } catch(_) {}
@@ -146,9 +158,15 @@ document.addEventListener('DOMContentLoaded',function(){
                 console.error('Error closing widgets:', error);
             }
 
-            // Close the Telegram WebApp view
+            // Return to main app using back navigation
             if (window.Telegram?.WebApp?.close) {
-                Telegram.WebApp.close();
+                // Try WebApp API first
+                try {
+                    Telegram.WebApp.close();
+                } catch (error) {
+                    console.log('WebApp close failed, using history');
+                    window.history.back();
+                }
             } else {
                 // Fallback: go back using browser history
                 window.history.back();
@@ -184,6 +202,8 @@ document.addEventListener('DOMContentLoaded',function(){
             setTimeout(() => {
                 try { smartsupp('chat:open'); } catch(_) {}
                 try { smartsupp('widget:open'); } catch(_) {}
+                // Setup close handler after widget is opened
+                setupSmartsuppCloseHandler();
             }, 350);
         }
 
@@ -194,9 +214,6 @@ document.addEventListener('DOMContentLoaded',function(){
             setTimeout(() => {
                 document.body.classList.remove('loading');
                 loadingScreen.style.display = 'none';
-                
-                // Setup Telegram back button after loading complete
-                setupTelegramBackButton();
             }, 300);
         }
 
@@ -214,18 +231,11 @@ document.addEventListener('DOMContentLoaded',function(){
             setupSmartsupp();
         });
 
-        // Handle page visibility changes - restore back button if page becomes visible again
-        document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) {
-                setupTelegramBackButton();
-            }
-        });
-
         // Handle unload - ensure proper cleanup
         window.addEventListener('beforeunload', function() {
             try {
-                if (window.Telegram?.WebApp?.BackButton) {
-                    Telegram.WebApp.BackButton.hide();
+                if (window.smartsupp) {
+                    smartsupp('chat:close');
                 }
             } catch (error) {
                 console.error('Error during cleanup:', error);
