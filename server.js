@@ -10017,6 +10017,88 @@ bot.onText(/\/audit_users/, async (msg) => {
     }
 });
 
+// Geographic analysis - analyze user distribution by country
+bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const includesCities = match?.[1]?.toLowerCase() === 'cities';
+    const analysisStart = Date.now();
+
+    try {
+        if (!adminIds.includes(chatId.toString())) {
+            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        }
+
+        await bot.sendMessage(chatId, '🌍 Analyzing geographic distribution...');
+
+        // Get all users with location data
+        const users = await User.find({
+            'lastLocation.country': { $ne: null }
+        }, { 'lastLocation.country': 1, 'lastLocation.city': 1 }).lean();
+
+        // Aggregate by country
+        const countryStats = {};
+        const cityStats = {};
+        
+        for (const user of users) {
+            if (user.lastLocation?.country) {
+                const country = user.lastLocation.country;
+                countryStats[country] = (countryStats[country] || 0) + 1;
+                
+                if (includesCities && user.lastLocation?.city) {
+                    const cityKey = `${user.lastLocation.city}, ${country}`;
+                    cityStats[cityKey] = (cityStats[cityKey] || 0) + 1;
+                }
+            }
+        }
+
+        // Sort countries by user count (descending)
+        const sortedCountries = Object.entries(countryStats)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 50); // Top 50 countries
+
+        const totalUsersWithLocation = users.length;
+        const totalUsers = await User.countDocuments({});
+        const usersWithoutLocation = totalUsers - totalUsersWithLocation;
+
+        let report = `🌍 *Geographic User Distribution*\n\n`;
+        report += `📊 Total Users: ${totalUsers}\n`;
+        report += `📍 With Location: ${totalUsersWithLocation}\n`;
+        report += `❌ Without Location: ${usersWithoutLocation}\n`;
+        report += `🌐 Countries Represented: ${Object.keys(countryStats).length}\n\n`;
+        report += `*Top Countries:*\n`;
+
+        sortedCountries.forEach(([country, count], index) => {
+            const percentage = ((count / totalUsersWithLocation) * 100).toFixed(1);
+            report += `${index + 1}. ${country}: ${count} users (${percentage}%)\n`;
+        });
+
+        // Add city breakdown if requested
+        if (includesCities && Object.keys(cityStats).length > 0) {
+            const sortedCities = Object.entries(cityStats)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 20); // Top 20 cities
+
+            report += `\n*Top Cities:*\n`;
+            sortedCities.forEach(([city, count], index) => {
+                const percentage = ((count / totalUsersWithLocation) * 100).toFixed(1);
+                report += `${index + 1}. ${city}: ${count} users (${percentage}%)\n`;
+            });
+        }
+
+        const duration = Date.now() - analysisStart;
+        report += `\n⏱️ Analysis completed in ${duration}ms`;
+        if (includesCities) {
+            report += `\n💡 Use <code>/geo_analysis</code> for countries only`;
+        } else {
+            report += `\n💡 Use <code>/geo_analysis cities</code> for city breakdown`;
+        }
+
+        bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+    } catch (error) {
+        console.error('Error analyzing geographic data:', error);
+        bot.sendMessage(chatId, `❌ Geographic analysis failed: ${error.message}`);
+    }
+});
 
 app.post('/api/survey', async (req, res) => {
     try {
