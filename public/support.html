@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -97,6 +97,67 @@ document.addEventListener('DOMContentLoaded',function(){
         let smartsuppLoaded = false;
         let smartsuppCheckInterval;
 
+        /**
+         * Setup Telegram WebApp back button for closing support page
+         * Uses native Telegram functionality to gracefully close the window
+         */
+        function setupTelegramBackButton() {
+            if (!window.Telegram?.WebApp?.BackButton) {
+                console.log('Telegram WebApp BackButton not available');
+                return;
+            }
+
+            try {
+                // Show the back button
+                Telegram.WebApp.BackButton.show();
+                
+                // Handle back button click - close support window
+                Telegram.WebApp.BackButton.onClick(() => {
+                    closeSupport();
+                });
+                
+                console.log('Telegram back button configured for support page');
+            } catch (error) {
+                console.error('Error setting up Telegram back button:', error);
+            }
+        }
+
+        /**
+         * Close support page and return to main app
+         */
+        function closeSupport() {
+            console.log('Closing support page');
+            
+            try {
+                // Hide back button
+                if (window.Telegram?.WebApp?.BackButton) {
+                    Telegram.WebApp.BackButton.hide();
+                }
+                
+                // Close any open chat widgets
+                if (window.smartsupp) {
+                    try { smartsupp('chat:close'); } catch(_) {}
+                    try { smartsupp('widget:close'); } catch(_) {}
+                }
+                if (window.tidioChatApi) {
+                    try { tidioChatApi.close(); } catch(_) {}
+                }
+            } catch (error) {
+                console.error('Error closing widgets:', error);
+            }
+
+            // Close the Telegram WebApp view
+            if (window.Telegram?.WebApp?.close) {
+                Telegram.WebApp.close();
+            } else {
+                // Fallback: go back using browser history
+                window.history.back();
+            }
+        }
+
+        // Make close function globally available for direct calls
+        window.closeSupport = closeSupport;
+
         function setupSmartsupp() {
             if (!window.smartsupp) {
                 if (!smartsuppCheckInterval) {
@@ -134,7 +195,8 @@ document.addEventListener('DOMContentLoaded',function(){
                 document.body.classList.remove('loading');
                 loadingScreen.style.display = 'none';
                 
-                // Nothing else
+                // Setup Telegram back button after loading complete
+                setupTelegramBackButton();
             }, 300);
         }
 
@@ -150,6 +212,24 @@ document.addEventListener('DOMContentLoaded',function(){
                 TranslationUtils.init();
             }
             setupSmartsupp();
+        });
+
+        // Handle page visibility changes - restore back button if page becomes visible again
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                setupTelegramBackButton();
+            }
+        });
+
+        // Handle unload - ensure proper cleanup
+        window.addEventListener('beforeunload', function() {
+            try {
+                if (window.Telegram?.WebApp?.BackButton) {
+                    Telegram.WebApp.BackButton.hide();
+                }
+            } catch (error) {
+                console.error('Error during cleanup:', error);
+            }
         });
     </script>
 
@@ -167,3 +247,4 @@ window.smartsupp||(function(d) {
 <noscript> Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
 </body>
 </html>
+
