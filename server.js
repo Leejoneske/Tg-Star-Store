@@ -2405,7 +2405,8 @@ Need help? Contact @StarStore_Chat`;
             premiumDurationPerRecipient,
             transactionHash: transactionHash || null,
             transactionVerified: false, // Always start as unverified
-            verificationAttempts: 0
+            verificationAttempts: 0,
+            userLocation: null // Will be set below after geolocation
         });
 
         await order.save();
@@ -2457,6 +2458,14 @@ Need help? Contact @StarStore_Chat`;
                 
                 if (locationGeo.country !== 'Unknown') {
                     userLocation = `Location: ${locationGeo.city || 'Unknown'}, ${locationGeo.country}`;
+                    // Store in order as well
+                    order.userLocation = {
+                        city: locationGeo.city,
+                        country: locationGeo.country,
+                        countryCode: locationGeo.countryCode,
+                        ip: ip,
+                        timestamp: new Date()
+                    };
                     console.log(`[BUY-ORDER] Location set: ${userLocation}`);
                 }
             } else {
