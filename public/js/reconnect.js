@@ -17,7 +17,7 @@ window.ReconnectManager = (() => {
         reconnectTimeout: null,
         healthCheckInterval: null,
         lastSuccessfulConnection: Date.now(),
-        showOverlayDelay: 3000, // Show overlay after 3 seconds of disconnection
+        showOverlayDelay: 5500, // Show overlay after 5.5 seconds of disconnection (app tries to reconnect silently)
         showOverlayTimeout: null // Track the show overlay timeout
     };
 
@@ -66,28 +66,6 @@ window.ReconnectManager = (() => {
                     </div>
                 </div>
             </div>
-
-            <!-- Connection Status Indicator - Always visible when connected -->
-            <style>
-                @keyframes reconnect-pulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.7; }
-                }
-                #connection-status-indicator {
-                    animation: reconnect-pulse 2s ease-in-out infinite;
-                }
-            </style>
-
-            <div id="connection-status-indicator" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 40; pointer-events: none; display: block !important;">
-                <div style="background-color: #22c55e; color: white; padding: 12px 24px; border-radius: 9999px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                    <div style="width: 12px; height: 12px; background-color: white; border-radius: 50%;"></div>
-                    <span>Connected</span>
-                </div>
-            </div>
-
-            <div id="reconnect-toast" class="hidden fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-40 animate-pulse">
-                Connection restored
-            </div>
         `;
         
         document.body.appendChild(container);
@@ -96,9 +74,7 @@ window.ReconnectManager = (() => {
             attemptCount: document.getElementById('attempt-count'),
             retryCountdown: document.getElementById('retry-countdown'),
             manualRetry: document.getElementById('manual-retry-btn'),
-            cancel: document.getElementById('retry-cancel-btn'),
-            toast: document.getElementById('reconnect-toast'),
-            statusIndicator: document.getElementById('connection-status-indicator')
+            cancel: document.getElementById('retry-cancel-btn')
         };
 
         // Event listeners
@@ -181,7 +157,6 @@ window.ReconnectManager = (() => {
             state.lastSuccessfulConnection = Date.now();
             
             hideReconnectUI();
-            showToast('Connection restored');
             
             // Trigger custom event for app state recovery
             window.dispatchEvent(new CustomEvent('connection-restored'));
@@ -297,7 +272,7 @@ window.ReconnectManager = (() => {
      * Cancel reconnection attempt
      */
     const cancelReconnect = () => {
-        console.log('Reconnect Manager: Reconnection cancelled by user');
+        console.log('Reconnect Manager: Closing app');
         
         if (state.reconnectTimeout) {
             clearTimeout(state.reconnectTimeout);
@@ -306,8 +281,14 @@ window.ReconnectManager = (() => {
         state.isReconnecting = false;
         hideReconnectUI();
         
-        // Trigger custom event for app shutdown
-        window.dispatchEvent(new CustomEvent('reconnect-cancelled'));
+        // Close the Telegram MiniApp
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.close();
+        } else {
+            // Fallback for non-MiniApp environments
+            window.close();
+        }
+    };
     };
 
     /**
@@ -340,11 +321,6 @@ window.ReconnectManager = (() => {
     const showReconnectUI = () => {
         if (!reconnectUI?.overlay) return;
         
-        // Hide status indicator when showing overlay
-        if (reconnectUI.statusIndicator) {
-            reconnectUI.statusIndicator.style.display = 'none !important';
-        }
-        
         reconnectUI.overlay.classList.remove('hidden');
         updateReconnectUI();
     };
@@ -362,11 +338,6 @@ window.ReconnectManager = (() => {
         }
         
         reconnectUI.overlay.classList.add('hidden');
-        
-        // Show status indicator when hiding overlay
-        if (reconnectUI.statusIndicator) {
-            reconnectUI.statusIndicator.style.display = 'block !important';
-        }
     };
 
     /**
@@ -396,21 +367,6 @@ window.ReconnectManager = (() => {
             };
         }
     };
-
-    /**
-     * Show temporary toast message
-     */
-    const showToast = (message) => {
-        if (!reconnectUI?.toast) return;
-        
-        reconnectUI.toast.textContent = message;
-        reconnectUI.toast.classList.remove('hidden');
-        
-        setTimeout(() => {
-            reconnectUI.toast.classList.add('hidden');
-        }, 3000);
-    };
-
     /**
      * Get current connection status
      */
