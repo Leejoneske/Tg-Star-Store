@@ -47,12 +47,41 @@
             visibility: hidden !important;
             opacity: 0 !important;
         }
+        
+        /* Close button styling */
+        .close-button {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 10000;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            transition: background 0.2s, transform 0.2s;
+        }
+        .close-button:hover {
+            background: #0056b3;
+            transform: scale(1.05);
+        }
+        .close-button:active {
+            transform: scale(0.95);
+        }
     </style>
     <script src="/js/translations.js?v=3"></script>
     <link rel="stylesheet" href="/css/theme.css">
     <script src="/js/theme.js"></script>
 </head>
 <body class="loading">
+<button class="close-button" id="closeButton" title="Close Support" onclick="window.close()">×</button>
 <script src="//code.tidio.co/2eplfarnhl3xdyrvsgtdzukrgiwlxq4c.js" async onload="try{tidioChatApi.open();tidioChatApi.show();}catch(_){}"></script>
 <script>
 document.addEventListener('DOMContentLoaded',function(){
@@ -84,13 +113,29 @@ document.addEventListener('DOMContentLoaded',function(){
             document.head.appendChild(antiFlickerStyle);
         })();
 
+        /**
+         * Get Telegram user - from WebApp API or URL parameter
+         */
         function getTelegramUser() {
+            // First try to get from URL parameter (passed from main app)
+            const urlParams = new URLSearchParams(window.location.search);
+            const userIdFromUrl = urlParams.get('userId');
+            
+            if (userIdFromUrl) {
+                return {
+                    id: userIdFromUrl,
+                    username: 'Telegram User #' + userIdFromUrl
+                };
+            }
+            
+            // Fallback to WebApp API
             if (window.Telegram && Telegram.WebApp.initDataUnsafe?.user) {
                 return {
                     id: Telegram.WebApp.initDataUnsafe.user.id,
                     username: Telegram.WebApp.initDataUnsafe.user.username || 'Telegram Customer'
                 };
             }
+            
             return null;
         }
 
@@ -98,46 +143,8 @@ document.addEventListener('DOMContentLoaded',function(){
         let smartsuppCheckInterval;
 
         /**
-         * Monitor Smartsupp widget for close button clicks
-         * When X close button is clicked, close the entire support page
+         * Setup Smartsupp widget
          */
-        function setupSmartsuppCloseHandler() {
-            // Monitor for widget visibility changes - when widget closes, exit support page
-            let wasOpen = false;
-            let checkAttempts = 0;
-            
-            const monitorSmartsuppState = setInterval(() => {
-                try {
-                    // Check if smartsupp widget/chat is open via its DOM state
-                    const smartsuppFrame = document.querySelector('iframe[src*="smartsupp"]');
-                    const smartsuppWidget = document.querySelector('.smartsupp-widget');
-                    
-                    // More reliable: check if there's a visible close trigger or if widget is minimized
-                    const isWidgetVisible = smartsuppFrame || smartsuppWidget;
-                    
-                    if (smartsuppLoaded && wasOpen && !isWidgetVisible) {
-                        // Widget was closed by user clicking X
-                        console.log('Smartsupp widget closed - exiting support page');
-                        clearInterval(monitorSmartsuppState);
-                        closeSupport();
-                        return;
-                    }
-                    
-                    if (isWidgetVisible && !wasOpen) {
-                        wasOpen = true;
-                        console.log('Smartsupp widget detected as open');
-                    }
-                    
-                    checkAttempts++;
-                    if (checkAttempts > 100) {
-                        // Timeout - stop monitoring after 10 seconds
-                        clearInterval(monitorSmartsuppState);
-                    }
-                } catch (error) {
-                    console.log('Monitoring smartsupp state');
-                }
-            }, 100);
-        }
 
         /**
          * Close support page and return to main app
@@ -192,6 +199,7 @@ document.addEventListener('DOMContentLoaded',function(){
                 try {
                     smartsupp('name', `[TG] ${user.username} (${user.id})`);
                     smartsupp('email', `${user.id}@telegram.local`);
+                    console.log('Smartsupp initialized with user:', user.id);
                 } catch (_) {}
             }
 
@@ -202,8 +210,6 @@ document.addEventListener('DOMContentLoaded',function(){
             setTimeout(() => {
                 try { smartsupp('chat:open'); } catch(_) {}
                 try { smartsupp('widget:open'); } catch(_) {}
-                // Setup close handler after widget is opened
-                setupSmartsuppCloseHandler();
             }, 350);
         }
 
