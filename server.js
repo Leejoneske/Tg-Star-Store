@@ -9153,6 +9153,44 @@ app.get('/api/users/:telegramId', async (req, res) => {
     try {
         const { telegramId } = req.params;
         
+        // Track location on profile read
+        const ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
+            .toString().split(',')[0].trim();
+        
+        if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
+            try {
+                const geo = await getGeolocation(ip);
+                if (geo && geo.country !== 'Unknown') {
+                    // Update location in background (non-blocking)
+                    User.updateOne(
+                        { id: telegramId },
+                        {
+                            $set: {
+                                lastLocation: {
+                                    country: geo.country,
+                                    countryCode: geo.countryCode,
+                                    city: geo.city,
+                                    ip,
+                                    source: 'profile_read',
+                                    timestamp: new Date()
+                                }
+                            },
+                            $addToSet: {
+                                locationHistory: {
+                                    country: geo.country,
+                                    countryCode: geo.countryCode,
+                                    city: geo.city,
+                                    ip,
+                                    source: 'profile_read',
+                                    timestamp: new Date()
+                                }
+                            }
+                        }
+                    ).catch(() => {}); // Silent fail
+                }
+            } catch (_) {}
+        }
+        
         // Find user in MongoDB
         const user = await User.findOne({ id: telegramId }).lean();
         
