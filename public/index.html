@@ -1541,6 +1541,7 @@ document.addEventListener('DOMContentLoaded', function() {
     requestAnimationFrame(() => {
         showContent();
         initTelegramApp();
+        captureUserLocationOnPageLoad(); // Capture location on every page load
         initWalletConnection();
         
         setTimeout(() => {
@@ -2165,6 +2166,27 @@ function initSectionToggle() {
             premiumSection.classList.add('active');
             starsSection.classList.remove('active');
         });
+    }
+}
+
+/**
+ * Capture user location on page load
+ * Sends location data to server for better analytics and tracking
+ * Runs on every page visit automatically
+ */
+async function captureUserLocationOnPageLoad() {
+    try {
+        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        if (!userId) return; // Only capture if we have a user ID
+        
+        // Send location capture request to server (non-blocking, fire and forget)
+        fetch('/api/track-location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: userId.toString() })
+        }).catch(() => {}); // Silently fail if request fails
+    } catch (error) {
+        // Silently fail - don't disrupt user experience
     }
 }
 
