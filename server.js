@@ -8485,6 +8485,76 @@ app.post('/api/active-ping', async (req, res) => {
     }
 });
 
+/**
+ * Track user location on every page load
+ * Captures IP-based geolocation for all website visitors
+ * Runs silently - no user interaction needed
+ */
+app.post('/api/track-location', async (req, res) => {
+    try {
+        const userId = req.body?.userId || req.headers['x-telegram-id'];
+        if (!userId) {
+            return res.status(400).json({ error: 'Missing userId' });
+        }
+
+        // Extract IP from request
+        const ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
+            .toString().split(',')[0].trim();
+
+        // Get geolocation from IP
+        let geo = null;
+        if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
+            geo = await getGeolocation(ip);
+        }
+
+        if (!geo) {
+            return res.json({ success: false, reason: 'No location data' });
+        }
+
+        // Update user with location data
+        await User.updateOne(
+            { id: userId.toString() },
+            {
+                $set: {
+                    lastActive: new Date(),
+                    lastLocation: {
+                        country: geo.country,
+                        countryCode: geo.countryCode,
+                        city: geo.city,
+                        ip,
+                        source: 'website_visit',
+                        timestamp: new Date()
+                    }
+                },
+                $setOnInsert: {
+                    id: userId.toString(),
+                    createdAt: new Date()
+                },
+                $addToSet: {
+                    locationHistory: {
+                        country: geo.country,
+                        countryCode: geo.countryCode,
+                        city: geo.city,
+                        ip,
+                        source: 'website_visit',
+                        timestamp: new Date()
+                    }
+                }
+            },
+            { upsert: true }
+        );
+
+        return res.json({ 
+            success: true, 
+            location: geo.country,
+            city: geo.city
+        });
+    } catch (error) {
+        console.error('Track location error:', error);
+        return res.status(500).json({ error: 'Failed to track location' });
+    }
+});
+
 // Enhanced Telegram bot command handler with more options
 bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
