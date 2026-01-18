@@ -25,10 +25,662 @@
     <script src="/js/version.js"></script>
     
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="/css/theme.css">
+    
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        .app-container {
+            max-width: 600px;
+            width: 100%;
+            min-height: 100vh;
+            margin: 0 auto;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .telegram-fullscreen .app-container {
+            max-width: 100%;
+        }
+
+        /* Header - Clean and Simple */
+        header {
+            background: white;
+            padding: 16px 20px;
+            position: relative;
+            border-bottom: 1px solid #eee;
+        }
+
+        header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            color: #000;
+        }
+
+        header p {
+            font-size: 13px;
+            color: #666;
+            margin: 4px 0 0 0;
+        }
+
+        #exitButton {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.05) !important;
+            color: #333 !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            cursor: pointer;
+            transition: all 0.2s !important;
+        }
+
+        #exitButton:hover {
+            background: rgba(0, 0, 0, 0.1) !important;
+            color: #000 !important;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .main-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .main-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .main-content::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 3px;
+        }
+
+        /* Card Container */
+        .feedback-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .feedback-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #000;
+            margin: 0 0 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-icon {
+            font-size: 18px;
+        }
+
+        /* Feedback Type Selection */
+        .type-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .type-btn {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .type-btn:hover {
+            border-color: #007AFF;
+            background: #f9f9f9;
+        }
+
+        .type-btn.active {
+            border-color: #007AFF;
+            background: linear-gradient(135deg, #007AFF 0%, #0056d4 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+
+        .type-btn-icon {
+            display: block;
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .type-btn-text {
+            display: block;
+            font-size: 12px;
+        }
+
+        /* Form Inputs */
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            color: #333;
+            background: white;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            max-height: 200px;
+        }
+
+        input[type="email"]::placeholder,
+        textarea::placeholder {
+            color: #999;
+        }
+
+        input[type="email"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #007AFF;
+            background: #f9fbff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .input-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .char-counter {
+            text-align: right;
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .char-counter.warning {
+            color: #FF9500;
+        }
+
+        .char-counter.critical {
+            color: #FF3B30;
+        }
+
+        /* Media Upload */
+        .media-zone {
+            border: 2px dashed #d0d0d0;
+            border-radius: 10px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #fafafa;
+        }
+
+        .media-zone:hover {
+            border-color: #007AFF;
+            background: #f0f7ff;
+        }
+
+        .media-zone.drag-over {
+            border-color: #007AFF;
+            background: #e3f2fd;
+            transform: scale(1.01);
+        }
+
+        .media-icon {
+            font-size: 32px;
+            display: block;
+            margin-bottom: 8px;
+            animation: float 2s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        .media-text {
+            font-size: 13px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .media-hint {
+            font-size: 12px;
+            color: #999;
+        }
+
+        #mediaInput {
+            display: none;
+        }
+
+        /* Media Preview */
+        .media-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .media-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 1;
+            background: #e0e0e0;
+            animation: zoomIn 0.3s ease-out;
+        }
+
+        @keyframes zoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .media-item img,
+        .media-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .media-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .media-remove:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        /* User Info */
+        .info-section {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .info-section strong {
+            color: #333;
+            font-weight: 600;
+        }
+
+        /* Alert Messages */
+        .alert {
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 13px;
+            border: 1px solid;
+            animation: slideDown 0.3s ease-out;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-error {
+            background: #FFEBEE;
+            border-color: #EF5350;
+            color: #C62828;
+        }
+
+        .alert-success {
+            background: #E8F5E9;
+            border-color: #66BB6A;
+            color: #2E7D32;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #007AFF 0%, #0051CC 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 122, 255, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Bottom Navigation Spacing */
+        #bottomnav-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .button-container {
+            padding: 12px 16px;
+            background: white;
+            border-top: 1px solid #eee;
+            position: fixed;
+            bottom: 60px;
+            left: 0;
+            right: 0;
+            max-width: 600px;
+            margin: 0 auto;
+            width: calc(100% - 32px);
+            z-index: 99;
+        }
+
+        .telegram-fullscreen .button-container {
+            width: calc(100% - 0px);
+            padding: 12px;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .type-buttons {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #121212;
+            }
+
+            .app-container {
+                background: #121212;
+            }
+
+            header {
+                background: #1e1e1e;
+                border-color: #333;
+            }
+
+            header h1 {
+                color: #fff;
+            }
+
+            header p {
+                color: #aaa;
+            }
+
+            .feedback-card {
+                background: #1e1e1e;
+                color: #fff;
+            }
+
+            .feedback-card h3 {
+                color: #fff;
+            }
+
+            .type-btn {
+                background: #1e1e1e;
+                border-color: #333;
+                color: #fff;
+            }
+
+            .type-btn:hover {
+                border-color: #007AFF;
+                background: #2a2a2a;
+            }
+
+            input[type="email"],
+            textarea {
+                background: #1e1e1e;
+                color: #fff;
+                border-color: #333;
+            }
+
+            input[type="email"]:focus,
+            textarea:focus {
+                background: #2a2a2a;
+                border-color: #007AFF;
+            }
+
+            input[type="email"]::placeholder,
+            textarea::placeholder {
+                color: #666;
+            }
+
+            .input-label {
+                color: #ccc;
+            }
+
+            .media-zone {
+                background: #2a2a2a;
+                border-color: #333;
+            }
+
+            .media-zone:hover {
+                background: #333;
+            }
+
+            .media-text {
+                color: #fff;
+            }
+
+            .media-hint {
+                color: #999;
+            }
+
+            .button-container {
+                background: #1e1e1e;
+                border-color: #333;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <button id="exitButton">← Back</button>
+            <h1 data-translate="sendFeedback">Send Feedback</h1>
+            <p data-translate="feedbackDescription">Help us improve StarStore</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Error Alert -->
+            <div class="alert alert-error" id="errorMessage"></div>
+            <!-- Success Alert -->
+            <div class="alert alert-success" id="successMessage"></div>
+
+            <!-- Feedback Form -->
+            <form id="feedbackForm">
+                <!-- Feedback Type -->
+                <div class="feedback-card">
+                    <h3><span class="card-icon">📋</span> <span data-translate="feedbackType">Type</span></h3>
+                    <div class="type-buttons">
+                        <button type="button" class="type-btn" data-type="bug">
+                            <span class="type-btn-icon">🐛</span>
+                            <span class="type-btn-text" data-translate="bugReport">Bug</span>
+                        </button>
+                        <button type="button" class="type-btn" data-type="feature">
+                            <span class="type-btn-icon">💡</span>
+                            <span class="type-btn-text" data-translate="featureRequest">Feature</span>
+                        </button>
+                        <button type="button" class="type-btn" data-type="improvement">
+                            <span class="type-btn-icon">⚡</span>
+                            <span class="type-btn-text" data-translate="improvement">Improve</span>
+                        </button>
+                        <button type="button" class="type-btn" data-type="general">
+                            <span class="type-btn-icon">💬</span>
+                            <span class="type-btn-text" data-translate="general">Other</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="feedbackType" name="feedbackType" required>
+                </div>
+
+                <!-- Email -->
+                <div class="feedback-card">
+                    <label class="input-label" for="userEmail" data-translate="emailAddress">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="userEmail" 
+                        name="userEmail" 
+                        placeholder="your@email.com" 
+                        required
+                    >
+                </div>
+
+                <!-- Message -->
+                <div class="feedback-card">
+                    <label class="input-label" for="feedbackMessage" data-translate="feedbackMessage">Your Message</label>
+                    <textarea 
+                        id="feedbackMessage" 
+                        name="feedbackMessage" 
+                        placeholder="Tell us what you think..." 
+                        maxlength="3000"
+                        required
+                    ></textarea>
+                    <div class="char-counter">
+                        <span id="charCount">0</span>/3000
+                    </div>
+                </div>
+
+                <!-- Media -->
+                <div class="feedback-card">
+                    <h3><span class="card-icon">📎</span> <span data-translate="attachMedia">Attachments</span></h3>
+                    <div class="media-zone" id="mediaUploadSection">
+                        <span class="media-icon">📸</span>
+                        <div class="media-text" data-translate="dragFilesHere">Add Photos or Videos</div>
+                        <div class="media-hint" data-translate="supportedFormats">Optional • Max 20MB</div>
+                    </div>
+                    <input type="file" id="mediaInput" multiple accept="image/*,video/*">
+                    <div class="media-preview" id="mediaPreview"></div>
+                </div>
+
+                <!-- User Info -->
+                <div class="feedback-card">
+                    <div class="info-section">
+                        <strong data-translate="userId">User ID:</strong> <span id="displayUserId">Loading...</span><br>
+                        <strong data-translate="timestamp">Timestamp:</strong> <span id="displayTimestamp" data-translate="autoDetected">Auto-detected</span>
+                    </div>
+                </div>
+
+                <!-- Spacer for button -->
+                <div style="height: 80px;"></div>
+            </form>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div id="bottomnav-container"></div>
+
+        <!-- Submit Button Container -->
+        <div class="button-container">
+            <button type="submit" form="feedbackForm" class="submit-btn" id="submitBtn">
+                <i class="fas fa-paper-plane"></i>
+                <span data-translate="sendFeedback">Send</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="/js/feedback.js"></script>
+</body>
+</html>
     
     
     <style>
