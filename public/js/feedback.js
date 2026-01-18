@@ -46,6 +46,19 @@ class FeedbackSystem {
      * Setup all event listeners
      */
     setupEventListeners() {
+        // Exit button
+        const exitButton = document.getElementById('exitButton');
+        if (exitButton) {
+            exitButton.addEventListener('click', () => {
+                // Try to go back, or navigate to home if no history
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    window.location.href = '/';
+                }
+            });
+        }
+
         // Feedback type selection
         document.querySelectorAll('.feedback-type-option').forEach(option => {
             option.addEventListener('click', () => this.selectFeedbackType(option));
