@@ -59,7 +59,7 @@ class FeedbackSystem {
         }
 
         // Feedback type selection
-        document.querySelectorAll('.type-btn').forEach(btn => {
+        document.querySelectorAll('.feedback-type').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.selectFeedbackType(btn);
@@ -95,7 +95,7 @@ class FeedbackSystem {
      */
     selectFeedbackType(button) {
         // Remove active class from all buttons
-        document.querySelectorAll('.type-btn').forEach(btn => {
+        document.querySelectorAll('.feedback-type').forEach(btn => {
             btn.classList.remove('active');
         });
 
@@ -105,12 +105,6 @@ class FeedbackSystem {
         // Store the selected type
         this.selectedType = button.getAttribute('data-type');
         document.getElementById('feedbackType').value = this.selectedType;
-
-        // Add visual feedback
-        button.style.animation = 'none';
-        setTimeout(() => {
-            button.style.animation = '';
-        }, 10);
     }
 
     /**
