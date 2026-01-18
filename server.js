@@ -11063,10 +11063,14 @@ bot.onText(/\/users/, async (msg) => {
  */
 app.post('/api/feedback/submit', async (req, res) => {
     try {
+        console.log('📨 Feedback submission received');
         const { userId, type, email, message, timestamp } = req.body;
+
+        console.log('📋 Feedback data:', { userId, type, email: email ? '***' : 'missing', messageLength: message?.length, timestamp });
 
         // Validate required fields
         if (!userId || !type || !email || !message) {
+            console.warn('⚠️ Validation failed: Missing fields');
             return res.status(400).json({
                 success: false,
                 error: 'Missing required fields: userId, type, email, message'
@@ -11112,6 +11116,7 @@ app.post('/api/feedback/submit', async (req, res) => {
         // Save to database
         const feedback = new GeneralFeedback(feedbackData);
         await feedback.save();
+        console.log('✅ Feedback saved to database:', { feedbackId: feedback._id, email, type, userId });
 
         // Notify admins via Telegram (if bot is available)
         try {
@@ -11138,6 +11143,7 @@ app.post('/api/feedback/submit', async (req, res) => {
             console.error('Error notifying admins:', e.message);
         }
 
+        console.log('✅ Feedback submission completed successfully');
         return res.json({
             success: true,
             message: 'Feedback submitted successfully',
@@ -11145,9 +11151,12 @@ app.post('/api/feedback/submit', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Feedback submission error:', error);
+        console.error('❌ Feedback submission error:', error.message, error.stack);
         return res.status(500).json({
             success: false,
+            error: 'Failed to save feedback: ' + error.message
+        });
+    }
             error: 'Failed to submit feedback. Please try again later.'
         });
     }

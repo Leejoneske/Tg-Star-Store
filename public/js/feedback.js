@@ -284,12 +284,6 @@ class FeedbackSystem {
                 userIdDisplay.textContent = this.userId;
             }
 
-            // Auto-fill email if available
-            const emailInput = document.getElementById('userEmail');
-            if (emailInput && user?.username) {
-                emailInput.value = `${user.username}@telegram.user`;
-            }
-
             // Display timestamp
             const timestampDisplay = document.getElementById('displayTimestamp');
             if (timestampDisplay) {
@@ -297,7 +291,7 @@ class FeedbackSystem {
                 timestampDisplay.textContent = now.toLocaleString();
             }
         } catch (e) {
-            console.log('Could not load user info from Telegram:', e.message);
+            console.error('Error loading user info:', e.message);
             const userIdDisplay = document.getElementById('displayUserId');
             if (userIdDisplay) {
                 userIdDisplay.textContent = 'Web User';
@@ -310,10 +304,13 @@ class FeedbackSystem {
      */
     async handleSubmit(e) {
         e.preventDefault();
+        console.log('Form submission started');
 
         // Validate form
         if (!this.selectedType) {
-            this.showError(this.translate('selectFeedbackType'));
+            const msg = this.translate('selectFeedbackType');
+            console.warn('Validation failed: no feedback type selected');
+            this.showError(msg);
             return;
         }
 
@@ -321,32 +318,51 @@ class FeedbackSystem {
         const messageInput = document.getElementById('feedbackMessage');
 
         if (!emailInput.value.trim()) {
-            this.showError(this.translate('enterEmail'));
+            const msg = this.translate('enterEmail');
+            console.warn('Validation failed: empty email');
+            this.showError(msg);
             return;
         }
 
         if (!messageInput.value.trim()) {
-            this.showError(this.translate('enterFeedback'));
+            const msg = this.translate('enterFeedback');
+            console.warn('Validation failed: empty message');
+            this.showError(msg);
             return;
         }
 
         // Disable submit button and show loading state
         const submitBtn = document.getElementById('submitBtn');
+        if (!submitBtn) {
+            console.error('Submit button not found');
+            return;
+        }
+        
+        submitBtn.disabled = true;
         submitBtn.classList.add('loading');
         submitBtn.innerHTML = '<div class="spinner"></div><span>' + this.translate('sending') + '</span>';
 
         try {
+            console.log('🚀 Preparing form data...');
             // Create FormData for multipart submission
             const formData = new FormData();
-            formData.append('userId', this.userId);
+            formData.append('userId', this.userId || 'web-user');
             formData.append('type', this.selectedType);
-            formData.append('email', emailInput.value);
-            formData.append('message', messageInput.value);
+            formData.append('email', emailInput.value.trim());
+            formData.append('message', messageInput.value.trim());
             formData.append('timestamp', new Date().toISOString());
 
             // Add attached files
             this.attachedFiles.forEach((file, index) => {
                 formData.append(`media_${index}`, file);
+            });
+
+            console.log('📤 Submitting feedback:', {
+                userId: this.userId,
+                type: this.selectedType,
+                email: emailInput.value.trim(),
+                messageLength: messageInput.value.length,
+                filesCount: this.attachedFiles.length
             });
 
             // Send feedback to backend
@@ -355,11 +371,16 @@ class FeedbackSystem {
                 body: formData
             });
 
+            console.log('📨 Response received:', response.status, response.statusText);
+
             if (!response.ok) {
-                throw new Error(`HTTP Error: ${response.status}`);
+                const errorText = await response.text();
+                console.error('❌ Server error:', response.status, errorText);
+                throw new Error(`HTTP Error: ${response.status} - ${errorText}`);
             }
 
             const result = await response.json();
+            console.log('✅ Feedback submitted successfully:', result);
 
             // Show success message
             this.showSuccess(this.translate('feedbackSent'));
@@ -367,13 +388,16 @@ class FeedbackSystem {
             // Reset form after 2 seconds
             setTimeout(() => {
                 this.resetForm();
+                submitBtn.disabled = false;
                 submitBtn.classList.remove('loading');
                 submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i><span>' + this.translate('sendFeedback') + '</span>';
             }, 2000);
 
         } catch (error) {
-            console.error('Submission error:', error);
-            this.showError(this.translate('submissionFailed'));
+            console.error('❌ Submission error caught:', error.message, error.stack);
+            const errorMsg = this.translate('submissionFailed') + ': ' + error.message;
+            this.showError(errorMsg);
+            submitBtn.disabled = false;
             submitBtn.classList.remove('loading');
             submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i><span>' + this.translate('sendFeedback') + '</span>';
         }
@@ -404,16 +428,24 @@ class FeedbackSystem {
      * Show error message
      */
     showError(message) {
+        console.error('Showing error:', message);
         const errorEl = document.getElementById('errorMessage');
-        if (!errorEl) return;
+        if (!errorEl) {
+            console.error('Error element not found');
+            alert(message);
+            return;
+        }
 
         errorEl.textContent = message;
         errorEl.classList.add('show');
+        
+        // Scroll to error message
+        errorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-        // Auto-hide after 5 seconds
+        // Auto-hide after 6 seconds
         setTimeout(() => {
             errorEl.classList.remove('show');
-        }, 5000);
+        }, 6000);
     }
 
     /**
@@ -470,7 +502,10 @@ class FeedbackSystem {
      */
     setupTranslations() {
         if (typeof TranslationUtils !== 'undefined') {
+            console.log('Applying translations for feedback page');
             TranslationUtils.applyTranslations();
+        } else {
+            console.warn('TranslationUtils not available');
         }
     }
 
@@ -479,8 +514,13 @@ class FeedbackSystem {
      */
     translate(key) {
         if (typeof TranslationUtils !== 'undefined') {
-            return TranslationUtils.translate(key) || key;
+            const translation = TranslationUtils.translate(key);
+            if (!translation || translation === key) {
+                console.warn(`Translation key not found: ${key}`);
+            }
+            return translation || key;
         }
+        console.warn('TranslationUtils not available for key:', key);
         return key;
     }
 
