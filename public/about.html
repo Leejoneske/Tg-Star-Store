@@ -280,20 +280,6 @@
                     <svg class="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </div>
 
-                <!-- Privacy Policy -->
-                <div id="privacyLink" class="setting-card flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-150 cursor-pointer group">
-                    <div class="flex items-center space-x-3">
-                        <div class="bg-gray-500 p-2 rounded-lg hover:bg-gray-600 transition-colors">
-                            <i class="fas fa-shield-alt text-white text-lg"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-semibold text-gray-800" data-translate="privacyPolicy">Privacy Policy</h3>
-                            <p class="text-xs text-gray-600" data-translate="privacyPolicyDesc">How we protect your data</p>
-                        </div>
-                    </div>
-                    <svg class="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                </div>
-
                 <!-- Terms of Service -->
                 <div id="termsLink" class="setting-card flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-150 cursor-pointer group">
                     <div class="flex items-center space-x-3">
@@ -431,11 +417,6 @@
         // Send Feedback Link Handler
         document.getElementById('sendFeedbackLink')?.addEventListener('click', () => {
             window.location.href = '/feedback.html';
-        });
-
-        // Privacy Link Handler - Open in new tab
-        document.getElementById('privacyLink')?.addEventListener('click', () => {
-            window.open('/policy.html', '_blank');
         });
 
         // Terms Link Handler - Open in new tab

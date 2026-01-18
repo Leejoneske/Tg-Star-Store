@@ -25,121 +25,138 @@
     <script src="/js/version.js"></script>
     
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="/css/theme.css">
+    
     
     <style>
         * {
             -webkit-tap-highlight-color: transparent;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }
-        
-        *:focus {
-            outline: none !important;
         }
         
         body {
             font-family: 'Inter', sans-serif;
-            background: #f8fafc;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
         }
 
         .app-container {
-            display: flex;
-            flex-direction: column;
+            max-width: 600px;
+            width: 100%;
             min-height: 100vh;
             margin: 0 auto;
             background: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
             position: relative;
-            max-width: 600px;
-            width: 100%;
         }
 
         .telegram-fullscreen .app-container {
             max-width: 100%;
-            width: 100%;
-            margin: 0;
-            box-shadow: none;
             border-radius: 0;
         }
 
-        /* Header Styles */
-        .feedback-header {
-            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 24px 16px;
-            border-bottom: none;
+            padding: 0;
             position: relative;
             overflow: hidden;
         }
 
-        .feedback-header::before {
-            content: '';
+        .header-background {
             position: absolute;
-            top: -50%;
-            right: -10%;
-            width: 300px;
-            height: 300px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            animation: float 6s ease-in-out infinite;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120"><path d="M0,60 Q300,0 600,60 T1200,60 L1200,120 L0,120 Z" fill="%23ffffff" opacity="0.1"/></svg>');
+            background-size: 200% 100%;
+            background-position: 0 0;
         }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-        }
-
-        .feedback-header-content {
+        .header-content {
             position: relative;
-            z-index: 1;
+            z-index: 2;
+            padding: 20px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
-        .feedback-header h1 {
-            font-size: 24px;
-            font-weight: 700;
+        .header-title {
+            flex: 1;
+        }
+
+        .header-title h1 {
+            font-size: 26px;
+            font-weight: 800;
             margin: 0;
             display: flex;
             align-items: center;
             gap: 12px;
         }
 
-        .feedback-header p {
-            font-size: 13px;
-            opacity: 0.9;
-            margin: 8px 0 0 0;
+        .header-title p {
+            font-size: 12px;
+            opacity: 0.85;
+            margin: 4px 0 0 0;
+            margin-left: 38px;
         }
 
-        /* Form Container */
-        .feedback-form-container {
-            padding: 20px 16px 100px 16px;
+        #exitButton {
+            background: rgba(255, 255, 255, 0.25) !important;
+            color: white !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            border-radius: 10px !important;
+            padding: 8px 14px !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            cursor: pointer;
+            transition: all 0.3s ease !important;
+            backdrop-filter: blur(10px);
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        #exitButton:hover {
+            background: rgba(255, 255, 255, 0.35) !important;
+            transform: translateY(-1px);
+        }
+
+        /* Main Content */
+        .main-content {
             flex: 1;
+            padding: 24px 16px 100px;
+            overflow-y: auto;
         }
 
-        /* Form Group */
-        .form-group {
-            margin-bottom: 20px;
-            animation: slideUp 0.5s ease-out forwards;
+        /* Form Sections */
+        .form-section {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #f0f0f0;
+            animation: slideUp 0.4s ease-out forwards;
             opacity: 0;
         }
 
-        .form-group:nth-child(1) { animation-delay: 0.1s; }
-        .form-group:nth-child(2) { animation-delay: 0.2s; }
-        .form-group:nth-child(3) { animation-delay: 0.3s; }
-        .form-group:nth-child(4) { animation-delay: 0.4s; }
-        .form-group:nth-child(5) { animation-delay: 0.5s; }
+        .form-section:nth-child(1) { animation-delay: 0.05s; }
+        .form-section:nth-child(2) { animation-delay: 0.1s; }
+        .form-section:nth-child(3) { animation-delay: 0.15s; }
+        .form-section:nth-child(4) { animation-delay: 0.2s; }
 
         @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(20px);
+                transform: translateY(16px);
             }
             to {
                 opacity: 1;
@@ -147,64 +164,118 @@
             }
         }
 
-        .form-label {
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-icon {
+            font-size: 20px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            color: white;
+        }
+
+        /* Feedback Type Grid */
+        .type-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .type-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            background: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .type-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: -1;
+        }
+
+        .type-card:hover {
+            border-color: #667eea;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+        }
+
+        .type-card.active {
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.3);
+        }
+
+        .type-card.active::before {
+            opacity: 1;
+        }
+
+        .type-card.active .type-label,
+        .type-card.active .type-name {
+            color: white;
+            position: relative;
+            z-index: 2;
+        }
+
+        .type-label {
+            font-size: 28px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .type-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            transition: all 0.3s ease;
+        }
+
+        /* Input Fields */
+        .form-field {
+            margin-bottom: 16px;
+        }
+
+        .form-field:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
             display: block;
             font-size: 14px;
             font-weight: 600;
-            color: #1f2937;
+            color: #374151;
             margin-bottom: 8px;
             display: flex;
             align-items: center;
             gap: 6px;
         }
 
-        .form-label .icon {
-            font-size: 16px;
-        }
-
-        .form-label .required {
-            color: #dc2626;
-        }
-
-        .feedback-type-selector {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .feedback-type-option {
-            padding: 12px;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            background: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            font-size: 13px;
-            font-weight: 500;
-            color: #6b7280;
-        }
-
-        .feedback-type-option:hover {
-            border-color: #4f46e5;
-            background: #f0f4ff;
-        }
-
-        .feedback-type-option.active {
-            border-color: #4f46e5;
-            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-            color: white;
-            transform: scale(1.02);
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-        }
-
-        .feedback-type-option .icon {
-            display: block;
-            font-size: 24px;
-            margin-bottom: 6px;
-        }
-
-        textarea, input[type="email"] {
+        input[type="email"],
+        textarea {
             width: 100%;
             padding: 12px 14px;
             border: 2px solid #e5e7eb;
@@ -214,86 +285,132 @@
             color: #1f2937;
             background: white;
             transition: all 0.3s ease;
-            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        textarea {
             min-height: 120px;
+            resize: vertical;
+            max-height: 300px;
         }
 
-        textarea:focus, input[type="email"]:focus {
-            border-color: #4f46e5;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-        }
-
-        textarea::placeholder, input[type="email"]::placeholder {
+        input[type="email"]::placeholder,
+        textarea::placeholder {
             color: #9ca3af;
         }
 
-        /* Media Upload Section */
-        .media-upload-section {
-            border: 2px dashed #e5e7eb;
-            border-radius: 12px;
-            padding: 20px;
+        input[type="email"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: #f8f9ff;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Character Counter */
+        .char-counter {
+            text-align: right;
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 4px;
+            transition: color 0.2s ease;
+        }
+
+        .char-counter.warning {
+            color: #f59e0b;
+        }
+
+        .char-counter.critical {
+            color: #ef4444;
+        }
+
+        /* Media Upload */
+        .media-upload-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 14px;
+            padding: 24px;
             text-align: center;
-            transition: all 0.3s ease;
             cursor: pointer;
-            background: #f9fafb;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            position: relative;
+            overflow: hidden;
         }
 
-        .media-upload-section:hover {
-            border-color: #4f46e5;
-            background: #f0f4ff;
+        .media-upload-zone::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="%23667eea" opacity="0.05"/></svg>');
+            background-size: 100px 100px;
+            background-position: center;
         }
 
-        .media-upload-section.drag-over {
-            border-color: #4f46e5;
-            background: #f0f4ff;
+        .media-upload-zone:hover {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+            transform: scale(1.01);
+        }
+
+        .media-upload-zone.drag-over {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
             transform: scale(1.02);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+        }
+
+        .upload-content {
+            position: relative;
+            z-index: 2;
         }
 
         .upload-icon {
-            font-size: 32px;
-            margin-bottom: 10px;
+            font-size: 40px;
             display: block;
-            animation: pulse 2s ease-in-out infinite;
+            margin-bottom: 8px;
+            animation: float 3s ease-in-out infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
         }
 
-        .upload-text {
+        .upload-title {
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             color: #1f2937;
             margin-bottom: 4px;
         }
 
         .upload-hint {
             font-size: 12px;
-            color: #9ca3af;
+            color: #6b7280;
         }
 
         #mediaInput {
             display: none;
         }
 
-        /* Media Preview */
+        /* Media Preview Grid */
         .media-preview {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 12px;
             margin-top: 12px;
         }
 
         .media-item {
             position: relative;
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
-            background: #f3f4f6;
             aspect-ratio: 1;
-            animation: zoomIn 0.3s ease-out;
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
+            animation: zoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         @keyframes zoomIn {
@@ -307,109 +424,150 @@
             }
         }
 
-        .media-item img, .media-item video {
+        .media-item img,
+        .media-item video {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
 
-        .media-remove {
+        .media-remove-btn {
             position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 24px;
-            height: 24px;
-            background: rgba(0, 0, 0, 0.6);
+            top: 6px;
+            right: 6px;
+            width: 28px;
+            height: 28px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
             border-radius: 50%;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
             transition: all 0.2s ease;
-            user-select: none;
-            -webkit-user-select: none;
+            z-index: 5;
         }
 
-        .media-remove:hover {
-            background: rgba(0, 0, 0, 0.8);
-            transform: scale(1.1);
+        .media-remove-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.2);
         }
 
-        .media-size-info {
-            font-size: 11px;
-            color: #9ca3af;
-            text-align: center;
-            margin-top: 4px;
-        }
-
-        /* User Info Display */
-        .user-info-display {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 12px;
-            font-size: 13px;
+        .media-size {
+            font-size: 10px;
             color: #6b7280;
+            text-align: center;
+            padding: 4px;
+            background: rgba(0, 0, 0, 0.03);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .user-info-display strong {
+        /* User Info */
+        .info-box {
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+            border: 1px solid #e0e7ff;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #374151;
+        }
+
+        .info-label {
+            font-weight: 600;
             color: #1f2937;
         }
 
-        /* Character Counter */
-        .char-counter {
-            font-size: 12px;
-            color: #9ca3af;
-            text-align: right;
-            margin-top: 4px;
+        .info-value {
+            color: #6b7280;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
         }
 
-        .char-counter.warning {
-            color: #d97706;
+        /* Error & Success Messages */
+        .alert {
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+            font-size: 14px;
+            border: 1px solid;
         }
 
-        .char-counter.max {
-            color: #dc2626;
+        .alert.show {
+            display: block;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            border-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            border-color: #dcfce7;
+            color: #166534;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* Submit Button */
-        .submit-button {
+        .submit-btn {
             position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: calc(100% - 32px);
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
             max-width: 568px;
+            margin: 0 auto;
             padding: 14px 24px;
-            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             border-radius: 12px;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 15px;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
+            font-family: 'Inter', sans-serif;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 32px);
         }
 
-        .submit-button:hover {
-            background: linear-gradient(135deg, #3730a3 0%, #4f46e5 100%);
+        .submit-btn:hover {
             transform: translateX(-50%) translateY(-2px);
-            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
         }
 
-        .submit-button:active {
-            transform: translateX(-50%) translateY(0px);
+        .submit-btn:active {
+            transform: translateX(-50%) translateY(0);
         }
 
-        .submit-button.loading {
-            opacity: 0.7;
+        .submit-btn.loading {
+            opacity: 0.8;
             pointer-events: none;
         }
 
@@ -426,212 +584,242 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Error Message */
-        .error-message {
-            background: #fee2e2;
-            border: 1px solid #fca5a5;
-            color: #991b1b;
-            padding: 10px 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            margin-bottom: 12px;
-            display: none;
-            animation: slideDown 0.3s ease-out;
+        /* Bottom Nav Spacing */
+        #bottomnav-container {
+            height: 60px;
         }
 
-        .error-message.show {
-            display: block;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
+        /* Responsive */
+        @media (max-width: 480px) {
+            .header-content {
+                flex-wrap: wrap;
             }
-            to {
-                opacity: 1;
-                transform: translateY(0);
+
+            .type-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .media-preview {
+                grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
             }
         }
 
-        /* Success Message */
-        .success-message {
-            background: #dcfce7;
-            border: 1px solid #86efac;
-            color: #166534;
-            padding: 16px;
-            border-radius: 10px;
-            text-align: center;
-            font-weight: 500;
-            animation: slideUp 0.3s ease-out;
-        }
-
+        /* Dark Mode */
         @media (prefers-color-scheme: dark) {
-            .form-label { color: #e5e7eb; }
-            .feedback-type-option { 
-                background: #1f2937; 
-                color: #d1d5db;
-                border-color: #374151;
+            body {
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             }
-            .feedback-type-option:hover {
-                background: #374151;
-                border-color: #6366f1;
-            }
-            textarea, input[type="email"] {
+
+            .form-section {
                 background: #1f2937;
+                border-color: #374151;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            }
+
+            .section-title {
+                color: #f3f4f6;
+            }
+
+            label {
+                color: #e5e7eb;
+            }
+
+            input[type="email"],
+            textarea {
+                background: #111827;
                 color: #f3f4f6;
                 border-color: #374151;
             }
-            textarea:focus, input[type="email"]:focus {
-                border-color: #6366f1;
+
+            input[type="email"]:focus,
+            textarea:focus {
+                background: #1f2937;
+                border-color: #667eea;
+                box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+            }
+
+            .type-card {
                 background: #111827;
-                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-            }
-            .media-upload-section {
-                background: #1f2937;
                 border-color: #374151;
             }
-            .media-upload-section:hover {
-                background: #2d3748;
-                border-color: #6366f1;
+
+            .type-card:hover {
+                border-color: #667eea;
             }
-            .user-info-display {
-                background: #1f2937;
+
+            .type-card.active {
+                border-color: transparent;
+            }
+
+            .type-name {
+                color: #d1d5db;
+            }
+
+            .media-upload-zone {
+                background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
                 border-color: #374151;
+            }
+
+            .media-upload-zone:hover {
+                background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+                border-color: #667eea;
+            }
+
+            .upload-title {
+                color: #f3f4f6;
+            }
+
+            .upload-hint {
                 color: #9ca3af;
             }
-            .user-info-display strong {
-                color: #e5e7eb;
+
+            .info-box {
+                background: linear-gradient(135deg, #1f2937 0%, #2d3748 100%);
+                border-color: #374151;
+                color: #d1d5db;
+            }
+
+            .info-label {
+                color: #f3f4f6;
+            }
+
+            .char-counter {
+                color: #9ca3af;
             }
         }
     </style>
 </head>
 <body>
-<div class="app-container">
-    <!-- Feedback Header -->
-    <header class="feedback-header">
-        <button id="exitButton" style="position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 8px 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-            ← Back
-        </button>
-        <div class="feedback-header-content">
-            <h1>
-                <i class="fas fa-comment-dots"></i>
-                <span data-translate="sendFeedback">Send Feedback</span>
-            </h1>
-            <p data-translate="feedbackDescription">Help us improve StarStore by sharing your thoughts</p>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="header-background"></div>
+            <div class="header-content">
+                <div class="header-title">
+                    <h1>💬 <span data-translate="sendFeedback">Feedback</span></h1>
+                    <p data-translate="feedbackDescription">Help us improve</p>
+                </div>
+                <button id="exitButton">← Back</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Error Alert -->
+            <div class="alert alert-error" id="errorMessage"></div>
+            <!-- Success Alert -->
+            <div class="alert alert-success" id="successMessage"></div>
+
+            <!-- Form -->
+            <form id="feedbackForm">
+                <!-- Feedback Type Section -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <div class="section-icon">📋</div>
+                        <span data-translate="feedbackType">Type of Feedback</span>
+                    </div>
+                    <div class="type-grid">
+                        <div class="type-card" data-type="bug">
+                            <span class="type-label">🐛</span>
+                            <span class="type-name" data-translate="bugReport">Bug</span>
+                        </div>
+                        <div class="type-card" data-type="feature">
+                            <span class="type-label">💡</span>
+                            <span class="type-name" data-translate="featureRequest">Feature</span>
+                        </div>
+                        <div class="type-card" data-type="improvement">
+                            <span class="type-label">⚡</span>
+                            <span class="type-name" data-translate="improvement">Improve</span>
+                        </div>
+                        <div class="type-card" data-type="general">
+                            <span class="type-label">💬</span>
+                            <span class="type-name" data-translate="general">Other</span>
+                        </div>
+                    </div>
+                    <input type="hidden" id="feedbackType" name="feedbackType" required>
+                </div>
+
+                <!-- Contact Info Section -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <div class="section-icon">📧</div>
+                        <span data-translate="emailAddress">Contact</span>
+                    </div>
+                    <div class="form-field">
+                        <label for="userEmail" data-translate="emailAddress">Email Address</label>
+                        <input 
+                            type="email" 
+                            id="userEmail" 
+                            name="userEmail" 
+                            placeholder="your@email.com" 
+                            required
+                        >
+                    </div>
+                </div>
+
+                <!-- Message Section -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <div class="section-icon">✍️</div>
+                        <span data-translate="feedbackMessage">Your Message</span>
+                    </div>
+                    <div class="form-field">
+                        <textarea 
+                            id="feedbackMessage" 
+                            name="feedbackMessage" 
+                            placeholder="Tell us what you think..." 
+                            maxlength="3000"
+                            required
+                        ></textarea>
+                        <div class="char-counter">
+                            <span id="charCount">0</span>/3000
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Media Section -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <div class="section-icon">📎</div>
+                        <span data-translate="attachMedia">Attachments</span>
+                    </div>
+                    <div class="media-upload-zone" id="mediaUploadSection">
+                        <div class="upload-content">
+                            <span class="upload-icon">📸</span>
+                            <div class="upload-title" data-translate="dragFilesHere">Drag files here</div>
+                            <div class="upload-hint" data-translate="supportedFormats">Or click to browse</div>
+                        </div>
+                    </div>
+                    <input type="file" id="mediaInput" multiple accept="image/*,video/*">
+                    <div class="media-preview" id="mediaPreview"></div>
+                </div>
+
+                <!-- User Info Section -->
+                <div class="form-section">
+                    <div class="info-box">
+                        <div style="margin-bottom: 8px;">
+                            <span class="info-label" data-translate="userId">User ID:</span>
+                            <span class="info-value" id="displayUserId">Loading...</span>
+                        </div>
+                        <div>
+                            <span class="info-label" data-translate="timestamp">Submitted:</span>
+                            <span class="info-value" id="displayTimestamp" data-translate="autoDetected">Auto-detected</span>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
-    </header>
 
-    <div id="bottomnav-container"></div>
+        <!-- Bottom Navigation -->
+        <div id="bottomnav-container"></div>
 
-    <div class="feedback-form-container">
-        <!-- Error Message -->
-        <div class="error-message" id="errorMessage"></div>
-
-        <!-- Feedback Form -->
-        <form id="feedbackForm">
-            <!-- Feedback Type Selection -->
-            <div class="form-group">
-                <label class="form-label">
-                    <span class="icon">📋</span>
-                    <span data-translate="feedbackType">Feedback Type</span>
-                    <span class="required">*</span>
-                </label>
-                <div class="feedback-type-selector">
-                    <div class="feedback-type-option" data-type="bug">
-                        <div class="icon">🐛</div>
-                        <div data-translate="bugReport">Bug Report</div>
-                    </div>
-                    <div class="feedback-type-option" data-type="feature">
-                        <div class="icon">💡</div>
-                        <div data-translate="featureRequest">Feature Request</div>
-                    </div>
-                    <div class="feedback-type-option" data-type="improvement">
-                        <div class="icon">⚡</div>
-                        <div data-translate="improvement">Improvement</div>
-                    </div>
-                    <div class="feedback-type-option" data-type="general">
-                        <div class="icon">💬</div>
-                        <div data-translate="general">General</div>
-                    </div>
-                </div>
-                <input type="hidden" id="feedbackType" name="feedbackType" required>
-            </div>
-
-            <!-- Email Address -->
-            <div class="form-group">
-                <label class="form-label">
-                    <span class="icon">📧</span>
-                    <span data-translate="emailAddress">Email Address</span>
-                    <span class="required">*</span>
-                </label>
-                <input 
-                    type="email" 
-                    id="userEmail" 
-                    name="userEmail" 
-                    placeholder="your@email.com" 
-                    required
-                >
-            </div>
-
-            <!-- Feedback Message -->
-            <div class="form-group">
-                <label class="form-label">
-                    <span class="icon">✍️</span>
-                    <span data-translate="feedbackMessage">Your Feedback</span>
-                    <span class="required">*</span>
-                </label>
-                <textarea 
-                    id="feedbackMessage" 
-                    name="feedbackMessage" 
-                    placeholder="Tell us what you think..." 
-                    maxlength="3000"
-                    required
-                ></textarea>
-                <div class="char-counter">
-                    <span id="charCount">0</span>/3000
-                </div>
-            </div>
-
-            <!-- Media Upload -->
-            <div class="form-group">
-                <label class="form-label">
-                    <span class="icon">📎</span>
-                    <span data-translate="attachMedia">Attach Media</span>
-                    <span class="optional" style="font-size: 12px; color: #9ca3af;">(<span data-translate="optional">Optional</span>)</span>
-                </label>
-                <div class="media-upload-section" id="mediaUploadSection">
-                    <span class="upload-icon">📸</span>
-                    <div class="upload-text" data-translate="dragFilesHere">Drag files here</div>
-                    <div class="upload-hint" data-translate="supportedFormats">Images, videos (max 20MB total)</div>
-                </div>
-                <input type="file" id="mediaInput" multiple accept="image/*,video/*">
-                <div class="media-preview" id="mediaPreview"></div>
-            </div>
-
-            <!-- User Info Display -->
-            <div class="form-group">
-                <div class="user-info-display">
-                    <div>
-                        <strong data-translate="userId">User ID</strong>: 
-                        <span id="displayUserId" title="Automatically detected">Loading...</span>
-                    </div>
-                    <div style="margin-top: 4px;">
-                        <strong data-translate="timestamp">Submitted</strong>: 
-                        <span id="displayTimestamp" data-translate="autoDetected">Auto-detected</span>
-                    </div>
-                </div>
-            </div>
-        </form>
+        <!-- Submit Button -->
+        <button type="submit" form="feedbackForm" class="submit-btn" id="submitBtn">
+            <i class="fas fa-paper-plane"></i>
+            <span data-translate="sendFeedback">Send</span>
+        </button>
     </div>
 
-    <!-- Submit Button -->
-    <button type="submit" form="feedbackForm" class="submit-button" id="submitBtn">
-        <i class="fas fa-paper-plane"></i>
-        <span data-translate="sendFeedback">Send Feedback</span>
-    </button>
-</div>
-
-<script src="/js/feedback.js"></script>
+    <script src="/js/feedback.js"></script>
 </body>
 </html>
