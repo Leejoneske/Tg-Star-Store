@@ -50,7 +50,6 @@ class FeedbackSystem {
         const exitButton = document.getElementById('exitButton');
         if (exitButton) {
             exitButton.addEventListener('click', () => {
-                // Try to go back, or navigate to home if no history
                 if (window.history.length > 1) {
                     window.history.back();
                 } else {
@@ -60,8 +59,11 @@ class FeedbackSystem {
         }
 
         // Feedback type selection
-        document.querySelectorAll('.feedback-type-option').forEach(option => {
-            option.addEventListener('click', () => this.selectFeedbackType(option));
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.selectFeedbackType(btn);
+            });
         });
 
         // Media upload click
@@ -91,23 +93,23 @@ class FeedbackSystem {
     /**
      * Select feedback type
      */
-    selectFeedbackType(option) {
-        // Remove active class from all options
-        document.querySelectorAll('.feedback-type-option').forEach(opt => {
-            opt.classList.remove('active');
+    selectFeedbackType(button) {
+        // Remove active class from all buttons
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            btn.classList.remove('active');
         });
 
-        // Add active class to selected option
-        option.classList.add('active');
+        // Add active class to selected button
+        button.classList.add('active');
 
         // Store the selected type
-        this.selectedType = option.getAttribute('data-type');
+        this.selectedType = button.getAttribute('data-type');
         document.getElementById('feedbackType').value = this.selectedType;
 
         // Add visual feedback
-        option.style.animation = 'none';
+        button.style.animation = 'none';
         setTimeout(() => {
-            option.style.animation = '';
+            button.style.animation = '';
         }, 10);
     }
 
