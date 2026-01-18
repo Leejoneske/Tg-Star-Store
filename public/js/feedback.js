@@ -343,7 +343,7 @@ class FeedbackSystem {
         submitBtn.innerHTML = '<div class="spinner"></div><span>' + this.translate('sending') + '</span>';
 
         try {
-            console.log('🚀 Preparing form data...');
+            console.log('Preparing form data...');
             // Create FormData for multipart submission
             const formData = new FormData();
             formData.append('userId', this.userId || 'web-user');
@@ -357,13 +357,7 @@ class FeedbackSystem {
                 formData.append(`media_${index}`, file);
             });
 
-            console.log('📤 Submitting feedback:', {
-                userId: this.userId,
-                type: this.selectedType,
-                email: emailInput.value.trim(),
-                messageLength: messageInput.value.length,
-                filesCount: this.attachedFiles.length
-            });
+            console.log('Submitting feedback:', { type: this.selectedType, email: emailInput.value.trim().substring(0, 10) + '...', messageLength: messageInput.value.length });
 
             // Send feedback to backend
             const response = await fetch('/api/feedback/submit', {
@@ -371,16 +365,16 @@ class FeedbackSystem {
                 body: formData
             });
 
-            console.log('📨 Response received:', response.status, response.statusText);
+            console.log('Response:', response.status);
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('❌ Server error:', response.status, errorText);
-                throw new Error(`HTTP Error: ${response.status} - ${errorText}`);
+                console.error('Server error:', errorText);
+                throw new Error(`HTTP Error: ${response.status}`);
             }
 
             const result = await response.json();
-            console.log('✅ Feedback submitted successfully:', result);
+            console.log('Feedback submitted successfully');
 
             // Show success message
             this.showSuccess(this.translate('feedbackSent'));
@@ -394,7 +388,7 @@ class FeedbackSystem {
             }, 2000);
 
         } catch (error) {
-            console.error('❌ Submission error caught:', error.message, error.stack);
+            console.error('Submission error:', error.message);
             const errorMsg = this.translate('submissionFailed') + ': ' + error.message;
             this.showError(errorMsg);
             submitBtn.disabled = false;
