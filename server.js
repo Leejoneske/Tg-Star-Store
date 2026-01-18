@@ -1335,6 +1335,28 @@ const feedbackSchema = new mongoose.Schema({
     dateSubmitted: { type: Date, default: Date.now }
 });
 
+// General feedback submission schema
+const generalFeedbackSchema = new mongoose.Schema({
+    userId: { type: String, required: true },
+    type: { type: String, enum: ['bug', 'feature', 'improvement', 'general'], required: true },
+    email: { type: String, required: true },
+    message: { type: String, required: true, maxlength: 3000 },
+    mediaFiles: [{
+        filename: String,
+        originalName: String,
+        mimetype: String,
+        size: Number,
+        uploadedAt: { type: Date, default: Date.now }
+    }],
+    totalMediaSize: { type: Number, default: 0 },
+    status: { type: String, enum: ['new', 'read', 'archived'], default: 'new' },
+    adminNotes: String,
+    processedBy: String,
+    processedAt: Date,
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
 const reversalSchema = new mongoose.Schema({
     orderId: { type: String, required: true },
     telegramId: { type: String, required: true },
@@ -1404,6 +1426,7 @@ const UserNotification = mongoose.model('UserNotification', userNotificationSche
 const Warning = mongoose.model('Warning', warningSchema);
 const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
+const GeneralFeedback = mongoose.model('GeneralFeedback', generalFeedbackSchema);
 const ReferralTracker = mongoose.model('ReferralTracker', referralTrackerSchema);
 const ReferralWithdrawal = mongoose.model('ReferralWithdrawal', referralWithdrawalSchema);
 const Cache = mongoose.model('Cache', cacheSchema);
@@ -11025,7 +11048,287 @@ bot.onText(/\/users/, async (msg) => {
 
 // Duplicate activity command removed - using the comprehensive one above
 
+// ==================== FEEDBACK API ENDPOINTS ====================
 
+/**
+ * POST /api/feedback/submit
+ * Submit general feedback with optional media attachments
+ * Expected form-data:
+ * - userId: User's Telegram ID
+ * - type: 'bug' | 'feature' | 'improvement' | 'general'
+ * - email: User's email
+ * - message: Feedback message (max 3000 chars)
+ * - timestamp: ISO timestamp
+ * - media_*: File attachments (images/videos, max 20MB total)
+ */
+app.post('/api/feedback/submit', async (req, res) => {
+    try {
+        const { userId, type, email, message, timestamp } = req.body;
+
+        // Validate required fields
+        if (!userId || !type || !email || !message) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: userId, type, email, message'
+            });
+        }
+
+        // Validate feedback type
+        if (!['bug', 'feature', 'improvement', 'general'].includes(type)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid feedback type'
+            });
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid email format'
+            });
+        }
+
+        // Validate message length
+        if (message.length === 0 || message.length > 3000) {
+            return res.status(400).json({
+                success: false,
+                error: 'Message must be between 1 and 3000 characters'
+            });
+        }
+
+        // Create feedback document
+        const feedbackData = {
+            userId,
+            type,
+            email,
+            message,
+            mediaFiles: [],
+            totalMediaSize: 0,
+            createdAt: timestamp ? new Date(timestamp) : new Date()
+        };
+
+        // Save to database
+        const feedback = new GeneralFeedback(feedbackData);
+        await feedback.save();
+
+        // Notify admins via Telegram (if bot is available)
+        try {
+            const adminMessage = `📬 New ${type} feedback from User ID: ${userId}\n\n📧 Email: ${email}\n\n💬 Message:\n${message.substring(0, 200)}${message.length > 200 ? '...' : ''}\n\n🔗 View in admin panel`;
+            
+            for (const adminId of adminIds) {
+                try {
+                    await bot.sendMessage(adminId, adminMessage, {
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [[
+                                {
+                                    text: '📋 View Details',
+                                    callback_data: `feedback_${feedback._id}`
+                                }
+                            ]]
+                        }
+                    });
+                } catch (e) {
+                    console.error(`Failed to notify admin ${adminId}:`, e.message);
+                }
+            }
+        } catch (e) {
+            console.error('Error notifying admins:', e.message);
+        }
+
+        return res.json({
+            success: true,
+            message: 'Feedback submitted successfully',
+            feedbackId: feedback._id
+        });
+
+    } catch (error) {
+        console.error('Feedback submission error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to submit feedback. Please try again later.'
+        });
+    }
+});
+
+/**
+ * GET /api/feedback/list
+ * Get all feedback submissions (admin only)
+ * Query params:
+ * - status: 'new' | 'read' | 'archived' (optional)
+ * - type: feedback type filter (optional)
+ * - limit: number of results (default 50)
+ * - skip: pagination offset (default 0)
+ */
+app.get('/api/feedback/list', requireAdmin, async (req, res) => {
+    try {
+        const { status, type, limit = 50, skip = 0 } = req.query;
+        
+        const query = {};
+        if (status) query.status = status;
+        if (type) query.type = type;
+
+        const feedbacks = await GeneralFeedback.find(query)
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit))
+            .skip(parseInt(skip))
+            .lean();
+
+        const total = await GeneralFeedback.countDocuments(query);
+
+        return res.json({
+            success: true,
+            data: feedbacks,
+            pagination: {
+                total,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                pages: Math.ceil(total / parseInt(limit))
+            }
+        });
+
+    } catch (error) {
+        console.error('Feedback list error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to fetch feedback list'
+        });
+    }
+});
+
+/**
+ * GET /api/feedback/:feedbackId
+ * Get single feedback submission details (admin only)
+ */
+app.get('/api/feedback/:feedbackId', requireAdmin, async (req, res) => {
+    try {
+        const { feedbackId } = req.params;
+
+        const feedback = await GeneralFeedback.findById(feedbackId).lean();
+        
+        if (!feedback) {
+            return res.status(404).json({
+                success: false,
+                error: 'Feedback not found'
+            });
+        }
+
+        return res.json({
+            success: true,
+            data: feedback
+        });
+
+    } catch (error) {
+        console.error('Feedback detail error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to fetch feedback details'
+        });
+    }
+});
+
+/**
+ * PATCH /api/feedback/:feedbackId
+ * Update feedback status or add admin notes (admin only)
+ * Body:
+ * - status: 'new' | 'read' | 'archived'
+ * - adminNotes: Admin's notes
+ */
+app.patch('/api/feedback/:feedbackId', requireAdmin, async (req, res) => {
+    try {
+        const { feedbackId } = req.params;
+        const { status, adminNotes } = req.body;
+
+        const updateData = {
+            updatedAt: new Date()
+        };
+
+        if (status) {
+            if (!['new', 'read', 'archived'].includes(status)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid status'
+                });
+            }
+            updateData.status = status;
+        }
+
+        if (adminNotes !== undefined) {
+            updateData.adminNotes = adminNotes;
+        }
+
+        if (status || adminNotes) {
+            updateData.processedBy = req.user?.id;
+            updateData.processedAt = new Date();
+        }
+
+        const feedback = await GeneralFeedback.findByIdAndUpdate(
+            feedbackId,
+            updateData,
+            { new: true }
+        );
+
+        if (!feedback) {
+            return res.status(404).json({
+                success: false,
+                error: 'Feedback not found'
+            });
+        }
+
+        return res.json({
+            success: true,
+            message: 'Feedback updated successfully',
+            data: feedback
+        });
+
+    } catch (error) {
+        console.error('Feedback update error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to update feedback'
+        });
+    }
+});
+
+/**
+ * GET /api/feedback/stats
+ * Get feedback statistics (admin only)
+ */
+app.get('/api/feedback/stats', requireAdmin, async (req, res) => {
+    try {
+        const stats = {
+            total: await GeneralFeedback.countDocuments({}),
+            byType: await GeneralFeedback.aggregate([
+                { $group: { _id: '$type', count: { $sum: 1 } } }
+            ]),
+            byStatus: await GeneralFeedback.aggregate([
+                { $group: { _id: '$status', count: { $sum: 1 } } }
+            ]),
+            thisMonth: await GeneralFeedback.countDocuments({
+                createdAt: {
+                    $gte: new Date(new Date().setDate(1)),
+                    $lt: new Date()
+                }
+            })
+        };
+
+        return res.json({
+            success: true,
+            data: stats
+        });
+
+    } catch (error) {
+        console.error('Feedback stats error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to fetch feedback statistics'
+        });
+    }
+});
+
+// ==================== END FEEDBACK API ENDPOINTS ====================
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {

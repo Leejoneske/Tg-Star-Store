@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-SX6TDXG0N8"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);} 
+      gtag('js', new Date());
+      gtag('config', 'G-SX6TDXG0N8');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Send feedback to StarStore team - Help us improve your experience">
+    <meta name="keywords" content="Telegram Stars, feedback, support, StarStore">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Send Feedback | StarStore</title>
+    
+    <link rel="canonical" href="https://starstore.site/feedback">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="/js/translations.js?v=3"></script>
+    <script src="/js/loading.js"></script>
+    <script src="/js/version.js"></script>
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="stylesheet" href="/css/theme.css">
+    
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        *:focus {
+            outline: none !important;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            position: relative;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .telegram-fullscreen .app-container {
+            max-width: 100%;
+            width: 100%;
+            margin: 0;
+            box-shadow: none;
+            border-radius: 0;
+        }
+
+        /* Header Styles */
+        .feedback-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            color: white;
+            padding: 24px 16px;
+            border-bottom: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feedback-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .feedback-header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .feedback-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .feedback-header p {
+            font-size: 13px;
+            opacity: 0.9;
+            margin: 8px 0 0 0;
+        }
+
+        /* Form Container */
+        .feedback-form-container {
+            padding: 20px 16px 100px 16px;
+            flex: 1;
+        }
+
+        /* Form Group */
+        .form-group {
+            margin-bottom: 20px;
+            animation: slideUp 0.5s ease-out forwards;
+            opacity: 0;
+        }
+
+        .form-group:nth-child(1) { animation-delay: 0.1s; }
+        .form-group:nth-child(2) { animation-delay: 0.2s; }
+        .form-group:nth-child(3) { animation-delay: 0.3s; }
+        .form-group:nth-child(4) { animation-delay: 0.4s; }
+        .form-group:nth-child(5) { animation-delay: 0.5s; }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .form-label .icon {
+            font-size: 16px;
+        }
+
+        .form-label .required {
+            color: #dc2626;
+        }
+
+        .feedback-type-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .feedback-type-option {
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        .feedback-type-option:hover {
+            border-color: #4f46e5;
+            background: #f0f4ff;
+        }
+
+        .feedback-type-option.active {
+            border-color: #4f46e5;
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            color: white;
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .feedback-type-option .icon {
+            display: block;
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        textarea, input[type="email"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            color: #1f2937;
+            background: white;
+            transition: all 0.3s ease;
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        textarea:focus, input[type="email"]:focus {
+            border-color: #4f46e5;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        textarea::placeholder, input[type="email"]::placeholder {
+            color: #9ca3af;
+        }
+
+        /* Media Upload Section */
+        .media-upload-section {
+            border: 2px dashed #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f9fafb;
+        }
+
+        .media-upload-section:hover {
+            border-color: #4f46e5;
+            background: #f0f4ff;
+        }
+
+        .media-upload-section.drag-over {
+            border-color: #4f46e5;
+            background: #f0f4ff;
+            transform: scale(1.02);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: block;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .upload-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        #mediaInput {
+            display: none;
+        }
+
+        /* Media Preview */
+        .media-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .media-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f3f4f6;
+            aspect-ratio: 1;
+            animation: zoomIn 0.3s ease-out;
+        }
+
+        @keyframes zoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .media-item img, .media-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .media-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .media-remove:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: scale(1.1);
+        }
+
+        .media-size-info {
+            font-size: 11px;
+            color: #9ca3af;
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        /* User Info Display */
+        .user-info-display {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .user-info-display strong {
+            color: #1f2937;
+        }
+
+        /* Character Counter */
+        .char-counter {
+            font-size: 12px;
+            color: #9ca3af;
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        .char-counter.warning {
+            color: #d97706;
+        }
+
+        .char-counter.max {
+            color: #dc2626;
+        }
+
+        /* Submit Button */
+        .submit-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 32px);
+            max-width: 568px;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .submit-button:hover {
+            background: linear-gradient(135deg, #3730a3 0%, #4f46e5 100%);
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+        }
+
+        .submit-button:active {
+            transform: translateX(-50%) translateY(0px);
+        }
+
+        .submit-button.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error Message */
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 12px;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Success Message */
+        .success-message {
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            color: #166534;
+            padding: 16px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .form-label { color: #e5e7eb; }
+            .feedback-type-option { 
+                background: #1f2937; 
+                color: #d1d5db;
+                border-color: #374151;
+            }
+            .feedback-type-option:hover {
+                background: #374151;
+                border-color: #6366f1;
+            }
+            textarea, input[type="email"] {
+                background: #1f2937;
+                color: #f3f4f6;
+                border-color: #374151;
+            }
+            textarea:focus, input[type="email"]:focus {
+                border-color: #6366f1;
+                background: #111827;
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            }
+            .media-upload-section {
+                background: #1f2937;
+                border-color: #374151;
+            }
+            .media-upload-section:hover {
+                background: #2d3748;
+                border-color: #6366f1;
+            }
+            .user-info-display {
+                background: #1f2937;
+                border-color: #374151;
+                color: #9ca3af;
+            }
+            .user-info-display strong {
+                color: #e5e7eb;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- Feedback Header -->
+    <header class="feedback-header">
+        <div class="feedback-header-content">
+            <h1>
+                <i class="fas fa-comment-dots"></i>
+                <span data-translate="sendFeedback">Send Feedback</span>
+            </h1>
+            <p data-translate="feedbackDescription">Help us improve StarStore by sharing your thoughts</p>
+        </div>
+    </header>
+
+    <div id="bottomnav-container"></div>
+
+    <div class="feedback-form-container">
+        <!-- Error Message -->
+        <div class="error-message" id="errorMessage"></div>
+
+        <!-- Feedback Form -->
+        <form id="feedbackForm">
+            <!-- Feedback Type Selection -->
+            <div class="form-group">
+                <label class="form-label">
+                    <span class="icon">📋</span>
+                    <span data-translate="feedbackType">Feedback Type</span>
+                    <span class="required">*</span>
+                </label>
+                <div class="feedback-type-selector">
+                    <div class="feedback-type-option" data-type="bug">
+                        <div class="icon">🐛</div>
+                        <div data-translate="bugReport">Bug Report</div>
+                    </div>
+                    <div class="feedback-type-option" data-type="feature">
+                        <div class="icon">💡</div>
+                        <div data-translate="featureRequest">Feature Request</div>
+                    </div>
+                    <div class="feedback-type-option" data-type="improvement">
+                        <div class="icon">⚡</div>
+                        <div data-translate="improvement">Improvement</div>
+                    </div>
+                    <div class="feedback-type-option" data-type="general">
+                        <div class="icon">💬</div>
+                        <div data-translate="general">General</div>
+                    </div>
+                </div>
+                <input type="hidden" id="feedbackType" name="feedbackType" required>
+            </div>
+
+            <!-- Email Address -->
+            <div class="form-group">
+                <label class="form-label">
+                    <span class="icon">📧</span>
+                    <span data-translate="emailAddress">Email Address</span>
+                    <span class="required">*</span>
+                </label>
+                <input 
+                    type="email" 
+                    id="userEmail" 
+                    name="userEmail" 
+                    placeholder="your@email.com" 
+                    required
+                >
+            </div>
+
+            <!-- Feedback Message -->
+            <div class="form-group">
+                <label class="form-label">
+                    <span class="icon">✍️</span>
+                    <span data-translate="feedbackMessage">Your Feedback</span>
+                    <span class="required">*</span>
+                </label>
+                <textarea 
+                    id="feedbackMessage" 
+                    name="feedbackMessage" 
+                    placeholder="Tell us what you think..." 
+                    maxlength="3000"
+                    required
+                ></textarea>
+                <div class="char-counter">
+                    <span id="charCount">0</span>/3000
+                </div>
+            </div>
+
+            <!-- Media Upload -->
+            <div class="form-group">
+                <label class="form-label">
+                    <span class="icon">📎</span>
+                    <span data-translate="attachMedia">Attach Media</span>
+                    <span class="optional" style="font-size: 12px; color: #9ca3af;">(<span data-translate="optional">Optional</span>)</span>
+                </label>
+                <div class="media-upload-section" id="mediaUploadSection">
+                    <span class="upload-icon">📸</span>
+                    <div class="upload-text" data-translate="dragFilesHere">Drag files here</div>
+                    <div class="upload-hint" data-translate="supportedFormats">Images, videos (max 20MB total)</div>
+                </div>
+                <input type="file" id="mediaInput" multiple accept="image/*,video/*">
+                <div class="media-preview" id="mediaPreview"></div>
+            </div>
+
+            <!-- User Info Display -->
+            <div class="form-group">
+                <div class="user-info-display">
+                    <div>
+                        <strong data-translate="userId">User ID</strong>: 
+                        <span id="displayUserId" title="Automatically detected">Loading...</span>
+                    </div>
+                    <div style="margin-top: 4px;">
+                        <strong data-translate="timestamp">Submitted</strong>: 
+                        <span id="displayTimestamp" data-translate="autoDetected">Auto-detected</span>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Submit Button -->
+    <button type="submit" form="feedbackForm" class="submit-button" id="submitBtn">
+        <i class="fas fa-paper-plane"></i>
+        <span data-translate="sendFeedback">Send Feedback</span>
+    </button>
+</div>
+
+<script src="/js/feedback.js"></script>
+</body>
+</html>
