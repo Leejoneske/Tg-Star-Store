@@ -284,12 +284,6 @@ class FeedbackSystem {
                 userIdDisplay.textContent = this.userId;
             }
 
-            // Auto-fill email if available
-            const emailInput = document.getElementById('userEmail');
-            if (emailInput && user?.username) {
-                emailInput.value = `${user.username}@telegram.user`;
-            }
-
             // Display timestamp
             const timestampDisplay = document.getElementById('displayTimestamp');
             if (timestampDisplay) {
@@ -297,7 +291,7 @@ class FeedbackSystem {
                 timestampDisplay.textContent = now.toLocaleString();
             }
         } catch (e) {
-            console.log('Could not load user info from Telegram:', e.message);
+            console.error('Error loading user info:', e.message);
             const userIdDisplay = document.getElementById('displayUserId');
             if (userIdDisplay) {
                 userIdDisplay.textContent = 'Web User';
@@ -349,7 +343,7 @@ class FeedbackSystem {
         submitBtn.innerHTML = '<div class="spinner"></div><span>' + this.translate('sending') + '</span>';
 
         try {
-            console.log('Preparing form data...');
+            console.log('🚀 Preparing form data...');
             // Create FormData for multipart submission
             const formData = new FormData();
             formData.append('userId', this.userId || 'web-user');
@@ -363,10 +357,10 @@ class FeedbackSystem {
                 formData.append(`media_${index}`, file);
             });
 
-            console.log('Submitting feedback:', {
+            console.log('📤 Submitting feedback:', {
                 userId: this.userId,
                 type: this.selectedType,
-                email: emailInput.value,
+                email: emailInput.value.trim(),
                 messageLength: messageInput.value.length,
                 filesCount: this.attachedFiles.length
             });
@@ -377,16 +371,16 @@ class FeedbackSystem {
                 body: formData
             });
 
-            console.log('Response received:', response.status, response.statusText);
+            console.log('📨 Response received:', response.status, response.statusText);
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Server error:', errorText);
+                console.error('❌ Server error:', response.status, errorText);
                 throw new Error(`HTTP Error: ${response.status} - ${errorText}`);
             }
 
             const result = await response.json();
-            console.log('Feedback submitted successfully:', result);
+            console.log('✅ Feedback submitted successfully:', result);
 
             // Show success message
             this.showSuccess(this.translate('feedbackSent'));
@@ -400,8 +394,9 @@ class FeedbackSystem {
             }, 2000);
 
         } catch (error) {
-            console.error('Submission error:', error);
-            this.showError(this.translate('submissionFailed') + ': ' + error.message);
+            console.error('❌ Submission error caught:', error.message, error.stack);
+            const errorMsg = this.translate('submissionFailed') + ': ' + error.message;
+            this.showError(errorMsg);
             submitBtn.disabled = false;
             submitBtn.classList.remove('loading');
             submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i><span>' + this.translate('sendFeedback') + '</span>';
