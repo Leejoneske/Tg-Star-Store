@@ -257,23 +257,12 @@
         }
         .content-wrapper {
             padding: 16px;
-            padding-bottom: 100px;
+            padding-bottom: 16px;
         }
-        .button-fixed {
-            position: fixed;
-            bottom: 60px;
-            left: 16px;
-            right: 16px;
-            max-width: calc(600px - 32px);
-            margin: 0 auto;
-            z-index: 50;
-        }
-        .telegram-fullscreen .button-fixed {
-            left: 0;
-            right: 0;
-            max-width: 100%;
-            width: 100%;
-            padding: 0 12px;
+        .button-section {
+            padding: 16px;
+            padding-top: 8px;
+            padding-bottom: 80px;
         }
     </style>
 </head>
@@ -350,19 +339,19 @@
                         <strong data-translate="timestamp">Time:</strong> <span id="displayTimestamp" data-translate="autoDetected">Auto-detected</span>
                     </div>
                 </div>
+
+                <!-- Submit Button -->
+                <div class="button-section">
+                    <button type="submit" form="feedbackForm" class="btn-primary" id="submitBtn">
+                        <i class="fas fa-paper-plane"></i>
+                        <span data-translate="sendFeedback">Send Feedback</span>
+                    </button>
+                </div>
             </form>
         </div>
 
         <!-- Bottom Nav -->
         <div id="bottomnav-container"></div>
-
-        <!-- Submit Button -->
-        <div class="button-fixed">
-            <button type="submit" form="feedbackForm" class="btn-primary" id="submitBtn">
-                <i class="fas fa-paper-plane"></i>
-                <span data-translate="sendFeedback">Send Feedback</span>
-            </button>
-        </div>
     </div>
 
     <script src="/js/feedback.js"></script>
