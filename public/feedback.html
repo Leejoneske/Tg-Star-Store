@@ -10,12 +10,8 @@
       gtag('config', 'G-SX6TDXG0N8');
     </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Send feedback to StarStore team - Help us improve your experience">
-    <meta name="keywords" content="Telegram Stars, feedback, support, StarStore">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+    <meta name="description" content="Send feedback to StarStore team">
     <title>Send Feedback | StarStore</title>
     
     <link rel="canonical" href="https://starstore.site/feedback">
@@ -29,305 +25,187 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/theme-additional.css?v=7">
     
     <style>
-        * {
-            -webkit-tap-highlight-color: transparent;
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #f5f5f5; 
+            margin: 0; 
+            padding: 0; 
         }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #f5f5f5;
-            margin: 0;
-            padding: 0;
+        .app-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: #f5f5f5; 
+            min-height: 100vh; 
+            position: relative; 
+            overflow: hidden; 
         }
-
-        .app-container {
-            max-width: 600px;
-            width: 100%;
-            min-height: 100vh;
-            margin: 0 auto;
-            background: #f5f5f5;
-            display: flex;
-            flex-direction: column;
-            position: relative;
+        .telegram-fullscreen .app-container { 
+            max-width: 100%; 
+            width: 100%; 
+            margin: 0; 
+            box-shadow: none; 
+            border-radius: 0; 
         }
-
-        .telegram-fullscreen .app-container {
-            max-width: 100%;
+        .clean-card { 
+            background: white; 
+            border-radius: 16px; 
+            padding: 20px;
+            margin-bottom: 12px;
         }
-
-        /* Header - Clean and Simple */
-        header {
-            background: white;
-            padding: 16px 20px;
-            position: relative;
-            border-bottom: 1px solid #eee;
-        }
-
-        header h1 {
-            font-size: 24px;
-            font-weight: 700;
-            margin: 0;
-            color: #000;
-        }
-
-        header p {
-            font-size: 13px;
-            color: #666;
-            margin: 4px 0 0 0;
-        }
-
-        #exitButton {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: rgba(0, 0, 0, 0.05) !important;
-            color: #333 !important;
-            border: 1px solid rgba(0, 0, 0, 0.1) !important;
-            border-radius: 8px !important;
-            padding: 8px 12px !important;
-            font-size: 14px !important;
-            font-weight: 600 !important;
-            cursor: pointer;
-            transition: all 0.2s !important;
-        }
-
-        #exitButton:hover {
-            background: rgba(0, 0, 0, 0.1) !important;
-            color: #000 !important;
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            padding: 16px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .main-content::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .main-content::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .main-content::-webkit-scrollbar-thumb {
-            background: #ddd;
-            border-radius: 3px;
-        }
-
-        /* Card Container */
-        .feedback-card {
-            background: white;
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+            padding: 12px 20px;
             border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 4px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        }
-
-        .feedback-card h3 {
-            font-size: 14px;
             font-weight: 600;
-            color: #000;
-            margin: 0 0 12px 0;
-            display: flex;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
+            transition: opacity 0.2s, transform 0.2s;
+            width: 100%;
+            justify-content: center;
         }
-
-        .card-icon {
-            font-size: 18px;
+        .btn-primary:active {
+            opacity: 0.8;
+            transform: scale(0.98);
         }
-
-        /* Feedback Type Selection */
-        .type-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
-
-        .type-btn {
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
             padding: 12px;
-            border: 2px solid #e0e0e0;
             border-radius: 10px;
-            background: white;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            text-align: center;
-            font-size: 13px;
             font-weight: 500;
+            font-size: 13px;
+            border: 2px solid #e8e8e8;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
         }
-
-        .type-btn:hover {
+        .btn-secondary:hover {
             border-color: #007AFF;
             background: #f9f9f9;
         }
-
-        .type-btn.active {
-            border-color: #007AFF;
-            background: linear-gradient(135deg, #007AFF 0%, #0056d4 100%);
+        .btn-secondary.active {
+            background: #007AFF;
             color: white;
-            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+            border-color: #007AFF;
         }
-
-        .type-btn-icon {
-            display: block;
-            font-size: 24px;
-            margin-bottom: 6px;
-        }
-
-        .type-btn-text {
-            display: block;
-            font-size: 12px;
-        }
-
-        /* Form Inputs */
         input[type="email"],
         textarea {
             width: 100%;
             padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
             font-family: 'Inter', sans-serif;
             font-size: 14px;
             color: #333;
             background: white;
-            transition: all 0.2s ease;
+            transition: border 0.2s;
             box-sizing: border-box;
         }
-
         textarea {
             resize: vertical;
             min-height: 100px;
             max-height: 200px;
         }
-
         input[type="email"]::placeholder,
         textarea::placeholder {
             color: #999;
         }
-
         input[type="email"]:focus,
         textarea:focus {
             outline: none;
             border-color: #007AFF;
-            background: #f9fbff;
-            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+            background: white;
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
         }
-
-        .input-label {
+        .label {
             display: block;
             font-size: 13px;
             font-weight: 600;
             color: #333;
             margin-bottom: 8px;
         }
-
         .char-counter {
             text-align: right;
             font-size: 12px;
             color: #999;
             margin-top: 4px;
         }
-
         .char-counter.warning {
             color: #FF9500;
         }
-
         .char-counter.critical {
             color: #FF3B30;
         }
-
-        /* Media Upload */
-        .media-zone {
+        .type-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .media-upload {
             border: 2px dashed #d0d0d0;
-            border-radius: 10px;
-            padding: 24px;
+            border-radius: 12px;
+            padding: 20px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.2s ease;
-            background: #fafafa;
+            transition: all 0.2s;
+            background: #f9f9f9;
         }
-
-        .media-zone:hover {
+        .media-upload:hover {
             border-color: #007AFF;
             background: #f0f7ff;
         }
-
-        .media-zone.drag-over {
+        .media-upload.drag-over {
             border-color: #007AFF;
-            background: #e3f2fd;
-            transform: scale(1.01);
+            background: #e6f2ff;
         }
-
-        .media-icon {
+        .upload-icon {
             font-size: 32px;
-            display: block;
             margin-bottom: 8px;
-            animation: float 2s ease-in-out infinite;
+            display: block;
         }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px); }
-        }
-
-        .media-text {
+        .upload-text {
             font-size: 13px;
             font-weight: 500;
             color: #333;
-            margin-bottom: 2px;
         }
-
-        .media-hint {
+        .upload-hint {
             font-size: 12px;
             color: #999;
+            margin-top: 4px;
         }
-
         #mediaInput {
             display: none;
         }
-
-        /* Media Preview */
         .media-preview {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
             gap: 8px;
             margin-top: 12px;
         }
-
         .media-item {
             position: relative;
-            border-radius: 8px;
+            border-radius: 10px;
             overflow: hidden;
             aspect-ratio: 1;
-            background: #e0e0e0;
-            animation: zoomIn 0.3s ease-out;
+            background: #e8e8e8;
         }
-
-        @keyframes zoomIn {
-            from {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
         .media-item img,
         .media-item video {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-
         .media-remove {
             position: absolute;
             top: 4px;
@@ -343,1133 +221,148 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
         }
-
         .media-remove:hover {
             background: rgba(0, 0, 0, 0.9);
         }
-
-        /* User Info */
-        .info-section {
+        .info-text {
             font-size: 12px;
             color: #666;
             line-height: 1.6;
         }
-
-        .info-section strong {
+        .info-text strong {
             color: #333;
             font-weight: 600;
         }
-
-        /* Alert Messages */
         .alert {
-            border-radius: 8px;
-            padding: 12px 14px;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
             font-size: 13px;
-            border: 1px solid;
-            animation: slideDown 0.3s ease-out;
             display: none;
         }
-
         .alert.show {
             display: block;
         }
-
         .alert-error {
             background: #FFEBEE;
-            border-color: #EF5350;
+            border-left: 4px solid #F44336;
             color: #C62828;
         }
-
         .alert-success {
             background: #E8F5E9;
-            border-color: #66BB6A;
+            border-left: 4px solid #4CAF50;
             color: #2E7D32;
         }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .content-wrapper {
+            padding: 16px;
+            padding-bottom: 100px;
         }
-
-        /* Submit Button */
-        .submit-btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #007AFF 0%, #0051CC 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-top: auto;
-        }
-
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 122, 255, 0.3);
-        }
-
-        .submit-btn:active {
-            transform: translateY(0);
-        }
-
-        .submit-btn.loading {
-            opacity: 0.7;
-            pointer-events: none;
-        }
-
-        .spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Bottom Navigation Spacing */
-        #bottomnav-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            max-width: 600px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .button-container {
-            padding: 12px 16px;
-            background: white;
-            border-top: 1px solid #eee;
+        .button-fixed {
             position: fixed;
             bottom: 60px;
+            left: 16px;
+            right: 16px;
+            max-width: calc(600px - 32px);
+            margin: 0 auto;
+            z-index: 50;
+        }
+        .telegram-fullscreen .button-fixed {
             left: 0;
             right: 0;
-            max-width: 600px;
-            margin: 0 auto;
-            width: calc(100% - 32px);
-            z-index: 99;
-        }
-
-        .telegram-fullscreen .button-container {
-            width: calc(100% - 0px);
-            padding: 12px;
-        }
-
-        /* Responsive */
-        @media (max-width: 480px) {
-            .type-buttons {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-
-        /* Dark Mode */
-        @media (prefers-color-scheme: dark) {
-            body {
-                background: #121212;
-            }
-
-            .app-container {
-                background: #121212;
-            }
-
-            header {
-                background: #1e1e1e;
-                border-color: #333;
-            }
-
-            header h1 {
-                color: #fff;
-            }
-
-            header p {
-                color: #aaa;
-            }
-
-            .feedback-card {
-                background: #1e1e1e;
-                color: #fff;
-            }
-
-            .feedback-card h3 {
-                color: #fff;
-            }
-
-            .type-btn {
-                background: #1e1e1e;
-                border-color: #333;
-                color: #fff;
-            }
-
-            .type-btn:hover {
-                border-color: #007AFF;
-                background: #2a2a2a;
-            }
-
-            input[type="email"],
-            textarea {
-                background: #1e1e1e;
-                color: #fff;
-                border-color: #333;
-            }
-
-            input[type="email"]:focus,
-            textarea:focus {
-                background: #2a2a2a;
-                border-color: #007AFF;
-            }
-
-            input[type="email"]::placeholder,
-            textarea::placeholder {
-                color: #666;
-            }
-
-            .input-label {
-                color: #ccc;
-            }
-
-            .media-zone {
-                background: #2a2a2a;
-                border-color: #333;
-            }
-
-            .media-zone:hover {
-                background: #333;
-            }
-
-            .media-text {
-                color: #fff;
-            }
-
-            .media-hint {
-                color: #999;
-            }
-
-            .button-container {
-                background: #1e1e1e;
-                border-color: #333;
-            }
+            max-width: 100%;
+            width: 100%;
+            padding: 0 12px;
         }
     </style>
 </head>
 <body>
     <div class="app-container">
         <!-- Header -->
-        <header>
-            <button id="exitButton">← Back</button>
-            <h1 data-translate="sendFeedback">Send Feedback</h1>
-            <p data-translate="feedbackDescription">Help us improve StarStore</p>
+        <header style="padding: 16px 20px; background: #f5f5f5; position: relative;">
+            <button id="exitButton" style="position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.1); color: #333; border: 1px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.15)'; this.style.color='#000'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='#333'">
+                ← Back
+            </button>
+            <h1 style="font-size: 24px; font-weight: 700; color: #000; margin: 0;" data-translate="sendFeedback">Send Feedback</h1>
+            <p style="font-size: 13px; color: #666; margin: 4px 0 0 0;" data-translate="feedbackDescription">Help us improve StarStore</p>
         </header>
 
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Error Alert -->
-            <div class="alert alert-error" id="errorMessage"></div>
-            <!-- Success Alert -->
-            <div class="alert alert-success" id="successMessage"></div>
+        <!-- Content -->
+        <div class="content-wrapper">
+            <div id="errorMessage" class="alert alert-error"></div>
+            <div id="successMessage" class="alert alert-success"></div>
 
-            <!-- Feedback Form -->
             <form id="feedbackForm">
                 <!-- Feedback Type -->
-                <div class="feedback-card">
-                    <h3><span class="card-icon">📋</span> <span data-translate="feedbackType">Type</span></h3>
-                    <div class="type-buttons">
-                        <button type="button" class="type-btn" data-type="bug">
-                            <span class="type-btn-icon">🐛</span>
-                            <span class="type-btn-text" data-translate="bugReport">Bug</span>
+                <div class="clean-card">
+                    <label class="label" data-translate="feedbackType">📋 Type</label>
+                    <div class="type-grid">
+                        <button type="button" class="btn-secondary feedback-type" data-type="bug">
+                            <div style="font-size: 20px; margin-bottom: 4px;">🐛</div>
+                            <div data-translate="bugReport">Bug</div>
                         </button>
-                        <button type="button" class="type-btn" data-type="feature">
-                            <span class="type-btn-icon">💡</span>
-                            <span class="type-btn-text" data-translate="featureRequest">Feature</span>
+                        <button type="button" class="btn-secondary feedback-type" data-type="feature">
+                            <div style="font-size: 20px; margin-bottom: 4px;">💡</div>
+                            <div data-translate="featureRequest">Feature</div>
                         </button>
-                        <button type="button" class="type-btn" data-type="improvement">
-                            <span class="type-btn-icon">⚡</span>
-                            <span class="type-btn-text" data-translate="improvement">Improve</span>
+                        <button type="button" class="btn-secondary feedback-type" data-type="improvement">
+                            <div style="font-size: 20px; margin-bottom: 4px;">⚡</div>
+                            <div data-translate="improvement">Improve</div>
                         </button>
-                        <button type="button" class="type-btn" data-type="general">
-                            <span class="type-btn-icon">💬</span>
-                            <span class="type-btn-text" data-translate="general">Other</span>
+                        <button type="button" class="btn-secondary feedback-type" data-type="general">
+                            <div style="font-size: 20px; margin-bottom: 4px;">💬</div>
+                            <div data-translate="general">Other</div>
                         </button>
                     </div>
                     <input type="hidden" id="feedbackType" name="feedbackType" required>
                 </div>
 
                 <!-- Email -->
-                <div class="feedback-card">
-                    <label class="input-label" for="userEmail" data-translate="emailAddress">Email Address</label>
-                    <input 
-                        type="email" 
-                        id="userEmail" 
-                        name="userEmail" 
-                        placeholder="your@email.com" 
-                        required
-                    >
+                <div class="clean-card">
+                    <label class="label" for="userEmail" data-translate="emailAddress">📧 Email</label>
+                    <input type="email" id="userEmail" name="userEmail" placeholder="your@email.com" required>
                 </div>
 
                 <!-- Message -->
-                <div class="feedback-card">
-                    <label class="input-label" for="feedbackMessage" data-translate="feedbackMessage">Your Message</label>
-                    <textarea 
-                        id="feedbackMessage" 
-                        name="feedbackMessage" 
-                        placeholder="Tell us what you think..." 
-                        maxlength="3000"
-                        required
-                    ></textarea>
-                    <div class="char-counter">
-                        <span id="charCount">0</span>/3000
-                    </div>
+                <div class="clean-card">
+                    <label class="label" for="feedbackMessage" data-translate="feedbackMessage">✍️ Message</label>
+                    <textarea id="feedbackMessage" name="feedbackMessage" placeholder="Tell us what you think..." maxlength="3000" required></textarea>
+                    <div class="char-counter"><span id="charCount">0</span>/3000</div>
                 </div>
 
                 <!-- Media -->
-                <div class="feedback-card">
-                    <h3><span class="card-icon">📎</span> <span data-translate="attachMedia">Attachments</span></h3>
-                    <div class="media-zone" id="mediaUploadSection">
-                        <span class="media-icon">📸</span>
-                        <div class="media-text" data-translate="dragFilesHere">Add Photos or Videos</div>
-                        <div class="media-hint" data-translate="supportedFormats">Optional • Max 20MB</div>
+                <div class="clean-card">
+                    <label class="label" data-translate="attachMedia">📎 Add Media (Optional)</label>
+                    <div class="media-upload" id="mediaUploadSection">
+                        <span class="upload-icon">📸</span>
+                        <div class="upload-text" data-translate="dragFilesHere">Add images or videos</div>
+                        <div class="upload-hint" data-translate="supportedFormats">Max 20MB total</div>
                     </div>
                     <input type="file" id="mediaInput" multiple accept="image/*,video/*">
                     <div class="media-preview" id="mediaPreview"></div>
                 </div>
 
-                <!-- User Info -->
-                <div class="feedback-card">
-                    <div class="info-section">
+                <!-- Info -->
+                <div class="clean-card">
+                    <div class="info-text">
                         <strong data-translate="userId">User ID:</strong> <span id="displayUserId">Loading...</span><br>
-                        <strong data-translate="timestamp">Timestamp:</strong> <span id="displayTimestamp" data-translate="autoDetected">Auto-detected</span>
-                    </div>
-                </div>
-
-                <!-- Spacer for button -->
-                <div style="height: 80px;"></div>
-            </form>
-        </div>
-
-        <!-- Bottom Navigation -->
-        <div id="bottomnav-container"></div>
-
-        <!-- Submit Button Container -->
-        <div class="button-container">
-            <button type="submit" form="feedbackForm" class="submit-btn" id="submitBtn">
-                <i class="fas fa-paper-plane"></i>
-                <span data-translate="sendFeedback">Send</span>
-            </button>
-        </div>
-    </div>
-
-    <script src="/js/feedback.js"></script>
-</body>
-</html>
-    
-    
-    <style>
-        * {
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-            margin: 0;
-            padding: 0;
-        }
-
-        .app-container {
-            max-width: 600px;
-            width: 100%;
-            min-height: 100vh;
-            margin: 0 auto;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-
-        .telegram-fullscreen .app-container {
-            max-width: 100%;
-            border-radius: 0;
-        }
-
-        /* Header */
-        header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 0;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header-background {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120"><path d="M0,60 Q300,0 600,60 T1200,60 L1200,120 L0,120 Z" fill="%23ffffff" opacity="0.1"/></svg>');
-            background-size: 200% 100%;
-            background-position: 0 0;
-        }
-
-        .header-content {
-            position: relative;
-            z-index: 2;
-            padding: 20px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .header-title {
-            flex: 1;
-        }
-
-        .header-title h1 {
-            font-size: 26px;
-            font-weight: 800;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .header-title p {
-            font-size: 12px;
-            opacity: 0.85;
-            margin: 4px 0 0 0;
-            margin-left: 38px;
-        }
-
-        #exitButton {
-            background: rgba(255, 255, 255, 0.25) !important;
-            color: white !important;
-            border: 1px solid rgba(255, 255, 255, 0.4) !important;
-            border-radius: 10px !important;
-            padding: 8px 14px !important;
-            font-size: 14px !important;
-            font-weight: 600 !important;
-            cursor: pointer;
-            transition: all 0.3s ease !important;
-            backdrop-filter: blur(10px);
-            flex-shrink: 0;
-            margin-left: 12px;
-        }
-
-        #exitButton:hover {
-            background: rgba(255, 255, 255, 0.35) !important;
-            transform: translateY(-1px);
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            padding: 24px 16px 100px;
-            overflow-y: auto;
-        }
-
-        /* Form Sections */
-        .form-section {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            border: 1px solid #f0f0f0;
-            animation: slideUp 0.4s ease-out forwards;
-            opacity: 0;
-        }
-
-        .form-section:nth-child(1) { animation-delay: 0.05s; }
-        .form-section:nth-child(2) { animation-delay: 0.1s; }
-        .form-section:nth-child(3) { animation-delay: 0.15s; }
-        .form-section:nth-child(4) { animation-delay: 0.2s; }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(16px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .section-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .section-icon {
-            font-size: 20px;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            color: white;
-        }
-
-        /* Feedback Type Grid */
-        .type-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .type-card {
-            border: 2px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 16px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            background: white;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .type-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: -1;
-        }
-
-        .type-card:hover {
-            border-color: #667eea;
-            transform: translateY(-4px);
-            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
-        }
-
-        .type-card.active {
-            border-color: transparent;
-            color: white;
-            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.3);
-        }
-
-        .type-card.active::before {
-            opacity: 1;
-        }
-
-        .type-card.active .type-label,
-        .type-card.active .type-name {
-            color: white;
-            position: relative;
-            z-index: 2;
-        }
-
-        .type-label {
-            font-size: 28px;
-            margin-bottom: 8px;
-            display: block;
-        }
-
-        .type-name {
-            font-size: 13px;
-            font-weight: 600;
-            color: #374151;
-            transition: all 0.3s ease;
-        }
-
-        /* Input Fields */
-        .form-field {
-            margin-bottom: 16px;
-        }
-
-        .form-field:last-child {
-            margin-bottom: 0;
-        }
-
-        label {
-            display: block;
-            font-size: 14px;
-            font-weight: 600;
-            color: #374151;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        input[type="email"],
-        textarea {
-            width: 100%;
-            padding: 12px 14px;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            font-family: 'Inter', sans-serif;
-            font-size: 14px;
-            color: #1f2937;
-            background: white;
-            transition: all 0.3s ease;
-            box-sizing: border-box;
-        }
-
-        textarea {
-            min-height: 120px;
-            resize: vertical;
-            max-height: 300px;
-        }
-
-        input[type="email"]::placeholder,
-        textarea::placeholder {
-            color: #9ca3af;
-        }
-
-        input[type="email"]:focus,
-        textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            background: #f8f9ff;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        }
-
-        /* Character Counter */
-        .char-counter {
-            text-align: right;
-            font-size: 12px;
-            color: #9ca3af;
-            margin-top: 4px;
-            transition: color 0.2s ease;
-        }
-
-        .char-counter.warning {
-            color: #f59e0b;
-        }
-
-        .char-counter.critical {
-            color: #ef4444;
-        }
-
-        /* Media Upload */
-        .media-upload-zone {
-            border: 2px dashed #d1d5db;
-            border-radius: 14px;
-            padding: 24px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .media-upload-zone::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="%23667eea" opacity="0.05"/></svg>');
-            background-size: 100px 100px;
-            background-position: center;
-        }
-
-        .media-upload-zone:hover {
-            border-color: #667eea;
-            background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
-            transform: scale(1.01);
-        }
-
-        .media-upload-zone.drag-over {
-            border-color: #667eea;
-            background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
-            transform: scale(1.02);
-            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
-        }
-
-        .upload-content {
-            position: relative;
-            z-index: 2;
-        }
-
-        .upload-icon {
-            font-size: 40px;
-            display: block;
-            margin-bottom: 8px;
-            animation: float 3s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-8px); }
-        }
-
-        .upload-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 4px;
-        }
-
-        .upload-hint {
-            font-size: 12px;
-            color: #6b7280;
-        }
-
-        #mediaInput {
-            display: none;
-        }
-
-        /* Media Preview Grid */
-        .media-preview {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-            gap: 12px;
-            margin-top: 12px;
-        }
-
-        .media-item {
-            position: relative;
-            border-radius: 12px;
-            overflow: hidden;
-            aspect-ratio: 1;
-            background: #f3f4f6;
-            border: 2px solid #e5e7eb;
-            animation: zoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        @keyframes zoomIn {
-            from {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        .media-item img,
-        .media-item video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .media-remove-btn {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            width: 28px;
-            height: 28px;
-            background: rgba(0, 0, 0, 0.7);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            z-index: 5;
-        }
-
-        .media-remove-btn:hover {
-            background: rgba(0, 0, 0, 0.9);
-            transform: scale(1.2);
-        }
-
-        .media-size {
-            font-size: 10px;
-            color: #6b7280;
-            text-align: center;
-            padding: 4px;
-            background: rgba(0, 0, 0, 0.03);
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* User Info */
-        .info-box {
-            background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
-            border: 1px solid #e0e7ff;
-            border-radius: 12px;
-            padding: 12px 14px;
-            font-size: 13px;
-            color: #374151;
-        }
-
-        .info-label {
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .info-value {
-            color: #6b7280;
-            font-family: 'Courier New', monospace;
-            word-break: break-all;
-        }
-
-        /* Error & Success Messages */
-        .alert {
-            border-radius: 12px;
-            padding: 14px 16px;
-            margin-bottom: 16px;
-            display: none;
-            animation: slideDown 0.3s ease-out;
-            font-size: 14px;
-            border: 1px solid;
-        }
-
-        .alert.show {
-            display: block;
-        }
-
-        .alert-error {
-            background: #fef2f2;
-            border-color: #fee2e2;
-            color: #991b1b;
-        }
-
-        .alert-success {
-            background: #f0fdf4;
-            border-color: #dcfce7;
-            color: #166534;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-12px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Submit Button */
-        .submit-btn {
-            position: fixed;
-            bottom: 16px;
-            left: 16px;
-            right: 16px;
-            max-width: 568px;
-            margin: 0 auto;
-            padding: 14px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-family: 'Inter', sans-serif;
-            left: 50%;
-            transform: translateX(-50%);
-            width: calc(100% - 32px);
-        }
-
-        .submit-btn:hover {
-            transform: translateX(-50%) translateY(-2px);
-            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
-        }
-
-        .submit-btn:active {
-            transform: translateX(-50%) translateY(0);
-        }
-
-        .submit-btn.loading {
-            opacity: 0.8;
-            pointer-events: none;
-        }
-
-        .spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Bottom Nav Spacing */
-        #bottomnav-container {
-            height: 60px;
-        }
-
-        /* Responsive */
-        @media (max-width: 480px) {
-            .header-content {
-                flex-wrap: wrap;
-            }
-
-            .type-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .media-preview {
-                grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
-            }
-        }
-
-        /* Dark Mode */
-        @media (prefers-color-scheme: dark) {
-            body {
-                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            }
-
-            .form-section {
-                background: #1f2937;
-                border-color: #374151;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            }
-
-            .section-title {
-                color: #f3f4f6;
-            }
-
-            label {
-                color: #e5e7eb;
-            }
-
-            input[type="email"],
-            textarea {
-                background: #111827;
-                color: #f3f4f6;
-                border-color: #374151;
-            }
-
-            input[type="email"]:focus,
-            textarea:focus {
-                background: #1f2937;
-                border-color: #667eea;
-                box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
-            }
-
-            .type-card {
-                background: #111827;
-                border-color: #374151;
-            }
-
-            .type-card:hover {
-                border-color: #667eea;
-            }
-
-            .type-card.active {
-                border-color: transparent;
-            }
-
-            .type-name {
-                color: #d1d5db;
-            }
-
-            .media-upload-zone {
-                background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
-                border-color: #374151;
-            }
-
-            .media-upload-zone:hover {
-                background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-                border-color: #667eea;
-            }
-
-            .upload-title {
-                color: #f3f4f6;
-            }
-
-            .upload-hint {
-                color: #9ca3af;
-            }
-
-            .info-box {
-                background: linear-gradient(135deg, #1f2937 0%, #2d3748 100%);
-                border-color: #374151;
-                color: #d1d5db;
-            }
-
-            .info-label {
-                color: #f3f4f6;
-            }
-
-            .char-counter {
-                color: #9ca3af;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="app-container">
-        <!-- Header -->
-        <header>
-            <div class="header-background"></div>
-            <div class="header-content">
-                <div class="header-title">
-                    <h1>💬 <span data-translate="sendFeedback">Feedback</span></h1>
-                    <p data-translate="feedbackDescription">Help us improve</p>
-                </div>
-                <button id="exitButton">← Back</button>
-            </div>
-        </header>
-
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Error Alert -->
-            <div class="alert alert-error" id="errorMessage"></div>
-            <!-- Success Alert -->
-            <div class="alert alert-success" id="successMessage"></div>
-
-            <!-- Form -->
-            <form id="feedbackForm">
-                <!-- Feedback Type Section -->
-                <div class="form-section">
-                    <div class="section-title">
-                        <div class="section-icon">📋</div>
-                        <span data-translate="feedbackType">Type of Feedback</span>
-                    </div>
-                    <div class="type-grid">
-                        <div class="type-card" data-type="bug">
-                            <span class="type-label">🐛</span>
-                            <span class="type-name" data-translate="bugReport">Bug</span>
-                        </div>
-                        <div class="type-card" data-type="feature">
-                            <span class="type-label">💡</span>
-                            <span class="type-name" data-translate="featureRequest">Feature</span>
-                        </div>
-                        <div class="type-card" data-type="improvement">
-                            <span class="type-label">⚡</span>
-                            <span class="type-name" data-translate="improvement">Improve</span>
-                        </div>
-                        <div class="type-card" data-type="general">
-                            <span class="type-label">💬</span>
-                            <span class="type-name" data-translate="general">Other</span>
-                        </div>
-                    </div>
-                    <input type="hidden" id="feedbackType" name="feedbackType" required>
-                </div>
-
-                <!-- Contact Info Section -->
-                <div class="form-section">
-                    <div class="section-title">
-                        <div class="section-icon">📧</div>
-                        <span data-translate="emailAddress">Contact</span>
-                    </div>
-                    <div class="form-field">
-                        <label for="userEmail" data-translate="emailAddress">Email Address</label>
-                        <input 
-                            type="email" 
-                            id="userEmail" 
-                            name="userEmail" 
-                            placeholder="your@email.com" 
-                            required
-                        >
-                    </div>
-                </div>
-
-                <!-- Message Section -->
-                <div class="form-section">
-                    <div class="section-title">
-                        <div class="section-icon">✍️</div>
-                        <span data-translate="feedbackMessage">Your Message</span>
-                    </div>
-                    <div class="form-field">
-                        <textarea 
-                            id="feedbackMessage" 
-                            name="feedbackMessage" 
-                            placeholder="Tell us what you think..." 
-                            maxlength="3000"
-                            required
-                        ></textarea>
-                        <div class="char-counter">
-                            <span id="charCount">0</span>/3000
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Media Section -->
-                <div class="form-section">
-                    <div class="section-title">
-                        <div class="section-icon">📎</div>
-                        <span data-translate="attachMedia">Attachments</span>
-                    </div>
-                    <div class="media-upload-zone" id="mediaUploadSection">
-                        <div class="upload-content">
-                            <span class="upload-icon">📸</span>
-                            <div class="upload-title" data-translate="dragFilesHere">Drag files here</div>
-                            <div class="upload-hint" data-translate="supportedFormats">Or click to browse</div>
-                        </div>
-                    </div>
-                    <input type="file" id="mediaInput" multiple accept="image/*,video/*">
-                    <div class="media-preview" id="mediaPreview"></div>
-                </div>
-
-                <!-- User Info Section -->
-                <div class="form-section">
-                    <div class="info-box">
-                        <div style="margin-bottom: 8px;">
-                            <span class="info-label" data-translate="userId">User ID:</span>
-                            <span class="info-value" id="displayUserId">Loading...</span>
-                        </div>
-                        <div>
-                            <span class="info-label" data-translate="timestamp">Submitted:</span>
-                            <span class="info-value" id="displayTimestamp" data-translate="autoDetected">Auto-detected</span>
-                        </div>
+                        <strong data-translate="timestamp">Time:</strong> <span id="displayTimestamp" data-translate="autoDetected">Auto-detected</span>
                     </div>
                 </div>
             </form>
         </div>
 
-        <!-- Bottom Navigation -->
+        <!-- Bottom Nav -->
         <div id="bottomnav-container"></div>
 
         <!-- Submit Button -->
-        <button type="submit" form="feedbackForm" class="submit-btn" id="submitBtn">
-            <i class="fas fa-paper-plane"></i>
-            <span data-translate="sendFeedback">Send</span>
-        </button>
+        <div class="button-fixed">
+            <button type="submit" form="feedbackForm" class="btn-primary" id="submitBtn">
+                <i class="fas fa-paper-plane"></i>
+                <span data-translate="sendFeedback">Send Feedback</span>
+            </button>
+        </div>
     </div>
 
     <script src="/js/feedback.js"></script>
