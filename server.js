@@ -11063,6 +11063,15 @@ bot.onText(/\/users/, async (msg) => {
  */
 app.post('/api/feedback/submit', async (req, res) => {
     try {
+        // Check if MongoDB is available
+        if (!process.env.MONGODB_URI) {
+            console.warn('Feedback submission attempted without MongoDB connection');
+            return res.status(503).json({
+                success: false,
+                error: 'Feedback service temporarily unavailable. Please try again later.'
+            });
+        }
+
         const { userId, type, email, message, timestamp } = req.body;
 
         // Validate required fields
