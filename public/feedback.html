@@ -286,6 +286,26 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        .success-message {
+            background: #E8F5E9;
+            border-left: 4px solid #4CAF50;
+            color: #2E7D32;
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            text-align: center;
+            animation: slideDown 0.3s ease-out;
+        }
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 <body>
