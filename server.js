@@ -11138,28 +11138,49 @@ app.post('/api/feedback/submit', upload.any(), async (req, res) => {
             createdAt: timestamp ? new Date(timestamp) : new Date()
         };
 
+        // Process uploaded files
+        if (req.files && req.files.length > 0) {
+            req.files.forEach((file, index) => {
+                feedbackData.mediaFiles.push({
+                    filename: file.filename || `file_${index}`,
+                    originalName: file.originalname || file.fieldname,
+                    mimetype: file.mimetype,
+                    size: file.size,
+                    uploadedAt: new Date()
+                });
+                feedbackData.totalMediaSize += file.size;
+            });
+            console.log(`Feedback has ${feedbackData.mediaFiles.length} attached files`);
+        }
+
         // Save to database
         const feedback = new GeneralFeedback(feedbackData);
         await feedback.save();
-        console.log('Feedback saved:', { id: feedback._id, email, type });
+        console.log('Feedback saved:', { id: feedback._id, email, type, attachments: feedbackData.mediaFiles.length });
 
         // Notify admins via Telegram (if bot is available)
         try {
-            const adminMessage = `📬 New ${type} feedback from User ID: ${userId}\n\n📧 Email: ${email}\n\n💬 Message:\n${message.substring(0, 200)}${message.length > 200 ? '...' : ''}\n\n🔗 View in admin panel`;
+            // Create full message with complete feedback text
+            const adminMessage = `📬 New ${type} feedback from User ID: ${userId}\n\n📧 Email: ${email}\n\n💬 Message:\n${message}${feedbackData.mediaFiles.length > 0 ? `\n\n📎 Attachments: ${feedbackData.mediaFiles.length} file(s)` : ''}`;
             
             for (const adminId of adminIds) {
                 try {
                     await bot.sendMessage(adminId, adminMessage, {
-                        parse_mode: 'HTML',
-                        reply_markup: {
-                            inline_keyboard: [[
-                                {
-                                    text: '📋 View Details',
-                                    callback_data: `feedback_${feedback._id}`
-                                }
-                            ]]
-                        }
+                        parse_mode: 'HTML'
                     });
+                    
+                    // Send attached files if any
+                    if (req.files && req.files.length > 0) {
+                        for (const file of req.files) {
+                            try {
+                                await bot.sendDocument(adminId, file.buffer, {
+                                    caption: `📎 ${file.originalname || 'Attachment'} (${(file.size / 1024).toFixed(2)} KB)`
+                                });
+                            } catch (fileErr) {
+                                console.error(`Failed to send file to admin ${adminId}:`, fileErr.message);
+                            }
+                        }
+                    }
                 } catch (e) {
                     console.error(`Failed to notify admin ${adminId}:`, e.message);
                 }
