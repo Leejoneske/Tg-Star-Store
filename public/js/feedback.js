@@ -578,7 +578,7 @@ class FeedbackSystem {
      */
     translate(key) {
         if (typeof TranslationUtils !== 'undefined') {
-            const translation = TranslationUtils.translate(key);
+            const translation = TranslationUtils.get(key);
             if (!translation || translation === key) {
                 console.warn(`Translation key not found: ${key}`);
             }
