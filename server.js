@@ -9,6 +9,7 @@ const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const multer = require('multer');
 const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
@@ -163,12 +164,28 @@ app.use(express.json({
         req.rawBody = buf;
     }
 }));
+app.use(express.urlencoded({ 
+    limit: '10mb',
+    extended: true,
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(bodyParser.json({ 
     limit: '10mb',
     verify: (req, res, buf) => {
         req.rawBody = buf;
     }
 }));
+
+// Configure multer for file uploads (feedback attachments)
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB per file
+        files: 5 // Max 5 files
+    }
+});
 
 // Error handling for body parsing
 app.use((error, req, res, next) => {
@@ -11063,7 +11080,7 @@ bot.onText(/\/users/, async (msg) => {
  * - timestamp: ISO timestamp
  * - media_*: File attachments (images/videos, max 20MB total)
  */
-app.post('/api/feedback/submit', async (req, res) => {
+app.post('/api/feedback/submit', upload.any(), async (req, res) => {
     try {
         // Check if MongoDB is available
         if (!process.env.MONGODB_URI) {
