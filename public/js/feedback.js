@@ -384,12 +384,23 @@ class FeedbackSystem {
                 try {
                     errorText = await response.text();
                     console.error('Server error response:', errorText);
+                    // Try to parse JSON error response for better messages
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        if (errorJson.error) {
+                            throw new Error(errorJson.error);
+                        }
+                    } catch (parseErr) {
+                        // Not JSON, continue with status code handling
+                    }
                 } catch (e) {
                     console.error('Could not read error response:', e);
                 }
                 
                 if (response.status === 400) {
                     throw new Error('Invalid input. Please check all fields and try again.');
+                } else if (response.status === 503) {
+                    throw new Error('Feedback service temporarily unavailable. Please try again later.');
                 } else if (response.status === 500) {
                     throw new Error('Server error. Please try again later.');
                 } else {
