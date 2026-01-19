@@ -359,22 +359,57 @@ class FeedbackSystem {
 
             console.log('Submitting feedback:', { type: this.selectedType, email: emailInput.value.trim().substring(0, 10) + '...', messageLength: messageInput.value.length });
 
-            // Send feedback to backend
+            // Send feedback to backend with proper error handling
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            
             const response = await fetch('/api/feedback/submit', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                signal: controller.signal
+            }).catch(err => {
+                clearTimeout(timeoutId);
+                if (err.name === 'AbortError') {
+                    console.error('Request timeout after 30 seconds');
+                    throw new Error('Request timeout. Please check your connection and try again.');
+                }
+                throw err;
             });
 
+            clearTimeout(timeoutId);
             console.log('Response:', response.status);
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server error:', errorText);
-                throw new Error(`HTTP Error: ${response.status}`);
+                let errorText = '';
+                try {
+                    errorText = await response.text();
+                    console.error('Server error response:', errorText);
+                } catch (e) {
+                    console.error('Could not read error response:', e);
+                }
+                
+                if (response.status === 400) {
+                    throw new Error('Invalid input. Please check all fields and try again.');
+                } else if (response.status === 500) {
+                    throw new Error('Server error. Please try again later.');
+                } else {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
             }
 
-            const result = await response.json();
-            console.log('Feedback submitted successfully');
+            let result;
+            try {
+                result = await response.json();
+                console.log('Feedback submitted successfully:', result);
+            } catch (parseErr) {
+                console.error('Failed to parse response:', parseErr);
+                throw new Error('Invalid server response format');
+            }
+            
+            if (!result.success && !result.message) {
+                console.error('Response did not indicate success:', result);
+                throw new Error('Feedback submission was not successful');
+            }
 
             // Show success message
             this.showSuccess(this.translate('feedbackSent'));
@@ -388,9 +423,23 @@ class FeedbackSystem {
             }, 2000);
 
         } catch (error) {
-            console.error('Submission error:', error.message);
-            const errorMsg = this.translate('submissionFailed') + ': ' + error.message;
+            console.error('Submission error:', error.message, error.stack);
+            let errorMsg = this.translate('submissionFailed');
+            
+            // Provide more specific error messages
+            if (error.message.includes('timeout')) {
+                errorMsg = 'Request timed out. Please check your connection and try again.';
+            } else if (error.message.includes('Invalid input')) {
+                errorMsg = 'Please check all required fields and try again.';
+            } else if (error.message.includes('Server error')) {
+                errorMsg = 'Server error. Please try again later.';
+            } else if (error.message) {
+                errorMsg = this.translate('submissionFailed') + ': ' + error.message;
+            }
+            
             this.showError(errorMsg);
+            
+            // Reset button state
             submitBtn.disabled = false;
             submitBtn.classList.remove('loading');
             submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i><span>' + this.translate('sendFeedback') + '</span>';
@@ -432,14 +481,23 @@ class FeedbackSystem {
 
         errorEl.textContent = message;
         errorEl.classList.add('show');
+        errorEl.style.display = 'block';
         
         // Scroll to error message
-        errorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        try {
+            errorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } catch (e) {
+            console.warn('Could not scroll to error message:', e);
+            window.scrollTo(0, 0);
+        }
 
-        // Auto-hide after 6 seconds
+        // Auto-hide after 8 seconds
         setTimeout(() => {
-            errorEl.classList.remove('show');
-        }, 6000);
+            if (errorEl.classList.contains('show')) {
+                errorEl.classList.remove('show');
+                errorEl.style.display = 'none';
+            }
+        }, 8000);
     }
 
     /**
@@ -449,6 +507,7 @@ class FeedbackSystem {
         const errorEl = document.getElementById('errorMessage');
         if (errorEl) {
             errorEl.classList.remove('show');
+            errorEl.style.display = 'none';
         }
     }
 
