@@ -1224,7 +1224,7 @@ const userActivityLogSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now, index: true },
     actionType: { 
         type: String, 
-        enum: ['message', 'button_click', 'command', 'api_call', 'order_created', 'order_completed', 'login'],
+        enum: ['message', 'button_click', 'command', 'api_call', 'order_created', 'order_completed', 'order_create', 'sell_order_create', 'payment_success', 'daily_checkin', 'mission_complete', 'login'],
         required: true,
         index: true
     },
