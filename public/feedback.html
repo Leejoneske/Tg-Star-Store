@@ -34,6 +34,10 @@
             margin: 0; 
             padding: 0; 
         }
+        /* Hide bottom nav on feedback page */
+        #bottomnav-container {
+            display: none !important;
+        }
         .app-container { 
             max-width: 600px; 
             margin: 0 auto; 
@@ -48,6 +52,11 @@
             margin: 0; 
             box-shadow: none; 
             border-radius: 0; 
+        }
+        /* RTL-aware back button positioning */
+        html[dir="rtl"] #exitButton {
+            right: auto !important;
+            left: 16px !important;
         }
         .clean-card { 
             background: white; 
