@@ -2913,17 +2913,13 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
         try {
             const user = await User.findOne({ id: userId });
             const usernameChangeNotification = 
-                `🔄 <b>Username Change Detected</b>\n\n` +
-                `👤 User ID: <code>${userId}</code>\n` +
-                `📝 Old Username: @${oldUsername}\n` +
-                `✨ New Username: @${newUsername}\n` +
-                `⏰ Changed At: ${new Date().toLocaleString()}\n` +
-                `📍 Location: ${user?.lastLocation?.city || 'Unknown'}, ${user?.lastLocation?.country || 'Unknown'}\n` +
-                `🌐 IP: ${user?.lastLocation?.ip || 'Unknown'}`;
+                `Username Change: ${oldUsername} -> ${newUsername}\n` +
+                `User: ${userId}\n` +
+                `Location: ${user?.lastLocation?.city || 'Unknown'}, ${user?.lastLocation?.country || 'Unknown'}`;
             
             for (const adminId of adminIds) {
                 try {
-                    await bot.sendMessage(adminId, usernameChangeNotification, { parse_mode: 'HTML' });
+                    await bot.sendMessage(adminId, usernameChangeNotification);
                 } catch (notifyErr) {
                     console.error(`Failed to notify admin ${adminId} about username change:`, notifyErr.message);
                 }
@@ -3249,16 +3245,13 @@ async function syncUserData(telegramId, username, interactionType = 'unknown', r
                 // Notify admins of username change
                 try {
                     const usernameChangeNotification = 
-                        `🔄 <b>Username Change Detected</b>\n\n` +
-                        `👤 User ID: <code>${telegramId}</code>\n` +
-                        `📝 Old Username: @${oldUsername}\n` +
-                        `✨ New Username: @${username}\n` +
-                        `⏰ Changed At: ${new Date().toLocaleString()}\n` +
-                        `📍 Location: ${user?.lastLocation?.city || 'Unknown'}, ${user?.lastLocation?.country || 'Unknown'}`;
+                        `Username Change: ${oldUsername} -> ${username}\n` +
+                        `User: ${telegramId}\n` +
+                        `Location: ${user?.lastLocation?.city || 'Unknown'}, ${user?.lastLocation?.country || 'Unknown'}`;
                     
                     for (const adminId of adminIds) {
                         try {
-                            await bot.sendMessage(adminId, usernameChangeNotification, { parse_mode: 'HTML' });
+                            await bot.sendMessage(adminId, usernameChangeNotification);
                         } catch (notifyErr) {
                             // Silently fail individual admin notifications
                         }
@@ -8622,10 +8615,29 @@ app.post('/api/active-ping', async (req, res) => {
         const authUserId = req.user?.id;
         const headerId = (req.headers['x-telegram-id'] || '').toString().trim();
         const userId = authUserId || (headerId || null);
+        const username = req.body?.username || '';
+        
         if (!userId) return res.status(400).json({ error: 'Missing user id' });
+        
+        // Detect username change if provided
+        if (username) {
+            try {
+                const usernameChange = await detectUsernameChange(userId, username, 'page_visit');
+                if (usernameChange) {
+                    // Notify admins and user of username change
+                    await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
+                    try {
+                        await bot.sendMessage(userId, `✓ Username changed: @${usernameChange.oldUsername} → @${usernameChange.newUsername}`);
+                    } catch (_) {}
+                }
+            } catch (usernameErr) {
+                console.error('Error detecting username in active-ping:', usernameErr.message);
+            }
+        }
+        
         await User.updateOne(
             { id: userId },
-            { $set: { lastActive: new Date() }, $setOnInsert: { username: '', createdAt: new Date() } },
+            { $set: { lastActive: new Date(), username: username || undefined }, $setOnInsert: { createdAt: new Date() } },
             { upsert: true }
         );
         return res.json({ success: true });
@@ -8642,6 +8654,7 @@ app.post('/api/active-ping', async (req, res) => {
 app.post('/api/track-location', async (req, res) => {
     try {
         const userId = req.body?.userId || req.headers['x-telegram-id'];
+        const username = req.body?.username || '';
         if (!userId) {
             return res.status(400).json({ error: 'Missing userId' });
         }
@@ -8649,6 +8662,22 @@ app.post('/api/track-location', async (req, res) => {
         // Extract IP from request
         const ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
             .toString().split(',')[0].trim();
+
+        // Detect username change if provided
+        if (username) {
+            try {
+                const usernameChange = await detectUsernameChange(userId, username, 'page_visit');
+                if (usernameChange) {
+                    // Notify admins and user of username change
+                    await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
+                    try {
+                        await bot.sendMessage(userId, `✓ Username changed: @${usernameChange.oldUsername} → @${usernameChange.newUsername}`);
+                    } catch (_) {}
+                }
+            } catch (usernameErr) {
+                console.error('Error detecting username in track-location:', usernameErr.message);
+            }
+        }
 
         // Get geolocation from IP
         let geo = null;
