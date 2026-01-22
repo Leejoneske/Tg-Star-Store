@@ -2091,10 +2091,15 @@ function initNotificationSystem() {
             const headers = { 'Content-Type': 'application/json' };
             const hasTG = !!(window.Telegram?.WebApp?.initData);
             const hasUser = !!window.currentUserId;
+            const username = window.Telegram?.WebApp?.initDataUnsafe?.user?.username || '';
             if (hasTG) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
             if (hasUser) headers['x-telegram-id'] = String(window.currentUserId);
             if (hasTG || hasUser) {
-                fetch('/api/active-ping', { method: 'POST', headers })
+                fetch('/api/active-ping', { 
+                    method: 'POST', 
+                    headers,
+                    body: JSON.stringify({ username })
+                })
                     .catch(err => {
                         // Silently ignore active-ping errors in preview/development
                         console.debug('Active ping failed (expected in preview):', err.message);
@@ -2177,13 +2182,14 @@ function initSectionToggle() {
 async function captureUserLocationOnPageLoad() {
     try {
         const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        const username = window.Telegram?.WebApp?.initDataUnsafe?.user?.username || '';
         if (!userId) return; // Only capture if we have a user ID
         
         // Send location capture request to server (non-blocking, fire and forget)
         fetch('/api/track-location', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: userId.toString() })
+            body: JSON.stringify({ userId: userId.toString(), username })
         }).catch(() => {}); // Silently fail if request fails
     } catch (error) {
         // Silently fail - don't disrupt user experience
