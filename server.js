@@ -2936,6 +2936,18 @@ function replaceUsernameInText(text, oldUsername, newUsername) {
     return text;
 }
 
+// Helper function to format location for display
+function formatLocation(location) {
+    if (!location) return 'Location unknown';
+    const city = location.city && location.city !== 'Unknown' ? location.city : null;
+    const country = location.country && location.country !== 'Unknown' ? location.country : null;
+    
+    if (city && country) return `${city}, ${country}`;
+    if (country) return country;
+    if (city) return city;
+    return 'Location unknown';
+}
+
 // Centralized username update processor - updates all affected messages and database
 async function processUsernameUpdate(userId, oldUsername, newUsername) {
     try {
@@ -2951,7 +2963,7 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
             const usernameChangeNotification = 
                 `Username ${changeType}: @${oldUsername} -> ${newUsername ? `@${newUsername}` : '(no username)'}\n` +
                 `User: ${userId}\n` +
-                `Location: ${user?.lastLocation?.city || 'Unknown'}, ${user?.lastLocation?.country || 'Unknown'}`;
+                `Location: ${formatLocation(user?.lastLocation)}`;
             
             for (const adminId of adminIds) {
                 try {
@@ -3290,7 +3302,7 @@ async function syncUserData(telegramId, username, interactionType = 'unknown', r
                     const usernameChangeNotification = 
                         `Username Change: @${oldUsername} -> @${username}\n` +
                         `User: ${telegramId}\n` +
-                        `Location: ${user?.lastLocation?.city || 'Unknown'}, ${user?.lastLocation?.country || 'Unknown'}`;
+                        `Location: ${formatLocation(user?.lastLocation)}`;
                     
                     for (const adminId of adminIds) {
                         try {
