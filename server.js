@@ -2855,6 +2855,7 @@ async function detectUsernameChange(userId, currentUsername, source = 'api') {
         
         // Compare usernames
         if (storedUser.username && storedUser.username !== currentUsername && currentUsername) {
+            // Username changed from stored value to new value
             const oldUsername = storedUser.username;
             
             // Update the stored username and track change
@@ -2881,6 +2882,26 @@ async function detectUsernameChange(userId, currentUsername, source = 'api') {
             
             await storedUser.save();
             return { oldUsername, newUsername: currentUsername };
+        } else if (storedUser.username && !currentUsername) {
+            // Username was removed (user deleted their username)
+            const oldUsername = storedUser.username;
+            storedUser.username = null;
+            
+            // Track removal in history
+            if (!storedUser.usernameHistory) storedUser.usernameHistory = [];
+            storedUser.usernameHistory.push({
+                username: null,
+                changedFrom: oldUsername,
+                timestamp: new Date(),
+                source: source
+            });
+            
+            if (storedUser.usernameHistory.length > 50) {
+                storedUser.usernameHistory = storedUser.usernameHistory.slice(-50);
+            }
+            
+            await storedUser.save();
+            return { oldUsername, newUsername: null }; // Return removal as a change
         } else if (!storedUser.username && currentUsername) {
             // First time we capture the username
             storedUser.username = currentUsername;
@@ -2902,18 +2923,33 @@ async function detectUsernameChange(userId, currentUsername, source = 'api') {
     }
 }
 
+// Helper function to replace username in text, handling both old and new usernames
+function replaceUsernameInText(text, oldUsername, newUsername) {
+    if (!text || !oldUsername) return text;
+    
+    const replacement = newUsername ? `@${newUsername}` : '(username removed)';
+    const textReplacement = newUsername || '(removed)';
+    
+    text = text.replace(new RegExp(`@${oldUsername}`, 'g'), replacement);
+    text = text.replace(new RegExp(oldUsername, 'g'), textReplacement);
+    
+    return text;
+}
+
 // Centralized username update processor - updates all affected messages and database
 async function processUsernameUpdate(userId, oldUsername, newUsername) {
     try {
-        if (!oldUsername || !newUsername || oldUsername === newUsername) {
+        // Allow null newUsername (username removal), but require oldUsername and non-identical
+        if (!oldUsername || oldUsername === newUsername) {
             return; // No change needed
         }
 
         // Notify admins of username change
         try {
             const user = await User.findOne({ id: userId });
+            const changeType = newUsername ? 'Changed' : 'Removed';
             const usernameChangeNotification = 
-                `Username Change: ${oldUsername} -> ${newUsername}\n` +
+                `Username ${changeType}: @${oldUsername} -> ${newUsername ? `@${newUsername}` : '(no username)'}\n` +
                 `User: ${userId}\n` +
                 `Location: ${user?.lastLocation?.city || 'Unknown'}, ${user?.lastLocation?.country || 'Unknown'}`;
             
@@ -2926,6 +2962,16 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
             }
         } catch (notifyError) {
             console.warn('Error sending admin notification for username change:', notifyError.message);
+        }
+
+        // Notify user of username change
+        try {
+            const changeMsg = newUsername 
+                ? `✓ Username changed: @${oldUsername} → @${newUsername}`
+                : `✓ Username removed: @${oldUsername}`;
+            await bot.sendMessage(userId, changeMsg);
+        } catch (userNotifyErr) {
+            console.error(`Failed to notify user ${userId} about username change:`, userNotifyErr.message);
         }
 
         // Update User record
@@ -2955,8 +3001,7 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
                 await Promise.all(order.adminMessages.map(async (m) => {
                     let text = m.originalText || '';
                     if (text) {
-                        text = text.replace(new RegExp(`@${oldUsername}`, 'g'), `@${newUsername}`);
-                        text = text.replace(new RegExp(oldUsername, 'g'), newUsername);
+                        text = replaceUsernameInText(text, oldUsername, newUsername);
                     }
                     m.originalText = text;
                     
@@ -2986,8 +3031,7 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
                 await Promise.all(order.adminMessages.map(async (m) => {
                     let text = m.originalText || '';
                     if (text) {
-                        text = text.replace(new RegExp(`@${oldUsername}`, 'g'), `@${newUsername}`);
-                        text = text.replace(new RegExp(oldUsername, 'g'), newUsername);
+                        text = replaceUsernameInText(text, oldUsername, newUsername);
                     }
                     m.originalText = text;
                     
@@ -3016,8 +3060,7 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
                 await Promise.all(wd.adminMessages.map(async (m) => {
                     let text = m.originalText || '';
                     if (text) {
-                        text = text.replace(new RegExp(`@${oldUsername}`, 'g'), `@${newUsername}`);
-                        text = text.replace(new RegExp(oldUsername, 'g'), newUsername);
+                        text = replaceUsernameInText(text, oldUsername, newUsername);
                     }
                     m.originalText = text;
                     
@@ -3245,7 +3288,7 @@ async function syncUserData(telegramId, username, interactionType = 'unknown', r
                 // Notify admins of username change
                 try {
                     const usernameChangeNotification = 
-                        `Username Change: ${oldUsername} -> ${username}\n` +
+                        `Username Change: @${oldUsername} -> @${username}\n` +
                         `User: ${telegramId}\n` +
                         `Location: ${user?.lastLocation?.city || 'Unknown'}, ${user?.lastLocation?.country || 'Unknown'}`;
                     
@@ -4916,9 +4959,6 @@ bot.on('message', async (msg) => {
         const usernameChange = await detectUsernameChange(userId, username, 'login');
         if (usernameChange) {
             await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
-            try {
-                await bot.sendMessage(userId, `✅ Username change detected and updated: @${usernameChange.oldUsername} → @${usernameChange.newUsername}`);
-            } catch (_) {}
         }
     }
 
@@ -7349,9 +7389,6 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
             const usernameChange = await detectUsernameChange(userId, username, 'telegram');
             if (usernameChange) {
                 await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
-                try {
-                    await bot.sendMessage(userId, `✅ Username automatically updated: @${usernameChange.oldUsername} → @${usernameChange.newUsername}`);
-                } catch (_) {}
             }
         }
 
@@ -8624,11 +8661,7 @@ app.post('/api/active-ping', async (req, res) => {
             try {
                 const usernameChange = await detectUsernameChange(userId, username, 'page_visit');
                 if (usernameChange) {
-                    // Notify admins and user of username change
                     await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
-                    try {
-                        await bot.sendMessage(userId, `✓ Username changed: @${usernameChange.oldUsername} → @${usernameChange.newUsername}`);
-                    } catch (_) {}
                 }
             } catch (usernameErr) {
                 console.error('Error detecting username in active-ping:', usernameErr.message);
@@ -8668,11 +8701,7 @@ app.post('/api/track-location', async (req, res) => {
             try {
                 const usernameChange = await detectUsernameChange(userId, username, 'page_visit');
                 if (usernameChange) {
-                    // Notify admins and user of username change
                     await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
-                    try {
-                        await bot.sendMessage(userId, `✓ Username changed: @${usernameChange.oldUsername} → @${usernameChange.newUsername}`);
-                    } catch (_) {}
                 }
             } catch (usernameErr) {
                 console.error('Error detecting username in track-location:', usernameErr.message);
