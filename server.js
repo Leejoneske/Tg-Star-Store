@@ -1179,6 +1179,18 @@ const userSchema = new mongoose.Schema({
     username: { type: String, index: true },
     createdAt: { type: Date, default: Date.now, index: true },
     lastActive: { type: Date, default: Date.now, index: true },
+    // Username tracking - similar to location/device tracking
+    lastUsernameChange: {
+        oldUsername: String,
+        newUsername: String,
+        timestamp: { type: Date, default: Date.now }
+    },
+    usernameHistory: [{
+        username: String,
+        changedFrom: String,
+        timestamp: { type: Date, default: Date.now },
+        source: { type: String, enum: ['api', 'telegram', 'login', 'page_visit'], default: 'api' }
+    }],
     // Location tracking
     lastLocation: {
         country: String,
@@ -2813,7 +2825,7 @@ async function getUserDisplayName(telegramId) {
 }
 
 // Check and detect username changes for a user
-async function detectUsernameChange(userId, currentUsername) {
+async function detectUsernameChange(userId, currentUsername, source = 'api') {
     try {
         // Use findOneAndUpdate with upsert to avoid race conditions
         const storedUser = await User.findOne({ id: userId });
@@ -2823,7 +2835,12 @@ async function detectUsernameChange(userId, currentUsername) {
             try {
                 await User.findOneAndUpdate(
                     { id: userId },
-                    { $set: { id: userId, username: currentUsername, lastActive: new Date() } },
+                    { $set: { 
+                        id: userId, 
+                        username: currentUsername, 
+                        lastActive: new Date(),
+                        usernameHistory: currentUsername ? [{ username: currentUsername, changedFrom: null, timestamp: new Date(), source: source }] : []
+                    } },
                     { upsert: true, new: false }
                 );
             } catch (e) {
@@ -2837,15 +2854,43 @@ async function detectUsernameChange(userId, currentUsername) {
         }
         
         // Compare usernames
-        if (storedUser.username && storedUser.username !== currentUsername) {
+        if (storedUser.username && storedUser.username !== currentUsername && currentUsername) {
             const oldUsername = storedUser.username;
-            // Update the stored username
+            
+            // Update the stored username and track change
             storedUser.username = currentUsername;
+            storedUser.lastUsernameChange = {
+                oldUsername,
+                newUsername: currentUsername,
+                timestamp: new Date()
+            };
+            
+            // Add to username history
+            if (!storedUser.usernameHistory) storedUser.usernameHistory = [];
+            storedUser.usernameHistory.push({
+                username: currentUsername,
+                changedFrom: oldUsername,
+                timestamp: new Date(),
+                source: source
+            });
+            
+            // Keep only last 50 username changes
+            if (storedUser.usernameHistory.length > 50) {
+                storedUser.usernameHistory = storedUser.usernameHistory.slice(-50);
+            }
+            
             await storedUser.save();
             return { oldUsername, newUsername: currentUsername };
         } else if (!storedUser.username && currentUsername) {
             // First time we capture the username
             storedUser.username = currentUsername;
+            if (!storedUser.usernameHistory) storedUser.usernameHistory = [];
+            storedUser.usernameHistory.push({
+                username: currentUsername,
+                changedFrom: null,
+                timestamp: new Date(),
+                source: source
+            });
             await storedUser.save();
             return null;
         }
@@ -2862,6 +2907,29 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
     try {
         if (!oldUsername || !newUsername || oldUsername === newUsername) {
             return; // No change needed
+        }
+
+        // Notify admins of username change
+        try {
+            const user = await User.findOne({ id: userId });
+            const usernameChangeNotification = 
+                `🔄 <b>Username Change Detected</b>\n\n` +
+                `👤 User ID: <code>${userId}</code>\n` +
+                `📝 Old Username: @${oldUsername}\n` +
+                `✨ New Username: @${newUsername}\n` +
+                `⏰ Changed At: ${new Date().toLocaleString()}\n` +
+                `📍 Location: ${user?.lastLocation?.city || 'Unknown'}, ${user?.lastLocation?.country || 'Unknown'}\n` +
+                `🌐 IP: ${user?.lastLocation?.ip || 'Unknown'}`;
+            
+            for (const adminId of adminIds) {
+                try {
+                    await bot.sendMessage(adminId, usernameChangeNotification, { parse_mode: 'HTML' });
+                } catch (notifyErr) {
+                    console.error(`Failed to notify admin ${adminId} about username change:`, notifyErr.message);
+                }
+            }
+        } catch (notifyError) {
+            console.warn('Error sending admin notification for username change:', notifyError.message);
         }
 
         // Update User record
@@ -3152,11 +3220,50 @@ async function syncUserData(telegramId, username, interactionType = 'unknown', r
             // User exists - update if needed
             let hasChanges = false;
             
-            // 2. CHECK/UPDATE USERNAME
+            // 2. CHECK/UPDATE USERNAME - More accurate tracking
             if (username && user.username !== username) {
+                const oldUsername = user.username;
                 user.username = username;
+                user.lastUsernameChange = {
+                    oldUsername,
+                    newUsername: username,
+                    timestamp: new Date()
+                };
+                
+                // Track username history
+                if (!user.usernameHistory) user.usernameHistory = [];
+                user.usernameHistory.push({
+                    username: username,
+                    changedFrom: oldUsername,
+                    timestamp: new Date(),
+                    source: 'api'
+                });
+                
+                if (user.usernameHistory.length > 50) {
+                    user.usernameHistory = user.usernameHistory.slice(-50);
+                }
+                
                 hasChanges = true;
                 console.log(`[SYNC] Username updated: ${telegramId} -> @${username}`);
+                
+                // Notify admins of username change
+                try {
+                    const usernameChangeNotification = 
+                        `🔄 <b>Username Change Detected</b>\n\n` +
+                        `👤 User ID: <code>${telegramId}</code>\n` +
+                        `📝 Old Username: @${oldUsername}\n` +
+                        `✨ New Username: @${username}\n` +
+                        `⏰ Changed At: ${new Date().toLocaleString()}\n` +
+                        `📍 Location: ${user?.lastLocation?.city || 'Unknown'}, ${user?.lastLocation?.country || 'Unknown'}`;
+                    
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, usernameChangeNotification, { parse_mode: 'HTML' });
+                        } catch (notifyErr) {
+                            // Silently fail individual admin notifications
+                        }
+                    }
+                } catch (_) {}
             }
             
             // 3. UPDATE LAST ACTIVE
@@ -3836,7 +3943,7 @@ bot.on('callback_query', async (query) => {
 
         // Auto-detect and update username in real-time on ANY button interaction
         if (username) {
-            const usernameChange = await detectUsernameChange(userId, username);
+            const usernameChange = await detectUsernameChange(userId, username, 'telegram');
             if (usernameChange) {
                 await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
             }
@@ -4813,7 +4920,7 @@ bot.on('message', async (msg) => {
 
     // Auto-detect and update username in real-time on ANY message
     if (username) {
-        const usernameChange = await detectUsernameChange(userId, username);
+        const usernameChange = await detectUsernameChange(userId, username, 'login');
         if (usernameChange) {
             await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
             try {
@@ -7246,7 +7353,7 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
 
         // Auto-detect and immediately update username in real-time
         if (username) {
-            const usernameChange = await detectUsernameChange(userId, username);
+            const usernameChange = await detectUsernameChange(userId, username, 'telegram');
             if (usernameChange) {
                 await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
                 try {
@@ -9785,7 +9892,7 @@ bot.on('message', async (msg) => {
 
     // Auto-detect and update username in real-time on ANY message
     if (username) {
-        const usernameChange = await detectUsernameChange(userId, username);
+        const usernameChange = await detectUsernameChange(userId, username, 'telegram');
         if (usernameChange) {
             await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
         }
