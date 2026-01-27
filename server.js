@@ -2995,6 +2995,7 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
         const sellOrders = await SellOrder.find({ username: oldUsername, telegramId: userId });
         for (const order of sellOrders) {
             order.username = newUsername;
+            order.status = (order.status || 'pending').toLowerCase(); // Normalize status to lowercase
             
             // Edit user's original order message if tracked
             if (order.userMessageId) {
@@ -3037,6 +3038,7 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
         const buyOrders = await BuyOrder.find({ username: oldUsername, telegramId: userId });
         for (const order of buyOrders) {
             order.username = newUsername;
+            order.status = (order.status || 'pending').toLowerCase(); // Normalize status to lowercase
             
             // Edit all admin messages for this order
             if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
