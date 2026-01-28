@@ -9033,7 +9033,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         
         // Transactions combined
 
-        // Generate professional CSV content
+        // Generate professional CSV with enhanced formatting for Excel/Sheets
         let csv = '';
         
         try {
@@ -9051,50 +9051,73 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             
             console.log('Transaction counts:', { totalTransactions, completedCount, processingCount, declinedCount });
             
-            // Professional statement-style header (like bank statements)
-            csv = `STARSTORE TRANSACTION STATEMENT\n`;
+            // Professional statement-style header with visual separation
+            csv = `═══════════════════════════════════════════════════════════════\n`;
+            csv += `STARSTORE TRANSACTION STATEMENT\n`;
+            csv += `═══════════════════════════════════════════════════════════════\n`;
             csv += `\n`;
+            csv += `ACCOUNT INFORMATION\n`;
+            csv += `───────────────────────────────────────────────────────────────\n`;
             csv += `Account Holder,${userInfo.username ? '@' + userInfo.username : 'Unknown'}\n`;
             csv += `Account ID,${userId}\n`;
             csv += `Statement Date,${formattedDate}\n`;
             csv += `Generated Time,${formattedTime} UTC\n`;
-            csv += `Report Period,All Transactions\n`;
             csv += `\n`;
-            csv += `TRANSACTION SUMMARY\n`;
-            csv += `Total Transactions,${totalTransactions}\n`;
-            csv += `Completed,${completedCount}\n`;
-            csv += `Processing,${processingCount}\n`;
-            csv += `Declined,${declinedCount}\n`;
-            csv += `Total Stars Traded,${totalStarsTraded.toFixed(2)}\n`;
-            csv += `Total USDT Value,${totalUsdtValue.toFixed(2)}\n`;
+            csv += `SUMMARY OVERVIEW\n`;
+            csv += `───────────────────────────────────────────────────────────────\n`;
+            csv += `Description,Count,Amount (USDT)\n`;
+            csv += `Total Transactions,${totalTransactions},${totalUsdtValue.toFixed(2)}\n`;
+            csv += `Completed Orders,${completedCount},-\n`;
+            csv += `Processing Orders,${processingCount},-\n`;
+            csv += `Declined Orders,${declinedCount},-\n`;
+            csv += `Total Stars Traded,-,${totalStarsTraded.toFixed(2)}\n`;
             csv += `\n`;
             csv += `TRANSACTION DETAILS\n`;
-            csv += `Date,Type,Stars,USDT Value,Status,Order ID\n`;
+            csv += `───────────────────────────────────────────────────────────────\n`;
+            csv += `Date & Time,Type,Stars Traded,Amount (USDT),Status,Reference ID\n`;
             
-            // Add transaction data in professional format
+            // Add transaction data with enhanced formatting
             if (transactions.length > 0) {
-                transactions.forEach(txn => {
+                transactions.forEach((txn, index) => {
                     try {
                         const dateStr = new Date(txn.date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
                         const timeStr = new Date(txn.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                         const typeDisplay = txn.type.replace(' Stars', '');
                         const statusDisplay = txn.status.charAt(0).toUpperCase() + txn.status.slice(1);
-                        csv += `${dateStr} ${timeStr},${typeDisplay},${txn.amount.toFixed(2)},${txn.usdtValue.toFixed(2)},${statusDisplay},${txn.id}\n`;
+                        
+                        // Right-align numbers for better readability
+                        const starsFormatted = txn.amount.toFixed(2).padStart(12);
+                        const usdtFormatted = txn.usdtValue.toFixed(2).padStart(12);
+                        
+                        csv += `${dateStr} ${timeStr},${typeDisplay},${starsFormatted},${usdtFormatted},${statusDisplay},${txn.id}\n`;
                     } catch (rowError) {
                         console.error('Error processing transaction row:', rowError.message);
                     }
                 });
             } else {
-                csv += `No transactions available for this account,,,,,\n`;
+                csv += `\n`;
+                csv += `No transactions available for this account\n`;
             }
             
             csv += `\n`;
-            csv += `End of Statement\n`;
-            csv += `For support, visit: https://starstore.site\n`;
+            csv += `═══════════════════════════════════════════════════════════════\n`;
+            csv += `TOTALS\n`;
+            csv += `═══════════════════════════════════════════════════════════════\n`;
+            csv += `Total Stars,${totalStarsTraded.toFixed(2)}\n`;
+            csv += `Total USDT Value,${totalUsdtValue.toFixed(2)}\n`;
+            csv += `Average Per Transaction,${(totalTransactions > 0 ? totalUsdtValue / totalTransactions : 0).toFixed(2)}\n`;
+            csv += `\n`;
+            csv += `═══════════════════════════════════════════════════════════════\n`;
+            csv += `FOOTER\n`;
+            csv += `═══════════════════════════════════════════════════════════════\n`;
+            csv += `This is an official StarStore transaction record.\n`;
+            csv += `For disputes or questions, contact support at https://starstore.site\n`;
+            csv += `Generated by StarStore - Your Trusted Telegram Stars Marketplace\n`;
+            csv += `Statement generated on: ${new Date().toISOString()}\n`;
             
         } catch (csvError) {
             console.error('Error generating CSV:', csvError.message);
-            csv = `STARSTORE TRANSACTION STATEMENT\nError generating report: ${csvError.message}`;
+            csv = `STARSTORE TRANSACTION STATEMENT\nError: Unable to generate report\nDetails: ${csvError.message}`;
         }
 
         // Send CSV file via Telegram bot when possible, otherwise provide direct download
@@ -9232,7 +9255,7 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
             .sort({ dateReferred: -1 })
             .lean();
         
-        // Generate professional CSV content
+        // Generate professional CSV with enhanced formatting
         const userInfo = req.user;
         const generationDate = new Date();
         const formattedDate = generationDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -9243,34 +9266,52 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
         const inactiveCount = referrals.filter(r => r.status !== 'active').length;
         const totalReferralValue = referrals.reduce((sum, r) => sum + (r.amount || 0), 0);
         
-        let csv = `STARSTORE REFERRAL EARNINGS STATEMENT\n`;
+        let csv = `═══════════════════════════════════════════════════════════════\n`;
+        csv += `STARSTORE REFERRAL EARNINGS STATEMENT\n`;
+        csv += `═══════════════════════════════════════════════════════════════\n`;
         csv += `\n`;
+        csv += `ACCOUNT INFORMATION\n`;
+        csv += `───────────────────────────────────────────────────────────────\n`;
         csv += `Account Holder,${userInfo.username ? '@' + userInfo.username : 'Unknown'}\n`;
         csv += `Account ID,${userId}\n`;
         csv += `Statement Date,${formattedDate}\n`;
         csv += `Generated Time,${formattedTime} UTC\n`;
-        csv += `Report Period,All Referrals\n`;
         csv += `\n`;
-        csv += `REFERRAL SUMMARY\n`;
-        csv += `Total Referrals,${totalReferrals}\n`;
-        csv += `Active Referrals,${activeCount}\n`;
-        csv += `Inactive Referrals,${inactiveCount}\n`;
-        csv += `Total Referral Earnings,${totalReferralValue.toFixed(2)} USDT\n`;
-        csv += `Average Per Referral,${(totalReferrals > 0 ? totalReferralValue / totalReferrals : 0).toFixed(2)} USDT\n`;
+        csv += `EARNINGS SUMMARY\n`;
+        csv += `───────────────────────────────────────────────────────────────\n`;
+        csv += `Description,Count,Earnings (USDT)\n`;
+        csv += `Total Referrals,${totalReferrals},${totalReferralValue.toFixed(2)}\n`;
+        csv += `Active Referrals,${activeCount},-\n`;
+        csv += `Inactive Referrals,${inactiveCount},-\n`;
+        csv += `Average Per Referral,-,${(totalReferrals > 0 ? totalReferralValue / totalReferrals : 0).toFixed(2)}\n`;
         csv += `\n`;
         csv += `REFERRAL DETAILS\n`;
-        csv += `Date,Referred User,Earnings (USDT),Status,User ID\n`;
+        csv += `───────────────────────────────────────────────────────────────\n`;
+        csv += `Date & Time,Referred User,Earnings (USDT),Status,User ID\n`;
         
-        referrals.forEach(ref => {
+        referrals.forEach((ref, index) => {
             const dateStr = new Date(ref.dateReferred).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
             const timeStr = new Date(ref.dateReferred).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
             const statusDisplay = ref.status.charAt(0).toUpperCase() + ref.status.slice(1);
-            csv += `${dateStr} ${timeStr},${ref.referredUsername || 'Unknown'},${(ref.amount || 0).toFixed(2)},${statusDisplay},${ref.referredUserId || 'Unknown'}\n`;
+            const earningsFormatted = (ref.amount || 0).toFixed(2).padStart(12);
+            csv += `${dateStr} ${timeStr},${ref.referredUsername || 'Unknown'},${earningsFormatted},${statusDisplay},${ref.referredUserId || 'Unknown'}\n`;
         });
 
         csv += `\n`;
-        csv += `End of Statement\n`;
-        csv += `For support, visit: https://starstore.site\n`;
+        csv += `═══════════════════════════════════════════════════════════════\n`;
+        csv += `TOTALS\n`;
+        csv += `═══════════════════════════════════════════════════════════════\n`;
+        csv += `Total Referrals,${totalReferrals}\n`;
+        csv += `Total Earnings,${totalReferralValue.toFixed(2)} USDT\n`;
+        csv += `Average Per Referral,${(totalReferrals > 0 ? totalReferralValue / totalReferrals : 0).toFixed(2)} USDT\n`;
+        csv += `\n`;
+        csv += `═══════════════════════════════════════════════════════════════\n`;
+        csv += `FOOTER\n`;
+        csv += `═══════════════════════════════════════════════════════════════\n`;
+        csv += `This is an official StarStore referral earnings record.\n`;
+        csv += `For disputes or questions, contact support at https://starstore.site\n`;
+        csv += `Generated by StarStore - Your Trusted Telegram Stars Marketplace\n`;
+        csv += `Statement generated on: ${new Date().toISOString()}\n`;
 
         // Send CSV file via Telegram bot
         const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
