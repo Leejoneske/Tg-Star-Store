@@ -526,7 +526,7 @@ app.get(['/ambasador', '/ambasador.html'], (req, res) => {
 });
 
 // Ensure directories with index.html return 200 (no 302/redirects)
-app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
+app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador', '/referral'], (req, res, next) => {
   try {
     const map = {
       '/': 'index.html',
@@ -538,7 +538,8 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/k
       '/blog': 'blog/index.html',
       '/knowledge-base': 'knowledge-base/index.html',
       '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
-      '/ambassador': 'ambassador/index.html'
+      '/ambassador': 'ambassador/index.html',
+      '/referral': 'referral.html'
     };
     const file = map[req.path];
     if (file) {
@@ -635,26 +636,6 @@ app.get('/admin', (req, res) => {
 	}
 });
 
-// Error page preview routes (for manual verification)
-app.get(['/400','/401','/403','/404','/500','/502','/503','/504'], (req, res) => {
-  try {
-    const code = parseInt(req.path.replace('/', ''), 10);
-    const allowed = new Set([400,401,403,404,500,502,503,504]);
-    if (!allowed.has(code)) {
-      const notFound = path.join(__dirname, 'public', 'errors', '404.html');
-      return res.status(404).sendFile(notFound, (err) => {
-        if (err) return res.status(404).send('Not found');
-      });
-    }
-    const abs = path.join(__dirname, 'public', 'errors', `${code}.html`);
-    return res.status(code).sendFile(abs, (err) => {
-      if (err) return res.status(code).send(String(code));
-    });
-  } catch (e) {
-    return res.status(500).send('');
-  }
-});
-
 // Catch-all 404 for non-API GET requests
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) {
@@ -666,16 +647,22 @@ app.use((req, res, next) => {
   return next();
 });
 
-// Error handler - JSON for APIs, HTML for pages
+// Global error handler - JSON for APIs, HTML for pages
 app.use((err, req, res, next) => {
   try { console.error('Unhandled error:', err); } catch (_) {}
   if (res.headersSent) return next(err);
+  
+  // API errors return JSON
   if (req.path && req.path.startsWith('/api/')) {
     return res.status(500).json({ error: 'Internal server error' });
   }
-  const abs = path.join(__dirname, 'public', '500.html');
-  return res.status(500).sendFile(abs, (sendErr) => {
-    if (sendErr) return res.status(500).send('Internal Server Error');
+  
+  // Serve appropriate error page
+  const statusCode = err.status || err.statusCode || 500;
+  const errorFile = path.join(__dirname, 'public', 'errors', `${statusCode}.html`);
+  return res.status(statusCode).sendFile(errorFile, (sendErr) => {
+    // Fallback if error page doesn't exist
+    if (sendErr) return res.status(statusCode).send(`Error ${statusCode}`);
   });
 });
 // Webhook setup (only when real bot is configured)
