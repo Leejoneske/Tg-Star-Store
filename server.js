@@ -8921,7 +8921,7 @@ app.get('/api/transactions/:userId', async (req, res) => {
 // Export transactions as CSV via Telegram
 app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
     try {
-        console.log('📊 CSV Export request for user:', req.user.id);
+        console.log('[CSV Export] Request initiated for user:', req.user.id);
         
         // Check if user authentication worked and extract user ID
         let userId = null;
@@ -8931,7 +8931,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         const buyOrdersCount = await BuyOrder.countDocuments({ telegramId: userId });
         const sellOrdersCount = await SellOrder.countDocuments({ telegramId: userId });
         } else {
-            console.log('❌ CSV Export: Authentication failed');
+            console.log('[CSV Export] Authentication failed');
             
             // Try to extract user ID from init data directly
             try {
@@ -8943,7 +8943,7 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
                     if (userParam) {
                         const user = JSON.parse(userParam);
                         userId = user.id?.toString();
-                        console.log('⚠️ Extracted user ID from init data:', userId);
+                        console.log('[CSV Export] Extracted user ID from init data:', userId);
                         // Create a minimal user object for CSV generation
                         req.user = { id: userId, username: user.username };
                     }
@@ -9033,50 +9033,68 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
         
         // Transactions combined
 
-        // Generate CSV content with header information
-        // Generating CSV content
+        // Generate professional CSV content
         let csv = '';
         
         try {
             const userInfo = req.user || {};
-            const generationDate = new Date().toLocaleString();
+            const generationDate = new Date();
+            const formattedDate = generationDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            const formattedTime = generationDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
             const totalTransactions = transactions.length;
             const completedCount = transactions.filter(t => t.status === 'completed').length;
             const processingCount = transactions.filter(t => t.status === 'processing').length;
             const declinedCount = transactions.filter(t => t.status === 'declined').length;
+            const totalStarsTraded = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalUsdtValue = transactions.reduce((sum, t) => sum + (t.usdtValue || 0), 0);
+            
             console.log('Transaction counts:', { totalTransactions, completedCount, processingCount, declinedCount });
             
-            // Build CSV header
-            csv = `# StarStore - Transaction History Export\n`;
-            csv += `# Generated on: ${generationDate}\n`;
-            csv += `# User ID: ${userId}\n`;
-            csv += `# Username: @${userInfo.username || 'Unknown'}\n`;
-            csv += `# Total Transactions: ${totalTransactions}\n`;
-            csv += `# Completed: ${completedCount} | Processing: ${processingCount} | Declined: ${declinedCount}\n`;
-            csv += `# Website: https://starstore.site\n`;
-            csv += `# Export Type: Transaction History\n`;
-            csv += `#\n`;
-            csv += `ID,Type,Amount (Stars),USDT Value,Status,Date,Details\n`;
+            // Professional statement-style header (like bank statements)
+            csv = `STARSTORE TRANSACTION STATEMENT\n`;
+            csv += `\n`;
+            csv += `Account Holder,${userInfo.username ? '@' + userInfo.username : 'Unknown'}\n`;
+            csv += `Account ID,${userId}\n`;
+            csv += `Statement Date,${formattedDate}\n`;
+            csv += `Generated Time,${formattedTime} UTC\n`;
+            csv += `Report Period,All Transactions\n`;
+            csv += `\n`;
+            csv += `TRANSACTION SUMMARY\n`;
+            csv += `Total Transactions,${totalTransactions}\n`;
+            csv += `Completed,${completedCount}\n`;
+            csv += `Processing,${processingCount}\n`;
+            csv += `Declined,${declinedCount}\n`;
+            csv += `Total Stars Traded,${totalStarsTraded.toFixed(2)}\n`;
+            csv += `Total USDT Value,${totalUsdtValue.toFixed(2)}\n`;
+            csv += `\n`;
+            csv += `TRANSACTION DETAILS\n`;
+            csv += `Date,Type,Stars,USDT Value,Status,Order ID\n`;
             
-            // Add transaction data
+            // Add transaction data in professional format
             if (transactions.length > 0) {
                 transactions.forEach(txn => {
                     try {
-                        const dateStr = new Date(txn.date).toISOString().split('T')[0];
-                        csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.usdtValue}","${txn.status}","${dateStr}","${txn.details}"\n`;
+                        const dateStr = new Date(txn.date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                        const timeStr = new Date(txn.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        const typeDisplay = txn.type.replace(' Stars', '');
+                        const statusDisplay = txn.status.charAt(0).toUpperCase() + txn.status.slice(1);
+                        csv += `${dateStr} ${timeStr},${typeDisplay},${txn.amount.toFixed(2)},${txn.usdtValue.toFixed(2)},${statusDisplay},${txn.id}\n`;
                     } catch (rowError) {
                         console.error('Error processing transaction row:', rowError.message);
-                        csv += `"Error","Error","0","0","error","${new Date().toISOString().split('T')[0]}","Error processing transaction"\n`;
                     }
                 });
             } else {
-                csv += `"No Data","No transactions found","0","0","none","${new Date().toISOString().split('T')[0]}","No transactions available for this user"\n`;
+                csv += `No transactions available for this account,,,,,\n`;
             }
             
-            // CSV generated successfully
+            csv += `\n`;
+            csv += `End of Statement\n`;
+            csv += `For support, visit: https://starstore.site\n`;
+            
         } catch (csvError) {
-            console.error('❌ Error generating CSV:', csvError.message);
-            csv = `# StarStore - Transaction History Export (Error)\n# Error: ${csvError.message}\nID,Type,Amount,Status,Date,Details\n"Error","Error","0","error","${new Date().toISOString().split('T')[0]}","${csvError.message}"`;
+            console.error('Error generating CSV:', csvError.message);
+            csv = `STARSTORE TRANSACTION STATEMENT\nError generating report: ${csvError.message}`;
         }
 
         // Send CSV file via Telegram bot when possible, otherwise provide direct download
@@ -9088,18 +9106,18 @@ app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
             try {
                 // Prefer Buffer with filename to avoid filesystem usage
                 await bot.sendDocument(userId, buffer, {
-                    caption: '📊 Your StarStore transaction history CSV'
+                    caption: 'Your StarStore transaction statement is ready for download.'
                 }, {
                     filename: filename,
                     contentType: 'text/csv'
                 });
-                console.log('✅ CSV sent via Telegram to user:', userId);
+                console.log('CSV sent via Telegram to user:', userId);
                 return res.json({ success: true, message: 'CSV file sent to your Telegram' });
             } catch (botError) {
                 const message = String(botError && botError.message || '');
                 const forbidden = (botError && botError.response && botError.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
                 if (forbidden) {
-                    console.warn('⚠️ Telegram sendDocument forbidden, falling back to direct download');
+                    console.warn('Telegram sendDocument forbidden, falling back to direct download');
                 } else {
                     console.error('Bot sendDocument failed, falling back to direct download:', botError.message);
                 }
@@ -9214,34 +9232,51 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
             .sort({ dateReferred: -1 })
             .lean();
         
-        // Generate CSV content with header information
+        // Generate professional CSV content
         const userInfo = req.user;
-        const generationDate = new Date().toLocaleString();
+        const generationDate = new Date();
+        const formattedDate = generationDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        const formattedTime = generationDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
         const totalReferrals = referrals.length;
         const activeCount = referrals.filter(r => r.status === 'active').length;
-        const processingCount = referrals.filter(r => r.status === 'processing').length;
+        const inactiveCount = referrals.filter(r => r.status !== 'active').length;
+        const totalReferralValue = referrals.reduce((sum, r) => sum + (r.amount || 0), 0);
         
-        let csv = `# StarStore - Referral History Export\n`;
-        csv += `# Generated on: ${generationDate}\n`;
-        csv += `# User ID: ${userId}\n`;
-        csv += `# Username: @${userInfo.username || 'Unknown'}\n`;
-        csv += `# Total Referrals: ${totalReferrals}\n`;
-        csv += `# Active: ${activeCount} | Processing: ${processingCount}\n`;
-        csv += `# Website: https://starstore.site\n`;
-        csv += `# Export Type: Referral History\n`;
-        csv += `#\n`;
-        csv += `ID,Referred User,Amount,Status,Date,Details\n`;
+        let csv = `STARSTORE REFERRAL EARNINGS STATEMENT\n`;
+        csv += `\n`;
+        csv += `Account Holder,${userInfo.username ? '@' + userInfo.username : 'Unknown'}\n`;
+        csv += `Account ID,${userId}\n`;
+        csv += `Statement Date,${formattedDate}\n`;
+        csv += `Generated Time,${formattedTime} UTC\n`;
+        csv += `Report Period,All Referrals\n`;
+        csv += `\n`;
+        csv += `REFERRAL SUMMARY\n`;
+        csv += `Total Referrals,${totalReferrals}\n`;
+        csv += `Active Referrals,${activeCount}\n`;
+        csv += `Inactive Referrals,${inactiveCount}\n`;
+        csv += `Total Referral Earnings,${totalReferralValue.toFixed(2)} USDT\n`;
+        csv += `Average Per Referral,${(totalReferrals > 0 ? totalReferralValue / totalReferrals : 0).toFixed(2)} USDT\n`;
+        csv += `\n`;
+        csv += `REFERRAL DETAILS\n`;
+        csv += `Date,Referred User,Earnings (USDT),Status,User ID\n`;
+        
         referrals.forEach(ref => {
-            const dateStr = new Date(ref.dateReferred).toISOString().split('T')[0];
-            csv += `"${ref.id}","${ref.referredUsername || 'Unknown'}","${ref.amount}","${ref.status}","${dateStr}","${ref.details || 'Referral bonus'}"\n`;
+            const dateStr = new Date(ref.dateReferred).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            const timeStr = new Date(ref.dateReferred).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            const statusDisplay = ref.status.charAt(0).toUpperCase() + ref.status.slice(1);
+            csv += `${dateStr} ${timeStr},${ref.referredUsername || 'Unknown'},${(ref.amount || 0).toFixed(2)},${statusDisplay},${ref.referredUserId || 'Unknown'}\n`;
         });
+
+        csv += `\n`;
+        csv += `End of Statement\n`;
+        csv += `For support, visit: https://starstore.site\n`;
 
         // Send CSV file via Telegram bot
         const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
         const buffer = Buffer.from(csv, 'utf8');
         
         // Try to send via Telegram first
-        
         try {
             // Create a readable stream from the buffer for better compatibility
             const stream = require('stream');
@@ -9251,7 +9286,7 @@ app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
             readable.path = filename; // Set filename for the stream
             
             await bot.sendDocument(userId, readable, {
-                caption: `👥 Your referral history (${referrals.length} referrals)\n\nGenerated on: ${new Date().toLocaleString()}`
+                caption: `Your referral earnings statement (${referrals.length} referrals)\n\nGenerated on: ${formattedDate}`
             });
         } catch (botError) {
             console.error('Bot sendDocument failed, providing direct download:', botError.message);
