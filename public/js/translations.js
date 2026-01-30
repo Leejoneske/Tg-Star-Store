@@ -518,7 +518,8 @@ const translations = {
         totalSummaryNoTon: "Total: {total} USDT for {qty} recipients (Unit: {unit} USDT)",
         
         // Dynamic content translations
-        generatingCsv: "Generating CSV...",
+        generatingCsv: "Generating PDF...",
+        generatingPdf: "Generating PDF...",
         previous: "Previous",
         next: "Next",
         ellipsis: "...",
@@ -1071,7 +1072,8 @@ const translations = {
         totalSummaryNoTon: "Итого: {total} USDT для {qty} получателей (За единицу: {unit} USDT)",
         
         // Dynamic content translations
-        generatingCsv: "Генерация CSV...",
+        generatingCsv: "Генерация PDF...",
+        generatingPdf: "Генерация PDF...",
         previous: "Предыдущий",
         next: "Следующий",
         ellipsis: "...",

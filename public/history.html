@@ -324,6 +324,24 @@
                     </svg>
                     <span data-translate="exportTransactions">Export Transactions</span>
                 </button>
+
+                <!-- Export Format Modal - PDF Only -->
+                <div id="exportFormatModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-end z-50" style="display: none;">
+                    <div class="w-full bg-white rounded-t-2xl p-6 space-y-4 animate-slide-up">
+                        <h3 class="text-lg font-bold text-gray-900">Download Statement</h3>
+                        <p class="text-sm text-gray-600">Your transactions will be exported as a professional PDF statement</p>
+                        <div class="flex flex-col gap-3">
+                            <button id="exportFormatPDF" class="export-format-btn w-full p-4 border-2 border-indigo-500 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                                <div class="text-3xl mb-2">📄</div>
+                                <div class="font-semibold text-gray-900">Download as PDF</div>
+                                <div class="text-xs text-gray-600">Professional banking statement</div>
+                            </button>
+                        </div>
+                        <button id="exportFormatCancel" class="w-full py-2 text-gray-700 font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             </div>
             
             <div id="referralsContent" class="tab-content">
@@ -367,6 +385,24 @@
                     </svg>
                     <span data-translate="exportReferrals">Export Referrals</span>
                 </button>
+
+                <!-- Referral Export Format Modal - PDF Only -->
+                <div id="exportFormatReferralsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-end z-50" style="display: none;">
+                    <div class="w-full bg-white rounded-t-2xl p-6 space-y-4 animate-slide-up">
+                        <h3 class="text-lg font-bold text-gray-900">Download Statement</h3>
+                        <p class="text-sm text-gray-600">Your referral earnings will be exported as a professional PDF statement</p>
+                        <div class="flex flex-col gap-3">
+                            <button id="exportFormatReferralsPDF" class="export-format-btn w-full p-4 border-2 border-indigo-500 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                                <div class="text-3xl mb-2">📄</div>
+                                <div class="font-semibold text-gray-900">Download as PDF</div>
+                                <div class="text-xs text-gray-600">Professional earnings statement</div>
+                            </button>
+                        </div>
+                        <button id="exportFormatReferralsCancel" class="w-full py-2 text-gray-700 font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1087,11 +1123,28 @@ function showReferralDetails(referral) {
 
 
 async function exportTransactions() {
+    // Show PDF download modal
+    const modal = document.getElementById('exportFormatModal');
+    modal.style.display = 'flex';
+    
+    // Cancel button
+    document.getElementById('exportFormatCancel').onclick = () => {
+        modal.style.display = 'none';
+    };
+    
+    // PDF export
+    document.getElementById('exportFormatPDF').onclick = async () => {
+        modal.style.display = 'none';
+        await doExportTransactions('pdf');
+    };
+}
+
+async function doExportTransactions(format) {
     try {
         // Show loading state
         const exportBtn = document.getElementById('exportTransactions');
         const originalText = exportBtn.innerHTML;
-        exportBtn.innerHTML = '<div class="spinner"></div> ' + (typeof TranslationUtils !== 'undefined' ? TranslationUtils.get('generatingCsv') : 'Generating CSV...');
+        exportBtn.innerHTML = '<div class="spinner"></div> Generating PDF...';
         exportBtn.disabled = true;
 
         const headers = {
@@ -1109,23 +1162,15 @@ async function exportTransactions() {
             if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null && telegramUserId !== 'undefined') {
                 headers['x-telegram-id'] = telegramUserId.toString();
                 console.log('Using x-telegram-id header from initDataUnsafe:', telegramUserId);
-            } else {
-                console.log('No valid authentication headers available - letting server extract from initData');
-                // Don't send invalid x-telegram-id, let server extract from initData
             }
         }
-        
-        console.log('Export headers:', headers);
-        console.log('User object:', user);
-        console.log('Telegram WebApp:', window.Telegram?.WebApp);
 
-        const response = await fetch(`${BASE_API_URL}/export-transactions`, {
+        const response = await fetch(`${BASE_API_URL}/api/export-transactions-pdf`, {
             method: 'POST',
             headers: headers
         });
 
         console.log('Export response status:', response.status);
-        console.log('Export response headers:', response.headers);
         const respContentType = response.headers.get('content-type') || '';
         
         if (!response.ok) {
@@ -1141,13 +1186,16 @@ async function exportTransactions() {
             throw new Error(`HTTP ${response.status}: ${errorMessage}`);
         }
         
-        // If server sent via Telegram, it returns JSON { success: true }
-        if (respContentType.includes('application/json')) {
+        // Handle PDF blob
+        let blob;
+        if (respContentType.includes('application/pdf')) {
+            blob = await response.blob();
+        } else if (respContentType.includes('application/json')) {
             const result = await response.json();
             if (result && result.success) {
                 Swal.fire({
                     title: TranslationUtils.get('success'),
-                    text: '📬 CSV file has been sent to your Telegram!',
+                    text: '📄 PDF has been sent to your Telegram!',
                     icon: 'success',
                     confirmButtonText: TranslationUtils.get('close'),
                     confirmButtonColor: '#4f46e5'
@@ -1155,52 +1203,22 @@ async function exportTransactions() {
                 return;
             }
             throw new Error(result && result.error || 'Export failed');
-        }
-
-        // Prefer blob downloads for better compatibility
-        console.log('Handling response as CSV download...');
-        let blob;
-        const contentType = respContentType;
-        if (contentType.includes('text/csv')) {
-            blob = await response.blob();
         } else {
-            const csvText = await response.text();
-            // If server accidentally returned JSON, bubble it as error
-            if (csvText.trim().startsWith('{') || csvText.trim().startsWith('[')) {
-                try {
-                    const errorData = JSON.parse(csvText);
-                    throw new Error(errorData.error || 'Export failed');
-                } catch (_) {
-                    // fall through to treat as CSV
-                }
-            }
-            blob = new Blob([csvText], { type: 'text/csv; charset=utf-8' });
+            throw new Error('Unexpected response format');
         }
+        
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `transactions_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.download = `transactions_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(() => window.URL.revokeObjectURL(url), 1000);
         
-        // Fallback for strict webviews: open link using Telegram API
-        setTimeout(() => {
-            try {
-                const init = window.Telegram?.WebApp?.initData || '';
-                const fallbackUrl = `${BASE_API_URL}/export-transactions-download?init=${encodeURIComponent(init)}&tg_id=${encodeURIComponent(user?.id || '')}`;
-                if (window.Telegram?.WebApp?.openLink) {
-                    window.Telegram.WebApp.openLink(fallbackUrl);
-                } else {
-                    window.location.href = fallbackUrl;
-                }
-            } catch (_) {}
-        }, 700);
-        
         Swal.fire({
             title: TranslationUtils.get('success'),
-            text: '📊 CSV file has been downloaded!',
+            text: '📄 PDF statement downloaded!',
             icon: 'success',
             confirmButtonText: TranslationUtils.get('close'),
             confirmButtonColor: '#4f46e5'
@@ -1209,7 +1227,7 @@ async function exportTransactions() {
         console.error('Export error:', error);
         Swal.fire({
             title: TranslationUtils.get('error'),
-            text: 'Failed to export transactions. Please try again.',
+            text: 'Failed to export statement. Please try again.',
             icon: 'error',
             confirmButtonText: TranslationUtils.get('close'),
             confirmButtonColor: '#dc2626'
@@ -1217,17 +1235,34 @@ async function exportTransactions() {
     } finally {
         // Restore button state
         const exportBtn = document.getElementById('exportTransactions');
-        exportBtn.innerHTML = originalText;
+        exportBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span data-translate="exportTransactions">Export Transactions</span>';
         exportBtn.disabled = false;
     }
 }
 
 async function exportReferrals() {
+    // Show PDF download modal
+    const modal = document.getElementById('exportFormatReferralsModal');
+    modal.style.display = 'flex';
+    
+    // Cancel button
+    document.getElementById('exportFormatReferralsCancel').onclick = () => {
+        modal.style.display = 'none';
+    };
+    
+    // PDF export
+    document.getElementById('exportFormatReferralsPDF').onclick = async () => {
+        modal.style.display = 'none';
+        await doExportReferrals('pdf');
+    };
+}
+
+async function doExportReferrals(format) {
     try {
         // Show loading state
         const exportBtn = document.getElementById('exportReferrals');
         const originalText = exportBtn.innerHTML;
-        exportBtn.innerHTML = '<div class="spinner"></div> ' + (typeof TranslationUtils !== 'undefined' ? TranslationUtils.get('generatingCsv') : 'Generating CSV...');
+        exportBtn.innerHTML = '<div class="spinner"></div> Generating PDF...';
         exportBtn.disabled = true;
 
         const headers = {
@@ -1242,13 +1277,10 @@ async function exportReferrals() {
             const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
             if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null && telegramUserId !== 'undefined') {
                 headers['x-telegram-id'] = telegramUserId.toString();
-            } else {
-                console.log('No valid authentication headers available for referrals - letting server extract from initData');
-                // Don't send invalid x-telegram-id, let server extract from initData
             }
         }
 
-        const response = await fetch(`${BASE_API_URL}/export-referrals`, {
+        const response = await fetch(`${BASE_API_URL}/api/export-referrals-pdf`, {
             method: 'POST',
             headers: headers
         });
@@ -1266,62 +1298,49 @@ async function exportReferrals() {
             throw new Error(`HTTP ${response.status}: ${errorMessage}`);
         }
 
-        // Use same robust CSV handling as transactions
-        console.log('Handling referrals response as CSV download...');
+        const respContentType = response.headers.get('content-type') || '';
         let blob;
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('text/csv')) {
+        if (respContentType.includes('application/pdf')) {
             blob = await response.blob();
-        } else {
-            const csvText = await response.text();
-            // If server accidentally returned JSON, bubble it as error
-            if (csvText.trim().startsWith('{') || csvText.trim().startsWith('[')) {
-                try {
-                    const errorData = JSON.parse(csvText);
-                    throw new Error(errorData.error || 'Export failed');
-                } catch (_) {
-                    // fall through to treat as CSV
-                }
+        } else if (respContentType.includes('application/json')) {
+            const result = await response.json();
+            if (result && result.success) {
+                Swal.fire({
+                    title: TranslationUtils.get('success'),
+                    text: '📄 PDF has been sent to your Telegram!',
+                    icon: 'success',
+                    confirmButtonText: TranslationUtils.get('close'),
+                    confirmButtonColor: '#4f46e5'
+                });
+                return;
             }
-            blob = new Blob([csvText], { type: 'text/csv; charset=utf-8' });
+            throw new Error(result && result.error || 'Export failed');
+        } else {
+            throw new Error('Unexpected response format');
         }
+        
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `referrals_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.download = `referrals_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(() => window.URL.revokeObjectURL(url), 1000);
         
-        // Fallback for strict webviews: open link using Telegram API
-        setTimeout(() => {
-            try {
-                const init = window.Telegram?.WebApp?.initData || '';
-                const fallbackUrl = `${BASE_API_URL}/export-referrals-download?init=${encodeURIComponent(init)}&tg_id=${encodeURIComponent(user?.id || '')}`;
-                if (window.Telegram?.WebApp?.openLink) {
-                    window.Telegram.WebApp.openLink(fallbackUrl);
-                } else {
-                    window.location.href = fallbackUrl;
-                }
-            } catch (_) {}
-        }, 700);
-
-        // Show success message like transactions
         Swal.fire({
             title: TranslationUtils.get('success'),
-            text: '📊 Referrals CSV file has been downloaded!',
+            text: '📄 PDF statement downloaded!',
             icon: 'success',
             confirmButtonText: TranslationUtils.get('close'),
             confirmButtonColor: '#4f46e5'
         });
 
-        return; // Exit here since we handled the download
     } catch (error) {
         console.error('Export error:', error);
         Swal.fire({
             title: TranslationUtils.get('error'),
-            text: 'Failed to export referrals. Please try again.',
+            text: 'Failed to export statement. Please try again.',
             icon: 'error',
             confirmButtonText: TranslationUtils.get('close'),
             confirmButtonColor: '#dc2626'
@@ -1329,7 +1348,7 @@ async function exportReferrals() {
     } finally {
         // Restore button state
         const exportBtn = document.getElementById('exportReferrals');
-        exportBtn.innerHTML = originalText;
+        exportBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span data-translate="exportReferrals">Export Referrals</span>';
         exportBtn.disabled = false;
     }
 }
