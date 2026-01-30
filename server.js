@@ -28,6 +28,14 @@ try {
 } catch (_) {
   // noop if missing
 }
+
+// PDF Generator for professional statements
+let pdfGenerator = null;
+try {
+  pdfGenerator = require('./services/pdf-generator');
+} catch (_) {
+  // noop if missing - PDF export will be skipped gracefully
+}
 // Create Telegram bot or a stub in local/dev if no token is provided
 let bot;
 if (process.env.BOT_TOKEN) {
@@ -9246,6 +9254,176 @@ app.get('/api/export-transactions-download', async (req, res) => {
     }
 });
 
+// Export transactions as PDF (professional formatted statement)
+app.post('/api/export-transactions-pdf', requireTelegramAuth, async (req, res) => {
+    try {
+        if (!pdfGenerator) {
+            return res.status(501).json({ error: 'PDF export not available' });
+        }
+
+        const userId = req.user.id;
+        const userInfo = req.user || {};
+        
+        // Fetch transactions
+        let buyOrders = [];
+        let sellOrders = [];
+        
+        try {
+            buyOrders = await BuyOrder.find({ telegramId: userId })
+                .sort({ dateCreated: -1 })
+                .lean();
+        } catch (err) {
+            console.error('Error fetching buy orders:', err.message);
+            buyOrders = [];
+        }
+        
+        try {
+            sellOrders = await SellOrder.find({ telegramId: userId })
+                .sort({ dateCreated: -1 })
+                .lean();
+        } catch (err) {
+            console.error('Error fetching sell orders:', err.message);
+            sellOrders = [];
+        }
+
+        // Format transactions
+        const transactions = [];
+        
+        if (buyOrders && buyOrders.length > 0) {
+            buyOrders.forEach(order => {
+                try {
+                    transactions.push({
+                        id: order.id || 'N/A',
+                        type: 'Buy Stars',
+                        amount: order.stars || 0,
+                        status: (order.status || 'unknown').toLowerCase(),
+                        date: order.dateCreated || new Date(),
+                        usdtValue: order.amount || 0
+                    });
+                } catch (err) {
+                    console.error('Error processing buy order:', err.message);
+                }
+            });
+        }
+        
+        if (sellOrders && sellOrders.length > 0) {
+            sellOrders.forEach(order => {
+                try {
+                    transactions.push({
+                        id: order.id || 'N/A',
+                        type: 'Sell Stars',
+                        amount: order.stars || 0,
+                        status: (order.status || 'unknown').toLowerCase(),
+                        date: order.dateCreated || new Date(),
+                        usdtValue: order.amount || 0
+                    });
+                } catch (err) {
+                    console.error('Error processing sell order:', err.message);
+                }
+            });
+        }
+
+        // Generate PDF
+        const docDefinition = pdfGenerator.generateTransactionPDF(
+            userId,
+            userInfo.username,
+            transactions
+        );
+        
+        const buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        // Send via Telegram if possible
+        if (process.env.BOT_TOKEN) {
+            try {
+                await bot.sendDocument(userId, buffer, {
+                    caption: 'Your StarStore transaction statement PDF is ready for download.'
+                }, {
+                    filename: filename,
+                    contentType: 'application/pdf'
+                });
+                console.log('PDF sent via Telegram to user:', userId);
+                return res.json({ success: true, message: 'PDF file sent to your Telegram' });
+            } catch (botError) {
+                console.error('Bot sendDocument failed, falling back to direct download:', botError.message);
+            }
+        }
+
+        // Direct download fallback
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(buffer);
+    } catch (error) {
+        console.error('Error exporting transactions PDF:', error);
+        res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+    }
+});
+
+// Direct PDF download variant
+app.get('/api/export-transactions-pdf-download', async (req, res) => {
+    try {
+        if (!pdfGenerator) {
+            return res.status(501).json({ error: 'PDF export not available' });
+        }
+
+        let userId = null;
+        const initData = req.query.init || req.query.init_data;
+        if (initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userParam = params.get('user');
+                if (userParam) userId = JSON.parse(userParam).id?.toString();
+            } catch (_) {}
+        }
+        if (!userId && req.query.tg_id) {
+            userId = req.query.tg_id;
+        }
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        // Fetch transactions
+        let buyOrders = await BuyOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).lean();
+        let sellOrders = await SellOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).lean();
+
+        const transactions = [];
+        if (buyOrders) buyOrders.forEach(order => {
+            transactions.push({
+                id: order.id || 'N/A',
+                type: 'Buy Stars',
+                amount: order.stars || 0,
+                status: (order.status || 'unknown').toLowerCase(),
+                date: order.dateCreated || new Date(),
+                usdtValue: order.amount || 0
+            });
+        });
+        if (sellOrders) sellOrders.forEach(order => {
+            transactions.push({
+                id: order.id || 'N/A',
+                type: 'Sell Stars',
+                amount: order.stars || 0,
+                status: (order.status || 'unknown').toLowerCase(),
+                date: order.dateCreated || new Date(),
+                usdtValue: order.amount || 0
+            });
+        });
+
+        const docDefinition = pdfGenerator.generateTransactionPDF(userId, null, transactions);
+        const buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(buffer);
+    } catch (error) {
+        console.error('Error in PDF download:', error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+});
+
 // Export referrals as CSV via Telegram
 app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
     try {
@@ -9394,6 +9572,99 @@ app.get('/api/export-referrals-download', async (req, res) => {
         return res.send(csv);
     } catch (e) {
         return res.status(500).json({ error: 'Failed to export' });
+    }
+});
+
+// Export referrals as PDF (professional formatted statement)
+app.post('/api/export-referrals-pdf', requireTelegramAuth, async (req, res) => {
+    try {
+        if (!pdfGenerator) {
+            return res.status(501).json({ error: 'PDF export not available' });
+        }
+
+        const userId = req.user.id;
+        const userInfo = req.user;
+        
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
+
+        // Generate PDF
+        const docDefinition = pdfGenerator.generateReferralPDF(
+            userId,
+            userInfo.username,
+            referrals
+        );
+        
+        const buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        // Send via Telegram if possible
+        if (process.env.BOT_TOKEN) {
+            try {
+                await bot.sendDocument(userId, buffer, {
+                    caption: 'Your StarStore referral earnings statement PDF is ready for download.'
+                }, {
+                    filename: filename,
+                    contentType: 'application/pdf'
+                });
+                console.log('Referral PDF sent via Telegram to user:', userId);
+                return res.json({ success: true, message: 'PDF file sent to your Telegram' });
+            } catch (botError) {
+                console.error('Bot sendDocument failed, falling back to direct download:', botError.message);
+            }
+        }
+
+        // Direct download fallback
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(buffer);
+    } catch (error) {
+        console.error('Error exporting referrals PDF:', error);
+        res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+    }
+});
+
+// Direct PDF download variant for referrals
+app.get('/api/export-referrals-pdf-download', async (req, res) => {
+    try {
+        if (!pdfGenerator) {
+            return res.status(501).json({ error: 'PDF export not available' });
+        }
+
+        let userId = null;
+        const initData = req.query.init || req.query.init_data;
+        if (initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userParam = params.get('user');
+                if (userParam) userId = JSON.parse(userParam).id?.toString();
+            } catch (_) {}
+        }
+        if (!userId && req.query.tg_id) {
+            userId = req.query.tg_id;
+        }
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
+
+        const docDefinition = pdfGenerator.generateReferralPDF(userId, null, referrals);
+        const buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(buffer);
+    } catch (error) {
+        console.error('Error in referral PDF download:', error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
     }
 });
 
