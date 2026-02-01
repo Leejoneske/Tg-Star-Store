@@ -9417,9 +9417,6 @@ app.post('/api/export-transactions-pdf', requireTelegramAuth, async (req, res) =
             try {
                 await bot.sendDocument(userId, buffer, {
                     caption: 'Your StarStore transaction statement PDF is ready for download.'
-                }, {
-                    filename: filename,
-                    contentType: 'application/pdf'
                 });
                 console.log('PDF sent via Telegram to user:', userId);
                 return res.json({ success: true, message: 'PDF file sent to your Telegram' });
@@ -9683,9 +9680,6 @@ app.post('/api/export-referrals-pdf', requireTelegramAuth, async (req, res) => {
             try {
                 await bot.sendDocument(userId, buffer, {
                     caption: 'Your StarStore referral earnings statement PDF is ready for download.'
-                }, {
-                    filename: filename,
-                    contentType: 'application/pdf'
                 });
                 console.log('Referral PDF sent via Telegram to user:', userId);
                 return res.json({ success: true, message: 'PDF file sent to your Telegram' });
