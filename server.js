@@ -3043,17 +3043,7 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
             order.username = newUsername;
             order.status = (order.status || 'pending').toLowerCase(); // Normalize status to lowercase
             
-            // Edit user's original order message if tracked
-            if (order.userMessageId) {
-                const originalText = `✅ Payment successful!\\n\\n` +
-                    `Order ID: ${order.id}\\n` +
-                    `Stars: ${order.stars}\\n` +
-                    `Wallet: ${order.walletAddress}\\n` +
-                    `${order.memoTag ? `Memo: ${order.memoTag}\\n` : ''}` +
-                    `\\nStatus: Processing (21-day hold)\\n\\n` +
-                    `Funds will be released to your wallet after the hold period.`;
-                try { await bot.editMessageText(originalText, { chat_id: order.telegramId, message_id: order.userMessageId }); } catch (_) {}
-            }
+            // ...existing code...
             
             // Edit all admin messages for this order
             if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
@@ -3086,26 +3076,7 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
             order.username = newUsername;
             order.status = (order.status || 'pending').toLowerCase(); // Normalize status to lowercase
             
-            // Edit all admin messages for this order
-            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
-                await Promise.all(order.adminMessages.map(async (m) => {
-                    let text = m.originalText || '';
-                    if (text) {
-                        text = replaceUsernameInText(text, oldUsername, newUsername);
-                    }
-                    m.originalText = text;
-                    
-                    const buyButtons = {
-                        inline_keyboard: [[
-                            { text: "✅ Complete", callback_data: `complete_buy_${order.id}` },
-                            { text: "❌ Decline", callback_data: `decline_buy_${order.id}` }
-                        ]]
-                    };
-                    try {
-                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: buyButtons });
-                    } catch (_) {}
-                }));
-            }
+            // ...existing code...
             
             await order.save();
         }
@@ -4396,17 +4367,7 @@ bot.on('callback_query', async (query) => {
                     for (const order of sellOrders) {
                         order.username = newUsername;
                         
-                        // Edit user's original order message if tracked
-                        if (order.userMessageId) {
-                            const originalText = `✅ Payment successful!\\n\\n` +
-                                `Order ID: ${order.id}\\n` +
-                                `Stars: ${order.stars}\\n` +
-                                `Wallet: ${order.walletAddress}\\n` +
-                                `${order.memoTag ? `Memo: ${order.memoTag}\\n` : ''}` +
-                                `\\nStatus: Processing (21-day hold)\\n\\n` +
-                                `Funds will be released to your wallet after the hold period.`;
-                            try { await bot.editMessageText(originalText, { chat_id: order.telegramId, message_id: order.userMessageId }); } catch (_) {}
-                        }
+                        // Do NOT re-edit user messages - preserve the original order message format
                         
                         // Edit all admin messages for this order
                         if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
@@ -4551,26 +4512,21 @@ bot.on('callback_query', async (query) => {
                             order.walletAddress = reqDoc.newWalletAddress;
                             if (reqDoc.newMemoTag) order.memoTag = reqDoc.newMemoTag;
                             await order.save();
-                            // Try to edit user's original order message if tracked (preserve original format)
+                            // Update user message with new wallet/memo details so they see the change
                             if (order.userMessageId) {
-                                const originalText = `✅ Payment successful!\n\n` +
-                                    `Order ID: ${order.id}\n` +
-                                    `Stars: ${order.stars}\n` +
-                                    `Wallet: ${order.walletAddress}\n` +
-                                    `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
-                                    `\nStatus: Processing (21-day hold)\n\n` +
-                                    `Funds will be released to your wallet after the hold period.`;
-                                try { await bot.editMessageText(originalText, { chat_id: order.telegramId, message_id: order.userMessageId }); } catch (_) {}
-                            } else {
-                                // Fallback: send a new summary if original message cannot be edited
-                                const originalText = `✅ Payment successful!\n\n` +
-                                    `Order ID: ${order.id}\n` +
-                                    `Stars: ${order.stars}\n` +
-                                    `Wallet: ${order.walletAddress}\n` +
-                                    `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
-                                    `\nStatus: Processing (21-day hold)\n\n` +
-                                    `Funds will be released to your wallet after the hold period.`;
-                                try { await bot.sendMessage(order.telegramId, originalText); } catch (_) {}
+                                try {
+                                    // Get current message and update only the wallet/memo fields
+                                    const currentText = `✅ Payment successful!\n\n` +
+                                        `Order ID: ${order.id}\n` +
+                                        `Stars: ${order.stars}\n` +
+                                        `Wallet: ${order.walletAddress}\n` +
+                                        `${order.memoTag && order.memoTag !== 'none' ? `Memo: ${order.memoTag}\n` : ''}` +
+                                        `\nStatus: Processing (21-day hold)\n\n` +
+                                        `Funds will be released to your wallet after the hold period.`;
+                                    await bot.editMessageText(currentText, { chat_id: order.telegramId, message_id: order.userMessageId });
+                                } catch (e) {
+                                    console.warn(`Failed to update wallet info in user message for order ${order.id}:`, e.message);
+                                }
                             }
                             // Edit admin messages stored on the order if present
                             if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
@@ -8057,22 +8013,19 @@ bot.onText(/\/updatewallet\s+([0-9]+)\s+(sell|withdrawal)\s+([A-Za-z0-9_-]+)\s+(
             order.memoTag = newMemoTag || 'none';
             await order.save();
             
-            // Update user's original order message if tracked
+            // Update user message with new wallet/memo details so they see the change
             if (order.userMessageId) {
-                const originalText = `✅ Payment successful!\n\n` +
-                    `Order ID: ${order.id}\n` +
-                    `Stars: ${order.stars}\n` +
-                    `Wallet: ${order.walletAddress}\n` +
-                    `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
-                    `\nStatus: Processing (21-day hold)\n\n` +
-                    `Funds will be released to your wallet after the hold period.`;
-                try { 
-                    await bot.editMessageText(originalText, { 
-                        chat_id: order.telegramId, 
-                        message_id: order.userMessageId 
-                    }); 
+                try {
+                    const currentText = `✅ Payment successful!\n\n` +
+                        `Order ID: ${order.id}\n` +
+                        `Stars: ${order.stars}\n` +
+                        `Wallet: ${order.walletAddress}\n` +
+                        `${order.memoTag && order.memoTag !== 'none' ? `Memo: ${order.memoTag}\n` : ''}` +
+                        `\nStatus: Processing (21-day hold)\n\n` +
+                        `Funds will be released to your wallet after the hold period.`;
+                    await bot.editMessageText(currentText, { chat_id: order.telegramId, message_id: order.userMessageId });
                 } catch (e) {
-                    console.warn(`Failed to edit user message for order ${order.id}:`, e.message);
+                    console.warn(`Failed to update wallet info in user message for order ${order.id}:`, e.message);
                 }
             }
             
