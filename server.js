@@ -3013,12 +3013,10 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
             usernameChangeNotifications.set(userId, now);
             
             try {
-                const user = await User.findOne({ id: userId });
                 const changeType = newUsername ? 'Changed' : 'Removed';
                 const usernameChangeNotification = 
                     `Username ${changeType}: @${oldUsername} -> ${newUsername ? `@${newUsername}` : '(no username)'}\n` +
-                    `User: ${userId}\n` +
-                    `Location: ${formatLocation(user?.lastLocation)}`;
+                    `User: ${userId}`;
                 
                 for (const adminId of adminIds) {
                     try {
@@ -9417,9 +9415,6 @@ app.post('/api/export-transactions-pdf', requireTelegramAuth, async (req, res) =
             try {
                 await bot.sendDocument(userId, buffer, {
                     caption: 'Your StarStore transaction statement PDF is ready for download.'
-                }, {
-                    filename: filename,
-                    contentType: 'application/pdf'
                 });
                 console.log('PDF sent via Telegram to user:', userId);
                 return res.json({ success: true, message: 'PDF file sent to your Telegram' });
@@ -9683,9 +9678,6 @@ app.post('/api/export-referrals-pdf', requireTelegramAuth, async (req, res) => {
             try {
                 await bot.sendDocument(userId, buffer, {
                     caption: 'Your StarStore referral earnings statement PDF is ready for download.'
-                }, {
-                    filename: filename,
-                    contentType: 'application/pdf'
                 });
                 console.log('Referral PDF sent via Telegram to user:', userId);
                 return res.json({ success: true, message: 'PDF file sent to your Telegram' });
