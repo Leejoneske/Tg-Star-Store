@@ -5950,10 +5950,32 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
 
     let state;
     if (process.env.MONGODB_URI) {
-      // Production: Use MongoDB
+      // Production: Use MongoDB - first check if mission already completed
       state = await DailyState.findOne({ userId });
       if (!state) {
         state = await DailyState.create({ userId, totalPoints: 0, missionsCompleted: [] });
+      }
+      
+      const alreadyCompleted = state.missionsCompleted && state.missionsCompleted.includes(missionId);
+      if (alreadyCompleted) {
+        return res.json({ success: true, alreadyCompleted: true, totalPoints: state.totalPoints });
+      }
+      
+      // Atomic update to add mission and increment points
+      state = await DailyState.findOneAndUpdate(
+        { userId, 'missionsCompleted': { $ne: missionId } },
+        {
+          $addToSet: { missionsCompleted: missionId },
+          $inc: { totalPoints: mission.points },
+          $set: { updatedAt: new Date() }
+        },
+        { new: true }
+      );
+      
+      // If update returned null, mission was already completed
+      if (!state) {
+        state = await DailyState.findOne({ userId });
+        return res.json({ success: true, alreadyCompleted: true, totalPoints: state.totalPoints });
       }
     } else {
       // Development: Use file-based storage
@@ -5961,22 +5983,16 @@ app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) =
       if (!state) {
         state = await db.createDailyState({ userId, totalPoints: 0, missionsCompleted: [] });
       }
-    }
-
-    const completed = new Set(state.missionsCompleted || []);
-    if (completed.has(missionId)) {
-      return res.json({ success: true, alreadyCompleted: true, totalPoints: state.totalPoints });
-    }
-
-    completed.add(missionId);
-    state.missionsCompleted = Array.from(completed);
-    state.totalPoints = (state.totalPoints || 0) + mission.points;
-    state.updatedAt = new Date();
-    
-    // Save the state
-    if (process.env.MONGODB_URI) {
-      await state.save();
-    } else {
+      
+      const completed = new Set(state.missionsCompleted || []);
+      if (completed.has(missionId)) {
+        return res.json({ success: true, alreadyCompleted: true, totalPoints: state.totalPoints });
+      }
+      
+      completed.add(missionId);
+      state.missionsCompleted = Array.from(completed);
+      state.totalPoints = (state.totalPoints || 0) + mission.points;
+      state.updatedAt = new Date();
       await db.updateDailyState(userId, state);
     }
 
@@ -6010,29 +6026,32 @@ app.get('/api/daily/state', requireTelegramAuth, async (req, res) => {
     // Check if we're using MongoDB (production) or file-based storage (development)
     let state;
     if (process.env.MONGODB_URI) {
-      // Production: Use MongoDB
-      state = await DailyState.findOne({ userId });
-      if (!state) {
-        state = await DailyState.create({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
+      // Production: Use MongoDB - atomic update to avoid version conflicts
+      state = await DailyState.findOneAndUpdate(
+        { userId },
+        {
+          $setOnInsert: { userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] }
+        },
+        { upsert: true, new: true }
+      );
+      // Manual month check and reset if needed
+      if (state.month !== monthKey) {
+        state = await DailyState.findOneAndUpdate(
+          { userId },
+          { $set: { month: monthKey, checkedInDays: [] } },
+          { new: true }
+        );
       }
     } else {
       // Development: Use file-based storage
       state = await db.findDailyState(userId);
       if (!state) {
         state = await db.createDailyState({ userId, month: monthKey, checkedInDays: [], totalPoints: 0, streak: 0, missionsCompleted: [] });
+      } else if (state.month !== monthKey) {
+        state.month = monthKey;
+        state.checkedInDays = [];
+        await db.updateDailyState(userId, state);
       }
-    }
-    // Reset month scope if month rolled over
-    if (state.month !== monthKey) {
-      state.month = monthKey;
-      state.checkedInDays = [];
-    }
-    
-    // Save the state
-    if (process.env.MONGODB_URI) {
-      await state.save();
-    } else {
-      await db.updateDailyState(userId, state);
     }
     return res.json({
       success: true,
@@ -6276,18 +6295,25 @@ app.post('/api/daily/redeem', requireTelegramAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Insufficient points' });
     }
 
-    // Deduct points
-    state.totalPoints -= reward.cost;
+    // Atomic update: deduct points and track reward
+    state = await DailyState.findOneAndUpdate(
+      { userId, totalPoints: { $gte: reward.cost } },
+      {
+        $inc: { totalPoints: -reward.cost },
+        $push: {
+          redeemedRewards: {
+            rewardId,
+            redeemedAt: new Date(),
+            name: reward.name
+          }
+        }
+      },
+      { new: true }
+    );
     
-    // Apply reward effect (store in user state or separate collection)
-    if (!state.redeemedRewards) state.redeemedRewards = [];
-    state.redeemedRewards.push({
-      rewardId,
-      redeemedAt: new Date(),
-      name: reward.name
-    });
-
-    await state.save();
+    if (!state) {
+      return res.status(400).json({ success: false, error: 'Insufficient points or state not found' });
+    }
 
     res.json({ 
       success: true, 
