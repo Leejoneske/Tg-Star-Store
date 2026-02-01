@@ -21,6 +21,14 @@ const zlib = require('zlib');
 // Simple in-memory geolocation cache to avoid API rate limiting
 const geoCache = new Map();
 const GEO_CACHE_TTL = 24 * 60 * 60 * 1000; // Cache for 24 hours
+
+// Track recent username change notifications to prevent duplicates
+const usernameChangeNotifications = new Map(); // Maps userId to timestamp
+const USERNAME_CHANGE_DEDUPE_MS = 3000; // 3 second window to prevent duplicates
+
+// Track processing requests to prevent duplicate order creation within same request window
+const processingRequests = new Map(); // Maps request key to Promise
+const REQUEST_DEDUPE_MS = 5000; // 5 second window for request deduplication
 // Optional bot simulator (to avoid bloating monolith logic)
 let startBotSimulatorSafe = null;
 try {
@@ -2240,6 +2248,21 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         // Get admin status early for logging
         const requesterIsAdmin = Boolean(req.user?.isAdmin);
 
+        // Create request deduplication key
+        const requestKey = transactionHash ? `tx:${transactionHash}` : `order:${telegramId}:${walletAddress}:${stars}:${totalAmount}`;
+        
+        // Mark this request as processing to prevent duplicates
+        if (processingRequests.has(requestKey)) {
+            console.warn(`Concurrent request detected: ${requestKey}`);
+            return res.status(429).json({ 
+                error: 'Request already being processed. Please wait...',
+                retryAfter: 2
+            });
+        }
+        
+        // Mark as processing
+        processingRequests.set(requestKey, Date.now());
+
         console.log('📋 Order creation request:', {
             telegramId,
             username,
@@ -2255,14 +2278,16 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
 
         // Strict validation: username must be a real Telegram username (not fallback)
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
-            console.error('❌ Missing required fields:', { telegramId: !!telegramId, username: !!username, walletAddress: !!walletAddress, premiumDuration: !!premiumDuration });
+            console.error('Missing required fields:', { telegramId: !!telegramId, username: !!username, walletAddress: !!walletAddress, premiumDuration: !!premiumDuration });
+            processingRequests.delete(requestKey);
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
         // Additional validation: username must not be a fallback value
         const isFallbackUsername = username === 'Unknown' || username === 'User' || !username.match(/^[a-zA-Z0-9_]{5,32}$/);
         if (isFallbackUsername) {
-            console.error('❌ Invalid username detected:', { username, telegramId });
+            console.error('Invalid username detected:', { username, telegramId });
+            processingRequests.delete(requestKey);
             
             // Send DM instructions to user
             try {
@@ -2306,6 +2331,7 @@ Need help? Contact @StarStore_Chat`;
 
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
+            processingRequests.delete(requestKey);
             return res.status(403).json({ error: 'You are banned from placing orders' });
         }
 
@@ -2313,11 +2339,16 @@ Need help? Contact @StarStore_Chat`;
         if (transactionHash) {
             const existingOrder = await BuyOrder.findOne({ transactionHash });
             if (existingOrder) {
-                console.error('❌ Duplicate transaction detected:', transactionHash);
-                return res.status(400).json({ 
-                    error: 'This transaction has already been processed. If you were charged multiple times, contact support.',
-                    orderId: existingOrder.id
-                });
+                // Check if order is recent (within last 10 minutes) - likely a duplicate submission
+                const isRecentOrder = existingOrder.dateCreated && (Date.now() - new Date(existingOrder.dateCreated).getTime()) < 600000;
+                if (isRecentOrder) {
+                    console.error('Duplicate transaction detected (recent):', transactionHash);
+                    processingRequests.delete(requestKey);
+                    return res.status(400).json({ 
+                        error: 'This transaction has already been processed. If you were charged multiple times, contact support.',
+                        orderId: existingOrder.id
+                    });
+                }
             }
         }
 
@@ -2329,7 +2360,8 @@ Need help? Contact @StarStore_Chat`;
         });
         
         if (recentOrder) {
-            console.error('❌ Recent order detected for user:', telegramId);
+            console.error('Recent order detected for user:', telegramId);
+            processingRequests.delete(requestKey);
             return res.status(400).json({ 
                 error: 'Please wait before placing another order. A recent order is still being processed.',
                 orderId: recentOrder.id
@@ -2338,6 +2370,7 @@ Need help? Contact @StarStore_Chat`;
 
         // Reject testnet orders for non-admins; allow for admins
         if (isTestnet === true && !requesterIsAdmin) {
+            processingRequests.delete(requestKey);
             return res.status(400).json({ error: 'Testnet is not supported. Please switch your wallet to TON mainnet.' });
         }
         
@@ -2579,15 +2612,17 @@ Need help? Contact @StarStore_Chat`;
         // Do NOT award or log points yet; award on completion
         console.log(`🛒 Buy order created for user ${telegramId}`);
         
-        console.log('✅ Order created successfully:', order.id);
+        console.log('Order created successfully:', order.id);
+        processingRequests.delete(requestKey);
         res.json({ success: true, order });
     } catch (err) {
-        console.error('❌ Order creation error:', err);
-        console.error('❌ Error details:', {
+        console.error('Order creation error:', err);
+        console.error('Error details:', {
             message: err.message,
             stack: err.stack,
             name: err.name
         });
+        processingRequests.delete(requestKey);
         res.status(500).json({ error: 'Failed to create order: ' + err.message });
     }
 });
@@ -2822,92 +2857,109 @@ async function getUserDisplayName(telegramId) {
 // Check and detect username changes for a user
 async function detectUsernameChange(userId, currentUsername, source = 'api') {
     try {
-        // Use findOneAndUpdate with upsert to avoid race conditions
-        const storedUser = await User.findOne({ id: userId });
+        // First, ensure user exists with upsert (handles race condition from new users)
+        const storedUser = await User.findOneAndUpdate(
+            { id: userId },
+            { $setOnInsert: { 
+                id: userId,
+                username: currentUsername,
+                lastActive: new Date(),
+                usernameHistory: currentUsername ? [{ username: currentUsername, changedFrom: null, timestamp: new Date(), source: source }] : []
+            } },
+            { upsert: true, new: true }
+        );
         
         if (!storedUser) {
-            // New user - use upsert to prevent race conditions from simultaneous requests
-            try {
-                await User.findOneAndUpdate(
-                    { id: userId },
-                    { $set: { 
-                        id: userId, 
-                        username: currentUsername, 
-                        lastActive: new Date(),
-                        usernameHistory: currentUsername ? [{ username: currentUsername, changedFrom: null, timestamp: new Date(), source: source }] : []
-                    } },
-                    { upsert: true, new: false }
-                );
-            } catch (e) {
-                // E11000 duplicate key error means user was created by another simultaneous request
-                // This is fine, just continue
-                if (e.code !== 11000) {
-                    throw e;
-                }
-            }
-            return null; // No change, new user
+            return null; // No change, user was just created
         }
         
-        // Compare usernames
+        // Check if username changed
         if (storedUser.username && storedUser.username !== currentUsername && currentUsername) {
             // Username changed from stored value to new value
             const oldUsername = storedUser.username;
             
-            // Update the stored username and track change
-            storedUser.username = currentUsername;
-            storedUser.lastUsernameChange = {
-                oldUsername,
-                newUsername: currentUsername,
-                timestamp: new Date()
-            };
-            
-            // Add to username history
-            if (!storedUser.usernameHistory) storedUser.usernameHistory = [];
-            storedUser.usernameHistory.push({
+            // Build history entry
+            const historyEntry = {
                 username: currentUsername,
                 changedFrom: oldUsername,
                 timestamp: new Date(),
                 source: source
-            });
+            };
             
-            // Keep only last 50 username changes
-            if (storedUser.usernameHistory.length > 50) {
-                storedUser.usernameHistory = storedUser.usernameHistory.slice(-50);
-            }
+            // Update using atomic operation to avoid version conflicts
+            const updated = await User.findOneAndUpdate(
+                { id: userId },
+                {
+                    $set: {
+                        username: currentUsername,
+                        lastUsernameChange: {
+                            oldUsername,
+                            newUsername: currentUsername,
+                            timestamp: new Date()
+                        }
+                    },
+                    $push: {
+                        usernameHistory: {
+                            $each: [historyEntry],
+                            $slice: -50  // Keep only last 50
+                        }
+                    }
+                },
+                { new: false }
+            );
             
-            await storedUser.save();
             return { oldUsername, newUsername: currentUsername };
         } else if (storedUser.username && !currentUsername) {
             // Username was removed (user deleted their username)
             const oldUsername = storedUser.username;
-            storedUser.username = null;
             
-            // Track removal in history
-            if (!storedUser.usernameHistory) storedUser.usernameHistory = [];
-            storedUser.usernameHistory.push({
+            const historyEntry = {
                 username: null,
                 changedFrom: oldUsername,
                 timestamp: new Date(),
                 source: source
-            });
+            };
             
-            if (storedUser.usernameHistory.length > 50) {
-                storedUser.usernameHistory = storedUser.usernameHistory.slice(-50);
-            }
+            // Update using atomic operation
+            await User.findOneAndUpdate(
+                { id: userId },
+                {
+                    $set: { username: null },
+                    $push: {
+                        usernameHistory: {
+                            $each: [historyEntry],
+                            $slice: -50
+                        }
+                    }
+                },
+                { new: false }
+            );
             
-            await storedUser.save();
-            return { oldUsername, newUsername: null }; // Return removal as a change
+            return { oldUsername, newUsername: null };
         } else if (!storedUser.username && currentUsername) {
             // First time we capture the username
-            storedUser.username = currentUsername;
-            if (!storedUser.usernameHistory) storedUser.usernameHistory = [];
-            storedUser.usernameHistory.push({
+            const historyEntry = {
                 username: currentUsername,
                 changedFrom: null,
                 timestamp: new Date(),
                 source: source
-            });
-            await storedUser.save();
+            };
+            
+            // Update using atomic operation
+            await User.findOneAndUpdate(
+                { id: userId },
+                {
+                    $set: { username: currentUsername },
+                    $push: {
+                        usernameHistory: {
+                            $each: [historyEntry],
+                            $slice: -50
+                        }
+                    }
+                },
+                { new: false }
+            );
+            
             return null;
         }
         
@@ -2951,34 +3003,35 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
             return; // No change needed
         }
 
-        // Notify admins of username change
-        try {
-            const user = await User.findOne({ id: userId });
-            const changeType = newUsername ? 'Changed' : 'Removed';
-            const usernameChangeNotification = 
-                `Username ${changeType}: @${oldUsername} -> ${newUsername ? `@${newUsername}` : '(no username)'}\n` +
-                `User: ${userId}\n` +
-                `Location: ${formatLocation(user?.lastLocation)}`;
+        // Notify admins of username change (silent for users - only admins get notification)
+        // Deduplicate notifications within a 3-second window
+        const now = Date.now();
+        const lastNotificationTime = usernameChangeNotifications.get(userId);
+        const isDuplicate = lastNotificationTime && (now - lastNotificationTime) < USERNAME_CHANGE_DEDUPE_MS;
+        
+        if (!isDuplicate) {
+            usernameChangeNotifications.set(userId, now);
             
-            for (const adminId of adminIds) {
-                try {
-                    await bot.sendMessage(adminId, usernameChangeNotification);
-                } catch (notifyErr) {
-                    console.error(`Failed to notify admin ${adminId} about username change:`, notifyErr.message);
+            try {
+                const user = await User.findOne({ id: userId });
+                const changeType = newUsername ? 'Changed' : 'Removed';
+                const usernameChangeNotification = 
+                    `Username ${changeType}: @${oldUsername} -> ${newUsername ? `@${newUsername}` : '(no username)'}\n` +
+                    `User: ${userId}\n` +
+                    `Location: ${formatLocation(user?.lastLocation)}`;
+                
+                for (const adminId of adminIds) {
+                    try {
+                        await bot.sendMessage(adminId, usernameChangeNotification);
+                    } catch (notifyErr) {
+                        console.error(`Failed to notify admin ${adminId} about username change:`, notifyErr.message);
+                    }
                 }
+            } catch (notifyError) {
+                console.warn('Error sending admin notification for username change:', notifyError.message);
             }
-        } catch (notifyError) {
-            console.warn('Error sending admin notification for username change:', notifyError.message);
-        }
-
-        // Notify user of username change
-        try {
-            const changeMsg = newUsername 
-                ? `✓ Username changed: @${oldUsername} → @${newUsername}`
-                : `✓ Username removed: @${oldUsername}`;
-            await bot.sendMessage(userId, changeMsg);
-        } catch (userNotifyErr) {
-            console.error(`Failed to notify user ${userId} about username change:`, userNotifyErr.message);
+        } else {
+            console.log(`Duplicate username change notification suppressed for user ${userId} (within ${USERNAME_CHANGE_DEDUPE_MS}ms)`);
         }
 
         // Update User record
@@ -3082,7 +3135,7 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
             await wd.save();
         }
 
-        console.log(`✅ Username updated in database and messages: @${oldUsername} → @${newUsername} (User: ${userId})`);
+        console.log(`Username updated in database and messages: @${oldUsername} -> @${newUsername} (User: ${userId})`);
     } catch (error) {
         console.error(`Error processing username update for user ${userId}:`, error);
     }
