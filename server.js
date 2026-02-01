@@ -3013,12 +3013,10 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
             usernameChangeNotifications.set(userId, now);
             
             try {
-                const user = await User.findOne({ id: userId });
                 const changeType = newUsername ? 'Changed' : 'Removed';
                 const usernameChangeNotification = 
                     `Username ${changeType}: @${oldUsername} -> ${newUsername ? `@${newUsername}` : '(no username)'}\n` +
-                    `User: ${userId}\n` +
-                    `Location: ${formatLocation(user?.lastLocation)}`;
+                    `User: ${userId}`;
                 
                 for (const adminId of adminIds) {
                     try {
