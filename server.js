@@ -3041,12 +3041,11 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
         const sellOrders = await SellOrder.find({ username: oldUsername, telegramId: userId });
         for (const order of sellOrders) {
             order.username = newUsername;
-            order.status = (order.status || 'pending').toLowerCase(); // Normalize status to lowercase
+            // Do NOT modify the order status - only update username
             
-            // ...existing code...
-            
-            // Edit all admin messages for this order
-            if (Array.isArray(order.adminMessages) && order.adminMessages.length) {
+            // Only update admin messages if order is still pending (not completed/failed/refunded)
+            const isPending = !order.status || order.status.toLowerCase() === 'pending';
+            if (isPending && Array.isArray(order.adminMessages) && order.adminMessages.length) {
                 await Promise.all(order.adminMessages.map(async (m) => {
                     let text = m.originalText || '';
                     if (text) {
@@ -3074,9 +3073,29 @@ async function processUsernameUpdate(userId, oldUsername, newUsername) {
         const buyOrders = await BuyOrder.find({ username: oldUsername, telegramId: userId });
         for (const order of buyOrders) {
             order.username = newUsername;
-            order.status = (order.status || 'pending').toLowerCase(); // Normalize status to lowercase
+            // Do NOT modify the order status - only update username
             
-            // ...existing code...
+            // Only update admin messages if order is still pending (not completed/declined)
+            const isPending = !order.status || order.status.toLowerCase() === 'pending';
+            if (isPending && Array.isArray(order.adminMessages) && order.adminMessages.length) {
+                await Promise.all(order.adminMessages.map(async (m) => {
+                    let text = m.originalText || '';
+                    if (text) {
+                        text = replaceUsernameInText(text, oldUsername, newUsername);
+                    }
+                    m.originalText = text;
+                    
+                    const buyButtons = {
+                        inline_keyboard: [[
+                            { text: "✅ Complete", callback_data: `complete_buy_${order.id}` },
+                            { text: "❌ Decline", callback_data: `decline_buy_${order.id}` }
+                        ]]
+                    };
+                    try {
+                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId, reply_markup: buyButtons });
+                    } catch (_) {}
+                }));
+            }
             
             await order.save();
         }
