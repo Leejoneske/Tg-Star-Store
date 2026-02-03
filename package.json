@@ -7,7 +7,6 @@
     "start": "node generate-railway-version.js && node server.js",
     "dev": "nodemon server.js",
     "build": "node generate-railway-version.js",
-    "postinstall": "node generate-railway-version.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
