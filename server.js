@@ -1571,11 +1571,28 @@ adminIds = Array.from(new Set(adminIds));
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
 // Track processing callbacks to prevent duplicates
-const processingCallbacks = new Set();
+// Structure: Map<callbackKey, timestamp> to allow timeout-based cleanup
+const processingCallbacks = new Map(); // Changed from Set to Map for timeout support
+const CALLBACK_PROCESSING_TIMEOUT = 60 * 1000; // 60 second timeout per callback
 
-// Clean up old processing entries every 5 minutes
+// Clean up old processing entries every 5 minutes and log stats
 setInterval(() => {
-    console.log(`Processing callbacks: ${processingCallbacks.size}`);
+    const now = Date.now();
+    const expiredCallbacks = [];
+    
+    for (const [key, timestamp] of processingCallbacks.entries()) {
+        if (now - timestamp > CALLBACK_PROCESSING_TIMEOUT) {
+            expiredCallbacks.push(key);
+        }
+    }
+    
+    // Remove expired entries and log
+    expiredCallbacks.forEach(key => {
+        console.warn(`⚠️ Callback timeout: ${key} - removing stale entry after ${CALLBACK_PROCESSING_TIMEOUT}ms`);
+        processingCallbacks.delete(key);
+    });
+    
+    console.log(`Processing callbacks: ${processingCallbacks.size} active (removed ${expiredCallbacks.length} stale)`);
 }, 5 * 60 * 1000);
 
 // Wallet multi-select sessions per user: Map<userId, Set<key>> where key is `sell:ORDERID` or `wd:WITHDRAWALID`
@@ -5281,11 +5298,19 @@ bot.on('callback_query', async (query) => {
                     userMessage = `❌ Your refund request for order ${orderId} was already rejected`;
                 }
                 
-                // Update buttons
-                await updateAdminMessages(request, statusText);
+                // Update buttons with error handling
+                try {
+                    await updateAdminMessages(request, statusText);
+                } catch (updateError) {
+                    console.error(`Error updating admin messages for ${orderId}:`, updateError.message);
+                }
                 
                 // Send notifications
-                await bot.sendMessage(query.from.id, adminMessage);
+                try {
+                    await bot.sendMessage(query.from.id, adminMessage);
+                } catch (adminError) {
+                    console.error('Failed to notify admin:', adminError.message);
+                }
                 try {
                     await bot.sendMessage(parseInt(request.telegramId), userMessage);
                 } catch (userError) {
@@ -5299,8 +5324,8 @@ bot.on('callback_query', async (query) => {
             // Answer callback immediately to prevent timeout
             await bot.answerCallbackQuery(query.id, { text: "⏳ Processing..." });
             
-            // Mark as processing
-            processingCallbacks.add(callbackKey);
+            // Mark as processing with timestamp for timeout tracking
+            processingCallbacks.set(callbackKey, Date.now());
             
             // Double-check database status after acquiring lock
             const freshRequest = await Reversal.findOne({ orderId });
@@ -5310,66 +5335,72 @@ bot.on('callback_query', async (query) => {
                 return;
             }
 
-            if (action === 'approve') {
-                try {
-                    const result = await processRefund(orderId);
-                    
-                    request.status = 'completed';
-                    request.processedAt = new Date();
-                    await request.save();
-
-                    const statusMessage = result.alreadyRefunded 
-                        ? `✅ Order ${orderId} was already refunded\nCharge ID: ${result.chargeId}`
-                        : `✅ Refund processed successfully for ${orderId}\nCharge ID: ${result.chargeId}`;
-
-                    // Notify the admin who clicked
-                    await bot.sendMessage(query.from.id, statusMessage);
-                    
-                    // Notify user
+            try {
+                if (action === 'approve') {
                     try {
-                        const userMessage = result.alreadyRefunded
-                            ? `💸 Your refund for order ${orderId} was already processed\nTX ID: ${result.chargeId}`
-                            : `💸 Refund Processed\nOrder: ${orderId}\nTX ID: ${result.chargeId}`;
+                        const result = await processRefund(orderId);
                         
-                        await bot.sendMessage(parseInt(request.telegramId), userMessage);
-                    } catch (userError) {
-                        console.error('Failed to notify user:', userError.message);
-                        await bot.sendMessage(query.from.id, `⚠️ Refund processed but user notification failed`);
+                        request.status = 'completed';
+                        request.processedAt = new Date();
+                        await request.save();
+
+                        const statusMessage = result.alreadyRefunded 
+                            ? `✅ Order ${orderId} was already refunded\nCharge ID: ${result.chargeId}`
+                            : `✅ Refund processed successfully for ${orderId}\nCharge ID: ${result.chargeId}`;
+
+                        // Notify the admin who clicked
+                        await bot.sendMessage(query.from.id, statusMessage);
+                        
+                        // Notify user
+                        try {
+                            const userMessage = result.alreadyRefunded
+                                ? `💸 Your refund for order ${orderId} was already processed\nTX ID: ${result.chargeId}`
+                                : `💸 Refund Processed\nOrder: ${orderId}\nTX ID: ${result.chargeId}`;
+                            
+                            await bot.sendMessage(parseInt(request.telegramId), userMessage);
+                        } catch (userError) {
+                            console.error('Failed to notify user:', userError.message);
+                            await bot.sendMessage(query.from.id, `⚠️ Refund processed but user notification failed`);
+                        }
+
+                        // Update all admin messages with success status
+                        await updateAdminMessages(request, "✅ REFUNDED");
+
+                    } catch (refundError) {
+                        request.status = 'declined';
+                        request.errorMessage = refundError.message;
+                        await request.save();
+                        
+                        await bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}\nError: ${refundError.message}`);
+                        await updateAdminMessages(request, "❌ FAILED");
                     }
-
-                    // Update all admin messages with success status
-                    await updateAdminMessages(request, "✅ REFUNDED");
-
-                } catch (refundError) {
-                    request.status = 'declined';
-                    request.errorMessage = refundError.message;
-                    await request.save();
-                    
-                    await bot.sendMessage(query.from.id, `❌ Refund failed for ${orderId}\nError: ${refundError.message}`);
-                    await updateAdminMessages(request, "❌ FAILED");
-                } finally {
-                    // Remove from processing set
-                    processingCallbacks.delete(callbackKey);
-                }
-            } else if (action === 'reject') {
-                try {
-                    request.status = 'declined';
-                    request.processedAt = new Date();
-                    await request.save();
-                    
-                    await bot.sendMessage(query.from.id, `❌ Refund request rejected for ${orderId}`);
-                    
+                } else if (action === 'reject') {
                     try {
-                        await bot.sendMessage(parseInt(request.telegramId), `❌ Your refund request for order ${orderId} has been rejected.`);
-                    } catch (userError) {
-                        console.error('Failed to notify user of rejection:', userError.message);
-                    }
+                        request.status = 'declined';
+                        request.processedAt = new Date();
+                        await request.save();
+                        
+                        await bot.sendMessage(query.from.id, `❌ Refund request rejected for ${orderId}`);
+                        
+                        try {
+                            await bot.sendMessage(parseInt(request.telegramId), `❌ Your refund request for order ${orderId} has been rejected.`);
+                        } catch (userError) {
+                            console.error('Failed to notify user of rejection:', userError.message);
+                        }
 
-                    await updateAdminMessages(request, "❌ REJECTED");
-                } finally {
-                    // Remove from processing set
-                    processingCallbacks.delete(callbackKey);
+                        await updateAdminMessages(request, "❌ REJECTED");
+                    } catch (rejectError) {
+                        console.error('Rejection processing error:', rejectError.message);
+                        await bot.sendMessage(query.from.id, `❌ Error processing rejection: ${rejectError.message}`);
+                    }
+                } else {
+                    console.error(`Invalid action: ${action} for callback data: ${data}`);
+                    await bot.sendMessage(query.from.id, `⚠️ Invalid action type. Please contact support.`);
                 }
+            } finally {
+                // CRITICAL: Always remove from processing map, regardless of outcome
+                processingCallbacks.delete(callbackKey);
+                console.log(`Removed callback from processing. Remaining: ${processingCallbacks.size}`);
             }
         } else {
             // Handle other callback queries (existing logic)
@@ -5390,15 +5421,32 @@ bot.on('callback_query', async (query) => {
 
 async function updateAdminMessages(request, statusText) {
     console.log(`Updating admin messages for request ${request.orderId} with status: ${statusText}`);
-    console.log(`Admin messages:`, request.adminMessages);
     
-    if (!request.adminMessages || request.adminMessages.length === 0) {
-        console.log('No admin messages to update - adminMessages array is empty');
+    if (!request) {
+        console.error('updateAdminMessages: request is null/undefined');
+        return;
+    }
+    
+    if (!request.adminMessages || !Array.isArray(request.adminMessages)) {
+        console.log('No admin messages to update - adminMessages is not an array or is empty');
         console.log('This suggests the adminMessages were not properly saved when the request was created');
         return;
     }
     
+    console.log(`Admin messages array:`, request.adminMessages);
+    
     for (const msg of request.adminMessages) {
+        // Validate message object has required fields
+        if (!msg || typeof msg !== 'object') {
+            console.error('Invalid message object in adminMessages array:', msg);
+            continue;
+        }
+        
+        if (!msg.adminId || !msg.messageId) {
+            console.error('Message missing required fields (adminId or messageId):', msg);
+            continue;
+        }
+        
         try {
             console.log(`Updating message ${msg.messageId} for admin ${msg.adminId}`);
             
