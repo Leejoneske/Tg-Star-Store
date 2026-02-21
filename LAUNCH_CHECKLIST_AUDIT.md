@@ -69,16 +69,15 @@
 - **Action:** Add cookie banner with accept/reject
 - **Estimated time:** 30 minutes
 
-### 3. **IndexNow Not Configured** 🔴 CRITICAL
-- **Status:** Missing configuration
-- **Platforms:** Bing, Yandex need IndexNow submission
-- **Impact:** Slower indexing after launch
-- **Action:** Setup IndexNow API key submissions
-- **Estimated time:** 15 minutes
+### 3. ~~IndexNow Not Configured~~ ❌ REMOVED (Not Necessary)
+- **Status:** Removed - not needed for static web apps
+- **Why:** IndexNow is for high-frequency content sites (news, e-commerce)
+- **What we have instead:** Sitemap + robots.txt is sufficient
+- **Action:** Submit sitemap to Google Search Console (one-time setup)
 
 ### 4. **Google Search Console Not Verified** 🔴 CRITICAL
 - **Status:** Unknown verification status
-- **Required for:** Monitor indexing, submit sitemap
+- **Required for:** Monitor indexing, submit sitemap once
 - **Action:** Verify domain and submit sitemap
 - **Estimated time:** 10 minutes
 
@@ -190,13 +189,10 @@ Needed for launch day:
 
 ## 📋 ACTION PLAN
 
-### **Phase 1: Critical Fixes (90 minutes total)**
-1. ✏️ Create `sitemap.xml` - 20 min
-2. 🍪 Add cookie banner - 30 min  
-3. 🔗 Setup IndexNow - 15 min
-4. 🔍 Verify Google Search Console - 10 min
-5. 📧 Setup Bing Webmaster - 10 min
-6. 🔀 Create separate policy/terms routes - 20 min
+### **Phase 1: Critical Fixes (60 minutes total)**
+1. ✏️ Create `sitemap.xml` - 20 min ✅ DONE
+2. 🍪 Add cookie banner - 30 min ✅ DONE  
+3. 🔍 Verify Google Search Console - 10 min
 
 ### **Phase 2: Marketing & Metadata (2 hours total)**
 1. 📱 Document App Store metadata - 45 min

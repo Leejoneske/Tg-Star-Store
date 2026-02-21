@@ -329,7 +329,11 @@ Post-launch, monitor:
 
 ---
 
-## 📞 Common Issues & Solutions
+## � SEO Notes
+
+**Sitemap:** Already created at `/public/sitemap.xml`
+**Search Console:** Submit sitemap to Google Search Console (setup once, automatic updates after)
+**No need for:** IndexNow or other API submissions - static web app doesn't need it
 
 | Issue | Solution |
 |-------|----------|
