@@ -241,6 +241,52 @@ app.use(express.static('public', {
   }
 }));
 
+// SEO & Compliance Routes
+// Privacy Policy (separate route for better SEO)
+app.get('/privacy-policy', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'policy.html'));
+});
+
+// Terms of Service (separate route for better SEO)
+app.get('/terms-of-service', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'policy.html'));
+});
+
+// Sitemap.xml with proper headers
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml');
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
+});
+
+// IndexNow API endpoint for submitting new content for indexing
+// Usage: POST /api/indexnow with { urls: ['url1', 'url2'] }
+app.post('/api/indexnow', async (req, res) => {
+  try {
+    if (!process.env.INDEXNOW_KEY) {
+      return res.status(400).json({ error: 'IndexNow not configured' });
+    }
+    
+    const { urls = [] } = req.body;
+    if (!Array.isArray(urls) || urls.length === 0) {
+      return res.status(400).json({ error: 'urls array required' });
+    }
+    
+    try {
+      const { submitToIndexNow } = require('./indexnow-config');
+      const result = await submitToIndexNow(urls);
+      res.json({ success: result.success, submitted: urls.length });
+    } catch (err) {
+      console.error('IndexNow submission failed:', err);
+      res.status(500).json({ error: 'IndexNow submission failed' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Parse Telegram init data for all requests (non-blocking)
 try { app.use(verifyTelegramAuth); } catch (_) {}
 
