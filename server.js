@@ -241,6 +241,26 @@ app.use(express.static('public', {
   }
 }));
 
+// SEO & Compliance Routes
+// Privacy Policy (separate route for better SEO)
+app.get('/privacy-policy', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'policy.html'));
+});
+
+// Terms of Service (separate route for better SEO)
+app.get('/terms-of-service', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'policy.html'));
+});
+
+// Sitemap.xml with proper headers
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml');
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
+});
+
 // Parse Telegram init data for all requests (non-blocking)
 try { app.use(verifyTelegramAuth); } catch (_) {}
 
