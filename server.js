@@ -808,6 +808,97 @@ app.post(WEBHOOK_PATH, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
+
+// BROADCAST API ENDPOINTS
+app.get('/api/broadcast/status/:jobId', requireAdmin, async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        const job = await BroadcastJob.findOne({ jobId });
+        
+        if (!job) {
+            return res.status(404).json({ success: false, error: 'Job not found' });
+        }
+        
+        const response = {
+            jobId: job.jobId,
+            status: job.status,
+            totalUsers: job.totalUsers,
+            sentCount: job.sentCount,
+            failedCount: job.failedCount,
+            skippedCount: job.skippedCount,
+            progress: Math.round((job.sentCount + job.failedCount + job.skippedCount) / job.totalUsers * 100),
+            createdAt: job.createdAt,
+            startedAt: job.startedAt,
+            completedAt: job.completedAt,
+            estimatedCompletionTime: job.estimatedCompletionTime,
+            messageType: job.messageType,
+            adminUsername: job.adminUsername
+        };
+        
+        if (job.status === 'failed') {
+            response.error = job.lastError;
+        }
+        
+        res.json({ success: true, data: response });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get broadcast history
+app.get('/api/broadcast/history', requireAdmin, async (req, res) => {
+    try {
+        const { limit = 10, skip = 0 } = req.query;
+        
+        const jobs = await BroadcastJob.find({})
+            .sort({ createdAt: -1 })
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
+            .lean();
+        
+        const total = await BroadcastJob.countDocuments({});
+        
+        const formatted = jobs.map(job => ({
+            jobId: job.jobId,
+            adminUsername: job.adminUsername,
+            status: job.status,
+            totalUsers: job.totalUsers,
+            sentCount: job.sentCount,
+            failedCount: job.failedCount,
+            createdAt: job.createdAt,
+            completedAt: job.completedAt,
+            successRate: job.totalUsers > 0 ? ((job.sentCount / job.totalUsers) * 100).toFixed(1) : '0'
+        }));
+        
+        res.json({ success: true, data: { jobs: formatted, total, hasMore: skip + jobs.length < total } });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Cancel broadcast job
+app.post('/api/broadcast/cancel/:jobId', requireAdmin, async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        const job = await BroadcastJob.findOne({ jobId });
+        
+        if (!job) {
+            return res.status(404).json({ success: false, error: 'Job not found' });
+        }
+        
+        if (job.status === 'completed' || job.status === 'failed') {
+            return res.status(400).json({ success: false, error: `Cannot cancel ${job.status} job` });
+        }
+        
+        job.status = 'cancelled';
+        await job.save();
+        
+        res.json({ success: true, message: 'Broadcast job cancelled' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
@@ -1584,6 +1675,54 @@ const botProfileSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now, index: true }
 });
 const BotProfile = mongoose.models.BotProfile || mongoose.model('BotProfile', botProfileSchema);
+
+// BROADCAST JOB SCHEMA - for tracking and processing broadcasts
+const broadcastJobSchema = new mongoose.Schema({
+    jobId: { type: String, required: true, unique: true, index: true },
+    adminId: { type: String, required: true, index: true },
+    adminUsername: String,
+    messageType: { type: String, enum: ['text', 'photo', 'audio', 'video', 'document'], default: 'text' },
+    messageText: { type: String, maxlength: 4096 },
+    caption: { type: String, maxlength: 1024 },
+    mediaFileId: String,
+    messageId: Number,
+    targetUserIds: [String],
+    totalUsers: { type: Number, default: 0 },
+    status: { type: String, enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'], default: 'pending', index: true },
+    sentCount: { type: Number, default: 0 },
+    failedCount: { type: Number, default: 0 },
+    skippedCount: { type: Number, default: 0 },
+    currentIndex: { type: Number, default: 0 },
+    lastProcessedUserId: String,
+    processedUserIds: [String],
+    createdAt: { type: Date, default: Date.now, index: true },
+    startedAt: Date,
+    completedAt: Date,
+    estimatedCompletionTime: Date,
+    failedUserIds: [{ userId: String, error: String, attempts: Number }],
+    lastError: String,
+    batchSize: { type: Number, default: 50 },
+    delayBetweenBatchesMs: { type: Number, default: 1000 },
+    maxRetries: { type: Number, default: 3 },
+    adminMessageIds: [Number]
+}, { timestamps: true });
+
+const BroadcastJob = mongoose.model('BroadcastJob', broadcastJobSchema);
+
+// BROADCAST RATE LIMITER - prevents exceeding Telegram API limits
+const broadcastRateLimiter = {
+    minDelayMs: 30, // 30ms minimum between messages (~30-35 msgs/sec)
+    lastSendTime: 0,
+    async delay() {
+        const now = Date.now();
+        const elapsed = now - this.lastSendTime;
+        const needed = Math.max(0, this.minDelayMs - elapsed);
+        if (needed > 0) {
+            await new Promise(resolve => setTimeout(resolve, needed));
+        }
+        this.lastSendTime = Date.now();
+    }
+};
 
 let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 // Deduplicate to avoid duplicate notifications per admin
@@ -8418,56 +8557,371 @@ bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, 
     }
 });
 
-//broadcast now supports rich media text including porn
-bot.onText(/\/broadcast/, async (msg) => {
-    const chatId = msg.chat.id;
+// IMPROVED BROADCAST SYSTEM - Production-grade with rate limiting, async processing, and retry logic
+
+// Helper: Send message with retry logic and rate limiting
+async function sendBroadcastMessage(userId, messageType, messageText, caption, mediaFileId) {
+    let lastError = null;
     
-    if (!adminIds.includes(chatId.toString())) {
-        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            await broadcastRateLimiter.delay();
+            
+            if (messageType === 'text') {
+                await bot.sendMessage(userId, messageText || caption, {
+                    parse_mode: 'HTML',
+                    disable_web_page_preview: true,
+                    disable_notification: true
+                });
+            } else {
+                await bot.sendCopy(userId, mediaFileId, {
+                    caption: caption,
+                    parse_mode: 'HTML',
+                    disable_notification: true
+                });
+            }
+            return { success: true, attempts: attempt };
+        } catch (error) {
+            lastError = error;
+            
+            // Check if error is recoverable
+            const errorMsg = error.message || '';
+            const isFatal = errorMsg.includes('bot was blocked') || 
+                           errorMsg.includes('user is deactivated') ||
+                           errorMsg.includes('chat not found');
+            
+            if (isFatal) {
+                return { success: false, attempts: attempt, error: errorMsg, fatal: true };
+            }
+            
+            // For rate limits, wait longer before retry
+            if (errorMsg.includes('Too Many Requests') || errorMsg.includes('429')) {
+                await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+            }
+            
+            if (attempt === 3) {
+                return { success: false, attempts: attempt, error: errorMsg };
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+        }
     }
-    await bot.sendMessage(chatId, 'Enter the broadcast message (text, photo, audio, etc.):');
-    // Listen for the admin's next message
-    bot.once('message', async (adminMsg) => {
-        const users = await User.find({});
-        let successCount = 0;
-        let failCount = 0;
-        // Extract media and metadata from the admin's message
-        const messageType = adminMsg.photo ? 'photo' :
-                           adminMsg.audio ? 'audio' :
-                           adminMsg.video ? 'video' :
-                           adminMsg.document ? 'document' :
-                           'text';
-        const caption = adminMsg.caption || '';
-        const mediaId = adminMsg.photo ? adminMsg.photo[0].file_id :
-                       adminMsg.audio ? adminMsg.audio.file_id :
-                       adminMsg.video ? adminMsg.video.file_id :
-                       adminMsg.document ? adminMsg.document.file_id :
-                       null;
-        // Broadcast the message to all kang'ethes
-        for (const user of users) {
-            try {
-                if (messageType === 'text') {
-                    // Broadcast text message
-                    await bot.sendMessage(user.id, adminMsg.text || caption);
-                } else {
-                    // Broadcast media message
-                    await bot.sendMediaGroup(user.id, [{
-                        type: messageType,
-                        media: mediaId,
-                        caption: caption
-                    }]);
+    
+    return { success: false, attempts: 3, error: lastError?.message || 'Unknown error' };
+}
+
+// Helper: Process broadcast job in background
+async function processBroadcastJob(jobId) {
+    try {
+        const job = await BroadcastJob.findOne({ jobId });
+        if (!job) {
+            console.error(`Broadcast job ${jobId} not found`);
+            return;
+        }
+        
+        if (job.status === 'cancelled') {
+            console.log(`Broadcast job ${jobId} cancelled`);
+            return;
+        }
+        
+        // Initialize processedUserIds for duplicate prevention if not present
+        if (!job.processedUserIds) {
+            job.processedUserIds = [];
+        }
+        
+        job.status = 'processing';
+        job.startedAt = new Date();
+        job.estimatedCompletionTime = new Date(Date.now() + (job.totalUsers / 50) * 2500);
+        await job.save();
+        
+        console.log(`🚀 Starting broadcast job ${jobId} for ${job.totalUsers} users`);
+        
+        const batchSize = job.batchSize || 50;
+        let processed = job.currentIndex || 0;
+        const processedUserSet = new Set(job.processedUserIds);
+        
+        while (processed < job.totalUsers) {
+            const batch = await User.find({}).skip(processed).limit(batchSize).lean();
+            
+            if (batch.length === 0) break;
+            
+            for (const user of batch) {
+                try {
+                    if (!user.id) {
+                        job.skippedCount++;
+                        continue;
+                    }
+                    
+                    // DUPLICATE PREVENTION: Skip if this user already received this broadcast
+                    if (processedUserSet.has(user.id.toString())) {
+                        job.skippedCount++;
+                        console.log(`⏭️ Skipping user ${user.id} - already received this broadcast`);
+                        continue;
+                    }
+                    
+                    const result = await sendBroadcastMessage(
+                        user.id,
+                        job.messageType,
+                        job.messageText,
+                        job.caption,
+                        job.mediaFileId
+                    );
+                    
+                    if (result.success) {
+                        job.sentCount++;
+                        // Add to processed users to prevent duplicate sends
+                        processedUserSet.add(user.id.toString());
+                        job.processedUserIds.push(user.id.toString());
+                    } else {
+                        job.failedCount++;
+                        if (!result.fatal) {
+                            job.failedUserIds.push({
+                                userId: user.id,
+                                error: result.error,
+                                attempts: result.attempts
+                            });
+                        } else {
+                            job.skippedCount++;
+                        }
+                    }
+                } catch (error) {
+                    job.failedCount++;
+                    console.error(`Error processing user ${user.id}:`, error.message);
                 }
-                successCount++;
-            } catch (err) {
-                console.error(`Failed to send broadcast to user ${user.id}:`, err);
-                failCount++;
+                
+                job.lastProcessedUserId = user.id;
+                processed++;
+                job.currentIndex = processed;
+                
+                if (processed % 50 === 0) {
+                    await job.save();
+                    console.log(`📊 Progress: ${processed}/${job.totalUsers} (✅${job.sentCount}, ❌${job.failedCount}, ⏭️${job.skippedCount})`);
+                }
+            }
+            
+            if (processed < job.totalUsers) {
+                await new Promise(resolve => setTimeout(resolve, job.delayBetweenBatchesMs || 1000));
             }
         }
-        // Notify the admin about the broadcast result
-        bot.sendMessage(chatId, `📢 Broadcast results:\n✅ ${successCount} messages sent successfully\n❌ ${failCount} messages failed to send.`);
-    });
+        
+        job.status = 'completed';
+        job.completedAt = new Date();
+        await job.save();
+        
+        console.log(`✅ Broadcast job ${jobId} completed: ${job.sentCount} sent, ${job.failedCount} failed, ${job.skippedCount} skipped`);
+        
+        try {
+            const duration = Math.round((job.completedAt - job.startedAt) / 1000);
+            const successRate = ((job.sentCount / job.totalUsers) * 100).toFixed(1);
+            
+            const resultMsg = `📢 Broadcast Completed!\n\n` +
+                `✅ Sent: ${job.sentCount}/${job.totalUsers}\n` +
+                `❌ Failed: ${job.failedCount}\n` +
+                `⏭️ Skipped: ${job.skippedCount}\n` +
+                `📊 Success Rate: ${successRate}%\n` +
+                `⏱️ Duration: ${duration}s`;
+            
+            await bot.sendMessage(job.adminId, resultMsg);
+        } catch (error) {
+            console.error('Failed to notify admin of broadcast completion:', error);
+        }
+    } catch (error) {
+        console.error(`Error processing broadcast job ${jobId}:`, error);
+        try {
+            const job = await BroadcastJob.findOne({ jobId });
+            if (job) {
+                job.status = 'failed';
+                job.lastError = error.message;
+                await job.save();
+                await bot.sendMessage(job.adminId, `❌ Broadcast job failed: ${error.message}`);
+            }
+        } catch (_) {}
+    }
+}
+
+// Track broadcast sessions
+const broadcastSessions = new Map();
+
+// NEW BROADCAST COMMAND
+bot.onText(/\/broadcast/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    
+    if (!adminIds.includes(userId)) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+    
+    try {
+        broadcastSessions.set(chatId, { step: 'waiting_message', timestamp: Date.now() });
+        
+        await bot.sendMessage(chatId, 
+            `📢 Broadcast Creator\n\n` +
+            `Send your message (text, photo, audio, video, or document):\n\n` +
+            `💡 Tips:\n` +
+            `• Text messages are fastest\n` +
+            `• Media will be optimized\n` +
+            `• Optional captions work with HTML\n` +
+            `• Non-disruptive broadcasts\n\n` +
+            `⏱️ Est. time for 50K users: 25-35 minutes`,
+            {
+                reply_markup: {
+                    inline_keyboard: [[{ text: 'Cancel', callback_data: 'broadcast_cancel' }]]
+                }
+            }
+        );
+    } catch (error) {
+        console.error('Broadcast command error:', error);
+        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    }
 });
 
+// Handle broadcast message submission
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    
+    if (!adminIds.includes(userId)) return;
+    
+    const session = broadcastSessions.get(chatId);
+    if (!session || session.step !== 'waiting_message') return;
+    
+    if (msg.text && msg.text.startsWith('/')) return;
+    
+    if (Date.now() - session.timestamp > 10 * 60 * 1000) {
+        broadcastSessions.delete(chatId);
+        return bot.sendMessage(chatId, '⏰ Broadcast session expired. Use /broadcast to start over.');
+    }
+    
+    try {
+        let messageType = 'text';
+        let messageText = msg.text || '';
+        let caption = msg.caption || '';
+        let mediaFileId = null;
+        
+        if (msg.photo) {
+            messageType = 'photo';
+            mediaFileId = msg.photo[msg.photo.length - 1].file_id;
+            caption = msg.caption || '';
+            messageText = '';
+        } else if (msg.audio) {
+            messageType = 'audio';
+            mediaFileId = msg.audio.file_id;
+            caption = msg.caption || '';
+            messageText = '';
+        } else if (msg.video) {
+            messageType = 'video';
+            mediaFileId = msg.video.file_id;
+            caption = msg.caption || '';
+            messageText = '';
+        } else if (msg.document) {
+            messageType = 'document';
+            mediaFileId = msg.document.file_id;
+            caption = msg.caption || '';
+            messageText = '';
+        }
+        
+        if (!messageText && !mediaFileId) {
+            return bot.sendMessage(chatId, '❌ No message content found. Please try again.');
+        }
+        
+        const totalUsers = await User.countDocuments({});
+        if (totalUsers === 0) {
+            broadcastSessions.delete(chatId);
+            return bot.sendMessage(chatId, '⚠️ No users in database.');
+        }
+        
+        const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const job = new BroadcastJob({
+            jobId,
+            adminId: userId,
+            adminUsername: msg.from.username || msg.from.first_name,
+            messageType,
+            messageText,
+            caption,
+            mediaFileId,
+            messageId: msg.message_id,
+            totalUsers,
+            status: 'pending',
+            batchSize: 50,
+            delayBetweenBatchesMs: 1000
+        });
+        
+        await job.save();
+        broadcastSessions.delete(chatId);
+        
+        const preview = messageType === 'text' ? messageText.substring(0, 100) : `[${messageType.toUpperCase()}]`;
+        await bot.sendMessage(chatId, 
+            `✅ Broadcast job created!\n\n` +
+            `📊 Job ID: <code>${jobId}</code>\n` +
+            `👥 Recipients: ${totalUsers}\n` +
+            `📝 Type: ${messageType}\n\n` +
+            `⏱️ Est. time: ${Math.ceil(totalUsers / 50 * 2.5)} min\n` +
+            `Use /broadcast_status ${jobId} to track`,
+            { parse_mode: 'HTML' }
+        );
+        
+        processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
+        
+        console.log(`📢 Broadcast job ${jobId} queued for ${totalUsers} users`);
+        
+    } catch (error) {
+        console.error('Broadcast message handling error:', error);
+        broadcastSessions.delete(chatId);
+        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    }
+});
+
+// Status command
+bot.onText(/\/broadcast_status\s+(.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    
+    if (!adminIds.includes(userId)) {
+        return bot.sendMessage(chatId, '❌ Unauthorized');
+    }
+    
+    try {
+        const jobId = match[1].trim();
+        const job = await BroadcastJob.findOne({ jobId });
+        
+        if (!job) {
+            return bot.sendMessage(chatId, `❌ Job not found: ${jobId}`);
+        }
+        
+        const progress = Math.round((job.sentCount + job.failedCount + job.skippedCount) / job.totalUsers * 100);
+        const status = job.status.toUpperCase();
+        
+        let statusEmoji = '⏳';
+        if (job.status === 'completed') statusEmoji = '✅';
+        if (job.status === 'failed') statusEmoji = '❌';
+        if (job.status === 'cancelled') statusEmoji = '⛔';
+        
+        const timeTaken = job.completedAt ? Math.round((job.completedAt - job.startedAt) / 1000) : 'N/A';
+        const successRate = ((job.sentCount / job.totalUsers) * 100).toFixed(1);
+        
+        let statusMsg = `${statusEmoji} Broadcast Status\n\n` +
+            `📊 Job ID: <code>${jobId}</code>\n` +
+            `Status: ${status}\n` +
+            `Progress: ${progress}%\n\n` +
+            `✅ Sent: ${job.sentCount}/${job.totalUsers}\n` +
+            `❌ Failed: ${job.failedCount}\n` +
+            `⏭️ Skipped: ${job.skippedCount}\n` +
+            `📈 Success Rate: ${successRate}%\n\n`;
+        
+        if (job.status === 'processing') {
+            if (job.estimatedCompletionTime) {
+                const remaining = Math.max(0, Math.round((job.estimatedCompletionTime - new Date()) / 1000));
+                statusMsg += `⏱️ Est. remaining: ${remaining}s`;
+            }
+        } else if (job.completedAt) {
+            statusMsg += `⏱️ Completed in: ${timeTaken}s`;
+        }
+        
+        await bot.sendMessage(chatId, statusMsg, { parse_mode: 'HTML' });
+    } catch (error) {
+        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    }
+});
 // Enhanced notification fetching with pagination and unread count
 app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
     try {
@@ -11671,6 +12125,18 @@ setInterval(() => {
         }
     }
 }, 60 * 60 * 1000);
+
+// Clean up broadcast sessions that expire
+setInterval(() => {
+    const now = Date.now();
+    const timeout = 15 * 60 * 1000; // 15 minutes
+    
+    for (const [chatId, session] of broadcastSessions.entries()) {
+        if (now - session.timestamp > timeout) {
+            broadcastSessions.delete(chatId);
+        }
+    }
+}, 5 * 60 * 1000); // Check every 5 minutes
 
 //get total users from db
 bot.onText(/\/users/, async (msg) => {
