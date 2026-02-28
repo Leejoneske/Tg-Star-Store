@@ -375,7 +375,7 @@
 }
 
 [data-theme="dark"] .text-red-700 {
-	color: var(--error) !important;
+	color: #f87171 !important;
 }
 
 [data-theme="dark"] .text-blue-800 {
@@ -387,8 +387,12 @@
 }
 
 [data-theme="dark"] .bg-red-50 {
-	background: var(--error) !important;
-	color: white !important;
+	background: rgba(239, 68, 68, 0.1) !important;
+	color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .border-red-400 {
+	border-color: #f87171 !important;
 }
 
 [data-theme="dark"] .bg-blue-50 {
