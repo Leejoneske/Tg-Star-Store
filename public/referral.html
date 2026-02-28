@@ -11,12 +11,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <!-- Tailwind CSS for bottom nav styling -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="/js/translations.js?v=6"></script>
+    <script src="/js/translations.js?v=7"></script>
     <link rel="icon" href="/favicon.png" type="image/png">
-    <link rel="stylesheet" href="/css/theme.css?v=2">
-    <link rel="stylesheet" href="/css/theme-additional.css?v=8">
+    <link rel="stylesheet" href="/css/theme.css?v=3">
+    <link rel="stylesheet" href="/css/theme-additional.css?v=9">
 
     <style>
         * {
@@ -486,18 +488,25 @@
 
     // Load bottom navigation
     async function loadBottomNav() {
-        try {
-            const res = await fetch(`/bottomnav.html?v=${CACHE_BUSTER}`);
-            if (res.ok) {
-                const html = await res.text();
-                document.getElementById('bottomnav-container').innerHTML = html;
-                if (typeof TranslationUtils !== 'undefined') {
-                    TranslationUtils.applyTranslations();
-                }
-            }
-        } catch (error) {
-            console.error('Failed to load bottom nav:', error);
-        }
+        return new Promise((resolve) => {
+            const container = document.getElementById('bottomnav-container');
+            if (!container) return resolve();
+            
+            fetch('/bottomnav.html')
+                .then(r => r.ok ? r.text() : '')
+                .then(html => {
+                    container.innerHTML = html;
+                    // Apply translations to bottom nav after loading
+                    if (typeof TranslationUtils !== 'undefined' && TranslationUtils.applyTranslations) {
+                        TranslationUtils.applyTranslations();
+                    }
+                    resolve();
+                })
+                .catch((error) => {
+                    console.error('Failed to load bottom nav:', error);
+                    resolve();
+                });
+        });
     }
 
     // Load referral statistics and data from API
@@ -828,6 +837,6 @@
         }
     }, 30000);
 </script>
-<script src="/js/version-display.js?v=2"></script>
+<script src="/js/version-display.js?v=3"></script>
 </body>
 </html>
