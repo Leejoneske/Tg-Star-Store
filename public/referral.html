@@ -13,10 +13,10 @@
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="/js/translations.js?v=5"></script>
+    <script src="/js/translations.js?v=6"></script>
     <link rel="icon" href="/favicon.png" type="image/png">
-    <link rel="stylesheet" href="/css/theme.css?v=1">
-    <link rel="stylesheet" href="/css/theme-additional.css?v=7">
+    <link rel="stylesheet" href="/css/theme.css?v=2">
+    <link rel="stylesheet" href="/css/theme-additional.css?v=8">
 
     <style>
         * {
@@ -346,6 +346,7 @@
 </head>
 <body>
 <div class="app-container">
+    <div id="bottomnav-container"></div>
 
     <header class="page-header">
         <h1 class="header-title" data-translate="referral">Referral</h1>
@@ -434,8 +435,6 @@
     <button class="cta-withdraw" id="withdrawButton"><i class="fas fa-arrow-up"></i> &nbsp;<span data-translate="withdraw">Withdraw</span></button>
 </div>
 
-<div id="bottomnav-container"></div>
-
 <script>
     // Initialize Telegram WebApp
     if (window.Telegram?.WebApp) {
@@ -453,8 +452,8 @@
         }
     }
 
-    // Cache buster token
-    const CACHE_BUSTER = Date.now();
+    // Cache buster token with timestamp
+    const CACHE_BUSTER = `v${Date.now().toString().slice(-8)}`;
     
     const tgWebApp = window.Telegram?.WebApp;
     const tgUser = tgWebApp?.initDataUnsafe?.user;
@@ -829,6 +828,6 @@
         }
     }, 30000);
 </script>
-<script src="/js/version-display.js?v=1"></script>
+<script src="/js/version-display.js?v=2"></script>
 </body>
 </html>
