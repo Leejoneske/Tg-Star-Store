@@ -203,7 +203,7 @@ const translations = {
         actions: "Quick Actions",
         copy: "Copy",
         share: "Share",
-        history: "Transaction History",
+        history: "History",
         historyDesc: "View all your referrals",
         loading: "Loading...",
         shareInvite: "Share your referral link to invite friends",
