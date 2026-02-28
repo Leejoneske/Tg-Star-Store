@@ -276,49 +276,50 @@
 
         /* Dark Mode */
         @media (prefers-color-scheme: dark) {
-            body { background: #111; }
-            .app-container { background: #111; }
-            .back-btn { color: #f0f0f0; }
-            .hero-title { color: #f0f0f0; }
-            .hero-sub { color: #777; }
-            .link-box { background: #1d1d1d; }
-            .link-text { color: #aaa; }
-            .copy-btn { background: #f0f0f0; color: #111; }
-            .stat-pill { background: #1d1d1d; }
-            .stat-pill .val { color: #f0f0f0; }
-            .divider { background: #1d1d1d; }
-            .step-row { border-color: #1d1d1d; }
-            .step-icon-wrap { background: #1d1d1d; color: #aaa; }
-            .step-text h4 { color: #f0f0f0; }
-            .step-text p { color: #666; }
-            .referral-row { border-color: #1d1d1d; }
-            .ref-avatar { background: #1d1d1d; color: #777; }
-            .ref-name { color: #f0f0f0; }
-            .bottom-cta { background: #111; border-color: #1d1d1d; }
-            .cta-share { background: #f0f0f0; color: #111; }
-            .cta-withdraw { background: #1d1d1d; color: #f0f0f0; }
+            body { background: var(--surface); }
+            .app-container { background: var(--surface); }
+            .back-btn { color: var(--text); }
+            .hero-title { color: var(--text); }
+            .hero-sub { color: var(--text-secondary); }
+            .link-box { background: var(--surface-elevated); }
+            .link-text { color: var(--text-muted); }
+            .copy-btn { background: var(--text); color: var(--surface); }
+            .stat-pill { background: var(--surface-elevated); }
+            .stat-pill .val { color: var(--text); }
+            .divider { background: var(--surface-elevated); }
+            .step-row { border-color: var(--surface-elevated); }
+            .step-icon-wrap { background: var(--surface-elevated); color: var(--text-muted); }
+            .step-text h4 { color: var(--text); }
+            .step-text p { color: var(--text-secondary); }
+            .referral-row { border-color: var(--surface-elevated); }
+            .ref-avatar { background: var(--surface-elevated); color: var(--text-secondary); }
+            .ref-name { color: var(--text); }
+            .bottom-cta { background: var(--surface); border-color: var(--surface-elevated); }
+            .cta-share { background: var(--text); color: var(--surface); }
+            .cta-withdraw { background: var(--surface-elevated); color: var(--text); }
         }
 
-        [data-theme="dark"] body { background: #111; }
-        [data-theme="dark"] .app-container { background: #111; }
-        [data-theme="dark"] .back-btn { color: #f0f0f0; }
-        [data-theme="dark"] .hero-title { color: #f0f0f0; }
-        [data-theme="dark"] .hero-sub { color: #777; }
-        [data-theme="dark"] .link-box { background: #1d1d1d; }
-        [data-theme="dark"] .link-text { color: #aaa; }
-        [data-theme="dark"] .copy-btn { background: #f0f0f0; color: #111; }
-        [data-theme="dark"] .stat-pill { background: #1d1d1d; }
-        [data-theme="dark"] .stat-pill .val { color: #f0f0f0; }
-        [data-theme="dark"] .divider { background: #1d1d1d; }
-        [data-theme="dark"] .step-row { border-color: #1d1d1d; }
-        [data-theme="dark"] .step-icon-wrap { background: #1d1d1d; color: #aaa; }
-        [data-theme="dark"] .step-text h4 { color: #f0f0f0; }
-        [data-theme="dark"] .referral-row { border-color: #1d1d1d; }
-        [data-theme="dark"] .ref-avatar { background: #1d1d1d; color: #777; }
-        [data-theme="dark"] .ref-name { color: #f0f0f0; }
-        [data-theme="dark"] .bottom-cta { background: #111; border-color: #1d1d1d; }
-        [data-theme="dark"] .cta-share { background: #f0f0f0; color: #111; }
-        [data-theme="dark"] .cta-withdraw { background: #1d1d1d; color: #f0f0f0; }
+        [data-theme="dark"] body { background: var(--surface); }
+        [data-theme="dark"] .app-container { background: var(--surface); }
+        [data-theme="dark"] .back-btn { color: var(--text); }
+        [data-theme="dark"] .hero-title { color: var(--text); }
+        [data-theme="dark"] .hero-sub { color: var(--text-secondary); }
+        [data-theme="dark"] .link-box { background: var(--surface-elevated); }
+        [data-theme="dark"] .link-text { color: var(--text-muted); }
+        [data-theme="dark"] .copy-btn { background: var(--text); color: var(--surface); }
+        [data-theme="dark"] .stat-pill { background: var(--surface-elevated); }
+        [data-theme="dark"] .stat-pill .val { color: var(--text); }
+        [data-theme="dark"] .divider { background: var(--surface-elevated); }
+        [data-theme="dark"] .step-row { border-color: var(--surface-elevated); }
+        [data-theme="dark"] .step-icon-wrap { background: var(--surface-elevated); color: var(--text-muted); }
+        [data-theme="dark"] .step-text h4 { color: var(--text); }
+        [data-theme="dark"] .step-text p { color: var(--text-secondary); }
+        [data-theme="dark"] .referral-row { border-color: var(--surface-elevated); }
+        [data-theme="dark"] .ref-avatar { background: var(--surface-elevated); color: var(--text-secondary); }
+        [data-theme="dark"] .ref-name { color: var(--text); }
+        [data-theme="dark"] .bottom-cta { background: var(--surface); border-color: var(--surface-elevated); }
+        [data-theme="dark"] .cta-share { background: var(--text); color: var(--surface); }
+        [data-theme="dark"] .cta-withdraw { background: var(--surface-elevated); color: var(--text); }
     </style>
 </head>
 <body>
@@ -336,8 +337,8 @@
             <div class="cluster-icon"><i class="fas fa-dollar-sign"></i></div>
             <div class="cluster-icon"><i class="fas fa-user-plus"></i></div>
         </div>
-        <h1 class="hero-title">Earn 0.5 USDT<br>per referral</h1>
-        <p class="hero-sub">Invite friends to StarStore. Every time they purchase 100+ stars using your link, you get rewarded instantly.</p>
+        <h1 class="hero-title" data-translate="referralTitle">Earn 0.5 USDT<br>per referral</h1>
+        <p class="hero-sub" data-translate="referralSubtitle">Invite friends to StarStore. Every time they purchase 100+ stars using your link, you get rewarded instantly.</p>
     </div>
 
     <div class="link-section">
@@ -350,58 +351,58 @@
     <div class="stats-row">
         <div class="stat-pill">
             <div class="val" id="availableBalance">0.00</div>
-            <div class="lbl">Available</div>
+            <div class="lbl" data-translate="availableBalance">Available</div>
         </div>
         <div class="stat-pill">
             <div class="val" id="referralsCount">0</div>
-            <div class="lbl">Referrals</div>
+            <div class="lbl" data-translate="referrals">Referrals</div>
         </div>
         <div class="stat-pill">
             <div class="val" id="totalEarned">0.00</div>
-            <div class="lbl">Earned</div>
+            <div class="lbl" data-translate="totalEarned">Earned</div>
         </div>
     </div>
 
     <div class="divider"></div>
-    <div class="section-label">How it works</div>
+    <div class="section-label" data-translate="howItWorksReferral">How it works</div>
     <div class="steps-list">
         <div class="step-row">
             <div class="step-icon-wrap"><i class="fas fa-link"></i></div>
             <div class="step-text">
-                <h4>Share your link</h4>
-                <p>Copy and send your unique referral link to friends</p>
+                <h4 data-translate="step1Title">Share your link</h4>
+                <p data-translate="step1Desc">Copy and send your unique referral link to friends</p>
             </div>
         </div>
         <div class="step-row">
             <div class="step-icon-wrap"><i class="fas fa-star"></i></div>
             <div class="step-text">
-                <h4>Friend buys stars</h4>
-                <p>They purchase 100 or more Telegram stars</p>
+                <h4 data-translate="step2Title">Friend buys stars</h4>
+                <p data-translate="step2Desc">They purchase 100 or more Telegram stars</p>
             </div>
         </div>
         <div class="step-row">
             <div class="step-icon-wrap"><i class="fas fa-bolt"></i></div>
             <div class="step-text">
-                <h4>You earn 0.5 USDT</h4>
-                <p>Credited to your balance instantly</p>
+                <h4 data-translate="step3Title">You earn 0.5 USDT</h4>
+                <p data-translate="step3Desc">Credited to your balance instantly</p>
             </div>
         </div>
         <div class="step-row">
             <div class="step-icon-wrap"><i class="fas fa-wallet"></i></div>
             <div class="step-text">
-                <h4>Withdraw anytime</h4>
-                <p>Cash out directly to your TON wallet</p>
+                <h4 data-translate="step4Title">Withdraw anytime</h4>
+                <p data-translate="step4Desc">Cash out directly to your TON wallet</p>
             </div>
         </div>
     </div>
 
     <div class="divider"></div>
-    <div class="section-label">My Referrals</div>
+    <div class="section-label" data-translate="myReferrals">My Referrals</div>
     <div class="referrals-section">
         <div id="noReferrals" class="empty-state">
             <i class="fas fa-user-friends"></i>
-            <h3>No referrals yet</h3>
-            <p>Share your link to start earning</p>
+            <h3 data-translate="noReferrals">No referrals yet</h3>
+            <p data-translate="referralEmptyHint">Share your link to start earning</p>
         </div>
         <div id="referralsList"></div>
     </div>
