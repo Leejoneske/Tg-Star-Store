@@ -12740,4 +12740,1440 @@ app.get('/api/admin/performance', requireAdmin, async (req, res) => {
 });
 
 // List recent orders (buy + sell)
-app.get('/api/admin/orders', requireAdm
+app.get('/api/admin/orders', requireAdmin, async (req, res) => {
+	try {
+		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+		const page = Math.max(parseInt(req.query.page) || 1, 1);
+		const status = (req.query.status || '').toString().trim();
+		const type = (req.query.type || 'all').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+
+		const textFilter = q ? { $or: [
+			{ id: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ telegramId: { $regex: q, $options: 'i' } }
+		] } : {};
+		const statusFilter = status ? { status } : {};
+
+		const buyQuery = { ...statusFilter, ...textFilter };
+		const sellQuery = { ...statusFilter, ...textFilter };
+		const needBuy = type === 'all' || type === 'buy';
+		const needSell = type === 'all' || type === 'sell';
+		const [buyCount, sellCount] = await Promise.all([
+			needBuy ? BuyOrder.countDocuments(buyQuery).catch(()=>0) : Promise.resolve(0),
+			needSell ? SellOrder.countDocuments(sellQuery).catch(()=>0) : Promise.resolve(0)
+		]);
+
+		const take = limit * page;
+		const [buys, sells] = await Promise.all([
+			needBuy ? BuyOrder.find(buyQuery).sort({ dateCreated: -1 }).limit(take).lean() : Promise.resolve([]),
+			needSell ? SellOrder.find(sellQuery).sort({ dateCreated: -1 }).limit(take).lean() : Promise.resolve([])
+		]);
+
+		const merged = [
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
+
+		const start = (page - 1) * limit;
+		const orders = merged.slice(start, start + limit);
+		const total = buyCount + sellCount;
+		res.json({ orders, total });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load orders' });
+	}
+});
+
+app.get('/api/admin/orders/export', requireAdmin, async (req, res) => {
+	try {
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+		const textFilter = q ? { $or: [
+			{ id: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ telegramId: { $regex: q, $options: 'i' } }
+		] } : {};
+		const statusFilter = status ? { status } : {};
+		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
+		const [buys, sells] = await Promise.all([
+			BuyOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(limit).lean(),
+			SellOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(limit).lean()
+		]);
+		const rows = [
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
+		const csv = ['id,type,username,telegramId,amount,status,dateCreated']
+			.concat(rows.map(r => [r.id, r.type, r.username || '', r.telegramId || '', r.amount || 0, r.status || '', new Date(r.dateCreated || Date.now()).toISOString()]
+				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
+			.join('\n');
+		res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+		res.setHeader('Content-Disposition', 'attachment; filename="orders.csv"');
+		res.setHeader('Cache-Control', 'no-store');
+		return res.send(csv);
+	} catch (e) {
+		return res.status(500).send('Failed to export');
+	}
+});
+
+// Order actions
+app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        // Try buy first, then sell
+        let order = await BuyOrder.findOne({ id });
+        let orderType = 'buy';
+        if (!order) { order = await SellOrder.findOne({ id }); orderType = 'sell'; }
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        if (orderType === 'sell' && order.status !== 'processing') {
+            return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
+        if (orderType === 'buy' && order.status !== 'pending' && order.status !== 'processing') {
+            return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
+
+        order.status = 'completed';
+        order.dateCompleted = new Date();
+        await order.save();
+
+        // Mirror side effects
+        if (orderType === 'sell') {
+            if (order.stars) { 
+                try { 
+                    await trackStars(order.telegramId, order.stars, 'sell'); 
+                } catch (error) {
+                    console.error('Failed to track stars for sell order:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Sell Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
+        } else {
+            if (!order.isPremium && order.stars) { 
+                try { 
+                    await trackStars(order.telegramId, order.stars, 'buy'); 
+                } catch (error) {
+                    console.error('Failed to track stars for buy order:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Buy Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
+            if (order.isPremium) { 
+                try { 
+                    await trackPremiumActivation(order.telegramId); 
+                } catch (error) {
+                    console.error('Failed to track premium activation:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Premium Order #${order.id}\n\nFailed to track premium activation for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
+        }
+
+        // Collapse admin buttons
+        const statusText = '✅ Completed';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}${orderType === 'sell' ? '\n\nPayments have been transferred to the seller.' : ''}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        // Notify user
+        const userMessage = `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for choosing StarStore!'}`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to complete order' });
+    }
+});
+
+app.post('/api/admin/orders/:id/decline', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        let order = await BuyOrder.findOne({ id });
+        let orderType = 'buy';
+        if (!order) { order = await SellOrder.findOne({ id }); orderType = 'sell'; }
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        order.status = orderType === 'sell' ? 'failed' : 'declined';
+        order.dateDeclined = new Date();
+        await order.save();
+
+        const statusText = order.status === 'failed' ? '❌ Failed' : '❌ Declined';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        const userMessage = order.status === 'failed' 
+          ? `❌ Your sell order #${order.id} has failed.\n\nTry selling a lower amount or contact support if the issue persist.`
+          : `❌ Your buy order #${order.id} has been declined.\n\nContact support if you believe this was a mistake.`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to decline order' });
+    }
+});
+
+app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        const order = await SellOrder.findOne({ id });
+        if (!order) return res.status(404).json({ error: 'Sell order not found' });
+
+        order.status = 'refunded';
+        order.dateRefunded = new Date();
+        await order.save();
+
+        const statusText = '💸 Refunded';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        const userMessage = `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to refund order' });
+    }
+});
+
+// List recent withdrawals
+app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
+	try {
+		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+		const page = Math.max(parseInt(req.query.page) || 1, 1);
+		const status = (req.query.status || '').toString().trim();
+		const qq = (req.query.q || '').toString().trim();
+		const statusFilter = status ? { status } : {};
+		const textFilter = qq ? { $or: [
+			{ userId: { $regex: qq, $options: 'i' } },
+			{ username: { $regex: qq, $options: 'i' } },
+			{ walletAddress: { $regex: qq, $options: 'i' } },
+		] } : {};
+		const total = await ReferralWithdrawal.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0);
+		const withdrawals = await ReferralWithdrawal.find({ ...statusFilter, ...textFilter })
+			.sort({ createdAt: -1 })
+			.skip((page - 1) * limit)
+			.limit(limit)
+			.lean();
+		res.json({ withdrawals, total });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load withdrawals' });
+	}
+});
+
+app.get('/api/admin/withdrawals/export', requireAdmin, async (req, res) => {
+	try {
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+		const statusFilter = status ? { status } : {};
+		const textFilter = q ? { $or: [
+			{ userId: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ walletAddress: { $regex: q, $options: 'i' } }
+		] } : {};
+		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
+		const withdrawals = await ReferralWithdrawal
+			.find({ ...statusFilter, ...textFilter })
+			.sort({ createdAt: -1 })
+			.limit(limit)
+			.lean();
+		const csv = ['id,userId,username,amount,walletAddress,status,reason,createdAt']
+			.concat(withdrawals.map(w => [w._id, w.userId || '', w.username || '', w.amount || 0, w.walletAddress || '', w.status || '', w.declineReason || '', new Date(w.createdAt || Date.now()).toISOString()]
+				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
+			.join('\n');
+		res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+		res.setHeader('Content-Disposition', 'attachment; filename="withdrawals.csv"');
+		res.setHeader('Cache-Control', 'no-store');
+		return res.send(csv);
+	} catch (e) {
+		return res.status(500).send('Failed to export');
+	}
+});
+
+// Complete a withdrawal
+app.post('/api/admin/withdrawals/:id/complete', requireAdmin, async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const id = req.params.id;
+        const admin = req.user?.id || 'admin';
+
+        const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(id), status: 'pending' },
+            { $set: { status: 'completed', processedBy: parseInt(admin, 10) || admin, processedAt: new Date() } },
+            { new: true, session }
+        );
+        if (!withdrawal) {
+            await session.abortTransaction();
+            return res.status(409).json({ error: 'Withdrawal not found or already processed' });
+        }
+
+        // Notify user
+        try {
+            await bot.sendMessage(withdrawal.userId, `✅ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Completed!\n\nAmount: ${withdrawal.amount} USDT\nWallet: ${withdrawal.walletAddress}\n\nFunds have been sent to your wallet.`);
+        } catch {}
+
+        // Update admin messages to collapsed status
+        const statusText = '✅ Completed';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (withdrawal.adminMessages?.length) {
+            await Promise.all(withdrawal.adminMessages.map(async (adminMsg) => {
+                if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\nStatus: ${statusText}\n${processedBy}\nProcessed at: ${new Date().toLocaleString()}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] }
+                    });
+                } catch {
+                    try {
+                        await bot.editMessageReplyMarkup(
+                            { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] },
+                            { chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId, message_id: adminMsg.messageId }
+                        );
+                    } catch {}
+                }
+            }));
+        }
+
+        await session.commitTransaction();
+        return res.json({ success: true });
+    } catch (e) {
+        await session.abortTransaction();
+        return res.status(500).json({ error: 'Failed to complete withdrawal' });
+    } finally {
+        session.endSession();
+    }
+});
+
+// Decline a withdrawal with reason
+app.post('/api/admin/withdrawals/:id/decline', requireAdmin, async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const id = req.params.id;
+        const { reason } = req.body || {};
+        const admin = req.user?.id || 'admin';
+
+        const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(id), status: 'pending' },
+            { $set: { status: 'declined', processedBy: parseInt(admin, 10) || admin, processedAt: new Date(), declineReason: reason || 'Declined' } },
+            { new: true, session }
+        );
+        if (!withdrawal) {
+            await session.abortTransaction();
+            return res.status(409).json({ error: 'Withdrawal not found or already processed' });
+        }
+
+        // Revert referral withdrawn flags
+        await Referral.updateMany(
+            { _id: { $in: withdrawal.referralIds } },
+            { $set: { withdrawn: false } },
+            { session }
+        );
+
+        // Notify user with reason
+        try {
+            await bot.sendMessage(withdrawal.userId, `❌ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Declined\nReason: ${withdrawal.declineReason}\n\nAmount: ${withdrawal.amount} USDT\nContact support for more information.`);
+        } catch {}
+
+        // Update admin messages
+        const statusText = '❌ Declined';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (withdrawal.adminMessages?.length) {
+            await Promise.all(withdrawal.adminMessages.map(async (adminMsg) => {
+                if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\nStatus: ${statusText}\nReason: ${withdrawal.declineReason}\n${processedBy}\nProcessed at: ${new Date().toLocaleString()}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] }
+                    });
+                } catch {
+                    try {
+                        await bot.editMessageReplyMarkup(
+                            { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] },
+                            { chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId, message_id: adminMsg.messageId }
+                        );
+                    } catch {}
+                }
+            }));
+        }
+
+        await session.commitTransaction();
+        return res.json({ success: true });
+    } catch (e) {
+        await session.abortTransaction();
+        return res.status(500).json({ error: 'Failed to decline withdrawal' });
+    } finally {
+        session.endSession();
+    }
+});
+
+// List referrals for admin
+app.get('/api/admin/referrals', requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const referrals = await Referral.find({}).sort({ dateReferred: -1 }).limit(limit).lean();
+        res.json({ referrals });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load referrals' });
+    }
+});
+
+// List users for admin
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const filter = {};
+        const activeSinceMin = parseInt(req.query.activeMinutes || '0', 10);
+        if (activeSinceMin > 0) {
+            filter.lastActive = { $gte: new Date(Date.now() - activeSinceMin * 60 * 1000) };
+        }
+        const users = await User.find(filter).sort({ lastActive: -1 }).limit(limit).lean();
+        res.json({ users, total: await User.countDocuments(filter).catch(()=>0) });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load users' });
+    }
+});
+
+// Force enable bot simulator endpoint (admin only)
+app.post('/api/admin/force-enable-bots', requireAdmin, async (req, res) => {
+  try {
+    // Set environment variable programmatically
+    process.env.ENABLE_BOT_SIMULATOR = '1';
+    
+    // Try to start bot simulator immediately
+    if (startBotSimulatorSafe) {
+      try {
+        await startBotSimulatorSafe({
+          useMongo: !!process.env.MONGODB_URI,
+          models: { User, DailyState, BotProfile, Activity },
+          db
+        });
+        
+        res.json({
+          success: true,
+          message: 'Bot simulator force enabled and started',
+          status: 'enabled',
+          environment: process.env.ENABLE_BOT_SIMULATOR
+        });
+      } catch (startError) {
+        res.json({
+          success: true,
+          message: 'Bot simulator enabled but start failed',
+          status: 'enabled_but_not_started',
+          environment: process.env.ENABLE_BOT_SIMULATOR,
+          startError: startError.message
+        });
+      }
+    } else {
+      res.json({
+        success: true,
+        message: 'Bot simulator enabled (restart required)',
+        status: 'enabled_restart_needed',
+        environment: process.env.ENABLE_BOT_SIMULATOR
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to enable bot simulator',
+      details: error.message
+    });
+  }
+});
+
+// Diagnostic endpoint to check bot simulator status (admin only)
+app.get('/api/admin/bot-simulator/diagnostic', requireAdmin, async (req, res) => {
+  try {
+    const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+    const botActivities = await Activity.countDocuments({ 
+      userId: { $regex: '^200000' },
+      timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    });
+    const botStates = await DailyState.countDocuments({ userId: { $regex: '^200000' } });
+    
+    // Get sample bot users
+    const sampleBots = await User.find({ id: { $regex: '^200000' } }).limit(5).select('id username');
+    
+    // Check if bot simulator is running
+    const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+    const hasStartFunction = !!startBotSimulatorSafe;
+    
+    res.json({
+      success: true,
+      diagnostic: {
+        environment: {
+          ENABLE_BOT_SIMULATOR: process.env.ENABLE_BOT_SIMULATOR,
+          isEnabled,
+          hasStartFunction
+        },
+        database: {
+          botUsers,
+          botActivities,
+          botStates,
+          sampleBots
+        },
+        expected: {
+          botUsers: 135,
+          botActivities: '20-40 per day',
+          botStates: 135
+        },
+        recommendations: []
+      }
+    });
+    
+    // Add recommendations based on findings
+    if (botUsers < 10) {
+      res.json.diagnostic?.recommendations.push('Bot seeding failed - need to restart bot simulator');
+    }
+    if (botActivities === 0 && botUsers > 0) {
+      res.json.diagnostic?.recommendations.push('Bots exist but not generating activities - check tick function');
+    }
+    if (!isEnabled) {
+      res.json.diagnostic?.recommendations.push('Set ENABLE_BOT_SIMULATOR=1 in environment variables');
+    }
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Diagnostic failed',
+      details: error.message
+    });
+  }
+});
+
+// Force restart bot simulator (admin only)
+app.post('/api/admin/bot-simulator/restart', requireAdmin, async (req, res) => {
+  try {
+    if (!startBotSimulatorSafe) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bot simulator not available'
+      });
+    }
+    
+    // Force restart the bot simulator
+    const result = startBotSimulatorSafe({
+      useMongo: !!process.env.MONGODB_URI,
+      models: { User, DailyState, BotProfile, Activity },
+      db
+    });
+    
+    res.json({
+      success: true,
+      message: 'Bot simulator restarted',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to restart bot simulator',
+      details: error.message
+    });
+  }
+});
+
+// Admin endpoint to view activity statistics
+app.get('/api/admin/activity/stats', requireAdmin, async (req, res) => {
+    try {
+        const { timeframe = '24h' } = req.query;
+        
+        // Calculate time range
+        let startTime;
+        switch (timeframe) {
+            case '1h':
+                startTime = new Date(Date.now() - 60 * 60 * 1000);
+                break;
+            case '24h':
+                startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                break;
+            case '7d':
+                startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case '30d':
+                startTime = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                break;
+            default:
+                startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        }
+
+        // Get activity statistics
+        const [
+            totalActivities,
+            recentActivities,
+            activityTypes,
+            topUsers,
+            botActivities,
+            totalUsers,
+            activeUsers
+        ] = await Promise.all([
+            Activity.countDocuments(),
+            Activity.countDocuments({ timestamp: { $gte: startTime } }),
+            Activity.aggregate([
+                { $match: { timestamp: { $gte: startTime } } },
+                { $group: { 
+                    _id: '$activityType', 
+                    count: { $sum: 1 }, 
+                    totalPoints: { $sum: '$points' },
+                    avgPoints: { $avg: '$points' }
+                }},
+                { $sort: { count: -1 } }
+            ]),
+            Activity.aggregate([
+                { $match: { timestamp: { $gte: startTime } } },
+                { $group: { 
+                    _id: '$userId', 
+                    count: { $sum: 1 }, 
+                    totalPoints: { $sum: '$points' }
+                }},
+                { $sort: { totalPoints: -1 } },
+                { $limit: 10 }
+            ]),
+            Activity.countDocuments({ 
+                userId: { $regex: '^200000' },
+                timestamp: { $gte: startTime }
+            }),
+            User.countDocuments(),
+            User.countDocuments({ lastActive: { $gte: startTime } })
+        ]);
+
+        // Get bot simulator status
+        const botSimulatorEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+        const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+
+        res.json({
+            timeframe,
+            period: {
+                start: startTime.toISOString(),
+                end: new Date().toISOString()
+            },
+            overview: {
+                totalActivities,
+                recentActivities,
+                totalUsers,
+                activeUsers,
+                botUsers,
+                botActivities
+            },
+            activityTypes,
+            topUsers,
+            botSimulator: {
+                enabled: botSimulatorEnabled,
+                botUsers,
+                recentBotActivities: botActivities
+            }
+        });
+    } catch (error) {
+        console.error('Admin activity stats error:', error);
+        res.status(500).json({ error: 'Failed to fetch activity statistics' });
+    }
+});
+
+// Admin endpoint to view recent activities
+app.get('/api/admin/activity/recent', requireAdmin, async (req, res) => {
+    try {
+        const { limit = 50, skip = 0, userId, activityType } = req.query;
+        
+        const filter = {};
+        if (userId) filter.userId = userId;
+        if (activityType) filter.activityType = activityType;
+
+        const activities = await Activity.find(filter)
+            .sort({ timestamp: -1 })
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
+            .lean();
+
+        const total = await Activity.countDocuments(filter);
+
+        res.json({
+            activities,
+            pagination: {
+                total,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                hasMore: (parseInt(skip) + parseInt(limit)) < total
+            }
+        });
+    } catch (error) {
+        console.error('Admin recent activities error:', error);
+        res.status(500).json({ error: 'Failed to fetch recent activities' });
+    }
+});
+
+// Admin endpoint to enable/disable bot simulator
+app.post('/api/admin/bot-simulator/enable', requireAdmin, async (req, res) => {
+    try {
+        process.env.ENABLE_BOT_SIMULATOR = '1';
+        
+        // Try to start bot simulator if not already running
+        if (startBotSimulatorSafe) {
+            try {
+                startBotSimulatorSafe({
+                    useMongo: !!process.env.MONGODB_URI,
+                    models: { User, DailyState, BotProfile, Activity },
+                    db
+                });
+                console.log('🤖 Bot simulator enabled via admin command');
+            } catch (e) {
+                console.warn('Failed to start bot simulator:', e.message);
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: 'Bot simulator enabled. Note: Changes will be lost on server restart. Update environment variables for persistence.',
+            enabled: true
+        });
+    } catch (error) {
+        console.error('Enable bot simulator error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to enable bot simulator',
+            details: error.message 
+        });
+    }
+});
+
+// Admin endpoint to test bot simulator
+app.post('/api/admin/bot-simulator/test', requireAdmin, async (req, res) => {
+    try {
+        const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+        
+        if (!isEnabled) {
+            return res.json({
+                success: false,
+                message: 'Bot simulator is disabled. Set ENABLE_BOT_SIMULATOR=1 to enable.',
+                enabled: false
+            });
+        }
+
+        // Check if bot simulator is actually working
+        const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+        const recentBotActivity = await Activity.countDocuments({
+            userId: { $regex: '^200000' },
+            timestamp: { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+        });
+
+        // Try to create a test bot user
+        const testBotId = '200999999';
+        let testBotCreated = false;
+        const existingTestBot = await User.findOne({ id: testBotId });
+        
+        if (!existingTestBot) {
+            try {
+                await User.findOneAndUpdate(
+                    { id: testBotId },
+                    { $set: { id: testBotId, username: 'test_bot_admin', lastActive: new Date(), createdAt: new Date() } },
+                    { upsert: true, new: true }
+                );
+                testBotCreated = true;
+            } catch (createErr) {
+                // Handle E11000 duplicate key error - already exists
+                if (createErr.code !== 11000) {
+                    throw createErr;
+                }
+            }
+        }
+
+        res.json({
+            success: true,
+            enabled: true,
+            stats: {
+                botUsers,
+                recentBotActivity,
+                testBotCreated
+            },
+            message: `Bot simulator is enabled. Found ${botUsers} bot users with ${recentBotActivity} recent activities.`
+        });
+    } catch (error) {
+        console.error('Bot simulator test error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to test bot simulator',
+            details: error.message 
+        });
+    }
+});
+
+// Enhanced notification system - sends both Telegram messages and creates database notifications
+app.post('/api/admin/notify', requireAdmin, async (req, res) => {
+    try {
+        const { target, message, title, sendTelegram = true, createDbNotification = true } = req.body || {};
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ error: 'Message required' });
+        }
+
+        const telegramSent = [];
+        const dbNotificationsCreated = [];
+        let template = null;
+
+        // Create notification template if database notifications are requested
+        if (createDbNotification) {
+            const notificationTitle = title || 'Admin Notification 📢';
+            template = await NotificationTemplate.create({
+                title: notificationTitle,
+                message: message,
+                audience: (!target || target === 'all' || target === 'active') ? 'global' : 'user',
+                targetUserId: (/^\d+$/.test(target)) ? target : null,
+                priority: 1,
+                icon: 'fa-bullhorn',
+                createdBy: `admin_api_${req.user.id}`
+            });
+        }
+
+        if (!target || target === 'all') {
+            const users = await User.find({}, { id: 1 }).limit(10000);
+            
+            // Send Telegram messages
+            if (sendTelegram) {
+                for (const u of users) {
+                    try { 
+                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
+                        telegramSent.push(u.id); 
+                    } catch {}
+                }
+            }
+
+            // Create database notifications
+            if (createDbNotification && template) {
+                const userNotifications = users.map(user => ({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                }));
+                
+                if (userNotifications.length > 0) {
+                    await UserNotification.insertMany(userNotifications);
+                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
+                }
+            }
+        } else if (target === 'active') {
+            // Active users in last 24h
+            const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const users = await User.find({ lastActive: { $gte: since } }, { id: 1 }).limit(10000);
+            
+            // Send Telegram messages
+            if (sendTelegram) {
+                for (const u of users) {
+                    try { 
+                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
+                        telegramSent.push(u.id); 
+                    } catch {}
+                }
+            }
+
+            // Create database notifications
+            if (createDbNotification && template) {
+                const userNotifications = users.map(user => ({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                }));
+                
+                if (userNotifications.length > 0) {
+                    await UserNotification.insertMany(userNotifications);
+                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
+                }
+            }
+        } else if (/^@/.test(target)) {
+            const username = target.replace(/^@/, '');
+            const user = await User.findOne({ username });
+            if (!user) return res.status(404).json({ error: 'User not found' });
+            
+            // Send Telegram message
+            if (sendTelegram) {
+                try {
+                    await bot.sendMessage(user.id, `📢 Personal Admin Message:\n\n${message}`); 
+                    telegramSent.push(user.id);
+                } catch (err) {
+                    console.log(`Failed to send Telegram message to @${username}:`, err.message);
+                }
+            }
+
+            // Create database notification
+            if (createDbNotification && template) {
+                template.audience = 'user';
+                template.targetUserId = user.id.toString();
+                await template.save();
+
+                await UserNotification.create({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                });
+                dbNotificationsCreated.push(user.id.toString());
+            }
+        } else if (/^\d+$/.test(target)) {
+            // Send Telegram message
+            if (sendTelegram) {
+                try {
+                    await bot.sendMessage(target, `📢 Personal Admin Message:\n\n${message}`); 
+                    telegramSent.push(target);
+                } catch (err) {
+                    console.log(`Failed to send Telegram message to ${target}:`, err.message);
+                }
+            }
+
+            // Create database notification
+            if (createDbNotification && template) {
+                template.audience = 'user';
+                template.targetUserId = target;
+                await template.save();
+
+                await UserNotification.create({
+                    userId: target,
+                    templateId: template._id,
+                    read: false
+                });
+                dbNotificationsCreated.push(target);
+            }
+        } else {
+            return res.status(400).json({ error: 'Invalid target' });
+        }
+        
+        res.json({ 
+            success: true, 
+            telegramSent: telegramSent.length,
+            dbNotificationsCreated: dbNotificationsCreated.length,
+            templateId: template?._id
+        });
+    } catch (error) {
+        console.error('Admin notify error:', error);
+        res.status(500).json({ error: 'Failed to send notification' });
+    }
+});
+
+// Admin endpoint to view all notifications and templates
+app.get('/api/admin/notifications', requireAdmin, async (req, res) => {
+    try {
+        const { limit = 50, skip = 0, type = 'all' } = req.query;
+
+        let query = {};
+        if (type === 'global') query.audience = 'global';
+        if (type === 'user') query.audience = 'user';
+
+        const templates = await NotificationTemplate.find(query)
+            .sort({ createdAt: -1 })
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
+            .lean();
+
+        const templateStats = await Promise.all(templates.map(async (template) => {
+            const userNotificationCount = await UserNotification.countDocuments({ templateId: template._id });
+            const unreadCount = await UserNotification.countDocuments({ templateId: template._id, read: false });
+            
+            return {
+                ...template,
+                totalRecipients: userNotificationCount,
+                unreadCount: unreadCount,
+                readCount: userNotificationCount - unreadCount
+            };
+        }));
+
+        const totalTemplates = await NotificationTemplate.countDocuments(query);
+        const totalUserNotifications = await UserNotification.countDocuments();
+        const totalUnread = await UserNotification.countDocuments({ read: false });
+
+        res.json({
+            templates: templateStats,
+            pagination: {
+                total: totalTemplates,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                hasMore: (parseInt(skip) + parseInt(limit)) < totalTemplates
+            },
+            stats: {
+                totalTemplates,
+                totalUserNotifications,
+                totalUnread,
+                totalRead: totalUserNotifications - totalUnread
+            }
+        });
+    } catch (error) {
+        console.error('Admin notifications fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch notifications' });
+    }
+});
+
+// Admin endpoint to delete notification templates and cascade to user notifications
+app.delete('/api/admin/notifications/:templateId', requireAdmin, async (req, res) => {
+    try {
+        const { templateId } = req.params;
+        
+        // Delete the template
+        const deletedTemplate = await NotificationTemplate.findByIdAndDelete(templateId);
+        if (!deletedTemplate) {
+            return res.status(404).json({ error: 'Notification template not found' });
+        }
+
+        // Delete all associated user notifications
+        const deletedUserNotifications = await UserNotification.deleteMany({ templateId });
+
+        res.json({ 
+            success: true, 
+            deletedTemplate: deletedTemplate.title,
+            deletedUserNotifications: deletedUserNotifications.deletedCount
+        });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to send notification' });
+    }
+});
+
+function parseCookies(cookieHeader) {
+	const out = {};
+	if (!cookieHeader) return out;
+	cookieHeader.split(';').forEach(part => {
+		const idx = part.indexOf('=');
+		if (idx > -1) {
+			const k = part.slice(0, idx).trim();
+			const v = part.slice(idx + 1).trim();
+			out[k] = decodeURIComponent(v);
+		}
+	});
+	return out;
+}
+
+function base64url(input) {
+	return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function signAdminToken(payload, ttlMs) {
+	const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
+	const header = { alg: 'HS256', typ: 'JWT' };
+	const exp = Date.now() + (ttlMs || 12 * 60 * 60 * 1000);
+	const body = { ...payload, exp };
+	const h = base64url(JSON.stringify(header));
+	const b = base64url(JSON.stringify(body));
+	const sig = require('crypto').createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+	return `${h}.${b}.${sig}`;
+}
+
+function verifyAdminToken(token) {
+	try {
+		const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
+		const [h, b, sig] = token.split('.');
+		const expected = require('crypto').createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+		if (expected !== sig) return null;
+		const body = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+		if (!body || !body.exp || Date.now() > body.exp) return null;
+		return body;
+	} catch {
+		return null;
+	}
+}
+
+function getAdminSession(req) {
+	const cookies = parseCookies(req.headers.cookie || '');
+	const token = cookies['admin_session'];
+	if (!token) return null;
+	const payload = verifyAdminToken(token);
+	if (!payload || !payload.sid || !payload.tgId) return null;
+	return { token, payload };
+}
+
+function requireAdmin(req, res, next) {
+	// Backward-compatible GET-only header auth, or cookie session with CSRF for mutations
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+			const csrf = req.headers['x-csrf-token'];
+			if (!csrf || csrf !== sess.payload.sid) {
+				return res.status(403).json({ error: 'CSRF check failed' });
+			}
+		}
+		req.user = { id: sess.payload.tgId, isAdmin: true };
+		return next();
+	}
+	try {
+		const tgId = (req.headers['x-telegram-id'] || '').toString();
+		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId) && (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS')) {
+			req.user = { id: tgId, isAdmin: true };
+			return next();
+		}
+		return res.status(403).json({ error: 'Forbidden' });
+	} catch (e) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+}
+
+app.get('/api/me', (req, res) => {
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		return res.json({ id: sess.payload.tgId, isAdmin: true });
+	}
+	const tgId = (req.headers['x-telegram-id'] || '').toString();
+	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false });
+});
+
+app.get('/api/admin/csrf', (req, res) => {
+	const sess = getAdminSession(req);
+	if (!sess || !adminIds.includes(sess.payload.tgId)) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+	return res.json({ csrfToken: sess.payload.sid });
+});
+
+app.post('/api/admin/auth/send-otp', async (req, res) => {
+	try {
+		const tgId = (req.body?.tgId || '').toString().trim();
+		
+		console.log('🔐 Admin OTP send attempt:', {
+			tgId,
+			adminIds: adminIds,
+			adminIdsType: typeof adminIds,
+			adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array',
+			includes: adminIds.includes(tgId)
+		});
+		
+		if (!tgId || !/^\d+$/.test(tgId)) {
+			console.log('❌ Invalid Telegram ID format');
+			return res.status(400).json({ error: 'Invalid Telegram ID' });
+		}
+		
+		if (!adminIds.includes(tgId)) {
+			console.log('❌ Telegram ID not in admin list:', { tgId, adminIds });
+			return res.status(403).json({ error: 'Not authorized - ID not in admin list' });
+		}
+		const code = (Math.floor(100000 + Math.random() * 900000)).toString();
+		const now = Date.now();
+		global.__adminOtpStore = global.__adminOtpStore || new Map();
+		const prev = global.__adminOtpStore.get(tgId);
+		if (prev && prev.nextAllowedAt && now < prev.nextAllowedAt) {
+			const waitSec = Math.ceil((prev.nextAllowedAt - now) / 1000);
+			return res.status(429).json({ error: `Please wait ${waitSec}s before requesting another code` });
+		}
+		global.__adminOtpStore.set(tgId, { code, expiresAt: now + 5 * 60 * 1000, nextAllowedAt: now + 60 * 1000 });
+		try {
+			console.log(`[ADMIN OTP] Sending code to ${tgId} ...`);
+			await bot.sendMessage(tgId, `StarStore Admin Login Code\n\nYour code: ${code}\n\nThis code expires in 5 minutes.`);
+			console.log(`[ADMIN OTP] Code delivered to ${tgId}`);
+		} catch (err) {
+			console.error(`[ADMIN OTP] Delivery failed to ${tgId}:`, err?.message || err);
+			return res.status(500).json({ error: 'Failed to deliver OTP. Ensure you have started the bot and try again.' });
+		}
+		return res.json({ success: true });
+	} catch (e) {
+		console.error('[ADMIN OTP] Unexpected error:', e?.message || e);
+		return res.status(500).json({ error: 'Failed to send OTP' });
+	}
+});
+
+app.post('/api/admin/auth/verify-otp', (req, res) => {
+	try {
+		const tgId = (req.body?.tgId || '').toString().trim();
+		const code = (req.body?.code || '').toString().trim();
+		
+		console.log('🔐 Admin OTP verify attempt:', {
+			tgId,
+			code: code ? '***' + code.slice(-2) : 'none',
+			adminIds: adminIds,
+			adminIdsIncludes: adminIds.includes(tgId)
+		});
+		
+		if (!tgId || !/^\d+$/.test(tgId) || !code) {
+			console.log('❌ Invalid credentials provided');
+			return res.status(400).json({ error: 'Invalid credentials' });
+		}
+		
+		if (!adminIds.includes(tgId)) {
+			console.log('❌ Not in admin list:', { tgId, adminIds });
+			return res.status(403).json({ error: 'Not authorized - ID not in admin list' });
+		}
+		
+		global.__adminOtpStore = global.__adminOtpStore || new Map();
+		const rec = global.__adminOtpStore.get(tgId);
+		
+		console.log('🔐 OTP record check:', {
+			hasRecord: !!rec,
+			codeMatch: rec ? rec.code === code : false,
+			expired: rec ? Date.now() > rec.expiresAt : true
+		});
+		
+		if (!rec || rec.code !== code || Date.now() > rec.expiresAt) {
+			console.log('❌ Invalid or expired OTP');
+			return res.status(401).json({ error: 'Invalid or expired code' });
+		}
+		
+		global.__adminOtpStore.delete(tgId);
+		const sid = require('crypto').randomBytes(16).toString('hex');
+		const token = signAdminToken({ tgId, sid }, 12 * 60 * 60 * 1000);
+		const isProd = process.env.NODE_ENV === 'production';
+		const cookie = `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Strict${isProd ? '; Secure' : ''}; Max-Age=${12 * 60 * 60}`;
+		res.setHeader('Set-Cookie', cookie);
+		
+		console.log('✅ Admin OTP verification successful for:', tgId);
+		return res.json({ success: true, csrfToken: sid });
+	} catch (error) {
+		console.error('❌ Admin OTP verification error:', error);
+		return res.status(500).json({ error: 'Failed to verify OTP' });
+	}
+});
+
+app.post('/api/admin/logout', (req, res) => {
+	try {
+		res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0');
+		return res.json({ success: true });
+	} catch {
+		return res.json({ success: true });
+	}
+});
+
+// Modern admin auth verification endpoint
+app.get('/api/admin/auth/verify', (req, res) => {
+	const telegramId = req.headers['x-telegram-id'];
+	console.log('🔐 Admin auth verify attempt:', {
+		telegramId,
+		adminIds: adminIds,
+		adminIdsType: typeof adminIds,
+		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array'
+	});
+	
+	if (!telegramId) {
+		return res.status(401).json({ error: 'No telegram ID provided' });
+	}
+	
+	const isAdmin = Array.isArray(adminIds) && adminIds.includes(telegramId);
+	console.log('🔐 Admin check result:', { telegramId, isAdmin, adminIds });
+	
+	if (!isAdmin) {
+		return res.status(403).json({ error: 'Access denied - ID not in admin list' });
+	}
+	
+	res.json({
+		success: true,
+		user: {
+			telegramId,
+			isAdmin: true
+		}
+	});
+});
+
+// Debug endpoint to check admin configuration
+app.get('/api/admin/debug/config', (req, res) => {
+	const telegramId = req.headers['x-telegram-id'];
+	
+	res.json({
+		requestedId: telegramId,
+		adminIds: adminIds,
+		adminIdsType: typeof adminIds,
+		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array',
+		isAdmin: Array.isArray(adminIds) && adminIds.includes(telegramId),
+		envVars: {
+			hasAdminTelegramIds: !!process.env.ADMIN_TELEGRAM_IDS,
+			hasAdminIds: !!process.env.ADMIN_IDS,
+			adminTelegramIdsValue: process.env.ADMIN_TELEGRAM_IDS ? '***set***' : 'not set',
+			adminIdsValue: process.env.ADMIN_IDS ? '***set***' : 'not set'
+		}
+	});
+});
+
+// Enhanced admin stats endpoint for modern dashboard
+app.get('/api/admin/dashboard/stats', requireAdmin, async (req, res) => {
+	try {
+		// Get existing stats and enhance them
+		const orders = await db.getOrders();
+		const users = await db.getUsers();
+		const withdrawals = await db.getWithdrawals();
+		
+		const stats = {
+			totalUsers: users.length,
+			totalOrders: orders.length,
+			totalRevenue: orders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0),
+			pendingOrders: orders.filter(o => o.status === 'pending').length,
+			completedOrders: orders.filter(o => o.status === 'completed').length,
+			activeUsers24h: users.filter(u => {
+				const lastActive = new Date(u.lastActive || u.createdAt);
+				return Date.now() - lastActive.getTime() < 24 * 60 * 60 * 1000;
+			}).length,
+			totalWithdrawals: withdrawals.length,
+			pendingWithdrawals: withdrawals.filter(w => w.status === 'pending').length,
+			lastUpdated: new Date().toISOString()
+		};
+		
+		res.json(stats);
+	} catch (error) {
+		console.error('Enhanced admin stats error:', error);
+		res.status(500).json({ error: 'Failed to fetch enhanced stats' });
+	}
+});
+
+// Simple SMTP email sender for newsletter (admin-only)
+let smtpTransport = null;
+try {
+    const nodemailer = require('nodemailer');
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        smtpTransport = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: parseInt(process.env.SMTP_PORT || '587', 10),
+            secure: process.env.SMTP_SECURE === 'true',
+            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        });
+    }
+} catch (_) {
+    console.warn('Nodemailer not available; email sending disabled');
+}
+
+// Admin send newsletter email to all subscribers
+app.post('/api/newsletter/send', async (req, res) => {
+    try {
+        if (!req.user?.isAdmin) return res.status(403).json({ success: false, error: 'Forbidden' });
+        if (!smtpTransport) return res.status(500).json({ success: false, error: 'Email service not configured' });
+        const subject = String(req.body?.subject || '').trim();
+        const html = String(req.body?.html || '').trim();
+        if (!subject || !html) return res.status(400).json({ success: false, error: 'Subject and HTML are required.' });
+
+        const subscribers = await NewsletterSubscriber.find({}, { email: 1, _id: 0 });
+        if (!subscribers.length) return res.json({ success: true, sent: 0 });
+
+        // Send in batches to avoid provider limits
+        const batchSize = 50;
+        let sentCount = 0;
+        for (let i = 0; i < subscribers.length; i += batchSize) {
+            const batch = subscribers.slice(i, i + batchSize);
+            const toList = batch.map(s => s.email).join(',');
+            try {
+                await smtpTransport.sendMail({
+                    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                    to: toList,
+                    subject,
+                    html
+                });
+                sentCount += batch.length;
+            } catch (err) {
+                console.error('Email batch failed:', err?.message || err);
+            }
+        }
+        return res.json({ success: true, sent: sentCount });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: 'Failed to send emails' });
+    }
+});
+
+// Newsletter subscription (simple backend)
+const NewsletterSubscriberSchema = new mongoose.Schema({
+    email: { type: String, required: true, unique: true, index: true },
+    ip: { type: String },
+    country: { type: String },
+    city: { type: String },
+    userAgent: { type: String },
+    createdAt: { type: Date, default: Date.now }
+});
+const NewsletterSubscriber = mongoose.model('NewsletterSubscriber', NewsletterSubscriberSchema);
+
+app.post('/api/newsletter/subscribe', async (req, res) => {
+    try {
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ success: false, error: 'Please enter a valid email address.' });
+        }
+        const existing = await NewsletterSubscriber.findOne({ email });
+        if (existing) {
+            return res.status(409).json({ success: false, error: 'This email is already subscribed.' });
+        }
+
+        // Capture requester details
+        const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+        const userAgent = (req.headers['user-agent'] || '').toString();
+        let geo = { country: undefined, city: undefined };
+        try {
+            const geoResp = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { timeout: 4000 });
+            if (geoResp.ok) {
+                const g = await geoResp.json();
+                geo.country = g?.country_name || g?.country || undefined;
+                geo.city = g?.city || undefined;
+            }
+        } catch (_) {}
+
+        await NewsletterSubscriber.create({ email, ip, userAgent, country: geo.country, city: geo.city });
+
+        // Send welcome email automatically if SMTP is configured
+        try {
+            if (smtpTransport) {
+                const welcomeSubject = process.env.NEWSLETTER_WELCOME_SUBJECT || 'Welcome to StarStore Updates';
+                const welcomeHtml = process.env.NEWSLETTER_WELCOME_HTML || `
+                    <div style="font-family: Arial, sans-serif; color:#111;">
+                        <h2 style="margin:0 0 12px;">Welcome to StarStore 🎉</h2>
+                        <p style="margin:0 0 12px;">Thanks for subscribing. You will receive updates about new features, pricing and promotions.</p>
+                        <p style="margin:0 0 12px;">If you didn't subscribe, you can ignore this email.</p>
+                        <p style="margin:24px 0 0; font-size:12px; color:#666;">StarStore</p>
+                    </div>`;
+                await smtpTransport.sendMail({
+                    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                    to: email,
+                    subject: welcomeSubject,
+                    html: welcomeHtml
+                });
+            }
+        } catch (err) {
+            console.error('Welcome email failed:', err?.message || err);
+        }
+
+        // Notify admins in real-time via Telegram
+        const text = `📬 New newsletter subscriber: ${email}`;
+        for (const adminId of adminIds) {
+            try { await bot.sendMessage(adminId, text); } catch (_) {}
+        }
+
+        return res.json({ success: true, message: 'Subscribed successfully.' });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: 'Something went wrong. Please try again later.' });
+    }
+});
