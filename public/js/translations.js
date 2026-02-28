@@ -790,6 +790,9 @@ const translations = {
         insufficientBalanceTitle: "Недостаточно средств",
         insufficientBalanceText: "Для вывода требуется хотя бы 1 завершенный реферал (0.5 USDT).",
         yourBalance: "Ваш баланс:",
+        referralEmptyHint: "Поделитесь своей ссылкой, чтобы начать",
+        actions: "Быстрые действия",
+        historyDesc: "Просмотр всех ваших рефералов",
 
         // Notifications
         noNotifications: "Нет новых уведомлений",
@@ -1486,7 +1489,10 @@ try {
         withdrawTitle: "फंड निकालें",
         withdrawDesc: "अपनी कमाई TON वॉलेट में ट्रांसफर करें",
         walletAddress: "TON वॉलेट पता",
-        submitWithdrawal: "निकासी जमा करें"
+        submitWithdrawal: "निकासी जमा करें",
+        referralEmptyHint: "शुरू करने के लिए अपना लिंक साझा करें",
+        actions: "त्वरित कार्य",
+        historyDesc: "अपने सभी रेफरल देखें"
     });
 
     Object.assign(translations.ar, {
@@ -1681,7 +1687,10 @@ try {
         withdrawTitle: "سحب الأموال",
         withdrawDesc: "حوّل أرباحك إلى محفظة TON الخاصة بك",
         walletAddress: "عنوان محفظة TON",
-        submitWithdrawal: "إرسال طلب السحب"
+        submitWithdrawal: "إرسال طلب السحب",
+        referralEmptyHint: "شارك رابطك لتبدأ",
+        actions: "الإجراءات السريعة",
+        historyDesc: "عرض جميع إحالاتك"
     });
 } catch (_) {}
 
