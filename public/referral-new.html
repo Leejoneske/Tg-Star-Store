@@ -24,14 +24,9 @@
         body {
             font-family: 'Inter', sans-serif;
             background: #f5f5f5;
-            color: #1f2937;
             margin: 0;
             padding: 0;
         }
-        @media (prefers-color-scheme: dark) {
-            body { background: #0f172a; color: #e5e7eb; }
-        }
-        [data-theme="dark"] body { background: #0f172a; color: #e5e7eb; }
         .app-container {
             max-width: 600px;
             margin: 0 auto;
@@ -41,10 +36,6 @@
             overflow: hidden;
             padding-bottom: 80px;
         }
-        @media (prefers-color-scheme: dark) {
-            .app-container { background: #0f172a; }
-        }
-        [data-theme="dark"] .app-container { background: #0f172a; }
         .telegram-fullscreen .app-container {
             max-width: 100%;
             width: 100%;
@@ -60,30 +51,18 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
             border: 1px solid #f0f0f0;
         }
-        @media (prefers-color-scheme: dark) {
-            .clean-card { background: #111827; border-color: #1f2937; }
-        }
-        [data-theme="dark"] .clean-card { background: #111827; border-color: #1f2937; }
         .stat-box {
             background: #f9f9f9;
             border-radius: 12px;
             padding: 16px;
             text-align: center;
         }
-        @media (prefers-color-scheme: dark) {
-            .stat-box { background: #1f2937; }
-        }
-        [data-theme="dark"] .stat-box { background: #1f2937; }
         .stat-value {
             font-size: 24px;
             font-weight: 700;
             color: #1f2937;
             margin-top: 8px;
         }
-        @media (prefers-color-scheme: dark) {
-            .stat-value { color: #f0f9ff; }
-        }
-        [data-theme="dark"] .stat-value { color: #f0f9ff; }
         .stat-label {
             font-size: 12px;
             color: #6b7280;
@@ -91,10 +70,6 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        @media (prefers-color-scheme: dark) {
-            .stat-label { color: #9ca3af; }
-        }
-        [data-theme="dark"] .stat-label { color: #9ca3af; }
         .hero-gradient {
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
             color: white;
@@ -133,6 +108,21 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        .btn-secondary {
+            background: white;
+            color: #4f46e5;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 2px solid #4f46e5;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .btn-secondary:active {
+            transform: scale(0.98);
+        }
         .link-display {
             background: #f3f4f6;
             border: 2px dashed #d1d5db;
@@ -144,10 +134,6 @@
             color: #1f2937;
             margin-bottom: 12px;
         }
-        @media (prefers-color-scheme: dark) {
-            .link-display { background: #1f2937; border-color: #374151; color: #f0f9ff; }
-        }
-        [data-theme="dark"] .link-display { background: #1f2937; border-color: #374151; color: #f0f9ff; }
         .copy-btn {
             background: white;
             border: 1px solid #e5e7eb;
@@ -159,11 +145,30 @@
             font-weight: 600;
             color: #4f46e5;
         }
-        @media (prefers-color-scheme: dark) {
-            .copy-btn { background: #1f2937; border-color: #374151; color: #818cf8; }
-        }
-        [data-theme="dark"] .copy-btn { background: #1f2937; border-color: #374151; color: #818cf8; }
         .copy-btn:active {
+            transform: scale(0.95);
+        }
+        .share-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .share-btn {
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            color: white;
+            transition: all 0.2s;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .share-btn:active {
             transform: scale(0.95);
         }
         .referral-item {
@@ -176,10 +181,6 @@
             align-items: center;
             border-left: 4px solid #10b981;
         }
-        @media (prefers-color-scheme: dark) {
-            .referral-item { background: #111827; }
-        }
-        [data-theme="dark"] .referral-item { background: #111827; }
         .referral-item.pending {
             border-left-color: #f59e0b;
         }
@@ -189,19 +190,11 @@
             margin: 0 0 4px 0;
             font-size: 14px;
         }
-        @media (prefers-color-scheme: dark) {
-            .referral-info h3 { color: #e5e7eb; }
-        }
-        [data-theme="dark"] .referral-info h3 { color: #e5e7eb; }
         .referral-info p {
             font-size: 12px;
             color: #6b7280;
             margin: 0;
         }
-        @media (prefers-color-scheme: dark) {
-            .referral-info p { color: #9ca3af; }
-        }
-        [data-theme="dark"] .referral-info p { color: #9ca3af; }
         .referral-earning {
             text-align: right;
         }
@@ -217,10 +210,6 @@
             text-transform: uppercase;
             color: #6b7280;
         }
-        @media (prefers-color-scheme: dark) {
-            .referral-earning .status { color: #9ca3af; }
-        }
-        [data-theme="dark"] .referral-earning .status { color: #9ca3af; }
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -228,10 +217,6 @@
             border-radius: 16px;
             margin: 12px;
         }
-        @media (prefers-color-scheme: dark) {
-            .empty-state { background: #111827; }
-        }
-        [data-theme="dark"] .empty-state { background: #111827; }
         .empty-icon {
             font-size: 48px;
             margin-bottom: 12px;
@@ -241,19 +226,11 @@
             color: #1f2937;
             margin: 0 0 8px 0;
         }
-        @media (prefers-color-scheme: dark) {
-            .empty-state h3 { color: #e5e7eb; }
-        }
-        [data-theme="dark"] .empty-state h3 { color: #e5e7eb; }
         .empty-state p {
             color: #6b7280;
             font-size: 14px;
             margin: 0;
         }
-        @media (prefers-color-scheme: dark) {
-            .empty-state p { color: #9ca3af; }
-        }
-        [data-theme="dark"] .empty-state p { color: #9ca3af; }
         .tab-container {
             display: flex;
             gap: 0;
@@ -261,10 +238,6 @@
             background: white;
             padding: 0 12px;
         }
-        @media (prefers-color-scheme: dark) {
-            .tab-container { background: #111827; border-color: #1f2937; }
-        }
-        [data-theme="dark"] .tab-container { background: #111827; border-color: #1f2937; }
         .tab {
             padding: 16px 12px;
             font-weight: 600;
@@ -276,18 +249,10 @@
             position: relative;
             bottom: -2px;
         }
-        @media (prefers-color-scheme: dark) {
-            .tab { color: #9ca3af; }
-        }
-        [data-theme="dark"] .tab { color: #9ca3af; }
         .tab.active {
             color: #4f46e5;
             border-bottom-color: #4f46e5;
         }
-        @media (prefers-color-scheme: dark) {
-            .tab.active { color: #818cf8; }
-        }
-        [data-theme="dark"] .tab.active { color: #818cf8; }
         .how-it-works {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -300,10 +265,6 @@
             border-radius: 12px;
             text-align: center;
         }
-        @media (prefers-color-scheme: dark) {
-            .step { background: #111827; }
-        }
-        [data-theme="dark"] .step { background: #111827; }
         .step-icon {
             width: 40px;
             height: 40px;
@@ -323,19 +284,11 @@
             font-size: 13px;
             margin: 0 0 6px 0;
         }
-        @media (prefers-color-scheme: dark) {
-            .step h4 { color: #e5e7eb; }
-        }
-        [data-theme="dark"] .step h4 { color: #e5e7eb; }
         .step p {
             font-size: 11px;
             color: #6b7280;
             margin: 0;
         }
-        @media (prefers-color-scheme: dark) {
-            .step p { color: #9ca3af; }
-        }
-        [data-theme="dark"] .step p { color: #9ca3af; }
         .toggle-btn {
             background: #e5e7eb;
             border: none;
@@ -347,18 +300,10 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        @media (prefers-color-scheme: dark) {
-            .toggle-btn { background: #1f2937; color: #9ca3af; }
-        }
-        [data-theme="dark"] .toggle-btn { background: #1f2937; color: #9ca3af; }
         .toggle-btn.active {
             background: #4f46e5;
             color: white;
         }
-        @media (prefers-color-scheme: dark) {
-            .toggle-btn.active { background: #818cf8; }
-        }
-        [data-theme="dark"] .toggle-btn.active { background: #818cf8; }
     </style>
 </head>
 <body>
@@ -648,9 +593,9 @@
                     Swal.fire({
                         title: 'Share Link',
                         html: `
-                            <button style="width: 100%; padding: 10px; margin: 5px 0; background: #1f2937; color: white; border: none; border-radius: 8px; cursor: pointer;" onclick="window.open('https://t.me/share/url?url=${encodeURIComponent(link)}')">📱 Telegram</button>
-                            <button style="width: 100%; padding: 10px; margin: 5px 0; background: #25d366; color: white; border: none; border-radius: 8px; cursor: pointer;" onclick="window.open('https://api.whatsapp.com/send?text=${encodeURIComponent(text)}')">💬 WhatsApp</button>
-                            <button style="width: 100%; padding: 10px; margin: 5px 0; background: #1da1f2; color: white; border: none; border-radius: 8px; cursor: pointer;" onclick="window.open('https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}')">𝕏 Twitter</button>
+                            <button style="width: 100%; padding: 10px; margin: 5px 0; background: #1f2937; color: white; border: none; border-radius: 8px;" onclick="window.open('https://t.me/share/url?url=${encodeURIComponent(link)}')">📱 Telegram</button>
+                            <button style="width: 100%; padding: 10px; margin: 5px 0; background: #25d366; color: white; border: none; border-radius: 8px;" onclick="window.open('https://api.whatsapp.com/send?text=${encodeURIComponent(text)}')">💬 WhatsApp</button>
+                            <button style="width: 100%; padding: 10px; margin: 5px 0; background: #1da1f2; color: white; border: none; border-radius: 8px;" onclick="window.open('https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}')">𝕏 Twitter</button>
                         `,
                         showConfirmButton: false
                     });
@@ -664,19 +609,15 @@
         async function showWithdrawPopup() {
             const available = state.stats.availableBalance;
             if (available < 0.5) {
-                Swal.fire({
-                    title: 'Insufficient Balance',
-                    text: `You need at least 0.5 USDT to withdraw (You have: ${available.toFixed(2)} USDT)`,
-                    icon: 'warning'
-                });
+                Swal.fire('Insufficient Balance', `You need at least 0.5 USDT to withdraw (You have: ${available.toFixed(2)} USDT)`, 'warning');
                 return;
             }
 
             const { value: formValues } = await Swal.fire({
                 title: 'Withdraw Earnings',
                 html: `
-                    <input type="number" id="amount" placeholder="Amount USDT" max="${available}" min="0.5" step="0.5" value="0.5" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #000;">
-                    <input type="text" id="wallet" placeholder="TON Wallet (EQ...)" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #000;">
+                    <input type="number" id="amount" placeholder="Amount USDT" max="${available}" min="0.5" step="0.5" value="0.5" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px;">
+                    <input type="text" id="wallet" placeholder="TON Wallet (EQ...)" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px;">
                     <p style="font-size: 12px; color: #666;">Available: ${available.toFixed(2)} USDT</p>
                 `,
                 showCancelButton: true,
