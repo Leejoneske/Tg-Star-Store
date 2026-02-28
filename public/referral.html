@@ -361,7 +361,7 @@
             margin: 0;
         }
 
-        /* Dark theme support */
+        /* Dark theme support - uses CSS variables from theme.css */
         @media (prefers-color-scheme: dark) {
             body { background: var(--surface-muted); color: var(--text); }
             .app-container { background: var(--surface); box-shadow: none; }
@@ -485,7 +485,7 @@
                 <div class="card-content">
                     <div class="card-icon icon-blue"><i class="fas fa-history" style="color: #2563eb;"></i></div>
                     <div class="card-info">
-                        <h3 data-translate="history">Transaction History</h3>
+                        <h3 data-translate="history">History</h3>
                         <p data-translate="historyDesc">View all your referrals</p>
                     </div>
                 </div>

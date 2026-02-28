@@ -1,7 +1,7 @@
-<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50" style="padding-bottom: env(safe-area-inset-bottom);">
+<div class="fixed bottom-0 left-0 right-0 z-50" style="padding-bottom: env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--border);">
 	<div style="max-width:600px;margin:0 auto;">
 		<nav>
-			<ul class="grid grid-cols-5 text-xs text-gray-600">
+			<ul class="grid grid-cols-5 text-xs" style="color: var(--text-secondary);">
 				<li>
 					<a href="index.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="home">
 						<i class="fas fa-home text-lg"></i>
@@ -39,24 +39,24 @@
 
 <style>
 .nav-link {
-	color: #6b7280;
+	color: var(--text-secondary);
 	text-decoration: none;
 }
 
 .nav-link:hover {
-	color: #4f46e5;
+	color: var(--brand);
 }
 
 .nav-link.active {
-	color: #4f46e5;
+	color: var(--brand);
 }
 
 .nav-link.active i {
-	color: #4f46e5;
+	color: var(--brand);
 }
 
 .nav-link.active span {
-	color: #4f46e5;
+	color: var(--brand);
 	font-weight: 600;
 }
 </style>
