@@ -1411,9 +1411,13 @@ const cacheSchema = new mongoose.Schema({
 const referralSchema = new mongoose.Schema({
     referrerUserId: { type: String, required: true },
     referredUserId: { type: String, required: true },
+    referrerUsername: String,
     status: { type: String, enum: ['pending', 'active', 'completed'], default: 'pending' },
     withdrawn: { type: Boolean, default: false },
-    dateReferred: { type: Date, default: Date.now }
+    dateReferred: { type: Date, default: Date.now },
+    linkFormat: { type: String, enum: ['old', 'new'], default: 'new' },
+    newRefLink: String,
+    instantActivation: { type: Boolean, default: true }
 });
 
 const referralWithdrawalSchema = new mongoose.Schema({
@@ -1457,6 +1461,7 @@ const referralWithdrawalSchema = new mongoose.Schema({
 const referralTrackerSchema = new mongoose.Schema({
     referral: { type: mongoose.Schema.Types.ObjectId, ref: 'Referral' },
     referrerUserId: { type: String, required: true },
+    referrerUsername: String,
     referredUserId: { type: String, required: true, unique: true },
     referredUsername: String,
     totalBoughtStars: { type: Number, default: 0 },
@@ -1464,7 +1469,8 @@ const referralTrackerSchema = new mongoose.Schema({
     premiumActivated: { type: Boolean, default: false },
     status: { type: String, enum: ['pending', 'active'], default: 'pending' },
     dateReferred: { type: Date, default: Date.now },
-    dateActivated: Date
+    dateActivated: Date,
+    instantActivation: { type: Boolean, default: true }
 });
 
 
@@ -1935,6 +1941,13 @@ function getOrderTypeFromId(orderId) {
     if (orderId.startsWith('SELL')) return 'sell';
     if (orderId.startsWith('WD')) return 'withdrawal';
     return 'unknown';
+}
+
+// Generate new professional referral link format: ref_username_randomcode
+function generateNewReferralLink(username) {
+    const randomCode = Array.from({ length: 8 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
+    const cleanUsername = (username || 'user').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return `ref_${cleanUsername.substring(0, 16)}_${randomCode}`;
 }
 
 async function verifyTONTransaction(transactionHash, targetAddress, expectedAmount) {
@@ -6611,6 +6624,15 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             ['completed', 'active'].includes(r.status)
         ).length;
         
+        // Generate new referral link if not already generated
+        let newRefLink = null;
+        let existingNewRefLink = referrals.find(r => r.newRefLink);
+        if (!existingNewRefLink) {
+            newRefLink = generateNewReferralLink(user.username || `user_${userId}`);
+        } else {
+            newRefLink = existingNewRefLink.newRefLink;
+        }
+        
         // Referral stats calculated
 
         const responseData = {
@@ -6620,7 +6642,8 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
                 name: userMap[ref.referredUserId] || `User ${ref.referredUserId.substring(0, 6)}`,
                 status: ref.status.toLowerCase(),
                 date: ref.dateReferred || ref.dateCreated || new Date(0),
-                amount: 0.5
+                amount: 0.5,
+                linkFormat: ref.linkFormat || 'old'
             })),
             stats: {
                 availableBalance: availableReferrals * 0.5,
@@ -6628,7 +6651,8 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
                 referralsCount: totalReferrals,
                 pendingAmount: (completedReferrals - availableReferrals) * 0.5
             },
-            referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`
+            referralLink: `https://t.me/TgStarStore_bot?start=ref_${req.params.userId}`,
+            newReferralLink: `https://t.me/TgStarStore_bot?start=${newRefLink}`
         };
         
         // Returning referral stats
@@ -7267,9 +7291,16 @@ async function trackStars(userId, stars, type) {
 
         const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
         
-        // Activation logic (100+ stars or premium)
+        // NEW REFERRAL (instantActivation=true): activate immediately at 100+ stars
+        // OLD REFERRAL (instantActivation=false): wait for admin confirmation
         if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
-            await handleReferralActivation(tracker);
+            if (tracker.instantActivation === true) {
+                // Instant activation for new referrals
+                await handleReferralActivation(tracker);
+            } else {
+                // Old referrals: save but don't auto-activate, wait for admin
+                await tracker.save();
+            }
         } else {
             await tracker.save();
         }
@@ -7277,7 +7308,7 @@ async function trackStars(userId, stars, type) {
         // Also update the Referral status if it's still pending and conditions are met
         if (tracker.referral && (totalStars >= 100 || tracker.premiumActivated)) {
             const referral = await Referral.findById(tracker.referral);
-            if (referral && referral.status === 'pending') {
+            if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
                 referral.status = 'completed';
                 referral.dateActivated = new Date();
                 await referral.save();
@@ -7296,15 +7327,20 @@ async function trackPremiumActivation(userId) {
         if (!tracker.premiumActivated) {
             tracker.premiumActivated = true;
             if (tracker.status === 'pending') {
-                await handleReferralActivation(tracker);
+                // Check instantActivation flag
+                if (tracker.instantActivation === true) {
+                    await handleReferralActivation(tracker);
+                } else {
+                    await tracker.save();
+                }
             } else {
                 await tracker.save();
             }
             
-            // Also update the Referral status if it's still pending
+            // Also update the Referral status if it's still pending and instantActivation is true
             if (tracker.referral) {
                 const referral = await Referral.findById(tracker.referral);
-                if (referral && referral.status === 'pending') {
+                if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
                     referral.status = 'completed';
                     referral.dateActivated = new Date();
                     await referral.save();
@@ -7614,27 +7650,58 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         });
         
         if (deepLinkParam?.startsWith('ref_')) {
-            const referrerUserId = deepLinkParam.split('_')[1];
+            // Handle both old format (ref_USERID) and new format (ref_username_code)
+            let referrerUserId = null;
+            let isNewFormat = false;
+            
+            const refParts = deepLinkParam.split('_');
+            const secondPart = refParts[1];
+            
+            // Check if it's old format (ref_USERID where USERID is all digits)
+            if (/^\d+$/.test(secondPart)) {
+                // Old format: ref_{USER_ID}
+                referrerUserId = secondPart;
+            } else {
+                // New format: ref_username_code - lookup by newRefLink
+                const referralDoc = await Referral.findOne({ newRefLink: deepLinkParam });
+                if (referralDoc) {
+                    referrerUserId = referralDoc.referrerUserId;
+                    isNewFormat = true;
+                }
+            }
             
             if (!referrerUserId || referrerUserId === chatId.toString()) return;
-            if (!/^\d+$/.test(referrerUserId)) return;
+            if (!isNewFormat && !/^\d+$/.test(referrerUserId)) return;
             
             const existing = await ReferralTracker.findOne({ referredUserId: chatId.toString() });
             if (!existing) {
+                // Get referrer details for new link generation
+                const referrerUser = await User.findOne({ id: referrerUserId });
+                const referrerUsername = referrerUser?.username || `user_${referrerUserId}`;
+                
+                // Generate new referral link for future users
+                const newRefLink = generateNewReferralLink(referrerUsername);
+                
                 const referral = await Referral.create({
                     referrerUserId,
+                    referrerUsername,
                     referredUserId: chatId.toString(),
                     status: 'pending',
-                    dateReferred: new Date()
+                    dateReferred: new Date(),
+                    linkFormat: isNewFormat ? 'new' : 'old',
+                    newRefLink: newRefLink,
+                    instantActivation: true
                 });
                 
                 await ReferralTracker.create({
                     referral: referral._id,
                     referrerUserId,
+                    referrerUsername,
                     referredUserId: chatId.toString(),
                     referredUsername: username,
                     status: 'pending',
-                    dateReferred: new Date()
+                    dateReferred: new Date(),
+                    instantActivation: true
                 });
                 
                 await bot.sendMessage(referrerUserId, `🎉 Someone used your referral link and joined StarStore!`);
@@ -10822,32 +10889,43 @@ app.post('/api/webhook/register', (req, res, next) => {
 // Handle both /referrals command and plain text "referrals"
 bot.onText(/\/referrals|referrals/i, async (msg) => {
     const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    const username = msg.from.username || `user_${chatId}`;
 
-    const referralLink = `https://t.me/TgStarStore_bot?start=ref_${chatId}`;
+    // Old format link (backward compatible)
+    const referralLinkOld = `https://t.me/TgStarStore_bot?start=ref_${chatId}`;
+    
+    // Get user info for new format
+    const user = await User.findOne({ id: userId });
+    const newRefLink = generateNewReferralLink(user?.username || username);
+    const referralLinkNew = `https://t.me/TgStarStore_bot?start=${newRefLink}`;
 
-    const referrals = await Referral.find({ referrerUserId: chatId.toString() });
+    const referrals = await Referral.find({ referrerUserId: userId });
 
     if (referrals.length > 0) {
         const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
         const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
 
         let message = `📊 Your Referrals:\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
-        message += 'Your pending referrals will be active when they make a purchase.\n\n';
-        message += `🔗 Your Referral Link:\n${referralLink}`;
+        message += 'New referrals activate instantly at 100+ stars!\n\n';
+        message += `🔗 Your New Referral Link:\n${referralLinkNew}\n\n`;
+        message += `(Legacy: ${referralLinkOld})`;
 
         const keyboard = {
             inline_keyboard: [
-                [{ text: 'Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }]
+                [{ text: 'Share New Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLinkNew)}` }],
+                [{ text: 'Share Legacy Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLinkOld)}` }]
             ]
         };
 
         await bot.sendMessage(chatId, message, { reply_markup: keyboard });
     } else {
-        const message = `You have no referrals yet.\n\n🔗 Your Referral Link:\n${referralLink}`;
+        const message = `You have no referrals yet.\n\n🔗 Your New Referral Link:\n${referralLinkNew}\n\n(Legacy: ${referralLinkOld})`;
 
         const keyboard = {
             inline_keyboard: [
-                [{ text: 'Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }]
+                [{ text: 'Share New Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLinkNew)}` }],
+                [{ text: 'Share Legacy Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLinkOld)}` }]
             ]
         };
 
