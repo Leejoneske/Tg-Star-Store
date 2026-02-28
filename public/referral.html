@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
     <title>Referral Program - StarStore</title>
     <link rel="canonical" href="https://starstore.site/referral">
-    <meta name="description" content="Earn 0.5 USDT per successful referral. Share your unique link and start earning today!">
-    <meta property="og:title" content="StarStore Referral Program">
-    <meta property="og:description" content="Earn 0.5 USDT per successful referral. Share your unique link and start earning today!">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -17,801 +13,595 @@
     <script src="/js/translations.js?v=4"></script>
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="/css/theme.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #f8fafc;
-        }
 
+    <style>
         * {
+            margin: 0; padding: 0;
+            box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
             -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
             user-select: none;
         }
+        *:focus { outline: none !important; }
 
-        *:focus {
-            outline: none !important;
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #ffffff;
+            color: #111111;
         }
 
         .app-container {
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            margin: 0 auto;
-            background: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            position: relative;
-            overflow: hidden;
             max-width: 600px;
-            width: 100%;
+            margin: 0 auto;
+            background: #ffffff;
         }
 
-        .telegram-fullscreen .app-container {
-            max-width: 100%;
-            width: 100%;
-            margin: 0;
-            box-shadow: none;
-            border-radius: 0;
-        }
+        .telegram-fullscreen .app-container { max-width: 100%; }
 
+        /* Header */
         .page-header {
-            padding: 12px 20px;
-            background: white;
-            border-bottom: 1px solid #e5e7eb;
+            padding: 16px 20px 0;
             display: flex;
             align-items: center;
         }
 
-        .page-header h1 {
-            font-size: 16px;
-            font-weight: 600;
-            margin: 0;
-            color: #111827;
+        .back-btn {
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            color: #111; font-size: 18px; cursor: pointer;
+            border-radius: 50%; transition: background 0.15s;
         }
+        .back-btn:active { background: #f3f3f3; }
 
-        .stats-container {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            padding: 12px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-        }
+        /* Hero */
+        .hero { padding: 28px 24px 0; }
 
-        .stat-card {
-            background: white;
-            border-radius: 10px;
-            padding: 12px;
-            text-align: center;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-            border: 1px solid #e2e8f0;
-        }
-
-        .stat-icon {
-            font-size: 18px;
-            margin-bottom: 6px;
-            color: #667eea;
-        }
-
-        .stat-value {
-            font-size: 16px;
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 2px;
-        }
-
-        .stat-label {
-            font-size: 11px;
-            color: #6b7280;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-
-        .content-area {
-            flex: 1;
-            padding: 12px;
-            overflow-y: auto;
-            padding-bottom: 100px;
-        }
-
-        .section-title {
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            color: #6b7280;
-            margin-bottom: 8px;
-            padding-left: 2px;
-            margin-top: 12px;
-        }
-
-        .card {
+        .icon-cluster {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px;
-            background: #f9fafb;
-            border-radius: 12px;
-            margin-bottom: 12px;
-            border: 1px solid #e5e7eb;
-            transition: all 0.2s ease;
-            cursor: pointer;
+            margin-bottom: 24px;
         }
 
-        .card:active {
-            transform: scale(0.98);
-            background: #f3f4f6;
+        .cluster-icon {
+            width: 60px; height: 60px;
+            border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; color: white;
+            margin-right: -10px;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
+        .cluster-icon:nth-child(1) { background: #4ade80; z-index: 3; }
+        .cluster-icon:nth-child(2) { background: #22c55e; z-index: 2; }
+        .cluster-icon:nth-child(3) { background: #86efac; z-index: 1; }
 
-        .card-content {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex: 1;
-        }
-
-        .card-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            flex-shrink: 0;
-        }
-
-        .card-info h3 {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1f2937;
-            margin: 0 0 2px 0;
-        }
-
-        .card-info p {
-            font-size: 12px;
-            color: #6b7280;
-            margin: 0;
-        }
-
-        .card-arrow {
-            width: 20px;
-            height: 20px;
-            color: #d1d5db;
-            flex-shrink: 0;
-        }
-
-        .icon-purple { background: #e9d5ff; color: #9333ea; }
-        .icon-blue { background: #dbeafe; color: #2563eb; }
-        .icon-green { background: #dcfce7; color: #16a34a; }
-
-        .referral-link-section {
-            background: white;
-            border-radius: 10px;
-            padding: 12px;
-            border: 1px solid #e5e7eb;
-            margin-bottom: 12px;
-        }
-
-        .referral-link-display {
-            background: #f3f4f6;
-            border: 2px dashed #d1d5db;
-            border-radius: 8px;
-            padding: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            word-break: break-all;
-            color: #374151;
+        .hero-title {
+            font-size: 30px;
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -0.6px;
+            color: #111;
             margin-bottom: 10px;
-            max-height: 80px;
-            overflow-y: auto;
         }
 
-        .button-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
+        .hero-sub {
+            font-size: 15px;
+            color: #666;
+            line-height: 1.55;
         }
 
-        .btn {
-            padding: 10px 14px;
-            border-radius: 8px;
-            border: none;
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
+        /* Link Box */
+        .link-section { padding: 20px 24px 0; }
 
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-
-        .btn-primary:active {
-            transform: scale(0.95);
-            opacity: 0.9;
-        }
-
-        .btn-secondary {
-            background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
-        }
-
-        .btn-secondary:active {
-            transform: scale(0.95);
-            background: #f9fafb;
-        }
-
-        .referral-item {
-            background: white;
-            border-radius: 10px;
-            padding: 10px;
-            border-left: 3px solid #10b981;
-            margin-bottom: 8px;
+        .link-box {
+            background: #f5f5f5;
+            border-radius: 14px;
+            padding: 13px 14px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-        }
-
-        .referral-item.pending {
-            border-left-color: #f59e0b;
-        }
-
-        .referral-info h4 {
-            font-weight: 600;
-            color: #1f2937;
-            margin: 0 0 2px 0;
-            font-size: 13px;
-        }
-
-        .referral-info p {
-            font-size: 11px;
-            color: #6b7280;
-            margin: 0;
-        }
-
-        .referral-amount {
-            text-align: right;
-        }
-
-        .referral-amount .amount {
-            font-weight: 700;
-            color: #10b981;
-            font-size: 14px;
-        }
-
-        .referral-amount .status {
-            font-size: 10px;
-            font-weight: 600;
-            color: #6b7280;
-            text-transform: uppercase;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 30px 16px;
-        }
-
-        .empty-icon {
-            font-size: 32px;
-            margin-bottom: 8px;
-            color: #cbd5e1;
-        }
-
-        .empty-state h3 {
-            font-weight: 600;
-            color: #1f2937;
-            margin: 0 0 6px 0;
-            font-size: 14px;
-        }
-
-        .empty-state p {
-            color: #6b7280;
-            font-size: 12px;
-            margin: 0;
-        }
-
-        .how-it-works {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            margin-top: 8px;
         }
 
-        .step-card {
-            background: white;
-            border-radius: 10px;
-            padding: 12px;
-            text-align: center;
-            border: 1px solid #e5e7eb;
-        }
-
-        .step-number {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 700;
-            font-size: 16px;
-            margin: 0 auto 8px;
-        }
-
-        .step-card h4 {
-            font-weight: 600;
-            color: #1f2937;
+        .link-text {
             font-size: 13px;
-            margin: 0 0 4px 0;
+            color: #555;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
         }
 
-        .step-card p {
-            font-size: 11px;
-            color: #6b7280;
-            margin: 0;
+        .copy-btn {
+            background: #111; color: white;
+            border: none; border-radius: 9px;
+            padding: 8px 14px;
+            font-size: 13px; font-weight: 600;
+            cursor: pointer; flex-shrink: 0;
+            font-family: 'Inter', sans-serif;
+            transition: opacity 0.15s, transform 0.12s;
+        }
+        .copy-btn:active { transform: scale(0.95); opacity: 0.8; }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 16px 24px 0;
         }
 
-        /* Dark theme support - uses CSS variables from theme.css */
+        .stat-pill {
+            background: #f5f5f5;
+            border-radius: 14px;
+            padding: 14px 10px;
+            text-align: center;
+        }
+
+        .stat-pill .val {
+            font-size: 21px; font-weight: 800;
+            color: #111; letter-spacing: -0.5px; line-height: 1;
+        }
+
+        .stat-pill .lbl {
+            font-size: 11px; font-weight: 500;
+            color: #999; margin-top: 4px;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+
+        /* Divider */
+        .divider { height: 1px; background: #f0f0f0; margin: 24px 24px 0; }
+
+        /* Section label */
+        .section-label {
+            font-size: 13px; font-weight: 600;
+            color: #999; padding: 18px 24px 10px;
+        }
+
+        /* Steps */
+        .steps-list { padding: 0 24px; }
+
+        .step-row {
+            display: flex; align-items: flex-start;
+            gap: 14px; padding: 14px 0;
+            border-bottom: 1px solid #f3f3f3;
+        }
+        .step-row:last-child { border-bottom: none; }
+
+        .step-icon-wrap {
+            width: 42px; height: 42px;
+            background: #f3f3f3; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 17px; color: #555; flex-shrink: 0;
+        }
+
+        .step-text h4 {
+            font-size: 15px; font-weight: 700;
+            color: #111; margin-bottom: 2px;
+        }
+
+        .step-text p { font-size: 13px; color: #888; line-height: 1.4; }
+
+        /* Referrals */
+        .referrals-section {
+            padding: 0 24px;
+            padding-bottom: 130px;
+        }
+
+        .referral-row {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid #f3f3f3;
+        }
+        .referral-row:last-child { border-bottom: none; }
+
+        .ref-left { display: flex; align-items: center; gap: 12px; }
+
+        .ref-avatar {
+            width: 40px; height: 40px;
+            background: #f0f0f0; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700; color: #666; flex-shrink: 0;
+        }
+
+        .ref-name { font-size: 15px; font-weight: 600; color: #111; }
+        .ref-date { font-size: 12px; color: #aaa; margin-top: 2px; }
+
+        .ref-right { text-align: right; }
+
+        .ref-amount { font-size: 16px; font-weight: 800; color: #16a34a; }
+
+        .ref-badge {
+            display: inline-block; font-size: 10px; font-weight: 700;
+            padding: 2px 8px; border-radius: 20px; margin-top: 3px;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .ref-badge.paid { background: #dcfce7; color: #16a34a; }
+        .ref-badge.pending { background: #fef9c3; color: #ca8a04; }
+
+        /* Empty */
+        .empty-state {
+            text-align: center; padding: 40px 20px; color: #ccc;
+        }
+        .empty-state i { font-size: 34px; margin-bottom: 12px; display: block; }
+        .empty-state h3 { font-size: 15px; font-weight: 700; color: #555; margin-bottom: 6px; }
+        .empty-state p { font-size: 13px; color: #999; }
+
+        /* Bottom CTA */
+        .bottom-cta {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white;
+            padding: 12px 20px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            border-top: 1px solid #f0f0f0;
+            display: flex; gap: 10px;
+            max-width: 600px;
+            margin: 0 auto;
+            z-index: 100;
+        }
+        .telegram-fullscreen .bottom-cta { max-width: 100%; }
+
+        .cta-share {
+            flex: 1; background: #111; color: white;
+            border: none; border-radius: 50px;
+            padding: 16px; font-size: 15px; font-weight: 700;
+            cursor: pointer; font-family: 'Inter', sans-serif;
+            transition: opacity 0.15s, transform 0.12s;
+        }
+        .cta-share:active { transform: scale(0.97); opacity: 0.85; }
+
+        .cta-withdraw {
+            background: #f3f3f3; color: #111;
+            border: none; border-radius: 50px;
+            padding: 16px 20px; font-size: 15px; font-weight: 700;
+            cursor: pointer; font-family: 'Inter', sans-serif;
+            transition: opacity 0.15s, transform 0.12s;
+        }
+        .cta-withdraw:active { transform: scale(0.97); opacity: 0.75; }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 90px; left: 50%;
+            transform: translateX(-50%);
+            background: #111; color: white;
+            padding: 10px 20px; border-radius: 50px;
+            font-size: 13px; font-weight: 600; z-index: 9999;
+            white-space: nowrap; transition: opacity 0.3s;
+        }
+        .toast.success { background: #16a34a; }
+        .toast.error { background: #dc2626; }
+
+        /* Dark Mode */
         @media (prefers-color-scheme: dark) {
-            body { background: var(--surface-muted); color: var(--text); }
-            .app-container { background: var(--surface); box-shadow: none; }
-            .page-header { background: var(--surface); border-color: var(--border); }
-            .page-header h1 { color: var(--text); }
-            .stats-container { background: var(--surface-muted); border-color: var(--border); }
-            .stat-card { background: var(--surface-elevated); border-color: var(--border); }
-            .stat-value { color: var(--text); }
-            .stat-label { color: var(--text-secondary); }
-            .section-title { color: var(--text-secondary); }
-            .content-area { background: var(--surface-muted); }
-            .card { background: var(--surface-elevated); border-color: var(--border); }
-            .card:active { background: var(--surface); }
-            .card-info h3 { color: var(--text); }
-            .card-info p { color: var(--text-secondary); }
-            .card-arrow { color: var(--border-muted); }
-            .referral-link-section { background: var(--surface-elevated); border-color: var(--border); }
-            .referral-link-display { background: var(--surface); border-color: var(--border-muted); color: var(--text); }
-            .btn-secondary { background: var(--surface); color: var(--brand); border-color: var(--brand); }
-            .referral-item { background: var(--surface-elevated); box-shadow: none; }
-            .referral-info h4 { color: var(--text); }
-            .referral-info p { color: var(--text-secondary); }
-            .referral-amount .status { color: var(--text-secondary); }
-            .empty-state h3 { color: var(--text); }
-            .empty-state p { color: var(--text-secondary); }
-            .step-card { background: var(--surface-elevated); border-color: var(--border); }
-            .step-card h4 { color: var(--text); }
-            .step-card p { color: var(--text-secondary); }
+            body { background: #111; }
+            .app-container { background: #111; }
+            .back-btn { color: #f0f0f0; }
+            .hero-title { color: #f0f0f0; }
+            .hero-sub { color: #777; }
+            .link-box { background: #1d1d1d; }
+            .link-text { color: #aaa; }
+            .copy-btn { background: #f0f0f0; color: #111; }
+            .stat-pill { background: #1d1d1d; }
+            .stat-pill .val { color: #f0f0f0; }
+            .divider { background: #1d1d1d; }
+            .step-row { border-color: #1d1d1d; }
+            .step-icon-wrap { background: #1d1d1d; color: #aaa; }
+            .step-text h4 { color: #f0f0f0; }
+            .step-text p { color: #666; }
+            .referral-row { border-color: #1d1d1d; }
+            .ref-avatar { background: #1d1d1d; color: #777; }
+            .ref-name { color: #f0f0f0; }
+            .bottom-cta { background: #111; border-color: #1d1d1d; }
+            .cta-share { background: #f0f0f0; color: #111; }
+            .cta-withdraw { background: #1d1d1d; color: #f0f0f0; }
         }
 
-        [data-theme="dark"] body { background: var(--surface-muted); color: var(--text); }
-        [data-theme="dark"] .app-container { background: var(--surface); }
-        [data-theme="dark"] .page-header { background: var(--surface); border-color: var(--border); }
-        [data-theme="dark"] .page-header h1 { color: var(--text); }
-        [data-theme="dark"] .stats-container { background: var(--surface-muted); border-color: var(--border); }
-        [data-theme="dark"] .stat-card { background: var(--surface-elevated); border-color: var(--border); }
-        [data-theme="dark"] .stat-value { color: var(--text); }
-        [data-theme="dark"] .stat-label { color: var(--text-secondary); }
-        [data-theme="dark"] .section-title { color: var(--text-secondary); }
-        [data-theme="dark"] .content-area { background: var(--surface-muted); }
-        [data-theme="dark"] .card { background: var(--surface-elevated); border-color: var(--border); }
-        [data-theme="dark"] .card:active { background: var(--surface); }
-        [data-theme="dark"] .card-info h3 { color: var(--text); }
-        [data-theme="dark"] .card-info p { color: var(--text-secondary); }
-        [data-theme="dark"] .card-arrow { color: var(--border-muted); }
-        [data-theme="dark"] .referral-link-section { background: var(--surface-elevated); border-color: var(--border); }
-        [data-theme="dark"] .referral-link-display { background: var(--surface); border-color: var(--border-muted); color: var(--text); }
-        [data-theme="dark"] .btn-secondary { background: var(--surface); color: var(--brand); border-color: var(--brand); }
-        [data-theme="dark"] .referral-item { background: var(--surface-elevated); }
-        [data-theme="dark"] .referral-info h4 { color: var(--text); }
-        [data-theme="dark"] .referral-info p { color: var(--text-secondary); }
-        [data-theme="dark"] .referral-amount .status { color: var(--text-secondary); }
-        [data-theme="dark"] .empty-state h3 { color: var(--text); }
-        [data-theme="dark"] .empty-state p { color: var(--text-secondary); }
-        [data-theme="dark"] .step-card { background: var(--surface-elevated); border-color: var(--border); }
-        [data-theme="dark"] .step-card h4 { color: var(--text); }
-        [data-theme="dark"] .step-card p { color: var(--text-secondary); }
+        [data-theme="dark"] body { background: #111; }
+        [data-theme="dark"] .app-container { background: #111; }
+        [data-theme="dark"] .back-btn { color: #f0f0f0; }
+        [data-theme="dark"] .hero-title { color: #f0f0f0; }
+        [data-theme="dark"] .hero-sub { color: #777; }
+        [data-theme="dark"] .link-box { background: #1d1d1d; }
+        [data-theme="dark"] .link-text { color: #aaa; }
+        [data-theme="dark"] .copy-btn { background: #f0f0f0; color: #111; }
+        [data-theme="dark"] .stat-pill { background: #1d1d1d; }
+        [data-theme="dark"] .stat-pill .val { color: #f0f0f0; }
+        [data-theme="dark"] .divider { background: #1d1d1d; }
+        [data-theme="dark"] .step-row { border-color: #1d1d1d; }
+        [data-theme="dark"] .step-icon-wrap { background: #1d1d1d; color: #aaa; }
+        [data-theme="dark"] .step-text h4 { color: #f0f0f0; }
+        [data-theme="dark"] .referral-row { border-color: #1d1d1d; }
+        [data-theme="dark"] .ref-avatar { background: #1d1d1d; color: #777; }
+        [data-theme="dark"] .ref-name { color: #f0f0f0; }
+        [data-theme="dark"] .bottom-cta { background: #111; border-color: #1d1d1d; }
+        [data-theme="dark"] .cta-share { background: #f0f0f0; color: #111; }
+        [data-theme="dark"] .cta-withdraw { background: #1d1d1d; color: #f0f0f0; }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Page Header -->
-        <header class="page-header">
-            <h1 data-translate="referralTitle">Referral Program</h1>
-        </header>
+<div class="app-container">
 
-        <!-- Stats Section -->
-        <div class="stats-container">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-wallet"></i></div>
-                <div class="stat-value" id="availableBalance">0.00</div>
-                <div class="stat-label" data-translate="availableBalance">Available</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
-                <div class="stat-value" id="totalEarned">0.00</div>
-                <div class="stat-label" data-translate="totalEarned">Total Earned</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-users"></i></div>
-                <div class="stat-value" id="referralsCount">0</div>
-                <div class="stat-label" data-translate="referrals">Referrals</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-                <div class="stat-value" id="pendingAmount">0.00</div>
-                <div class="stat-label" data-translate="withdrawn">Withdrawn</div>
-            </div>
+    <header class="page-header">
+        <div class="back-btn" onclick="history.back()">
+            <i class="fas fa-arrow-left"></i>
         </div>
+    </header>
 
-        <!-- Main Content -->
-        <div class="content-area">
-            <!-- Referral Link Section -->
-            <div class="referral-link-section">
-                <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #1f2937;" data-translate="yourLink">Your Referral Link</h3>
-                <div class="referral-link-display" id="referralLinkDisplay">
-                    <span data-translate="loading">Loading...</span>
-                </div>
-                <div class="button-group">
-                    <button id="copyButton" class="btn btn-primary" data-translate="copy"><i class="fas fa-copy"></i> Copy</button>
-                    <button id="shareButton" class="btn btn-secondary" data-translate="share"><i class="fas fa-share-alt"></i> Share</button>
-                </div>
-            </div>
-
-            <!-- Action Cards -->
-            <div class="section-title" data-translate="actions">Quick Actions</div>
-            <div id="withdrawCard" class="card">
-                <div class="card-content">
-                    <div class="card-icon icon-purple"><i class="fas fa-wallet" style="color: #9333ea;"></i></div>
-                    <div class="card-info">
-                        <h3 data-translate="withdraw">Withdraw</h3>
-                        <p data-translate="withdrawDesc">Cash to TON wallet</p>
-                    </div>
-                </div>
-                <svg class="card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-            </div>
-
-            <div id="historyCard" class="card">
-                <div class="card-content">
-                    <div class="card-icon icon-blue"><i class="fas fa-history" style="color: #2563eb;"></i></div>
-                    <div class="card-info">
-                        <h3 data-translate="history">History</h3>
-                        <p data-translate="historyDesc">View all your referrals</p>
-                    </div>
-                </div>
-                <svg class="card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-            </div>
-
-            <!-- Referrals Section -->
-            <div style="margin-top: 24px;">
-                <div class="section-title" data-translate="myReferrals">My Referrals</div>
-                <div id="noReferrals" class="empty-state">
-                    <div class="empty-icon"><i class="fas fa-user-friends"></i></div>
-                    <h3 data-translate="noReferrals">No Referrals Yet</h3>
-                    <p data-translate="referralEmptyHint">Share your link to get started</p>
-                </div>
-                <div id="referralsList"></div>
-            </div>
-
-            <!-- How It Works Section -->
-            <div style="margin-top: 28px; margin-bottom: 20px;">
-                <div class="section-title" data-translate="howItWorks">How It Works</div>
-                <div class="how-it-works">
-                    <div class="step-card">
-                        <div class="step-number">1</div>
-                        <h4 data-translate="step1Title">Share Link</h4>
-                        <p data-translate="step1Desc">Copy & share your unique link</p>
-                    </div>
-                    <div class="step-card">
-                        <div class="step-number">2</div>
-                        <h4 data-translate="step2Title">Friend Buys</h4>
-                        <p data-translate="step2Desc">They purchase 100+ stars</p>
-                    </div>
-                    <div class="step-card">
-                        <div class="step-number">3</div>
-                        <h4 data-translate="step3Title">You Earn</h4>
-                        <p data-translate="step3Desc">0.5 USDT per referral</p>
-                    </div>
-                    <div class="step-card">
-                        <div class="step-number">4</div>
-                        <h4 data-translate="step4Title">Withdraw</h4>
-                        <p data-translate="step4Desc">Instant to TON wallet</p>
-                    </div>
-                </div>
-            </div>
+    <div class="hero">
+        <div class="icon-cluster">
+            <div class="cluster-icon"><i class="fas fa-star"></i></div>
+            <div class="cluster-icon"><i class="fas fa-dollar-sign"></i></div>
+            <div class="cluster-icon"><i class="fas fa-user-plus"></i></div>
         </div>
-
-        <!-- Bottom Nav -->
-        <div id="bottomnav-container"></div>
+        <h1 class="hero-title">Earn 0.5 USDT<br>per referral</h1>
+        <p class="hero-sub">Invite friends to StarStore. Every time they purchase 100+ stars using your link, you get rewarded instantly.</p>
     </div>
 
-    <script>
-        // Initialize Telegram WebApp
-        if (window.Telegram?.WebApp) {
-            const webApp = window.Telegram.WebApp;
-            webApp.ready();
-            webApp.expand();
-            document.body.classList.add('telegram-fullscreen');
-        }
+    <div class="link-section">
+        <div class="link-box">
+            <div class="link-text" id="referralLinkDisplay">Loading your link…</div>
+            <button class="copy-btn" id="copyButton"><i class="fas fa-copy"></i> Copy</button>
+        </div>
+    </div>
 
-        const tgWebApp = window.Telegram?.WebApp;
-        const tgUser = tgWebApp?.initDataUnsafe?.user;
-        const BASE_API_URL = window.location.origin + '/api';
-        let userId = tgUser?.id?.toString() || 'default_user_id';
+    <div class="stats-row">
+        <div class="stat-pill">
+            <div class="val" id="availableBalance">0.00</div>
+            <div class="lbl">Available</div>
+        </div>
+        <div class="stat-pill">
+            <div class="val" id="referralsCount">0</div>
+            <div class="lbl">Referrals</div>
+        </div>
+        <div class="stat-pill">
+            <div class="val" id="totalEarned">0.00</div>
+            <div class="lbl">Earned</div>
+        </div>
+    </div>
 
-        const state = {
-            userId,
-            referralLink: null,
-            stats: { availableBalance: 0, totalEarned: 0, referralsCount: 0, pendingAmount: 0 },
-            referrals: [],
-            isWithdrawInProgress: false,
-            isHistoryInProgress: false
-        };
+    <div class="divider"></div>
+    <div class="section-label">How it works</div>
+    <div class="steps-list">
+        <div class="step-row">
+            <div class="step-icon-wrap"><i class="fas fa-link"></i></div>
+            <div class="step-text">
+                <h4>Share your link</h4>
+                <p>Copy and send your unique referral link to friends</p>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-icon-wrap"><i class="fas fa-star"></i></div>
+            <div class="step-text">
+                <h4>Friend buys stars</h4>
+                <p>They purchase 100 or more Telegram stars</p>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-icon-wrap"><i class="fas fa-bolt"></i></div>
+            <div class="step-text">
+                <h4>You earn 0.5 USDT</h4>
+                <p>Credited to your balance instantly</p>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-icon-wrap"><i class="fas fa-wallet"></i></div>
+            <div class="step-text">
+                <h4>Withdraw anytime</h4>
+                <p>Cash out directly to your TON wallet</p>
+            </div>
+        </div>
+    </div>
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            loadBottomNav();
-            await loadReferralData();
-            setupEventListeners();
-            applyTranslations();
-        });
+    <div class="divider"></div>
+    <div class="section-label">My Referrals</div>
+    <div class="referrals-section">
+        <div id="noReferrals" class="empty-state">
+            <i class="fas fa-user-friends"></i>
+            <h3>No referrals yet</h3>
+            <p>Share your link to start earning</p>
+        </div>
+        <div id="referralsList"></div>
+    </div>
 
-        async function loadBottomNav() {
-            try {
-                const res = await fetch('/bottomnav.html');
-                if (res.ok) {
-                    document.getElementById('bottomnav-container').innerHTML = await res.text();
-                    if (typeof TranslationUtils !== 'undefined') {
-                        TranslationUtils.applyTranslations();
-                    }
+</div>
+
+<div class="bottom-cta">
+    <button class="cta-share" id="shareButton"><i class="fas fa-share-alt"></i> &nbsp;Invite Friends</button>
+    <button class="cta-withdraw" id="withdrawButton"><i class="fas fa-arrow-up"></i> &nbsp;Withdraw</button>
+</div>
+
+<div id="bottomnav-container"></div>
+
+<script>
+    if (window.Telegram?.WebApp) {
+        const webApp = window.Telegram.WebApp;
+        webApp.ready();
+        webApp.expand();
+        document.body.classList.add('telegram-fullscreen');
+    }
+
+    const tgWebApp = window.Telegram?.WebApp;
+    const tgUser = tgWebApp?.initDataUnsafe?.user;
+    const BASE_API_URL = window.location.origin + '/api';
+    let userId = tgUser?.id?.toString() || 'default_user_id';
+
+    const state = {
+        userId,
+        referralLink: null,
+        stats: { availableBalance: 0, totalEarned: 0, referralsCount: 0, pendingAmount: 0 },
+        referrals: [],
+        isWithdrawInProgress: false
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        loadBottomNav();
+        await loadReferralData();
+        setupEventListeners();
+        applyTranslations();
+    });
+
+    async function loadBottomNav() {
+        try {
+            const res = await fetch('/bottomnav.html');
+            if (res.ok) {
+                document.getElementById('bottomnav-container').innerHTML = await res.text();
+                if (typeof TranslationUtils !== 'undefined') TranslationUtils.applyTranslations();
+            }
+        } catch (e) {}
+    }
+
+    async function loadReferralData() {
+        try {
+            const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`, {
+                headers: {
+                    'x-telegram-init-data': tgWebApp?.initData || '',
+                    'x-telegram-id': state.userId
                 }
-            } catch (e) {
-                console.error('Failed to load bottom nav:', e);
+            });
+            if (!response.ok) throw new Error();
+            const data = await response.json();
+            if (data.success) {
+                state.referralLink = data.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
+                state.stats = {
+                    availableBalance: parseFloat(data.stats?.availableBalance || 0),
+                    totalEarned: parseFloat(data.stats?.totalEarned || 0),
+                    referralsCount: parseInt(data.stats?.referralsCount || 0),
+                    pendingAmount: parseFloat(data.stats?.pendingAmount || 0)
+                };
+                state.referrals = data.referrals || [];
             }
+        } catch {
+            state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
         }
+        updateUI();
+    }
 
-        async function loadReferralData() {
-            try {
-                const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`, {
-                    headers: {
-                        'x-telegram-init-data': tgWebApp?.initData || '',
-                        'x-telegram-id': state.userId
-                    }
-                });
+    function updateUI() {
+        document.getElementById('availableBalance').textContent = state.stats.availableBalance.toFixed(2);
+        document.getElementById('totalEarned').textContent = state.stats.totalEarned.toFixed(2);
+        document.getElementById('referralsCount').textContent = state.stats.referralsCount;
+        document.getElementById('referralLinkDisplay').textContent = state.referralLink;
+        renderReferrals();
+    }
 
-                if (!response.ok) throw new Error('Failed to load data');
-
-                const data = await response.json();
-                if (data.success) {
-                    state.referralLink = data.referralLink || `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
-                    state.stats = {
-                        availableBalance: parseFloat(data.stats?.availableBalance || 0),
-                        totalEarned: parseFloat(data.stats?.totalEarned || 0),
-                        referralsCount: parseInt(data.stats?.referralsCount || 0),
-                        pendingAmount: parseFloat(data.stats?.pendingAmount || 0)
-                    };
-                    state.referrals = data.referrals || [];
-                }
-            } catch (error) {
-                console.error('Error loading data:', error);
-                state.referralLink = `https://t.me/TgStarStore_bot?start=ref_${state.userId}`;
-            }
-            updateUI();
+    function renderReferrals() {
+        const list = document.getElementById('referralsList');
+        const empty = document.getElementById('noReferrals');
+        if (!state.referrals?.length) {
+            list.innerHTML = ''; empty.style.display = 'block'; return;
         }
-
-        function updateUI() {
-            document.getElementById('availableBalance').textContent = state.stats.availableBalance.toFixed(2);
-            document.getElementById('totalEarned').textContent = state.stats.totalEarned.toFixed(2);
-            document.getElementById('referralsCount').textContent = state.stats.referralsCount;
-            document.getElementById('pendingAmount').textContent = state.stats.pendingAmount.toFixed(2);
-            document.getElementById('referralLinkDisplay').textContent = state.referralLink;
-            updateReferralsList();
-        }
-
-        function updateReferralsList() {
-            const container = document.getElementById('referralsList');
-            const noReferrals = document.getElementById('noReferrals');
-
-            if (!state.referrals || state.referrals.length === 0) {
-                container.innerHTML = '';
-                noReferrals.style.display = 'block';
-                return;
-            }
-
-            noReferrals.style.display = 'none';
-            container.innerHTML = state.referrals.map(ref => `
-                <div class="referral-item ${ref.status === 'pending' ? 'pending' : ''}">
-                    <div class="referral-info">
-                        <h4>${ref.name || 'User #' + ref.userId.substring(0, 6)}</h4>
-                        <p>${new Date(ref.date).toLocaleDateString()}</p>
+        empty.style.display = 'none';
+        list.innerHTML = state.referrals.map(ref => {
+            const name = ref.name || 'User #' + ref.userId.substring(0, 6);
+            const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 2);
+            return `
+                <div class="referral-row">
+                    <div class="ref-left">
+                        <div class="ref-avatar">${initials}</div>
+                        <div>
+                            <div class="ref-name">${name}</div>
+                            <div class="ref-date">${new Date(ref.date).toLocaleDateString()}</div>
+                        </div>
                     </div>
-                    <div class="referral-amount">
-                        <div class="amount">+0.5 USDT</div>
-                        <div class="status">${ref.status}</div>
+                    <div class="ref-right">
+                        <div class="ref-amount">+0.5 USDT</div>
+                        <span class="ref-badge ${ref.status === 'pending' ? 'pending' : 'paid'}">${ref.status}</span>
                     </div>
                 </div>
-            `).join('');
-        }
+            `;
+        }).join('');
+    }
 
-        function setupEventListeners() {
-            // Copy button
-            document.getElementById('copyButton').addEventListener('click', () => {
-                navigator.clipboard.writeText(state.referralLink).then(() => {
-                    showToast('Link copied to clipboard!', 'success');
-                });
-            });
+    function setupEventListeners() {
+        document.getElementById('copyButton').addEventListener('click', () => {
+            navigator.clipboard.writeText(state.referralLink)
+                .then(() => showToast('Link copied!', 'success'));
+        });
 
-            // Share button
-            document.getElementById('shareButton').addEventListener('click', () => {
-                const text = `Check out StarStore! Earn 0.5 USDT per referral.\n${state.referralLink}`;
-                
-                if (navigator.share) {
-                    navigator.share({ title: 'StarStore Referral', text });
-                } else {
-                    Swal.fire({
-                        title: 'Share Link',
-                        html: `
-                            <button style="width: 100%; padding: 12px; margin: 6px 0; background: #1f2937; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="window.open('https://t.me/share/url?url=${encodeURIComponent(state.referralLink)}')">Telegram</button>
-                            <button style="width: 100%; padding: 12px; margin: 6px 0; background: #25d366; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="window.open('https://api.whatsapp.com/send?text=${encodeURIComponent(text)}')">WhatsApp</button>
-                            <button style="width: 100%; padding: 12px; margin: 6px 0; background: #1da1f2; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="window.open('https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}')">Twitter</button>
-                        `,
-                        showConfirmButton: false
-                    });
-                }
-            });
-
-            // Withdraw card
-            document.getElementById('withdrawCard').addEventListener('click', showWithdrawPopup);
-
-            // History card
-            document.getElementById('historyCard').addEventListener('click', showTransactionHistory);
-        }
-
-        async function showWithdrawPopup() {
-            // Prevent multiple simultaneous withdraw operations
-            if (state.isWithdrawInProgress) return;
-            state.isWithdrawInProgress = true;
-
-            try {
-                const available = state.stats.availableBalance;
-                if (available < 0.5) {
-                    Swal.fire({
-                        title: 'Insufficient Balance',
-                        text: `You need at least 0.5 USDT to withdraw. Current: ${available.toFixed(2)} USDT`,
-                        icon: 'warning'
-                    });
-                    return;
-                }
-
-                const { value: formValues } = await Swal.fire({
-                    title: 'Withdraw Earnings',
-                    html: `
-                        <div style="text-align: left;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1f2937;">Amount (USDT)</label>
-                            <input type="number" id="amount" placeholder="0.5" max="${available}" min="0.5" step="0.5" value="0.5" style="width: 100%; padding: 10px; margin-bottom: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: white; color: #000;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1f2937;">TON Wallet Address</label>
-                            <input type="text" id="wallet" placeholder="EQxxxxxxxxxx..." style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: white; color: #000;">
-                            <p style="margin-top: 12px; font-size: 13px; color: #6b7280;">Available: <strong>${available.toFixed(2)} USDT</strong></p>
-                        </div>
-                    `,
-                    showCancelButton: true,
-                    confirmButtonText: 'Withdraw',
-                    confirmButtonColor: '#667eea',
-                    preConfirm: () => {
-                        const amount = document.getElementById('amount').value;
-                        const wallet = document.getElementById('wallet').value;
-                        if (!amount || !wallet) {
-                            Swal.showValidationMessage('Please fill in all fields');
-                            return false;
-                        }
-                        return { amount: parseFloat(amount), walletAddress: wallet };
-                    }
-                });
-
-                if (formValues) {
-                    try {
-                        const res = await fetch(`${BASE_API_URL}/referral-withdrawals`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: state.userId, ...formValues })
-                        });
-                        if (res.ok) {
-                            showToast('Withdrawal requested successfully!', 'success');
-                            await loadReferralData();
-                        }
-                    } catch (e) {
-                        showToast('Withdrawal failed', 'error');
-                    }
-                }
-            } finally {
-                state.isWithdrawInProgress = false;
-            }
-
-        function showTransactionHistory() {
-            // Prevent multiple simultaneous history operations
-            if (state.isHistoryInProgress) return;
-            state.isHistoryInProgress = true;
-
-            try {
-                if (!state.referrals || state.referrals.length === 0) {
-                    Swal.fire({
-                        title: 'Transaction History',
-                        text: 'No transactions yet. Share your referral link to start earning!',
-                        icon: 'info'
-                    });
-                    return;
-                }
-
-                const historyHTML = `
-                    <div style="text-align: left; max-height: 400px; overflow-y: auto;">
-                        ${state.referrals.map(ref => `
-                            <div style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 13px;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                    <strong>${ref.name || 'User #' + ref.userId.substring(0, 6)}</strong>
-                                    <span style="color: #10b981; font-weight: 600;">+0.5 USDT</span>
-                                </div>
-                                <div style="color: #6b7280; font-size: 12px;">
-                                    ${new Date(ref.date).toLocaleDateString()} • <span style="text-transform: capitalize; font-weight: 500;">${ref.status}</span>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-
+        document.getElementById('shareButton').addEventListener('click', () => {
+            const text = `Join StarStore & get Telegram stars!\n${state.referralLink}`;
+            if (navigator.share) {
+                navigator.share({ title: 'StarStore', text });
+            } else {
                 Swal.fire({
-                    title: 'Transaction History',
-                    html: historyHTML,
-                    icon: 'info',
-                    confirmButtonColor: '#667eea'
+                    title: 'Invite Friends',
+                    html: `
+                        <button onclick="window.open('https://t.me/share/url?url=${encodeURIComponent(state.referralLink)}')" style="width:100%;padding:13px;margin:5px 0;background:#111;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;font-family:Inter,sans-serif;"><i class="fab fa-telegram"></i>&nbsp; Telegram</button>
+                        <button onclick="window.open('https://api.whatsapp.com/send?text=${encodeURIComponent(text)}')" style="width:100%;padding:13px;margin:5px 0;background:#25d366;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;font-family:Inter,sans-serif;"><i class="fab fa-whatsapp"></i>&nbsp; WhatsApp</button>
+                        <button onclick="window.open('https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}')" style="width:100%;padding:13px;margin:5px 0;background:#000;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;font-family:Inter,sans-serif;"><i class="fab fa-x-twitter"></i>&nbsp; X / Twitter</button>
+                    `,
+                    showConfirmButton: false
                 });
-            } finally {
-                state.isHistoryInProgress = false;
             }
-                confirmButtonColor: '#667eea'
+        });
+
+        document.getElementById('withdrawButton').addEventListener('click', showWithdrawPopup);
+    }
+
+    async function showWithdrawPopup() {
+        if (state.isWithdrawInProgress) return;
+        state.isWithdrawInProgress = true;
+        try {
+            const available = state.stats.availableBalance;
+            if (available < 0.5) {
+                Swal.fire({
+                    title: 'Not enough balance',
+                    text: `You need at least 0.5 USDT. You have ${available.toFixed(2)} USDT.`,
+                    icon: 'warning', confirmButtonColor: '#111'
+                });
+                return;
+            }
+            const { value } = await Swal.fire({
+                title: 'Withdraw',
+                html: `
+                    <div style="text-align:left;">
+                        <label style="display:block;margin-bottom:6px;font-weight:600;font-size:13px;color:#111;">Amount (USDT)</label>
+                        <input type="number" id="amount" placeholder="0.5" max="${available}" min="0.5" step="0.5" value="0.5" style="width:100%;padding:12px;margin-bottom:14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;background:#fff;color:#111;font-family:Inter,sans-serif;">
+                        <label style="display:block;margin-bottom:6px;font-weight:600;font-size:13px;color:#111;">TON Wallet Address</label>
+                        <input type="text" id="wallet" placeholder="EQxxxxxxxxxx..." style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;background:#fff;color:#111;font-family:Inter,sans-serif;">
+                        <p style="margin-top:10px;font-size:12px;color:#888;">Available: <strong>${available.toFixed(2)} USDT</strong></p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Withdraw',
+                confirmButtonColor: '#111',
+                preConfirm: () => {
+                    const amount = document.getElementById('amount').value;
+                    const wallet = document.getElementById('wallet').value;
+                    if (!amount || !wallet) { Swal.showValidationMessage('Please fill in all fields'); return false; }
+                    return { amount: parseFloat(amount), walletAddress: wallet };
+                }
             });
-        }
-
-        function showToast(text, type) {
-            const t = document.createElement('div');
-            t.textContent = text;
-            t.style.position = 'fixed';
-            t.style.bottom = '80px';
-            t.style.left = '50%';
-            t.style.transform = 'translateX(-50%)';
-            t.style.padding = '10px 16px';
-            t.style.borderRadius = '8px';
-            t.style.fontSize = '13px';
-            t.style.color = '#fff';
-            t.style.zIndex = '9999';
-            t.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            t.style.fontWeight = '600';
-
-            if (type === 'success') t.style.background = '#10b981';
-            else if (type === 'error') t.style.background = '#dc2626';
-            else t.style.background = '#667eea';
-
-            document.body.appendChild(t);
-            setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, 1800);
-            setTimeout(() => { t.remove(); }, 2100);
-        }
-
-        function applyTranslations() {
-            if (typeof TranslationUtils !== 'undefined') {
-                TranslationUtils.applyTranslations();
+            if (value) {
+                try {
+                    const res = await fetch(`${BASE_API_URL}/referral-withdrawals`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: state.userId, ...value })
+                    });
+                    if (res.ok) { showToast('Withdrawal requested!', 'success'); await loadReferralData(); }
+                    else showToast('Withdrawal failed', 'error');
+                } catch { showToast('Withdrawal failed', 'error'); }
             }
-        }
-    </script>
-    <script src="/js/version-display.js"></script>
+        } finally { state.isWithdrawInProgress = false; }
+    }
+
+    function showToast(text, type = '') {
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        el.textContent = text;
+        document.body.appendChild(el);
+        setTimeout(() => { el.style.opacity = '0'; }, 1800);
+        setTimeout(() => el.remove(), 2100);
+    }
+
+    function applyTranslations() {
+        if (typeof TranslationUtils !== 'undefined') TranslationUtils.applyTranslations();
+    }
+</script>
+<script src="/js/version-display.js"></script>
 </body>
 </html>
