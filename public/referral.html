@@ -363,59 +363,62 @@
 
         /* Dark theme support */
         @media (prefers-color-scheme: dark) {
-            body { background: #0f172a; }
-            .app-container { background: #111827; box-shadow: none; }
-            .stats-container { background: #1f2937; border-color: #374151; }
-            .stat-card { background: #1f2937; border-color: #374151; }
-            .stat-value { color: #f0f9ff; }
-            .stat-label { color: #9ca3af; }
-            .section-title { color: #9ca3af; }
-            .content-area { background: #0f172a; }
-            .card { background: #1f2937; border-color: #374151; }
-            .card:active { background: #111827; }
-            .card-info h3 { color: #e5e7eb; }
-            .card-info p { color: #9ca3af; }
-            .card-arrow { color: #4b5563; }
-            .referral-link-section { background: #111827; border-color: #374151; }
-            .referral-link-display { background: #1f2937; border-color: #4b5563; color: #e5e7eb; }
-            .btn-secondary { background: #111827; color: #818cf8; border-color: #818cf8; }
-            .referral-item { background: #111827; box-shadow: none; }
-            .referral-info h4 { color: #e5e7eb; }
-            .referral-info p { color: #9ca3af; }
-            .referral-amount .status { color: #9ca3af; }
-            .empty-state h3 { color: #e5e7eb; }
-            .empty-state p { color: #9ca3af; }
-            .step-card { background: #111827; border-color: #374151; }
-            .step-card h4 { color: #e5e7eb; }
-            .step-card p { color: #9ca3af; }
-            .hero-section { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); }
+            body { background: var(--surface-muted); color: var(--text); }
+            .app-container { background: var(--surface); box-shadow: none; }
+            .page-header { background: var(--surface); border-color: var(--border); }
+            .page-header h1 { color: var(--text); }
+            .stats-container { background: var(--surface-muted); border-color: var(--border); }
+            .stat-card { background: var(--surface-elevated); border-color: var(--border); }
+            .stat-value { color: var(--text); }
+            .stat-label { color: var(--text-secondary); }
+            .section-title { color: var(--text-secondary); }
+            .content-area { background: var(--surface-muted); }
+            .card { background: var(--surface-elevated); border-color: var(--border); }
+            .card:active { background: var(--surface); }
+            .card-info h3 { color: var(--text); }
+            .card-info p { color: var(--text-secondary); }
+            .card-arrow { color: var(--border-muted); }
+            .referral-link-section { background: var(--surface-elevated); border-color: var(--border); }
+            .referral-link-display { background: var(--surface); border-color: var(--border-muted); color: var(--text); }
+            .btn-secondary { background: var(--surface); color: var(--brand); border-color: var(--brand); }
+            .referral-item { background: var(--surface-elevated); box-shadow: none; }
+            .referral-info h4 { color: var(--text); }
+            .referral-info p { color: var(--text-secondary); }
+            .referral-amount .status { color: var(--text-secondary); }
+            .empty-state h3 { color: var(--text); }
+            .empty-state p { color: var(--text-secondary); }
+            .step-card { background: var(--surface-elevated); border-color: var(--border); }
+            .step-card h4 { color: var(--text); }
+            .step-card p { color: var(--text-secondary); }
         }
 
-        [data-theme="dark"] body { background: #0f172a; }
-        [data-theme="dark"] .app-container { background: #111827; }
-        [data-theme="dark"] .stats-container { background: #1f2937; border-color: #374151; }
-        [data-theme="dark"] .stat-card { background: #1f2937; border-color: #374151; }
-        [data-theme="dark"] .stat-value { color: #f0f9ff; }
-        [data-theme="dark"] .stat-label { color: #9ca3af; }
-        [data-theme="dark"] .section-title { color: #9ca3af; }
-        [data-theme="dark"] .content-area { background: #0f172a; }
-        [data-theme="dark"] .card { background: #1f2937; border-color: #374151; }
-        [data-theme="dark"] .card:active { background: #111827; }
-        [data-theme="dark"] .card-info h3 { color: #e5e7eb; }
-        [data-theme="dark"] .card-info p { color: #9ca3af; }
-        [data-theme="dark"] .card-arrow { color: #4b5563; }
-        [data-theme="dark"] .referral-link-section { background: #111827; border-color: #374151; }
-        [data-theme="dark"] .referral-link-display { background: #1f2937; border-color: #4b5563; color: #e5e7eb; }
-        [data-theme="dark"] .btn-secondary { background: #111827; color: #818cf8; border-color: #818cf8; }
-        [data-theme="dark"] .referral-item { background: #111827; }
-        [data-theme="dark"] .referral-info h4 { color: #e5e7eb; }
-        [data-theme="dark"] .referral-info p { color: #9ca3af; }
-        [data-theme="dark"] .referral-amount .status { color: #9ca3af; }
-        [data-theme="dark"] .empty-state h3 { color: #e5e7eb; }
-        [data-theme="dark"] .empty-state p { color: #9ca3af; }
-        [data-theme="dark"] .step-card { background: #111827; border-color: #374151; }
-        [data-theme="dark"] .step-card h4 { color: #e5e7eb; }
-        [data-theme="dark"] .step-card p { color: #9ca3af; }
+        [data-theme="dark"] body { background: var(--surface-muted); color: var(--text); }
+        [data-theme="dark"] .app-container { background: var(--surface); }
+        [data-theme="dark"] .page-header { background: var(--surface); border-color: var(--border); }
+        [data-theme="dark"] .page-header h1 { color: var(--text); }
+        [data-theme="dark"] .stats-container { background: var(--surface-muted); border-color: var(--border); }
+        [data-theme="dark"] .stat-card { background: var(--surface-elevated); border-color: var(--border); }
+        [data-theme="dark"] .stat-value { color: var(--text); }
+        [data-theme="dark"] .stat-label { color: var(--text-secondary); }
+        [data-theme="dark"] .section-title { color: var(--text-secondary); }
+        [data-theme="dark"] .content-area { background: var(--surface-muted); }
+        [data-theme="dark"] .card { background: var(--surface-elevated); border-color: var(--border); }
+        [data-theme="dark"] .card:active { background: var(--surface); }
+        [data-theme="dark"] .card-info h3 { color: var(--text); }
+        [data-theme="dark"] .card-info p { color: var(--text-secondary); }
+        [data-theme="dark"] .card-arrow { color: var(--border-muted); }
+        [data-theme="dark"] .referral-link-section { background: var(--surface-elevated); border-color: var(--border); }
+        [data-theme="dark"] .referral-link-display { background: var(--surface); border-color: var(--border-muted); color: var(--text); }
+        [data-theme="dark"] .btn-secondary { background: var(--surface); color: var(--brand); border-color: var(--brand); }
+        [data-theme="dark"] .referral-item { background: var(--surface-elevated); }
+        [data-theme="dark"] .referral-info h4 { color: var(--text); }
+        [data-theme="dark"] .referral-info p { color: var(--text-secondary); }
+        [data-theme="dark"] .referral-amount .status { color: var(--text-secondary); }
+        [data-theme="dark"] .empty-state h3 { color: var(--text); }
+        [data-theme="dark"] .empty-state p { color: var(--text-secondary); }
+        [data-theme="dark"] .step-card { background: var(--surface-elevated); border-color: var(--border); }
+        [data-theme="dark"] .step-card h4 { color: var(--text); }
+        [data-theme="dark"] .step-card p { color: var(--text-secondary); }
     </style>
 </head>
 <body>
@@ -649,7 +652,7 @@
 
             // Share button
             document.getElementById('shareButton').addEventListener('click', () => {
-                const text = `🎁 Check out StarStore! Earn 0.5 USDT per referral.\n${state.referralLink}`;
+                const text = `Check out StarStore! Earn 0.5 USDT per referral.\n${state.referralLink}`;
                 
                 if (navigator.share) {
                     navigator.share({ title: 'StarStore Referral', text });
@@ -657,9 +660,9 @@
                     Swal.fire({
                         title: 'Share Link',
                         html: `
-                            <button style="width: 100%; padding: 12px; margin: 6px 0; background: #1f2937; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="window.open('https://t.me/share/url?url=${encodeURIComponent(state.referralLink)}')">📱 Telegram</button>
-                            <button style="width: 100%; padding: 12px; margin: 6px 0; background: #25d366; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="window.open('https://api.whatsapp.com/send?text=${encodeURIComponent(text)}')">💬 WhatsApp</button>
-                            <button style="width: 100%; padding: 12px; margin: 6px 0; background: #1da1f2; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="window.open('https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}')">𝕏 Twitter</button>
+                            <button style="width: 100%; padding: 12px; margin: 6px 0; background: #1f2937; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="window.open('https://t.me/share/url?url=${encodeURIComponent(state.referralLink)}')">Telegram</button>
+                            <button style="width: 100%; padding: 12px; margin: 6px 0; background: #25d366; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="window.open('https://api.whatsapp.com/send?text=${encodeURIComponent(text)}')">WhatsApp</button>
+                            <button style="width: 100%; padding: 12px; margin: 6px 0; background: #1da1f2; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="window.open('https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}')">Twitter</button>
                         `,
                         showConfirmButton: false
                     });
@@ -677,7 +680,7 @@
             const available = state.stats.availableBalance;
             if (available < 0.5) {
                 Swal.fire({
-                    title: '⚠️ Insufficient Balance',
+                    title: 'Insufficient Balance',
                     text: `You need at least 0.5 USDT to withdraw. Current: ${available.toFixed(2)} USDT`,
                     icon: 'warning'
                 });
