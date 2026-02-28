@@ -76,56 +76,58 @@
         .stats-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            padding: 20px;
+            gap: 10px;
+            padding: 12px;
             background: #f8fafc;
             border-bottom: 1px solid #e2e8f0;
         }
 
         .stat-card {
             background: white;
-            border-radius: 12px;
-            padding: 16px;
+            border-radius: 10px;
+            padding: 12px;
             text-align: center;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
             border: 1px solid #e2e8f0;
         }
 
         .stat-icon {
-            font-size: 24px;
-            margin-bottom: 8px;
+            font-size: 18px;
+            margin-bottom: 6px;
+            color: #667eea;
         }
 
         .stat-value {
-            font-size: 20px;
+            font-size: 16px;
             font-weight: 700;
             color: #1f2937;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .stat-label {
-            font-size: 12px;
+            font-size: 11px;
             color: #6b7280;
             font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
 
         .content-area {
             flex: 1;
-            padding: 20px;
+            padding: 12px;
             overflow-y: auto;
             padding-bottom: 100px;
         }
 
         .section-title {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
             color: #6b7280;
-            margin-bottom: 12px;
-            padding-left: 4px;
+            margin-bottom: 8px;
+            padding-left: 2px;
+            margin-top: 12px;
         }
 
         .card {
@@ -165,14 +167,14 @@
         }
 
         .card-info h3 {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
             color: #1f2937;
-            margin: 0 0 4px 0;
+            margin: 0 0 2px 0;
         }
 
         .card-info p {
-            font-size: 13px;
+            font-size: 12px;
             color: #6b7280;
             margin: 0;
         }
@@ -190,38 +192,38 @@
 
         .referral-link-section {
             background: white;
-            border-radius: 12px;
-            padding: 16px;
+            border-radius: 10px;
+            padding: 12px;
             border: 1px solid #e5e7eb;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .referral-link-display {
             background: #f3f4f6;
             border: 2px dashed #d1d5db;
-            border-radius: 10px;
-            padding: 16px;
+            border-radius: 8px;
+            padding: 10px;
             font-family: 'Courier New', monospace;
-            font-size: 12px;
+            font-size: 11px;
             word-break: break-all;
             color: #374151;
-            margin-bottom: 12px;
-            max-height: 100px;
+            margin-bottom: 10px;
+            max-height: 80px;
             overflow-y: auto;
         }
 
         .button-group {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            gap: 8px;
         }
 
         .btn {
-            padding: 12px 16px;
-            border-radius: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
             border: none;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
             cursor: pointer;
             transition: all 0.2s ease;
         }
@@ -249,14 +251,14 @@
 
         .referral-item {
             background: white;
-            border-radius: 12px;
-            padding: 14px;
-            border-left: 4px solid #10b981;
-            margin-bottom: 10px;
+            border-radius: 10px;
+            padding: 10px;
+            border-left: 3px solid #10b981;
+            margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
         }
 
         .referral-item.pending {
@@ -266,12 +268,12 @@
         .referral-info h4 {
             font-weight: 600;
             color: #1f2937;
-            margin: 0 0 4px 0;
-            font-size: 14px;
+            margin: 0 0 2px 0;
+            font-size: 13px;
         }
 
         .referral-info p {
-            font-size: 12px;
+            font-size: 11px;
             color: #6b7280;
             margin: 0;
         }
@@ -283,11 +285,11 @@
         .referral-amount .amount {
             font-weight: 700;
             color: #10b981;
-            font-size: 16px;
+            font-size: 14px;
         }
 
         .referral-amount .status {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             color: #6b7280;
             text-transform: uppercase;
@@ -295,45 +297,46 @@
 
         .empty-state {
             text-align: center;
-            padding: 40px 20px;
+            padding: 30px 16px;
         }
 
         .empty-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
+            font-size: 32px;
+            margin-bottom: 8px;
+            color: #cbd5e1;
         }
 
         .empty-state h3 {
             font-weight: 600;
             color: #1f2937;
-            margin: 0 0 8px 0;
-            font-size: 16px;
+            margin: 0 0 6px 0;
+            font-size: 14px;
         }
 
         .empty-state p {
             color: #6b7280;
-            font-size: 14px;
+            font-size: 12px;
             margin: 0;
         }
 
         .how-it-works {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-top: 16px;
+            gap: 10px;
+            margin-top: 8px;
         }
 
         .step-card {
             background: white;
-            border-radius: 12px;
-            padding: 16px;
+            border-radius: 10px;
+            padding: 12px;
             text-align: center;
             border: 1px solid #e5e7eb;
         }
 
         .step-number {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 50%;
             display: flex;
@@ -341,19 +344,19 @@
             justify-content: center;
             color: white;
             font-weight: 700;
-            font-size: 18px;
-            margin: 0 auto 12px;
+            font-size: 16px;
+            margin: 0 auto 8px;
         }
 
         .step-card h4 {
             font-weight: 600;
             color: #1f2937;
-            font-size: 14px;
-            margin: 0 0 6px 0;
+            font-size: 13px;
+            margin: 0 0 4px 0;
         }
 
         .step-card p {
-            font-size: 12px;
+            font-size: 11px;
             color: #6b7280;
             margin: 0;
         }
@@ -450,13 +453,13 @@
         <div class="content-area">
             <!-- Referral Link Section -->
             <div class="referral-link-section">
-                <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #1f2937;" data-translate="yourLink">Your Referral Link</h3>
+                <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #1f2937;" data-translate="yourLink">Your Referral Link</h3>
                 <div class="referral-link-display" id="referralLinkDisplay">
                     <span data-translate="loading">Loading...</span>
                 </div>
                 <div class="button-group">
-                    <button id="copyButton" class="btn btn-primary" data-translate="copy">📋 Copy Link</button>
-                    <button id="shareButton" class="btn btn-secondary" data-translate="share">🔗 Share</button>
+                    <button id="copyButton" class="btn btn-primary" data-translate="copy"><i class="fas fa-copy"></i> Copy</button>
+                    <button id="shareButton" class="btn btn-secondary" data-translate="share"><i class="fas fa-share-alt"></i> Share</button>
                 </div>
             </div>
 
@@ -464,10 +467,10 @@
             <div class="section-title" data-translate="actions">Quick Actions</div>
             <div id="withdrawCard" class="card">
                 <div class="card-content">
-                    <div class="card-icon icon-purple">💸</div>
+                    <div class="card-icon icon-purple"><i class="fas fa-wallet" style="color: #9333ea;"></i></div>
                     <div class="card-info">
-                        <h3 data-translate="withdraw">Withdraw Earnings</h3>
-                        <p data-translate="withdrawDesc">Cash out to your TON wallet</p>
+                        <h3 data-translate="withdraw">Withdraw</h3>
+                        <p data-translate="withdrawDesc">Cash to TON wallet</p>
                     </div>
                 </div>
                 <svg class="card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -477,10 +480,10 @@
 
             <div id="historyCard" class="card">
                 <div class="card-content">
-                    <div class="card-icon icon-blue">📊</div>
+                    <div class="card-icon icon-blue"><i class="fas fa-history" style="color: #2563eb;"></i></div>
                     <div class="card-info">
-                        <h3 data-translate="history">View History</h3>
-                        <p data-translate="historyDesc">See all your transactions</p>
+                        <h3 data-translate="history">Transaction History</h3>
+                        <p data-translate="historyDesc">View all your referrals</p>
                     </div>
                 </div>
                 <svg class="card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -492,9 +495,9 @@
             <div style="margin-top: 24px;">
                 <div class="section-title" data-translate="myReferrals">My Referrals</div>
                 <div id="noReferrals" class="empty-state">
-                    <div class="empty-icon">👥</div>
+                    <div class="empty-icon"><i class="fas fa-user-friends"></i></div>
                     <h3 data-translate="noReferrals">No Referrals Yet</h3>
-                    <p data-translate="referralEmptyHint">Share your link above to get started</p>
+                    <p data-translate="referralEmptyHint">Share your link to get started</p>
                 </div>
                 <div id="referralsList"></div>
             </div>
@@ -667,9 +670,7 @@
             document.getElementById('withdrawCard').addEventListener('click', showWithdrawPopup);
 
             // History card
-            document.getElementById('historyCard').addEventListener('click', () => {
-                showToast('📊 Transaction history feature coming soon!', 'info');
-            });
+            document.getElementById('historyCard').addEventListener('click', showTransactionHistory);
         }
 
         async function showWithdrawPopup() {
@@ -716,13 +717,47 @@
                         body: JSON.stringify({ userId: state.userId, ...formValues })
                     });
                     if (res.ok) {
-                        showToast('✅ Withdrawal requested successfully!', 'success');
+                        showToast('Withdrawal requested successfully!', 'success');
                         await loadReferralData();
                     }
                 } catch (e) {
-                    showToast('❌ Withdrawal failed', 'error');
+                    showToast('Withdrawal failed', 'error');
                 }
             }
+        }
+
+        function showTransactionHistory() {
+            if (!state.referrals || state.referrals.length === 0) {
+                Swal.fire({
+                    title: 'Transaction History',
+                    text: 'No transactions yet. Share your referral link to start earning!',
+                    icon: 'info'
+                });
+                return;
+            }
+
+            const historyHTML = `
+                <div style="text-align: left; max-height: 400px; overflow-y: auto;">
+                    ${state.referrals.map(ref => `
+                        <div style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 13px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <strong>${ref.name || 'User #' + ref.userId.substring(0, 6)}</strong>
+                                <span style="color: #10b981; font-weight: 600;">+0.5 USDT</span>
+                            </div>
+                            <div style="color: #6b7280; font-size: 12px;">
+                                ${new Date(ref.date).toLocaleDateString()} • <span style="text-transform: capitalize; font-weight: 500;">${ref.status}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            Swal.fire({
+                title: 'Transaction History',
+                html: historyHTML,
+                icon: 'info',
+                confirmButtonColor: '#667eea'
+            });
         }
 
         function showToast(text, type) {
@@ -732,12 +767,12 @@
             t.style.bottom = '80px';
             t.style.left = '50%';
             t.style.transform = 'translateX(-50%)';
-            t.style.padding = '12px 20px';
-            t.style.borderRadius = '10px';
-            t.style.fontSize = '14px';
+            t.style.padding = '10px 16px';
+            t.style.borderRadius = '8px';
+            t.style.fontSize = '13px';
             t.style.color = '#fff';
             t.style.zIndex = '9999';
-            t.style.boxShadow = '0 6px 18px rgba(0,0,0,0.15)';
+            t.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
             t.style.fontWeight = '600';
 
             if (type === 'success') t.style.background = '#10b981';
