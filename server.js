@@ -7814,12 +7814,6 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
             }
         });
         
-        // Show main menu keyboard
-        await bot.sendMessage(chatId, `📱 *Main Menu*\n\nUse the buttons below to navigate:\n• 🚀 Launch App - Open StarStore\n• 💬 Help - Get support\n• 👥 Invite Frens - Share & earn\n• 👛 Wallet - Check orders`, {
-            parse_mode: 'Markdown',
-            reply_markup: getMainMenuKeyboard()
-        });
-        
         if (deepLinkParam?.startsWith('ref_')) {
             // Handle both old format (ref_USERID) and new format (ref_HASH)
             let referrerUserId = null;
