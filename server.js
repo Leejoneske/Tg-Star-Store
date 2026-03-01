@@ -1,6 +1,10 @@
 
 require('dotenv').config();
 
+// StarStore API Server - Telegram Stars Trading Platform
+// Last updated: March 1, 2026
+// Status: Stable with keyboard menu feature
+
 // Suppress punycode deprecation warning (from tldts dependency)
 // Safe to ignore - Node.js built-in punycode is still stable for domain parsing
 process.noDeprecation = true;
