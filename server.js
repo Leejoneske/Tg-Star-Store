@@ -146,6 +146,26 @@ app.use(cors({
     exposedHeaders: ['Content-Disposition']
 }));
 
+// Admin IDs for authorization checks
+const adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '')
+    .split(',')
+    .filter(Boolean)
+    .map(id => id.trim());
+
+// Admin authentication middleware
+function requireAdmin(req, res, next) {
+	try {
+		const tgId = (req.headers['x-telegram-id'] || '').toString();
+		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId)) {
+			req.user = { id: tgId, isAdmin: true };
+			return next();
+		}
+		return res.status(403).json({ error: 'Forbidden' });
+	} catch (e) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+}
+
 // Ambassador App Authentication Middleware
 const AMBASSADOR_API_KEY = process.env.AMBASSADOR_API_KEY || 'amb_starstore_secure_key_2024';
 
@@ -1732,7 +1752,6 @@ const broadcastRateLimiter = {
     }
 };
 
-let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 // Deduplicate to avoid duplicate notifications per admin
 adminIds = Array.from(new Set(adminIds));
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
