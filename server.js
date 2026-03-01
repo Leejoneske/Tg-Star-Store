@@ -1975,6 +1975,19 @@ function decodeReferralCode(code) {
     return null;
 }
 
+// Generate main menu keyboard with command buttons
+function getMainMenuKeyboard() {
+    return {
+        keyboard: [
+            [{ text: '🚀 Launch App' }, { text: '💬 Help' }],
+            [{ text: '👥 Invite Frens' }, { text: '👛 Wallet' }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: false,
+        selective: false
+    };
+}
+
 async function verifyTONTransaction(transactionHash, targetAddress, expectedAmount) {
     const maxRetries = 3;
     const retryDelay = 3000; // 3 seconds
@@ -5206,6 +5219,117 @@ bot.onText(/^\/findorder (.+)/i, async (msg, match) => {
     bot.sendMessage(chatId, orderInfo);
 });
 
+// Handle menu button: 🚀 Launch App
+bot.onText(/🚀 Launch App/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    await bot.sendMessage(chatId, '🚀 Opening StarStore...', { reply_markup: { remove_keyboard: false } });
+    // Send web app link
+    await bot.sendMessage(chatId, '⬇️ Tap the button below:', {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: 'Open StarStore', web_app: { url: `https://starstore.site?startapp=home_${userId}` } }]
+            ]
+        }
+    });
+});
+
+// Handle menu button: 💬 Help
+bot.onText(/💬 Help/, async (msg) => {
+    const chatId = msg.chat.id;
+    const helpMessage = `💬 *Support & Help*\n\n` +
+        `Need assistance? We're here to help!\n\n` +
+        `Available options:\n` +
+        `• 🚀 *Launch App* - Open StarStore and explore\n` +
+        `• 👥 *Invite Frens* - Share your referral link and earn\n` +
+        `• 👛 *Wallet* - Check your orders and wallet status\n\n` +
+        `For direct support, contact: @TgStarStore_Support`;
+    
+    await bot.sendMessage(chatId, helpMessage, { 
+        parse_mode: 'Markdown',
+        reply_markup: getMainMenuKeyboard() 
+    });
+});
+
+// Handle menu button: 👥 Invite Frens (same as /referrals)
+bot.onText(/👥 Invite Frens/, async (msg) => {
+    msg.text = '/referrals';  // Trick the /referrals handler to process this
+    // Manually trigger referrals command
+    const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    
+    const professionalRefLink = generateUserReferralHash(userId);
+    const referralLink = `https://t.me/TgStarStore_bot?start=${professionalRefLink}`;
+    
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const referrals = await Referral.find({ 
+        referrerUserId: userId,
+        dateReferred: { $gte: today }
+    });
+
+    if (referrals.length > 0) {
+        const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
+        const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
+
+        let referralMessage = `📊 Your Referrals (Today):\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
+        referralMessage += 'New referrals activate instantly at 100+ stars!\n\n';
+        referralMessage += `🔗 Your Referral Link:\n${referralLink}`;
+
+        const keyboard = {
+            inline_keyboard: [
+                [{ text: 'Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }],
+                [{ text: 'Open Web App', web_app: { url: 'https://starstore.site/referral' } }]
+            ]
+        };
+
+        await bot.sendMessage(chatId, referralMessage, { reply_markup: keyboard });
+    } else {
+        const referralMessage = `You have no referrals today yet.\n\n🔗 Your Referral Link:\n${referralLink}\n\nShare this link to start earning!`;
+
+        const keyboard = {
+            inline_keyboard: [
+                [{ text: 'Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }],
+                [{ text: 'Open Web App', web_app: { url: 'https://starstore.site/referral' } }]
+            ]
+        };
+
+        await bot.sendMessage(chatId, referralMessage, { reply_markup: keyboard });
+    }
+});
+
+// Handle menu button: 👛 Wallet (same as /wallet)
+bot.onText(/👛 Wallet/, async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    
+    const [sellOrders, withdrawals] = await Promise.all([
+        SellOrder.find({ telegramId: userId, status: 'processing' }).sort({ dateCreated: -1 }).limit(5),
+        ReferralWithdrawal.find({ userId: userId, status: 'pending' }).sort({ createdAt: -1 }).limit(5)
+    ]);
+
+    if ((!sellOrders || sellOrders.length === 0) && (!withdrawals || withdrawals.length === 0)) {
+        return bot.sendMessage(chatId, 'ℹ️ You have no processing orders.', { reply_markup: getMainMenuKeyboard() });
+    }
+
+    const lines = [];
+    if (sellOrders?.length) {
+        lines.push('🛒 Processing Sell Orders:');
+        sellOrders.forEach(o => {
+            lines.push(`• ${o.id} — ${o.stars} ★ — wallet: ${o.walletAddress || 'N/A'}${o.memoTag ? ` — memo: ${o.memoTag}` : ''}`);
+        });
+    }
+    if (withdrawals?.length) {
+        lines.push('💳 Pending Withdrawals:');
+        withdrawals.forEach(w => {
+            lines.push(`• ${w.withdrawalId} — ${w.amount} — wallet: ${w.walletAddress || 'N/A'}`);
+        });
+    }
+
+    const message = lines.join('\n');
+    await bot.sendMessage(chatId, message, { reply_markup: getMainMenuKeyboard() });
+});
+
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const userId = chatId.toString();
@@ -7688,6 +7812,12 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                     [{ text: '👥 Join Community', url: 'https://t.me/StarStore_Chat' }]
                 ]
             }
+        });
+        
+        // Show main menu keyboard
+        await bot.sendMessage(chatId, `📱 *Main Menu*\n\nUse the buttons below to navigate:\n• 🚀 Launch App - Open StarStore\n• 💬 Help - Get support\n• 👥 Invite Frens - Share & earn\n• 👛 Wallet - Check orders`, {
+            parse_mode: 'Markdown',
+            reply_markup: getMainMenuKeyboard()
         });
         
         if (deepLinkParam?.startsWith('ref_')) {
