@@ -147,7 +147,7 @@ app.use(cors({
 }));
 
 // Admin IDs for authorization checks
-const adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '')
+let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '')
     .split(',')
     .filter(Boolean)
     .map(id => id.trim());
