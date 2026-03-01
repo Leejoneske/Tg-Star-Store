@@ -1336,7 +1336,8 @@ const userSchema = new mongoose.Schema({
     }],
     // Additional user info
     telegramLanguage: String,
-    timezone: String
+    timezone: String,
+    referralHash: { type: String, unique: true, sparse: true, index: true }  // Professional hashed referral code for this user
 });
 
 const bannedUserSchema = new mongoose.Schema({
@@ -3070,6 +3071,9 @@ async function getUserDisplayName(telegramId) {
 // Check and detect username changes for a user
 async function detectUsernameChange(userId, currentUsername, source = 'api') {
     try {
+        // Generate referral hash for user if not already set
+        const referralHash = generateUserReferralHash(userId);
+        
         // First, ensure user exists with upsert (handles race condition from new users)
         const storedUser = await User.findOneAndUpdate(
             { id: userId },
@@ -3077,7 +3081,12 @@ async function detectUsernameChange(userId, currentUsername, source = 'api') {
                 id: userId,
                 username: currentUsername,
                 lastActive: new Date(),
-                usernameHistory: currentUsername ? [{ username: currentUsername, changedFrom: null, timestamp: new Date(), source: source }] : []
+                usernameHistory: currentUsername ? [{ username: currentUsername, changedFrom: null, timestamp: new Date(), source: source }] : [],
+                referralHash: referralHash
+            },
+            $set: {
+                // Update referralHash if not already set (for existing users)
+                referralHash: referralHash
             } },
             { upsert: true, new: true }
         );
@@ -6657,8 +6666,13 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             ['completed', 'active'].includes(r.status)
         ).length;
         
-        // Generate professional hashed referral link
-        const professionalRefLink = generateUserReferralHash(userId);
+        // Use user's stored referral hash (generated when they first joined)
+        let professionalRefLink = user.referralHash;
+        if (!professionalRefLink) {
+            // Generate and save if missing (backward compatibility)
+            professionalRefLink = generateUserReferralHash(userId);
+            await User.findByIdAndUpdate(user._id, { referralHash: professionalRefLink });
+        }
         
         // Referral stats calculated
 
@@ -7683,10 +7697,10 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
             
             // Try new format first: ref_HASH (12 character hex hash)
             if (deepLinkParam.length === 16 && /^ref_[a-f0-9]{12}$/.test(deepLinkParam)) {
-                // New format: ref_HASH - lookup by referralHash
-                const referralDoc = await Referral.findOne({ referralHash: deepLinkParam });
-                if (referralDoc) {
-                    referrerUserId = referralDoc.referrerUserId;
+                // New format: ref_HASH - lookup by referralHash on User document
+                const referrerUser = await User.findOne({ referralHash: deepLinkParam });
+                if (referrerUser) {
+                    referrerUserId = referrerUser.id;
                     isNewFormat = true;
                 }
             }
