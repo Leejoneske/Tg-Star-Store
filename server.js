@@ -7646,8 +7646,7 @@ function getMainMenuKeyboard() {
     return {
         keyboard: [
             [{ text: '💬 Help' }, { text: '💼 Wallet' }],
-            [{ text: '👤 Profile' }, { text: '📅 Daily' }],
-            [{ text: '👥 Referral' }]
+            [{ text: ' Referral' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
