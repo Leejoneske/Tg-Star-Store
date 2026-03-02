@@ -6004,12 +6004,12 @@ async function getOrderCountForUser(userId) {
   try {
     if (process.env.MONGODB_URI) {
       // Check both buy and sell orders
-      const buyOrders = await BuyOrder.countDocuments({ telegramId: userId, status: 'completed' });
-      const sellOrders = await SellOrder.countDocuments({ telegramId: userId, status: 'completed' });
+      const buyOrders = await BuyOrder.countDocuments({ telegramId: userId, status: { $nin: ['pending', 'expired'] } });
+      const sellOrders = await SellOrder.countDocuments({ telegramId: userId, status: { $nin: ['pending', 'expired'] } });
       return buyOrders + sellOrders;
     } else {
-      const buyOrders = await db.findOrders({ telegramId: userId, status: 'completed' });
-      const sellOrders = await db.findSellOrders({ telegramId: userId, status: 'completed' });
+      const buyOrders = await db.findOrders({ telegramId: userId, status: { $nin: ['pending', 'expired'] } });
+      const sellOrders = await db.findSellOrders({ telegramId: userId, status: { $nin: ['pending', 'expired'] } });
       return buyOrders.length + sellOrders.length;
     }
   } catch (e) {
@@ -6989,20 +6989,20 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         }
 
         const userMessage = `✅ Withdrawal Request Submitted\n\n` +
-                          `💵 Amount: ${amountNum} USDT\n` +
-                          `👛 Wallet: ${walletAddress}\n` +
-                          `🆔 ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
-                          `⏳ Status: Pending approval`;
+                          `Amount: ${amountNum} USDT\n` +
+                          `Wallet: ${walletAddress}\n` +
+                          `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
+                          `Status: Pending approval`;
 
         await bot.sendMessage(userId, userMessage);
 
-        const adminMessage = `💸 Withdrawal Request\n\n` +
-                           `User: @${username} (ID: ${userId})\n` +
+        const adminMessage = `💰 Withdrawal Request\n\n` +
+                           `User: @${username} (ID: ${userId})\n\n` +
                            `Amount: ${amountNum} USDT\n` +
                            `Wallet: ${walletAddress}\n` +
                            `Referrals: ${referralsNeeded}\n` +
-                           `Location: ${withdrawal.userLocation ? `${withdrawal.userLocation.city || 'Unknown'}, ${withdrawal.userLocation.country || 'Unknown'}` : 'Unknown'}\n` +
-                           `WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
+                           `Location: ${withdrawal.userLocation ? `${withdrawal.userLocation.city || 'Unknown'}, ${withdrawal.userLocation.country || 'Unknown'}` : 'Unknown'}\n\n` +
+                           `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
 
         const adminKeyboard = {
             inline_keyboard: [
@@ -7331,9 +7331,10 @@ async function trackStars(userId, stars, type) {
 
         const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
         
-        // NEW REFERRAL (instantActivation=true): activate immediately at 100+ stars
+        // NEW REFERRAL (instantActivation=true): activate immediately when ANY calculatable amount is traded
         // OLD REFERRAL (instantActivation=false): wait for admin confirmation
-        if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
+        // Track any transaction with stars > 0
+        if ((totalStars > 0 || tracker.premiumActivated) && tracker.status === 'pending') {
             if (tracker.instantActivation === true) {
                 // Instant activation for new referrals
                 await handleReferralActivation(tracker);
@@ -7346,7 +7347,7 @@ async function trackStars(userId, stars, type) {
         }
         
         // Also update the Referral status if it's still pending and conditions are met
-        if (tracker.referral && (totalStars >= 100 || tracker.premiumActivated)) {
+        if (tracker.referral && (totalStars > 0 || tracker.premiumActivated)) {
             const referral = await Referral.findById(tracker.referral);
             if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
                 referral.status = 'completed';
