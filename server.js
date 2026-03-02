@@ -3095,10 +3095,6 @@ async function detectUsernameChange(userId, currentUsername, source = 'api') {
                 lastActive: new Date(),
                 usernameHistory: currentUsername ? [{ username: currentUsername, changedFrom: null, timestamp: new Date(), source: source }] : [],
                 referralHash: referralHash
-            },
-            $set: {
-                // Update referralHash if not already set (for existing users)
-                referralHash: referralHash
             } },
             { upsert: true, new: true }
         );
