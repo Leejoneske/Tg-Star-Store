@@ -1968,11 +1968,12 @@ function getOrderTypeFromId(orderId) {
     return 'unknown';
 }
 
-// Generate new professional referral link format: ref_username_randomcode
-function generateNewReferralLink(username) {
-    const randomCode = Array.from({ length: 8 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
+// Generate deterministic professional referral link format: ref_username_hash
+function generateNewReferralLink(username, userId) {
+    // Use deterministic code from userId instead of random to ensure consistency
+    const userHash = crypto.createHash('sha256').update(userId.toString()).digest('hex').substring(0, 8).toUpperCase();
     const cleanUsername = (username || 'user').toLowerCase().replace(/[^a-z0-9]/g, '');
-    return `ref_${cleanUsername.substring(0, 16)}_${randomCode}`;
+    return `ref_${cleanUsername.substring(0, 16)}_${userHash}`;
 }
 
 // Generate a professional, hashed referral code from userId
@@ -3038,6 +3039,303 @@ app.post("/api/sell-orders", async (req, res) => {
     } catch (err) {
         console.error("Sell order creation error:", err);
         res.status(500).json({ error: "Failed to create sell order" });
+    }
+});
+
+// GET /api/transactions/:userId - User transaction history
+app.get('/api/transactions/:userId', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const requestUserId = req.user?.id || req.headers['x-telegram-id'];
+        
+        // Security: Only allow users to access their own transaction history
+        if (userId !== requestUserId) {
+            return res.status(403).json({ error: "Unauthorized access" });
+        }
+        
+        // Fetch buy and sell orders from March 1, 2026 onwards
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        const buyOrders = await BuyOrder.find({
+            telegramId: userId,
+            dateCreated: { $gte: marchFirstDate }
+        }).sort({ dateCreated: -1 }).lean();
+        
+        const sellOrders = await SellOrder.find({
+            telegramId: userId,
+            dateCreated: { $gte: marchFirstDate }
+        }).sort({ dateCreated: -1 }).lean();
+        
+        // Combine and normalize transaction data
+        const transactions = [
+            ...buyOrders.map(order => ({
+                id: order.id,
+                type: order.isPremium ? 'Premium Purchase' : 'Buy Stars',
+                amount: order.stars || 0,
+                usdtValue: order.amount || 0,
+                date: order.dateCreated,
+                status: order.status || 'pending',
+                orderId: order.id,
+                recipients: order.recipients || []
+            })),
+            ...sellOrders.map(order => ({
+                id: order.id,
+                type: 'Sell Stars',
+                amount: order.stars || 0,
+                usdtValue: 0, // Will be calculated from wallet info
+                date: order.dateCreated,
+                status: order.status || 'pending',
+                orderId: order.id
+            }))
+        ];
+        
+        // Sort by date descending
+        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        res.json(transactions);
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+        res.status(500).json({ error: "Failed to fetch transactions" });
+    }
+});
+
+// GET /api/referrals/:userId - User referral history
+app.get('/api/referrals/:userId', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const requestUserId = req.user?.id || req.headers['x-telegram-id'];
+        
+        // Security: Only allow users to access their own referral history
+        if (userId !== requestUserId) {
+            return res.status(403).json({ error: "Unauthorized access" });
+        }
+        
+        // Fetch referrals from March 1, 2026 onwards
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        const referrals = await ReferralTracker.find({
+            referrerUserId: userId,
+            dateReferred: { $gte: marchFirstDate }
+        }).sort({ dateReferred: -1 }).lean();
+        
+        // Get additional user info for referred users
+        const referralDetails = await Promise.all(referrals.map(async (ref) => {
+            // Get the referred user's data
+            const referredUser = await User.findOne({ id: ref.referredUserId }).lean();
+            
+            return {
+                id: ref._id?.toString(),
+                referredUserId: ref.referredUserId,
+                referredUsername: ref.referredUsername || referredUser?.username || 'Unknown',
+                dateReferred: ref.dateReferred,
+                status: ref.status || 'pending',
+                totalBoughtStars: ref.totalBoughtStars || 0,
+                totalSoldStars: ref.totalSoldStars || 0,
+                premiumActivated: ref.premiumActivated || false,
+                dateActivated: ref.dateActivated
+            };
+        }));
+        
+        res.json(referralDetails);
+    } catch (error) {
+        console.error('Error fetching referrals:', error);
+        res.status(500).json({ error: "Failed to fetch referrals" });
+    }
+});
+
+// GET /api/referral-stats/:userId - User referral statistics and links
+app.get('/api/referral-stats/:userId', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const requestUserId = req.user?.id || req.headers['x-telegram-id'];
+        
+        // Security: Only allow users to access their own referral stats
+        if (userId !== requestUserId) {
+            return res.status(403).json({ error: "Unauthorized access" });
+        }
+        
+        // Fetch user details for referral links
+        const user = await User.findOne({ id: userId }).lean();
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        
+        // Get referral hash-based link
+        const referralHash = user.referralHash || generateUserReferralHash(userId);
+        const hashBasedLink = `https://t.me/TgStarStore_bot?start=${referralHash}`;
+        
+        // Generate or use stored username-based link
+        const username = user.username || `user_${userId}`;
+        const newRefLink = generateNewReferralLink(username, userId);
+        const usernameBasedLink = `https://t.me/TgStarStore_bot?start=${newRefLink}`;
+        
+        // Fetch referral statistics from March 1, 2026 onwards
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        const referralTrackers = await ReferralTracker.find({
+            referrerUserId: userId,
+            dateReferred: { $gte: marchFirstDate }
+        }).lean();
+        
+        // Calculate statistics
+        const totalReferrals = referralTrackers.length;
+        const activeReferrals = referralTrackers.filter(r => r.status === 'active').length;
+        const totalBoughtStars = referralTrackers.reduce((sum, r) => sum + (r.totalBoughtStars || 0), 0);
+        const totalSoldStars = referralTrackers.reduce((sum, r) => sum + (r.totalSoldStars || 0), 0);
+        const premiumCount = referralTrackers.filter(r => r.premiumActivated).length;
+        
+        // NEW SYSTEM EARNINGS: 0.5 USDT per active referral (reached 100 stars sold)
+        const totalEarned = activeReferrals * 0.5; // 0.5 USDT per active referral
+        const availableBalance = totalEarned; // All earned amounts are available immediately
+        const pendingAmount = 0; // No pending in new system
+        
+        res.json({
+            success: true,
+            referralLink: referralHash,
+            newReferralLink: newRefLink,
+            links: {
+                hashBased: hashBasedLink,
+                usernameBased: usernameBasedLink
+            },
+            user: {
+                id: user.id,
+                username: username,
+                referralHash: referralHash
+            },
+            stats: {
+                totalReferrals,
+                activeReferrals,
+                totalBoughtStars,
+                totalSoldStars,
+                premiumActivated: premiumCount,
+                totalEarned: totalEarned.toFixed(2),
+                availableBalance: availableBalance.toFixed(2),
+                referralsCount: totalReferrals,
+                pendingAmount: pendingAmount
+            },
+            referrals: referralTrackers
+        });
+    } catch (error) {
+        console.error('Error fetching referral stats:', error);
+        res.status(500).json({ error: "Failed to fetch referral stats" });
+    }
+});
+
+// POST /api/export-transactions-pdf - Export transactions as PDF
+app.post('/api/export-transactions-pdf', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['x-telegram-id'];
+        
+        if (!pdfGenerator) {
+            return res.status(503).json({ error: "PDF export service not available" });
+        }
+        
+        // Fetch user and transactions
+        const user = await User.findOne({ id: userId }).lean();
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        const buyOrders = await BuyOrder.find({
+            telegramId: userId,
+            dateCreated: { $gte: marchFirstDate }
+        }).sort({ dateCreated: -1 }).lean();
+        
+        const sellOrders = await SellOrder.find({
+            telegramId: userId,
+            dateCreated: { $gte: marchFirstDate }
+        }).sort({ dateCreated: -1 }).lean();
+        
+        // Combine transactions
+        const transactions = [
+            ...buyOrders.map(order => ({
+                type: order.isPremium ? 'Premium Purchase' : 'Buy Stars',
+                amount: order.stars || 0,
+                usdtValue: order.amount || 0,
+                date: order.dateCreated,
+                status: order.status || 'pending'
+            })),
+            ...sellOrders.map(order => ({
+                type: 'Sell Stars',
+                amount: order.stars || 0,
+                usdtValue: 0,
+                date: order.dateCreated,
+                status: order.status || 'pending'
+            }))
+        ];
+        
+        // Sort by date
+        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (transactions.length === 0) {
+            return res.status(400).json({ error: "No transactions to export" });
+        }
+        
+        // Generate PDF
+        const pdfBuffer = await pdfGenerator.generateTransactionPDF(userId, user.username, transactions);
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="transactions_${userId}_${new Date().toISOString().slice(0, 10)}.pdf"`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Error exporting transactions PDF:', error);
+        res.status(500).json({ error: "Failed to export transactions" });
+    }
+});
+
+// POST /api/export-referrals-pdf - Export referrals as PDF
+app.post('/api/export-referrals-pdf', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['x-telegram-id'];
+        
+        if (!pdfGenerator) {
+            return res.status(503).json({ error: "PDF export service not available" });
+        }
+        
+        // Fetch user and referrals
+        const user = await User.findOne({ id: userId }).lean();
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        const referrals = await ReferralTracker.find({
+            referrerUserId: userId,
+            dateReferred: { $gte: marchFirstDate }
+        }).sort({ dateReferred: -1 }).lean();
+        
+        // Get referred users data
+        const referralDetails = await Promise.all(referrals.map(async (ref) => {
+            const referredUser = await User.findOne({ id: ref.referredUserId }).lean();
+            return {
+                referrerUserId: userId,
+                referrerUsername: user.username,
+                referredUserId: ref.referredUserId,
+                referredUsername: ref.referredUsername || referredUser?.username || 'Unknown',
+                dateReferred: ref.dateReferred,
+                status: ref.status || 'pending',
+                totalBoughtStars: ref.totalBoughtStars || 0,
+                totalSoldStars: ref.totalSoldStars || 0,
+                premiumActivated: ref.premiumActivated || false
+            };
+        }));
+        
+        if (referralDetails.length === 0) {
+            return res.status(400).json({ error: "No referrals to export" });
+        }
+        
+        // Generate PDF
+        const pdfBuffer = await pdfGenerator.generateReferralPDF(userId, user.username, referralDetails);
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="referrals_${userId}_${new Date().toISOString().slice(0, 10)}.pdf"`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Error exporting referrals PDF:', error);
+        res.status(500).json({ error: "Failed to export referrals" });
     }
 });
 
@@ -4144,6 +4442,89 @@ async function handleConfirmedAction(query, data, adminUsername) {
     }
 }
 
+// Update referral tracking when a user SELLS stars (NEW SYSTEM: March 1 onwards)
+// Instant bonus: 0.5 USDT when referral reaches 100 stars sold
+async function updateReferralOnStarsSold(telegramId, starsAmount) {
+    try {
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        // Find if this user was referred (NEW SYSTEM ONLY - after March 1)
+        const referral = await ReferralTracker.findOne({
+            referredUserId: telegramId.toString(),
+            dateReferred: { $gte: marchFirstDate }
+        });
+        
+        if (!referral) return; // User wasn't referred in new system
+        
+        // Update totalSoldStars for this referral
+        referral.totalSoldStars = (referral.totalSoldStars || 0) + starsAmount;
+        
+        // Check if they've hit the 100-star threshold for instant bonus
+        if (referral.totalSoldStars >= 100 && referral.status !== 'active') {
+            referral.status = 'active';
+            referral.dateActivated = new Date();
+            
+            // Notify referrer of instant bonus
+            try {
+                await bot.sendMessage(
+                    referral.referrerUserId,
+                    `🎉 Instant Bonus Unlocked!\n\n@${referral.referredUsername} just reached 100 stars sold!\n\n💰 You earned 0.5 USDT instantly!\n\nTotal earned from this referral: $0.50`
+                );
+            } catch (err) {
+                console.error(`Failed to notify referrer ${referral.referrerUserId}:`, err);
+            }
+        }
+        
+        await referral.save();
+    } catch (error) {
+        console.error('Error updating referral on stars sold:', error);
+    }
+}
+
+// Update referral tracking when a user BUYS stars (NEW SYSTEM: March 1 onwards)
+async function updateReferralOnStarsBought(telegramId, starsAmount) {
+    try {
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        // Find if this user was referred (NEW SYSTEM ONLY - after March 1)
+        const referral = await ReferralTracker.findOne({
+            referredUserId: telegramId.toString(),
+            dateReferred: { $gte: marchFirstDate }
+        });
+        
+        if (!referral) return; // User wasn't referred in new system
+        
+        // Update totalBoughtStars for this referral
+        referral.totalBoughtStars = (referral.totalBoughtStars || 0) + starsAmount;
+        
+        await referral.save();
+    } catch (error) {
+        console.error('Error updating referral on stars bought:', error);
+    }
+}
+
+// Update referral tracking when a user activates PREMIUM (NEW SYSTEM: March 1 onwards)
+async function updateReferralOnPremiumActivation(telegramId) {
+    try {
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        // Find if this user was referred (NEW SYSTEM ONLY - after March 1)
+        const referral = await ReferralTracker.findOne({
+            referredUserId: telegramId.toString(),
+            dateReferred: { $gte: marchFirstDate }
+        });
+        
+        if (!referral) return; // User wasn't referred in new system
+        
+        // Mark premium as activated
+        referral.premiumActivated = true;
+        
+        await referral.save();
+    } catch (error) {
+        console.error('Error updating referral on premium activation:', error);
+    }
+}
+
 // Helper function to execute the actual admin action
 async function executeAdminAction(order, actionType, orderType, adminUsername) {
     if (orderType === 'sell') {
@@ -4158,13 +4539,14 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             order.dateCompleted = new Date();
             await order.save();
             try {
-                await trackStars(order.telegramId, order.stars, 'sell');
+                // Update referral tracking for this user's sales (NEW SYSTEM: March 1 onwards)
+                await updateReferralOnStarsSold(order.telegramId, order.stars);
             } catch (error) {
-                console.error('Failed to track stars for sell order completion:', error);
+                console.error('Failed to update referral tracking for sell order completion:', error);
                 // Notify admins about tracking failure
                 for (const adminId of adminIds) {
                     try {
-                        await bot.sendMessage(adminId, `⚠️ Tracking Error - Sell Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        await bot.sendMessage(adminId, `⚠️ Tracking Error - Sell Order #${order.id}\n\nFailed to update referral tracking for user ${order.telegramId}\nError: ${error.message}`);
                     } catch (notifyErr) {
                         console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
                     }
@@ -4239,10 +4621,11 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
                 }
             }
             
-            // Track stars/premium for the buyer
+            // Track stars/premium for the buyer (for referral system)
             if (!order.isPremium && order.stars) {
                 try {
-                    await trackStars(order.telegramId, order.stars, 'buy');
+                    // Update referral tracking for this user's purchases (NEW SYSTEM: March 1 onwards)
+                    await updateReferralOnStarsBought(order.telegramId, order.stars);
                 } catch (error) {
                     console.error('Failed to track stars for buy order completion:', error);
                     // Notify admins about tracking failure
@@ -4257,7 +4640,8 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             }
             if (order.isPremium) {
                 try {
-                    await trackPremiumActivation(order.telegramId);
+                    // Update referral tracking for premium activation (NEW SYSTEM: March 1 onwards)
+                    await updateReferralOnPremiumActivation(order.telegramId);
                 } catch (error) {
                     console.error('Failed to track premium activation for buy order:', error);
                     // Notify admins about tracking failure
@@ -4277,6 +4661,131 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
         }
     }
 }
+
+// Handle /start command for new users and referral links
+bot.onText(/\/start(.*)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const username = msg.from.username || 'user';
+    const deepLinkParam = match[1]?.trim();
+    
+    // Handle ambassador connect flow first
+    if (deepLinkParam?.startsWith('amb_connect_')) {
+        await handleAmbassadorConnect(msg, match);
+        return;
+    }
+    
+    try {
+        let user = await User.findOne({ id: chatId });
+        if (!user) {
+            try {
+                user = await User.findOneAndUpdate(
+                    { id: chatId },
+                    { $set: { id: chatId, username, createdAt: new Date(), lastActive: new Date() } },
+                    { upsert: true, new: true }
+                );
+            } catch (createErr) {
+                // Handle E11000 duplicate key error by retrying with findOne
+                if (createErr.code === 11000) {
+                    user = await User.findOne({ id: chatId });
+                } else {
+                    throw createErr;
+                }
+            }
+        } else {
+            try { await User.updateOne({ id: chatId }, { $set: { username, lastActive: new Date() } }); } catch {}
+        }
+        
+        try {
+            await bot.sendSticker(chatId, 'CAACAgIAAxkBAAEOfYRoJQbAGJ_uoVDJp5O3xyvEPR77BAACbgUAAj-VzAqGOtldiLy3NTYE');
+        } catch (stickerError) {
+            console.error('Failed to send sticker:', stickerError);
+        }
+        
+        await bot.sendMessage(chatId, `👋 Welcome to StarStore, @${username}! ✨\n\nUse the app to purchase stars and enjoy exclusive benefits!`, {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🚀 Launch StarStore', web_app: { url: `https://starstore.site?startapp=home_${chatId}` } }],
+                    [{ text: '👥 Join Community', url: 'https://t.me/StarStore_Chat' }]
+                ]
+            }
+        });
+        
+        // Send keyboard menu without explanation text
+        await bot.sendMessage(chatId, 'Use the menu below to navigate:', {
+            reply_markup: getMainMenuKeyboard()
+        });
+        
+        if (deepLinkParam?.startsWith('ref_')) {
+            // Handle both old format (ref_USERID) and new format (ref_HASH)
+            let referrerUserId = null;
+            let isNewFormat = false;
+            
+            // Try new format first: ref_HASH (12 character hex hash)
+            if (deepLinkParam.length === 16 && /^ref_[a-f0-9]{12}$/.test(deepLinkParam)) {
+                // New format: ref_HASH - lookup by referralHash on User document
+                const referrerUser = await User.findOne({ referralHash: deepLinkParam });
+                if (referrerUser) {
+                    referrerUserId = referrerUser.id;
+                    isNewFormat = true;
+                }
+            }
+            
+            // Fallback to old format: ref_USERID (digits only)
+            if (!referrerUserId && /^ref_\d+$/.test(deepLinkParam)) {
+                referrerUserId = deepLinkParam.substring(4);
+            }
+            
+            // One more fallback: check if it's the random format (ref_username_code)
+            if (!referrerUserId) {
+                const referralDoc = await Referral.findOne({ newRefLink: deepLinkParam });
+                if (referralDoc) {
+                    referrerUserId = referralDoc.referrerUserId;
+                    isNewFormat = true;
+                }
+            }
+            
+            if (!referrerUserId || referrerUserId === chatId.toString()) return;
+            
+            const existing = await ReferralTracker.findOne({ referredUserId: chatId.toString() });
+            if (!existing) {
+                // Get referrer details for new link generation
+                const referrerUser = await User.findOne({ id: referrerUserId });
+                const referrerUsername = referrerUser?.username || `user_${referrerUserId}`;
+                
+                // Generate new referral link for future users (deterministic from userId)
+                const newRefLink = generateNewReferralLink(referrerUsername, referrerUserId);
+                const referralHash = generateUserReferralHash(referrerUserId);
+                
+                const referral = await Referral.create({
+                    referrerUserId,
+                    referrerUsername,
+                    referredUserId: chatId.toString(),
+                    status: 'pending',
+                    dateReferred: new Date(),
+                    linkFormat: 'new',
+                    newRefLink: newRefLink,
+                    referralHash: referralHash,
+                    instantActivation: true
+                });
+                
+                await ReferralTracker.create({
+                    referral: referral._id,
+                    referrerUserId,
+                    referrerUsername,
+                    referredUserId: chatId.toString(),
+                    referredUsername: username,
+                    status: 'pending',
+                    dateReferred: new Date(),
+                    instantActivation: true
+                });
+                
+                await bot.sendMessage(referrerUserId, `🎉 Someone used your referral link and joined StarStore!`);
+            }
+        }
+    } catch (error) {
+        console.error('Start command error:', error);
+    }
+});
 
 bot.on('callback_query', async (query) => {
     try {
