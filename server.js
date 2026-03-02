@@ -1419,7 +1419,6 @@ const referralSchema = new mongoose.Schema({
     dateReferred: { type: Date, default: Date.now },
     linkFormat: { type: String, enum: ['old', 'new'], default: 'new' },
     newRefLink: String,
-    referralHash: String,  // Professional hashed referral code (e.g., ref_a1b2c3d4e5f6)
     instantActivation: { type: Boolean, default: true }
 });
 
@@ -6635,16 +6634,15 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             });
         }
         
-        // Get today's start (midnight UTC)
-        const today = new Date();
-        today.setUTCHours(0, 0, 0, 0);
+        // Get March 1, 2026 start (midnight UTC) - filter from March 1st onwards
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
         
-        // Only fetch referrals from today onwards (new referrals with instant activation)
+        // Only fetch referrals from March 1st onwards (new referral system)
         const referrals = await Referral.find({ 
             referrerUserId: userId,
-            dateReferred: { $gte: today }
+            dateReferred: { $gte: marchFirstDate }
         });
-        // Found referrals from today onwards
+        // Found referrals from March 1st onwards
         
         const referredUserIds = referrals.map(r => r.referredUserId);
         const users = await User.find({ id: { $in: referredUserIds } });
@@ -6654,15 +6652,15 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
 
         const totalReferrals = referrals.length;
         
-        // Get completed/active AND non-withdrawn referrals (from today only)
+        // Get completed/active AND non-withdrawn referrals (from March 1st onwards)
         const availableReferrals = await Referral.find({
             referrerUserId: req.params.userId,
-            dateReferred: { $gte: today },
+            dateReferred: { $gte: marchFirstDate },
             status: { $in: ['completed', 'active'] },
             withdrawn: { $ne: true }
         }).countDocuments();
 
-        // Get all completed/active (regardless of withdrawal status) - from today only
+        // Get all completed/active (regardless of withdrawal status) - from March 1st onwards
         const completedReferrals = referrals.filter(r => 
             ['completed', 'active'].includes(r.status)
         ).length;
@@ -7643,6 +7641,18 @@ setInterval(async () => {
     }
 }, 60000);
 
+// Get main menu keyboard with commands (without launch button)
+function getMainMenuKeyboard() {
+    return {
+        keyboard: [
+            [{ text: '💬 Help' }, { text: '💼 Wallet' }],
+            [{ text: '👤 Profile' }, { text: '📅 Daily' }],
+            [{ text: '👥 Referral' }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: false
+    };
+}
 
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
@@ -7690,6 +7700,11 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                 ]
             }
         });
+
+        // Send keyboard menu with commands
+        await bot.sendMessage(chatId, 'Choose an option:', {
+            reply_markup: getMainMenuKeyboard()
+        });
         
         if (deepLinkParam?.startsWith('ref_')) {
             // Handle both old format (ref_USERID) and new format (ref_HASH)
@@ -7730,7 +7745,6 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                 
                 // Generate new referral link for future users
                 const newRefLink = generateNewReferralLink(referrerUsername);
-                const referralHash = generateUserReferralHash(referrerUserId);
                 
                 const referral = await Referral.create({
                     referrerUserId,
@@ -7740,7 +7754,6 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                     dateReferred: new Date(),
                     linkFormat: 'new',
                     newRefLink: newRefLink,
-                    referralHash: referralHash,
                     instantActivation: true
                 });
                 
