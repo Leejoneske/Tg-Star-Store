@@ -7764,6 +7764,12 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                 // Generate new referral link for future users
                 const newRefLink = generateNewReferralLink(referrerUsername);
                 
+                // Determine instant activation based on current date
+                // Referrals created BEFORE March 1, 2026: manual admin activation
+                // Referrals created ON or AFTER March 1, 2026: automatic tracking
+                const marchFirst2026 = new Date('2026-03-01T00:00:00Z');
+                const useInstantActivation = new Date() >= marchFirst2026;
+                
                 const referral = await Referral.create({
                     referrerUserId,
                     referrerUsername,
@@ -7772,7 +7778,7 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                     dateReferred: new Date(),
                     linkFormat: 'new',
                     newRefLink: newRefLink,
-                    instantActivation: true
+                    instantActivation: useInstantActivation
                 });
                 
                 await ReferralTracker.create({
@@ -7783,7 +7789,7 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                     referredUsername: username,
                     status: 'pending',
                     dateReferred: new Date(),
-                    instantActivation: true
+                    instantActivation: useInstantActivation
                 });
                 
                 await bot.sendMessage(referrerUserId, `🎉 Someone used your referral link and joined StarStore!`);
