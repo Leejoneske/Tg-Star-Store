@@ -5751,3 +5751,47 @@ bot.onText(/^\/findorder (.+)/i, async (msg, match) => {
     bot.sendMessage(chatId, orderInfo);
 });
 
+// ===== SERVER STARTUP =====
+const PORT = process.env.PORT || 3000;
+
+// Set up webhook for Telegram bot
+async function setupWebhook() {
+    try {
+        const baseUrl = process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
+        if (baseUrl && process.env.BOT_TOKEN) {
+            const webhookUrl = `https://${baseUrl}${WEBHOOK_PATH}`;
+            console.log(`🔗 Setting webhook to: ${webhookUrl}`);
+            await bot.setWebHook(webhookUrl);
+        }
+    } catch (err) {
+        console.error('Webhook setup warning:', err.message);
+    }
+}
+
+// Start Express server
+const server = app.listen(PORT, async () => {
+    console.log(`\n🚀 StarStore API Server running on port ${PORT}`);
+    console.log(`📍 Server URL: ${process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`}`);
+    
+    // Set up webhook after server starts
+    await setupWebhook();
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received - shutting down gracefully');
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});
+
+process.on('SIGINT', () => {
+    console.log('SIGINT received - shutting down gracefully');
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});
+
+module.exports = { app, bot, server };
