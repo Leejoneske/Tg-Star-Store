@@ -725,15 +725,10 @@ app.use((err, req, res, next) => {
     if (sendErr) return res.status(statusCode).send(`Error ${statusCode}`);
   });
 });
-// Webhook setup (only when real bot is configured)
-if (process.env.BOT_TOKEN) {
-  bot.setWebHook(WEBHOOK_URL)
-    .then(() => console.log(`✅ Webhook set successfully at ${WEBHOOK_URL}`))
-    .catch(err => {
-      console.error('❌ Webhook setup failed:', err.message);
-      process.exit(1);
-    });
-}
+
+// Webhook setup is now handled in setupWebhook() after server starts listening
+// (removed early setup that ran before server was ready)
+
 // Database connection (use persistent file storage for development)
 const DataPersistence = require('./data-persistence');
 let db;
@@ -5758,13 +5753,24 @@ const PORT = process.env.PORT || 3000;
 async function setupWebhook() {
     try {
         const baseUrl = process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
-        if (baseUrl && process.env.BOT_TOKEN) {
-            const webhookUrl = `https://${baseUrl}${WEBHOOK_PATH}`;
-            console.log(`🔗 Setting webhook to: ${webhookUrl}`);
-            await bot.setWebHook(webhookUrl);
+        if (!baseUrl) {
+            console.warn('⚠️ No Railway domain configured - webhook URL will not be set');
+            return;
         }
+        
+        if (!process.env.BOT_TOKEN) {
+            console.warn('⚠️ No BOT_TOKEN configured - webhook will not be set');
+            return;
+        }
+        
+        const webhookUrl = `https://${baseUrl}${WEBHOOK_PATH}`;
+        console.log(`🔗 Setting webhook to: ${webhookUrl}`);
+        
+        await bot.setWebHook(webhookUrl);
+        console.log(`✅ Webhook set successfully at ${webhookUrl}`);
     } catch (err) {
-        console.error('Webhook setup warning:', err.message);
+        console.error('❌ Webhook setup error:', err.message);
+        // Don't exit - webhook can be retried
     }
 }
 
