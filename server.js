@@ -1895,6 +1895,18 @@ setInterval(async () => {
                     order.transactionVerified = true;
                     order.status = 'processing';
                     console.log(`✅ Order ${order.id} verified and confirmed after ${orderAgeMinutes} minutes`);
+                    await order.save();
+                    
+                    // Automatically track stars when buy order is verified (no admin action needed)
+                    try {
+                        if (order.stars && !order.isPremium) {
+                            await trackStars(order.telegramId, order.stars, 'buy');
+                        } else if (order.isPremium) {
+                            await trackPremiumActivation(order.telegramId);
+                        }
+                    } catch (trackError) {
+                        console.error(`Failed to track stars for buy order ${order.id}:`, trackError.message);
+                    }
                 } else {
                     console.log(`❌ Order ${order.id} verification failed (attempt ${order.verificationAttempts}/5)`);
                     
@@ -3897,6 +3909,13 @@ bot.on("successful_payment", async (msg) => {
     order.sessionToken = null; 
     order.sessionExpiry = null; 
     await order.save();
+    
+    // Automatically track stars when sell order payment succeeds (no admin action needed)
+    try {
+        await trackStars(order.telegramId, order.stars, 'sell');
+    } catch (trackError) {
+        console.error(`Failed to track stars for sell order ${order.id}:`, trackError.message);
+    }
 
     try {
         const sent = await bot.sendMessage(
