@@ -7927,75 +7927,17 @@ bot.onText(/\/help/, (msg) => {
     }
 });
 
-// Handle keyboard menu button presses - convert button text to commands
+// Handle keyboard menu button presses - convert button text to actual commands
 bot.on('message', async (msg) => {
     const text = msg.text?.trim();
     
+    // Convert keyboard button presses to actual command text
     if (text === '💬 Help') {
-        // Trigger /help handler
-        const helpMsg = { ...msg, text: '/help' };
-        bot.onText(/\/help/, () => {}).call(null, helpMsg, { 1: '/help' });
-        return;
+        msg.text = '/help';
     } else if (text === '💼 Wallet') {
-        // Send wallet info
-        const chatId = msg.chat.id;
-        const userId = msg.from?.id?.toString();
-        
-        try {
-            let user = await User.findOne({ id: userId });
-            if (!user) {
-                user = await User.create({ id: userId, username: msg.from?.username });
-            }
-            
-            const currentWallet = user.walletAddress || 'Not set';
-            
-            const walletMessage = `💼 **Your TON Wallet**
-
-Current Wallet: \`${currentWallet}\`
-
-To update your wallet address, use /wallet command.`;
-            
-            await bot.sendMessage(chatId, walletMessage, {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🚀 Open App', web_app: { url: 'https://starstore.site?startapp=wallet' } }]
-                    ]
-                }
-            });
-        } catch (error) {
-            console.error('Wallet menu error:', error);
-            await bot.sendMessage(msg.chat.id, '❌ Error loading wallet information');
-        }
-        return;
+        msg.text = '/wallet';
     } else if (text === '👥 Referral') {
-        // Send referral info
-        const chatId = msg.chat.id;
-        const userId = msg.from?.id?.toString();
-        
-        try {
-            let user = await User.findOne({ id: userId });
-            if (!user) {
-                user = await User.create({ id: userId, username: msg.from?.username });
-            }
-            
-            const referralMessage = `👥 **Your Referral Program**
-
-View your referrals, earnings, and referral links in the app.`;
-            
-            await bot.sendMessage(chatId, referralMessage, {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '👥 View Referrals', web_app: { url: 'https://starstore.site?startapp=referral' } }]
-                    ]
-                }
-            });
-        } catch (error) {
-            console.error('Referral menu error:', error);
-            await bot.sendMessage(msg.chat.id, '❌ Error loading referral information');
-        }
-        return;
+        msg.text = '/referrals';
     }
 });
 
