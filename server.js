@@ -7645,8 +7645,7 @@ setInterval(async () => {
 function getMainMenuKeyboard() {
     return {
         keyboard: [
-            [{ text: '💬 Help' }, { text: '💼 Wallet' }],
-            [{ text: ' Referral' }]
+            [{ text: '💬 Help' }, { text: '� Referral' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
@@ -7927,17 +7926,19 @@ bot.onText(/\/help/, (msg) => {
     }
 });
 
-// Handle keyboard menu button presses - convert button text to actual commands
+// Handle keyboard menu button presses - convert and re-process as commands
 bot.on('message', async (msg) => {
     const text = msg.text?.trim();
     
-    // Convert keyboard button presses to actual command text
+    // Map keyboard button presses to commands and re-emit
     if (text === '💬 Help') {
         msg.text = '/help';
-    } else if (text === '💼 Wallet') {
-        msg.text = '/wallet';
+        // Force bot to process as command by emitting through processUpdate
+        bot.processUpdate({ message: msg });
     } else if (text === '👥 Referral') {
         msg.text = '/referrals';
+        // Force bot to process as command by emitting through processUpdate
+        bot.processUpdate({ message: msg });
     }
 });
 
