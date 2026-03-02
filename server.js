@@ -1895,6 +1895,18 @@ setInterval(async () => {
                     order.transactionVerified = true;
                     order.status = 'processing';
                     console.log(`✅ Order ${order.id} verified and confirmed after ${orderAgeMinutes} minutes`);
+                    await order.save();
+                    
+                    // Automatically track stars when buy order is verified (no admin action needed)
+                    try {
+                        if (order.stars && !order.isPremium) {
+                            await trackStars(order.telegramId, order.stars, 'buy');
+                        } else if (order.isPremium) {
+                            await trackPremiumActivation(order.telegramId);
+                        }
+                    } catch (trackError) {
+                        console.error(`Failed to track stars for buy order ${order.id}:`, trackError.message);
+                    }
                 } else {
                     console.log(`❌ Order ${order.id} verification failed (attempt ${order.verificationAttempts}/5)`);
                     
@@ -3897,6 +3909,13 @@ bot.on("successful_payment", async (msg) => {
     order.sessionToken = null; 
     order.sessionExpiry = null; 
     await order.save();
+    
+    // Automatically track stars when sell order payment succeeds (no admin action needed)
+    try {
+        await trackStars(order.telegramId, order.stars, 'sell');
+    } catch (trackError) {
+        console.error(`Failed to track stars for sell order ${order.id}:`, trackError.message);
+    }
 
     try {
         const sent = await bot.sendMessage(
@@ -6004,12 +6023,12 @@ async function getOrderCountForUser(userId) {
   try {
     if (process.env.MONGODB_URI) {
       // Check both buy and sell orders
-      const buyOrders = await BuyOrder.countDocuments({ telegramId: userId, status: 'completed' });
-      const sellOrders = await SellOrder.countDocuments({ telegramId: userId, status: 'completed' });
+      const buyOrders = await BuyOrder.countDocuments({ telegramId: userId, status: { $in: ['processing', 'completed'] } });
+      const sellOrders = await SellOrder.countDocuments({ telegramId: userId, status: { $in: ['processing', 'completed'] } });
       return buyOrders + sellOrders;
     } else {
-      const buyOrders = await db.findOrders({ telegramId: userId, status: 'completed' });
-      const sellOrders = await db.findSellOrders({ telegramId: userId, status: 'completed' });
+      const buyOrders = await db.findOrders({ telegramId: userId, status: { $in: ['processing', 'completed'] } });
+      const sellOrders = await db.findSellOrders({ telegramId: userId, status: { $in: ['processing', 'completed'] } });
       return buyOrders.length + sellOrders.length;
     }
   } catch (e) {
@@ -6988,21 +7007,21 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             console.error('Failed to send sticker:', stickerError);
         }
 
-        const userMessage = `✅ Withdrawal Request Submitted\n\n` +
-                          `💵 Amount: ${amountNum} USDT\n` +
-                          `👛 Wallet: ${walletAddress}\n` +
-                          `🆔 ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
-                          `⏳ Status: Pending approval`;
+        const userMessage = `📋 Withdrawal Request Submitted\n\n` +
+                          `Amount: ${amountNum} USDT\n` +
+                          `Wallet: ${walletAddress}\n` +
+                          `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
+                          `Status: Pending approval`;
 
         await bot.sendMessage(userId, userMessage);
 
-        const adminMessage = `💸 Withdrawal Request\n\n` +
-                           `User: @${username} (ID: ${userId})\n` +
+        const adminMessage = `📩 Withdrawal Request\n\n` +
+                           `User: @${username} (ID: ${userId})\n\n` +
                            `Amount: ${amountNum} USDT\n` +
                            `Wallet: ${walletAddress}\n` +
                            `Referrals: ${referralsNeeded}\n` +
-                           `Location: ${withdrawal.userLocation ? `${withdrawal.userLocation.city || 'Unknown'}, ${withdrawal.userLocation.country || 'Unknown'}` : 'Unknown'}\n` +
-                           `WDID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
+                           `Location: ${withdrawal.userLocation ? `${withdrawal.userLocation.city || 'Unknown'}, ${withdrawal.userLocation.country || 'Unknown'}` : 'Unknown'}\n\n` +
+                           `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
 
         const adminKeyboard = {
             inline_keyboard: [
@@ -7333,6 +7352,7 @@ async function trackStars(userId, stars, type) {
         
         // NEW REFERRAL (instantActivation=true): activate immediately at 100+ stars
         // OLD REFERRAL (instantActivation=false): wait for admin confirmation
+        // Only valid transactions count: processing or completed (not failed/declined/refunded)
         if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
             if (tracker.instantActivation === true) {
                 // Instant activation for new referrals
