@@ -6004,12 +6004,12 @@ async function getOrderCountForUser(userId) {
   try {
     if (process.env.MONGODB_URI) {
       // Check both buy and sell orders
-      const buyOrders = await BuyOrder.countDocuments({ telegramId: userId, status: { $nin: ['pending', 'expired'] } });
-      const sellOrders = await SellOrder.countDocuments({ telegramId: userId, status: { $nin: ['pending', 'expired'] } });
+      const buyOrders = await BuyOrder.countDocuments({ telegramId: userId, status: { $in: ['processing', 'completed'] } });
+      const sellOrders = await SellOrder.countDocuments({ telegramId: userId, status: { $in: ['processing', 'completed'] } });
       return buyOrders + sellOrders;
     } else {
-      const buyOrders = await db.findOrders({ telegramId: userId, status: { $nin: ['pending', 'expired'] } });
-      const sellOrders = await db.findSellOrders({ telegramId: userId, status: { $nin: ['pending', 'expired'] } });
+      const buyOrders = await db.findOrders({ telegramId: userId, status: { $in: ['processing', 'completed'] } });
+      const sellOrders = await db.findSellOrders({ telegramId: userId, status: { $in: ['processing', 'completed'] } });
       return buyOrders.length + sellOrders.length;
     }
   } catch (e) {
@@ -6988,7 +6988,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
             console.error('Failed to send sticker:', stickerError);
         }
 
-        const userMessage = `✅ Withdrawal Request Submitted\n\n` +
+        const userMessage = `📋 Withdrawal Request Submitted\n\n` +
                           `Amount: ${amountNum} USDT\n` +
                           `Wallet: ${walletAddress}\n` +
                           `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
@@ -6996,7 +6996,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
 
         await bot.sendMessage(userId, userMessage);
 
-        const adminMessage = `💰 Withdrawal Request\n\n` +
+        const adminMessage = `📩 Withdrawal Request\n\n` +
                            `User: @${username} (ID: ${userId})\n\n` +
                            `Amount: ${amountNum} USDT\n` +
                            `Wallet: ${walletAddress}\n` +
@@ -7331,10 +7331,10 @@ async function trackStars(userId, stars, type) {
 
         const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
         
-        // NEW REFERRAL (instantActivation=true): activate immediately when ANY calculatable amount is traded
+        // NEW REFERRAL (instantActivation=true): activate immediately at 100+ stars
         // OLD REFERRAL (instantActivation=false): wait for admin confirmation
-        // Track any transaction with stars > 0
-        if ((totalStars > 0 || tracker.premiumActivated) && tracker.status === 'pending') {
+        // Only valid transactions count: processing or completed (not failed/declined/refunded)
+        if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
             if (tracker.instantActivation === true) {
                 // Instant activation for new referrals
                 await handleReferralActivation(tracker);
@@ -7347,7 +7347,7 @@ async function trackStars(userId, stars, type) {
         }
         
         // Also update the Referral status if it's still pending and conditions are met
-        if (tracker.referral && (totalStars > 0 || tracker.premiumActivated)) {
+        if (tracker.referral && (totalStars >= 100 || tracker.premiumActivated)) {
             const referral = await Referral.findById(tracker.referral);
             if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
                 referral.status = 'completed';
