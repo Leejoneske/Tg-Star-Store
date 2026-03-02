@@ -3184,10 +3184,10 @@ app.get('/api/referral-stats/:userId', requireTelegramAuth, async (req, res) => 
         const totalSoldStars = referralTrackers.reduce((sum, r) => sum + (r.totalSoldStars || 0), 0);
         const premiumCount = referralTrackers.filter(r => r.premiumActivated).length;
         
-        // Calculate earnings (0.5 USDT per purchase)
-        const totalEarned = totalBoughtStars * 0.5; // Approximate calculation
-        const availableBalance = totalEarned; // Simplified for now
-        const pendingAmount = 0; // No pending by default
+        // NEW SYSTEM EARNINGS: 0.5 USDT per active referral (reached 100 stars sold)
+        const totalEarned = activeReferrals * 0.5; // 0.5 USDT per active referral
+        const availableBalance = totalEarned; // All earned amounts are available immediately
+        const pendingAmount = 0; // No pending in new system
         
         res.json({
             success: true,
@@ -4442,6 +4442,89 @@ async function handleConfirmedAction(query, data, adminUsername) {
     }
 }
 
+// Update referral tracking when a user SELLS stars (NEW SYSTEM: March 1 onwards)
+// Instant bonus: 0.5 USDT when referral reaches 100 stars sold
+async function updateReferralOnStarsSold(telegramId, starsAmount) {
+    try {
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        // Find if this user was referred (NEW SYSTEM ONLY - after March 1)
+        const referral = await ReferralTracker.findOne({
+            referredUserId: telegramId.toString(),
+            dateReferred: { $gte: marchFirstDate }
+        });
+        
+        if (!referral) return; // User wasn't referred in new system
+        
+        // Update totalSoldStars for this referral
+        referral.totalSoldStars = (referral.totalSoldStars || 0) + starsAmount;
+        
+        // Check if they've hit the 100-star threshold for instant bonus
+        if (referral.totalSoldStars >= 100 && referral.status !== 'active') {
+            referral.status = 'active';
+            referral.dateActivated = new Date();
+            
+            // Notify referrer of instant bonus
+            try {
+                await bot.sendMessage(
+                    referral.referrerUserId,
+                    `🎉 Instant Bonus Unlocked!\n\n@${referral.referredUsername} just reached 100 stars sold!\n\n💰 You earned 0.5 USDT instantly!\n\nTotal earned from this referral: $0.50`
+                );
+            } catch (err) {
+                console.error(`Failed to notify referrer ${referral.referrerUserId}:`, err);
+            }
+        }
+        
+        await referral.save();
+    } catch (error) {
+        console.error('Error updating referral on stars sold:', error);
+    }
+}
+
+// Update referral tracking when a user BUYS stars (NEW SYSTEM: March 1 onwards)
+async function updateReferralOnStarsBought(telegramId, starsAmount) {
+    try {
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        // Find if this user was referred (NEW SYSTEM ONLY - after March 1)
+        const referral = await ReferralTracker.findOne({
+            referredUserId: telegramId.toString(),
+            dateReferred: { $gte: marchFirstDate }
+        });
+        
+        if (!referral) return; // User wasn't referred in new system
+        
+        // Update totalBoughtStars for this referral
+        referral.totalBoughtStars = (referral.totalBoughtStars || 0) + starsAmount;
+        
+        await referral.save();
+    } catch (error) {
+        console.error('Error updating referral on stars bought:', error);
+    }
+}
+
+// Update referral tracking when a user activates PREMIUM (NEW SYSTEM: March 1 onwards)
+async function updateReferralOnPremiumActivation(telegramId) {
+    try {
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        // Find if this user was referred (NEW SYSTEM ONLY - after March 1)
+        const referral = await ReferralTracker.findOne({
+            referredUserId: telegramId.toString(),
+            dateReferred: { $gte: marchFirstDate }
+        });
+        
+        if (!referral) return; // User wasn't referred in new system
+        
+        // Mark premium as activated
+        referral.premiumActivated = true;
+        
+        await referral.save();
+    } catch (error) {
+        console.error('Error updating referral on premium activation:', error);
+    }
+}
+
 // Helper function to execute the actual admin action
 async function executeAdminAction(order, actionType, orderType, adminUsername) {
     if (orderType === 'sell') {
@@ -4456,13 +4539,14 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             order.dateCompleted = new Date();
             await order.save();
             try {
-                await trackStars(order.telegramId, order.stars, 'sell');
+                // Update referral tracking for this user's sales (NEW SYSTEM: March 1 onwards)
+                await updateReferralOnStarsSold(order.telegramId, order.stars);
             } catch (error) {
-                console.error('Failed to track stars for sell order completion:', error);
+                console.error('Failed to update referral tracking for sell order completion:', error);
                 // Notify admins about tracking failure
                 for (const adminId of adminIds) {
                     try {
-                        await bot.sendMessage(adminId, `⚠️ Tracking Error - Sell Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        await bot.sendMessage(adminId, `⚠️ Tracking Error - Sell Order #${order.id}\n\nFailed to update referral tracking for user ${order.telegramId}\nError: ${error.message}`);
                     } catch (notifyErr) {
                         console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
                     }
@@ -4537,10 +4621,11 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
                 }
             }
             
-            // Track stars/premium for the buyer
+            // Track stars/premium for the buyer (for referral system)
             if (!order.isPremium && order.stars) {
                 try {
-                    await trackStars(order.telegramId, order.stars, 'buy');
+                    // Update referral tracking for this user's purchases (NEW SYSTEM: March 1 onwards)
+                    await updateReferralOnStarsBought(order.telegramId, order.stars);
                 } catch (error) {
                     console.error('Failed to track stars for buy order completion:', error);
                     // Notify admins about tracking failure
@@ -4555,7 +4640,8 @@ async function executeAdminAction(order, actionType, orderType, adminUsername) {
             }
             if (order.isPremium) {
                 try {
-                    await trackPremiumActivation(order.telegramId);
+                    // Update referral tracking for premium activation (NEW SYSTEM: March 1 onwards)
+                    await updateReferralOnPremiumActivation(order.telegramId);
                 } catch (error) {
                     console.error('Failed to track premium activation for buy order:', error);
                     // Notify admins about tracking failure
