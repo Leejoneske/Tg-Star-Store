@@ -32,27 +32,27 @@ header, footer {
 /* Basic link color alignment */
 a { color: var(--brand); }
 
-/* Dark theme via system and explicit data attribute */
+/* Dark theme via system and explicit data attribute - GitHub-inspired pure dark */
 @media (prefers-color-scheme: dark) {
 	:root {
-		--surface: #1a202c; /* Enhanced depth */
-		--surface-muted: #0d1117; /* Deeper background */
-		--surface-elevated: #2d3748; /* More elevated */
-		--surface-subtle: #161b22; /* Subtle variation */
-		--text: #f7fafc; /* Softer white */
-		--text-muted: #cbd5e0; /* Better contrast */
-		--text-secondary: #a0aec0; /* Refined secondary */
-		--border: #2d3748; /* Subtle borders */
-		--border-muted: #4a5568; /* Muted borders */
-		--brand: #667eea; /* Softer brand color */
-		--brand-hover: #5a67d8; /* Refined hover */
-		--success: #48bb78; /* Gentler success */
-		--warning: #ed8936; /* Warmer warning */
-		--error: #f56565; /* Softer error */
-		--info: #4299e1; /* Calmer info */
-		--shadow-subtle: rgba(0, 0, 0, 0.2);
-		--shadow-medium: rgba(0, 0, 0, 0.4);
-		--shadow-strong: rgba(0, 0, 0, 0.6);
+		--surface: #161b22; /* Card/elevated surface - GitHub card background */
+		--surface-muted: #0d1117; /* Main background - pure GitHub dark */
+		--surface-elevated: #1c2128; /* Slightly elevated */
+		--surface-subtle: #010409; /* Darkest background */
+		--text: #e6edf3; /* Light text - better contrast */
+		--text-muted: #8b949e; /* Muted text */
+		--text-secondary: #6e7681; /* Secondary text - darker muted */
+		--border: #21262d; /* Subtle borders - GitHub border color */
+		--border-muted: #161b22; /* Very subtle borders */
+		--brand: #58a6ff; /* Bright brand - GitHub blue */
+		--brand-hover: #79c0ff; /* Lighter on hover */
+		--success: #3fb950; /* GitHub green */
+		--warning: #d29922; /* GitHub orange */
+		--error: #f85149; /* GitHub red */
+		--info: #58a6ff; /* GitHub blue */
+		--shadow-subtle: rgba(0, 0, 0, 0.3);
+		--shadow-medium: rgba(0, 0, 0, 0.5);
+		--shadow-strong: rgba(0, 0, 0, 0.8);
 	}
 	body { 
 		background: var(--surface-muted); 
@@ -62,54 +62,60 @@ a { color: var(--brand); }
 }
 
 [data-theme="dark"] {
-	/* Force dark regardless of system */
-	--surface: #1a202c; /* Enhanced depth */
-	--surface-muted: #0d1117; /* Deeper background */
-	--surface-elevated: #2d3748; /* More elevated */
-	--surface-subtle: #161b22; /* Subtle variation */
-	--text: #f7fafc; /* Softer white */
-	--text-muted: #cbd5e0; /* Better contrast */
-	--text-secondary: #a0aec0; /* Refined secondary */
-	--border: #2d3748; /* Subtle borders */
-	--border-muted: #4a5568; /* Muted borders */
-	--brand: #667eea; /* Softer brand color */
-	--brand-hover: #5a67d8; /* Refined hover */
-	--success: #48bb78; /* Gentler success */
-	--warning: #ed8936; /* Warmer warning */
-	--error: #f56565; /* Softer error */
-	--info: #4299e1; /* Calmer info */
-	--shadow-subtle: rgba(0, 0, 0, 0.2);
-	--shadow-medium: rgba(0, 0, 0, 0.4);
-	--shadow-strong: rgba(0, 0, 0, 0.6);
+	/* Force dark regardless of system - GitHub-inspired pure dark */
+	--surface: #161b22; /* Card/elevated surface - GitHub card background */
+	--surface-muted: #0d1117; /* Main background - pure GitHub dark */
+	--surface-elevated: #1c2128; /* Slightly elevated */
+	--surface-subtle: #010409; /* Darkest background */
+	--text: #e6edf3; /* Light text - better contrast */
+	--text-muted: #8b949e; /* Muted text */
+	--text-secondary: #6e7681; /* Secondary text - darker muted */
+	--border: #21262d; /* Subtle borders - GitHub border color */
+	--border-muted: #161b22; /* Very subtle borders */
+	--brand: #58a6ff; /* Bright brand - GitHub blue */
+	--brand-hover: #79c0ff; /* Lighter on hover */
+	--success: #3fb950; /* GitHub green */
+	--warning: #d29922; /* GitHub orange */
+	--error: #f85149; /* GitHub red */
+	--info: #58a6ff; /* GitHub blue */
+	--shadow-subtle: rgba(0, 0, 0, 0.3);
+	--shadow-medium: rgba(0, 0, 0, 0.5);
+	--shadow-strong: rgba(0, 0, 0, 0.8);
 }
 
-/* Utility overrides to adapt Tailwind-ish classes in dark */
+/* Utility overrides to adapt Tailwind-ish classes in dark - GitHub-inspired */
 @media (prefers-color-scheme: dark) {
-	.bg-white { background-color: #111827 !important; }
-	.bg-gray-50 { background-color: #0f172a !important; }
-	.bg-gray-100 { background-color: #111827 !important; }
-	.text-black, .text-gray-900 { color: #e5e7eb !important; }
-	.text-gray-800 { color: #e2e8f0 !important; }
-	.text-gray-700 { color: #cbd5e1 !important; }
-	.text-gray-600 { color: #94a3b8 !important; }
-	.text-gray-500 { color: #94a3b8 !important; }
-	.text-gray-400 { color: #64748b !important; }
-	.border-gray-200 { border-color: #1f2937 !important; }
-	.border-gray-300 { border-color: #374151 !important; }
+	.bg-white { background-color: #161b22 !important; }
+	.bg-gray-50 { background-color: #0d1117 !important; }
+	.bg-gray-100 { background-color: #161b22 !important; }
+	.text-black, .text-gray-900 { color: #e6edf3 !important; }
+	.text-gray-800 { color: #e6edf3 !important; }
+	.text-gray-700 { color: #d0d4da !important; }
+	.text-gray-600 { color: #8b949e !important; }
+	.text-gray-500 { color: #6e7681 !important; }
+	.text-gray-400 { color: #6e7681 !important; }
+	.border-gray-200 { border-color: #21262d !important; }
+	.border-gray-300 { border-color: #30363d !important; }
+	.bg-gray-200 { background-color: #21262d !important; }
+	.hover\:bg-gray-100:hover { background-color: #1c2128 !important; }
+	.hover\:bg-gray-50:hover { background-color: #21262d !important; }
 }
 
-[data-theme="dark"] .bg-white { background-color: #111827 !important; }
-[data-theme="dark"] .bg-gray-50 { background-color: #0f172a !important; }
-[data-theme="dark"] .bg-gray-100 { background-color: #111827 !important; }
+[data-theme="dark"] .bg-white { background-color: #161b22 !important; }
+[data-theme="dark"] .bg-gray-50 { background-color: #0d1117 !important; }
+[data-theme="dark"] .bg-gray-100 { background-color: #161b22 !important; }
 [data-theme="dark"] .text-black, 
-[data-theme="dark"] .text-gray-900 { color: #e5e7eb !important; }
-[data-theme="dark"] .text-gray-800 { color: #e2e8f0 !important; }
-[data-theme="dark"] .text-gray-700 { color: #cbd5e1 !important; }
-[data-theme="dark"] .text-gray-600 { color: #94a3b8 !important; }
-[data-theme="dark"] .text-gray-500 { color: #94a3b8 !important; }
-[data-theme="dark"] .text-gray-400 { color: #64748b !important; }
-[data-theme="dark"] .border-gray-200 { border-color: #1f2937 !important; }
-[data-theme="dark"] .border-gray-300 { border-color: #374151 !important; }
+[data-theme="dark"] .text-gray-900 { color: #e6edf3 !important; }
+[data-theme="dark"] .text-gray-800 { color: #e6edf3 !important; }
+[data-theme="dark"] .text-gray-700 { color: #d0d4da !important; }
+[data-theme="dark"] .text-gray-600 { color: #8b949e !important; }
+[data-theme="dark"] .text-gray-500 { color: #6e7681 !important; }
+[data-theme="dark"] .text-gray-400 { color: #6e7681 !important; }
+[data-theme="dark"] .border-gray-200 { border-color: #21262d !important; }
+[data-theme="dark"] .border-gray-300 { border-color: #30363d !important; }
+[data-theme="dark"] .bg-gray-200 { background-color: #21262d !important; }
+[data-theme="dark"] .hover\:bg-gray-100:hover { background-color: #1c2128 !important; }
+[data-theme="dark"] .hover\:bg-gray-50:hover { background-color: #21262d !important; }
 
 /* Layout containers commonly used */
 .card,
