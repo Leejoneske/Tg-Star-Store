@@ -99,19 +99,20 @@
 <style>
         body { 
             font-family: 'Inter', sans-serif; 
-            background: #f5f5f5; 
+            background: var(--surface-muted); 
+            color: var(--text);
             margin: 0; 
             padding: 0; 
         }
         .clean-card { 
-            background: white; 
+            background: var(--surface); 
             border-radius: 16px; 
             padding: 20px;
             margin-bottom: 12px;
         }
         .btn-primary {
-            background: #007AFF;
-            color: white;
+            background: var(--brand);
+            color: var(--surface);
             padding: 12px 20px;
             border-radius: 12px;
             font-weight: 600;
@@ -136,7 +137,7 @@
             display: flex;
             gap: 8px;
             margin-bottom: 12px;
-            background: #f0f0f0;
+            background: var(--border-muted);
             padding: 4px;
             border-radius: 10px;
         }
@@ -145,7 +146,7 @@
             padding: 8px;
             border: none;
             background: transparent;
-            color: #666;
+            color: var(--text-secondary);
             font-weight: 600;
             font-size: 14px;
             border-radius: 8px;
@@ -153,8 +154,8 @@
             transition: all 0.2s;
         }
         .tab-btn.active {
-            background: white;
-            color: #007AFF;
+            background: var(--surface);
+            color: var(--brand);
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .section-content {
@@ -177,7 +178,7 @@
         .app-container {
             max-width: 600px; 
             margin: 0 auto; 
-            background: #f5f5f5; 
+            background: var(--surface-muted); 
             min-height: 100vh; 
             position: relative; 
             overflow: hidden; 

@@ -2892,7 +2892,7 @@ app.post("/api/sell-orders", async (req, res) => {
             }
         }
 
-        // Check for existing pending orders for this user
+        // Check for existing ACTIVE pending orders for this user (not expired)
         const existingOrder = await SellOrder.findOne({ 
             telegramId: telegramId,
             status: "pending",
@@ -2900,10 +2900,12 @@ app.post("/api/sell-orders", async (req, res) => {
         });
 
         if (existingOrder) {
-            return res.status(409).json({ 
-                error: "You already have a pending order. Please complete or wait for it to expire before creating a new one.",
-                existingOrderId: existingOrder.id
-            });
+            // If there's an existing active pending order, auto-expire it and allow new one
+            // Users should be able to retry without waiting for session to expire
+            await SellOrder.updateOne(
+                { _id: existingOrder._id },
+                { status: "expired", sessionExpiry: new Date() }
+            );
         }
 
         // Extract and get location from request (web-based sell order)

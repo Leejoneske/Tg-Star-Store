@@ -262,8 +262,8 @@
             padding: 2px 8px; border-radius: 20px; margin-top: 3px;
             text-transform: uppercase; letter-spacing: 0.3px;
         }
-        .ref-badge.paid { background: #dcfce7; color: #16a34a; }
-        .ref-badge.pending { background: #fef9c3; color: #ca8a04; }
+        .ref-badge.paid { background: rgba(5, 150, 105, 0.15); color: var(--success); }
+        .ref-badge.pending { background: rgba(202, 138, 4, 0.15); color: var(--warning); }
 
         /* Empty */
         .empty-state {
@@ -335,8 +335,8 @@
             font-size: 13px; font-weight: 600; z-index: 9999;
             white-space: nowrap; transition: opacity 0.3s;
         }
-        .toast.success { background: #16a34a; color: white; }
-        .toast.error { background: #dc2626; color: white; }
+        .toast.success { background: var(--success); color: var(--surface); }
+        .toast.error { background: var(--error); color: var(--surface); }
 
         /* Responsive */
         @media (max-width: 600px) {

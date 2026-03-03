@@ -227,7 +227,7 @@
         display: inline-block;
         padding: 12px 16px;
         background: rgba(79, 70, 229, 0.1) !important;
-        color: #4f46e5 !important;
+        color: var(--brand) !important;
         border-radius: 8px;
         text-align: center;
         width: 100%;
@@ -241,16 +241,17 @@
     display: flex;
     flex-direction: column;
     padding: 20px;
-    background: #f9fafb;
+    background: var(--border-muted);
     border-radius: 12px;
     margin-bottom: 16px;
+    color: var(--text);
 }
 
 .info-badge {
     display: inline-block;
     padding: 4px 8px;
     background: rgba(79, 70, 229, 0.1);
-    color: #4f46e5;
+    color: var(--brand);
     border-radius: 4px;
     font-size: 12px;
     font-weight: 500;
@@ -280,20 +281,22 @@
         border-radius: 4px;
     }
     .status-pending {
-        background: #fff7ed;
-        color: #ea580c;
+        background: var(--warning);
+        background: rgba(217, 119, 6, 0.15);
+        color: var(--warning);
     }
      .status-processing {
-        background: #fff7ed;
-        color: #ea580c;
+        background: var(--warning);
+        background: rgba(217, 119, 6, 0.15);
+        color: var(--warning);
      }
     .status-completed {
-        background: #f0fdf4;
-        color: #16a34a;
+        background: rgba(5, 150, 105, 0.15);
+        color: var(--success);
     }
     .status-declined {
-        background: #fef2f2;
-        color: #dc2626;
+        background: rgba(220, 38, 38, 0.15);
+        color: var(--error);
     }
     .wallet-status {
         padding: 16px;
@@ -312,12 +315,12 @@
     }
     .wallet-status p {
         font-size: 14px;
-        color: #6b7280;
+        color: var(--text-secondary);
         margin-top: 8px;
     }
      .progress-container {
         width: 100%;
-        background-color: #f3f4f6;
+        background-color: var(--border-muted);
         border-radius: 8px;
         margin: 16px 0;
         overflow: hidden;
@@ -325,7 +328,7 @@
 
     .progress-bar {
         height: 12px;
-        background: linear-gradient(90deg, #4f46e5, #6366f1);
+        background: linear-gradient(90deg, var(--brand), var(--brand-hover));
         border-radius: 8px;
         transition: width 0.5s ease;
     }
@@ -348,7 +351,7 @@
         left: 0;
         width: 100%;
         max-height: 80vh;
-        background: white;
+        background: var(--surface);
         z-index: 110;
         border-top-left-radius: 16px;
         border-top-right-radius: 16px;
@@ -371,7 +374,7 @@
         width: 24px;
         height: 24px;
         border-radius: 50%;
-        background: #e5e7eb;
+        background: var(--border-muted);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -380,16 +383,17 @@
         margin-right: 12px;
         z-index: 10;
         position: relative;
+        color: var(--text);
     }
 
     .step-number.active {
-        background: #4f46e5;
-        color: white;
+        background: var(--brand);
+        color: var(--surface);
     }
 
     .step-number.completed {
-        background: #10b981;
-        color: white;
+        background: var(--success);
+        color: var(--surface);
     }
 
     .step-line {
@@ -398,16 +402,16 @@
         left: 12px;
         width: 2px;
         height: calc(100% - 24px);
-        background: #e5e7eb;
+        background: var(--border);
         z-index: 5;
     }
 
     .step-line.active {
-        background: #4f46e5;
+        background: var(--brand);
     }
 
     .step-line.completed {
-        background: #10b981;
+        background: var(--success);
     }
 
     .step-content {
@@ -416,7 +420,7 @@
 
     .step-date {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--text-secondary);
         margin-top: 4px;
     }
 
@@ -430,7 +434,8 @@
         position: absolute;
         top: 12px;
         right: 12px;
-        background: #f3f4f6;
+        background: var(--border-muted);
+        color: var(--text);
         cursor: pointer;
     }
 
