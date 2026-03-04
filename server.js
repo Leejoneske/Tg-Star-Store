@@ -1712,20 +1712,10 @@ const broadcastJobSchema = new mongoose.Schema({
     batchSize: { type: Number, default: 50 },
     delayBetweenBatchesMs: { type: Number, default: 1000 },
     maxRetries: { type: Number, default: 3 },
-    adminMessageIds: [Number],
-    // Inline buttons support
-    buttons: {
-        type: Array,
-        of: {
-            type: {
-                text: String,
-                action: { type: String, enum: ['url', 'callback', 'switch_inline', 'web_app'] },
-                data: String  // URL, callback_data, query, or web_app URL
-            }
-        },
-        default: []
-    },
-    hasButtons: { type: Boolean, default: false }
+    // Broadcast admin approval tracking
+    adminMessageIds: [{ adminId: String, messageId: Number }],
+    approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    approvedBy: { adminId: String, adminUsername: String, approvedAt: Date }
 }, { timestamps: true });
 
 const BroadcastJob = mongoose.model('BroadcastJob', broadcastJobSchema);
@@ -8920,66 +8910,38 @@ bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, 
 
 // IMPROVED BROADCAST SYSTEM - Production-grade with rate limiting, async processing, and retry logic
 
-// Helper: Build inline keyboard from buttons array
-function buildInlineKeyboard(buttons) {
-    if (!buttons || buttons.length === 0) return null;
-    
-    const keyboard = [];
-    for (const btn of buttons) {
-        const btnObj = { text: btn.text };
-        
-        switch (btn.action) {
-            case 'url':
-                btnObj.url = btn.data;
-                break;
-            case 'callback':
-                btnObj.callback_data = btn.data.substring(0, 64); // Telegram limit
-                break;
-            case 'switch_inline':
-                btnObj.switch_inline_query = btn.data;
-                break;
-            case 'web_app':
-                btnObj.web_app = { url: btn.data };
-                break;
-        }
-        
-        keyboard.push([btnObj]);
-    }
-    
-    return { inline_keyboard: keyboard };
-}
-
 // Helper: Send message with retry logic and rate limiting
-async function sendBroadcastMessage(userId, messageType, messageText, caption, mediaFileId, buttons) {
+async function sendBroadcastMessage(userId, messageType, messageText, caption, mediaFileId) {
     let lastError = null;
     
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
             await broadcastRateLimiter.delay();
             
-            const replyMarkup = buildInlineKeyboard(buttons);
-            const options = {
-                parse_mode: 'HTML',
-                disable_web_page_preview: true,
-                disable_notification: true
+            // Build default inline keyboard with Sell and Referral buttons
+            const defaultKeyboard = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '💰 Sell Page', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/sell.html' }],
+                        [{ text: '🎁 Referral Program', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/referral.html' }]
+                    ]
+                }
             };
             
-            if (replyMarkup) {
-                options.reply_markup = replyMarkup;
-            }
-            
             if (messageType === 'text') {
-                await bot.sendMessage(userId, messageText || caption, options);
+                await bot.sendMessage(userId, messageText || caption, {
+                    parse_mode: 'HTML',
+                    disable_web_page_preview: true,
+                    disable_notification: true,
+                    ...defaultKeyboard
+                });
             } else {
-                const mediaOptions = {
+                await bot.sendCopy(userId, mediaFileId, {
                     caption: caption,
                     parse_mode: 'HTML',
-                    disable_notification: true
-                };
-                if (replyMarkup) {
-                    mediaOptions.reply_markup = replyMarkup;
-                }
-                await bot.sendCopy(userId, mediaFileId, mediaOptions);
+                    disable_notification: true,
+                    ...defaultKeyboard
+                });
             }
             return { success: true, attempts: attempt };
         } catch (error) {
@@ -9232,30 +9194,96 @@ bot.on('message', async (msg) => {
             return bot.sendMessage(chatId, '⚠️ No users in database.');
         }
         
-        // Update session to ask about buttons
-        session.step = 'waiting_buttons';
-        session.messageType = messageType;
-        session.messageText = messageText;
-        session.caption = caption;
-        session.mediaFileId = mediaFileId;
-        session.totalUsers = totalUsers;
-        session.buttons = [];
-        broadcastSessions.set(chatId, session);
+        // Create job ID upfront for tracking
+        const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
-        await bot.sendMessage(chatId,
-            `✅ Message saved!\n\n` +
-            `Would you like to add inline buttons?\n\n` +
-            `📝 Usage:\n` +
-            `Send button text and action (one per message).\n\n` +
-            `Use format (copy-paste and modify):\n` +
-            `<b>Button Title | action | data</b>\n\n` +
-            `Actions:\n` +
-            `• <code>url | https://example.com</code>\n` +
-            `• <code>callback | button_123</code>\n` +
-            `• <code>web_app | https://your-app.com</code>\n\n` +
-            `Or reply /done to skip buttons.`,
-            { parse_mode: 'HTML' }
-        );
+        // Create the broadcast job record with approval tracking
+        const job = new BroadcastJob({
+            jobId,
+            adminId: userId,
+            adminUsername: msg.from.username || msg.from.first_name,
+            messageType,
+            messageText,
+            caption,
+            mediaFileId,
+            totalUsers,
+            status: 'pending',
+            approvalStatus: 'pending',
+            adminMessageIds: [],
+            batchSize: 50,
+            delayBetweenBatchesMs: 1000
+        });
+        
+        // Build default inline keyboard with Sell and Referral buttons
+        const approvalKeyboard = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '💰 Sell Page', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/sell.html' }],
+                    [{ text: '🎁 Referral Program', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/referral.html' }],
+                    [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
+                    [{ text: '❌ Cancel', callback_data: `reject_broadcast_${jobId}` }]
+                ]
+            }
+        };
+        
+        // Send the ACTUAL broadcast message to all admins and capture message IDs
+        const messagePromises = [];
+        for (const adminId of adminIds) {
+            try {
+                let promise;
+                if (messageType === 'text') {
+                    promise = bot.sendMessage(adminId, messageText || caption, {
+                        parse_mode: 'HTML',
+                        disable_web_page_preview: true,
+                        disable_notification: false,
+                        ...approvalKeyboard
+                    });
+                } else {
+                    promise = bot.sendCopy(adminId, mediaFileId, {
+                        caption: caption,
+                        parse_mode: 'HTML',
+                        disable_notification: false,
+                        ...approvalKeyboard
+                    });
+                }
+                
+                // Capture message ID when sent
+                promise.then(sentMsg => {
+                    job.adminMessageIds.push({
+                        adminId: adminId.toString(),
+                        messageId: sentMsg.message_id
+                    });
+                }).catch(err => {
+                    console.error(`Failed to send broadcast preview to admin ${adminId}:`, err.message);
+                });
+                
+                messagePromises.push(promise);
+            } catch (err) {
+                console.error(`Failed to send broadcast preview to admin ${adminId}:`, err.message);
+            }
+        }
+        
+        // Wait for all admin messages to send
+        await Promise.allSettled(messagePromises);
+        
+        // Save job with message IDs
+        await job.save();
+        
+        // Clear the broadcast session
+        broadcastSessions.delete(chatId);
+        
+        // Send summary to initiating admin
+        const summaryText = `📢 <b>Broadcast Preview Sent to All Admins</b>\n\n` +
+            `📊 Job ID: <code>${jobId}</code>\n` +
+            `👥 Will be sent to: ${totalUsers.toLocaleString()} users\n` +
+            `📝 Type: ${messageType.toUpperCase()}\n` +
+            `🔘 Includes: Sell Page & Referral buttons\n\n` +
+            `⏱️ Est. time: ${Math.ceil(totalUsers / 50 * 2.5)} minutes\n\n` +
+            `<i>Message sent to all ${adminIds.length} admins for approval. Waiting for confirmation...</i>`;
+        
+        await bot.sendMessage(chatId, summaryText, { parse_mode: 'HTML' });
+        
+        console.log(`📢 Broadcast ${jobId} preview sent to ${adminIds.length} admins - Waiting for approval`);
         
     } catch (error) {
         console.error('Broadcast message handling error:', error);
@@ -9264,109 +9292,140 @@ bot.on('message', async (msg) => {
     }
 });
 
-// Handle button input or job creation
-bot.on('message', async (msg) => {
-    const chatId = msg.chat.id;
-    const userId = chatId.toString();
-    
-    if (!adminIds.includes(userId)) return;
-    
-    const session = broadcastSessions.get(chatId);
-    if (!session || session.step !== 'waiting_buttons') return;
-    
-    if (Date.now() - session.timestamp > 15 * 60 * 1000) {
-        broadcastSessions.delete(chatId);
-        return bot.sendMessage(chatId, '⏰ Broadcast session expired. Use /broadcast to start over.');
+// Broadcast callback handlers for admin approval/rejection
+bot.on('callback_query', async (query) => {
+    // Handle broadcast approval
+    if (query.data.startsWith('approve_broadcast_')) {
+        const jobId = query.data.replace('approve_broadcast_', '');
+        const userId = query.from.id.toString();
+        const adminUsername = query.from.username || query.from.first_name;
+        
+        if (!adminIds.includes(userId)) {
+            return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
+        }
+        
+        try {
+            // Get the broadcast job
+            const job = await BroadcastJob.findOne({ jobId });
+            
+            if (!job) {
+                return bot.answerCallbackQuery(query.id, '❌ Broadcast job not found', true);
+            }
+            
+            // Check if already approved/rejected (one-time use)
+            if (job.approvalStatus !== 'pending') {
+                return bot.answerCallbackQuery(query.id, `⚠️ Already ${job.approvalStatus}`, true);
+            }
+            
+            // Update job with approval
+            job.approvalStatus = 'approved';
+            job.approvedBy = {
+                adminId: userId,
+                adminUsername: adminUsername,
+                approvedAt: new Date()
+            };
+            await job.save();
+            
+            // Update all admin messages - remove buttons, show approval
+            const updatePromises = [];
+            for (const msgInfo of job.adminMessageIds) {
+                updatePromises.push(
+                    bot.editMessageReplyMarkup(
+                        {
+                            inline_keyboard: [
+                                [{ text: `✅ Approved by ${adminUsername}`, callback_data: 'dummy' }]
+                            ]
+                        },
+                        {
+                            chat_id: msgInfo.adminId,
+                            message_id: msgInfo.messageId
+                        }
+                    ).catch(err => {
+                        console.error(`Failed to update message for admin ${msgInfo.adminId}:`, err.message);
+                    })
+                );
+            }
+            
+            await Promise.allSettled(updatePromises);
+            
+            // React to the approval button
+            await bot.answerCallbackQuery(query.id, '✅ Broadcast approved! Sending to all users...');
+            
+            // Start the actual broadcast in background (to ALL USERS now)
+            processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
+            console.log(`📢 Broadcast ${jobId} approved by admin ${adminUsername} - Broadcasting to ${job.totalUsers.toLocaleString()} users`);
+            
+        } catch (error) {
+            console.error('Broadcast approval error:', error);
+            bot.answerCallbackQuery(query.id, `❌ Error: ${error.message}`, true);
+        }
+        return;
     }
     
-    try {
-        // Check if admin wants to finalize
-        if (msg.text === '/done' || msg.text?.toLowerCase() === 'done') {
-            // Create and send broadcast job
-            const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const job = new BroadcastJob({
-                jobId,
+    // Handle broadcast rejection
+    if (query.data.startsWith('reject_broadcast_')) {
+        const jobId = query.data.replace('reject_broadcast_', '');
+        const userId = query.from.id.toString();
+        const adminUsername = query.from.username || query.from.first_name;
+        
+        if (!adminIds.includes(userId)) {
+            return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
+        }
+        
+        try {
+            // Get the broadcast job
+            const job = await BroadcastJob.findOne({ jobId });
+            
+            if (!job) {
+                return bot.answerCallbackQuery(query.id, '❌ Broadcast job not found', true);
+            }
+            
+            // Check if already approved/rejected (one-time use)
+            if (job.approvalStatus !== 'pending') {
+                return bot.answerCallbackQuery(query.id, `⚠️ Already ${job.approvalStatus}`, true);
+            }
+            
+            // Update job with rejection
+            job.approvalStatus = 'rejected';
+            job.approvedBy = {
                 adminId: userId,
-                adminUsername: msg.from.username || msg.from.first_name,
-                messageType: session.messageType,
-                messageText: session.messageText,
-                caption: session.caption,
-                mediaFileId: session.mediaFileId,
-                messageId: msg.message_id,
-                totalUsers: session.totalUsers,
-                status: 'pending',
-                batchSize: 50,
-                delayBetweenBatchesMs: 1000,
-                buttons: session.buttons,
-                hasButtons: session.buttons.length > 0
-            });
-            
+                adminUsername: adminUsername,
+                approvedAt: new Date()
+            };
+            job.status = 'cancelled';
             await job.save();
-            broadcastSessions.delete(chatId);
             
-            const preview = session.messageType === 'text' ? session.messageText.substring(0, 100) : `[${session.messageType.toUpperCase()}]`;
-            await bot.sendMessage(chatId, 
-                `✅ Broadcast job created!\n\n` +
-                `📊 Job ID: <code>${jobId}</code>\n` +
-                `👥 Recipients: ${session.totalUsers}\n` +
-                `📝 Type: ${session.messageType}\n` +
-                `🔘 Buttons: ${session.buttons.length > 0 ? session.buttons.map(b => b.text).join(', ') : 'None'}\n\n` +
-                `⏱️ Est. time: ${Math.ceil(session.totalUsers / 50 * 2.5)} min\n` +
-                `Use /broadcast_status ${jobId} to track`,
-                { parse_mode: 'HTML' }
-            );
+            // Update all admin messages - remove buttons, show cancellation
+            const updatePromises = [];
+            for (const msgInfo of job.adminMessageIds) {
+                updatePromises.push(
+                    bot.editMessageReplyMarkup(
+                        {
+                            inline_keyboard: [
+                                [{ text: `❌ Cancelled by ${adminUsername}`, callback_data: 'dummy' }]
+                            ]
+                        },
+                        {
+                            chat_id: msgInfo.adminId,
+                            message_id: msgInfo.messageId
+                        }
+                    ).catch(err => {
+                        console.error(`Failed to update message for admin ${msgInfo.adminId}:`, err.message);
+                    })
+                );
+            }
             
-            processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
-            console.log(`📢 Broadcast job ${jobId} queued for ${session.totalUsers} users with ${session.buttons.length} buttons`);
-            return;
+            await Promise.allSettled(updatePromises);
+            
+            // React to the rejection button
+            await bot.answerCallbackQuery(query.id, '🛑 Broadcast cancelled');
+            
+            console.log(`🛑 Broadcast ${jobId} cancelled by admin ${adminUsername}`);
+        } catch (error) {
+            console.error('Broadcast rejection error:', error);
+            bot.answerCallbackQuery(query.id, `❌ Error: ${error.message}`, true);
         }
-        
-        // Parse button input: "Button Title | action | data"
-        const lines = msg.text.split('|').map(l => l.trim());
-        if (lines.length !== 3) {
-            return bot.sendMessage(chatId,
-                `❌ Invalid format!\n\n` +
-                `Expected: <code>Button Title | action | data</code>\n\n` +
-                `Example:\n` +
-                `<code>Open App | url | https://example.com</code>\n` +
-                `<code>Quick Action | callback | action_123</code>\n\n` +
-                `Or /done when finished.`,
-                { parse_mode: 'HTML' }
-            );
-        }
-        
-        const [text, action, data] = lines;
-        
-        // Validate action type
-        if (!['url', 'callback', 'switch_inline', 'web_app'].includes(action)) {
-            return bot.sendMessage(chatId,
-                `❌ Invalid action: ${action}\n\n` +
-                `Valid actions:\n` +
-                `• url\n` +
-                `• callback\n` +
-                `• switch_inline\n` +
-                `• web_app`,
-                { parse_mode: 'HTML' }
-            );
-        }
-        
-        if (session.buttons.length >= 10) {
-            return bot.sendMessage(chatId, '⚠️ Maximum 10 buttons per message');
-        }
-        
-        session.buttons.push({ text, action, data });
-        broadcastSessions.set(chatId, session);
-        
-        await bot.sendMessage(chatId,
-            `✅ Button added: <b>${text}</b>\n\n` +
-            `${session.buttons.length}/10 buttons\n\n` +
-            `Send more buttons or /done to finalize.`,
-            { parse_mode: 'HTML' }
-        );
-        
-    } catch (error) {
-        console.error('Broadcast button handling error:', error);
-        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+        return;
     }
 });
 
