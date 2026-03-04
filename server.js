@@ -1712,20 +1712,7 @@ const broadcastJobSchema = new mongoose.Schema({
     batchSize: { type: Number, default: 50 },
     delayBetweenBatchesMs: { type: Number, default: 1000 },
     maxRetries: { type: Number, default: 3 },
-    adminMessageIds: [Number],
-    // Inline buttons support
-    buttons: {
-        type: Array,
-        of: {
-            type: {
-                text: String,
-                action: { type: String, enum: ['url', 'callback', 'switch_inline', 'web_app'] },
-                data: String  // URL, callback_data, query, or web_app URL
-            }
-        },
-        default: []
-    },
-    hasButtons: { type: Boolean, default: false }
+    adminMessageIds: [Number]
 }, { timestamps: true });
 
 const BroadcastJob = mongoose.model('BroadcastJob', broadcastJobSchema);
@@ -8920,66 +8907,38 @@ bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, 
 
 // IMPROVED BROADCAST SYSTEM - Production-grade with rate limiting, async processing, and retry logic
 
-// Helper: Build inline keyboard from buttons array
-function buildInlineKeyboard(buttons) {
-    if (!buttons || buttons.length === 0) return null;
-    
-    const keyboard = [];
-    for (const btn of buttons) {
-        const btnObj = { text: btn.text };
-        
-        switch (btn.action) {
-            case 'url':
-                btnObj.url = btn.data;
-                break;
-            case 'callback':
-                btnObj.callback_data = btn.data.substring(0, 64); // Telegram limit
-                break;
-            case 'switch_inline':
-                btnObj.switch_inline_query = btn.data;
-                break;
-            case 'web_app':
-                btnObj.web_app = { url: btn.data };
-                break;
-        }
-        
-        keyboard.push([btnObj]);
-    }
-    
-    return { inline_keyboard: keyboard };
-}
-
 // Helper: Send message with retry logic and rate limiting
-async function sendBroadcastMessage(userId, messageType, messageText, caption, mediaFileId, buttons) {
+async function sendBroadcastMessage(userId, messageType, messageText, caption, mediaFileId) {
     let lastError = null;
     
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
             await broadcastRateLimiter.delay();
             
-            const replyMarkup = buildInlineKeyboard(buttons);
-            const options = {
-                parse_mode: 'HTML',
-                disable_web_page_preview: true,
-                disable_notification: true
+            // Build default inline keyboard with Sell and Referral buttons
+            const defaultKeyboard = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '💰 Sell Page', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/sell.html' }],
+                        [{ text: '🎁 Referral Program', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/referral.html' }]
+                    ]
+                }
             };
             
-            if (replyMarkup) {
-                options.reply_markup = replyMarkup;
-            }
-            
             if (messageType === 'text') {
-                await bot.sendMessage(userId, messageText || caption, options);
+                await bot.sendMessage(userId, messageText || caption, {
+                    parse_mode: 'HTML',
+                    disable_web_page_preview: true,
+                    disable_notification: true,
+                    ...defaultKeyboard
+                });
             } else {
-                const mediaOptions = {
+                await bot.sendCopy(userId, mediaFileId, {
                     caption: caption,
                     parse_mode: 'HTML',
-                    disable_notification: true
-                };
-                if (replyMarkup) {
-                    mediaOptions.reply_markup = replyMarkup;
-                }
-                await bot.sendCopy(userId, mediaFileId, mediaOptions);
+                    disable_notification: true,
+                    ...defaultKeyboard
+                });
             }
             return { success: true, attempts: attempt };
         } catch (error) {
@@ -9232,35 +9191,56 @@ bot.on('message', async (msg) => {
             return bot.sendMessage(chatId, '⚠️ No users in database.');
         }
         
-        // Update session to ask about buttons
-        session.step = 'waiting_buttons';
+        // Create job ID upfront for tracking
+        const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Store in session for later approval
+        session.step = 'admin_review';
         session.messageType = messageType;
         session.messageText = messageText;
         session.caption = caption;
         session.mediaFileId = mediaFileId;
         session.totalUsers = totalUsers;
-        session.buttons = [];
+        session.jobId = jobId;
         broadcastSessions.set(chatId, session);
         
-        await bot.sendMessage(chatId,
-            `✅ Message saved!\n\n` +
-            `Would you like to add inline buttons?\n\n` +
-            `📝 Usage:\n` +
-            `Send button text and action (one per message).\n\n` +
-            `Use format (copy-paste and modify):\n` +
-            `<b>Button Title | action | data</b>\n\n` +
-            `Actions:\n` +
-            `• <code>url | https://example.com</code>\n` +
-            `• <code>callback | button_123</code>\n` +
-            `• <code>web_app | https://your-app.com</code>\n\n` +
-            `Or reply /done to skip buttons.`,
+        // Build preview message for admins
+        let previewText = `📋 <b>Broadcast Preview (Admin Review)</b>\n\n`;
+        
+        if (messageType === 'text') {
+            previewText += `📝 <b>Message:</b>\n${messageText.substring(0, 300)}`;
+            if (messageText.length > 300) {
+                previewText += `...`;
+            }
+        } else {
+            previewText += `📎 <b>Media Type:</b> ${messageType.toUpperCase()}\n`;
+            if (caption) {
+                previewText += `📝 <b>Caption:</b>\n${caption.substring(0, 300)}`;
+                if (caption.length > 300) {
+                    previewText += `...`;
+                }
+            }
+        }
+        
+        previewText += `\n\n👥 <b>Recipients:</b> ${totalUsers.toLocaleString()} users`;
+        previewText += `\n⏱️ <b>Est. Time:</b> ${Math.ceil(totalUsers / 50 * 2.5)} minutes`;
+        previewText += `\n🔘 <b>Buttons:</b> Sell Page & Referral Program (default)`;
+        previewText += `\n\n⚠️ <b>This will be sent to all ${totalUsers.toLocaleString()} users!</b>`;
+        
+        // Send preview to this admin first
+        await bot.sendMessage(chatId, previewText,
             {
                 parse_mode: 'HTML',
                 reply_markup: {
-                    inline_keyboard: [[{ text: '❌ Cancel Broadcast', callback_data: 'broadcast_cancel' }]]
+                    inline_keyboard: [
+                        [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
+                        [{ text: '❌ Cancel', callback_data: 'reject_broadcast' }]
+                    ]
                 }
             }
         );
+        
+        console.log(`📢 Broadcast preview sent to admin ${userId} - Job ID: ${jobId}`);
         
     } catch (error) {
         console.error('Broadcast message handling error:', error);
@@ -9269,154 +9249,25 @@ bot.on('message', async (msg) => {
     }
 });
 
-// Handle button input or job creation
-bot.on('message', async (msg) => {
-    const chatId = msg.chat.id;
-    const userId = chatId.toString();
-    
-    if (!adminIds.includes(userId)) return;
-    
-    const session = broadcastSessions.get(chatId);
-    if (!session || session.step !== 'waiting_buttons') return;
-    
-    if (Date.now() - session.timestamp > 15 * 60 * 1000) {
-        broadcastSessions.delete(chatId);
-        return bot.sendMessage(chatId, '⏰ Broadcast session expired. Use /broadcast to start over.');
-    }
-    
-    try {
-        // Check if admin wants to finalize
-        if (msg.text === '/done' || msg.text?.toLowerCase() === 'done') {
-            // Move to preview step
-            session.step = 'preview_confirmation';
-            broadcastSessions.set(chatId, session);
-            
-            // Build preview message
-            let previewText = `📋 <b>Broadcast Preview</b>\n\n`;
-            
-            if (session.messageType === 'text') {
-                previewText += `📝 <b>Message:</b>\n${session.messageText.substring(0, 200)}`;
-                if (session.messageText.length > 200) {
-                    previewText += `...`;
-                }
-            } else {
-                previewText += `📎 <b>Media Type:</b> ${session.messageType.toUpperCase()}\n`;
-                if (session.caption) {
-                    previewText += `📝 <b>Caption:</b>\n${session.caption.substring(0, 200)}`;
-                    if (session.caption.length > 200) {
-                        previewText += `...`;
-                    }
-                }
-            }
-            
-            previewText += `\n\n👥 <b>Recipients:</b> ${session.totalUsers.toLocaleString()} users`;
-            previewText += `\n⏱️ <b>Est. Time:</b> ${Math.ceil(session.totalUsers / 50 * 2.5)} minutes`;
-            
-            if (session.buttons.length > 0) {
-                previewText += `\n\n🔘 <b>Buttons:</b>\n`;
-                session.buttons.forEach((btn, idx) => {
-                    previewText += `${idx + 1}. ${btn.text} (${btn.action})`;
-                    if (idx < session.buttons.length - 1) previewText += `\n`;
-                });
-            } else {
-                previewText += `\n\n🔘 <b>Buttons:</b> None`;
-            }
-            
-            previewText += `\n\n⚠️ <b>This will be sent to all ${session.totalUsers.toLocaleString()} users!</b>`;
-            
-            await bot.sendMessage(chatId, previewText,
-                {
-                    parse_mode: 'HTML',
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: '✅ Send Broadcast', callback_data: 'broadcast_confirm' }],
-                            [{ text: '❌ Cancel', callback_data: 'broadcast_cancel' }]
-                        ]
-                    }
-                }
-            );
-            return;
-        }
-        
-        // Parse button input: "Button Title | action | data"
-        const lines = msg.text.split('|').map(l => l.trim());
-        if (lines.length !== 3) {
-            return bot.sendMessage(chatId,
-                `❌ Invalid format!\n\n` +
-                `Expected: <code>Button Title | action | data</code>\n\n` +
-                `Example:\n` +
-                `<code>Open App | url | https://example.com</code>\n` +
-                `<code>Quick Action | callback | action_123</code>\n\n` +
-                `Or /done when finished.`,
-                { parse_mode: 'HTML' }
-            );
-        }
-        
-        const [text, action, data] = lines;
-        
-        // Validate action type
-        if (!['url', 'callback', 'switch_inline', 'web_app'].includes(action)) {
-            return bot.sendMessage(chatId,
-                `❌ Invalid action: ${action}\n\n` +
-                `Valid actions:\n` +
-                `• url\n` +
-                `• callback\n` +
-                `• switch_inline\n` +
-                `• web_app`,
-                { parse_mode: 'HTML' }
-            );
-        }
-        
-        if (session.buttons.length >= 10) {
-            return bot.sendMessage(chatId, '⚠️ Maximum 10 buttons per message');
-        }
-        
-        session.buttons.push({ text, action, data });
-        broadcastSessions.set(chatId, session);
-        
-        await bot.sendMessage(chatId,
-            `✅ Button added: <b>${text}</b>\n\n` +
-            `${session.buttons.length}/10 buttons\n\n` +
-            `Send more buttons or /done to finalize.`,
-            {
-                parse_mode: 'HTML',
-                reply_markup: {
-                    inline_keyboard: [[{ text: '❌ Cancel Broadcast', callback_data: 'broadcast_cancel' }]]
-                }
-            }
-        );
-        
-    } catch (error) {
-        console.error('Broadcast button handling error:', error);
-        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
-    }
-});
-
-// Broadcast callback handlers (cancel and confirm)
+// Broadcast callback handlers for admin approval/rejection
 bot.on('callback_query', async (query) => {
-    if (!query.data.startsWith('broadcast_')) return;
-    
-    const chatId = query.message.chat.id;
-    const userId = chatId.toString();
-    const session = broadcastSessions.get(chatId);
-    
-    if (!adminIds.includes(userId)) {
-        return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
-    }
-    
-    try {
-        if (query.data === 'broadcast_cancel') {
-            broadcastSessions.delete(chatId);
-            await bot.editMessageText(
-                `❌ Broadcast cancelled.\n\nUse /broadcast to start over.`,
-                { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML' }
-            );
-            return bot.answerCallbackQuery(query.id, '🛑 Broadcast cancelled');
+    // Handle broadcast approval
+    if (query.data.startsWith('approve_broadcast_')) {
+        const jobId = query.data.replace('approve_broadcast_', '');
+        const chatId = query.message.chat.id;
+        const userId = chatId.toString();
+        const session = broadcastSessions.get(chatId);
+        
+        if (!adminIds.includes(userId)) {
+            return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
         }
         
-        if (query.data === 'broadcast_confirm' && session && session.step === 'preview_confirmation') {
-            // Create and send broadcast job
-            const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        if (!session || session.step !== 'admin_review' || session.jobId !== jobId) {
+            return bot.answerCallbackQuery(query.id, '❌ Session expired or invalid', true);
+        }
+        
+        try {
+            // Create the broadcast job
             const job = new BroadcastJob({
                 jobId,
                 adminId: userId,
@@ -9429,34 +9280,68 @@ bot.on('callback_query', async (query) => {
                 totalUsers: session.totalUsers,
                 status: 'pending',
                 batchSize: 50,
-                delayBetweenBatchesMs: 1000,
-                buttons: session.buttons,
-                hasButtons: session.buttons.length > 0
+                delayBetweenBatchesMs: 1000
             });
             
             await job.save();
             broadcastSessions.delete(chatId);
             
+            // Update the preview message to show it's approved
             await bot.editMessageText(
-                `🚀 <b>Broadcast Sent!</b>\n\n` +
+                `🚀 <b>Broadcast Approved!</b>\n\n` +
                 `📊 Job ID: <code>${jobId}</code>\n` +
-                `👥 Recipients: ${session.totalUsers.toLocaleString()}\n` +
-                `📝 Type: ${session.messageType.toUpperCase()}\n` +
-                `🔘 Buttons: ${session.buttons.length}\n\n` +
+                `👥 Sending to: ${session.totalUsers.toLocaleString()} users\n` +
+                `📝 Type: ${session.messageType.toUpperCase()}\n\n` +
                 `⏱️ Est. time: ${Math.ceil(session.totalUsers / 50 * 2.5)} min\n` +
-                `Use /broadcast_status ${jobId} to track progress`,
+                `<i>Broadcasting in progress...</i>`,
                 { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML' }
             );
             
+            // Start the actual broadcast in background
             processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
-            console.log(`📢 Broadcast job ${jobId} started for ${session.totalUsers} users with ${session.buttons.length} buttons`);
-            return bot.answerCallbackQuery(query.id, '✅ Broadcast sent!');
+            console.log(`📢 Broadcast job ${jobId} approved and started by admin ${userId}`);
+            
+            return bot.answerCallbackQuery(query.id, '✅ Broadcast sent to all users!');
+        } catch (error) {
+            console.error('Broadcast approval error:', error);
+            bot.answerCallbackQuery(query.id, `❌ Error: ${error.message}`, true);
+        }
+    }
+    
+    // Handle broadcast rejection
+    if (query.data === 'reject_broadcast') {
+        const chatId = query.message.chat.id;
+        const userId = chatId.toString();
+        
+        if (!adminIds.includes(userId)) {
+            return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
         }
         
-        bot.answerCallbackQuery(query.id);
-    } catch (error) {
-        console.error('Broadcast callback error:', error);
-        bot.answerCallbackQuery(query.id, `❌ Error: ${error.message}`, true);
+        try {
+            broadcastSessions.delete(chatId);
+            
+            await bot.editMessageText(
+                `❌ <b>Broadcast Cancelled</b>\n\n` +
+                `Use /broadcast to start a new broadcast.`,
+                { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML' }
+            );
+            
+            console.log(`🛑 Broadcast rejected by admin ${userId}`);
+            return bot.answerCallbackQuery(query.id, '🛑 Broadcast cancelled');
+        } catch (error) {
+            console.error('Broadcast rejection error:', error);
+            bot.answerCallbackQuery(query.id);
+        }
+    }
+});
+
+// Status command
+bot.onText(/\/broadcast_status\s+(.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    
+    if (!adminIds.includes(userId)) {
+        return bot.sendMessage(chatId, '❌ Unauthorized');
     }
 });
 
