@@ -131,6 +131,7 @@ class SPARouter {
       this.appContainer.innerHTML = '<div class="loading-spinner"></div>';
 
       let content;
+      let fullDocument = null;
 
       if (typeof route.component === 'function') {
         // If component is a function, call it
@@ -146,15 +147,96 @@ class SPARouter {
         throw new Error(`Invalid component type for route: ${path}`);
       }
 
-      // Render content
-      this.appContainer.innerHTML = content;
+      // Parse the content to extract app-container and scripts
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      
+      // Extract app-container content
+      const appContainer = tempDiv.querySelector('.app-container');
+      const containerHTML = appContainer ? appContainer.innerHTML : content;
+      
+      // Extract all script tags
+      const scripts = tempDiv.querySelectorAll('script');
+      const scriptContents = Array.from(scripts).map(script => ({
+        src: script.src,
+        content: script.innerHTML,
+        type: script.type || 'text/javascript'
+      }));
 
-      // Re-initialize scripts if needed
+      // Render HTML content
+      this.appContainer.innerHTML = containerHTML;
+
+      // Execute extracted scripts in order
+      for (const script of scriptContents) {
+        try {
+          if (script.src) {
+            // External script
+            await this.loadExternalScript(script.src);
+          } else if (script.content) {
+            // Inline script
+            await this.executeScript(script.content, script.type);
+          }
+        } catch (error) {
+          console.warn(`Script execution warning for route ${path}:`, error);
+          // Continue loading even if one script fails
+        }
+      }
+
+      // Reinitialize page components
       this.initializePageScripts();
     } catch (error) {
       console.error('Render error:', error);
-      this.appContainer.innerHTML = `<div class="error-state"><p>Failed to load page</p></div>`;
+      this.appContainer.innerHTML = `<div class="error-state"><p>Failed to load page: ${error.message}</p></div>`;
     }
+  }
+
+  /**
+   * Load external script
+   * @private
+   */
+  loadExternalScript(src) {
+    return new Promise((resolve, reject) => {
+      // Skip if already loaded
+      if (document.querySelector(`script[src="${src}"]`)) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = src;
+      script.type = 'text/javascript';
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+
+  /**
+   * Execute inline script content
+   * @private
+   */
+  executeScript(content, type = 'text/javascript') {
+    return new Promise((resolve) => {
+      try {
+        // Create and execute script in global context
+        const script = document.createElement('script');
+        script.type = type;
+        script.textContent = content;
+        script.async = false;
+        
+        // Append to document to execute in global scope
+        document.body.appendChild(script);
+        
+        // For inline scripts, resolve immediately (they execute synchronously)
+        // Use setTimeout to allow async operations to start
+        setTimeout(() => resolve(), 50);
+      } catch (error) {
+        console.error('Script execution error:', error);
+        // Resolve even on error to continue loading
+        resolve();
+      }
+    });
   }
 
   /**
@@ -162,20 +244,52 @@ class SPARouter {
    * @private
    */
   async initializePageScripts() {
+    // Add small delay to ensure DOM is fully updated
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     // Reinitialize translations if available
     if (typeof TranslationUtils !== 'undefined') {
-      TranslationUtils.applyTranslations();
+      try {
+        TranslationUtils.applyTranslations();
+      } catch (e) {
+        console.warn('Translation initialization error:', e);
+      }
     }
 
     // Reinitialize theme
     if (typeof updateTheme === 'function') {
-      updateTheme();
+      try {
+        updateTheme();
+      } catch (e) {
+        console.warn('Theme update error:', e);
+      }
+    }
+
+    // Load bottom navigation if needed
+    const bottomnavContainer = document.getElementById('bottomnav-container');
+    if (bottomnavContainer && !bottomnavContainer.innerHTML.trim()) {
+      try {
+        const response = await fetch('/bottomnav.html');
+        if (response.ok) {
+          const html = await response.text();
+          bottomnavContainer.innerHTML = html;
+          // Re-apply translations to bottomnav
+          if (typeof TranslationUtils !== 'undefined') {
+            TranslationUtils.applyTranslations();
+          }
+        }
+      } catch (e) {
+        console.warn('Bottomnav loading error:', e);
+      }
     }
 
     // Dispatch custom event for page init
-    document.dispatchEvent(new CustomEvent('spa:pageLoaded', {
-      detail: { path: this.currentPath }
-    }));
+    // Use setTimeout to ensure event fires after scripts have executed
+    setTimeout(() => {
+      document.dispatchEvent(new CustomEvent('spa:pageLoaded', {
+        detail: { path: this.currentPath }
+      }));
+    }, 100);
   }
 
   /**

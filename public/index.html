@@ -168,6 +168,25 @@
                 updateTheme();
             }
 
+            // Verify global APIs are available
+            const apisAvailable = {
+                axios: typeof axios !== 'undefined',
+                fetch: typeof fetch !== 'undefined',
+                Telegram: typeof window.Telegram !== 'undefined',
+                TranslationUtils: typeof TranslationUtils !== 'undefined'
+            };
+            
+            console.log('✓ Global APIs loaded:', apisAvailable);
+
+            // Test API connectivity
+            try {
+                const statusResponse = await fetch('/api/spa-status');
+                const statusData = await statusResponse.json();
+                console.log('✓ Backend API Connected:', statusData);
+            } catch (error) {
+                console.error('✗ Backend API connection failed:', error);
+            }
+
             // Initialize router
             const router = new SPARouter();
             const mainContent = document.getElementById('main-content');
@@ -185,15 +204,32 @@
                 return true;
             });
 
-            router.setAfterEach(async () => {
+            router.setAfterEach(async (nav) => {
                 // Update translations if needed
                 if (typeof TranslationUtils !== 'undefined') {
                     TranslationUtils.applyTranslations();
                 }
+                
+                // Re-expand Telegram WebApp for loaded content
+                if (window.Telegram?.WebApp) {
+                    try {
+                        window.Telegram.WebApp.expand();
+                    } catch (e) {
+                        // Telegram might not be available in non-Telegram context
+                    }
+                }
+                
+                console.log('✓ Page loaded:', nav.path);
             });
 
             // Initialize router
-            router.init(mainContent);
+            try {
+                router.init(mainContent);
+                console.log('✓ SPA Router initialized successfully');
+            } catch (error) {
+                console.error('✗ SPA Router initialization failed:', error);
+                mainContent.innerHTML = `<div class="error-state"><p>App initialization failed: ${error.message}</p></div>`;
+            }
         });
 
         /**
