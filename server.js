@@ -8100,26 +8100,29 @@ bot.on('message', async (msg) => {
             await bot.sendMessage(chatId, '❌ Failed to load help. Please try again later.');
         }
     } else if (text === '👥 Referral') {
-        // Directly call the referrals handler
+        // Trigger /referrals command
+        bot.onText(/\/referrals/, (tempMsg) => {}); // dummy to prevent double-trigger
+        const telegramMsg = { ...msg, text: '/referrals' };
+        // Instead of duplicating, just call the referrals command handler
+        const chatId = msg.chat.id;
+        const userId = chatId.toString();
+        const username = msg.from.username || `user_${chatId}`;
+
         try {
-            const userId = chatId.toString();
-            const username = msg.from.username || `user_${chatId}`;
-            
             const professionalRefLink = generateUserReferralHash(userId);
             const referralLink = `https://t.me/TgStarStore_bot?start=${professionalRefLink}`;
             
-            const today = new Date();
-            today.setUTCHours(0, 0, 0, 0);
+            const marchFirstDate = new Date('2026-03-01T00:00:00Z');
             const referrals = await Referral.find({ 
                 referrerUserId: userId,
-                dateReferred: { $gte: today }
+                dateReferred: { $gte: marchFirstDate }
             });
             
             if (referrals.length > 0) {
                 const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
                 const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
                 
-                let message = `📊 Your Referrals (Today):\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
+                let message = `📊 Your Referrals (Since March 1):\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
                 message += 'New referrals activate instantly at 100+ stars!\n\n';
                 message += `🔗 Your Referral Link:\n${referralLink}`;
                 
@@ -8132,7 +8135,7 @@ bot.on('message', async (msg) => {
                 
                 await bot.sendMessage(chatId, message, { reply_markup: keyboard });
             } else {
-                const message = `You have no referrals today yet.\n\n🔗 Your Referral Link:\n${referralLink}\n\nShare this link to start earning!`;
+                const message = `You have no referrals since March 1st.\n\n🔗 Your Referral Link:\n${referralLink}\n\nShare this link to start earning!`;
                 
                 const keyboard = {
                     inline_keyboard: [
@@ -8272,12 +8275,31 @@ bot.onText(/^\/userinfo\s+(\d+)/i, async (msg, match) => {
             .sort({ lastSeen: -1 })
             .lean();
         
+        // Get referral data: who referred this user AND how many they referred
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        const referralRecord = await Referral.findOne({ refereeUserId: userId });
+        const myReferrals = await Referral.find({ referrerUserId: userId, dateReferred: { $gte: marchFirstDate } });
+        const activeReferrals = myReferrals.filter(r => r.status === 'active').length;
+        const pendingReferrals = myReferrals.filter(r => r.status === 'pending').length;
+        
         // Build comprehensive report
         let report = `👤 **User Information**\n`;
         report += `├─ ID: ${user.id}\n`;
         report += `├─ Username: @${user.username || 'Not set'}\n`;
         report += `├─ First Seen: ${user.createdAt?.toLocaleString() || 'Unknown'}\n`;
         report += `└─ Last Active: ${user.lastActive?.toLocaleString() || 'Never'}\n\n`;
+        
+        // Referral program status
+        report += `👥 **Referral Status**\n`;
+        if (referralRecord) {
+            const referrerUser = await User.findOne({ id: referralRecord.referrerUserId });
+            report += `├─ Referred by: @${referrerUser?.username || 'Unknown'} (ID: ${referralRecord.referrerUserId})\n`;
+        } else {
+            report += `├─ Referred by: None (organic user)\n`;
+        }
+        report += `├─ Total Referrals: ${myReferrals.length}\n`;
+        report += `├─ Active: ${activeReferrals}\n`;
+        report += `└─ Pending: ${pendingReferrals}\n\n`;
         
         // Current status
         report += `📍 **Current Status**\n`;
@@ -8352,7 +8374,7 @@ bot.onText(/\/adminhelp/, (msg) => {
 /detect_users - Detect and process new users
 
 **👤 User Activity & Location Logs:**
-/userinfo [user_id] - View comprehensive user info (activity, location, devices)
+/userinfo [user_id] - View comprehensive user info (referrals, activity, location, devices)
 
 **�💰 Wallet Management:**
 /updatewallet [user_id] [sell|withdrawal] [order_id] [new_wallet_address]
