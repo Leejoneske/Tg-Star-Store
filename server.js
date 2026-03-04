@@ -6654,15 +6654,25 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             });
         }
         
-        // Get March 1, 2026 start (midnight UTC) - filter from March 1st onwards
+        // Get March 1, 2026 start (midnight UTC) - filter from March 1st onwards for NEW system
         const marchFirstDate = new Date('2026-03-01T00:00:00Z');
         
-        // Only fetch referrals from March 1st onwards (new referral system)
-        const referrals = await Referral.find({ 
+        // Fetch NEW referrals from March 1st onwards
+        const newReferrals = await Referral.find({ 
             referrerUserId: userId,
             dateReferred: { $gte: marchFirstDate }
         });
-        // Found referrals from March 1st onwards
+        
+        // ALSO fetch ANY OLD active referrals (status='active' from admin approval, regardless of date)
+        const oldActiveReferrals = await Referral.find({
+            referrerUserId: userId,
+            dateReferred: { $lt: marchFirstDate },
+            status: 'active'
+        });
+        
+        // Combine both for display purposes
+        const allReferrals = [...newReferrals, ...oldActiveReferrals];
+        const referrals = allReferrals;
         
         const referredUserIds = referrals.map(r => r.referredUserId);
         const users = await User.find({ id: { $in: referredUserIds } });
@@ -6670,20 +6680,34 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         const userMap = {};
         users.forEach(user => userMap[user.id] = user.username);
 
-        const totalReferrals = referrals.length;
+        const totalReferrals = newReferrals.length; // Only count new referrals for stats
         
-        // Get completed/active AND non-withdrawn referrals (from March 1st onwards)
-        const availableReferrals = await Referral.find({
-            referrerUserId: req.params.userId,
+        // Get completed/active AND non-withdrawn referrals from NEW system (March 1st onwards)
+        const availableNewReferrals = await Referral.find({
+            referrerUserId: userId,
             dateReferred: { $gte: marchFirstDate },
             status: { $in: ['completed', 'active'] },
             withdrawn: { $ne: true }
         }).countDocuments();
+        
+        // Get OLD active non-withdrawn referrals (admin-approved, before March 1st)
+        const availableOldReferrals = await Referral.find({
+            referrerUserId: userId,
+            dateReferred: { $lt: marchFirstDate },
+            status: 'active',
+            withdrawn: { $ne: true }
+        }).countDocuments();
 
-        // Get all completed/active (regardless of withdrawal status) - from March 1st onwards
-        const completedReferrals = referrals.filter(r => 
+        // Total available from BOTH old and new systems
+        const availableReferrals = availableNewReferrals + availableOldReferrals;
+
+        // Get all completed/active from new system (regardless of withdrawal status)
+        const completedNewReferrals = newReferrals.filter(r => 
             ['completed', 'active'].includes(r.status)
         ).length;
+        
+        // Get all active from old system
+        const completedOldReferrals = oldActiveReferrals.length;
         
         // Use user's stored referral hash (generated when they first joined)
         let professionalRefLink = user.referralHash;
@@ -6707,9 +6731,9 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             })),
             stats: {
                 availableBalance: availableReferrals * 0.5,
-                totalEarned: completedReferrals * 0.5,
-                referralsCount: totalReferrals,
-                pendingAmount: (completedReferrals - availableReferrals) * 0.5
+                totalEarned: (completedNewReferrals + completedOldReferrals) * 0.5,
+                referralsCount: totalReferrals + completedOldReferrals,
+                pendingAmount: ((completedNewReferrals + completedOldReferrals) - availableReferrals) * 0.5
             },
             referralLink: `https://t.me/TgStarStore_bot?start=${professionalRefLink}`,
             newReferralLink: `https://t.me/TgStarStore_bot?start=${professionalRefLink}`
@@ -7351,20 +7375,25 @@ async function trackStars(userId, stars, type) {
 
         const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
         
-        // Both OLD and NEW referrals activate at 100+ stars - both earn 0.5 USDT
+        // NEW REFERRAL (instantActivation=true): activate immediately at 100+ stars
+        // OLD REFERRAL (instantActivation=false): wait for admin confirmation
         // Only valid transactions count: processing or completed (not failed/declined/refunded)
         if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
-            // Activate and credit rewards for ALL referrals (old and new)
-            await handleReferralActivation(tracker);
+            if (tracker.instantActivation === true) {
+                // Instant activation for new referrals
+                await handleReferralActivation(tracker);
+            } else {
+                // Old referrals: save but don't auto-activate, wait for admin
+                await tracker.save();
+            }
         } else {
             await tracker.save();
         }
         
         // Also update the Referral status if it's still pending and conditions are met
-        // Both old and new referrals should be marked as completed when threshold met
         if (tracker.referral && (totalStars >= 100 || tracker.premiumActivated)) {
             const referral = await Referral.findById(tracker.referral);
-            if (referral && referral.status === 'pending') {
+            if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
                 referral.status = 'completed';
                 referral.dateActivated = new Date();
                 await referral.save();
@@ -7383,17 +7412,20 @@ async function trackPremiumActivation(userId) {
         if (!tracker.premiumActivated) {
             tracker.premiumActivated = true;
             if (tracker.status === 'pending') {
-                // Premium activation also triggers referral activation for both old and new
-                await handleReferralActivation(tracker);
+                // Check instantActivation flag
+                if (tracker.instantActivation === true) {
+                    await handleReferralActivation(tracker);
+                } else {
+                    await tracker.save();
+                }
             } else {
                 await tracker.save();
             }
             
-            // Also update the Referral status if it's still pending
-            // Both old and new referrals get completed when premium activates
+            // Also update the Referral status if it's still pending and instantActivation is true
             if (tracker.referral) {
                 const referral = await Referral.findById(tracker.referral);
-                if (referral && referral.status === 'pending') {
+                if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
                     referral.status = 'completed';
                     referral.dateActivated = new Date();
                     await referral.save();
