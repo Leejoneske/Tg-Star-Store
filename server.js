@@ -8922,8 +8922,8 @@ async function sendBroadcastMessage(userId, messageType, messageText, caption, m
             const defaultKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '💰 Sell Page', url: 'https://t.me/TgStarStore_bot?startApp' }],
-                        [{ text: '👥 Referral Program', url: 'https://t.me/TgStarStore_bot?startApp' }]
+                        [{ text: '💰 Sell Page', web_app: { url: 'https://starstore.site/sell.html' } }],
+                        [{ text: '👥 Referral Program', web_app: { url: 'https://starstore.site/referral.html' } }]
                     ]
                 }
             };
@@ -9218,8 +9218,8 @@ bot.on('message', async (msg) => {
         const approvalKeyboard = {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: '💰 Sell Page', url: 'https://t.me/TgStarStore_bot?startApp' }],
-                    [{ text: '👥 Referral Program', url: 'https://t.me/TgStarStore_bot?startApp' }],
+                    [{ text: '💰 Sell Page', web_app: { url: 'https://starstore.site/sell.html' } }],
+                    [{ text: '👥 Referral Program', web_app: { url: 'https://starstore.site/referral.html' } }],
                     [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
                     [{ text: '❌ Cancel', callback_data: `reject_broadcast_${jobId}` }]
                 ]
