@@ -7947,59 +7947,6 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
     }
 });
 
-// Handle Referral button - reuse referral command logic
-bot.on('message', async (msg) => {
-    if (msg.text && msg.text.includes('Referral')) {
-        const chatId = msg.chat.id;
-        const userId = chatId.toString();
-
-        try {
-            const professionalRefLink = generateUserReferralHash(userId);
-            const referralLink = `https://t.me/TgStarStore_bot?start=${professionalRefLink}`;
-
-            // Get March 1, 2026 start (midnight UTC) - filter from March 1st onwards (matches referral page)
-            const marchFirstDate = new Date('2026-03-01T00:00:00Z');
-            const referrals = await Referral.find({
-                referrerUserId: userId,
-                dateReferred: { $gte: marchFirstDate }
-            });
-
-            if (referrals.length > 0) {
-                const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
-                const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
-
-                let message = `📊 Your Referrals (Since March 1):\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
-                message += 'New referrals activate instantly at 100+ stars!\n\n';
-                message += `🔗 Your Referral Link:\n${referralLink}`;
-
-                const keyboard = {
-                    inline_keyboard: [
-                        [{ text: 'Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }],
-                        [{ text: 'Open Web App', web_app: { url: 'https://starstore.site/referral' } }]
-                    ]
-                };
-
-                await bot.sendMessage(chatId, message, { reply_markup: keyboard });
-            } else {
-                const message = `You have no referrals since March 1st.\n\n🔗 Your Referral Link:\n${referralLink}\n\nShare this link to start earning!`;
-
-                const keyboard = {
-                    inline_keyboard: [
-                        [{ text: 'Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }],
-                        [{ text: 'Open Web App', web_app: { url: 'https://starstore.site/referral' } }]
-                    ]
-                };
-
-                await bot.sendMessage(chatId, message, { reply_markup: keyboard });
-            }
-        } catch (error) {
-            console.error('Referral button error:', error);
-            await bot.sendMessage(msg.chat.id, '❌ Failed to load referral info. Please try again later.');
-        }
-        return;
-    }
-});
-
 bot.onText(/\/help/, (msg) => {
     try {
         const chatId = msg.chat.id;
@@ -12283,17 +12230,37 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
             'lastLocation.country': { $ne: null }
         }, { 'lastLocation.country': 1, 'lastLocation.city': 1 }).lean();
 
-        // Aggregate by country
+        // Country code to full name mapping
+        const countryNames = {
+            'KE': 'Kenya', 'UG': 'Uganda', 'BD': 'Bangladesh', 'US': 'United States', 'GB': 'United Kingdom',
+            'IN': 'India', 'NG': 'Nigeria', 'PK': 'Pakistan', 'BR': 'Brazil', 'MX': 'Mexico',
+            'DE': 'Germany', 'FR': 'France', 'IT': 'Italy', 'ES': 'Spain', 'CA': 'Canada',
+            'AU': 'Australia', 'NZ': 'New Zealand', 'JP': 'Japan', 'CN': 'China', 'RU': 'Russia',
+            'ZA': 'South Africa', 'EG': 'Egypt', 'TZ': 'Tanzania', 'GH': 'Ghana', 'ET': 'Ethiopia',
+            'PH': 'Philippines', 'TH': 'Thailand', 'VN': 'Vietnam', 'ID': 'Indonesia', 'MY': 'Malaysia',
+            'SG': 'Singapore', 'HK': 'Hong Kong', 'KR': 'South Korea', 'TW': 'Taiwan', 'NL': 'Netherlands',
+            'BE': 'Belgium', 'CH': 'Switzerland', 'SE': 'Sweden', 'NO': 'Norway', 'DK': 'Denmark',
+            'FI': 'Finland', 'PL': 'Poland', 'CZ': 'Czech Republic', 'AT': 'Austria', 'PT': 'Portugal',
+            'GR': 'Greece', 'TR': 'Turkey', 'IL': 'Israel', 'SA': 'Saudi Arabia', 'AE': 'United Arab Emirates',
+            'KW': 'Kuwait', 'QA': 'Qatar', 'AR': 'Argentina', 'CL': 'Chile', 'CO': 'Colombia',
+            'PE': 'Peru', 'VE': 'Venezuela', 'EC': 'Ecuador', 'BO': 'Bolivia', 'PY': 'Paraguay',
+            'UY': 'Uruguay', 'CR': 'Costa Rica', 'PA': 'Panama', 'SV': 'El Salvador', 'HN': 'Honduras',
+            'NI': 'Nicaragua', 'GT': 'Guatemala', 'BZ': 'Belize', 'JM': 'Jamaica', 'CU': 'Cuba',
+            'DO': 'Dominican Republic', 'HT': 'Haiti', 'PR': 'Puerto Rico', 'TT': 'Trinidad and Tobago'
+        };
+
+        // Aggregate by country, filter out 'unknown'
         const countryStats = {};
         const cityStats = {};
         
         for (const user of users) {
-            if (user.lastLocation?.country) {
-                const country = user.lastLocation.country;
-                countryStats[country] = (countryStats[country] || 0) + 1;
+            if (user.lastLocation?.country && user.lastLocation.country.toLowerCase() !== 'unknown') {
+                const countryCode = user.lastLocation.country;
+                const countryName = countryNames[countryCode] || countryCode;
+                countryStats[countryName] = (countryStats[countryName] || 0) + 1;
                 
                 if (includesCities && user.lastLocation?.city) {
-                    const cityKey = `${user.lastLocation.city}, ${country}`;
+                    const cityKey = `${user.lastLocation.city}, ${countryName}`;
                     cityStats[cityKey] = (cityStats[cityKey] || 0) + 1;
                 }
             }
@@ -12304,7 +12271,7 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
             .sort((a, b) => b[1] - a[1])
             .slice(0, 50); // Top 50 countries
 
-        const totalUsersWithLocation = users.length;
+        const totalUsersWithLocation = Object.values(countryStats).reduce((a, b) => a + b, 0);
         const totalUsers = await User.countDocuments({});
         const usersWithoutLocation = totalUsers - totalUsersWithLocation;
 
