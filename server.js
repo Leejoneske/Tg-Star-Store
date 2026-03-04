@@ -7351,25 +7351,20 @@ async function trackStars(userId, stars, type) {
 
         const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
         
-        // NEW REFERRAL (instantActivation=true): activate immediately at 100+ stars
-        // OLD REFERRAL (instantActivation=false): wait for admin confirmation
+        // Both OLD and NEW referrals activate at 100+ stars - both earn 0.5 USDT
         // Only valid transactions count: processing or completed (not failed/declined/refunded)
         if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
-            if (tracker.instantActivation === true) {
-                // Instant activation for new referrals
-                await handleReferralActivation(tracker);
-            } else {
-                // Old referrals: save but don't auto-activate, wait for admin
-                await tracker.save();
-            }
+            // Activate and credit rewards for ALL referrals (old and new)
+            await handleReferralActivation(tracker);
         } else {
             await tracker.save();
         }
         
         // Also update the Referral status if it's still pending and conditions are met
+        // Both old and new referrals should be marked as completed when threshold met
         if (tracker.referral && (totalStars >= 100 || tracker.premiumActivated)) {
             const referral = await Referral.findById(tracker.referral);
-            if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
+            if (referral && referral.status === 'pending') {
                 referral.status = 'completed';
                 referral.dateActivated = new Date();
                 await referral.save();
@@ -7388,20 +7383,17 @@ async function trackPremiumActivation(userId) {
         if (!tracker.premiumActivated) {
             tracker.premiumActivated = true;
             if (tracker.status === 'pending') {
-                // Check instantActivation flag
-                if (tracker.instantActivation === true) {
-                    await handleReferralActivation(tracker);
-                } else {
-                    await tracker.save();
-                }
+                // Premium activation also triggers referral activation for both old and new
+                await handleReferralActivation(tracker);
             } else {
                 await tracker.save();
             }
             
-            // Also update the Referral status if it's still pending and instantActivation is true
+            // Also update the Referral status if it's still pending
+            // Both old and new referrals get completed when premium activates
             if (tracker.referral) {
                 const referral = await Referral.findById(tracker.referral);
-                if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
+                if (referral && referral.status === 'pending') {
                     referral.status = 'completed';
                     referral.dateActivated = new Date();
                     await referral.save();
