@@ -704,9 +704,12 @@
                             <span class="text-sm font-medium">Bybit</span>
                         </button>
                         <button onclick="openWallet('cryptomus')" class="wallet-button flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                            <img src="https://api.allorigins.win/raw?url=https://cryptomus.com/favicon.ico" class="w-5 h-5 mr-3" alt="Cryptomus">
+                            <svg viewBox="0 0 24 24" class="w-5 h-5 mr-3" fill="#3B82F6">
+                                <circle cx="12" cy="12" r="10" fill="#3B82F6"/>
+                                <text x="12" y="15" text-anchor="middle" font-size="14" font-weight="bold" fill="white" font-family="Arial">C</text>
+                            </svg>
                             <span class="text-sm font-medium">Cryptomus</span>
-                        </div>
+                        </button>
                     </div>
                 
                 
@@ -1047,7 +1050,7 @@ const walletConfigs = {
         memoNote: 'Memo/Tag (Optional): Bybit may require a memo/tag for USDT TON deposits. Check your Bybit USDT TON deposit page for specific requirements.'
     },
     cryptomus: {
-        icon: 'https://api.allorigins.win/raw?url=https://cryptomus.com/favicon.ico',
+        icon: 'data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="%233B82F6"/><text x="12" y="15" text-anchor="middle" font-size="14" font-weight="bold" fill="white" font-family="Arial">C</text></svg>',
         name: 'Cryptomus',
         requiresMemo: false,
         memoNote: 'Memo/Tag (Optional): Cryptomus may require a memo/tag for USDT TON deposits. Check your Cryptomus USDT TON deposit page for specific requirements.'

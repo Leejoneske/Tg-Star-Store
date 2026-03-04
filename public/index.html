@@ -1657,87 +1657,80 @@ async function getStickerInfo(stickerId) {
   }
 }
 
-// Batch load all sticker info to reduce network requests
-async function batchLoadStickerInfo(stickerIds) {
-  const uncachedIds = stickerIds.filter(id => {
-    const cached = stickerCache.get(id);
-    return !isCacheValid(cached);
-  });
+// Lazy loading state
+let stickerLazyLoadObserver = null;
+const loadingStickerIds = new Set();
 
-  if (uncachedIds.length === 0) return;
-
-  // Load all uncached stickers in parallel with controlled concurrency
-  const BATCH_SIZE = 5; // Limit concurrent requests for low-end devices
-  const batches = [];
+// Load a single sticker container
+async function loadStickerContainer(container) {
+  const stickerId = container.getAttribute('data-sticker-id');
+  if (!stickerId || loadingStickerIds.has(stickerId)) return;
   
-  for (let i = 0; i < uncachedIds.length; i += BATCH_SIZE) {
-    batches.push(uncachedIds.slice(i, i + BATCH_SIZE));
-  }
-
-  for (const batch of batches) {
-    await Promise.allSettled(
-      batch.map(id => getStickerInfo(id))
-    );
-  }
-}
-
-async function loadStickers() {
-  // Prevent multiple simultaneous batch loads
-  if (batchLoadPromise) {
-    await batchLoadPromise;
-    return;
-  }
-
-  const containers = document.querySelectorAll('.sticker-container');
-  const stickerIds = Array.from(containers)
-    .map(container => container.getAttribute('data-sticker-id'))
-    .filter(Boolean);
-
-  if (stickerIds.length === 0) return;
-
-  // Start batch loading
-  batchLoadPromise = batchLoadStickerInfo(stickerIds);
-  await batchLoadPromise;
-  batchLoadPromise = null;
-
-  // Load all stickers simultaneously for synchronized playback
-  const loadPromises = Array.from(containers).map(container => {
-    const stickerId = container.getAttribute('data-sticker-id');
-    if (!stickerId) return Promise.resolve();
-
+  loadingStickerIds.add(stickerId);
+  
+  try {
+    // Fetch sticker info if not cached
     const cached = stickerCache.get(stickerId);
-    const info = cached?.data;
+    let info = cached?.data;
     
     if (!info) {
-      loadPlaceholder(container);
-      return Promise.resolve();
+      const response = await fetch(`/api/sticker/${stickerId}/info`);
+      if (!response.ok) {
+        loadPlaceholder(container);
+        return;
+      }
+      
+      info = await response.json();
+      stickerCache.set(stickerId, {
+        data: info,
+        timestamp: Date.now()
+      });
     }
 
     // For low-end devices, prefer static stickers
-    if (isLowEndDevice()) {
-      if (info.is_animated || info.is_video) {
-        return loadStaticSticker(container, stickerId);
-      } else {
-        return loadStaticSticker(container, stickerId);
-      }
-    }
-
-    // For high-end devices, load appropriate type
-    if (info.is_animated) {
-      return loadAnimatedSticker(container, stickerId)
+    if (isLowEndDevice() || info.is_animated === false) {
+      await loadStaticSticker(container, stickerId);
+    } else if (info.is_animated) {
+      await loadAnimatedSticker(container, stickerId)
         .catch(() => loadStaticSticker(container, stickerId));
     } else if (info.is_video) {
-      return loadVideoSticker(container, stickerId);
+      await loadVideoSticker(container, stickerId);
     } else {
-      return loadStaticSticker(container, stickerId);
+      await loadStaticSticker(container, stickerId);
     }
+  } catch (error) {
+    console.warn(`Failed to load sticker ${stickerId}:`, error);
+    loadPlaceholder(container);
+  } finally {
+    loadingStickerIds.delete(stickerId);
+  }
+}
+
+// Setup lazy loading observer for stickers
+function setupStickerLazyLoading() {
+  if (stickerLazyLoadObserver) return;
+  
+  stickerLazyLoadObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        loadStickerContainer(entry.target);
+      }
+    });
+  }, {
+    threshold: 0.1,
+    rootMargin: '100px' // Start loading 100px before visible
   });
 
-  // Wait for all stickers to load simultaneously
-  await Promise.allSettled(loadPromises);
-  
-  // Synchronize animated content playback
-  synchronizeAnimations();
+  // Observe all sticker containers
+  const containers = document.querySelectorAll('.sticker-container');
+  containers.forEach(container => {
+    stickerLazyLoadObserver.observe(container);
+  });
+}
+
+async function loadStickers() {
+  // Setup lazy loading instead of batch loading
+  setupStickerLazyLoading();
 }
 
 function loadStaticSticker(container, stickerId) {
