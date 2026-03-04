@@ -7957,18 +7957,18 @@ bot.on('message', async (msg) => {
             const professionalRefLink = generateUserReferralHash(userId);
             const referralLink = `https://t.me/TgStarStore_bot?start=${professionalRefLink}`;
 
-            const today = new Date();
-            today.setUTCHours(0, 0, 0, 0);
+            // Get March 1, 2026 start (midnight UTC) - filter from March 1st onwards (matches referral page)
+            const marchFirstDate = new Date('2026-03-01T00:00:00Z');
             const referrals = await Referral.find({
                 referrerUserId: userId,
-                dateReferred: { $gte: today }
+                dateReferred: { $gte: marchFirstDate }
             });
 
             if (referrals.length > 0) {
                 const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
                 const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
 
-                let message = `📊 Your Referrals (Today):\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
+                let message = `📊 Your Referrals (Since March 1):\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
                 message += 'New referrals activate instantly at 100+ stars!\n\n';
                 message += `🔗 Your Referral Link:\n${referralLink}`;
 
@@ -7981,7 +7981,7 @@ bot.on('message', async (msg) => {
 
                 await bot.sendMessage(chatId, message, { reply_markup: keyboard });
             } else {
-                const message = `You have no referrals today yet.\n\n🔗 Your Referral Link:\n${referralLink}\n\nShare this link to start earning!`;
+                const message = `You have no referrals since March 1st.\n\n🔗 Your Referral Link:\n${referralLink}\n\nShare this link to start earning!`;
 
                 const keyboard = {
                     inline_keyboard: [
