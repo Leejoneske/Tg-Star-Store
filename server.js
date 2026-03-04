@@ -1712,7 +1712,20 @@ const broadcastJobSchema = new mongoose.Schema({
     batchSize: { type: Number, default: 50 },
     delayBetweenBatchesMs: { type: Number, default: 1000 },
     maxRetries: { type: Number, default: 3 },
-    adminMessageIds: [Number]
+    adminMessageIds: [Number],
+    // Inline buttons support
+    buttons: {
+        type: Array,
+        of: {
+            type: {
+                text: String,
+                action: { type: String, enum: ['url', 'callback', 'switch_inline', 'web_app'] },
+                data: String  // URL, callback_data, query, or web_app URL
+            }
+        },
+        default: []
+    },
+    hasButtons: { type: Boolean, default: false }
 }, { timestamps: true });
 
 const BroadcastJob = mongoose.model('BroadcastJob', broadcastJobSchema);
@@ -8907,26 +8920,66 @@ bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, 
 
 // IMPROVED BROADCAST SYSTEM - Production-grade with rate limiting, async processing, and retry logic
 
+// Helper: Build inline keyboard from buttons array
+function buildInlineKeyboard(buttons) {
+    if (!buttons || buttons.length === 0) return null;
+    
+    const keyboard = [];
+    for (const btn of buttons) {
+        const btnObj = { text: btn.text };
+        
+        switch (btn.action) {
+            case 'url':
+                btnObj.url = btn.data;
+                break;
+            case 'callback':
+                btnObj.callback_data = btn.data.substring(0, 64); // Telegram limit
+                break;
+            case 'switch_inline':
+                btnObj.switch_inline_query = btn.data;
+                break;
+            case 'web_app':
+                btnObj.web_app = { url: btn.data };
+                break;
+        }
+        
+        keyboard.push([btnObj]);
+    }
+    
+    return { inline_keyboard: keyboard };
+}
+
 // Helper: Send message with retry logic and rate limiting
-async function sendBroadcastMessage(userId, messageType, messageText, caption, mediaFileId) {
+async function sendBroadcastMessage(userId, messageType, messageText, caption, mediaFileId, buttons) {
     let lastError = null;
     
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
             await broadcastRateLimiter.delay();
             
+            const replyMarkup = buildInlineKeyboard(buttons);
+            const options = {
+                parse_mode: 'HTML',
+                disable_web_page_preview: true,
+                disable_notification: true
+            };
+            
+            if (replyMarkup) {
+                options.reply_markup = replyMarkup;
+            }
+            
             if (messageType === 'text') {
-                await bot.sendMessage(userId, messageText || caption, {
-                    parse_mode: 'HTML',
-                    disable_web_page_preview: true,
-                    disable_notification: true
-                });
+                await bot.sendMessage(userId, messageText || caption, options);
             } else {
-                await bot.sendCopy(userId, mediaFileId, {
+                const mediaOptions = {
                     caption: caption,
                     parse_mode: 'HTML',
                     disable_notification: true
-                });
+                };
+                if (replyMarkup) {
+                    mediaOptions.reply_markup = replyMarkup;
+                }
+                await bot.sendCopy(userId, mediaFileId, mediaOptions);
             }
             return { success: true, attempts: attempt };
         } catch (error) {
@@ -9012,7 +9065,8 @@ async function processBroadcastJob(jobId) {
                         job.messageType,
                         job.messageText,
                         job.caption,
-                        job.mediaFileId
+                        job.mediaFileId,
+                        job.buttons
                     );
                     
                     if (result.success) {
@@ -9178,43 +9232,140 @@ bot.on('message', async (msg) => {
             return bot.sendMessage(chatId, '⚠️ No users in database.');
         }
         
-        const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const job = new BroadcastJob({
-            jobId,
-            adminId: userId,
-            adminUsername: msg.from.username || msg.from.first_name,
-            messageType,
-            messageText,
-            caption,
-            mediaFileId,
-            messageId: msg.message_id,
-            totalUsers,
-            status: 'pending',
-            batchSize: 50,
-            delayBetweenBatchesMs: 1000
-        });
+        // Update session to ask about buttons
+        session.step = 'waiting_buttons';
+        session.messageType = messageType;
+        session.messageText = messageText;
+        session.caption = caption;
+        session.mediaFileId = mediaFileId;
+        session.totalUsers = totalUsers;
+        session.buttons = [];
+        broadcastSessions.set(chatId, session);
         
-        await job.save();
-        broadcastSessions.delete(chatId);
-        
-        const preview = messageType === 'text' ? messageText.substring(0, 100) : `[${messageType.toUpperCase()}]`;
-        await bot.sendMessage(chatId, 
-            `✅ Broadcast job created!\n\n` +
-            `📊 Job ID: <code>${jobId}</code>\n` +
-            `👥 Recipients: ${totalUsers}\n` +
-            `📝 Type: ${messageType}\n\n` +
-            `⏱️ Est. time: ${Math.ceil(totalUsers / 50 * 2.5)} min\n` +
-            `Use /broadcast_status ${jobId} to track`,
+        await bot.sendMessage(chatId,
+            `✅ Message saved!\n\n` +
+            `Would you like to add inline buttons?\n\n` +
+            `📝 Usage:\n` +
+            `Send button text and action (one per message).\n\n` +
+            `Use format (copy-paste and modify):\n` +
+            `<b>Button Title | action | data</b>\n\n` +
+            `Actions:\n` +
+            `• <code>url | https://example.com</code>\n` +
+            `• <code>callback | button_123</code>\n` +
+            `• <code>web_app | https://your-app.com</code>\n\n` +
+            `Or reply /done to skip buttons.`,
             { parse_mode: 'HTML' }
         );
-        
-        processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
-        
-        console.log(`📢 Broadcast job ${jobId} queued for ${totalUsers} users`);
         
     } catch (error) {
         console.error('Broadcast message handling error:', error);
         broadcastSessions.delete(chatId);
+        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    }
+});
+
+// Handle button input or job creation
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    
+    if (!adminIds.includes(userId)) return;
+    
+    const session = broadcastSessions.get(chatId);
+    if (!session || session.step !== 'waiting_buttons') return;
+    
+    if (Date.now() - session.timestamp > 15 * 60 * 1000) {
+        broadcastSessions.delete(chatId);
+        return bot.sendMessage(chatId, '⏰ Broadcast session expired. Use /broadcast to start over.');
+    }
+    
+    try {
+        // Check if admin wants to finalize
+        if (msg.text === '/done' || msg.text?.toLowerCase() === 'done') {
+            // Create and send broadcast job
+            const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const job = new BroadcastJob({
+                jobId,
+                adminId: userId,
+                adminUsername: msg.from.username || msg.from.first_name,
+                messageType: session.messageType,
+                messageText: session.messageText,
+                caption: session.caption,
+                mediaFileId: session.mediaFileId,
+                messageId: msg.message_id,
+                totalUsers: session.totalUsers,
+                status: 'pending',
+                batchSize: 50,
+                delayBetweenBatchesMs: 1000,
+                buttons: session.buttons,
+                hasButtons: session.buttons.length > 0
+            });
+            
+            await job.save();
+            broadcastSessions.delete(chatId);
+            
+            const preview = session.messageType === 'text' ? session.messageText.substring(0, 100) : `[${session.messageType.toUpperCase()}]`;
+            await bot.sendMessage(chatId, 
+                `✅ Broadcast job created!\n\n` +
+                `📊 Job ID: <code>${jobId}</code>\n` +
+                `👥 Recipients: ${session.totalUsers}\n` +
+                `📝 Type: ${session.messageType}\n` +
+                `🔘 Buttons: ${session.buttons.length > 0 ? session.buttons.map(b => b.text).join(', ') : 'None'}\n\n` +
+                `⏱️ Est. time: ${Math.ceil(session.totalUsers / 50 * 2.5)} min\n` +
+                `Use /broadcast_status ${jobId} to track`,
+                { parse_mode: 'HTML' }
+            );
+            
+            processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
+            console.log(`📢 Broadcast job ${jobId} queued for ${session.totalUsers} users with ${session.buttons.length} buttons`);
+            return;
+        }
+        
+        // Parse button input: "Button Title | action | data"
+        const lines = msg.text.split('|').map(l => l.trim());
+        if (lines.length !== 3) {
+            return bot.sendMessage(chatId,
+                `❌ Invalid format!\n\n` +
+                `Expected: <code>Button Title | action | data</code>\n\n` +
+                `Example:\n` +
+                `<code>Open App | url | https://example.com</code>\n` +
+                `<code>Quick Action | callback | action_123</code>\n\n` +
+                `Or /done when finished.`,
+                { parse_mode: 'HTML' }
+            );
+        }
+        
+        const [text, action, data] = lines;
+        
+        // Validate action type
+        if (!['url', 'callback', 'switch_inline', 'web_app'].includes(action)) {
+            return bot.sendMessage(chatId,
+                `❌ Invalid action: ${action}\n\n` +
+                `Valid actions:\n` +
+                `• url\n` +
+                `• callback\n` +
+                `• switch_inline\n` +
+                `• web_app`,
+                { parse_mode: 'HTML' }
+            );
+        }
+        
+        if (session.buttons.length >= 10) {
+            return bot.sendMessage(chatId, '⚠️ Maximum 10 buttons per message');
+        }
+        
+        session.buttons.push({ text, action, data });
+        broadcastSessions.set(chatId, session);
+        
+        await bot.sendMessage(chatId,
+            `✅ Button added: <b>${text}</b>\n\n` +
+            `${session.buttons.length}/10 buttons\n\n` +
+            `Send more buttons or /done to finalize.`,
+            { parse_mode: 'HTML' }
+        );
+        
+    } catch (error) {
+        console.error('Broadcast button handling error:', error);
         await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
     }
 });
