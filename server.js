@@ -9195,52 +9195,69 @@ bot.on('message', async (msg) => {
         const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         // Store in session for later approval
-        session.step = 'admin_review';
+        session.step = 'awaiting_admin_approval';
         session.messageType = messageType;
         session.messageText = messageText;
         session.caption = caption;
         session.mediaFileId = mediaFileId;
         session.totalUsers = totalUsers;
         session.jobId = jobId;
+        session.adminIds = [];
         broadcastSessions.set(chatId, session);
         
-        // Build preview message for admins
-        let previewText = `📋 <b>Broadcast Preview (Admin Review)</b>\n\n`;
-        
-        if (messageType === 'text') {
-            previewText += `📝 <b>Message:</b>\n${messageText.substring(0, 300)}`;
-            if (messageText.length > 300) {
-                previewText += `...`;
+        // Build default inline keyboard with Sell and Referral buttons
+        const approvalKeyboard = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '💰 Sell Page', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/sell.html' }],
+                    [{ text: '🎁 Referral Program', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/referral.html' }],
+                    [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
+                    [{ text: '❌ Cancel', callback_data: `reject_broadcast_${jobId}` }]
+                ]
             }
-        } else {
-            previewText += `📎 <b>Media Type:</b> ${messageType.toUpperCase()}\n`;
-            if (caption) {
-                previewText += `📝 <b>Caption:</b>\n${caption.substring(0, 300)}`;
-                if (caption.length > 300) {
-                    previewText += `...`;
+        };
+        
+        // Send the ACTUAL broadcast message to all admins so they see it as users will
+        const messagePromises = [];
+        for (const adminId of adminIds) {
+            try {
+                let promise;
+                if (messageType === 'text') {
+                    promise = bot.sendMessage(adminId, messageText || caption, {
+                        parse_mode: 'HTML',
+                        disable_web_page_preview: true,
+                        disable_notification: false,
+                        ...approvalKeyboard
+                    });
+                } else {
+                    promise = bot.sendCopy(adminId, mediaFileId, {
+                        caption: caption,
+                        parse_mode: 'HTML',
+                        disable_notification: false,
+                        ...approvalKeyboard
+                    });
                 }
+                messagePromises.push(promise);
+            } catch (err) {
+                console.error(`Failed to send broadcast preview to admin ${adminId}:`, err.message);
             }
         }
         
-        previewText += `\n\n👥 <b>Recipients:</b> ${totalUsers.toLocaleString()} users`;
-        previewText += `\n⏱️ <b>Est. Time:</b> ${Math.ceil(totalUsers / 50 * 2.5)} minutes`;
-        previewText += `\n🔘 <b>Buttons:</b> Sell Page & Referral Program (default)`;
-        previewText += `\n\n⚠️ <b>This will be sent to all ${totalUsers.toLocaleString()} users!</b>`;
+        // Wait for all admin messages to send
+        await Promise.allSettled(messagePromises);
         
-        // Send preview to this admin first
-        await bot.sendMessage(chatId, previewText,
-            {
-                parse_mode: 'HTML',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
-                        [{ text: '❌ Cancel', callback_data: 'reject_broadcast' }]
-                    ]
-                }
-            }
-        );
+        // Send summary to initiating admin
+        const summaryText = `📢 <b>Broadcast Preview Sent to All Admins</b>\n\n` +
+            `📊 Job ID: <code>${jobId}</code>\n` +
+            `👥 Will be sent to: ${totalUsers.toLocaleString()} users\n` +
+            `📝 Type: ${messageType.toUpperCase()}\n` +
+            `🔘 Includes: Sell Page & Referral buttons\n\n` +
+            `⏱️ Est. time: ${Math.ceil(totalUsers / 50 * 2.5)} minutes\n\n` +
+            `<i>Message sent to all admins for approval. Waiting for confirmation...</i>`;
         
-        console.log(`📢 Broadcast preview sent to admin ${userId} - Job ID: ${jobId}`);
+        await bot.sendMessage(chatId, summaryText, { parse_mode: 'HTML' });
+        
+        console.log(`📢 Broadcast ${jobId} preview sent to ${adminIds.length} admins - Waiting for approval`);
         
     } catch (error) {
         console.error('Broadcast message handling error:', error);
@@ -9254,94 +9271,91 @@ bot.on('callback_query', async (query) => {
     // Handle broadcast approval
     if (query.data.startsWith('approve_broadcast_')) {
         const jobId = query.data.replace('approve_broadcast_', '');
-        const chatId = query.message.chat.id;
-        const userId = chatId.toString();
-        const session = broadcastSessions.get(chatId);
+        const userId = query.from.id.toString();
         
         if (!adminIds.includes(userId)) {
             return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
         }
         
-        if (!session || session.step !== 'admin_review' || session.jobId !== jobId) {
-            return bot.answerCallbackQuery(query.id, '❌ Session expired or invalid', true);
-        }
-        
         try {
+            // Find the matching session by jobId
+            let matchingSession = null;
+            for (const [_, session] of broadcastSessions.entries()) {
+                if (session.jobId === jobId && session.step === 'awaiting_admin_approval') {
+                    matchingSession = session;
+                    break;
+                }
+            }
+            
+            if (!matchingSession) {
+                return bot.answerCallbackQuery(query.id, '❌ Broadcast session not found or expired', true);
+            }
+            
             // Create the broadcast job
             const job = new BroadcastJob({
                 jobId,
                 adminId: userId,
                 adminUsername: query.from.username || query.from.first_name,
-                messageType: session.messageType,
-                messageText: session.messageText,
-                caption: session.caption,
-                mediaFileId: session.mediaFileId,
+                messageType: matchingSession.messageType,
+                messageText: matchingSession.messageText,
+                caption: matchingSession.caption,
+                mediaFileId: matchingSession.mediaFileId,
                 messageId: query.message.message_id,
-                totalUsers: session.totalUsers,
+                totalUsers: matchingSession.totalUsers,
                 status: 'pending',
                 batchSize: 50,
                 delayBetweenBatchesMs: 1000
             });
             
             await job.save();
-            broadcastSessions.delete(chatId);
             
-            // Update the preview message to show it's approved
-            await bot.editMessageText(
-                `🚀 <b>Broadcast Approved!</b>\n\n` +
-                `📊 Job ID: <code>${jobId}</code>\n` +
-                `👥 Sending to: ${session.totalUsers.toLocaleString()} users\n` +
-                `📝 Type: ${session.messageType.toUpperCase()}\n\n` +
-                `⏱️ Est. time: ${Math.ceil(session.totalUsers / 50 * 2.5)} min\n` +
-                `<i>Broadcasting in progress...</i>`,
-                { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML' }
-            );
+            // Clear all sessions related to this broadcast
+            for (const [key, session] of broadcastSessions.entries()) {
+                if (session.jobId === jobId) {
+                    broadcastSessions.delete(key);
+                }
+            }
             
-            // Start the actual broadcast in background
+            // React to the approval button
+            await bot.answerCallbackQuery(query.id, '✅ Broadcast approved! Sending to all users...');
+            
+            // Start the actual broadcast in background (to ALL USERS now, not just admins)
             processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
-            console.log(`📢 Broadcast job ${jobId} approved and started by admin ${userId}`);
+            console.log(`📢 Broadcast job ${jobId} approved by admin ${userId} - Broadcasting to ${matchingSession.totalUsers.toLocaleString()} users`);
             
-            return bot.answerCallbackQuery(query.id, '✅ Broadcast sent to all users!');
         } catch (error) {
             console.error('Broadcast approval error:', error);
             bot.answerCallbackQuery(query.id, `❌ Error: ${error.message}`, true);
         }
+        return;
     }
     
     // Handle broadcast rejection
-    if (query.data === 'reject_broadcast') {
-        const chatId = query.message.chat.id;
-        const userId = chatId.toString();
+    if (query.data.startsWith('reject_broadcast_')) {
+        const jobId = query.data.replace('reject_broadcast_', '');
+        const userId = query.from.id.toString();
         
         if (!adminIds.includes(userId)) {
             return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
         }
         
         try {
-            broadcastSessions.delete(chatId);
+            // Find and clear all sessions related to this broadcast
+            for (const [key, session] of broadcastSessions.entries()) {
+                if (session.jobId === jobId) {
+                    broadcastSessions.delete(key);
+                }
+            }
             
-            await bot.editMessageText(
-                `❌ <b>Broadcast Cancelled</b>\n\n` +
-                `Use /broadcast to start a new broadcast.`,
-                { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML' }
-            );
+            // React to the rejection button
+            await bot.answerCallbackQuery(query.id, '🛑 Broadcast cancelled');
             
-            console.log(`🛑 Broadcast rejected by admin ${userId}`);
-            return bot.answerCallbackQuery(query.id, '🛑 Broadcast cancelled');
+            console.log(`🛑 Broadcast ${jobId} cancelled by admin ${userId}`);
         } catch (error) {
             console.error('Broadcast rejection error:', error);
             bot.answerCallbackQuery(query.id);
         }
-    }
-});
-
-// Status command
-bot.onText(/\/broadcast_status\s+(.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const userId = chatId.toString();
-    
-    if (!adminIds.includes(userId)) {
-        return bot.sendMessage(chatId, '❌ Unauthorized');
+        return;
     }
 });
 
