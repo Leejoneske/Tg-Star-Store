@@ -1712,7 +1712,10 @@ const broadcastJobSchema = new mongoose.Schema({
     batchSize: { type: Number, default: 50 },
     delayBetweenBatchesMs: { type: Number, default: 1000 },
     maxRetries: { type: Number, default: 3 },
-    adminMessageIds: [Number]
+    // Broadcast admin approval tracking
+    adminMessageIds: [{ adminId: String, messageId: Number }],
+    approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    approvedBy: { adminId: String, adminUsername: String, approvedAt: Date }
 }, { timestamps: true });
 
 const BroadcastJob = mongoose.model('BroadcastJob', broadcastJobSchema);
@@ -9194,16 +9197,22 @@ bot.on('message', async (msg) => {
         // Create job ID upfront for tracking
         const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
-        // Store in session for later approval
-        session.step = 'awaiting_admin_approval';
-        session.messageType = messageType;
-        session.messageText = messageText;
-        session.caption = caption;
-        session.mediaFileId = mediaFileId;
-        session.totalUsers = totalUsers;
-        session.jobId = jobId;
-        session.adminIds = [];
-        broadcastSessions.set(chatId, session);
+        // Create the broadcast job record with approval tracking
+        const job = new BroadcastJob({
+            jobId,
+            adminId: userId,
+            adminUsername: msg.from.username || msg.from.first_name,
+            messageType,
+            messageText,
+            caption,
+            mediaFileId,
+            totalUsers,
+            status: 'pending',
+            approvalStatus: 'pending',
+            adminMessageIds: [],
+            batchSize: 50,
+            delayBetweenBatchesMs: 1000
+        });
         
         // Build default inline keyboard with Sell and Referral buttons
         const approvalKeyboard = {
@@ -9217,7 +9226,7 @@ bot.on('message', async (msg) => {
             }
         };
         
-        // Send the ACTUAL broadcast message to all admins so they see it as users will
+        // Send the ACTUAL broadcast message to all admins and capture message IDs
         const messagePromises = [];
         for (const adminId of adminIds) {
             try {
@@ -9237,6 +9246,17 @@ bot.on('message', async (msg) => {
                         ...approvalKeyboard
                     });
                 }
+                
+                // Capture message ID when sent
+                promise.then(sentMsg => {
+                    job.adminMessageIds.push({
+                        adminId: adminId.toString(),
+                        messageId: sentMsg.message_id
+                    });
+                }).catch(err => {
+                    console.error(`Failed to send broadcast preview to admin ${adminId}:`, err.message);
+                });
+                
                 messagePromises.push(promise);
             } catch (err) {
                 console.error(`Failed to send broadcast preview to admin ${adminId}:`, err.message);
@@ -9246,6 +9266,12 @@ bot.on('message', async (msg) => {
         // Wait for all admin messages to send
         await Promise.allSettled(messagePromises);
         
+        // Save job with message IDs
+        await job.save();
+        
+        // Clear the broadcast session
+        broadcastSessions.delete(chatId);
+        
         // Send summary to initiating admin
         const summaryText = `📢 <b>Broadcast Preview Sent to All Admins</b>\n\n` +
             `📊 Job ID: <code>${jobId}</code>\n` +
@@ -9253,7 +9279,7 @@ bot.on('message', async (msg) => {
             `📝 Type: ${messageType.toUpperCase()}\n` +
             `🔘 Includes: Sell Page & Referral buttons\n\n` +
             `⏱️ Est. time: ${Math.ceil(totalUsers / 50 * 2.5)} minutes\n\n` +
-            `<i>Message sent to all admins for approval. Waiting for confirmation...</i>`;
+            `<i>Message sent to all ${adminIds.length} admins for approval. Waiting for confirmation...</i>`;
         
         await bot.sendMessage(chatId, summaryText, { parse_mode: 'HTML' });
         
@@ -9272,56 +9298,62 @@ bot.on('callback_query', async (query) => {
     if (query.data.startsWith('approve_broadcast_')) {
         const jobId = query.data.replace('approve_broadcast_', '');
         const userId = query.from.id.toString();
+        const adminUsername = query.from.username || query.from.first_name;
         
         if (!adminIds.includes(userId)) {
             return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
         }
         
         try {
-            // Find the matching session by jobId
-            let matchingSession = null;
-            for (const [_, session] of broadcastSessions.entries()) {
-                if (session.jobId === jobId && session.step === 'awaiting_admin_approval') {
-                    matchingSession = session;
-                    break;
-                }
+            // Get the broadcast job
+            const job = await BroadcastJob.findOne({ jobId });
+            
+            if (!job) {
+                return bot.answerCallbackQuery(query.id, '❌ Broadcast job not found', true);
             }
             
-            if (!matchingSession) {
-                return bot.answerCallbackQuery(query.id, '❌ Broadcast session not found or expired', true);
+            // Check if already approved/rejected (one-time use)
+            if (job.approvalStatus !== 'pending') {
+                return bot.answerCallbackQuery(query.id, `⚠️ Already ${job.approvalStatus}`, true);
             }
             
-            // Create the broadcast job
-            const job = new BroadcastJob({
-                jobId,
+            // Update job with approval
+            job.approvalStatus = 'approved';
+            job.approvedBy = {
                 adminId: userId,
-                adminUsername: query.from.username || query.from.first_name,
-                messageType: matchingSession.messageType,
-                messageText: matchingSession.messageText,
-                caption: matchingSession.caption,
-                mediaFileId: matchingSession.mediaFileId,
-                messageId: query.message.message_id,
-                totalUsers: matchingSession.totalUsers,
-                status: 'pending',
-                batchSize: 50,
-                delayBetweenBatchesMs: 1000
-            });
-            
+                adminUsername: adminUsername,
+                approvedAt: new Date()
+            };
             await job.save();
             
-            // Clear all sessions related to this broadcast
-            for (const [key, session] of broadcastSessions.entries()) {
-                if (session.jobId === jobId) {
-                    broadcastSessions.delete(key);
-                }
+            // Update all admin messages - remove buttons, show approval
+            const updatePromises = [];
+            for (const msgInfo of job.adminMessageIds) {
+                updatePromises.push(
+                    bot.editMessageReplyMarkup(
+                        {
+                            inline_keyboard: [
+                                [{ text: `✅ Approved by ${adminUsername}`, callback_data: 'dummy' }]
+                            ]
+                        },
+                        {
+                            chat_id: msgInfo.adminId,
+                            message_id: msgInfo.messageId
+                        }
+                    ).catch(err => {
+                        console.error(`Failed to update message for admin ${msgInfo.adminId}:`, err.message);
+                    })
+                );
             }
+            
+            await Promise.allSettled(updatePromises);
             
             // React to the approval button
             await bot.answerCallbackQuery(query.id, '✅ Broadcast approved! Sending to all users...');
             
-            // Start the actual broadcast in background (to ALL USERS now, not just admins)
+            // Start the actual broadcast in background (to ALL USERS now)
             processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
-            console.log(`📢 Broadcast job ${jobId} approved by admin ${userId} - Broadcasting to ${matchingSession.totalUsers.toLocaleString()} users`);
+            console.log(`📢 Broadcast ${jobId} approved by admin ${adminUsername} - Broadcasting to ${job.totalUsers.toLocaleString()} users`);
             
         } catch (error) {
             console.error('Broadcast approval error:', error);
@@ -9334,26 +9366,64 @@ bot.on('callback_query', async (query) => {
     if (query.data.startsWith('reject_broadcast_')) {
         const jobId = query.data.replace('reject_broadcast_', '');
         const userId = query.from.id.toString();
+        const adminUsername = query.from.username || query.from.first_name;
         
         if (!adminIds.includes(userId)) {
             return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
         }
         
         try {
-            // Find and clear all sessions related to this broadcast
-            for (const [key, session] of broadcastSessions.entries()) {
-                if (session.jobId === jobId) {
-                    broadcastSessions.delete(key);
-                }
+            // Get the broadcast job
+            const job = await BroadcastJob.findOne({ jobId });
+            
+            if (!job) {
+                return bot.answerCallbackQuery(query.id, '❌ Broadcast job not found', true);
             }
+            
+            // Check if already approved/rejected (one-time use)
+            if (job.approvalStatus !== 'pending') {
+                return bot.answerCallbackQuery(query.id, `⚠️ Already ${job.approvalStatus}`, true);
+            }
+            
+            // Update job with rejection
+            job.approvalStatus = 'rejected';
+            job.approvedBy = {
+                adminId: userId,
+                adminUsername: adminUsername,
+                approvedAt: new Date()
+            };
+            job.status = 'cancelled';
+            await job.save();
+            
+            // Update all admin messages - remove buttons, show cancellation
+            const updatePromises = [];
+            for (const msgInfo of job.adminMessageIds) {
+                updatePromises.push(
+                    bot.editMessageReplyMarkup(
+                        {
+                            inline_keyboard: [
+                                [{ text: `❌ Cancelled by ${adminUsername}`, callback_data: 'dummy' }]
+                            ]
+                        },
+                        {
+                            chat_id: msgInfo.adminId,
+                            message_id: msgInfo.messageId
+                        }
+                    ).catch(err => {
+                        console.error(`Failed to update message for admin ${msgInfo.adminId}:`, err.message);
+                    })
+                );
+            }
+            
+            await Promise.allSettled(updatePromises);
             
             // React to the rejection button
             await bot.answerCallbackQuery(query.id, '🛑 Broadcast cancelled');
             
-            console.log(`🛑 Broadcast ${jobId} cancelled by admin ${userId}`);
+            console.log(`🛑 Broadcast ${jobId} cancelled by admin ${adminUsername}`);
         } catch (error) {
             console.error('Broadcast rejection error:', error);
-            bot.answerCallbackQuery(query.id);
+            bot.answerCallbackQuery(query.id, `❌ Error: ${error.message}`, true);
         }
         return;
     }
