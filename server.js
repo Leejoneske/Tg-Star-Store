@@ -9254,7 +9254,12 @@ bot.on('message', async (msg) => {
             `• <code>callback | button_123</code>\n` +
             `• <code>web_app | https://your-app.com</code>\n\n` +
             `Or reply /done to skip buttons.`,
-            { parse_mode: 'HTML' }
+            {
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [[{ text: '❌ Cancel Broadcast', callback_data: 'broadcast_cancel' }]]
+                }
+            }
         );
         
     } catch (error) {
@@ -9282,42 +9287,54 @@ bot.on('message', async (msg) => {
     try {
         // Check if admin wants to finalize
         if (msg.text === '/done' || msg.text?.toLowerCase() === 'done') {
-            // Create and send broadcast job
-            const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const job = new BroadcastJob({
-                jobId,
-                adminId: userId,
-                adminUsername: msg.from.username || msg.from.first_name,
-                messageType: session.messageType,
-                messageText: session.messageText,
-                caption: session.caption,
-                mediaFileId: session.mediaFileId,
-                messageId: msg.message_id,
-                totalUsers: session.totalUsers,
-                status: 'pending',
-                batchSize: 50,
-                delayBetweenBatchesMs: 1000,
-                buttons: session.buttons,
-                hasButtons: session.buttons.length > 0
-            });
+            // Move to preview step
+            session.step = 'preview_confirmation';
+            broadcastSessions.set(chatId, session);
             
-            await job.save();
-            broadcastSessions.delete(chatId);
+            // Build preview message
+            let previewText = `📋 <b>Broadcast Preview</b>\n\n`;
             
-            const preview = session.messageType === 'text' ? session.messageText.substring(0, 100) : `[${session.messageType.toUpperCase()}]`;
-            await bot.sendMessage(chatId, 
-                `✅ Broadcast job created!\n\n` +
-                `📊 Job ID: <code>${jobId}</code>\n` +
-                `👥 Recipients: ${session.totalUsers}\n` +
-                `📝 Type: ${session.messageType}\n` +
-                `🔘 Buttons: ${session.buttons.length > 0 ? session.buttons.map(b => b.text).join(', ') : 'None'}\n\n` +
-                `⏱️ Est. time: ${Math.ceil(session.totalUsers / 50 * 2.5)} min\n` +
-                `Use /broadcast_status ${jobId} to track`,
-                { parse_mode: 'HTML' }
+            if (session.messageType === 'text') {
+                previewText += `📝 <b>Message:</b>\n${session.messageText.substring(0, 200)}`;
+                if (session.messageText.length > 200) {
+                    previewText += `...`;
+                }
+            } else {
+                previewText += `📎 <b>Media Type:</b> ${session.messageType.toUpperCase()}\n`;
+                if (session.caption) {
+                    previewText += `📝 <b>Caption:</b>\n${session.caption.substring(0, 200)}`;
+                    if (session.caption.length > 200) {
+                        previewText += `...`;
+                    }
+                }
+            }
+            
+            previewText += `\n\n👥 <b>Recipients:</b> ${session.totalUsers.toLocaleString()} users`;
+            previewText += `\n⏱️ <b>Est. Time:</b> ${Math.ceil(session.totalUsers / 50 * 2.5)} minutes`;
+            
+            if (session.buttons.length > 0) {
+                previewText += `\n\n🔘 <b>Buttons:</b>\n`;
+                session.buttons.forEach((btn, idx) => {
+                    previewText += `${idx + 1}. ${btn.text} (${btn.action})`;
+                    if (idx < session.buttons.length - 1) previewText += `\n`;
+                });
+            } else {
+                previewText += `\n\n🔘 <b>Buttons:</b> None`;
+            }
+            
+            previewText += `\n\n⚠️ <b>This will be sent to all ${session.totalUsers.toLocaleString()} users!</b>`;
+            
+            await bot.sendMessage(chatId, previewText,
+                {
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '✅ Send Broadcast', callback_data: 'broadcast_confirm' }],
+                            [{ text: '❌ Cancel', callback_data: 'broadcast_cancel' }]
+                        ]
+                    }
+                }
             );
-            
-            processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
-            console.log(`📢 Broadcast job ${jobId} queued for ${session.totalUsers} users with ${session.buttons.length} buttons`);
             return;
         }
         
@@ -9361,12 +9378,85 @@ bot.on('message', async (msg) => {
             `✅ Button added: <b>${text}</b>\n\n` +
             `${session.buttons.length}/10 buttons\n\n` +
             `Send more buttons or /done to finalize.`,
-            { parse_mode: 'HTML' }
+            {
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [[{ text: '❌ Cancel Broadcast', callback_data: 'broadcast_cancel' }]]
+                }
+            }
         );
         
     } catch (error) {
         console.error('Broadcast button handling error:', error);
         await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    }
+});
+
+// Broadcast callback handlers (cancel and confirm)
+bot.on('callback_query', async (query) => {
+    if (!query.data.startsWith('broadcast_')) return;
+    
+    const chatId = query.message.chat.id;
+    const userId = chatId.toString();
+    const session = broadcastSessions.get(chatId);
+    
+    if (!adminIds.includes(userId)) {
+        return bot.answerCallbackQuery(query.id, '❌ Unauthorized', true);
+    }
+    
+    try {
+        if (query.data === 'broadcast_cancel') {
+            broadcastSessions.delete(chatId);
+            await bot.editMessageText(
+                `❌ Broadcast cancelled.\n\nUse /broadcast to start over.`,
+                { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML' }
+            );
+            return bot.answerCallbackQuery(query.id, '🛑 Broadcast cancelled');
+        }
+        
+        if (query.data === 'broadcast_confirm' && session && session.step === 'preview_confirmation') {
+            // Create and send broadcast job
+            const jobId = `bcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const job = new BroadcastJob({
+                jobId,
+                adminId: userId,
+                adminUsername: query.from.username || query.from.first_name,
+                messageType: session.messageType,
+                messageText: session.messageText,
+                caption: session.caption,
+                mediaFileId: session.mediaFileId,
+                messageId: query.message.message_id,
+                totalUsers: session.totalUsers,
+                status: 'pending',
+                batchSize: 50,
+                delayBetweenBatchesMs: 1000,
+                buttons: session.buttons,
+                hasButtons: session.buttons.length > 0
+            });
+            
+            await job.save();
+            broadcastSessions.delete(chatId);
+            
+            await bot.editMessageText(
+                `🚀 <b>Broadcast Sent!</b>\n\n` +
+                `📊 Job ID: <code>${jobId}</code>\n` +
+                `👥 Recipients: ${session.totalUsers.toLocaleString()}\n` +
+                `📝 Type: ${session.messageType.toUpperCase()}\n` +
+                `🔘 Buttons: ${session.buttons.length}\n\n` +
+                `⏱️ Est. time: ${Math.ceil(session.totalUsers / 50 * 2.5)} min\n` +
+                `Use /broadcast_status ${jobId} to track progress`,
+                { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML' }
+            );
+            
+            processBroadcastJob(jobId).catch(error => console.error('Background broadcast error:', error));
+            console.log(`📢 Broadcast job ${jobId} started for ${session.totalUsers} users with ${session.buttons.length} buttons`);
+            return bot.answerCallbackQuery(query.id, '✅ Broadcast sent!');
+        }
+        
+        bot.answerCallbackQuery(query.id);
+    } catch (error) {
+        console.error('Broadcast callback error:', error);
+        bot.answerCallbackQuery(query.id, `❌ Error: ${error.message}`, true);
     }
 });
 
