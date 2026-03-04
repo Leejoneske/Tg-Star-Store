@@ -1,34 +1,34 @@
-<div class="fixed bottom-0 left-0 right-0 z-50" style="padding-bottom: env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--border);">
+<div class="fixed bottom-0 left-0 right-0 z-50" style="padding-bottom: env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--border); position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;">
 	<div style="max-width:600px;margin:0 auto;">
 		<nav>
-			<ul class="grid grid-cols-5 text-xs" style="color: var(--text-secondary);">
+			<ul class="nav-ul" style="color: var(--text-secondary);">
 				<li>
-					<a href="index.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="home">
-						<i class="fas fa-home text-lg"></i>
+					<a href="index.html" class="nav-link" data-page="home">
+						<i class="fas fa-home" style="font-size: 18px;"></i>
 						<span data-translate="home">Home</span>
 					</a>
 				</li>
 				<li>
-					<a href="sell.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="sell">
-						<i class="fas fa-dollar-sign text-lg"></i>
+					<a href="sell.html" class="nav-link" data-page="sell">
+						<i class="fas fa-dollar-sign" style="font-size: 18px;"></i>
 						<span data-translate="sell">Sell</span>
 					</a>
 				</li>
 				<li>
-					<a href="history.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="history">
-						<i class="fas fa-list text-lg"></i>
+					<a href="history.html" class="nav-link" data-page="history">
+						<i class="fas fa-list" style="font-size: 18px;"></i>
 						<span data-translate="history">History</span>
 					</a>
 				</li>
 				<li>
-					<a href="referral.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="referral">
-						<i class="fas fa-user-friends text-lg"></i>
+					<a href="referral.html" class="nav-link" data-page="referral">
+						<i class="fas fa-user-friends" style="font-size: 18px;"></i>
 						<span data-translate="referral">Referral</span>
 					</a>
 				</li>
 				<li>
-					<a href="about.html" class="nav-link flex flex-col items-center py-2 transition-colors duration-200" data-page="about">
-						<i class="fas fa-info-circle text-lg"></i>
+					<a href="about.html" class="nav-link" data-page="about">
+						<i class="fas fa-info-circle" style="font-size: 18px;"></i>
 						<span data-translate="about">About</span>
 					</a>
 				</li>
@@ -38,9 +38,33 @@
 </div>
 
 <style>
+.nav-ul {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	font-size: 12px;
+	width: 100%;
+}
+
+.nav-ul li {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
 .nav-link {
 	color: var(--text-secondary);
 	text-decoration: none;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 0;
+	transition: color 0.2s ease;
+	width: 100%;
+	text-align: center;
 }
 
 .nav-link:hover {
