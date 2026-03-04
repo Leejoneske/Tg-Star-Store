@@ -8277,7 +8277,7 @@ bot.onText(/^\/userinfo\s+(\d+)/i, async (msg, match) => {
         
         // Get referral data: who referred this user AND how many they referred
         const marchFirstDate = new Date('2026-03-01T00:00:00Z');
-        const referralRecord = await Referral.findOne({ refereeUserId: userId });
+        const referralRecord = await Referral.findOne({ referredUserId: userId });
         const myReferrals = await Referral.find({ referrerUserId: userId, dateReferred: { $gte: marchFirstDate } });
         const activeReferrals = myReferrals.filter(r => r.status === 'active').length;
         const pendingReferrals = myReferrals.filter(r => r.status === 'pending').length;
@@ -8297,9 +8297,22 @@ bot.onText(/^\/userinfo\s+(\d+)/i, async (msg, match) => {
         } else {
             report += `├─ Referred by: None (organic user)\n`;
         }
-        report += `├─ Total Referrals: ${myReferrals.length}\n`;
+        report += `├─ Total Referrals (since Mar 1): ${myReferrals.length}\n`;
         report += `├─ Active: ${activeReferrals}\n`;
-        report += `└─ Pending: ${pendingReferrals}\n\n`;
+        report += `└─ Pending: ${pendingReferrals}\n`;
+        
+        // Show recent referrals if any
+        if (myReferrals.length > 0) {
+            report += `\n📋 **Recent Referrals** (Last 10 since Mar 1):\n`;
+            const recentReferrals = myReferrals.slice(0, 10);
+            for (const ref of recentReferrals) {
+                const referredUser = await User.findOne({ id: ref.referredUserId });
+                const statusEmoji = ref.status === 'active' ? '✅' : ref.status === 'pending' ? '⏳' : '✔️';
+                report += `  ${statusEmoji} @${referredUser?.username || 'Unknown'} (ID: ${ref.referredUserId}) - ${ref.status.toUpperCase()}\n`;
+                report += `     Referred: ${new Date(ref.dateReferred).toLocaleDateString()}\n`;
+            }
+        }
+        report += '\n';
         
         // Current status
         report += `📍 **Current Status**\n`;
