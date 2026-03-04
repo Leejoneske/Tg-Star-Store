@@ -12834,6 +12834,49 @@ app.get('/api/feedback/stats', requireAdmin, async (req, res) => {
 
 // ==================== END FEEDBACK API ENDPOINTS ====================
 
+// ==================== SPA VERIFICATION ENDPOINT ====================
+// Test endpoint to verify SPA and API are working correctly
+app.get('/api/spa-status', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'SPA Backend Connected',
+    timestamp: new Date().toISOString(),
+    apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8080',
+    environment: process.env.NODE_ENV || 'development',
+    features: {
+      sellOrders: true,
+      referrals: true,
+      dailyRewards: true,
+      translations: true,
+      darkTheme: true,
+      botIntegration: true
+    }
+  });
+});
+
+// ==================== END SPA VERIFICATION ENDPOINT ====================
+
+// ==================== SPA FALLBACK ROUTE ====================
+// Serve index.html for all non-API routes (enables client-side SPA routing)
+// This must come AFTER all other routes so they take precedence
+app.get('*', (req, res) => {
+  // Don't catch API calls or other specific patterns
+  if (req.path.startsWith('/api/') || req.path.startsWith('/admin') || req.path === '/') {
+    // These are handled by earlier routes
+    if (res.headersSent) return;
+    return res.status(404).json({ error: 'Not found' });
+  }
+  // For all other routes, serve the SPA index.html
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to load SPA' });
+    }
+  });
+});
+
+// ==================== END SPA FALLBACK ROUTE ====================
+
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
