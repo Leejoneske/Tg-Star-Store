@@ -8922,8 +8922,8 @@ async function sendBroadcastMessage(userId, messageType, messageText, caption, m
             const defaultKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '💰 Sell Page', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/sell.html' }],
-                        [{ text: '🎁 Referral Program', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/referral.html' }]
+                        [{ text: '💰 Sell Page', web_app: { url: 'https://starstore.site/sell.html' } }],
+                        [{ text: '👥 Referral Program', web_app: { url: 'https://starstore.site/referral.html' } }]
                     ]
                 }
             };
@@ -9218,8 +9218,8 @@ bot.on('message', async (msg) => {
         const approvalKeyboard = {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: '💰 Sell Page', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/sell.html' }],
-                    [{ text: '🎁 Referral Program', url: (process.env.APP_URL || 'https://tg-star-store.com') + '/referral.html' }],
+                    [{ text: '💰 Sell Page', web_app: { url: 'https://starstore.site/sell.html' } }],
+                    [{ text: '👥 Referral Program', web_app: { url: 'https://starstore.site/referral.html' } }],
                     [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
                     [{ text: '❌ Cancel', callback_data: `reject_broadcast_${jobId}` }]
                 ]
