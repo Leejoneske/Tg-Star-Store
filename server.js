@@ -7673,6 +7673,77 @@ function getMainMenuKeyboard() {
     };
 }
 
+// Handle Wallet button - reuse wallet command logic
+bot.on('message', async (msg) => {
+    if (msg.text && msg.text.includes('Wallet')) {
+        // Trigger wallet command by calling its logic directly
+        const chatId = msg.chat.id;
+        const userId = msg.from.id.toString();
+        const username = msg.from.username || '';
+
+        try {
+            if (username) {
+                const usernameChange = await detectUsernameChange(userId, username, 'telegram');
+                if (usernameChange) {
+                    await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
+                }
+            }
+
+            const [sellOrders, withdrawals] = await Promise.all([
+                SellOrder.find({ telegramId: userId, status: 'processing' }).sort({ dateCreated: -1 }).limit(5),
+                ReferralWithdrawal.find({ userId: userId, status: 'pending' }).sort({ createdAt: -1 }).limit(5)
+            ]);
+
+            if ((!sellOrders || sellOrders.length === 0) && (!withdrawals || withdrawals.length === 0)) {
+                return bot.sendMessage(chatId, 'ℹ️ You have no processing orders.');
+            }
+
+            const lines = [];
+            if (sellOrders?.length) {
+                lines.push('🛒 Processing Sell Orders:');
+                sellOrders.forEach(o => {
+                    lines.push(`• ${o.id} — ${o.stars} ★ — wallet: ${o.walletAddress || 'N/A'}${o.memoTag ? ` — memo: ${o.memoTag}` : ''}`);
+                });
+            }
+            if (withdrawals?.length) {
+                lines.push('💳 Pending Withdrawals:');
+                withdrawals.forEach(w => {
+                    lines.push(`• ${w.withdrawalId} — ${w.amount} — wallet: ${w.walletAddress || 'N/A'}`);
+                });
+            }
+
+            const keyboard = { inline_keyboard: [] };
+            walletSelections.set(userId, { selections: new Set(), timestamp: Date.now() });
+
+            sellOrders.forEach(o => {
+                keyboard.inline_keyboard.push([
+                    { text: `☑️ ${o.id}`, callback_data: `wallet_sel_sell_${o.id}` },
+                    { text: '🔄 Update this', callback_data: `wallet_update_sell_${o.id}` }
+                ]);
+            });
+            withdrawals.forEach(w => {
+                keyboard.inline_keyboard.push([
+                    { text: `☑️ ${w.withdrawalId}`, callback_data: `wallet_sel_withdrawal_${w.withdrawalId}` },
+                    { text: '🔄 Update this', callback_data: `wallet_update_withdrawal_${w.withdrawalId}` }
+                ]);
+            });
+            keyboard.inline_keyboard.push([
+                { text: 'Select All', callback_data: 'wallet_sel_all' },
+                { text: 'Clear', callback_data: 'wallet_sel_clear' }
+            ]);
+            keyboard.inline_keyboard.push([
+                { text: '✅ Continue with selected', callback_data: 'wallet_continue_selected' }
+            ]);
+
+            await bot.sendMessage(chatId, lines.join('\n') + `\n\nSelect one or more items, then tap "Continue with selected".`, { reply_markup: keyboard });
+        } catch (err) {
+            console.error('Wallet button error:', err);
+            await bot.sendMessage(msg.chat.id, '❌ Failed to load your orders. Please try again later.');
+        }
+        return;
+    }
+});
+
 bot.onText(/\/start(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = msg.from.username || 'user';
@@ -7876,6 +7947,58 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
     }
 });
 
+// Handle Referral button - reuse referral command logic
+bot.on('message', async (msg) => {
+    if (msg.text && msg.text.includes('Referral')) {
+        const chatId = msg.chat.id;
+        const userId = chatId.toString();
+
+        try {
+            const professionalRefLink = generateUserReferralHash(userId);
+            const referralLink = `https://t.me/TgStarStore_bot?start=${professionalRefLink}`;
+
+            const today = new Date();
+            today.setUTCHours(0, 0, 0, 0);
+            const referrals = await Referral.find({
+                referrerUserId: userId,
+                dateReferred: { $gte: today }
+            });
+
+            if (referrals.length > 0) {
+                const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
+                const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
+
+                let message = `📊 Your Referrals (Today):\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
+                message += 'New referrals activate instantly at 100+ stars!\n\n';
+                message += `🔗 Your Referral Link:\n${referralLink}`;
+
+                const keyboard = {
+                    inline_keyboard: [
+                        [{ text: 'Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }],
+                        [{ text: 'Open Web App', web_app: { url: 'https://starstore.site/referral' } }]
+                    ]
+                };
+
+                await bot.sendMessage(chatId, message, { reply_markup: keyboard });
+            } else {
+                const message = `You have no referrals today yet.\n\n🔗 Your Referral Link:\n${referralLink}\n\nShare this link to start earning!`;
+
+                const keyboard = {
+                    inline_keyboard: [
+                        [{ text: 'Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}` }],
+                        [{ text: 'Open Web App', web_app: { url: 'https://starstore.site/referral' } }]
+                    ]
+                };
+
+                await bot.sendMessage(chatId, message, { reply_markup: keyboard });
+            }
+        } catch (error) {
+            console.error('Referral button error:', error);
+            await bot.sendMessage(msg.chat.id, '❌ Failed to load referral info. Please try again later.');
+        }
+        return;
+    }
+});
 
 bot.onText(/\/help/, (msg) => {
     try {
