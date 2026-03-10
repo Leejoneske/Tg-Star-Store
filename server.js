@@ -8153,6 +8153,7 @@ bot.on('message', async (msg) => {
         handleReferralsCommand(msg);
     } else if (text === '💰 Wallet') {
         handleWalletCommand(msg);
+    }
 });
 
 // Contact command for users
