@@ -9987,6 +9987,7 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
 app.get('/api/transactions/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
+        console.log(`📊 [Transactions API] Fetching transactions for userId: ${userId}`);
         
         // Get both buy and sell orders for the user
         const buyOrders = await BuyOrder.find({ telegramId: userId })
@@ -9996,6 +9997,8 @@ app.get('/api/transactions/:userId', async (req, res) => {
         const sellOrders = await SellOrder.find({ telegramId: userId })
             .sort({ dateCreated: -1 })
             .lean();
+
+        console.log(`📊 [Transactions API] Found ${buyOrders.length} buy orders and ${sellOrders.length} sell orders`);
 
         // Combine and format the data
         const transactions = [
@@ -10019,9 +10022,10 @@ app.get('/api/transactions/:userId', async (req, res) => {
             }))
         ];
 
+        console.log(`📊 [Transactions API] Returning ${transactions.length} total transactions`);
         res.json(transactions);
     } catch (error) {
-        console.error('Error fetching transactions:', error);
+        console.error('❌ [Transactions API] Error fetching transactions:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

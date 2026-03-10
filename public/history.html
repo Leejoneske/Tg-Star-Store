@@ -690,6 +690,7 @@ function loadTransactionHistory() {
         return response.json();
     })
     .then(data => {
+        console.log('📊 [Frontend] API Response:', data);
         // Handle both direct array and wrapped response
         const transactions = data.transactions || data;
         
@@ -700,6 +701,7 @@ function loadTransactionHistory() {
             return;
         }
         
+        console.log(`📊 [Frontend] Processing ${transactions.length} transactions`);
         transactionHistory = transactions.map(item => {
             return {
                 ...item,
@@ -708,9 +710,11 @@ function loadTransactionHistory() {
             };
         });
         
+        console.log('📊 [Frontend] Transaction history updated:', transactionHistory);
         updateTransactionList();
     })
     .catch(error => {
+        console.error('❌ [Frontend] Error loading transactions:', error);
         LoadingComponent.hide('transactionsLoading');
         document.getElementById('transactionsEmpty').style.display = 'flex';
         transactionHistory = [];
