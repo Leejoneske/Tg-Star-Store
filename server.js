@@ -10003,7 +10003,7 @@ app.get('/api/transactions/:userId', async (req, res) => {
                 id: order.id,
                 type: 'Buy Stars',
                 amount: order.stars,
-                status: order.status.toLowerCase(),
+                status: (order.status || 'pending').toLowerCase(),
                 date: order.dateCreated,
                 details: `Buy order for ${order.stars} stars`,
                 usdtValue: order.amount
@@ -10012,7 +10012,7 @@ app.get('/api/transactions/:userId', async (req, res) => {
                 id: order.id,
                 type: 'Sell Stars',
                 amount: order.stars,
-                status: order.status.toLowerCase(),
+                status: (order.status || 'pending').toLowerCase(),
                 date: order.dateCreated,
                 details: `Sell order for ${order.stars} stars`,
                 usdtValue: null 
