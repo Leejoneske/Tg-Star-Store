@@ -22,7 +22,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/theme-additional.css?v=6">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -34,16 +33,15 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: #f3f4f6;
+            background: #f8f9fa;
         }
         
-        /* Spinner from daily page */
         .spinner {
             display: inline-block;
             width: 16px;
             height: 16px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
+            border: 2px solid rgba(79, 70, 229, 0.3);
+            border-top-color: #4f46e5;
             border-radius: 50%;
             animation: spin 0.6s linear infinite;
             margin-right: 8px;
@@ -53,52 +51,18 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+
         .app-container {
             max-width: 600px;
             margin: 0 auto;
             background: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
             min-height: 100vh;
             position: relative;
             overflow: hidden;
-            padding-bottom: 64px;
+            padding-bottom: 80px;
         }
 
-        /* Clean Card Styles (from daily.html) */
-        .clean-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            border: 1px solid #f0f0f0;
-            margin-bottom: 16px;
-        }
-
-        .stat-box {
-            background: #f8fafc;
-            border-radius: 8px;
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-        }
-
-        /* Language Toggle (from about.html) */
-        .language-toggle {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-size: 12px;
-            color: #64748b;
-            cursor: pointer;
-        }
-
-        .language-toggle:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        /* Simple Telegram Mini App styles */
         .telegram-fullscreen .app-container {
             max-width: 100%;
             width: 100%;
@@ -106,98 +70,153 @@
             box-shadow: none;
             border-radius: 0;
         }
-        .logo-header {
-            font-size: 24px;
-            font-weight: bold;
-            color: #4f46e5;
-            text-align: left;
-            padding: 16px;
-            background: linear-gradient(90deg, #4f46e5, #6366f1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            width: fit-content;
-        }
-        
-        .tab-active {
-            border-bottom: 3px solid #4f46e5;
-            color: #4f46e5;
-            font-weight: 600;
-        }
-        
 
-        .transaction-card {
-            border-radius: 12px;
+        .clean-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f0f0f0;
+            margin-bottom: 12px;
             transition: all 0.2s ease;
-            overflow: hidden;
         }
-        .transaction-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+
+        .clean-card:active {
+            transform: scale(0.98);
         }
-        .status-badge {
-            font-size: 12px;
-            padding: 3px 8px;
-            border-radius: 20px;
+
+        .stat-box {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 14px;
+            border: 1px solid #f0f0f0;
+            transition: all 0.2s;
+        }
+
+        .stat-box:active {
+            transform: scale(0.97);
+            background: #f3f4f6;
+        }
+
+        .language-toggle {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 13px;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
             font-weight: 500;
         }
+
+        .language-toggle:active {
+            background: #eef2ff;
+            border-color: #4f46e5;
+        }
+
+        .transaction-card {
+            border-radius: 14px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s ease;
+            overflow: hidden;
+            border: 1px solid #f0f0f0;
+        }
+
+        .transaction-card:active {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.12);
+        }
+
+        .status-badge {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
         .status-completed {
             background: #ecfdf5;
             color: #059669;
         }
+
         .status-processing {
             background: #eff6ff;
             color: #2563eb;
         }
+
         .status-declined {
             background: #fef2f2;
             color: #dc2626;
         }
+
         .status-failed {
             background: #fef2f2;
             color: #dc2626;
         }
+
         .status-expired {
             background: #fef2f2;
             color: #dc2626;
         }
+
         .status-active {
             background: #ecfdf5;
             color: #059669;
         }
-        .chart-container {
-            position: relative;
-            height: 220px;
-            margin-top: 20px;
-            margin-bottom: 20px;
-        }
+
         .empty-state {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 40px 20px;
+            padding: 60px 24px;
+            color: #9ca3af;
+            text-align: center;
+        }
+
+        .empty-state svg {
+            width: 88px;
+            height: 88px;
+            color: #e5e7eb;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        .empty-state p {
+            font-size: 15px;
+            font-weight: 500;
             color: #6b7280;
         }
-        .empty-state svg {
-            width: 80px;
-            height: 80px;
-            color: #d1d5db;
-            margin-bottom: 16px;
-        }
+
         .pagination-btn {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 8px;
+            border-radius: 10px;
             transition: all 0.2s ease;
+            font-weight: 600;
+            font-size: 14px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            color: #6b7280;
+            cursor: pointer;
         }
+
         .pagination-btn.active {
             background: #4f46e5;
             color: white;
+            border-color: #4f46e5;
         }
+
+        .pagination-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
         .filter-active {
             background: #eef2ff;
             color: #4f46e5;
@@ -207,13 +226,16 @@
         .tab-content {
             display: none;
         }
+
         .tab-content.active {
             display: block;
         }
+
         .shimmer {
             position: relative;
             overflow: hidden;
         }
+
         .shimmer::after {
             content: '';
             position: absolute;
@@ -229,10 +251,139 @@
                 rgba(255,255,255,0) 100%);
             animation: shimmer 2s infinite;
         }
+
         @keyframes shimmer {
             100% {
                 transform: translateX(100%);
             }
+        }
+
+        .filter-btn {
+            padding: 8px 14px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            background: white;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:active {
+            transform: scale(0.96);
+        }
+
+        .filter-btn.filter-active {
+            background: #eef2ff;
+            color: #4f46e5;
+            border-color: #4f46e5;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 14px 10px 38px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            font-size: 14px;
+            background: #f9fafb;
+            color: #1f2937;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .search-wrapper {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            width: 16px;
+            height: 16px;
+        }
+
+        .tab-header {
+            display: flex;
+            border-bottom: 2px solid #f3f4f6;
+            margin-bottom: 18px;
+            gap: 24px;
+        }
+
+        .tab-btn {
+            padding: 12px 0;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #9ca3af;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab-btn.tab-active {
+            color: #4f46e5;
+        }
+
+        .tab-btn.tab-active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #4f46e5;
+        }
+
+        .export-btn {
+            width: 100%;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .export-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
+        }
+
+        .export-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
         }
     </style>
 </head>
@@ -248,60 +399,36 @@
         </header>
         
         <div class="px-4 py-4">
-            <div class="flex border-b mb-6">
-                <button id="transactionsTab" class="flex-1 py-3 text-center tab-active" data-translate="transactions">
-                    Transactions
+            <div class="tab-header">
+                <button id="transactionsTab" class="tab-btn tab-active" data-translate="transactions">
+                    📊 Transactions
                 </button>
-                <button id="referralsTab" class="flex-1 py-3 text-center" data-translate="referrals">
-                    Referrals
+                <button id="referralsTab" class="tab-btn" data-translate="referrals">
+                    👥 Referrals
                 </button>
             </div>
             
             <div id="transactionsContent" class="tab-content active">
-                <!-- Overview Section -->
-                <div class="clean-card mb-6">
-                    <h3 class="text-lg font-semibold mb-4" data-translate="overview">Overview</h3>
-                    <div class="chart-container mb-4">
-                        <canvas id="transactionChart"></canvas>
-                    </div>
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="stat-box text-center">
-                            <div class="text-green-600 text-xl font-semibold" id="completedCount">0</div>
-                            <div class="text-xs text-gray-600" data-translate="completed">Completed</div>
-                        </div>
-                        <div class="stat-box text-center">
-                            <div class="text-blue-600 text-xl font-semibold" id="processingCount">0</div>
-                            <div class="text-xs text-gray-600" data-translate="processing">Processing</div>
-                        </div>
-                        <div class="stat-box text-center">
-                            <div class="text-red-600 text-xl font-semibold" id="declinedCount">0</div>
-                            <div class="text-xs text-gray-600" data-translate="declined">Declined</div>
-                        </div>
-                    </div>
+                <div class="search-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="searchTransactions" class="search-input" placeholder="Search transactions..." data-translate-placeholder="searchTransactions">
                 </div>
                 
                 <div class="flex mb-4 space-x-2 overflow-x-auto pb-2 scrollbar-hide">
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap filter-active" data-filter="all" data-translate="all">All</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="completed" data-translate="completed">Completed</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-translate="processing">Processing</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="declined" data-translate="declined">Declined</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="failed" data-translate="failed">Failed</button>
-                    <button class="filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="expired" data-translate="expired">Expired</button>
+                    <button class="filter-btn filter-btn filter-active" data-filter="all" data-translate="all">All</button>
+                    <button class="filter-btn" data-filter="completed" data-translate="completed">Completed</button>
+                    <button class="filter-btn" data-filter="processing" data-translate="processing">Processing</button>
+                    <button class="filter-btn" data-filter="declined" data-translate="declined">Declined</button>
+                    <button class="filter-btn" data-filter="failed" data-translate="failed">Failed</button>
+                    <button class="filter-btn" data-filter="expired" data-translate="expired">Expired</button>
                 </div>
                 
-                <div class="relative mb-6">
-                    <input type="text" id="searchTransactions" class="w-full p-2 pl-10 pr-4 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Search transactions...">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                    </div>
-                </div>
+                <div id="transactionsLoading" class="space-y-3 mb-6"></div>
                 
-                <div id="transactionsLoading" class="space-y-4 mb-6"></div>
-                
-                <div id="transactionsList" class="space-y-4 mb-6" style="display:none"></div>
+                <div id="transactionsList" class="space-y-3 mb-6" style="display:none"></div>
                 
                 <div id="transactionsEmpty" class="empty-state" style="display:none">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -311,13 +438,13 @@
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    <p class="text-center" data-translate="noTransactions">No transactions found</p>
+                    <p data-translate="noTransactions">No transactions found</p>
                 </div>
                 
-                <div id="transactionsPagination" class="flex justify-center items-center gap-2 mb-6"></div>
+                <div id="transactionsPagination" class="flex justify-center items-center gap-2 mb-4"></div>
                 
-                <button id="exportTransactions" class="w-full py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors mb-6 flex justify-center items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                <button id="exportTransactions" class="export-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -345,25 +472,23 @@
             </div>
             
             <div id="referralsContent" class="tab-content">
+                <div class="search-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="searchReferrals" class="search-input" placeholder="Search referrals..." data-translate-placeholder="searchReferrals">
+                </div>
+                
                 <div class="flex mb-4 space-x-2 overflow-x-auto pb-2 scrollbar-hide">
-                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap filter-active" data-filter="all" data-translate="all">All</button>
-                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="active" data-translate="active">Active</button>
-                    <button class="ref-filter-btn px-4 py-2 rounded-full border text-sm whitespace-nowrap" data-filter="processing" data-translate="processing">Processing</button>
+                    <button class="ref-filter-btn filter-btn filter-active" data-filter="all" data-translate="all">All</button>
+                    <button class="ref-filter-btn filter-btn" data-filter="active" data-translate="active">Active</button>
+                    <button class="ref-filter-btn filter-btn" data-filter="processing" data-translate="processing">Processing</button>
                 </div>
                 
-                <div class="relative mb-6">
-                    <input type="text" id="searchReferrals" class="w-full p-2 pl-10 pr-4 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="Search referrals...">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                    </div>
-                </div>
+                <div id="referralsLoading" class="space-y-3 mb-6"></div>
                 
-                <div id="referralsLoading" class="space-y-4 mb-6"></div>
-                
-                <div id="referralsList" class="space-y-4 mb-6" style="display:none"></div>
+                <div id="referralsList" class="space-y-3 mb-6" style="display:none"></div>
                 
                 <div id="referralsEmpty" class="empty-state" style="display:none">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -372,13 +497,13 @@
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
-                    <p class="text-center" data-translate="noReferrals">No referrals found</p>
+                    <p data-translate="noReferrals">No referrals found</p>
                 </div>
                 
-                <div id="referralsPagination" class="flex justify-center items-center gap-2 mb-6"></div>
+                <div id="referralsPagination" class="flex justify-center items-center gap-2 mb-4"></div>
                 
-                <button id="exportReferrals" class="w-full py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors mb-20 flex justify-center items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                <button id="exportReferrals" class="export-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -432,7 +557,6 @@ let currentTransactionSearch = '';
 let currentReferralSearch = '';
 const itemsPerPage = 5;
 let currentLanguage = TranslationUtils.getCurrentLanguage();
-let transactionChart = null;
 
 // Initialize translations
 if (typeof TranslationUtils !== 'undefined') {
@@ -550,9 +674,7 @@ function loadTransactionHistory() {
     if (!user || !user.id) {
         LoadingComponent.hide('transactionsLoading');
         document.getElementById('transactionsEmpty').style.display = 'flex';
-        // Render an empty chart so the UI doesn't look broken
         transactionHistory = [];
-        updateTransactionChart();
         return;
     }
 
@@ -575,7 +697,6 @@ function loadTransactionHistory() {
             console.error('❌ Transactions is not an array:', transactions);
             transactionHistory = [];
             updateTransactionList();
-            updateTransactionChart();
             return;
         }
         
@@ -587,17 +708,12 @@ function loadTransactionHistory() {
             };
         });
         
-
-        
         updateTransactionList();
-        updateTransactionChart();
     })
     .catch(error => {
         LoadingComponent.hide('transactionsLoading');
         document.getElementById('transactionsEmpty').style.display = 'flex';
-        // Still show an empty chart on errors
         transactionHistory = [];
-        updateTransactionChart();
     });
 }
 
@@ -846,82 +962,6 @@ function updateTransactionCounts(transactions) {
     document.getElementById('declinedCount').textContent = declinedCount;
 }
 
-function updateTransactionChart() {
-    const ctx = document.getElementById('transactionChart').getContext('2d');
-    const now = new Date();
-    const days = [];
-    const data = [];
-    
-    const filteredTransactions = transactionHistory.filter(t => t.status === 'completed');
-    
-    for (let i = 6; i >= 0; i--) {
-        const date = new Date(now);
-        date.setDate(now.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        days.push(formatDate(date, true));
-        
-        const dailyTotal = filteredTransactions
-            .filter(t => t.date.toISOString().split('T')[0] === dateStr)
-            .reduce((sum, t) => sum + t.amount, 0);
-            
-        data.push(dailyTotal);
-    }
-    
-    if (transactionChart) transactionChart.destroy();
-    transactionChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: days,
-            datasets: [{
-                label: TranslationUtils?.get('total') || 'Total',
-                data: data,
-                backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                borderColor: 'rgba(79, 70, 229, 1)',
-                borderWidth: 2,
-                tension: 0.3,
-                fill: true,
-                pointBackgroundColor: 'rgba(79, 70, 229, 1)',
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `${TranslationUtils?.get('total') || 'Total'}: ${context.raw} ★`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    },
-                    ticks: {
-                        callback: function(value) {
-                            return value + ' ★';
-                        }
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    }
-                }
-            }
-        }
-    });
-}
 
 function updatePagination(elementId, currentPage, totalPages, callback) {
     const paginationContainer = document.getElementById(elementId);
