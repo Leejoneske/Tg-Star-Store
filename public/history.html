@@ -544,6 +544,28 @@ if (window.Telegram?.WebApp) {
     console.log('Telegram Mini App mode enabled');
 }
 
+// Safe DOM manipulation helpers
+function safeGetElement(id) {
+    const el = document.getElementById(id);
+    if (!el) console.warn(`⚠️ Element not found: ${id}`);
+    return el;
+}
+
+function safeSetDisplay(id, display) {
+    const el = safeGetElement(id);
+    if (el) el.style.display = display;
+}
+
+function safeSetHTML(id, html) {
+    const el = safeGetElement(id);
+    if (el) el.innerHTML = html;
+}
+
+function safeSetText(id, text) {
+    const el = safeGetElement(id);
+    if (el) el.textContent = text;
+}
+
 const user = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) ? window.Telegram.WebApp.initDataUnsafe.user : null;
 const BASE_API_URL = window.location.origin + '/api';
 
@@ -668,12 +690,12 @@ function updateLanguage() {
 
 function loadTransactionHistory() {
             LoadingComponent.show('transactionsLoading', 'cards', { count: 3 });
-    document.getElementById('transactionsList').style.display = 'none';
-    document.getElementById('transactionsEmpty').style.display = 'none';
+    safeSetDisplay('transactionsList', 'none');
+    safeSetDisplay('transactionsEmpty', 'none');
 
     if (!user || !user.id) {
         LoadingComponent.hide('transactionsLoading');
-        document.getElementById('transactionsEmpty').style.display = 'flex';
+        safeSetDisplay('transactionsEmpty', 'flex');
         transactionHistory = [];
         return;
     }
@@ -716,19 +738,19 @@ function loadTransactionHistory() {
     .catch(error => {
         console.error('❌ [Frontend] Error loading transactions:', error);
         LoadingComponent.hide('transactionsLoading');
-        document.getElementById('transactionsEmpty').style.display = 'flex';
+        safeSetDisplay('transactionsEmpty', 'flex');
         transactionHistory = [];
     });
 }
 
 function loadReferralHistory() {
     LoadingComponent.show('referralsLoading', 'cards', { count: 3 });
-    document.getElementById('referralsList').style.display = 'none';
-    document.getElementById('referralsEmpty').style.display = 'none';
+    safeSetDisplay('referralsList', 'none');
+    safeSetDisplay('referralsEmpty', 'none');
 
     if (!user || !user.id) {
         LoadingComponent.hide('referralsLoading');
-        document.getElementById('referralsEmpty').style.display = 'flex';
+        safeSetDisplay('referralsEmpty', 'flex');
         return;
     }
 
@@ -760,7 +782,7 @@ function loadReferralHistory() {
     })
     .catch(error => {
         LoadingComponent.hide('referralsLoading');
-        document.getElementById('referralsEmpty').style.display = 'flex';
+        safeSetDisplay('referralsEmpty', 'flex');
     });
 }
 
@@ -819,14 +841,15 @@ function updateTransactionList() {
     LoadingComponent.hide('transactionsLoading');
     
     if (paginatedTransactions.length === 0) {
-        document.getElementById('transactionsList').style.display = 'none';
-        document.getElementById('transactionsEmpty').style.display = 'flex';
+        safeSetDisplay('transactionsList', 'none');
+        safeSetDisplay('transactionsEmpty', 'flex');
     } else {
-        document.getElementById('transactionsList').style.display = 'block';
-        document.getElementById('transactionsEmpty').style.display = 'none';
+        safeSetDisplay('transactionsList', 'block');
+        safeSetDisplay('transactionsEmpty', 'none');
         
-        const transactionsList = document.getElementById('transactionsList');
-        transactionsList.innerHTML = '';
+        const transactionsList = safeGetElement('transactionsList');
+        if (transactionsList) {
+            transactionsList.innerHTML = '';
         
         paginatedTransactions.forEach(txn => {
             const txnCard = document.createElement('div');
@@ -877,6 +900,7 @@ function updateTransactionList() {
             txnCard.addEventListener('click', () => showTransactionDetails(txn));
             transactionsList.appendChild(txnCard);
         });
+        }
     }
     
     updatePagination('transactionsPagination', currentTransactionPage, totalPages, (page) => {
@@ -908,14 +932,15 @@ function updateReferralList() {
     LoadingComponent.hide('referralsLoading');
     
     if (paginatedReferrals.length === 0) {
-        document.getElementById('referralsList').style.display = 'none';
-        document.getElementById('referralsEmpty').style.display = 'flex';
+        safeSetDisplay('referralsList', 'none');
+        safeSetDisplay('referralsEmpty', 'flex');
     } else {
-        document.getElementById('referralsList').style.display = 'block';
-        document.getElementById('referralsEmpty').style.display = 'none';
+        safeSetDisplay('referralsList', 'block');
+        safeSetDisplay('referralsEmpty', 'none');
         
-        const referralsList = document.getElementById('referralsList');
-        referralsList.innerHTML = '';
+        const referralsList = safeGetElement('referralsList');
+        if (referralsList) {
+            referralsList.innerHTML = '';
         
         paginatedReferrals.forEach(ref => {
             const refCard = document.createElement('div');
@@ -951,6 +976,7 @@ function updateReferralList() {
             refCard.addEventListener('click', () => showReferralDetails(ref));
             referralsList.appendChild(refCard);
         });
+        }
     }
     
     updatePagination('referralsPagination', currentReferralPage, totalPages, (page) => {
@@ -960,15 +986,29 @@ function updateReferralList() {
 }
 
 function updateTransactionCounts(transactions) {
-    document.getElementById('completedCount').textContent = transactions.filter(t => t.status === 'completed').length;
-    document.getElementById('processingCount').textContent = transactions.filter(t => t.status === 'processing').length;
-    const declinedCount = transactions.filter(t => t.status === 'declined' || t.status === 'failed' || t.status === 'expired').length;
-    document.getElementById('declinedCount').textContent = declinedCount;
+    const completedCountEl = document.getElementById('completedCount');
+    const processingCountEl = document.getElementById('processingCount');
+    const declinedCountEl = document.getElementById('declinedCount');
+    
+    if (completedCountEl) {
+        completedCountEl.textContent = transactions.filter(t => t.status === 'completed').length;
+    }
+    if (processingCountEl) {
+        processingCountEl.textContent = transactions.filter(t => t.status === 'processing').length;
+    }
+    if (declinedCountEl) {
+        const declinedCount = transactions.filter(t => t.status === 'declined' || t.status === 'failed' || t.status === 'expired').length;
+        declinedCountEl.textContent = declinedCount;
+    }
 }
 
 
 function updatePagination(elementId, currentPage, totalPages, callback) {
     const paginationContainer = document.getElementById(elementId);
+    if (!paginationContainer) {
+        console.warn(`⚠️ Pagination container not found: ${elementId}`);
+        return;
+    }
     paginationContainer.innerHTML = '';
     if (totalPages <= 1) return;
     
