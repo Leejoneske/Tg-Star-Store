@@ -8096,7 +8096,7 @@ bot.onText(/\/contact/, (msg) => {
 
 **Type your message below and we'll respond quickly!**
 
-*For sell order refunds, use /paysupport*`;
+*Reminder: for issues or refunds related to sell orders, please use the /paysupport command instead of general support.*`;
 
     bot.sendMessage(chatId, contactText, { parse_mode: 'Markdown' });
     
