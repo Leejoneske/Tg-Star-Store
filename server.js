@@ -8094,22 +8094,29 @@ bot.onText(/\/contact/, (msg) => {
 
     const contactText = `📞 **Contact Support**
 
-**Type your message below and we'll respond quickly!**
-
-*Reminder: for issues or refunds related to sell orders, please use the /paysupport command instead of general support.*`;
+**Type your message below and we'll respond quickly!**`;
 
     bot.sendMessage(chatId, contactText, { parse_mode: 'Markdown' });
     
-    // Set up message listener for support request
-    bot.once('message', (userMsg) => {
+    // Set up message listener for support request with timeout
+    const supportHandler = (userMsg) => {
         if (userMsg.chat.id === chatId) {
+            clearTimeout(timeoutId);
+            bot.removeListener('message', supportHandler);
             const userMessageText = userMsg.text;
             adminIds.forEach(adminId => {
                 bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}`);
             });
             bot.sendMessage(chatId, "✅ Your message has been sent to our support team. We'll get back to you shortly!");
         }
-    });
+    };
+    bot.on('message', supportHandler);
+
+    // Automatically cancel if user doesn't respond in 5 minutes
+    const timeoutId = setTimeout(() => {
+        bot.removeListener('message', supportHandler);
+        bot.sendMessage(chatId, "⏳ Contact session timed out. Please send /contact again if you still need help.");
+    }, 5 * 60 * 1000);
 });
 
 // Admin command: View comprehensive user information (activity, location, devices)
