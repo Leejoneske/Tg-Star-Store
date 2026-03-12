@@ -7967,7 +7967,7 @@ async function handleReferralsCommand(msg) {
         });
         
         if (referrals.length > 0) {
-            const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
+            const activeReferrals = referrals.filter(ref => ref.status === 'completed').length;
             const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
             
             let message = `📊 Your Referrals (ALL):\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
@@ -8094,22 +8094,29 @@ bot.onText(/\/contact/, (msg) => {
 
     const contactText = `📞 **Contact Support**
 
-**Type your message below and we'll respond quickly!**
-
-*For sell order refunds, use /paysupport*`;
+**Type your message below and we'll respond quickly!**`;
 
     bot.sendMessage(chatId, contactText, { parse_mode: 'Markdown' });
     
-    // Set up message listener for support request
-    bot.once('message', (userMsg) => {
+    // Set up message listener for support request with timeout
+    const supportHandler = (userMsg) => {
         if (userMsg.chat.id === chatId) {
+            clearTimeout(timeoutId);
+            bot.removeListener('message', supportHandler);
             const userMessageText = userMsg.text;
             adminIds.forEach(adminId => {
                 bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}`);
             });
             bot.sendMessage(chatId, "✅ Your message has been sent to our support team. We'll get back to you shortly!");
         }
-    });
+    };
+    bot.on('message', supportHandler);
+
+    // Automatically cancel if user doesn't respond in 5 minutes
+    const timeoutId = setTimeout(() => {
+        bot.removeListener('message', supportHandler);
+        bot.sendMessage(chatId, "⏳ Contact session timed out. Please send /contact again if you still need help.");
+    }, 5 * 60 * 1000);
 });
 
 // Admin command: View comprehensive user information (activity, location, devices)
@@ -8145,7 +8152,7 @@ bot.onText(/^\/userinfo\s+(\d+)/i, async (msg, match) => {
         const marchFirstDate = new Date('2026-03-01T00:00:00Z');
         const referralRecord = await Referral.findOne({ referredUserId: userId });
         const myReferrals = await Referral.find({ referrerUserId: userId, dateReferred: { $gte: marchFirstDate } });
-        const activeReferrals = myReferrals.filter(r => r.status === 'active').length;
+        const activeReferrals = myReferrals.filter(r => r.status === 'completed').length;
         const pendingReferrals = myReferrals.filter(r => r.status === 'pending').length;
         
         // Build comprehensive report
@@ -8173,7 +8180,7 @@ bot.onText(/^\/userinfo\s+(\d+)/i, async (msg, match) => {
             const recentReferrals = myReferrals.slice(0, 10);
             for (const ref of recentReferrals) {
                 const referredUser = await User.findOne({ id: ref.referredUserId });
-                const statusEmoji = ref.status === 'active' ? '✅' : ref.status === 'pending' ? '⏳' : '✔️';
+                const statusEmoji = ref.status === 'completed' ? '✔️' : ref.status === 'pending' ? '⏳' : '✔️';
                 report += `  ${statusEmoji} @${referredUser?.username || 'Unknown'} (ID: ${ref.referredUserId}) - ${ref.status.toUpperCase()}\n`;
                 report += `     Referred: ${new Date(ref.dateReferred).toLocaleDateString()}\n`;
             }
@@ -12105,7 +12112,11 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
             'PE': 'Peru', 'VE': 'Venezuela', 'EC': 'Ecuador', 'BO': 'Bolivia', 'PY': 'Paraguay',
             'UY': 'Uruguay', 'CR': 'Costa Rica', 'PA': 'Panama', 'SV': 'El Salvador', 'HN': 'Honduras',
             'NI': 'Nicaragua', 'GT': 'Guatemala', 'BZ': 'Belize', 'JM': 'Jamaica', 'CU': 'Cuba',
-            'DO': 'Dominican Republic', 'HT': 'Haiti', 'PR': 'Puerto Rico', 'TT': 'Trinidad and Tobago'
+            'DO': 'Dominican Republic', 'HT': 'Haiti', 'PR': 'Puerto Rico', 'TT': 'Trinidad and Tobago',
+            // additional codes seen in reports
+            'MM': 'Myanmar', 'DZ': 'Algeria', 'CM': 'Cameroon', 'UA': 'Ukraine', 'UZ': 'Uzbekistan',
+            'LK': 'Sri Lanka', 'IQ': 'Iraq', 'KH': 'Cambodia', 'NP': 'Nepal', 'ML': 'Mali',
+            'AF': 'Afghanistan', 'CI': 'Côte d\'Ivoire', 'TN': 'Tunisia'
         };
 
         // Aggregate by country, filter out 'unknown'
@@ -12127,8 +12138,7 @@ bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
 
         // Sort countries by user count (descending)
         const sortedCountries = Object.entries(countryStats)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 50); // Top 50 countries
+            .sort((a, b) => b[1] - a[1]); // include all countries (no top-50 limit)
 
         const totalUsersWithLocation = Object.values(countryStats).reduce((a, b) => a + b, 0);
         const totalUsers = await User.countDocuments({});
