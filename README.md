@@ -2,7 +2,7 @@
 
 > A comprehensive Telegram Mini App for buying, selling, and trading Telegram Stars with USDT conversion, referral rewards, and premium subscription management.
 
-## 🌟 Overview
+## ✳️ Overview
 
 StarStore is a full-featured Telegram Mini App that enables users to:
 - **Buy & Sell Telegram Stars** with secure payment processing
