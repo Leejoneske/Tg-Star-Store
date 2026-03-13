@@ -8100,14 +8100,64 @@ bot.onText(/\/contact/, (msg) => {
     
     // Set up message listener for support request with timeout
     const supportHandler = (userMsg) => {
-        if (userMsg.chat.id === chatId) {
+        if (userMsg.chat.id === chatId && userMsg.text) {
             clearTimeout(timeoutId);
             bot.removeListener('message', supportHandler);
             const userMessageText = userMsg.text;
-            adminIds.forEach(adminId => {
-                bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}`);
-            });
-            bot.sendMessage(chatId, "✅ Your message has been sent to our support team. We'll get back to you shortly!");
+            
+            // Check if message is FAQ about how to sell
+            const isHowToSellFAQ = isHowToSellQuestion(userMessageText);
+            let autoReplied = false;
+            
+            if (isHowToSellFAQ) {
+                // Send FAQ reply
+                const faqReply = `Hi, click on launch App below ↙️ tap Sell at the bottom, enter your USDT TON wallet address, the number of stars you want to sell, then tap Sell Now.`;
+                
+                const keyboard = {
+                    inline_keyboard: [[
+                        { text: '💰 Open Sell Page', web_app: { url: 'https://starstore.site/sell' } }
+                    ]]
+                };
+                
+                bot.sendMessage(chatId, faqReply, { reply_markup: keyboard });
+                autoReplied = true;
+                
+                // Send follow-up with talk to person option
+                const followUpText = `Did this answer your question? If you need more help, you can talk to a support person.`;
+                const talkToPersonKeyboard = {
+                    inline_keyboard: [[
+                        { text: '👤 Talk to Person', callback_data: `talk_to_person_${chatId}_${Date.now()}` }
+                    ]]
+                };
+                
+                bot.sendMessage(chatId, followUpText, { reply_markup: talkToPersonKeyboard });
+                
+                // Set up callback listener for the button
+                const callbackHandler = (query) => {
+                    if (query.data.startsWith(`talk_to_person_${chatId}_`)) {
+                        bot.answerCallbackQuery(query.id);
+                        // Forward to admins
+                        adminIds.forEach(adminId => {
+                            bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}\n\n🤖 Auto-replied: Yes`);
+                        });
+                        bot.sendMessage(chatId, "✅ Your question has been forwarded to our support team. Please wait for their response.");
+                        bot.removeListener('callback_query', callbackHandler);
+                    }
+                };
+                bot.on('callback_query', callbackHandler);
+                
+                // Timeout for the callback
+                setTimeout(() => {
+                    bot.removeListener('callback_query', callbackHandler);
+                    // If not clicked, session expires without forwarding again
+                }, 5 * 60 * 1000);
+            } else {
+                // Not FAQ, forward immediately
+                adminIds.forEach(adminId => {
+                    bot.sendMessage(adminId, `📞 Support Request from @${username} (ID: ${chatId}):\n\n${userMessageText}\n\n🤖 Auto-replied: No`);
+                });
+                bot.sendMessage(chatId, "✅ Your message has been sent to our support team. We'll get back to you shortly!");
+            }
         }
     };
     bot.on('message', supportHandler);
@@ -8118,6 +8168,41 @@ bot.onText(/\/contact/, (msg) => {
         bot.sendMessage(chatId, "⏳ Contact session timed out. Please send /contact again if you still need help.");
     }, 5 * 60 * 1000);
 });
+
+// Function to detect if message is asking "how to sell"
+function isHowToSellQuestion(text) {
+    if (!text) return false;
+    
+    const lowerText = text.toLowerCase();
+    
+    // Common patterns for "how to sell"
+    const patterns = [
+        /how.*sell/i,
+        /how.*to.*sell/i,
+        /sell.*how/i,
+        /how.*i.*sell/i,
+        /how.*selling/i,
+        /selling.*how/i,
+        /how.*sell.*stars/i,
+        /sell.*stars.*how/i,
+        /how.*sell.*telegram/i,
+        /how.*to.*sell.*stars/i
+    ];
+    
+    // Check for exact patterns
+    if (patterns.some(pattern => pattern.test(lowerText))) {
+        return true;
+    }
+    
+    // Check for keywords: must contain "how" or "what" and "sell"
+    const hasQuestionWord = /\b(how|what|can|do)\b/i.test(lowerText);
+    const hasSell = /\b(sell|selling|sale)\b/i.test(lowerText);
+    
+    // Additional context words
+    const hasContext = /\b(stars?|telegram|starstore|app|bot)\b/i.test(lowerText);
+    
+    return hasQuestionWord && hasSell && (hasContext || lowerText.length < 100); // Shorter messages more likely to be direct questions
+}
 
 // Admin command: View comprehensive user information (activity, location, devices)
 bot.onText(/^\/userinfo\s+(\d+)/i, async (msg, match) => {
