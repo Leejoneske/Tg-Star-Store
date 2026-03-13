@@ -47,443 +47,383 @@
         }
 
         .telegram-fullscreen .app-container {
-            max-width: 100%;
-            width: 100%;
-            margin: 0;
-            border-radius: 0;
+            max-width: 100%; width: 100%; margin: 0; border-radius: 0;
         }
 
-        /* PAGE HEADER — same as original */
+        /* PAGE HEADER */
         .page-header {
             background: var(--surface, #ffffff);
             padding: 12px 16px;
             border-bottom: 1px solid var(--border, #f0f0f0);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between;
         }
-
         .header-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text, #111);
-            margin: 0;
+            font-size: 18px; font-weight: 600;
+            color: var(--text, #111); margin: 0;
         }
-
         .header-badge {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            background: rgba(245, 200, 66, 0.12);
-            border: 1px solid rgba(245, 200, 66, 0.35);
-            padding: 4px 10px;
-            border-radius: 50px;
-            font-size: 11px;
-            font-weight: 700;
-            color: #b08a00;
-            letter-spacing: 0.4px;
-            text-transform: uppercase;
+            display: flex; align-items: center; gap: 5px;
+            background: rgba(245,200,66,0.12);
+            border: 1px solid rgba(245,200,66,0.35);
+            padding: 4px 10px; border-radius: 50px;
+            font-size: 11px; font-weight: 700;
+            color: #b08a00; letter-spacing: 0.4px; text-transform: uppercase;
         }
-
         .badge-dot {
-            width: 6px; height: 6px;
-            background: #F5C842;
+            width: 6px; height: 6px; background: #F5C842;
             border-radius: 50%;
             animation: blink 2s ease-in-out infinite;
         }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.35; }
-        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
 
         /* HERO */
         .hero { padding: 24px 24px 20px; }
-
-        .icon-cluster {
-            display: flex;
-            margin-bottom: 20px;
-        }
-
+        .icon-cluster { display: flex; margin-bottom: 20px; }
         .cluster-icon {
-            width: 56px; height: 56px;
-            border-radius: 16px;
+            width: 56px; height: 56px; border-radius: 16px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 22px;
-            margin-right: -10px;
+            font-size: 22px; margin-right: -10px;
             border: 3px solid var(--surface, white);
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-        .cluster-icon:nth-child(1) { background: #F5C842; z-index: 3; color: #7a5c00; }
-        .cluster-icon:nth-child(2) { background: #e8b82e; z-index: 2; color: #7a5c00; }
-        .cluster-icon:nth-child(3) { background: #fde580; z-index: 1; color: #7a5c00; }
-
-        .hero-title {
-            font-size: 26px;
-            font-weight: 700;
-            line-height: 1.2;
-            color: var(--text, #111);
-            margin-bottom: 8px;
-        }
-
-        .hero-sub {
-            font-size: 14px;
-            color: var(--text-secondary, #666);
-            line-height: 1.55;
-        }
+        .cluster-icon:nth-child(1) { background:#F5C842; z-index:3; color:#7a5c00; }
+        .cluster-icon:nth-child(2) { background:#e8b82e; z-index:2; color:#7a5c00; }
+        .cluster-icon:nth-child(3) { background:#fde580; z-index:1; color:#7a5c00; }
+        .hero-title { font-size:26px; font-weight:700; line-height:1.2; color:var(--text,#111); margin-bottom:8px; }
+        .hero-sub { font-size:14px; color:var(--text-secondary,#666); line-height:1.55; }
 
         /* LINK BOX */
         .link-section { padding: 0 24px 20px; }
-
         .link-box {
-            background: var(--surface-elevated, #f5f5f5);
-            border-radius: 14px;
-            padding: 13px 14px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border: 1px solid var(--border, transparent);
+            background: var(--surface-elevated,#f5f5f5);
+            border-radius: 14px; padding: 13px 14px;
+            display: flex; align-items: center; gap: 10px;
+            border: 1px solid var(--border,transparent);
         }
-
         .link-text {
-            font-size: 13px;
-            color: var(--text-muted, #555);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            flex: 1;
+            font-size: 13px; color: var(--text-muted,#555);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
         }
-
         .copy-btn {
-            background: var(--text, #111);
-            color: var(--surface, white);
-            border: none; border-radius: 9px;
-            padding: 8px 14px;
-            font-size: 13px; font-weight: 600;
-            cursor: pointer; flex-shrink: 0;
-            font-family: 'Inter', sans-serif;
+            background: var(--text,#111); color: var(--surface,white);
+            border: none; border-radius: 9px; padding: 8px 14px;
+            font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0;
+            font-family: 'Inter',sans-serif;
             transition: opacity 0.15s, transform 0.12s;
             display: flex; align-items: center; gap: 6px;
         }
-        .copy-btn:active { transform: scale(0.95); opacity: 0.8; }
+        .copy-btn:active { transform:scale(0.95); opacity:0.8; }
 
         /* STATS ROW */
         .stats-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            padding: 0 24px 24px;
+            display: grid; grid-template-columns: repeat(3,1fr);
+            gap: 10px; padding: 0 24px 24px;
         }
-
         .stat-pill {
-            background: var(--surface-elevated, #f5f5f5);
+            background: var(--surface-elevated,#f5f5f5);
+            border-radius: 14px; padding: 14px 10px;
+            text-align: center; border: 1px solid var(--border,transparent);
+        }
+        .stat-pill .val { font-size:20px; font-weight:600; color:var(--text,#111); line-height:1.1; }
+        .stat-pill .lbl { font-size:11px; font-weight:500; color:var(--text-muted,#999); margin-top:4px; text-transform:uppercase; letter-spacing:0.3px; }
+
+        /* PAYOUT PENDING CARD */
+        .payout-pending-card {
+            margin: 0 24px 20px;
+            background: var(--surface-elevated,#f5f5f5);
             border-radius: 14px;
-            padding: 14px 10px;
-            text-align: center;
-            border: 1px solid var(--border, transparent);
+            border: 1px solid var(--border,#f0f0f0);
+            overflow: hidden;
         }
+        .ppc-top {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border,#f0f0f0);
+        }
+        .ppc-left { display: flex; align-items: center; gap: 10px; }
+        .ppc-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: rgba(245,200,66,0.15);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; color: #b08a00;
+        }
+        .ppc-label { font-size: 13px; font-weight: 600; color: var(--text-secondary,#555); }
+        .ppc-sub { font-size: 11px; color: var(--text-muted,#aaa); margin-top: 2px; }
+        .ppc-amount { font-size: 22px; font-weight: 800; color: var(--text,#111); }
+        .ppc-amount span { font-size: 13px; font-weight: 500; color: var(--text-muted,#999); }
 
-        .stat-pill .val {
-            font-size: 20px; font-weight: 600;
-            color: var(--text, #111); line-height: 1.1;
+        .ppc-meta {
+            display: flex; gap: 0;
         }
-
-        .stat-pill .lbl {
-            font-size: 11px; font-weight: 500;
-            color: var(--text-muted, #999); margin-top: 4px;
-            text-transform: uppercase; letter-spacing: 0.3px;
+        .ppc-meta-item {
+            flex: 1; padding: 10px 16px; text-align: center;
+            border-right: 1px solid var(--border,#f0f0f0);
         }
+        .ppc-meta-item:last-child { border-right: none; }
+        .ppc-meta-val { font-size: 13px; font-weight: 700; color: var(--text,#111); }
+        .ppc-meta-key { font-size: 10px; color: var(--text-muted,#aaa); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
 
         /* DIVIDER / SECTION LABEL */
-        .divider { height: 1px; background: var(--border, #f0f0f0); margin: 0 24px 20px; }
-
+        .divider { height:1px; background:var(--border,#f0f0f0); margin:0 24px 20px; }
         .section-label {
-            font-size: 13px; font-weight: 600;
-            color: var(--text-muted, #999); padding: 0 24px 14px;
-            text-transform: uppercase; letter-spacing: 0.3px;
+            font-size:13px; font-weight:600; color:var(--text-muted,#999);
+            padding:0 24px 14px; text-transform:uppercase; letter-spacing:0.3px;
         }
 
         /* PROGRESS */
         .progress-wrap { padding: 0 24px 24px; }
-
         .progress-card {
-            background: var(--surface-elevated, #f5f5f5);
-            border-radius: 14px;
-            padding: 16px;
-            border: 1px solid var(--border, transparent);
+            background: var(--surface-elevated,#f5f5f5);
+            border-radius: 14px; padding: 16px;
+            border: 1px solid var(--border,transparent);
         }
-
         .progress-top {
             display: flex; justify-content: space-between;
             align-items: center; margin-bottom: 10px;
         }
-
-        .progress-top-label {
-            font-size: 13px; font-weight: 600;
-            color: var(--text-secondary, #555);
-        }
-
-        .progress-top-count {
-            font-size: 13px; font-weight: 700;
-            color: var(--text, #111);
-        }
-
+        .progress-top-label { font-size:13px; font-weight:600; color:var(--text-secondary,#555); }
+        .progress-top-count { font-size:13px; font-weight:700; color:var(--text,#111); }
         .progress-track {
-            height: 7px;
-            background: var(--border, #e5e5e5);
-            border-radius: 50px;
-            overflow: hidden;
-            margin-bottom: 8px;
+            height: 7px; background: var(--border,#e5e5e5);
+            border-radius: 50px; overflow: hidden; margin-bottom: 8px;
         }
-
         .progress-fill {
-            height: 100%;
-            border-radius: 50px;
-            background: linear-gradient(90deg, #C9A028, #F5C842);
+            height: 100%; border-radius: 50px;
+            background: linear-gradient(90deg,#C9A028,#F5C842);
             transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
         }
+        .progress-hint { font-size:12px; color:var(--text-muted,#999); }
+        .progress-hint strong { color:#b08a00; }
 
-        .progress-hint {
-            font-size: 12px;
-            color: var(--text-muted, #999);
-        }
-
-        .progress-hint strong { color: #b08a00; }
-
-        /* COMMISSION TIERS */
+        /* TIERS */
         .tiers-list { padding: 0 24px; }
 
         .tier-row {
-            display: flex; align-items: center;
-            gap: 14px; padding: 14px 0;
-            border-bottom: 1px solid var(--border, #f3f3f3);
-            position: relative;
+            display: flex; align-items: flex-start;
+            gap: 14px; padding: 16px 0;
+            border-bottom: 1px solid var(--border,#f3f3f3);
+            position: relative; cursor: pointer;
         }
         .tier-row:last-child { border-bottom: none; }
 
         .tier-row.is-current {
             margin: 0 -24px;
             padding-left: 24px; padding-right: 24px;
-            background: rgba(245, 200, 66, 0.07);
+            background: rgba(245,200,66,0.06);
         }
-
         .tier-row.is-current::before {
-            content: '';
-            position: absolute;
+            content: ''; position: absolute;
             left: 0; top: 0; bottom: 0;
-            width: 3px;
-            background: #F5C842;
+            width: 3px; background: #F5C842;
             border-radius: 0 2px 2px 0;
         }
 
         .tier-icon-wrap {
-            width: 42px; height: 42px;
-            background: var(--surface-elevated, #f3f3f3);
-            border-radius: 12px;
+            width: 46px; height: 46px;
+            background: var(--surface-elevated,#f3f3f3);
+            border-radius: 13px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 20px;
-            flex-shrink: 0;
+            font-size: 22px; flex-shrink: 0;
         }
 
-        .tier-info { flex: 1; }
+        .tier-body { flex: 1; }
 
-        .tier-name {
-            font-size: 15px; font-weight: 600;
-            color: var(--text, #111); margin-bottom: 2px;
+        .tier-top-row {
+            display: flex; align-items: flex-start;
+            justify-content: space-between; margin-bottom: 4px;
         }
-
-        .tier-req {
-            font-size: 12px;
-            color: var(--text-muted, #999);
-        }
-
-        .tier-right { text-align: right; }
-
-        .tier-amount {
-            font-size: 16px; font-weight: 800;
-            color: #16a34a;
-        }
-
-        .tier-per {
-            font-size: 11px;
-            color: var(--text-muted, #aaa);
-        }
-
-        .current-tag {
-            display: inline-block;
+        .tier-name { font-size:15px; font-weight:700; color:var(--text,#111); }
+        .tier-req-badge {
             font-size: 10px; font-weight: 700;
-            background: #F5C842; color: #7a5c00;
+            color: var(--text-muted,#888);
+            background: var(--surface-elevated,#eee);
             padding: 2px 8px; border-radius: 50px;
-            text-transform: uppercase; letter-spacing: 0.4px;
-            margin-top: 4px;
+            white-space: nowrap;
+        }
+        .tier-row.is-current .tier-req-badge {
+            background: #F5C842; color: #7a5c00;
+        }
+
+        .tier-sub { font-size:12px; color:var(--text-muted,#999); margin-bottom:10px; }
+
+        /* Collapsed benefits preview */
+        .tier-benefits-preview {
+            display: flex; flex-wrap: wrap; gap: 5px;
+        }
+        .benefit-chip {
+            display: flex; align-items: center; gap: 4px;
+            font-size: 11px; font-weight: 500;
+            color: var(--text-secondary,#555);
+            background: var(--surface,#fff);
+            border: 1px solid var(--border,#eee);
+            padding: 3px 8px; border-radius: 50px;
+        }
+        .benefit-chip i { font-size: 9px; color: #16a34a; }
+
+        /* Expanded detail panel */
+        .tier-detail {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border,#f0f0f0);
+        }
+        .tier-detail.open { display: block; }
+
+        .detail-section { margin-bottom: 12px; }
+        .detail-section:last-child { margin-bottom: 0; }
+        .detail-section-title {
+            font-size: 11px; font-weight: 700;
+            color: var(--text-muted,#aaa); text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 6px;
+        }
+        .detail-list {
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .detail-item {
+            display: flex; align-items: center; gap: 7px;
+            font-size: 12px; color: var(--text-secondary,#555);
+        }
+        .detail-item i { font-size: 10px; color: var(--text-muted,#bbb); width: 12px; text-align: center; }
+        .detail-item.req i { color: #f59e0b; }
+        .detail-item.ben i { color: #16a34a; }
+
+        .tier-earning-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(22,163,74,0.1); color: #16a34a;
+            font-size: 13px; font-weight: 800;
+            padding: 4px 10px; border-radius: 8px; margin-bottom: 8px;
+        }
+
+        .tier-expand-hint {
+            font-size: 11px; color: var(--text-muted,#bbb);
+            margin-top: 8px; display: flex; align-items: center; gap: 4px;
         }
 
         /* PAYOUT INFO */
         .payout-list { padding: 0 24px; }
-
         .payout-row {
-            display: flex; align-items: center;
-            justify-content: space-between;
-            padding: 13px 0;
-            border-bottom: 1px solid var(--border, #f3f3f3);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 13px 0; border-bottom: 1px solid var(--border,#f3f3f3);
         }
         .payout-row:last-child { border-bottom: none; }
-
-        .payout-left {
-            display: flex; align-items: center; gap: 12px;
-        }
-
+        .payout-left { display:flex; align-items:center; gap:12px; }
         .payout-icon {
-            width: 36px; height: 36px;
-            background: var(--surface-elevated, #f3f3f3);
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px;
-            color: var(--text-muted, #666);
-            flex-shrink: 0;
+            width:36px; height:36px; background:var(--surface-elevated,#f3f3f3);
+            border-radius:10px; display:flex; align-items:center; justify-content:center;
+            font-size:14px; color:var(--text-muted,#666); flex-shrink:0;
         }
-
-        .payout-key {
-            font-size: 14px; font-weight: 500;
-            color: var(--text-secondary, #555);
-        }
-
-        .payout-val {
-            font-size: 14px; font-weight: 600;
-            color: var(--text, #111);
-        }
-        .payout-val.green { color: #16a34a; }
+        .payout-key { font-size:14px; font-weight:500; color:var(--text-secondary,#555); }
+        .payout-val { font-size:14px; font-weight:600; color:var(--text,#111); }
+        .payout-val.green { color:#16a34a; }
 
         /* REFERRALS */
         .referrals-section { padding: 0 24px 8px; }
-
-        .ref-filter {
-            display: flex; gap: 6px;
-            margin-bottom: 14px;
-        }
-
+        .ref-filter { display:flex; gap:6px; margin-bottom:14px; }
         .filter-chip {
-            font-size: 12px; font-weight: 600;
-            padding: 5px 13px; border-radius: 50px;
-            cursor: pointer;
-            border: 1px solid var(--border, #e5e5e5);
-            background: var(--surface-elevated, #f5f5f5);
-            color: var(--text-muted, #999);
-            transition: all 0.15s;
-            font-family: 'Inter', sans-serif;
+            font-size:12px; font-weight:600; padding:5px 13px; border-radius:50px;
+            cursor:pointer; border:1px solid var(--border,#e5e5e5);
+            background:var(--surface-elevated,#f5f5f5); color:var(--text-muted,#999);
+            transition:all 0.15s; font-family:'Inter',sans-serif;
         }
-
-        .filter-chip.active {
-            background: var(--text, #111);
-            color: var(--surface, #fff);
-            border-color: var(--text, #111);
-        }
+        .filter-chip.active { background:var(--text,#111); color:var(--surface,#fff); border-color:var(--text,#111); }
 
         .referral-row {
-            display: flex; align-items: center;
-            justify-content: space-between;
-            padding: 14px 0;
-            border-bottom: 1px solid var(--border, #f3f3f3);
+            display:flex; align-items:center; justify-content:space-between;
+            padding:14px 0; border-bottom:1px solid var(--border,#f3f3f3);
         }
-        .referral-row:last-child { border-bottom: none; }
-
-        .ref-left { display: flex; align-items: center; gap: 12px; }
-
+        .referral-row:last-child { border-bottom:none; }
+        .ref-left { display:flex; align-items:center; gap:12px; }
         .ref-avatar {
-            width: 40px; height: 40px;
-            background: var(--surface-elevated, #f0f0f0);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 13px; font-weight: 700;
-            color: var(--text-secondary, #666);
-            flex-shrink: 0;
-            position: relative;
+            width:40px; height:40px; background:var(--surface-elevated,#f0f0f0);
+            border-radius:50%; display:flex; align-items:center; justify-content:center;
+            font-size:13px; font-weight:700; color:var(--text-secondary,#666);
+            flex-shrink:0; position:relative;
         }
-
         .ref-status-dot {
-            position: absolute;
-            bottom: 0; right: 0;
-            width: 11px; height: 11px;
-            border-radius: 50%;
-            border: 2px solid var(--surface, white);
+            position:absolute; bottom:0; right:0;
+            width:11px; height:11px; border-radius:50%;
+            border:2px solid var(--surface,white);
         }
-        .ref-status-dot.paid { background: #16a34a; }
-        .ref-status-dot.pending { background: #f59e0b; }
-
-        .ref-name {
-            font-size: 15px; font-weight: 500;
-            color: var(--text, #111);
-        }
-        .ref-date { font-size: 12px; color: var(--text-muted, #aaa); margin-top: 2px; }
-
-        .ref-right { text-align: right; }
-
-        .ref-amount { font-size: 16px; font-weight: 800; color: #16a34a; }
-
+        .ref-status-dot.paid { background:#16a34a; }
+        .ref-status-dot.pending { background:#f59e0b; }
+        .ref-name { font-size:15px; font-weight:500; color:var(--text,#111); }
+        .ref-date { font-size:12px; color:var(--text-muted,#aaa); margin-top:2px; }
+        .ref-right { text-align:right; }
+        .ref-amount { font-size:16px; font-weight:800; color:#16a34a; }
         .ref-badge {
-            display: inline-block;
-            font-size: 10px; font-weight: 600;
-            padding: 2px 8px; border-radius: 20px; margin-top: 3px;
-            text-transform: uppercase; letter-spacing: 0.3px;
+            display:inline-block; font-size:10px; font-weight:600;
+            padding:2px 8px; border-radius:20px; margin-top:3px;
+            text-transform:uppercase; letter-spacing:0.3px;
         }
-        .ref-badge.paid    { background: rgba(5,150,105,0.12); color: #16a34a; }
-        .ref-badge.pending { background: rgba(245,158,11,0.12); color: #f59e0b; }
+        .ref-badge.paid    { background:rgba(5,150,105,0.12); color:#16a34a; }
+        .ref-badge.pending { background:rgba(245,158,11,0.12); color:#f59e0b; }
 
         /* EMPTY STATE */
-        .empty-state { text-align: center; padding: 40px 20px; }
-        .empty-state i { font-size: 34px; margin-bottom: 12px; display: block; color: var(--text-secondary, #999); }
-        .empty-state h3 { font-size: 15px; font-weight: 700; color: var(--text, #555); margin-bottom: 6px; }
-        .empty-state p { font-size: 13px; color: var(--text-secondary, #999); }
+        .empty-state { text-align:center; padding:40px 20px; }
+        .empty-state i { font-size:34px; margin-bottom:12px; display:block; color:var(--text-secondary,#999); }
+        .empty-state h3 { font-size:15px; font-weight:700; color:var(--text,#555); margin-bottom:6px; }
+        .empty-state p { font-size:13px; color:var(--text-secondary,#999); }
 
         /* BOTTOM CTA */
         .bottom-cta {
-            position: fixed;
-            bottom: 64px; left: 0; right: 0;
-            background: var(--surface, white);
-            padding: 12px 16px;
-            padding-bottom: calc(12px + env(safe-area-inset-bottom));
-            border-top: 1px solid var(--border, #f0f0f0);
-            display: flex; gap: 8px;
-            max-width: 600px;
-            margin: 0 auto;
-            z-index: 100;
-            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+            position:fixed; bottom:64px; left:0; right:0;
+            background:var(--surface,white);
+            padding:12px 16px;
+            padding-bottom:calc(12px + env(safe-area-inset-bottom));
+            border-top:1px solid var(--border,#f0f0f0);
+            display:flex; gap:8px;
+            max-width:600px; margin:0 auto;
+            z-index:100; box-shadow:0 -2px 8px rgba(0,0,0,0.05);
         }
-        .telegram-fullscreen .bottom-cta { max-width: 100%; }
-
+        .telegram-fullscreen .bottom-cta { max-width:100%; }
         .cta-share {
-            flex: 1.3;
-            background: var(--text, #111); color: var(--surface, white);
-            border: none; border-radius: 12px;
-            padding: 10px 16px; font-size: 13px; font-weight: 600;
-            cursor: pointer; font-family: 'Inter', sans-serif;
-            display: flex; align-items: center; justify-content: center; gap: 7px;
-            transition: opacity 0.2s, transform 0.2s;
+            flex:1.3; background:var(--text,#111); color:var(--surface,white);
+            border:none; border-radius:12px; padding:10px 16px;
+            font-size:13px; font-weight:600; cursor:pointer;
+            font-family:'Inter',sans-serif;
+            display:flex; align-items:center; justify-content:center; gap:7px;
+            transition:opacity 0.2s, transform 0.2s;
         }
-        .cta-share:active { transform: scale(0.98); opacity: 0.8; }
-
-        .cta-withdraw {
-            background: var(--surface-elevated, #f3f3f3);
-            color: var(--text, #111);
-            border: none; border-radius: 12px;
-            padding: 10px 16px; font-size: 13px; font-weight: 600;
-            cursor: pointer; font-family: 'Inter', sans-serif;
-            display: flex; align-items: center; justify-content: center; gap: 7px;
-            transition: opacity 0.2s, transform 0.2s;
+        .cta-share:active { transform:scale(0.98); opacity:0.8; }
+        .cta-wallet {
+            background:var(--surface-elevated,#f3f3f3); color:var(--text,#111);
+            border:none; border-radius:12px; padding:10px 16px;
+            font-size:13px; font-weight:600; cursor:pointer;
+            font-family:'Inter',sans-serif;
+            display:flex; align-items:center; justify-content:center; gap:7px;
+            transition:opacity 0.2s, transform 0.2s;
         }
-        .cta-withdraw:active { transform: scale(0.98); opacity: 0.75; }
+        .cta-wallet:active { transform:scale(0.98); opacity:0.75; }
 
         /* TOAST */
         .toast {
-            position: fixed; bottom: 110px; left: 50%;
-            transform: translateX(-50%);
-            background: var(--text, #111); color: var(--surface, white);
-            padding: 10px 20px; border-radius: 50px;
-            font-size: 13px; font-weight: 600; z-index: 9999;
-            white-space: nowrap; opacity: 0; transition: opacity 0.3s;
+            position:fixed; bottom:110px; left:50%; transform:translateX(-50%);
+            background:var(--text,#111); color:var(--surface,white);
+            padding:10px 20px; border-radius:50px;
+            font-size:13px; font-weight:600; z-index:9999;
+            white-space:nowrap; opacity:0; transition:opacity 0.3s;
         }
-        .toast.success { background: #16a34a; }
-        .toast.error   { background: #ef4444; }
+        .toast.success { background:#16a34a; }
+        .toast.error   { background:#ef4444; }
+
+        /* WITHDRAW HISTORY in Swal */
+        .wh-list { display:flex; flex-direction:column; gap:0; margin-top:4px; }
+        .wh-item {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:13px;
+        }
+        .wh-item:last-child { border-bottom:none; }
+        .wh-left { text-align:left; }
+        .wh-date { font-size:11px; color:#aaa; }
+        .wh-addr { font-size:12px; color:#888; font-family:monospace; }
+        .wh-right { text-align:right; }
+        .wh-amount { font-weight:800; color:#16a34a; }
+        .wh-status {
+            font-size:10px; font-weight:700; padding:2px 7px;
+            border-radius:50px; text-transform:uppercase; letter-spacing:0.3px;
+        }
+        .wh-status.paid    { background:rgba(5,150,105,0.12); color:#16a34a; }
+        .wh-status.pending { background:rgba(245,158,11,0.12); color:#f59e0b; }
     </style>
 </head>
 <body>
@@ -495,7 +435,7 @@
         <h1 class="header-title">Ambassador</h1>
         <div class="header-badge">
             <div class="badge-dot"></div>
-            <span id="currentTierLabel">Gold Tier</span>
+            <span id="currentTierLabel">Explorer</span>
         </div>
     </header>
 
@@ -507,7 +447,7 @@
             <div class="cluster-icon"><i class="fas fa-bolt"></i></div>
         </div>
         <h2 class="hero-title">Higher rewards,<br>every referral</h2>
-        <p class="hero-sub">As an ambassador you earn more per referral — and your rate grows as you refer more people. Instant TON payouts, no fees.</p>
+        <p class="hero-sub">Earn more as you grow. Unlock better tiers, free Stars, NFTs and exclusive benefits — paid out automatically every month.</p>
     </div>
 
     <!-- LINK -->
@@ -523,16 +463,48 @@
     <!-- STATS -->
     <div class="stats-row">
         <div class="stat-pill">
-            <div class="val" id="availableBalance">0.00</div>
-            <div class="lbl">Available</div>
-        </div>
-        <div class="stat-pill">
             <div class="val" id="referralsCount">0</div>
             <div class="lbl">Referrals</div>
         </div>
         <div class="stat-pill">
-            <div class="val" id="totalEarned">0.00</div>
+            <div class="val" id="totalEarned">$0</div>
             <div class="lbl">Earned</div>
+        </div>
+        <div class="stat-pill">
+            <div class="val" id="freeStars">0</div>
+            <div class="lbl">Free Stars</div>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- PENDING PAYOUT CARD -->
+    <div class="payout-pending-card">
+        <div class="ppc-top">
+            <div class="ppc-left">
+                <div class="ppc-icon"><i class="fas fa-clock"></i></div>
+                <div>
+                    <div class="ppc-label">Pending Payout</div>
+                    <div class="ppc-sub">Paid automatically each month</div>
+                </div>
+            </div>
+            <div>
+                <div class="ppc-amount">$<span id="pendingAmount">0.00</span> <span>USDT</span></div>
+            </div>
+        </div>
+        <div class="ppc-meta">
+            <div class="ppc-meta-item">
+                <div class="ppc-meta-val" id="nextPayoutDate">—</div>
+                <div class="ppc-meta-key">Next Payout</div>
+            </div>
+            <div class="ppc-meta-item">
+                <div class="ppc-meta-val" id="avgTransaction">0</div>
+                <div class="ppc-meta-key">Avg. Stars/Tx</div>
+            </div>
+            <div class="ppc-meta-item">
+                <div class="ppc-meta-val" id="socialPosts">0</div>
+                <div class="ppc-meta-key">Posts This Mo.</div>
+            </div>
         </div>
     </div>
 
@@ -543,67 +515,172 @@
     <div class="progress-wrap">
         <div class="progress-card" id="progressCard">
             <div class="progress-top">
-                <span class="progress-top-label" id="progressLabel">Progress to Gold</span>
-                <span class="progress-top-count" id="progressCount">0 / 30</span>
+                <span class="progress-top-label" id="progressLabel">Progress to Connector</span>
+                <span class="progress-top-count" id="progressCount">0 / 50</span>
             </div>
             <div class="progress-track">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                <div class="progress-fill" id="progressFill" style="width:0%"></div>
             </div>
             <div class="progress-hint" id="progressHint">
-                <strong>30 more referrals</strong> to unlock Gold tier (1.00 USDT/ref)
+                <strong>50 more referrals</strong> to unlock Level 2 — Connector
             </div>
         </div>
     </div>
 
     <div class="divider"></div>
 
-    <!-- COMMISSION TIERS -->
-    <div class="section-label">Commission Tiers</div>
-    <div class="tiers-list">
-        <div class="tier-row" id="tier-bronze">
-            <div class="tier-icon-wrap">🥉</div>
-            <div class="tier-info">
-                <div class="tier-name">Bronze</div>
-                <div class="tier-req">0 – 9 referrals</div>
-            </div>
-            <div class="tier-right">
-                <div class="tier-amount">0.50 USDT</div>
-                <div class="tier-per">per referral</div>
+    <!-- AMBASSADOR TIERS -->
+    <div class="section-label">Ambassador Levels</div>
+    <div class="tiers-list" id="tiersList">
+
+        <div class="tier-row" id="tier-1" onclick="toggleTier('tier-1')">
+            <div class="tier-icon-wrap">🌱</div>
+            <div class="tier-body">
+                <div class="tier-top-row">
+                    <div class="tier-name">Level 1 — Explorer</div>
+                    <div class="tier-req-badge">30 Referrals</div>
+                </div>
+                <div class="tier-sub">Entry-level ambassador</div>
+                <div class="tier-benefits-preview">
+                    <div class="benefit-chip"><i class="fas fa-check"></i> $30+ earnings</div>
+                    <div class="benefit-chip"><i class="fas fa-check"></i> 50 free Stars</div>
+                    <div class="benefit-chip"><i class="fas fa-check"></i> Level 1 NFT</div>
+                </div>
+                <div class="tier-expand-hint"><i class="fas fa-chevron-down"></i> Tap to see full details</div>
+                <div class="tier-detail" id="detail-tier-1">
+                    <div class="detail-section">
+                        <div class="detail-section-title">Requirements / month</div>
+                        <div class="detail-list">
+                            <div class="detail-item req"><i class="fas fa-users"></i> 30+ successful transactions</div>
+                            <div class="detail-item req"><i class="fas fa-share-alt"></i> 4 social media posts</div>
+                            <div class="detail-item req"><i class="fas fa-star"></i> Avg. 350+ Stars per transaction</div>
+                            <div class="detail-item req"><i class="fas fa-comments"></i> Active in community</div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title">Benefits</div>
+                        <div class="detail-list">
+                            <div class="detail-item ben"><i class="fas fa-dollar-sign"></i> $30 minimum monthly earnings</div>
+                            <div class="detail-item ben"><i class="fas fa-image"></i> Level 1 NFT</div>
+                            <div class="detail-item ben"><i class="fas fa-star"></i> 50 free Stars monthly</div>
+                            <div class="detail-item ben"><i class="fas fa-user-group"></i> Access to ambassador group</div>
+                            <div class="detail-item ben"><i class="fas fa-chart-bar"></i> Basic analytics dashboard</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="tier-row" id="tier-silver">
-            <div class="tier-icon-wrap">🥈</div>
-            <div class="tier-info">
-                <div class="tier-name">Silver</div>
-                <div class="tier-req">10 – 29 referrals</div>
-            </div>
-            <div class="tier-right">
-                <div class="tier-amount">0.75 USDT</div>
-                <div class="tier-per">per referral</div>
+
+        <div class="tier-row" id="tier-2" onclick="toggleTier('tier-2')">
+            <div class="tier-icon-wrap">🔗</div>
+            <div class="tier-body">
+                <div class="tier-top-row">
+                    <div class="tier-name">Level 2 — Connector</div>
+                    <div class="tier-req-badge">50 Referrals</div>
+                </div>
+                <div class="tier-sub">Growing ambassador</div>
+                <div class="tier-benefits-preview">
+                    <div class="benefit-chip"><i class="fas fa-check"></i> $60+ earnings</div>
+                    <div class="benefit-chip"><i class="fas fa-check"></i> 100 free Stars</div>
+                    <div class="benefit-chip"><i class="fas fa-check"></i> Level 2 NFT</div>
+                </div>
+                <div class="tier-expand-hint"><i class="fas fa-chevron-down"></i> Tap to see full details</div>
+                <div class="tier-detail" id="detail-tier-2">
+                    <div class="detail-section">
+                        <div class="detail-section-title">Requirements / month</div>
+                        <div class="detail-list">
+                            <div class="detail-item req"><i class="fas fa-users"></i> 50+ transactions</div>
+                            <div class="detail-item req"><i class="fas fa-share-alt"></i> 6 social posts</div>
+                            <div class="detail-item req"><i class="fas fa-star"></i> Avg. 400+ Stars per transaction</div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title">Benefits</div>
+                        <div class="detail-list">
+                            <div class="detail-item ben"><i class="fas fa-dollar-sign"></i> $60+ monthly earnings</div>
+                            <div class="detail-item ben"><i class="fas fa-image"></i> Level 2 NFT</div>
+                            <div class="detail-item ben"><i class="fas fa-star"></i> 100 free Stars monthly</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="tier-row" id="tier-gold">
-            <div class="tier-icon-wrap">🥇</div>
-            <div class="tier-info">
-                <div class="tier-name">Gold</div>
-                <div class="tier-req">30 – 99 referrals</div>
-            </div>
-            <div class="tier-right">
-                <div class="tier-amount">1.00 USDT</div>
-                <div class="tier-per">per referral</div>
+
+        <div class="tier-row" id="tier-3" onclick="toggleTier('tier-3')">
+            <div class="tier-icon-wrap">🚀</div>
+            <div class="tier-body">
+                <div class="tier-top-row">
+                    <div class="tier-name">Level 3 — Pioneer</div>
+                    <div class="tier-req-badge">70 Referrals</div>
+                </div>
+                <div class="tier-sub">Established ambassador</div>
+                <div class="tier-benefits-preview">
+                    <div class="benefit-chip"><i class="fas fa-check"></i> $80+ earnings</div>
+                    <div class="benefit-chip"><i class="fas fa-check"></i> 150 free Stars</div>
+                    <div class="benefit-chip"><i class="fas fa-check"></i> Priority support</div>
+                </div>
+                <div class="tier-expand-hint"><i class="fas fa-chevron-down"></i> Tap to see full details</div>
+                <div class="tier-detail" id="detail-tier-3">
+                    <div class="detail-section">
+                        <div class="detail-section-title">Requirements / month</div>
+                        <div class="detail-list">
+                            <div class="detail-item req"><i class="fas fa-users"></i> 70+ transactions</div>
+                            <div class="detail-item req"><i class="fas fa-share-alt"></i> 8 social posts (incl. 1 video)</div>
+                            <div class="detail-item req"><i class="fas fa-star"></i> Avg. 450+ Stars per transaction</div>
+                            <div class="detail-item req"><i class="fas fa-person-chalkboard"></i> Mentor 1 Level 1 ambassador</div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title">Benefits</div>
+                        <div class="detail-list">
+                            <div class="detail-item ben"><i class="fas fa-dollar-sign"></i> $80+ monthly earnings</div>
+                            <div class="detail-item ben"><i class="fas fa-image"></i> Level 3 NFT</div>
+                            <div class="detail-item ben"><i class="fas fa-star"></i> 150 free Stars monthly</div>
+                            <div class="detail-item ben"><i class="fas fa-headset"></i> Priority support</div>
+                            <div class="detail-item ben"><i class="fas fa-handshake"></i> Co-marketing opportunities</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="tier-row" id="tier-diamond">
+
+        <div class="tier-row" id="tier-4" onclick="toggleTier('tier-4')">
             <div class="tier-icon-wrap">💎</div>
-            <div class="tier-info">
-                <div class="tier-name">Diamond</div>
-                <div class="tier-req">100+ referrals</div>
-            </div>
-            <div class="tier-right">
-                <div class="tier-amount">1.50 USDT</div>
-                <div class="tier-per">per referral</div>
+            <div class="tier-body">
+                <div class="tier-top-row">
+                    <div class="tier-name">Level 4 — Elite</div>
+                    <div class="tier-req-badge">100 Referrals</div>
+                </div>
+                <div class="tier-sub">Top-tier ambassador</div>
+                <div class="tier-benefits-preview">
+                    <div class="benefit-chip"><i class="fas fa-check"></i> $110+ earnings</div>
+                    <div class="benefit-chip"><i class="fas fa-check"></i> 200 free Stars</div>
+                    <div class="benefit-chip"><i class="fas fa-check"></i> Revenue share</div>
+                </div>
+                <div class="tier-expand-hint"><i class="fas fa-chevron-down"></i> Tap to see full details</div>
+                <div class="tier-detail" id="detail-tier-4">
+                    <div class="detail-section">
+                        <div class="detail-section-title">Requirements / month</div>
+                        <div class="detail-list">
+                            <div class="detail-item req"><i class="fas fa-users"></i> 100+ transactions</div>
+                            <div class="detail-item req"><i class="fas fa-share-alt"></i> 10 social posts (incl. 2 videos)</div>
+                            <div class="detail-item req"><i class="fas fa-star"></i> Avg. 500+ Stars per transaction</div>
+                            <div class="detail-item req"><i class="fas fa-calendar-star"></i> Lead monthly community event</div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title">Benefits</div>
+                        <div class="detail-list">
+                            <div class="detail-item ben"><i class="fas fa-dollar-sign"></i> $110+ monthly earnings</div>
+                            <div class="detail-item ben"><i class="fas fa-image"></i> Level 4 NFT</div>
+                            <div class="detail-item ben"><i class="fas fa-star"></i> 200 free Stars monthly</div>
+                            <div class="detail-item ben"><i class="fas fa-chart-pie"></i> Revenue share participation</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+
     </div>
 
     <div class="divider"></div>
@@ -613,17 +690,10 @@
     <div class="payout-list">
         <div class="payout-row">
             <div class="payout-left">
-                <div class="payout-icon"><i class="fas fa-bolt"></i></div>
-                <span class="payout-key">Payout speed</span>
+                <div class="payout-icon"><i class="fas fa-calendar-check"></i></div>
+                <span class="payout-key">Payout schedule</span>
             </div>
-            <span class="payout-val green">Instant</span>
-        </div>
-        <div class="payout-row">
-            <div class="payout-left">
-                <div class="payout-icon"><i class="fas fa-arrow-down"></i></div>
-                <span class="payout-key">Minimum withdrawal</span>
-            </div>
-            <span class="payout-val">0.5 USDT</span>
+            <span class="payout-val green">Monthly (auto)</span>
         </div>
         <div class="payout-row">
             <div class="payout-left">
@@ -641,10 +711,10 @@
         </div>
         <div class="payout-row">
             <div class="payout-left">
-                <div class="payout-icon"><i class="fas fa-calendar-check"></i></div>
-                <span class="payout-key">Schedule</span>
+                <div class="payout-icon"><i class="fas fa-wallet"></i></div>
+                <span class="payout-key">Your wallet</span>
             </div>
-            <span class="payout-val">On demand</span>
+            <span class="payout-val" id="walletPreview" style="font-size:12px;color:var(--text-muted,#aaa);">Not set</span>
         </div>
     </div>
 
@@ -654,9 +724,9 @@
     <div class="section-label">My Referrals</div>
     <div class="referrals-section">
         <div class="ref-filter">
-            <button class="filter-chip active" onclick="setFilter('all', this)">All</button>
-            <button class="filter-chip" onclick="setFilter('paid', this)">Paid</button>
-            <button class="filter-chip" onclick="setFilter('pending', this)">Pending</button>
+            <button class="filter-chip active" onclick="setFilter('all',this)">All</button>
+            <button class="filter-chip" onclick="setFilter('paid',this)">Paid</button>
+            <button class="filter-chip" onclick="setFilter('pending',this)">Pending</button>
         </div>
         <div id="noReferrals" class="empty-state">
             <i class="fas fa-user-group"></i>
@@ -673,8 +743,8 @@
     <button class="cta-share" onclick="shareReferral()">
         <i class="fas fa-share-alt"></i> Invite Friends
     </button>
-    <button class="cta-withdraw" onclick="showWithdrawPopup()">
-        <i class="fas fa-arrow-up"></i> Withdraw
+    <button class="cta-wallet" onclick="showWalletModal()">
+        <i class="fas fa-wallet"></i> Wallet
     </button>
 </div>
 
@@ -684,7 +754,7 @@
         wa.ready(); wa.expand();
         document.body.classList.add('telegram-fullscreen');
         if (wa.themeParams?.isDark || wa.colorScheme === 'dark') {
-            document.body.setAttribute('data-theme', 'dark');
+            document.body.setAttribute('data-theme','dark');
         }
     }
 
@@ -694,19 +764,28 @@
     const BASE_API_URL = window.location.origin + '/api';
     const userId = tgUser?.id?.toString() || 'default_user_id';
 
-    const TIERS = [
-        { id: 'bronze',  label: 'Bronze',  min: 0,   max: 9,        reward: 0.50 },
-        { id: 'silver',  label: 'Silver',  min: 10,  max: 29,       reward: 0.75 },
-        { id: 'gold',    label: 'Gold',    min: 30,  max: 99,       reward: 1.00 },
-        { id: 'diamond', label: 'Diamond', min: 100, max: Infinity, reward: 1.50 },
+    // Ambassador level config
+    const LEVELS = [
+        { id:'tier-1', label:'Explorer',  min:0,  next:50,  earnings:'$30+',  stars:50  },
+        { id:'tier-2', label:'Connector', min:30, next:70,  earnings:'$60+',  stars:100 },
+        { id:'tier-3', label:'Pioneer',   min:50, next:100, earnings:'$80+',  stars:150 },
+        { id:'tier-4', label:'Elite',     min:70, next:null,earnings:'$110+', stars:200 },
     ];
 
     const state = {
         referralLink: null,
-        stats: { availableBalance: 0, totalEarned: 0, referralsCount: 0, pendingAmount: 0 },
+        walletAddress: null,
+        stats: {
+            referralsCount: 0,
+            totalEarned: 0,
+            pendingAmount: 0,
+            freeStars: 0,
+            avgTransaction: 0,
+            socialPosts: 0
+        },
         referrals: [],
+        withdrawHistory: [],
         filterMode: 'all',
-        isWithdrawInProgress: false,
         lastRefresh: 0
     };
 
@@ -738,14 +817,18 @@
             if (!res.ok) throw new Error(res.status);
             const data = await res.json();
             if (data.success) {
-                state.referralLink = data.referralLink || fallbackLink();
+                state.referralLink   = data.referralLink || fallbackLink();
+                state.walletAddress  = data.walletAddress || null;
+                state.referrals      = data.referrals || [];
+                state.withdrawHistory = data.withdrawHistory || [];
                 state.stats = {
-                    availableBalance: parseFloat(data.stats?.availableBalance || 0),
-                    totalEarned:      parseFloat(data.stats?.totalEarned || 0),
-                    referralsCount:   parseInt(data.stats?.referralsCount || 0),
-                    pendingAmount:    parseFloat(data.stats?.pendingAmount || 0)
+                    referralsCount:  parseInt(data.stats?.referralsCount  || 0),
+                    totalEarned:     parseFloat(data.stats?.totalEarned    || 0),
+                    pendingAmount:   parseFloat(data.stats?.pendingAmount  || 0),
+                    freeStars:       parseInt(data.stats?.freeStars        || 0),
+                    avgTransaction:  parseInt(data.stats?.avgTransaction   || 0),
+                    socialPosts:     parseInt(data.stats?.socialPosts      || 0)
                 };
-                state.referrals = data.referrals || [];
                 state.lastRefresh = Date.now();
             }
         } catch (e) {
@@ -760,13 +843,33 @@
     }
 
     function updateUI() {
-        const { availableBalance, totalEarned, referralsCount } = state.stats;
-        setText('availableBalance', availableBalance.toFixed(2));
-        setText('totalEarned', totalEarned.toFixed(2));
-        setText('referralsCount', referralsCount);
+        const s = state.stats;
+        setText('referralsCount', s.referralsCount);
+        setText('totalEarned', `$${s.totalEarned.toFixed(0)}`);
+        setText('freeStars', s.freeStars);
+        setText('pendingAmount', s.pendingAmount.toFixed(2));
+        setText('avgTransaction', s.avgTransaction || '—');
+        setText('socialPosts', s.socialPosts);
+
+        // Next payout — first day of next month
+        const now = new Date();
+        const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        setText('nextPayoutDate', next.toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+
+        // Link
         const linkEl = document.getElementById('referralLinkDisplay');
         if (linkEl) { linkEl.textContent = state.referralLink; linkEl.removeAttribute('data-translate'); }
-        updateTierUI(referralsCount);
+
+        // Wallet preview
+        const walletEl = document.getElementById('walletPreview');
+        if (walletEl) {
+            walletEl.textContent = state.walletAddress
+                ? state.walletAddress.substring(0,8) + '…' + state.walletAddress.slice(-4)
+                : 'Not set';
+            walletEl.style.color = state.walletAddress ? 'var(--text,#111)' : '';
+        }
+
+        updateLevelUI(s.referralsCount);
         renderReferrals();
     }
 
@@ -775,50 +878,62 @@
         if (el) el.textContent = val;
     }
 
-    function getCurrentTier(count) {
-        for (let i = TIERS.length - 1; i >= 0; i--) {
-            if (count >= TIERS[i].min) return TIERS[i];
+    function getCurrentLevel(count) {
+        for (let i = LEVELS.length - 1; i >= 0; i--) {
+            if (count >= LEVELS[i].min) return LEVELS[i];
         }
-        return TIERS[0];
+        return LEVELS[0];
     }
 
-    function updateTierUI(count) {
-        const current = getCurrentTier(count);
-        const nextIdx = TIERS.indexOf(current) + 1;
-        const next = nextIdx < TIERS.length ? TIERS[nextIdx] : null;
+    function updateLevelUI(count) {
+        const current = getCurrentLevel(count);
 
-        TIERS.forEach(t => {
-            const row = document.getElementById(`tier-${t.id}`);
+        // Reset all
+        LEVELS.forEach(l => {
+            const row = document.getElementById(l.id);
             if (!row) return;
             row.classList.remove('is-current');
-            const tag = row.querySelector('.current-tag');
-            if (tag) tag.remove();
+            const badge = row.querySelector('.tier-req-badge');
+            if (badge) badge.style.background = '';
         });
 
-        const activeRow = document.getElementById(`tier-${current.id}`);
-        if (activeRow) {
-            activeRow.classList.add('is-current');
-            const tag = document.createElement('div');
-            tag.className = 'current-tag';
-            tag.textContent = 'Current';
-            activeRow.querySelector('.tier-right').appendChild(tag);
-        }
+        // Mark current
+        const activeRow = document.getElementById(current.id);
+        if (activeRow) activeRow.classList.add('is-current');
 
-        setText('currentTierLabel', `${current.label} Tier`);
+        // Header badge
+        setText('currentTierLabel', current.label);
 
+        // Progress card
         const card = document.getElementById('progressCard');
-        if (!next) { card.style.display = 'none'; return; }
+        if (!current.next) { card.style.display = 'none'; return; }
         card.style.display = 'block';
 
-        const pct = Math.min(100, Math.round(((count - current.min) / (next.min - current.min)) * 100));
+        const pct = Math.min(100, Math.round(((count - current.min) / (current.next - current.min)) * 100));
         document.getElementById('progressFill').style.width = `${pct}%`;
-        document.getElementById('progressCount').textContent = `${count} / ${next.min}`;
-        setText('progressLabel', `Progress to ${next.label}`);
-        const rem = next.min - count;
+        document.getElementById('progressCount').textContent = `${count} / ${current.next}`;
+
+        // Find next level label
+        const nextLevel = LEVELS.find(l => l.min === current.next);
+        const nextLabel = nextLevel ? `Level ${LEVELS.indexOf(nextLevel)+1} — ${nextLevel.label}` : 'next level';
+        setText('progressLabel', `Progress to ${nextLevel?.label || 'next level'}`);
+        const rem = current.next - count;
         document.getElementById('progressHint').innerHTML =
-            `<strong>${rem} more referral${rem !== 1 ? 's' : ''}</strong> to unlock ${next.label} tier (${next.reward.toFixed(2)} USDT/ref)`;
+            `<strong>${rem} more referral${rem !== 1 ? 's' : ''}</strong> to unlock ${nextLabel}`;
     }
 
+    // Toggle tier expand
+    function toggleTier(id) {
+        const detail = document.getElementById(`detail-${id}`);
+        const hint = document.querySelector(`#${id} .tier-expand-hint`);
+        if (!detail) return;
+        const isOpen = detail.classList.toggle('open');
+        if (hint) hint.innerHTML = isOpen
+            ? '<i class="fas fa-chevron-up"></i> Tap to collapse'
+            : '<i class="fas fa-chevron-down"></i> Tap to see full details';
+    }
+
+    // Filter referrals
     function setFilter(mode, btn) {
         state.filterMode = mode;
         document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -837,11 +952,10 @@
         emptyEl.style.display = 'none';
 
         listEl.innerHTML = refs.map(ref => {
-            const name    = ref.name || `User #${String(ref.userId).substring(0, 6)}`;
-            const inits   = name.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 2) || '?';
+            const name    = ref.name || `User #${String(ref.userId).substring(0,6)}`;
+            const inits   = name.split(' ').map(w => w[0]).join('').toUpperCase().substring(0,2) || '?';
             const dateStr = new Date(ref.date).toLocaleDateString();
             const isPaid  = ref.status === 'completed' || ref.status === 'paid';
-            const reward  = (ref.reward || 0.50).toFixed(2);
             return `
                 <div class="referral-row">
                     <div class="ref-left">
@@ -855,13 +969,112 @@
                         </div>
                     </div>
                     <div class="ref-right">
-                        <div class="ref-amount">+${reward} USDT</div>
+                        <div class="ref-amount">+${(ref.reward || 0).toFixed(2)} USDT</div>
                         <span class="ref-badge ${isPaid ? 'paid' : 'pending'}">${isPaid ? 'Paid' : 'Pending'}</span>
                     </div>
                 </div>`;
         }).join('');
     }
 
+    // ── WALLET MODAL ──
+    function showWalletModal() {
+        const wallet = state.walletAddress;
+        const historyHtml = buildHistoryHtml();
+
+        Swal.fire({
+            title: 'Payout Wallet',
+            html: `
+                <div style="text-align:left;">
+                    <div style="background:#f7f7f5;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+                        <div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Current Wallet</div>
+                        <div style="font-size:13px;font-weight:600;color:#111;word-break:break-all;">
+                            ${wallet ? wallet : '<span style="color:#bbb;">No wallet address saved</span>'}
+                        </div>
+                    </div>
+
+                    <div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">TON Wallet Address</div>
+                    <input type="text" id="newWallet" placeholder="EQxxxxxxxxxx…" value="${wallet || ''}"
+                        style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:Inter,sans-serif;margin-bottom:8px;">
+                    <div style="font-size:12px;color:#aaa;margin-bottom:16px;">
+                        <i class="fas fa-info-circle" style="margin-right:4px;"></i>
+                        Payouts are sent automatically on the 1st of each month to this address.
+                    </div>
+
+                    ${historyHtml}
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Save Wallet',
+            cancelButtonText: 'Close',
+            confirmButtonColor: '#111',
+            preConfirm: () => {
+                const val = document.getElementById('newWallet').value?.trim();
+                if (!val) { Swal.showValidationMessage('Please enter a wallet address'); return false; }
+                return val;
+            }
+        }).then(result => {
+            if (result.isConfirmed && result.value) {
+                saveWalletAddress(result.value);
+            }
+        });
+    }
+
+    function buildHistoryHtml() {
+        const history = state.withdrawHistory;
+        if (!history.length) {
+            return `
+                <div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Payout History</div>
+                <div style="text-align:center;padding:20px;color:#ccc;font-size:13px;">No payouts yet</div>
+            `;
+        }
+        const rows = history.map(w => {
+            const isPaid  = w.status === 'paid' || w.status === 'completed';
+            const dateStr = new Date(w.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+            const addr    = w.walletAddress ? w.walletAddress.substring(0,6)+'…'+w.walletAddress.slice(-4) : '—';
+            return `
+                <div class="wh-item">
+                    <div class="wh-left">
+                        <div style="font-weight:600;font-size:13px;color:#111;">${dateStr}</div>
+                        <div class="wh-addr">${addr}</div>
+                    </div>
+                    <div class="wh-right">
+                        <div class="wh-amount">$${parseFloat(w.amount).toFixed(2)}</div>
+                        <div><span class="wh-status ${isPaid ? 'paid' : 'pending'}">${isPaid ? 'Paid' : 'Processing'}</span></div>
+                    </div>
+                </div>`;
+        }).join('');
+        return `
+            <div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Payout History</div>
+            <div class="wh-list">${rows}</div>
+        `;
+    }
+
+    async function saveWalletAddress(address) {
+        try {
+            const res = await fetch(`${BASE_API_URL}/ambassador-wallet`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-telegram-init-data': tgWebApp?.initData || '',
+                    'x-telegram-id': userId
+                },
+                body: JSON.stringify({ userId, walletAddress: address })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                state.walletAddress = address;
+                const walletEl = document.getElementById('walletPreview');
+                if (walletEl) walletEl.textContent = address.substring(0,8) + '…' + address.slice(-4);
+                showToast('Wallet saved!', 'success');
+            } else {
+                showToast(data.error || 'Failed to save wallet', 'error');
+            }
+        } catch (e) {
+            showToast('Network error. Please try again.', 'error');
+        }
+    }
+
+    // ── COPY / SHARE ──
     function copyReferralLink() {
         const link = state.referralLink || fallbackLink();
         if (navigator.clipboard) {
@@ -883,7 +1096,7 @@
         const link = state.referralLink || fallbackLink();
         const text = `Join StarStore and get Telegram Stars instantly!\n${link}`;
         if (navigator.share) {
-            navigator.share({ title: 'StarStore', text, url: link })
+            navigator.share({ title:'StarStore', text, url:link })
                 .catch(err => { if (err.name !== 'AbortError') showShareDialog(link, text); });
         } else { showShareDialog(link, text); }
     }
@@ -908,77 +1121,13 @@
                         X / Twitter
                     </button>
                 </div>`,
-            showConfirmButton: false,
-            showCloseButton: true
+            showConfirmButton: false, showCloseButton: true
         });
-    }
-
-    async function showWithdrawPopup() {
-        if (state.isWithdrawInProgress) { showToast('Withdrawal in progress…', 'error'); return; }
-        const available = state.stats.availableBalance;
-        if (available < 0.5) {
-            Swal.fire({
-                title: 'Insufficient Balance',
-                text: `You need at least 0.5 USDT to withdraw. Current balance: ${available.toFixed(2)} USDT`,
-                icon: 'warning', confirmButtonColor: '#111'
-            });
-            return;
-        }
-        state.isWithdrawInProgress = true;
-        try {
-            const { value } = await Swal.fire({
-                title: 'Withdraw Earnings',
-                html: `
-                    <div style="text-align:left;">
-                        <label style="display:block;margin-bottom:8px;font-weight:600;font-size:13px;">Amount (USDT)</label>
-                        <input type="number" id="amount" placeholder="0.5" max="${available}" min="0.5" step="0.5" value="${available}"
-                            style="width:100%;padding:12px;margin-bottom:14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:Inter,sans-serif;">
-                        <label style="display:block;margin-bottom:8px;font-weight:600;font-size:13px;">TON Wallet Address</label>
-                        <input type="text" id="wallet" placeholder="EQxxxxxxxxxx…"
-                            style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:Inter,sans-serif;">
-                        <p style="margin-top:12px;font-size:12px;color:#888;">Available: <strong>${available.toFixed(2)} USDT</strong> · No fee</p>
-                    </div>`,
-                showCancelButton: true,
-                confirmButtonText: 'Withdraw',
-                confirmButtonColor: '#111',
-                preConfirm: () => {
-                    const amount = parseFloat(document.getElementById('amount').value);
-                    const wallet = document.getElementById('wallet').value?.trim();
-                    if (!amount || amount < 0.5) { Swal.showValidationMessage('Minimum is 0.5 USDT'); return false; }
-                    if (amount > available)      { Swal.showValidationMessage(`Max: ${available.toFixed(2)} USDT`); return false; }
-                    if (!wallet)                 { Swal.showValidationMessage('Please enter your TON wallet address'); return false; }
-                    return { amount, walletAddress: wallet };
-                }
-            });
-            if (value) await processWithdrawal(value.amount, value.walletAddress);
-        } finally { state.isWithdrawInProgress = false; }
-    }
-
-    async function processWithdrawal(amount, walletAddress) {
-        try {
-            const res = await fetch(`${BASE_API_URL}/referral-withdrawals`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-telegram-init-data': tgWebApp?.initData || '',
-                    'x-telegram-id': userId
-                },
-                body: JSON.stringify({ userId, amount, walletAddress, type: 'ambassador' })
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-                showToast('Withdrawal submitted!', 'success');
-                setTimeout(() => loadReferralData(), 1200);
-            } else {
-                showToast(data.error || 'Withdrawal failed. Please try again.', 'error');
-            }
-        } catch (e) { showToast('Network error. Please try again.', 'error'); }
     }
 
     function showToast(msg, type = '') {
         const t = document.createElement('div');
-        t.className = `toast ${type}`;
-        t.textContent = msg;
+        t.className = `toast ${type}`; t.textContent = msg;
         document.body.appendChild(t);
         setTimeout(() => { t.style.opacity = '1'; }, 10);
         setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2200);
