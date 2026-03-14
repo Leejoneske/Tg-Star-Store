@@ -2340,7 +2340,12 @@ async function checkAmbassadorStatus(userId) {
     return false;
 }
 
-
+// Function to handle Telegram Mini App fullscreen mode
+function setupTelegramFullscreen() {
+    if (window.Telegram?.WebApp) {
+        document.body.classList.add('telegram-fullscreen');
+    }
+}
 
 function updateUserInterface(user) {
     if (!user) {
