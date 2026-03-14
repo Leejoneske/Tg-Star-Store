@@ -351,6 +351,9 @@
     <div id="bottomnav-container"></div>
 
     <header class="page-header">
+        <button id="exitButton" style="position: absolute; top: 12px; right: 16px; background: rgba(0,0,0,0.1); color: #333; border: 1px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 6px 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.2)'; this.style.color='#000'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='#333'">
+            ← Back
+        </button>
         <h1 class="header-title" data-translate="referral">Referral</h1>
     </header>
 
@@ -836,6 +839,11 @@
             loadReferralData();
         }
     }, 30000);
+
+    // Exit button functionality
+    document.getElementById('exitButton').addEventListener('click', function() {
+        window.location.href = '/about';
+    });
 </script>
 <script src="/js/version-display.js?v=3"></script>
 </body>
