@@ -308,6 +308,10 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
             username: String,
             email: { type: String, index: true },
             socials: { type: Object, default: {} },
+            telegramId: String,
+            status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
+            processedBy: String,
+            processedAt: Date,
             createdAt: { type: Date, default: Date.now }
           }, { collection: 'ambassador_waitlist' });
           global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
@@ -344,6 +348,10 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
           username: String,
           email: { type: String, index: true },
           socials: { type: Object, default: {} },
+          telegramId: String,
+          status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
+          processedBy: String,
+          processedAt: Date,
           createdAt: { type: Date, default: Date.now }
         }, { collection: 'ambassador_waitlist' });
         global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
@@ -353,6 +361,13 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       if (existing) {
         return res.status(409).json({ success: false, error: 'Email already registered' });
       }
+      
+      // Store telegram ID if available
+      const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
+      if (tgId) {
+        clean.telegramId = tgId;
+      }
+      
       saved = await global.AmbassadorWaitlist.create(clean);
     } else if (db && typeof db.createAmbassadorWaitlist === 'function') {
       // Guard against duplicates in memory/file store
@@ -361,6 +376,14 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       if (exists) {
         return res.status(409).json({ success: false, error: 'Email already registered' });
       }
+      
+      // Store telegram ID if available
+      const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
+      if (tgId) {
+        clean.telegramId = tgId;
+      }
+      clean.status = 'pending';
+      
       saved = await db.createAmbassadorWaitlist(clean);
     } else {
       // Fallback: extend dev storage dynamically
@@ -370,6 +393,14 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       if (exists) {
         return res.status(409).json({ success: false, error: 'Email already registered' });
       }
+      
+      // Store telegram ID if available
+      const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
+      if (tgId) {
+        clean.telegramId = tgId;
+      }
+      clean.status = 'pending';
+      
       db.data.ambassadorWaitlist.push(clean);
       await db.saveData();
       saved = clean;
@@ -390,7 +421,7 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       if (tgId) await bot.sendMessage(tgId, `✅ Thanks ${clean.fullName}! You have been added to the StarStore Ambassador waitlist. We will contact you soon.`);
     } catch (_) {}
 
-    // Notify admins of new signup
+    // Notify admins of new signup with approval buttons
     try {
       const admins = (typeof adminIds !== 'undefined' && Array.isArray(adminIds) && adminIds.length)
         ? adminIds
@@ -400,17 +431,29 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
             .map(id => id.trim());
       if (admins && admins.length) {
         const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
-        const adminMsg =
-          `🆕 New Ambassador Waitlist Signup\n\n` +
+        const adminText =
+          `Ambassador Application\n\n` +
           `Name: ${clean.fullName}\n` +
           `Email: ${clean.email}\n` +
           `Username: ${clean.username ? '@' + clean.username : 'N/A'}\n` +
-          `${Object.keys(clean.socials||{}).length ? `Socials: ${Object.entries(clean.socials).map(([k,v])=>`${k}: ${v}`).join(', ')}\n` : ''}` +
-          `${tgId ? `User ID: ${tgId}\n` : ''}` +
+          `User ID: ${tgId || 'N/A'}\n` +
+          `Socials: ${Object.entries(clean.socials||{}).map(([k,v])=>`${k}: ${v}`).join(', ')}\n` +
           `Entry ID: ${saved.id}`;
-        await Promise.all(admins.map(aid => {
-          try { return bot.sendMessage(aid, adminMsg); } catch { return Promise.resolve(); }
-        }));
+        
+        const adminKeyboard = {
+          inline_keyboard: [[
+            { text: 'Approve', callback_data: `ambassador_approve_${saved.id}` },
+            { text: 'Decline', callback_data: `ambassador_decline_${saved.id}` }
+          ]]
+        };
+        
+        for (const adminId of admins) {
+          try {
+            await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+          } catch (e) {
+            console.error('Failed to notify admin of ambassador signup:', e.message);
+          }
+        }
       }
     } catch (e) {
       console.error('Failed to notify admins of ambassador signup:', e.message);
@@ -563,7 +606,7 @@ app.get(['/ambasador', '/ambasador.html'], (req, res) => {
 });
 
 // Ensure directories with index.html return 200 (no 302/redirects)
-app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador', '/referral'], (req, res, next) => {
+app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
   try {
     const map = {
       '/': 'index.html',
@@ -575,8 +618,7 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/k
       '/blog': 'blog/index.html',
       '/knowledge-base': 'knowledge-base/index.html',
       '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
-      '/ambassador': 'ambassador/index.html',
-      '/referral': 'referral.html'
+      '/ambassador': 'ambassador/index.html'
     };
     const file = map[req.path];
     if (file) {
@@ -593,6 +635,37 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/k
     }
     return next();
   } catch (e) { return next(); }
+});
+
+// Dynamic referral page routing based on user role
+app.get('/referral', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Check if user is an ambassador
+    const user = await User.findOne({ id: userId });
+    const isAmbassador = user && user.ambassadorEmail;
+    
+    // Serve appropriate page based on user role
+    const fileName = isAmbassador ? 'ambassador.html' : 'referral.html';
+    const abs = path.join(__dirname, 'public', fileName);
+    
+    return res.status(200).sendFile(abs, (err) => {
+      if (err) {
+        // If the file is missing, serve the graceful 404 page
+        const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+        return res.status(404).sendFile(notFound, (sendErr) => {
+          if (sendErr) return res.status(404).send('Not found');
+        });
+      }
+    });
+  } catch (e) {
+    console.error('Error serving referral page:', e);
+    const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+    return res.status(404).sendFile(notFound, (sendErr) => {
+      if (sendErr) return res.status(404).send('Not found');
+    });
+  }
 });
 
 // Sitemap generation
@@ -4860,6 +4933,143 @@ bot.on('callback_query', async (query) => {
                 await bot.answerCallbackQuery(query.id, { text: approve ? 'Approved' : 'Rejected' });
             } catch (err) {
                 await bot.answerCallbackQuery(query.id, { text: 'Error processing request' });
+            }
+            return;
+        }
+
+        // Ambassador application approval/rejection handlers
+        if (data.startsWith('ambassador_approve_') || data.startsWith('ambassador_decline_')) {
+            const approve = data.startsWith('ambassador_approve_');
+            const entryId = data.replace('ambassador_approve_', '').replace('ambassador_decline_', '');
+            const adminChatId = query.from.id.toString();
+            const adminName = adminUsername;
+
+            try {
+                let waitlistEntry = null;
+                
+                // Find the waitlist entry
+                if (process.env.MONGODB_URI && global.AmbassadorWaitlist) {
+                    waitlistEntry = await global.AmbassadorWaitlist.findOne({ id: entryId });
+                } else if (db && typeof db.listAmbassadorWaitlist === 'function') {
+                    const list = (await db.listAmbassadorWaitlist()) || [];
+                    waitlistEntry = list.find(entry => entry.id === entryId);
+                }
+
+                if (!waitlistEntry) {
+                    await bot.answerCallbackQuery(query.id, { text: 'Application not found' });
+                    return;
+                }
+
+                if (waitlistEntry.status && waitlistEntry.status !== 'pending') {
+                    await bot.answerCallbackQuery(query.id, { text: `Already ${waitlistEntry.status}` });
+                    return;
+                }
+
+                // Update the waitlist entry status
+                waitlistEntry.status = approve ? 'approved' : 'declined';
+                waitlistEntry.processedBy = adminChatId;
+                waitlistEntry.processedAt = new Date();
+
+                if (process.env.MONGODB_URI && global.AmbassadorWaitlist) {
+                    await global.AmbassadorWaitlist.updateOne({ id: entryId }, { 
+                        $set: { 
+                            status: waitlistEntry.status,
+                            processedBy: adminChatId,
+                            processedAt: new Date()
+                        }
+                    });
+                } else if (db && typeof db.updateAmbassadorWaitlist === 'function') {
+                    await db.updateAmbassadorWaitlist(entryId, {
+                        status: waitlistEntry.status,
+                        processedBy: adminChatId,
+                        processedAt: new Date()
+                    });
+                }
+
+                // Update the admin message to show final status
+                const finalText = `Ambassador Application\n\n` +
+                    `Name: ${waitlistEntry.fullName}\n` +
+                    `Email: ${waitlistEntry.email}\n` +
+                    `Username: ${waitlistEntry.username ? '@' + waitlistEntry.username : 'N/A'}\n` +
+                    `User ID: ${waitlistEntry.telegramId || 'N/A'}\n` +
+                    `Socials: ${Object.entries(waitlistEntry.socials||{}).map(([k,v])=>`${k}: ${v}`).join(', ')}\n` +
+                    `Entry ID: ${waitlistEntry.id}\n\n` +
+                    `${approve ? 'Approved' : 'Declined'} by @${adminName}`;
+
+                const statusKeyboard = { 
+                    inline_keyboard: [[{ 
+                        text: approve ? 'Approved' : 'Declined', 
+                        callback_data: `ambassador_status_${entryId}` 
+                    }]] 
+                };
+
+                try {
+                    await bot.editMessageText(finalText, {
+                        chat_id: query.message.chat.id,
+                        message_id: query.message.message_id
+                    });
+                    await bot.editMessageReplyMarkup(statusKeyboard, {
+                        chat_id: query.message.chat.id,
+                        message_id: query.message.message_id
+                    });
+                } catch (editError) {
+                    console.error('Error updating ambassador message:', editError.message);
+                }
+
+                if (approve) {
+                    // Mark user as ambassador
+                    try {
+                        const userUpdate = await User.findOneAndUpdate(
+                            { id: waitlistEntry.telegramId || waitlistEntry.id.split('-')[0] },
+                            { 
+                                $set: {
+                                    ambassadorEmail: waitlistEntry.email,
+                                    ambassadorFullName: waitlistEntry.fullName,
+                                    ambassadorTier: 'standard',
+                                    ambassadorReferralCode: `AMB${Date.now().toString().slice(-6)}`,
+                                    ambassadorApprovedAt: new Date(),
+                                    ambassadorApprovedBy: adminChatId
+                                }
+                            },
+                            { upsert: false, new: true }
+                        );
+
+                        if (userUpdate) {
+                            // Send notification to user via Telegram
+                            try {
+                                await bot.sendMessage(userUpdate.id, 
+                                    `Congratulations! Your ambassador application has been approved.\n\n` +
+                                    `You now have access to the ambassador dashboard. Visit the referral page to see your ambassador tools.`
+                                );
+                            } catch (notifyError) {
+                                console.error('Failed to notify user of ambassador approval:', notifyError.message);
+                            }
+
+                            // TODO: Send email notification when email API is implemented
+                            console.log(`Ambassador approved: ${waitlistEntry.email} - User ID: ${userUpdate.id}`);
+                        }
+                    } catch (userUpdateError) {
+                        console.error('Error updating user ambassador status:', userUpdateError.message);
+                    }
+                } else {
+                    // Send decline notification to user
+                    try {
+                        const userId = waitlistEntry.telegramId || waitlistEntry.id.split('-')[0];
+                        if (userId) {
+                            await bot.sendMessage(userId, 
+                                `Your ambassador application has been declined.\n\n` +
+                                `If you have questions about the decision, please contact support.`
+                            );
+                        }
+                    } catch (notifyError) {
+                        console.error('Failed to notify user of ambassador decline:', notifyError.message);
+                    }
+                }
+
+                await bot.answerCallbackQuery(query.id, { text: approve ? 'Approved' : 'Declined' });
+            } catch (err) {
+                console.error('Ambassador processing error:', err);
+                await bot.answerCallbackQuery(query.id, { text: 'Error processing application' });
             }
             return;
         }
@@ -11335,7 +11545,11 @@ app.get('/api/admin/ambassador-waitlist', async (req, res) => {
         email: entry.email,
         fullName: entry.fullName,
         username: entry.username,
+        telegramId: entry.telegramId,
         socials: entry.socials,
+        status: entry.status || 'pending',
+        processedBy: entry.processedBy,
+        processedAt: entry.processedAt,
         createdAt: entry.createdAt
       })),
       total: waitlist.length
