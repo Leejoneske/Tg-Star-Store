@@ -563,7 +563,7 @@ app.get(['/ambasador', '/ambasador.html'], (req, res) => {
 });
 
 // Ensure directories with index.html return 200 (no 302/redirects)
-app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador', '/referral'], (req, res, next) => {
+app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
   try {
     const map = {
       '/': 'index.html',
@@ -575,8 +575,7 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/k
       '/blog': 'blog/index.html',
       '/knowledge-base': 'knowledge-base/index.html',
       '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
-      '/ambassador': 'ambassador/index.html',
-      '/referral': 'referral.html'
+      '/ambassador': 'ambassador/index.html'
     };
     const file = map[req.path];
     if (file) {
@@ -593,6 +592,37 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/k
     }
     return next();
   } catch (e) { return next(); }
+});
+
+// Dynamic referral page routing based on user role
+app.get('/referral', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Check if user is an ambassador
+    const user = await User.findOne({ id: userId });
+    const isAmbassador = user && user.ambassadorEmail;
+    
+    // Serve appropriate page based on user role
+    const fileName = isAmbassador ? 'ambassador.html' : 'referral.html';
+    const abs = path.join(__dirname, 'public', fileName);
+    
+    return res.status(200).sendFile(abs, (err) => {
+      if (err) {
+        // If the file is missing, serve the graceful 404 page
+        const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+        return res.status(404).sendFile(notFound, (sendErr) => {
+          if (sendErr) return res.status(404).send('Not found');
+        });
+      }
+    });
+  } catch (e) {
+    console.error('Error serving referral page:', e);
+    const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+    return res.status(404).sendFile(notFound, (sendErr) => {
+      if (sendErr) return res.status(404).send('Not found');
+    });
+  }
 });
 
 // Sitemap generation
