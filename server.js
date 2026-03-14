@@ -565,11 +565,6 @@ if (typeof module !== 'undefined') {
   module.exports = { handleAmbassadorConnect };
 }
 
-// Legacy redirects for ambassador URL spelling change
-app.get(['/ambasador', '/ambasador.html'], (req, res) => {
-  return res.redirect(301, '/ambassador');
-});
-
 // Ensure directories with index.html return 200 (no 302/redirects)
 app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
   try {
@@ -716,6 +711,76 @@ app.get('/admin', (req, res) => {
 			if (err) return res.status(404).send('Not found');
 		});
 	}
+});
+
+// Ensure directories with index.html return 200 (no 302/redirects)
+app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
+  try {
+    const map = {
+      '/': 'index.html',
+      '/about': 'about.html',
+      '/sell': 'sell.html',
+      '/history': 'history.html',
+      '/daily': 'daily.html',
+      '/feedback': 'feedback.html',
+      '/blog': 'blog/index.html',
+      '/knowledge-base': 'knowledge-base/index.html',
+      '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
+      '/ambassador': 'apply_ambassador.html'
+    };
+    const file = map[req.path];
+    if (file) {
+      const abs = path.join(__dirname, 'public', file);
+      return res.status(200).sendFile(abs, (err) => {
+        if (err) {
+          // If the mapped file is missing, serve the graceful 404 page
+          const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+          return res.status(404).sendFile(notFound, (sendErr) => {
+            if (sendErr) return res.status(404).send('Not found');
+          });
+        }
+      });
+    }
+    return next();
+  } catch (e) { return next(); }
+});
+
+// Dynamic referral page routing based on user role
+app.get('/referral', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Check if user is an ambassador
+    const user = await User.findOne({ id: userId });
+    const isAmbassador = user && user.ambassadorEmail;
+
+    // Serve appropriate page based on user role
+    const fileName = isAmbassador ? 'amb_ref.html' : 'referral.html';
+    const abs = path.join(__dirname, 'public', fileName);
+
+    // Read the file and inject user ID
+    const fs = require('fs').promises;
+    let htmlContent = await fs.readFile(abs, 'utf8');
+
+    // Inject user ID as global variable
+    htmlContent = htmlContent.replace(
+      '<script src="https://telegram.org/js/telegram-web-app.js"></script>',
+      `<script src="https://telegram.org/js/telegram-web-app.js"></script>
+      <script>
+        window.authenticatedUserId = "${userId}";
+        window.isAuthenticatedUser = true;
+      </script>`
+    );
+
+    res.setHeader('Content-Type', 'text/html');
+    return res.status(200).send(htmlContent);
+  } catch (e) {
+    console.error('Error serving referral page:', e);
+    const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+    return res.status(404).sendFile(notFound, (sendErr) => {
+      if (sendErr) return res.status(404).send('Not found');
+    });
+  }
 });
 
 // Catch-all 404 for non-API GET requests
