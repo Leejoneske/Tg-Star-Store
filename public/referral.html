@@ -463,7 +463,8 @@
     const tgWebApp = window.Telegram?.WebApp;
     const tgUser = tgWebApp?.initDataUnsafe?.user;
     const BASE_API_URL = window.location.origin + '/api';
-    let userId = tgUser?.id?.toString() || 'default_user_id';
+    // Use authenticated user ID if available, otherwise fallback to Telegram WebApp
+    let userId = window.authenticatedUserId || tgUser?.id?.toString() || 'default_user_id';
 
     const state = {
         userId,
@@ -515,7 +516,7 @@
     // Load referral statistics and data from API
     async function loadReferralData() {
         try {
-            const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}?cache=${CACHE_BUSTER}`, {
+            const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`, {
                 headers: {
                     'x-telegram-init-data': tgWebApp?.initData || '',
                     'x-telegram-id': state.userId
