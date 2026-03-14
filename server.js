@@ -713,44 +713,6 @@ app.get('/admin', (req, res) => {
 	}
 });
 
-// Dynamic referral page routing based on user role
-app.get('/referral', requireTelegramAuth, async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    // Check if user is an ambassador
-    const user = await User.findOne({ id: userId });
-    const isAmbassador = user && user.ambassadorEmail;
-
-    // Serve appropriate page based on user role
-    const fileName = isAmbassador ? 'amb_ref.html' : 'referral.html';
-    const abs = path.join(__dirname, 'public', fileName);
-
-    // Read the file and inject user ID
-    const fs = require('fs').promises;
-    let htmlContent = await fs.readFile(abs, 'utf8');
-
-    // Inject user ID as global variable
-    htmlContent = htmlContent.replace(
-      '<script src="https://telegram.org/js/telegram-web-app.js"></script>',
-      `<script src="https://telegram.org/js/telegram-web-app.js"></script>
-      <script>
-        window.authenticatedUserId = "${userId}";
-        window.isAuthenticatedUser = true;
-      </script>`
-    );
-
-    res.setHeader('Content-Type', 'text/html');
-    return res.status(200).send(htmlContent);
-  } catch (e) {
-    console.error('Error serving referral page:', e);
-    const notFound = path.join(__dirname, 'public', 'errors', '404.html');
-    return res.status(404).sendFile(notFound, (sendErr) => {
-      if (sendErr) return res.status(404).send('Not found');
-    });
-  }
-});
-
 // Catch-all 404 for non-API GET requests
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) {
