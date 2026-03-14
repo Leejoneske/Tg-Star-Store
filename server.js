@@ -583,7 +583,7 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/k
       '/blog': 'blog/index.html',
       '/knowledge-base': 'knowledge-base/index.html',
       '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
-      '/ambassador': 'ambassador/index.html'
+      '/ambassador': 'apply_ambassador.html'
     };
     const file = map[req.path];
     if (file) {
@@ -612,7 +612,7 @@ app.get('/referral', requireTelegramAuth, async (req, res) => {
     const isAmbassador = user && user.ambassadorEmail;
 
     // Serve appropriate page based on user role
-    const fileName = isAmbassador ? 'ambassador.html' : 'referral.html';
+    const fileName = isAmbassador ? 'amb_ref.html' : 'referral.html';
     const abs = path.join(__dirname, 'public', fileName);
 
     // Read the file and inject user ID
