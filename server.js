@@ -266,19 +266,25 @@ app.get('/sitemap.xml', (req, res) => {
 try { app.use(verifyTelegramAuth); } catch (_) {}
 
 // Ambassador Waitlist endpoint
-app.post('/api/ambassador/waitlist', async (req, res) => {
+app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
   try {
-    const { fullName = '', username = '', email = '', socials = {} } = req.body || {};
-    if (!fullName || typeof fullName !== 'string' || fullName.trim().length < 2) {
-      return res.status(400).json({ success: false, error: 'Full name is required' });
-    }
+    const userId = req.user.id;
+    const { email = '', socials = {} } = req.body || {};
+    
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return res.status(400).json({ success: false, error: 'Valid email is required' });
     }
+
+    // Get user details from database
+    const user = await User.findOne({ id: userId });
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found. Please interact with the bot first.' });
+    }
+
     const clean = {
       id: `AMB-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`,
-      fullName: String(fullName || '').trim(),
-      username: String(username || '').trim().replace(/^@+/, ''),
+      telegramId: userId,
+      username: user.username || '',
       email: String(email || '').trim().toLowerCase(),
       socials: Object.fromEntries(Object.entries(socials || {}).map(([k,v]) => [String(k), String(v).trim()]).filter(([,v]) => !!v)),
       createdAt: new Date().toISOString()
@@ -304,11 +310,10 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
         if (!global.AmbassadorWaitlist) {
           const schema = new mongoose.Schema({
             id: { type: String, unique: true },
-            fullName: String,
+            telegramId: String,
             username: String,
             email: { type: String, index: true },
             socials: { type: Object, default: {} },
-            telegramId: String,
             status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
             processedBy: String,
             processedAt: Date,
@@ -344,28 +349,16 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
       if (!global.AmbassadorWaitlist) {
         const schema = new mongoose.Schema({
           id: { type: String, unique: true },
-          fullName: String,
+          telegramId: String,
           username: String,
           email: { type: String, index: true },
           socials: { type: Object, default: {} },
-          telegramId: String,
           status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
           processedBy: String,
           processedAt: Date,
           createdAt: { type: Date, default: Date.now }
         }, { collection: 'ambassador_waitlist' });
         global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
-      }
-      // Guard against race condition duplicates
-      const existing = await global.AmbassadorWaitlist.findOne({ email: clean.email }).lean();
-      if (existing) {
-        return res.status(409).json({ success: false, error: 'Email already registered' });
-      }
-      
-      // Store telegram ID if available
-      const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
-      if (tgId) {
-        clean.telegramId = tgId;
       }
       
       saved = await global.AmbassadorWaitlist.create(clean);
@@ -377,11 +370,6 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
         return res.status(409).json({ success: false, error: 'Email already registered' });
       }
       
-      // Store telegram ID if available
-      const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
-      if (tgId) {
-        clean.telegramId = tgId;
-      }
       clean.status = 'pending';
       
       saved = await db.createAmbassadorWaitlist(clean);
@@ -394,32 +382,12 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
         return res.status(409).json({ success: false, error: 'Email already registered' });
       }
       
-      // Store telegram ID if available
-      const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
-      if (tgId) {
-        clean.telegramId = tgId;
-      }
       clean.status = 'pending';
       
       db.data.ambassadorWaitlist.push(clean);
       await db.saveData();
       saved = clean;
     }
-
-    // Attempt Telegram notify if request came from Telegram user
-    try {
-      let tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
-      if (!tgId && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.id) {
-        tgId = String(req.telegramInitData.user.id);
-      }
-      if (!tgId && clean.username) {
-        try {
-          const candidate = await User.findOne({ username: clean.username }).lean();
-          if (candidate && candidate.id) tgId = String(candidate.id);
-        } catch (_) {}
-      }
-      if (tgId) await bot.sendMessage(tgId, `✅ Thanks ${clean.fullName}! You have been added to the StarStore Ambassador waitlist. We will contact you soon.`);
-    } catch (_) {}
 
     // Notify admins of new signup with approval buttons
     try {
@@ -430,13 +398,10 @@ app.post('/api/ambassador/waitlist', async (req, res) => {
             .filter(Boolean)
             .map(id => id.trim());
       if (admins && admins.length) {
-        const tgId = (req.user && req.user.id) || (req.headers['x-telegram-id'] && String(req.headers['x-telegram-id'])) || null;
         const adminText =
           `Ambassador Application\n\n` +
-          `Name: ${clean.fullName}\n` +
+          `User: @${clean.username || 'unknown'} (ID: ${clean.telegramId})\n` +
           `Email: ${clean.email}\n` +
-          `Username: ${clean.username ? '@' + clean.username : 'N/A'}\n` +
-          `User ID: ${tgId || 'N/A'}\n` +
           `Socials: ${Object.entries(clean.socials||{}).map(([k,v])=>`${k}: ${v}`).join(', ')}\n` +
           `Entry ID: ${saved.id}`;
         
@@ -13334,16 +13299,34 @@ function requireAdmin(req, res, next) {
 	}
 }
 
-app.get('/api/me', (req, res) => {
+app.get('/api/me', async (req, res) => {
 	const sess = getAdminSession(req);
 	if (sess && adminIds.includes(sess.payload.tgId)) {
-		return res.json({ id: sess.payload.tgId, isAdmin: true, username: null });
+		return res.json({ id: sess.payload.tgId, isAdmin: true, username: null, isAmbassador: false });
 	}
 	const tgId = (req.headers['x-telegram-id'] || '').toString();
 	let username = null;
-	try { if (req.user && req.user.username) username = req.user.username; } catch(_) {}
-	try { if (!username && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.username) username = req.telegramInitData.user.username; } catch(_) {}
-	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false, username });
+	let isAmbassador = false;
+	try { 
+		if (req.user && req.user.username) username = req.user.username; 
+		// Check if user is ambassador
+		if (req.user && req.user.ambassadorEmail) isAmbassador = true;
+	} catch(_) {}
+	try { 
+		if (!username && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.username) username = req.telegramInitData.user.username; 
+	} catch(_) {}
+	
+	// If we have a tgId but no user object, try to fetch from database
+	if (tgId && !isAmbassador) {
+		try {
+			const user = await User.findOne({ id: tgId }).lean();
+			if (user && user.ambassadorEmail) isAmbassador = true;
+		} catch (e) {
+			console.error('Error checking ambassador status:', e.message);
+		}
+	}
+	
+	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false, username, isAmbassador });
 });
 
 // Basic admin stats
