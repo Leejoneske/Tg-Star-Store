@@ -13299,16 +13299,34 @@ function requireAdmin(req, res, next) {
 	}
 }
 
-app.get('/api/me', (req, res) => {
+app.get('/api/me', async (req, res) => {
 	const sess = getAdminSession(req);
 	if (sess && adminIds.includes(sess.payload.tgId)) {
-		return res.json({ id: sess.payload.tgId, isAdmin: true, username: null });
+		return res.json({ id: sess.payload.tgId, isAdmin: true, username: null, isAmbassador: false });
 	}
 	const tgId = (req.headers['x-telegram-id'] || '').toString();
 	let username = null;
-	try { if (req.user && req.user.username) username = req.user.username; } catch(_) {}
-	try { if (!username && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.username) username = req.telegramInitData.user.username; } catch(_) {}
-	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false, username });
+	let isAmbassador = false;
+	try { 
+		if (req.user && req.user.username) username = req.user.username; 
+		// Check if user is ambassador
+		if (req.user && req.user.ambassadorEmail) isAmbassador = true;
+	} catch(_) {}
+	try { 
+		if (!username && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.username) username = req.telegramInitData.user.username; 
+	} catch(_) {}
+	
+	// If we have a tgId but no user object, try to fetch from database
+	if (tgId && !isAmbassador) {
+		try {
+			const user = await User.findOne({ id: tgId }).lean();
+			if (user && user.ambassadorEmail) isAmbassador = true;
+		} catch (e) {
+			console.error('Error checking ambassador status:', e.message);
+		}
+	}
+	
+	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false, username, isAmbassador });
 });
 
 // Basic admin stats

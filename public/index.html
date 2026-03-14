@@ -2196,7 +2196,8 @@ function initTelegramApp() {
             id: 'local_user_' + Math.random().toString(36).substr(2, 9),
             first_name: 'Guest User',
             username: 'guest' + Math.floor(Math.random() * 1000),
-            is_local: true
+            is_local: true,
+            isAmbassador: false // Local users can't be ambassadors
         };
         sessionStorage.setItem('localUser', JSON.stringify(currentUser));
         updateUserInterface(currentUser);
@@ -2261,6 +2262,14 @@ function initTelegramApp() {
             if (user) {
             currentUser = user;
             
+            // Check ambassador status
+            checkAmbassadorStatus(user.id).then(isAmbassador => {
+                user.isAmbassador = isAmbassador;
+                updateUserInterface(user);
+            }).catch(() => {
+                updateUserInterface(user);
+            });
+            
             // Auto-detect Telegram language and map to supported locales
             if (user.language_code) {
                 const tgLang = String(user.language_code).toLowerCase();
@@ -2309,11 +2318,26 @@ function updateGlobalUserData() {
     window.isTelegramEnv = isTelegramEnv;
 }
 
-// Function to handle Telegram Mini App fullscreen mode
-function setupTelegramFullscreen() {
-    if (window.Telegram?.WebApp) {
-        document.body.classList.add('telegram-fullscreen');
+// Function to check if user is an ambassador
+async function checkAmbassadorStatus(userId) {
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (window.Telegram?.WebApp?.initData) {
+            headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+        }
+        if (userId) {
+            headers['x-telegram-id'] = String(userId);
+        }
+        
+        const response = await fetch('/api/me', { headers });
+        if (response.ok) {
+            const data = await response.json();
+            return data.isAmbassador || false;
+        }
+    } catch (error) {
+        console.error('Error checking ambassador status:', error);
     }
+    return false;
 }
 
 
@@ -2357,11 +2381,11 @@ function updateUserInterface(user) {
     }
     
     if (user.username) {
-        usernameElement.textContent = `@${user.username}`;
+        usernameElement.innerHTML = `@${user.username}${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''}`;
     } else if (user.first_name) {
-        usernameElement.textContent = user.first_name;
+        usernameElement.innerHTML = `${user.first_name}${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''}`;
     } else {
-        usernameElement.textContent = 'User';
+        usernameElement.innerHTML = `User${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''}`;
     }
 
     if (userIdText) {
