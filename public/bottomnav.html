@@ -21,7 +21,7 @@
 					</a>
 				</li>
 				<li>
-					<a href="javascript:void(0)" onclick="navigateToReferral()" class="nav-link" data-page="referral">
+					<a href="/referral" class="nav-link" data-page="referral">
 						<i class="fas fa-user-friends" style="font-size: 18px;"></i>
 						<span data-translate="referral">Referral</span>
 					</a>
@@ -130,45 +130,5 @@
 
 	// Set active navigation immediately
 	setActiveNavigation();
-
-	// Function to navigate to referral page
-	window.navigateToReferral = function() {
-		// Use fetch to get the authenticated referral page content
-		fetch('/referral', {
-			method: 'GET',
-			headers: {
-				'Accept': 'text/html'
-			}
-		})
-		.then(response => {
-			if (response.ok) {
-				return response.text();
-			} else {
-				throw new Error('Failed to load referral page');
-			}
-		})
-		.then(html => {
-			// Replace the current page content with the referral page
-			document.documentElement.innerHTML = html;
-			// Re-execute any scripts in the new HTML
-			const scripts = document.querySelectorAll('script');
-			scripts.forEach(script => {
-				if (script.src) {
-					const newScript = document.createElement('script');
-					newScript.src = script.src;
-					document.head.appendChild(newScript);
-				} else {
-					eval(script.textContent);
-				}
-			});
-			// Update URL without page reload
-			history.pushState(null, '', '/referral');
-		})
-		.catch(error => {
-			console.error('Error loading referral page:', error);
-			// Fallback to direct navigation
-			window.location.href = '/referral';
-		});
-	};
 })();
 </script>
