@@ -765,7 +765,8 @@
     const tgWebApp = window.Telegram?.WebApp;
     const tgUser   = tgWebApp?.initDataUnsafe?.user;
     const BASE_API_URL = window.location.origin + '/api';
-    const userId = tgUser?.id?.toString() || 'default_user_id';
+    // Use authenticated user ID if available, otherwise fallback to Telegram WebApp
+    const userId = window.authenticatedUserId || tgUser?.id?.toString() || 'default_user_id';
 
     // Ambassador level config
     const LEVELS = [
@@ -811,11 +812,13 @@
 
     async function loadReferralData() {
         try {
-            const res = await fetch(`${BASE_API_URL}/referral-stats/${userId}?cache=${CACHE_BUSTER}&type=ambassador`, {
-                headers: {
-                    'x-telegram-init-data': tgWebApp?.initData || '',
-                    'x-telegram-id': userId
-                }
+            const headers = {
+                'x-telegram-init-data': tgWebApp?.initData || '',
+                'x-telegram-id': userId
+            };
+
+            const res = await fetch(`${BASE_API_URL}/referral-stats/${userId}?type=ambassador`, {
+                headers
             });
             if (!res.ok) throw new Error(res.status);
             const data = await res.json();
