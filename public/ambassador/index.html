@@ -504,15 +504,6 @@
             <h2>Join the Ambassador Program</h2>
             <form id="ambassadorForm">
                 <div class="form-group">
-                    <label for="fullName">Full Name *</label>
-                    <input type="text" id="fullName" name="fullName" required placeholder="Jane Doe">
-                </div>
-                <div class="form-group">
-                    <label for="username">Telegram Username (optional)</label>
-                    <input type="text" id="username" name="username" placeholder="@yourusername">
-                </div>
-
-                <div class="form-group">
                     <label for="email">Email Address *</label>
                     <input type="email" id="email" name="email" required placeholder="john@example.com">
                 </div>
@@ -580,37 +571,14 @@
             const form = document.getElementById('ambassadorForm');
             const successMessage = document.getElementById('successMessage');
             const errorMessage = document.getElementById('errorMessage');
-            const fullNameInput = document.getElementById('fullName');
-            const usernameInput = document.getElementById('username');
             const emailInput = document.getElementById('email');
             const submitBtn = form.querySelector('.submit-btn');
 
-            // Auto-fill name/username from Telegram WebApp or URL param
+            // Auto-fill name/username from Telegram WebApp or URL param (no longer needed for form)
             async function attemptAutofill() {
                 try {
                     if (window.Telegram?.WebApp) {
                         try { window.Telegram.WebApp.ready(); } catch (_) {}
-                    }
-                    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user || {};
-                    const tgUsername = tgUser.username || '';
-                    const tgFirst = tgUser.first_name || '';
-                    const tgLast = tgUser.last_name || '';
-                    const tgFull = [tgFirst, tgLast].filter(Boolean).join(' ').trim();
-                    const qp = new URLSearchParams(window.location.search);
-                    const qpUsername = (qp.get('username') || '').trim();
-                    const auto = (tgUsername || qpUsername).replace(/^@+/, '');
-                    if (auto && !usernameInput.value) {
-                        usernameInput.value = auto;
-                    }
-                    if (tgFull && !fullNameInput.value) {
-                        fullNameInput.value = tgFull;
-                    }
-                    // Fallback: ask backend if it knows the username
-                    if (!usernameInput.value) {
-                        try {
-                            const me = await fetch('/api/me', { headers: buildHeaders() }).then(r=>r.json()).catch(()=>({}));
-                            if (me?.username && !usernameInput.value) usernameInput.value = me.username;
-                        } catch(_) {}
                     }
                 } catch (_) {}
             }
@@ -632,17 +600,10 @@
                 successMessage.style.display = 'none';
 
                 const formData = {
-                    fullName: (fullNameInput.value || '').trim(),
-                    username: (usernameInput.value || '').trim(),
                     email: (emailInput.value || '').trim(),
                     socials: {}
                 };
 
-                if (!formData.fullName || formData.fullName.length < 2) {
-                    errorMessage.textContent = 'Please enter your full name.';
-                    errorMessage.style.display = 'block';
-                    return;
-                }
                 if (!formData.email || !formData.email.includes('@')) {
                     errorMessage.textContent = 'Please enter a valid email address.';
                     errorMessage.style.display = 'block';
