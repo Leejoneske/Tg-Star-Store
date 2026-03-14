@@ -11,7 +11,7 @@
     { "source": "/support", "destination": "/app/support.html" },
     { "source": "/notification", "destination": "/app/notification.html" },
 
-    { "source": "/ambassador", "destination": "/ambassador/index.html" },
+    { "source": "/ambassador", "destination": "/apply_ambassador.html" },
     { "source": "/blog", "destination": "/blog/index.html" },
     { "source": "/knowledge-base", "destination": "/knowledge-base/index.html" },
     { "source": "/how-to-withdraw-telegram-stars", "destination": "/how-to-withdraw-telegram-stars/index.html" }
