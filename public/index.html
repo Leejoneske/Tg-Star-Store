@@ -2329,15 +2329,51 @@ async function checkAmbassadorStatus(userId) {
             headers['x-telegram-id'] = String(userId);
         }
         
-        const response = await fetch('/api/me', { headers });
+        // Add cache busting
+        const cacheBuster = `v${Date.now().toString().slice(-8)}`;
+        const response = await fetch(`/api/me?${cacheBuster}`, { headers });
         if (response.ok) {
             const data = await response.json();
+            console.log('Ambassador status check result:', data.isAmbassador);
             return data.isAmbassador || false;
         }
     } catch (error) {
         console.error('Error checking ambassador status:', error);
     }
     return false;
+}
+
+// Function to manually refresh ambassador status
+async function refreshAmbassadorStatus() {
+    if (!currentUser || !currentUser.id) return;
+    
+    try {
+        // Show loading indicator
+        const refreshBtn = event.target;
+        const originalText = refreshBtn.textContent;
+        refreshBtn.textContent = '⟳';
+        refreshBtn.disabled = true;
+        
+        const isAmbassador = await checkAmbassadorStatus(currentUser.id);
+        currentUser.isAmbassador = isAmbassador;
+        updateUserInterface(currentUser);
+        
+        // Show success feedback
+        refreshBtn.textContent = '✓';
+        setTimeout(() => {
+            refreshBtn.textContent = originalText;
+            refreshBtn.disabled = false;
+        }, 1000);
+    } catch (error) {
+        console.error('Error refreshing ambassador status:', error);
+        // Show error feedback
+        const refreshBtn = event.target;
+        refreshBtn.textContent = '✗';
+        setTimeout(() => {
+            refreshBtn.textContent = '↻';
+            refreshBtn.disabled = false;
+        }, 1000);
+    }
 }
 
 // Function to handle Telegram Mini App fullscreen mode
@@ -2386,11 +2422,11 @@ function updateUserInterface(user) {
     }
     
     if (user.username) {
-        usernameElement.innerHTML = `@${user.username}${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''}`;
+        usernameElement.innerHTML = `@${user.username}${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''} <button onclick="refreshAmbassadorStatus()" style="background: none; border: none; color: #666; font-size: 0.8em; cursor: pointer; margin-left: 4px;" title="Refresh ambassador status">↻</button>`;
     } else if (user.first_name) {
-        usernameElement.innerHTML = `${user.first_name}${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''}`;
+        usernameElement.innerHTML = `${user.first_name}${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''} <button onclick="refreshAmbassadorStatus()" style="background: none; border: none; color: #666; font-size: 0.8em; cursor: pointer; margin-left: 4px;" title="Refresh ambassador status">↻</button>`;
     } else {
-        usernameElement.innerHTML = `User${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''}`;
+        usernameElement.innerHTML = `User${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''} <button onclick="refreshAmbassadorStatus()" style="background: none; border: none; color: #666; font-size: 0.8em; cursor: pointer; margin-left: 4px;" title="Refresh ambassador status">↻</button>`;
     }
 
     if (userIdText) {

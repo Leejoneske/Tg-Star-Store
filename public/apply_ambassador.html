@@ -571,6 +571,9 @@
     
     <script>
         (function() {
+            // Cache buster token with timestamp
+            const CACHE_BUSTER = `v${Date.now().toString().slice(-8)}`;
+            
             const form = document.getElementById('ambassadorForm');
             const successMessage = document.getElementById('successMessage');
             const errorMessage = document.getElementById('errorMessage');
@@ -670,7 +673,7 @@
                 submitBtn.disabled = true;
                 submitBtn.textContent = 'Submitting...';
                 try {
-                    const resp = await fetch('/api/ambassador/waitlist', {
+                    const resp = await fetch(`/api/ambassador/waitlist?${CACHE_BUSTER}`, {
                         method: 'POST',
                         headers,
                         body: JSON.stringify(formData)
