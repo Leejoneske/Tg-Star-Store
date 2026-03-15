@@ -4986,12 +4986,14 @@ bot.on('callback_query', async (query) => {
                 if (approve) {
                     // Mark user as ambassador
                     try {
+                        // Find user by Telegram ID
+                        const userId = waitlistEntry.telegramId || waitlistEntry.id.split('-')[0];
                         const userUpdate = await User.findOneAndUpdate(
-                            { id: waitlistEntry.telegramId || waitlistEntry.id.split('-')[0] },
+                            { id: userId },
                             { 
                                 $set: {
                                     ambassadorEmail: waitlistEntry.email,
-                                    ambassadorFullName: waitlistEntry.fullName,
+                                    ambassadorFullName: waitlistEntry.fullName || '',
                                     ambassadorTier: 'standard',
                                     ambassadorReferralCode: `AMB${Date.now().toString().slice(-6)}`,
                                     ambassadorApprovedAt: new Date(),
@@ -5012,8 +5014,10 @@ bot.on('callback_query', async (query) => {
                                 console.error('Failed to notify user of ambassador approval:', notifyError.message);
                             }
 
-                            // TODO: Send email notification when email API is implemented
+                            // Log approval
                             console.log(`Ambassador approved: ${waitlistEntry.email} - User ID: ${userUpdate.id}`);
+                        } else {
+                            console.warn('Ambassador approval: User not found for Telegram ID', userId);
                         }
                     } catch (userUpdateError) {
                         console.error('Error updating user ambassador status:', userUpdateError.message);
