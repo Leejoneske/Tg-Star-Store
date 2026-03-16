@@ -638,13 +638,18 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/k
 app.get('/referral', requireTelegramAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log(`📖 /referral request from user: ${userId}`);
 
     // Check if user is an ambassador
     const user = await User.findOne({ id: userId });
     const isAmbassador = user && user.ambassadorEmail;
+    
+    console.log(`  → User found: ${!!user}${user ? ` (ambassadorEmail: ${user.ambassadorEmail})` : ''}`);
+    console.log(`  → Is Ambassador: ${isAmbassador}`);
 
     // Serve appropriate page based on user role
     const fileName = isAmbassador ? 'amb_ref.html' : 'referral.html';
+    console.log(`  → Serving: ${fileName}`);
     const abs = path.join(__dirname, 'public', fileName);
 
     // Read the file and inject user ID
@@ -5022,8 +5027,14 @@ bot.on('callback_query', async (query) => {
                 if (approve) {
                     // Mark user as ambassador
                     try {
-                        // Find user by Telegram ID
-                        const userId = waitlistEntry.telegramId || waitlistEntry.id.split('-')[0];
+                        // Find user by Telegram ID - MUST use waitlistEntry.telegramId
+                        const userId = waitlistEntry.telegramId;
+                        if (!userId) {
+                            console.error(`❌ Cannot approve: No telegramId in waitlist entry ${entryId}`);
+                            await bot.answerCallbackQuery(query.id, { text: 'Error: No Telegram ID found' });
+                            return;
+                        }
+                        console.log(`🔍 Looking for user with ID: ${userId} (type: ${typeof userId})`);
                         const userUpdate = await User.findOneAndUpdate(
                             { id: userId },
                             { 
@@ -5053,7 +5064,7 @@ bot.on('callback_query', async (query) => {
                             // Log approval
                             console.log(`Ambassador approved: ${waitlistEntry.email} - User ID: ${userUpdate.id}`);
                         } else {
-                            console.warn(`❌ Ambassador approval failed: User not found for Telegram ID ${userId}`);
+                            console.error(`❌ Ambassador approval failed: User with ID ${userId} not found in database`);
                         }
                     } catch (userUpdateError) {
                         console.error('Error updating user ambassador status:', userUpdateError.message);
@@ -5061,7 +5072,7 @@ bot.on('callback_query', async (query) => {
                 } else {
                     // Send decline notification to user
                     try {
-                        const userId = waitlistEntry.telegramId || waitlistEntry.id.split('-')[0];
+                        const userId = waitlistEntry.telegramId;
                         if (userId) {
                             await bot.sendMessage(userId, 
                                 `Your ambassador application has been declined.\n\n` +
@@ -13397,14 +13408,15 @@ app.get('/api/me', async (req, res) => {
 	// If we have a tgId but no user object, try to fetch from database
 	if (tgId && !isAmbassador) {
 		try {
+			console.log(`🔍 /api/me: Checking ambassador status for user ${tgId} in database`);
 			const user = await User.findOne({ id: tgId }).lean();
 			if (user && user.ambassadorEmail) {
 				isAmbassador = true;
-				console.log(`✓ User ${tgId} is ambassador (email: ${user.ambassadorEmail})`);
+				console.log(`✓ User ${tgId} IS ambassador (email: ${user.ambassadorEmail})`);
 			} else if (user) {
-				console.log(`✗ User ${tgId} found but not ambassador (ambassadorEmail: ${user.ambassadorEmail})`);
+				console.log(`✗ User ${tgId} found but NOT ambassador (ambassadorEmail: ${user.ambassadorEmail || 'undefined'})`);
 			} else {
-				console.log(`✗ User ${tgId} not found in database`);
+				console.log(`✗ User ${tgId} NOT found in database`);
 			}
 		} catch (e) {
 			console.error('Error checking ambassador status:', e.message);

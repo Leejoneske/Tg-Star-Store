@@ -2329,13 +2329,18 @@ async function checkAmbassadorStatus(userId) {
             headers['x-telegram-id'] = String(userId);
         }
         
+        console.log(`🔍 FRONTEND: Checking ambassador status for user ${userId}`);
+        
         // Add cache busting
         const cacheBuster = `v${Date.now().toString().slice(-8)}`;
         const response = await fetch(`/api/me?${cacheBuster}`, { headers });
         if (response.ok) {
             const data = await response.json();
-            console.log('Ambassador status check result:', data.isAmbassador);
+            console.log(`🔍 FRONTEND: /api/me response:`, data);
+            console.log(`👤 Ambassador status check result: ${data.isAmbassador ? 'YES ✓' : 'NO ✗'}`);
             return data.isAmbassador || false;
+        } else {
+            console.error(`❌ /api/me returned status ${response.status}`);
         }
     } catch (error) {
         console.error('Error checking ambassador status:', error);
