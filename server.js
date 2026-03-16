@@ -701,6 +701,31 @@ app.get('/referral', requireTelegramAuth, async (req, res) => {
   }
 });
 
+// DIAGNOSTIC ENDPOINT: Check ambassador status in database
+app.get('/api/debug/ambassador-status', requireTelegramAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findOne({ id: userId }).lean();
+    
+    return res.json({
+      userId,
+      userFound: !!user,
+      ambassadorEmail: user?.ambassadorEmail || null,
+      ambassadorTier: user?.ambassadorTier || null,
+      ambassadorApprovedAt: user?.ambassadorApprovedAt || null,
+      ambassadorApprovedBy: user?.ambassadorApprovedBy || null,
+      ambassadorReferralCode: user?.ambassadorReferralCode || null,
+      isAmbassador: !!(user && user.ambassadorEmail),
+      message: user?.ambassadorEmail 
+        ? `✅ Ambassador: ${user.ambassadorEmail}` 
+        : `❌ Not an ambassador`
+    });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+  }
+});
+
 // Sitemap generation
 app.get('/sitemap.xml', async (req, res) => {
   try {
