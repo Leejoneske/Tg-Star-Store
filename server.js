@@ -4948,31 +4948,53 @@ bot.on('callback_query', async (query) => {
 
         // Ambassador application approval/rejection handlers
         if (data.startsWith('ambassador_approve_') || data.startsWith('ambassador_decline_')) {
+            console.log(`\n🔔 AMBASSADOR CALLBACK RECEIVED: ${data}`);
             const approve = data.startsWith('ambassador_approve_');
             const entryId = data.replace('ambassador_approve_', '').replace('ambassador_decline_', '');
             const adminChatId = query.from.id.toString();
             const adminName = adminUsername;
+            
+            console.log(`  Approve: ${approve ? 'YES' : 'NO'}`);
+            console.log(`  Entry ID: ${entryId}`);
+            console.log(`  Admin ID: ${adminChatId}`);
 
             try {
                 let waitlistEntry = null;
                 
                 // Find the waitlist entry
                 if (process.env.MONGODB_URI && global.AmbassadorWaitlist) {
+                    console.log(`  Looking in MongoDB for entry: ${entryId}`);
                     waitlistEntry = await global.AmbassadorWaitlist.findOne({ id: entryId });
+                    if (waitlistEntry) {
+                        console.log(`  ✓ Found in MongoDB: telegramId=${waitlistEntry.telegramId}, status=${waitlistEntry.status}`);
+                    } else {
+                        console.log(`  ✗ NOT found in MongoDB`);
+                    }
                 } else if (db && typeof db.listAmbassadorWaitlist === 'function') {
+                    console.log(`  Looking in file DB for entry: ${entryId}`);
                     const list = (await db.listAmbassadorWaitlist()) || [];
                     waitlistEntry = list.find(entry => entry.id === entryId);
+                    if (waitlistEntry) {
+                        console.log(`  ✓ Found in file DB: telegramId=${waitlistEntry.telegramId}, status=${waitlistEntry.status}`);
+                    } else {
+                        console.log(`  ✗ NOT found in file DB`);
+                    }
                 }
 
                 if (!waitlistEntry) {
+                    console.log(`  ❌ Waitlist entry not found`);
                     await bot.answerCallbackQuery(query.id, { text: 'Application not found' });
                     return;
                 }
 
+                console.log(`  Waitlist entry status: ${waitlistEntry.status || 'undefined'}`);
                 if (waitlistEntry.status && waitlistEntry.status !== 'pending') {
+                    console.log(`  ⚠️ Status is not pending, aborting (status: ${waitlistEntry.status})`);
                     await bot.answerCallbackQuery(query.id, { text: `Already ${waitlistEntry.status}` });
                     return;
                 }
+                
+                console.log(`  ✓ Status is pending or undefined, proceeding with approval...`);
 
                 // Update the waitlist entry status
                 waitlistEntry.status = approve ? 'approved' : 'declined';
@@ -5034,7 +5056,30 @@ bot.on('callback_query', async (query) => {
                             await bot.answerCallbackQuery(query.id, { text: 'Error: No Telegram ID found' });
                             return;
                         }
-                        console.log(`🔍 Looking for user with ID: ${userId} (type: ${typeof userId})`);
+                        
+                        console.log(`\n📝 APPROVAL FLOW START`);
+                        console.log(`  telegramId from waitlist: ${userId} (type: ${typeof userId})`);
+                        
+                        // Check if User model is available
+                        if (!User) {
+                            console.error(`❌ CRITICAL: User model is not loaded!`);
+                            await bot.sendMessage(query.from.id, `❌ CRITICAL ERROR: User model not available. Cannot mark user as ambassador.`);
+                            return;
+                        }
+                        console.log(`  ✓ User model is loaded`);
+                        
+                        // First, verify user exists
+                        const userExists = await User.findOne({ id: userId }).lean();
+                        if (!userExists) {
+                            console.error(`❌ CRITICAL: User ${userId} does not exist in database!`);
+                            console.error(`   Waitlist entry will be approved but user cannot be marked as ambassador`);
+                            await bot.sendMessage(query.from.id, `⚠️ User ${userId} not found in Users collection. The status will be approved but ambassadorEmail could not be set.`);
+                        } else {
+                            console.log(`  ✓ User found: @${userExists.username} (ID: ${userExists.id})`);
+                            console.log(`  Current ambassadorEmail: ${userExists.ambassadorEmail || 'undefined'}`);
+                        }
+                        
+                        console.log(`\n  Attempting User.findOneAndUpdate...`);
                         const userUpdate = await User.findOneAndUpdate(
                             { id: userId },
                             { 
@@ -5050,7 +5095,11 @@ bot.on('callback_query', async (query) => {
                         );
 
                         if (userUpdate) {
-                            console.log(`✅ User ${userUpdate.id} marked as ambassador with email: ${userUpdate.ambassadorEmail}`);
+                            console.log(`✅ SUCCESS: User ${userUpdate.id} marked as ambassador`);
+                            console.log(`  ambassadorEmail set to: ${userUpdate.ambassadorEmail}`);
+                            console.log(`  ambassadorTier: ${userUpdate.ambassadorTier}`);
+                            console.log(`📝 APPROVAL FLOW END\n`);
+                            
                             // Send notification to user via Telegram
                             try {
                                 await bot.sendMessage(userUpdate.id, 
@@ -5064,10 +5113,16 @@ bot.on('callback_query', async (query) => {
                             // Log approval
                             console.log(`Ambassador approved: ${waitlistEntry.email} - User ID: ${userUpdate.id}`);
                         } else {
-                            console.error(`❌ Ambassador approval failed: User with ID ${userId} not found in database`);
+                            console.error(`❌ FAILED: User.findOneAndUpdate returned null/undefined`);
+                            console.error(`  Query: { id: "${userId}" }`);
+                            console.error(`  This means no user matched the query`);
+                            console.error(`📝 APPROVAL FLOW END\n`);
                         }
                     } catch (userUpdateError) {
-                        console.error('Error updating user ambassador status:', userUpdateError.message);
+                        console.error(`❌ EXCEPTION in approval flow:`, userUpdateError);
+                        console.error(`  Message: ${userUpdateError.message}`);
+                        console.error(`  Stack: ${userUpdateError.stack}`);
+                        console.error(`📝 APPROVAL FLOW END\n`);
                     }
                 } else {
                     // Send decline notification to user
