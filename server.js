@@ -265,6 +265,33 @@ app.get('/sitemap.xml', (req, res) => {
 // Parse Telegram init data for all requests (non-blocking)
 try { app.use(verifyTelegramAuth); } catch (_) {}
 
+// ========== AMBASSADOR HELPERS ==========
+// Initialize AmbassadorWaitlist model once to avoid schema duplication
+async function getAmbassadorWaitlistModel() {
+  if (global.AmbassadorWaitlist) {
+    return global.AmbassadorWaitlist;
+  }
+  
+  if (!process.env.MONGODB_URI) {
+    return null; // Not using MongoDB
+  }
+  
+  const schema = new mongoose.Schema({
+    id: { type: String, unique: true },
+    telegramId: String,
+    username: String,
+    email: { type: String, index: true },
+    socials: { type: Object, default: {} },
+    status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
+    processedBy: String,
+    processedAt: Date,
+    createdAt: { type: Date, default: Date.now }
+  }, { collection: 'ambassador_waitlist' });
+  
+  global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
+  return global.AmbassadorWaitlist;
+}
+
 // Ambassador Waitlist endpoint
 app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
   try {
@@ -307,21 +334,8 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
     // Prevent duplicate email signups
     try {
       if (process.env.MONGODB_URI) {
-        if (!global.AmbassadorWaitlist) {
-          const schema = new mongoose.Schema({
-            id: { type: String, unique: true },
-            telegramId: String,
-            username: String,
-            email: { type: String, index: true },
-            socials: { type: Object, default: {} },
-            status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
-            processedBy: String,
-            processedAt: Date,
-            createdAt: { type: Date, default: Date.now }
-          }, { collection: 'ambassador_waitlist' });
-          global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
-        }
-        const existing = await global.AmbassadorWaitlist.findOne({ email: clean.email }).lean();
+        const AmbassadorWaitlist = await getAmbassadorWaitlistModel();
+        const existing = await AmbassadorWaitlist.findOne({ email: clean.email }).lean();
         if (existing) {
           return res.status(409).json({ success: false, error: 'Email already registered' });
         }
@@ -342,51 +356,35 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
       // Continue; creation may still succeed, but we tried.
     }
 
-    // Prefer Mongo when configured; otherwise persist to file DB
+    // Save application to database
     let saved;
     if (process.env.MONGODB_URI) {
-      // Lazy-init schema/model to avoid top-level clutter
-      if (!global.AmbassadorWaitlist) {
-        const schema = new mongoose.Schema({
-          id: { type: String, unique: true },
-          telegramId: String,
-          username: String,
-          email: { type: String, index: true },
-          socials: { type: Object, default: {} },
-          status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
-          processedBy: String,
-          processedAt: Date,
-          createdAt: { type: Date, default: Date.now }
-        }, { collection: 'ambassador_waitlist' });
-        global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
-      }
-      
-      saved = await global.AmbassadorWaitlist.create(clean);
+      const AmbassadorWaitlist = await getAmbassadorWaitlistModel();
+      saved = await AmbassadorWaitlist.create(clean);
     } else if (db && typeof db.createAmbassadorWaitlist === 'function') {
-      // Guard against duplicates in memory/file store
-      const list = (await db.listAmbassadorWaitlist()) || [];
-      const exists = list.some(entry => (entry.email || '').toLowerCase() === clean.email);
-      if (exists) {
-        return res.status(409).json({ success: false, error: 'Email already registered' });
-      }
-      
       clean.status = 'pending';
-      
       saved = await db.createAmbassadorWaitlist(clean);
     } else {
       // Fallback: extend dev storage dynamically
       db = db || new (require('./data-persistence'))();
       if (!db.data.ambassadorWaitlist) db.data.ambassadorWaitlist = [];
-      const exists = db.data.ambassadorWaitlist.some(entry => (entry.email || '').toLowerCase() === clean.email);
-      if (exists) {
-        return res.status(409).json({ success: false, error: 'Email already registered' });
-      }
-      
       clean.status = 'pending';
-      
       db.data.ambassadorWaitlist.push(clean);
       await db.saveData();
       saved = clean;
+    }
+
+    // Notify user via Telegram that application was received
+    try {
+      await bot.sendMessage(
+        userId,
+        `✅ Your ambassador application has been received!\n\n` +
+        `Email: ${clean.email}\n\n` +
+        `We'll review your application and notify you of our decision. Thank you!`
+      );
+    } catch (e) {
+      console.error('Failed to notify user of ambassador signup:', e.message);
+      // Don't fail the whole request if notification fails
     }
 
     // Notify admins of new signup with approval buttons
@@ -4986,12 +4984,14 @@ bot.on('callback_query', async (query) => {
                 if (approve) {
                     // Mark user as ambassador
                     try {
+                        // Find user by Telegram ID
+                        const userId = waitlistEntry.telegramId || waitlistEntry.id.split('-')[0];
                         const userUpdate = await User.findOneAndUpdate(
-                            { id: waitlistEntry.telegramId || waitlistEntry.id.split('-')[0] },
+                            { id: userId },
                             { 
                                 $set: {
                                     ambassadorEmail: waitlistEntry.email,
-                                    ambassadorFullName: waitlistEntry.fullName,
+                                    ambassadorFullName: waitlistEntry.fullName || '',
                                     ambassadorTier: 'standard',
                                     ambassadorReferralCode: `AMB${Date.now().toString().slice(-6)}`,
                                     ambassadorApprovedAt: new Date(),
@@ -5012,8 +5012,10 @@ bot.on('callback_query', async (query) => {
                                 console.error('Failed to notify user of ambassador approval:', notifyError.message);
                             }
 
-                            // TODO: Send email notification when email API is implemented
+                            // Log approval
                             console.log(`Ambassador approved: ${waitlistEntry.email} - User ID: ${userUpdate.id}`);
+                        } else {
+                            console.warn('Ambassador approval: User not found for Telegram ID', userId);
                         }
                     } catch (userUpdateError) {
                         console.error('Error updating user ambassador status:', userUpdateError.message);
@@ -6819,7 +6821,8 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
 }, async (req, res) => {
     try {
         const userId = req.params.userId;
-        console.log(`Fetching referral data for user: ${userId}`);
+        const isAmbassadorRequest = req.query.type === 'ambassador';
+        console.log(`Fetching referral data for user: ${userId}${isAmbassadorRequest ? ' (ambassador)' : ''}`);
         
         // Check if user exists
         const user = await User.findOne({ id: userId });
@@ -6830,6 +6833,9 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
                 error: 'User not found' 
             });
         }
+        
+        // Check if user is actually an ambassador (has ambassadorEmail set)
+        const isAmbassador = !!user.ambassadorEmail;
         
         // Get March 1, 2026 start (midnight UTC) - filter from March 1st onwards
         const marchFirstDate = new Date('2026-03-01T00:00:00Z');
@@ -6871,6 +6877,36 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         }
         
         // Referral stats calculated
+        // For ambassadors, add ambassador-specific fields
+        let ambassadorStats = {};
+        if (isAmbassador) {
+            // Determine current tier based on referrals count
+            let currentTier = 1; // Explorer
+            if (totalReferrals >= 70) currentTier = 4; // Elite
+            else if (totalReferrals >= 50) currentTier = 3; // Pioneer
+            else if (totalReferrals >= 30) currentTier = 2; // Connector
+            
+            const tierBenefits = {
+                1: { freeStars: 50, minEarnings: 30 },
+                2: { freeStars: 100, minEarnings: 60 },
+                3: { freeStars: 150, minEarnings: 80 },
+                4: { freeStars: 200, minEarnings: 110 }
+            };
+            
+            const benefits = tierBenefits[currentTier];
+            
+            ambassadorStats = {
+                ambassadorTier: currentTier,
+                ambassadorEmail: user.ambassadorEmail,
+                freeStars: benefits.freeStars,
+                pendingAmount: availableReferrals * 0.5,
+                totalEarned: completedReferrals * 0.5,
+                avgTransaction: 0, // Would need to calculate from actual transactions
+                socialPosts: 0, // Would need to track separately
+                walletAddress: user.walletAddress || null,
+                walletPreview: user.walletAddress ? user.walletAddress.substring(0,8) + '…' + user.walletAddress.slice(-4) : 'Not set'
+            };
+        }
 
         const responseData = {
             success: true,
@@ -6889,7 +6925,9 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
                 pendingAmount: (completedReferrals - availableReferrals) * 0.5
             },
             referralLink: `https://t.me/TgStarStore_bot?start=${professionalRefLink}`,
-            newReferralLink: `https://t.me/TgStarStore_bot?start=${professionalRefLink}`
+            newReferralLink: `https://t.me/TgStarStore_bot?start=${professionalRefLink}`,
+            isAmbassador: isAmbassador,
+            ...ambassadorStats
         };
         
         // Returning referral stats
