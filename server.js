@@ -1420,7 +1420,17 @@ const userSchema = new mongoose.Schema({
     // Additional user info
     telegramLanguage: String,
     timezone: String,
-    referralHash: { type: String, unique: true, sparse: true, index: true }  // Professional hashed referral code for this user
+    referralHash: { type: String, unique: true, sparse: true, index: true },  // Professional hashed referral code for this user
+    
+    // Ambassador program fields
+    ambassadorEmail: { type: String, index: true },  // Email from approved ambassador application
+    ambassadorTier: { type: String, enum: ['standard', 'explorer', 'connector', 'pioneer', 'elite'], default: null },  // Ambassador tier based on referral count
+    ambassadorReferralCode: { type: String, unique: true, sparse: true, index: true },  // Unique code for ambassador referrals
+    ambassadorApprovedAt: Date,  // When the application was approved
+    ambassadorApprovedBy: String,  // Admin ID who approved the application
+    ambassadorWalletAddress: String,  // Wallet address for ambassador payouts
+    ambassadorAvgTransaction: Number,  // Average transaction value
+    ambassadorSocialPosts: Number,  // Number of social media posts
 });
 
 const bannedUserSchema = new mongoose.Schema({
