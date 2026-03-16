@@ -684,6 +684,10 @@ app.get('/referral', requireTelegramAuth, async (req, res) => {
     
     console.log(`  4️⃣  Sending response...`);
     res.setHeader('Content-Type', 'text/html');
+    // Cache-busting headers to force fresh page load
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     console.log(`════════════════════════════════════════════════\n`);
     return res.status(200).send(htmlContent);
   } catch (e) {
