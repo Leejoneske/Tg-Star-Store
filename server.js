@@ -638,23 +638,37 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/k
 app.get('/referral', requireTelegramAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log(`📖 /referral request from user: ${userId}`);
+    console.log(`\n════════════════════════════════════════════════`);
+    console.log(`📖 /REFERRAL ENDPOINT CALLED`);
+    console.log(`  User ID: ${userId}`);
+    console.log(`════════════════════════════════════════════════`);
 
     // Check if user is an ambassador
     const user = await User.findOne({ id: userId });
     const isAmbassador = user && user.ambassadorEmail;
     
-    console.log(`  → User found: ${!!user}${user ? ` (ambassadorEmail: ${user.ambassadorEmail})` : ''}`);
-    console.log(`  → Is Ambassador: ${isAmbassador}`);
+    console.log(`  1️⃣  User lookup:`);
+    console.log(`      Found: ${!!user}`);
+    if (user) {
+      console.log(`      ambassadorEmail: ${user.ambassadorEmail || 'undefined'}`);
+      console.log(`      ambassadorTier: ${user.ambassadorTier || 'undefined'}`);
+    }
+    
+    console.log(`  2️⃣  Ambassador check:`);
+    console.log(`      ambassadorEmail exists: ${!!user?.ambassadorEmail}`);
+    console.log(`      isAmbassador boolean: ${isAmbassador}`);
 
     // Serve appropriate page based on user role
     const fileName = isAmbassador ? 'amb_ref.html' : 'referral.html';
-    console.log(`  → Serving: ${fileName}`);
+    console.log(`  3️⃣  Page selection:`);
+    console.log(`      🎯 SERVING: ${fileName}`);
     const abs = path.join(__dirname, 'public', fileName);
+    console.log(`      Full path: ${abs}`);
 
     // Read the file and inject user ID
     const fs = require('fs').promises;
     let htmlContent = await fs.readFile(abs, 'utf8');
+    console.log(`      File size: ${htmlContent.length} bytes`);
 
     // Inject user ID as global variable
     htmlContent = htmlContent.replace(
@@ -663,13 +677,19 @@ app.get('/referral', requireTelegramAuth, async (req, res) => {
       <script>
         window.authenticatedUserId = "${userId}";
         window.isAuthenticatedUser = true;
+        window.isAmbassador = ${isAmbassador};
+        console.log('🔍 REFERRAL PAGE LOADED: ambassador=' + ${isAmbassador});
       </script>`
     );
-
+    
+    console.log(`  4️⃣  Sending response...`);
     res.setHeader('Content-Type', 'text/html');
+    console.log(`════════════════════════════════════════════════\n`);
     return res.status(200).send(htmlContent);
   } catch (e) {
-    console.error('Error serving referral page:', e);
+    console.error(`❌ ERROR in /referral endpoint:`, e.message);
+    console.error(`   Stack: ${e.stack}`);
+    console.error(`════════════════════════════════════════════════`);
     const notFound = path.join(__dirname, 'public', 'errors', '404.html');
     return res.status(404).sendFile(notFound, (sendErr) => {
       if (sendErr) return res.status(404).send('Not found');
