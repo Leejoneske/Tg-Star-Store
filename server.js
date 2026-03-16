@@ -635,7 +635,15 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/k
 });
 
 // Dynamic referral page routing based on user role
+// ==================== REFERRAL PAGE ROUTE ====================
+
 app.get('/referral', requireTelegramAuth, async (req, res) => {
+  // Log immediately, before anything else
+  console.log('\n🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴');
+  console.log('📖 /REFERRAL ENDPOINT - START');
+  console.log(`User ID: ${req.user?.id || 'NO USER'}`);
+  console.log('🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴\n');
+  
   try {
     const userId = req.user.id;
     console.log(`\n════════════════════════════════════════════════`);
