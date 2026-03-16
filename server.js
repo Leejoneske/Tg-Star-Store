@@ -265,6 +265,33 @@ app.get('/sitemap.xml', (req, res) => {
 // Parse Telegram init data for all requests (non-blocking)
 try { app.use(verifyTelegramAuth); } catch (_) {}
 
+// ========== AMBASSADOR HELPERS ==========
+// Initialize AmbassadorWaitlist model once to avoid schema duplication
+async function getAmbassadorWaitlistModel() {
+  if (global.AmbassadorWaitlist) {
+    return global.AmbassadorWaitlist;
+  }
+  
+  if (!process.env.MONGODB_URI) {
+    return null; // Not using MongoDB
+  }
+  
+  const schema = new mongoose.Schema({
+    id: { type: String, unique: true },
+    telegramId: String,
+    username: String,
+    email: { type: String, index: true },
+    socials: { type: Object, default: {} },
+    status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
+    processedBy: String,
+    processedAt: Date,
+    createdAt: { type: Date, default: Date.now }
+  }, { collection: 'ambassador_waitlist' });
+  
+  global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
+  return global.AmbassadorWaitlist;
+}
+
 // Ambassador Waitlist endpoint
 app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
   try {
@@ -307,21 +334,8 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
     // Prevent duplicate email signups
     try {
       if (process.env.MONGODB_URI) {
-        if (!global.AmbassadorWaitlist) {
-          const schema = new mongoose.Schema({
-            id: { type: String, unique: true },
-            telegramId: String,
-            username: String,
-            email: { type: String, index: true },
-            socials: { type: Object, default: {} },
-            status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
-            processedBy: String,
-            processedAt: Date,
-            createdAt: { type: Date, default: Date.now }
-          }, { collection: 'ambassador_waitlist' });
-          global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
-        }
-        const existing = await global.AmbassadorWaitlist.findOne({ email: clean.email }).lean();
+        const AmbassadorWaitlist = await getAmbassadorWaitlistModel();
+        const existing = await AmbassadorWaitlist.findOne({ email: clean.email }).lean();
         if (existing) {
           return res.status(409).json({ success: false, error: 'Email already registered' });
         }
@@ -342,51 +356,35 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
       // Continue; creation may still succeed, but we tried.
     }
 
-    // Prefer Mongo when configured; otherwise persist to file DB
+    // Save application to database
     let saved;
     if (process.env.MONGODB_URI) {
-      // Lazy-init schema/model to avoid top-level clutter
-      if (!global.AmbassadorWaitlist) {
-        const schema = new mongoose.Schema({
-          id: { type: String, unique: true },
-          telegramId: String,
-          username: String,
-          email: { type: String, index: true },
-          socials: { type: Object, default: {} },
-          status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
-          processedBy: String,
-          processedAt: Date,
-          createdAt: { type: Date, default: Date.now }
-        }, { collection: 'ambassador_waitlist' });
-        global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
-      }
-      
-      saved = await global.AmbassadorWaitlist.create(clean);
+      const AmbassadorWaitlist = await getAmbassadorWaitlistModel();
+      saved = await AmbassadorWaitlist.create(clean);
     } else if (db && typeof db.createAmbassadorWaitlist === 'function') {
-      // Guard against duplicates in memory/file store
-      const list = (await db.listAmbassadorWaitlist()) || [];
-      const exists = list.some(entry => (entry.email || '').toLowerCase() === clean.email);
-      if (exists) {
-        return res.status(409).json({ success: false, error: 'Email already registered' });
-      }
-      
       clean.status = 'pending';
-      
       saved = await db.createAmbassadorWaitlist(clean);
     } else {
       // Fallback: extend dev storage dynamically
       db = db || new (require('./data-persistence'))();
       if (!db.data.ambassadorWaitlist) db.data.ambassadorWaitlist = [];
-      const exists = db.data.ambassadorWaitlist.some(entry => (entry.email || '').toLowerCase() === clean.email);
-      if (exists) {
-        return res.status(409).json({ success: false, error: 'Email already registered' });
-      }
-      
       clean.status = 'pending';
-      
       db.data.ambassadorWaitlist.push(clean);
       await db.saveData();
       saved = clean;
+    }
+
+    // Notify user via Telegram that application was received
+    try {
+      await bot.sendMessage(
+        userId,
+        `✅ Your ambassador application has been received!\n\n` +
+        `Email: ${clean.email}\n\n` +
+        `We'll review your application and notify you of our decision. Thank you!`
+      );
+    } catch (e) {
+      console.error('Failed to notify user of ambassador signup:', e.message);
+      // Don't fail the whole request if notification fails
     }
 
     // Notify admins of new signup with approval buttons
