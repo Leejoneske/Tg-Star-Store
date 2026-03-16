@@ -6823,7 +6823,8 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
 }, async (req, res) => {
     try {
         const userId = req.params.userId;
-        console.log(`Fetching referral data for user: ${userId}`);
+        const isAmbassadorRequest = req.query.type === 'ambassador';
+        console.log(`Fetching referral data for user: ${userId}${isAmbassadorRequest ? ' (ambassador)' : ''}`);
         
         // Check if user exists
         const user = await User.findOne({ id: userId });
@@ -6834,6 +6835,9 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
                 error: 'User not found' 
             });
         }
+        
+        // Check if user is actually an ambassador (has ambassadorEmail set)
+        const isAmbassador = !!user.ambassadorEmail;
         
         // Get March 1, 2026 start (midnight UTC) - filter from March 1st onwards
         const marchFirstDate = new Date('2026-03-01T00:00:00Z');
@@ -6875,6 +6879,36 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         }
         
         // Referral stats calculated
+        // For ambassadors, add ambassador-specific fields
+        let ambassadorStats = {};
+        if (isAmbassador) {
+            // Determine current tier based on referrals count
+            let currentTier = 1; // Explorer
+            if (totalReferrals >= 70) currentTier = 4; // Elite
+            else if (totalReferrals >= 50) currentTier = 3; // Pioneer
+            else if (totalReferrals >= 30) currentTier = 2; // Connector
+            
+            const tierBenefits = {
+                1: { freeStars: 50, minEarnings: 30 },
+                2: { freeStars: 100, minEarnings: 60 },
+                3: { freeStars: 150, minEarnings: 80 },
+                4: { freeStars: 200, minEarnings: 110 }
+            };
+            
+            const benefits = tierBenefits[currentTier];
+            
+            ambassadorStats = {
+                ambassadorTier: currentTier,
+                ambassadorEmail: user.ambassadorEmail,
+                freeStars: benefits.freeStars,
+                pendingAmount: availableReferrals * 0.5,
+                totalEarned: completedReferrals * 0.5,
+                avgTransaction: 0, // Would need to calculate from actual transactions
+                socialPosts: 0, // Would need to track separately
+                walletAddress: user.walletAddress || null,
+                walletPreview: user.walletAddress ? user.walletAddress.substring(0,8) + '…' + user.walletAddress.slice(-4) : 'Not set'
+            };
+        }
 
         const responseData = {
             success: true,
@@ -6893,7 +6927,9 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
                 pendingAmount: (completedReferrals - availableReferrals) * 0.5
             },
             referralLink: `https://t.me/TgStarStore_bot?start=${professionalRefLink}`,
-            newReferralLink: `https://t.me/TgStarStore_bot?start=${professionalRefLink}`
+            newReferralLink: `https://t.me/TgStarStore_bot?start=${professionalRefLink}`,
+            isAmbassador: isAmbassador,
+            ...ambassadorStats
         };
         
         // Returning referral stats

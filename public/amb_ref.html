@@ -825,12 +825,12 @@
                 state.referrals      = data.referrals || [];
                 state.withdrawHistory = data.withdrawHistory || [];
                 state.stats = {
-                    referralsCount:  parseInt(data.stats?.referralsCount  || 0),
-                    totalEarned:     parseFloat(data.stats?.totalEarned    || 0),
-                    pendingAmount:   parseFloat(data.stats?.pendingAmount  || 0),
-                    freeStars:       parseInt(data.stats?.freeStars        || 0),
-                    avgTransaction:  parseInt(data.stats?.avgTransaction   || 0),
-                    socialPosts:     parseInt(data.stats?.socialPosts      || 0)
+                    referralsCount:  parseInt(data.stats?.referralsCount  || data.referralsCount || 0),
+                    totalEarned:     parseFloat(data.stats?.totalEarned    || data.totalEarned || 0),
+                    pendingAmount:   parseFloat(data.stats?.pendingAmount  || data.pendingAmount || 0),
+                    freeStars:       parseInt(data.freeStars        || 0),
+                    avgTransaction:  parseInt(data.avgTransaction   || 0),
+                    socialPosts:     parseInt(data.socialPosts      || 0)
                 };
                 state.lastRefresh = Date.now();
             }
