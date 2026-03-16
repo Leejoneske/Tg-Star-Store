@@ -268,6 +268,7 @@ try { app.use(verifyTelegramAuth); } catch (_) {}
 // ========== AMBASSADOR HELPERS ==========
 // Initialize AmbassadorWaitlist model once to avoid schema duplication
 async function getAmbassadorWaitlistModel() {
+  // Check global cache first
   if (global.AmbassadorWaitlist) {
     return global.AmbassadorWaitlist;
   }
@@ -276,6 +277,13 @@ async function getAmbassadorWaitlistModel() {
     return null; // Not using MongoDB
   }
   
+  // Check if model already exists in mongoose
+  if (mongoose.models.AmbassadorWaitlist) {
+    global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist;
+    return global.AmbassadorWaitlist;
+  }
+  
+  // Create schema and model for the first time
   const schema = new mongoose.Schema({
     id: { type: String, unique: true },
     telegramId: String,
@@ -288,7 +296,7 @@ async function getAmbassadorWaitlistModel() {
     createdAt: { type: Date, default: Date.now }
   }, { collection: 'ambassador_waitlist' });
   
-  global.AmbassadorWaitlist = mongoose.models.AmbassadorWaitlist || mongoose.model('AmbassadorWaitlist', schema);
+  global.AmbassadorWaitlist = mongoose.model('AmbassadorWaitlist', schema);
   return global.AmbassadorWaitlist;
 }
 
@@ -314,6 +322,7 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
       username: user.username || '',
       email: String(email || '').trim().toLowerCase(),
       socials: Object.fromEntries(Object.entries(socials || {}).map(([k,v]) => [String(k), String(v).trim()]).filter(([,v]) => !!v)),
+      status: 'pending',  // IMPORTANT: Set status on creation so duplicate checks can find it
       createdAt: new Date().toISOString()
     };
 
@@ -331,14 +340,30 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
       }
     }
 
-    // Prevent duplicate email signups
+    // Prevent duplicate email signups AND duplicate applications from same user
     try {
       if (process.env.MONGODB_URI) {
         const AmbassadorWaitlist = await getAmbassadorWaitlistModel();
-        const existing = await AmbassadorWaitlist.findOne({ email: clean.email }).lean();
-        if (existing) {
+        if (!AmbassadorWaitlist) {
+          console.warn('❌ AmbassadorWaitlist model is null');
+          throw new Error('Model initialization failed');
+        }
+        // Check for duplicate email
+        const existingEmail = await AmbassadorWaitlist.findOne({ email: clean.email }).lean();
+        if (existingEmail) {
+          console.log(`⚠️ Email already registered: ${clean.email}`);
           return res.status(409).json({ success: false, error: 'Email already registered' });
         }
+        // Check for duplicate application from same user (Telegram ID)
+        const existingUser = await AmbassadorWaitlist.findOne({ 
+          telegramId: userId,
+          status: { $in: ['pending', 'approved'] }
+        }).lean();
+        if (existingUser) {
+          console.log(`⚠️ Duplicate application from user ${userId}: ${existingUser.email} (status: ${existingUser.status})`);
+          return res.status(409).json({ success: false, error: 'You already have a pending or approved ambassador application. Please wait for a response before applying again.' });
+        }
+        console.log(`✅ No duplicates found for ${userId}, proceeding with application`);
       } else {
         // File DB fallback
         if (!db) {
@@ -346,10 +371,21 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
           db = new DataPersistence();
         }
         const list = (await db.listAmbassadorWaitlist()) || [];
-        const exists = list.some(entry => (entry.email || '').toLowerCase() === clean.email);
-        if (exists) {
+        // Check for duplicate email
+        const emailExists = list.some(entry => (entry.email || '').toLowerCase() === clean.email);
+        if (emailExists) {
+          console.log(`⚠️ Email already registered (file db): ${clean.email}`);
           return res.status(409).json({ success: false, error: 'Email already registered' });
         }
+        // Check for duplicate application from same user
+        const userExists = list.some(entry => 
+          entry.telegramId === userId && ['pending', 'approved'].includes(entry.status)
+        );
+        if (userExists) {
+          console.log(`⚠️ Duplicate application from user ${userId} (file db)`);
+          return res.status(409).json({ success: false, error: 'You already have a pending or approved ambassador application. Please wait for a response before applying again.' });
+        }
+        console.log(`✅ No duplicates found for ${userId} (file db), proceeding with application`);
       }
     } catch (dupCheckErr) {
       console.error('Ambassador duplicate check failed:', dupCheckErr.message);
@@ -361,9 +397,11 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
     if (process.env.MONGODB_URI) {
       const AmbassadorWaitlist = await getAmbassadorWaitlistModel();
       saved = await AmbassadorWaitlist.create(clean);
+      console.log(`✅ Ambassador application created (MongoDB): ID=${saved.id}, User=${userId}, Email=${clean.email}, Status=${saved.status}`);
     } else if (db && typeof db.createAmbassadorWaitlist === 'function') {
       clean.status = 'pending';
       saved = await db.createAmbassadorWaitlist(clean);
+      console.log(`✅ Ambassador application created (file db): ID=${saved.id}, User=${userId}, Email=${clean.email}, Status=${saved.status}`);
     } else {
       // Fallback: extend dev storage dynamically
       db = db || new (require('./data-persistence'))();
@@ -372,6 +410,7 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
       db.data.ambassadorWaitlist.push(clean);
       await db.saveData();
       saved = clean;
+      console.log(`✅ Ambassador application created (dev fallback): ID=${saved.id}, User=${userId}, Email=${clean.email}, Status=${saved.status}`);
     }
 
     // Notify user via Telegram that application was received
@@ -4953,7 +4992,6 @@ bot.on('callback_query', async (query) => {
 
                 // Update the admin message to show final status
                 const finalText = `Ambassador Application\n\n` +
-                    `Name: ${waitlistEntry.fullName}\n` +
                     `Email: ${waitlistEntry.email}\n` +
                     `Username: ${waitlistEntry.username ? '@' + waitlistEntry.username : 'N/A'}\n` +
                     `User ID: ${waitlistEntry.telegramId || 'N/A'}\n` +
@@ -4991,7 +5029,6 @@ bot.on('callback_query', async (query) => {
                             { 
                                 $set: {
                                     ambassadorEmail: waitlistEntry.email,
-                                    ambassadorFullName: waitlistEntry.fullName || '',
                                     ambassadorTier: 'standard',
                                     ambassadorReferralCode: `AMB${Date.now().toString().slice(-6)}`,
                                     ambassadorApprovedAt: new Date(),
@@ -5002,6 +5039,7 @@ bot.on('callback_query', async (query) => {
                         );
 
                         if (userUpdate) {
+                            console.log(`✅ User ${userUpdate.id} marked as ambassador with email: ${userUpdate.ambassadorEmail}`);
                             // Send notification to user via Telegram
                             try {
                                 await bot.sendMessage(userUpdate.id, 
@@ -5015,7 +5053,7 @@ bot.on('callback_query', async (query) => {
                             // Log approval
                             console.log(`Ambassador approved: ${waitlistEntry.email} - User ID: ${userUpdate.id}`);
                         } else {
-                            console.warn('Ambassador approval: User not found for Telegram ID', userId);
+                            console.warn(`❌ Ambassador approval failed: User not found for Telegram ID ${userId}`);
                         }
                     } catch (userUpdateError) {
                         console.error('Error updating user ambassador status:', userUpdateError.message);
@@ -13360,7 +13398,14 @@ app.get('/api/me', async (req, res) => {
 	if (tgId && !isAmbassador) {
 		try {
 			const user = await User.findOne({ id: tgId }).lean();
-			if (user && user.ambassadorEmail) isAmbassador = true;
+			if (user && user.ambassadorEmail) {
+				isAmbassador = true;
+				console.log(`✓ User ${tgId} is ambassador (email: ${user.ambassadorEmail})`);
+			} else if (user) {
+				console.log(`✗ User ${tgId} found but not ambassador (ambassadorEmail: ${user.ambassadorEmail})`);
+			} else {
+				console.log(`✗ User ${tgId} not found in database`);
+			}
 		} catch (e) {
 			console.error('Error checking ambassador status:', e.message);
 		}
