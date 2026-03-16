@@ -723,7 +723,6 @@ app.get('/api/debug/ambassador-status', requireTelegramAuth, async (req, res) =>
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
-  }
 });
 
 // Sitemap generation
