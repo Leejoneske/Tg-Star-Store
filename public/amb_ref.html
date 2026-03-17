@@ -793,6 +793,24 @@
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
+        // Check if user is actually an ambassador (if not, redirect to regular referral page)
+        if (userId && String(userId).trim() && String(userId) !== 'default_user_id' && String(userId) !== 'dev-user') {
+            try {
+                const response = await fetch(`/api/check-ambassador?userId=${userId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (!data.isAmbassador) {
+                        console.log('User is not an ambassador, redirecting to regular referral page');
+                        window.location.href = '/referral';
+                        return; // Stop further processing
+                    }
+                }
+            } catch (e) {
+                console.error('Error checking ambassador status:', e);
+                // Continue anyway - user might still access this page
+            }
+        }
+        
         await loadBottomNav();
         await loadReferralData();
         if (typeof TranslationUtils !== 'undefined') TranslationUtils.applyTranslations?.();
