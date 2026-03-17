@@ -15,9 +15,10 @@
     <!-- Ambassador Check: Redirect non-ambassadors to regular referral page -->
     <script>
         (function() {
-            // Get user ID from Telegram WebApp
-            function getUserIdFromTelegram() {
+            // Get user ID from Telegram WebApp OR localStorage (fallback from previous login)
+            function getUserId() {
                 try {
+                    // Try Telegram WebApp first
                     if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
                         const id = window.Telegram.WebApp.initDataUnsafe.user.id;
                         if (id && String(id).trim() && String(id) !== 'undefined') {
@@ -25,41 +26,62 @@
                         }
                     }
                 } catch (e) {
-                    console.log('Telegram not ready');
+                    // Telegram not ready yet
                 }
+                
+                // Fallback to localStorage (set during previous login on index.html)
+                try {
+                    const stored = localStorage.getItem('userId');
+                    if (stored && String(stored).trim() && String(stored) !== 'undefined' && String(stored) !== 'dev-user') {
+                        return String(stored);
+                    }
+                } catch (e) {
+                    // localStorage not available
+                }
+                
                 return null;
             }
             
-            // Check ambassador status via API
+            // Check ambassador status and redirect if needed
             function checkAndRedirect() {
-                const userId = getUserIdFromTelegram();
+                const userId = getUserId();
                 
                 if (!userId || userId === 'dev-user' || userId === 'default_user_id') {
-                    // No valid user ID, redirect to regular referral
+                    console.log('No valid user ID, redirecting to regular referral');
                     window.location.href = '/referral';
                     return;
                 }
                 
+                // Verify ambassador status via API
                 fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`)
                     .then(r => r.ok ? r.json() : null)
                     .then(data => {
                         if (data && !data.isAmbassador) {
-                            // User is not ambassador, redirect
+                            console.log('User is not ambassador, redirecting');
                             window.location.href = '/referral';
+                        } else if (data && data.isAmbassador) {
+                            console.log('✓ Ambassador verified, showing ambassador page');
+                        } else {
+                            console.log('Could not verify ambassador status, staying on page');
                         }
-                        // If ambassador or data unavailable, stay on this page
                     })
-                    .catch(() => {
-                        // On error, stay on page (user might still be ambassador)
+                    .catch(err => {
+                        console.log('Error checking ambassador status, staying on page:', err.message);
+                        // On error, stay on page - user might be ambassador
                     });
             }
             
-            // Check when Telegram is ready
-            if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            // Try immediately (if storage/Telegram ready), or wait a moment
+            if (getUserId()) {
                 checkAndRedirect();
             } else {
-                // Wait a moment for Telegram to initialize
-                setTimeout(checkAndRedirect, 100);
+                setTimeout(() => {
+                    if (getUserId()) {
+                        checkAndRedirect();
+                    } else {
+                        console.warn('Could not get user ID after timeout');
+                    }
+                }, 200);
             }
         })();
     </script>
