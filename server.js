@@ -384,6 +384,112 @@ async function getAmbassadorWaitlistModel() {
   return global.AmbassadorWaitlist;
 }
 
+// ========== AMBASSADOR TIER CALCULATION SYSTEM ==========
+// Tier structure with referral count thresholds and rates
+const AMBASSADOR_TIERS = {
+  0: { name: 'Pre-Level', minRef: 0, maxRef: 29, rate: 0.50, level: 0 },    // Pre-Level 1: $0.50/ref
+  1: { name: 'Level 1', minRef: 30, maxRef: 49, rate: 1.00, level: 1 },    // Level 1: $1.00/ref
+  2: { name: 'Level 2', minRef: 50, maxRef: 69, rate: 1.20, level: 2 },    // Level 2: $1.20/ref
+  3: { name: 'Level 3', minRef: 70, maxRef: 99, rate: 1.50, level: 3 },    // Level 3: $1.50/ref
+  4: { name: 'Level 4', minRef: 100, maxRef: Infinity, rate: 2.00, level: 4 } // Level 4: $2.00/ref
+};
+
+/**
+ * Calculate which tier a user belongs to based on referral count
+ * @param {number} referralCount - Total number of referrals
+ * @returns {object} Tier info { level, name, minRef, maxRef, rate }
+ */
+function getAmbassadorTier(referralCount) {
+  for (let level = 0; level <= 4; level++) {
+    const tier = AMBASSADOR_TIERS[level];
+    if (referralCount >= tier.minRef && referralCount <= tier.maxRef) {
+      return tier;
+    }
+  }
+  return AMBASSADOR_TIERS[4]; // Return Level 4 for 100+
+}
+
+/**
+ * Calculate earnings for a new referral within a tier
+ * @param {number} currentLevel - Current tier level
+ * @param {number} nextReferralCount - What the count will be after this referral
+ * @returns {object} { earnedThisReferral, newLevel, newTierUnlocked }
+ */
+function calculateNewReferralEarnings(currentLevel, nextReferralCount) {
+  const currentTier = AMBASSADOR_TIERS[currentLevel];
+  const nextTier = getAmbassadorTier(nextReferralCount);
+  const earnedThisReferral = currentTier.rate; // Earn at current tier's rate
+  
+  return {
+    earnedThisReferral,
+    newLevel: nextTier.level,
+    newTierUnlocked: nextTier.level > currentLevel,
+    newTierName: nextTier.name,
+    newTierRate: nextTier.rate
+  };
+}
+
+/**
+ * Recalculate all earnings based on referral count and level breakdowns
+ * Used when syncing from database
+ * @param {number} referralCount - Total referrals
+ * @returns {object} Earnings breakdown by level
+ */
+function recalculateLevelEarnings(referralCount) {
+  const earnings = {
+    preLevelOne: 0,
+    levelOne: 0,
+    levelTwo: 0,
+    levelThree: 0,
+    levelFour: 0
+  };
+  
+  // Calculate earnings for refs 0-29 (Pre-Level 1)
+  if (referralCount >= 1) {
+    const preLevel1Count = Math.min(referralCount, 29);
+    earnings.preLevelOne = preLevel1Count * 0.50;
+  }
+  
+  // Calculate earnings for refs 30-49 (Level 1)
+  if (referralCount >= 30) {
+    const level1Count = Math.min(referralCount - 29, 20);
+    earnings.levelOne = level1Count * 1.00;
+  }
+  
+  // Calculate earnings for refs 50-69 (Level 2)
+  if (referralCount >= 50) {
+    const level2Count = Math.min(referralCount - 49, 20);
+    earnings.levelTwo = level2Count * 1.20;
+  }
+  
+  // Calculate earnings for refs 70-99 (Level 3)
+  if (referralCount >= 70) {
+    const level3Count = Math.min(referralCount - 69, 30);
+    earnings.levelThree = level3Count * 1.50;
+  }
+  
+  // Calculate earnings for refs 100+ (Level 4)
+  if (referralCount >= 100) {
+    const level4Count = referralCount - 99;
+    earnings.levelFour = level4Count * 2.00;
+  }
+  
+  return earnings;
+}
+
+/**
+ * Get total earnings across all tiers
+ * @param {object} levelEarnings - Earnings breakdown by level
+ * @returns {number} Total amount
+ */
+function getTotalAmbassiadorEarnings(levelEarnings) {
+  return (levelEarnings.preLevelOne || 0) +
+         (levelEarnings.levelOne || 0) +
+         (levelEarnings.levelTwo || 0) +
+         (levelEarnings.levelThree || 0) +
+         (levelEarnings.levelFour || 0);
+}
+
 // Ambassador Waitlist endpoint
 app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
   try {
@@ -1542,6 +1648,44 @@ const userSchema = new mongoose.Schema({
     ambassadorWalletAddress: String,  // Wallet address for ambassador payouts
     ambassadorAvgTransaction: Number,  // Average transaction value
     ambassadorSocialPosts: Number,  // Number of social media posts
+    
+    // Ambassador tiered earnings system
+    ambassadorCurrentLevel: { type: Number, default: 0 }, // 0=pre-level-1, 1, 2, 3, 4
+    ambassadorReferralCount: { type: Number, default: 0 }, // Total referrals
+    ambassadorLevelEarnings: {
+        preLevelOne: { type: Number, default: 0 }, // 0-29 refs @ $0.50/ref
+        levelOne: { type: Number, default: 0 },    // 30-49 refs @ $1.00/ref
+        levelTwo: { type: Number, default: 0 },     // 50-69 refs @ $1.20/ref
+        levelThree: { type: Number, default: 0 },   // 70-99 refs @ $1.50/ref
+        levelFour: { type: Number, default: 0 }     // 100+ refs @ $2.00/ref
+    },
+    ambassadorPendingBalance: { type: Number, default: 0 }, // Balance awaiting withdrawal
+    ambassadorMonthlyWithdrawals: [{
+        month: { type: String }, // Format: "2026-03" 
+        amount: { type: Number },
+        levelBreakdown: {
+            preLevelOne: { type: Number, default: 0 },
+            levelOne: { type: Number, default: 0 },
+            levelTwo: { type: Number, default: 0 },
+            levelThree: { type: Number, default: 0 },
+            levelFour: { type: Number, default: 0 }
+        },
+        stars: { type: Number, default: 0 },
+        nft: { type: String },
+        status: { type: String, enum: ['pending', 'approved', 'declined'], default: 'pending' },
+        withdrawalDate: { type: Date, default: Date.now },
+        approvedBy: String,
+        approvalDate: Date,
+        declineReason: String
+    }],
+    ambassadorLastWithdrawalDate: Date, // Last successful withdrawal
+    ambassadorEarningsHistory: [{
+        timestamp: { type: Date, default: Date.now },
+        referralCount: Number,
+        level: Number,
+        earnedAmount: Number,
+        reason: String // 'referral_added', 'level_upgrade', etc.
+    }]
 });
 
 const bannedUserSchema = new mongoose.Schema({
@@ -1660,7 +1804,22 @@ const referralWithdrawalSchema = new mongoose.Schema({
     createdAt: { 
         type: Date, 
         default: Date.now 
-    }
+    },
+    
+    // Ambassador tier system fields
+    isAmbassadorWithdrawal: { type: Boolean, default: false },
+    ambassadorLevel: { type: Number, default: 0 }, // Current tier level at time of withdrawal
+    ambassadorReferralCount: { type: Number, default: 0 }, // Total refs at time of withdrawal
+    ambassadorLevelBreakdown: {
+        preLevelOne: { type: Number, default: 0 },
+        levelOne: { type: Number, default: 0 },
+        levelTwo: { type: Number, default: 0 },
+        levelThree: { type: Number, default: 0 },
+        levelFour: { type: Number, default: 0 }
+    },
+    ambassadorStars: { type: Number, default: 0 }, // Stars bonus
+    ambassadorNft: { type: String }, // NFT reward (if any)
+    ambassadorMonth: { type: String } // Format: "2026-03"
 });
 
 const referralTrackerSchema = new mongoose.Schema({
@@ -7371,6 +7530,353 @@ app.get('/api/withdrawal-history/:userId', validateTelegramUser, async (req, res
     }
 });
 
+// ========== AMBASSADOR TIER EARNINGS ENDPOINTS ==========
+
+/**
+ * Endpoint: Calculate and update ambassador earnings
+ * Called when a referral is added/confirmed
+ * Recalculates tier earnings based on current total referrals
+ */
+app.post('/api/ambassador/update-earnings', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ success: false, error: 'userId required' });
+        }
+        
+        const user = await User.findOne({ id: userId });
+        if (!user || !user.ambassadorEmail) {
+            return res.status(404).json({ success: false, error: 'Ambassador not found' });
+        }
+        
+        // Count total referrals from March 1st onwards (filter to active/completed like referral stats)
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        const totalReferrals = await Referral.countDocuments({
+            referrerUserId: userId,
+            dateReferred: { $gte: marchFirstDate }
+        });
+        
+        // Recalculate earnings for all tiers based on current referral count
+        const levelEarnings = recalculateLevelEarnings(totalReferrals);
+        const totalAmount = getTotalAmbassiadorEarnings(levelEarnings);
+        const newLevel = getAmbassadorTier(totalReferrals).level;
+        
+        // Track earnings history
+        const historyEntry = {
+            timestamp: new Date(),
+            referralCount: totalReferrals,
+            level: newLevel,
+            earnedAmount: totalAmount,
+            reason: 'referral_added'
+        };
+        
+        // Update user with new earnings
+        const updatedUser = await User.findOneAndUpdate(
+            { id: userId },
+            {
+                ambassadorCurrentLevel: newLevel,
+                ambassadorReferralCount: totalReferrals,
+                ambassadorLevelEarnings: levelEarnings,
+                ambassadorPendingBalance: totalAmount,
+                $push: { ambassadorEarningsHistory: historyEntry }
+            },
+            { new: true }
+        );
+        
+        console.log(`Ambassador earnings updated for ${userId}: ${totalReferrals} referrals, level ${newLevel}, $${totalAmount.toFixed(2)}`);
+        
+        return res.json({
+            success: true,
+            userId,
+            totalReferrals,
+            currentLevel: newLevel,
+            levelEarnings,
+            totalAmount,
+            message: 'Ambassador earnings updated'
+        });
+        
+    } catch (error) {
+        console.error('Error updating ambassador earnings:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Endpoint: Create monthly auto-withdrawal for ambassador
+ * Creates a ReferralWithdrawal record with all tier earnings combined
+ * Runs at month-end, aggregates all tier balances
+ */
+app.post('/api/ambassador/create-monthly-withdrawal', requireAdmin, async (req, res) => {
+    try {
+        const { userId, month } = req.body; // month format: "2026-03"
+        
+        if (!userId || !month) {
+            return res.status(400).json({ success: false, error: 'userId and month required' });
+        }
+        
+        const user = await User.findOne({ id: userId });
+        if (!user || !user.ambassadorEmail) {
+            return res.status(404).json({ success: false, error: 'Ambassador not found' });
+        }
+        
+        // Get current tier earnings (all levels combined)
+        const levelEarnings = user.ambassadorLevelEarnings || {
+            preLevelOne: 0,
+            levelOne: 0,
+            levelTwo: 0,
+            levelThree: 0,
+            levelFour: 0
+        };
+        
+        const totalAmount = getTotalAmbassiadorEarnings(levelEarnings);
+        
+        if (totalAmount <= 0) {
+            return res.status(400).json({ success: false, error: 'No earnings to withdraw' });
+        }
+        
+        // Create withdrawal record with tier breakdown
+        const withdrawal = new ReferralWithdrawal({
+            userId: user.id,
+            username: user.username,
+            amount: totalAmount,
+            walletAddress: user.ambassadorWalletAddress,
+            isAmbassadorWithdrawal: true,
+            ambassadorLevel: user.ambassadorCurrentLevel || 0,
+            ambassadorReferralCount: user.ambassadorReferralCount || 0,
+            ambassadorLevelBreakdown: levelEarnings,
+            ambassadorStars: [10, 25, 50, 75, 100][user.ambassadorCurrentLevel || 0] * 10, // Stars based on tier
+            ambassadorMonth: month,
+            status: 'pending',
+            createdAt: new Date(),
+            userLocation: user.lastLocation || {}
+        });
+        
+        await withdrawal.save();
+        
+        // Store withdrawal in user's history
+        await User.findOneAndUpdate(
+            { id: userId },
+            {
+                $push: {
+                    'ambassadorMonthlyWithdrawals': {
+                        month,
+                        amount: totalAmount,
+                        levelBreakdown: levelEarnings,
+                        stars: withdrawal.ambassadorStars,
+                        status: 'pending',
+                        withdrawalDate: new Date()
+                    }
+                }
+            }
+        );
+        
+        console.log(`Monthly withdrawal created for ambassador ${userId}: $${totalAmount.toFixed(2)} (${month})`);
+        console.log(`Tier breakdown - Pre-Level 1: $${levelEarnings.preLevelOne}, Level 1: $${levelEarnings.levelOne}, Level 2: $${levelEarnings.levelTwo}, Level 3: $${levelEarnings.levelThree}, Level 4: $${levelEarnings.levelFour}`);
+        
+        return res.json({
+            success: true,
+            withdrawalId: withdrawal.withdrawalId,
+            userId,
+            month,
+            totalAmount,
+            levelBreakdown: levelEarnings,
+            stars: withdrawal.ambassadorStars,
+            message: 'Monthly withdrawal created'
+        });
+        
+    } catch (error) {
+        console.error('Error creating monthly withdrawal:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Endpoint: Get ambassador withdrawal details for admin approval
+ * Returns formatted withdrawal info with tier breakdown
+ */
+app.get('/api/ambassador/withdrawal/:withdrawalId', async (req, res) => {
+    try {
+        const { withdrawalId } = req.params;
+        
+        const withdrawal = await ReferralWithdrawal.findOne({ withdrawalId });
+        if (!withdrawal || !withdrawal.isAmbassadorWithdrawal) {
+            return res.status(404).json({ success: false, error: 'Ambassador withdrawal not found' });
+        }
+        
+        const user = await User.findOne({ id: withdrawal.userId });
+        
+        const breakdown = withdrawal.ambassadorLevelBreakdown || {};
+        
+        return res.json({
+            success: true,
+            withdrawal: {
+                withdrawalId: withdrawal.withdrawalId,
+                userId: withdrawal.userId,
+                username: withdrawal.username,
+                amount: withdrawal.amount,
+                walletAddress: withdrawal.walletAddress,
+                walletPreview: withdrawal.walletAddress ? withdrawal.walletAddress.substring(0, 8) + '…' + withdrawal.walletAddress.slice(-4) : 'Not set',
+                status: withdrawal.status,
+                month: withdrawal.ambassadorMonth,
+                levelBreakdown: {
+                    preLevelOne: breakdown.preLevelOne || 0,
+                    levelOne: breakdown.levelOne || 0,
+                    levelTwo: breakdown.levelTwo || 0,
+                    levelThree: breakdown.levelThree || 0,
+                    levelFour: breakdown.levelFour || 0
+                },
+                stars: withdrawal.ambassadorStars || 0,
+                nft: withdrawal.ambassadorNft || null,
+                currentLevel: withdrawal.ambassadorLevel || 0,
+                totalReferrals: withdrawal.ambassadorReferralCount || 0,
+                createdAt: withdrawal.createdAt,
+                approvedBy: withdrawal.approvedBy || null,
+                approvalDate: withdrawal.approvalDate || null,
+                declineReason: withdrawal.declineReason || null
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error fetching ambassador withdrawal:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Endpoint: Admin approve/decline ambassador withdrawal
+ * Updates withdrawal status and notifies user
+ */
+app.post('/api/ambassador/withdrawal/:withdrawalId/approve', requireAdmin, async (req, res) => {
+    try {
+        const { withdrawalId } = req.params;
+        const { approved, declineReason, adminId, adminName } = req.body;
+        
+        if (typeof approved !== 'boolean') {
+            return res.status(400).json({ success: false, error: 'approved boolean required' });
+        }
+        
+        const withdrawal = await ReferralWithdrawal.findOne({ withdrawalId });
+        if (!withdrawal || !withdrawal.isAmbassadorWithdrawal) {
+            return res.status(404).json({ success: false, error: 'Ambassador withdrawal not found' });
+        }
+        
+        if (withdrawal.status !== 'pending') {
+            return res.status(400).json({ success: false, error: `Cannot process ${withdrawal.status} withdrawal` });
+        }
+        
+        const breakdown = withdrawal.ambassadorLevelBreakdown || {};
+        const newStatus = approved ? 'completed' : 'declined';
+        
+        // Update withdrawal record
+        await ReferralWithdrawal.findOneAndUpdate(
+            { withdrawalId },
+            {
+                status: newStatus,
+                processedBy: adminId,
+                processedAt: new Date(),
+                approvedBy: adminName,
+                declineReason: approved ? null : (declineReason || 'Declined by admin')
+            }
+        );
+        
+        // Update user's monthly withdrawal status
+        const user = await User.findOne({ id: withdrawal.userId });
+        if (user) {
+            const monthlyWithdrawal = user.ambassadorMonthlyWithdrawals?.find(w => w.month === withdrawal.ambassadorMonth);
+            if (monthlyWithdrawal) {
+                monthlyWithdrawal.status = newStatus;
+                monthlyWithdrawal.approvalDate = new Date();
+                await user.save();
+            }
+        }
+        
+        // Reset user's tier earnings balance if approved (withdrawal processed)
+        if (approved) {
+            await User.findOneAndUpdate(
+                { id: withdrawal.userId },
+                {
+                    ambassadorLevelEarnings: {
+                        preLevelOne: 0,
+                        levelOne: 0,
+                        levelTwo: 0,
+                        levelThree: 0,
+                        levelFour: 0
+                    },
+                    ambassadorPendingBalance: 0,
+                    ambassadorLastWithdrawalDate: new Date()
+                }
+            );
+        }
+        
+        // Format approval message for user
+        const approvalMessage = approved
+            ? `✅ Ambassador Withdrawal Approved!\n\nMonth: ${withdrawal.ambassadorMonth}\nAmount: $${withdrawal.amount.toFixed(2)}\n\nTier Breakdown:\n- Pre-Level: $${breakdown.preLevelOne?.toFixed(2) || '0.00'}\n- Level 1: $${breakdown.levelOne?.toFixed(2) || '0.00'}\n- Level 2: $${breakdown.levelTwo?.toFixed(2) || '0.00'}\n- Level 3: $${breakdown.levelThree?.toFixed(2) || '0.00'}\n- Level 4: $${breakdown.levelFour?.toFixed(2) || '0.00'}\n\nStars: ${withdrawal.ambassadorStars || 0}\nProcessed by: @${adminName}`
+            : `❌ Ambassador Withdrawal Declined\n\nMonth: ${withdrawal.ambassadorMonth}\nAmount: $${withdrawal.amount.toFixed(2)}\n\nReason: ${declineReason || 'No reason provided'}\n\nYou can request a new withdrawal next month.\nProcessed by: @${adminName}`;
+        
+        console.log(`Ambassador withdrawal ${withdrawalId} ${newStatus} by @${adminName}. Amount: $${withdrawal.amount.toFixed(2)}`);
+        
+        // Send notification to user via bot
+        if (bot && withdrawal.userId) {
+            try {
+                await bot.sendMessage(withdrawal.userId, approvalMessage);
+            } catch (botErr) {
+                console.warn(`Could not send approval message to user ${withdrawal.userId}:`, botErr.message);
+            }
+        }
+        
+        return res.json({
+            success: true,
+            withdrawalId,
+            status: newStatus,
+            message: approved ? 'Withdrawal approved' : 'Withdrawal declined',
+            approvalMessage
+        });
+        
+    } catch (error) {
+        console.error('Error processing ambassador withdrawal approval:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Endpoint: Get all pending ambassador withdrawals (for admin panel)
+ */
+app.get('/api/ambassador/withdrawals/pending', requireAdmin, async (req, res) => {
+    try {
+        const pendingWithdrawals = await ReferralWithdrawal.find({
+            isAmbassadorWithdrawal: true,
+            status: 'pending'
+        })
+        .sort({ createdAt: -1 })
+        .limit(100);
+        
+        const formatted = pendingWithdrawals.map(w => ({
+            withdrawalId: w.withdrawalId,
+            userId: w.userId,
+            username: w.username,
+            amount: w.amount,
+            month: w.ambassadorMonth,
+            currentLevel: w.ambassadorLevel,
+            totalReferrals: w.ambassadorReferralCount,
+            levelBreakdown: w.ambassadorLevelBreakdown,
+            stars: w.ambassadorStars,
+            walletAddress: w.walletAddress,
+            walletPreview: w.walletAddress ? w.walletAddress.substring(0, 8) + '…' + w.walletAddress.slice(-4) : 'Not set',
+            createdAt: w.createdAt
+        }));
+        
+        return res.json({
+            success: true,
+            count: formatted.length,
+            withdrawals: formatted
+        });
+        
+    } catch (error) {
+        console.error('Error fetching pending ambassador withdrawals:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 // Withdrawal endpoint
 app.post('/api/referral-withdrawals', async (req, res) => {
