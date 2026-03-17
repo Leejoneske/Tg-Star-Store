@@ -242,6 +242,10 @@ app.use(compression({
 }));
 */
 
+// ==================== PARSE TELEGRAM AUTH FOR ALL REQUESTS ====================
+// MUST come BEFORE route handlers so middleware is applied
+try { app.use(verifyTelegramAuth); } catch (_) {}
+
 // ==================== DYNAMIC ROUTES (BEFORE STATIC MIDDLEWARE) ====================
 
 // ==================== REFERRAL PAGE ROUTE ====================
@@ -344,9 +348,6 @@ app.get('/sitemap.xml', (req, res) => {
   res.set('Cache-Control', 'public, max-age=86400');
   res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
 });
-
-// Parse Telegram init data for all requests (non-blocking)
-try { app.use(verifyTelegramAuth); } catch (_) {}
 
 // ========== AMBASSADOR HELPERS ==========
 // Initialize AmbassadorWaitlist model once to avoid schema duplication
@@ -785,7 +786,10 @@ app.get('/api/check-ambassador', async (req, res) => {
 });
 
 // Sitemap generation
-app.get('/sitemap.xml', async (req, res) => {
+// DUPLICATE SITEMAP REMOVED - using the one defined earlier
+// Skipping duplicate /sitemap.xml at line 788+
+
+app.get('/sitemap-duplicate-removed', async (req, res) => {
   try {
     // Derive base from configured server domain; fallback to starstore.site
     const base = `https://${SERVER_URL || 'starstore.site'}`;
@@ -14819,14 +14823,8 @@ function requireAdmin(req, res, next) {
 	}
 }
 
-app.get('/api/me', (req, res) => {
-	const sess = getAdminSession(req);
-	if (sess && adminIds.includes(sess.payload.tgId)) {
-		return res.json({ id: sess.payload.tgId, isAdmin: true });
-	}
-	const tgId = (req.headers['x-telegram-id'] || '').toString();
-	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false });
-});
+// DUPLICATE /api/me endpoint removed - using the detailed one defined earlier (line 13563+)
+// The detailed version includes ambassador status checking
 
 app.get('/api/admin/csrf', (req, res) => {
 	const sess = getAdminSession(req);
