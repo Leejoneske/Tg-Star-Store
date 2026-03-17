@@ -2117,18 +2117,41 @@ function initNotificationSystem() {
 function loadBottomNav() {
     return new Promise((resolve) => {
         const container = document.getElementById('bottomnav-container');
-        if (!container) return resolve();
+        if (!container) {
+            console.log('Bottom nav container not found');
+            return resolve();
+        }
+        
         fetch('/bottomnav.html')
-            .then(r => r.ok ? r.text() : '')
-            .then(html => { 
+            .then(r => {
+                if (!r.ok) {
+                    console.error('Failed to load bottomnav.html:', r.status, r.statusText);
+                    return '';
+                }
+                return r.text();
+            })
+            .then(html => {
+                if (!html) {
+                    console.warn('Bottom nav HTML is empty');
+                    return resolve();
+                }
+                
                 container.innerHTML = html;
+                console.log('Bottom nav loaded successfully');
+                
                 // Initialize bottom nav navigation
                 if (typeof BottomNavUtils !== 'undefined') {
                     BottomNavUtils.initBottomNav();
+                    console.log('Bottom nav initialized');
+                } else {
+                    console.warn('BottomNavUtils not available');
                 }
                 resolve(); 
             })
-            .catch(() => resolve());
+            .catch((err) => {
+                console.error('Error loading bottom nav:', err);
+                resolve();
+            });
     });
 }
 
@@ -2566,6 +2589,7 @@ function updateWalletButton() {
         return;
     }
     
+    const walletText = (typeof TranslationUtils !== 'undefined') ? (TranslationUtils.get('connectWallet') || 'Connect Wallet') : 'Connect Wallet';
     
     if (walletConnected && currentWalletAddress) {
         btn.classList.add('wallet-connected');
@@ -2574,7 +2598,7 @@ function updateWalletButton() {
         btn.disabled = false;
     } else {
         btn.classList.remove('wallet-connected');
-        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${TranslationUtils.get('connectWallet') || 'Connect Wallet'}`;
+        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i>${walletText}`;
         btn.disabled = false;
     }
 }      

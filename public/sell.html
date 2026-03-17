@@ -1859,17 +1859,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (_) {}
 
     // Load shared bottom nav
-    fetch('/bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { 
-        document.getElementById('bottomnav-container').innerHTML = html;
-        // Initialize bottom nav navigation
-        if (typeof BottomNavUtils !== 'undefined') {
-            BottomNavUtils.initBottomNav();
-        }
-        // Apply translations to bottom nav after loading
-        if (typeof TranslationUtils !== 'undefined') {
-            TranslationUtils.applyTranslations();
-        }
-    });
+    fetch('/bottomnav.html')
+        .then(r => {
+            if (!r.ok) {
+                console.error('Failed to load bottomnav.html:', r.status, r.statusText);
+                return '';
+            }
+            return r.text();
+        })
+        .then(html => {
+            if (!html) {
+                console.warn('Bottom nav HTML is empty');
+                return;
+            }
+            
+            const container = document.getElementById('bottomnav-container');
+            if (!container) {
+                console.log('Bottom nav container not found');
+                return;
+            }
+            
+            container.innerHTML = html;
+            console.log('Bottom nav loaded successfully');
+            
+            // Initialize bottom nav navigation
+            if (typeof BottomNavUtils !== 'undefined') {
+                BottomNavUtils.initBottomNav();
+                console.log('Bottom nav initialized');
+            } else {
+                console.warn('BottomNavUtils not available');
+            }
+            
+            // Apply translations to bottom nav after loading
+            if (typeof TranslationUtils !== 'undefined') {
+                TranslationUtils.applyTranslations();
+            }
+        })
+        .catch(err => console.error('Error loading bottom nav:', err));
     
 });
 

@@ -174,6 +174,18 @@ const authenticateAmbassadorApp = (req, res, next) => {
 // Apply ambassador authentication middleware
 app.use(authenticateAmbassadorApp);
 
+// Serve static files from public directory
+app.use(express.static('public', { 
+    maxAge: '1h',
+    etag: false,
+    lastModified: false,
+    setHeaders: (res, path) => {
+        if (path.endsWith('.html')) {
+            res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+    }
+}));
+
 // Add error handling for body parsing
 app.use(express.json({ 
     limit: '10mb',

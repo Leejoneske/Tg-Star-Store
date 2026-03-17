@@ -833,18 +833,41 @@
     async function loadBottomNav() {
         return new Promise(resolve => {
             const el = document.getElementById('bottomnav-container');
-            if (!el) return resolve();
+            if (!el) {
+                console.log('Bottom nav container not found');
+                return resolve();
+            }
+            
             fetch('/bottomnav.html')
-                .then(r => r.ok ? r.text() : '')
-                .then(html => { 
+                .then(r => {
+                    if (!r.ok) {
+                        console.error('Failed to load bottomnav.html:', r.status, r.statusText);
+                        return '';
+                    }
+                    return r.text();
+                })
+                .then(html => {
+                    if (!html) {
+                        console.warn('Bottom nav HTML is empty');
+                        return resolve();
+                    }
+                    
                     el.innerHTML = html;
+                    console.log('Bottom nav loaded successfully');
+                    
                     // Initialize bottom nav navigation
                     if (typeof BottomNavUtils !== 'undefined') {
                         BottomNavUtils.initBottomNav();
+                        console.log('Bottom nav initialized');
+                    } else {
+                        console.warn('BottomNavUtils not available');
                     }
                     resolve();
                 })
-                .catch(() => resolve());
+                .catch(() => {
+                    console.error('Error loading bottom nav');
+                    resolve();
+                });
         });
     }
 
