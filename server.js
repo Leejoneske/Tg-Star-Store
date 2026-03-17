@@ -785,6 +785,47 @@ app.get('/api/debug/ambassador-status', requireTelegramAuth, async (req, res) =>
   }
 });
 
+// Check if user is an ambassador (used by client-side pages)
+// Can be called with userId parameter or from authenticated headers
+app.get('/api/check-ambassador', async (req, res) => {
+  try {
+    let userId = null;
+    
+    // Try to get userId from query parameter (for client-side calls)
+    if (req.query && req.query.userId) {
+      userId = String(req.query.userId).trim();
+    }
+    
+    // Try from req.user (if middleware has already authenticated)
+    if (!userId && req.user && req.user.id) {
+      userId = String(req.user.id).trim();
+    }
+    
+    // Try from header
+    if (!userId && req.headers['x-telegram-id']) {
+      userId = String(req.headers['x-telegram-id']).trim();
+    }
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'No user ID provided', isAmbassador: false });
+    }
+    
+    const user = await User.findOne({ id: userId }).lean();
+    const isAmbassador = !!(user && user.ambassadorEmail);
+    
+    return res.json({
+      userId,
+      isAmbassador,
+      ambassadorEmail: user?.ambassadorEmail || null,
+      ambassadorTier: user?.ambassadorTier || null
+    });
+  } catch (e) {
+    console.error('Error checking ambassador status:', e.message);
+    return res.status(500).json({ error: e.message, isAmbassador: false });
+  }
+});
+});
+
 // Sitemap generation
 app.get('/sitemap.xml', async (req, res) => {
   try {

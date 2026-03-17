@@ -481,6 +481,25 @@
     // Initialize on DOM ready
     document.addEventListener('DOMContentLoaded', async () => {
         console.log('Initializing referral page for user:', state.userId);
+        
+        // Check if user should be viewing ambassador page instead
+        if (state.userId && String(state.userId).trim() !== 'dev-user' && typeof state.userId !== 'undefined') {
+            try {
+                const response = await fetch(`/api/check-ambassador?userId=${state.userId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.isAmbassador) {
+                        console.log('User is ambassador, redirecting to ambassador referral page');
+                        window.location.href = '/amb_ref';
+                        return; // Stop further processing
+                    }
+                }
+            } catch (e) {
+                console.error('Error checking ambassador status:', e);
+                // Continue anyway - user might still access this page
+            }
+        }
+        
         await loadBottomNav();
         await loadReferralData();
         setupEventListeners();
