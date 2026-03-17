@@ -384,6 +384,112 @@ async function getAmbassadorWaitlistModel() {
   return global.AmbassadorWaitlist;
 }
 
+// ========== AMBASSADOR TIER CALCULATION SYSTEM ==========
+// Tier structure with referral count thresholds and rates
+const AMBASSADOR_TIERS = {
+  0: { name: 'Pre-Level', minRef: 0, maxRef: 29, rate: 0.50, level: 0 },    // Pre-Level 1: $0.50/ref
+  1: { name: 'Level 1', minRef: 30, maxRef: 49, rate: 1.00, level: 1 },    // Level 1: $1.00/ref
+  2: { name: 'Level 2', minRef: 50, maxRef: 69, rate: 1.20, level: 2 },    // Level 2: $1.20/ref
+  3: { name: 'Level 3', minRef: 70, maxRef: 99, rate: 1.50, level: 3 },    // Level 3: $1.50/ref
+  4: { name: 'Level 4', minRef: 100, maxRef: Infinity, rate: 2.00, level: 4 } // Level 4: $2.00/ref
+};
+
+/**
+ * Calculate which tier a user belongs to based on referral count
+ * @param {number} referralCount - Total number of referrals
+ * @returns {object} Tier info { level, name, minRef, maxRef, rate }
+ */
+function getAmbassadorTier(referralCount) {
+  for (let level = 0; level <= 4; level++) {
+    const tier = AMBASSADOR_TIERS[level];
+    if (referralCount >= tier.minRef && referralCount <= tier.maxRef) {
+      return tier;
+    }
+  }
+  return AMBASSADOR_TIERS[4]; // Return Level 4 for 100+
+}
+
+/**
+ * Calculate earnings for a new referral within a tier
+ * @param {number} currentLevel - Current tier level
+ * @param {number} nextReferralCount - What the count will be after this referral
+ * @returns {object} { earnedThisReferral, newLevel, newTierUnlocked }
+ */
+function calculateNewReferralEarnings(currentLevel, nextReferralCount) {
+  const currentTier = AMBASSADOR_TIERS[currentLevel];
+  const nextTier = getAmbassadorTier(nextReferralCount);
+  const earnedThisReferral = currentTier.rate; // Earn at current tier's rate
+  
+  return {
+    earnedThisReferral,
+    newLevel: nextTier.level,
+    newTierUnlocked: nextTier.level > currentLevel,
+    newTierName: nextTier.name,
+    newTierRate: nextTier.rate
+  };
+}
+
+/**
+ * Recalculate all earnings based on referral count and level breakdowns
+ * Used when syncing from database
+ * @param {number} referralCount - Total referrals
+ * @returns {object} Earnings breakdown by level
+ */
+function recalculateLevelEarnings(referralCount) {
+  const earnings = {
+    preLevelOne: 0,
+    levelOne: 0,
+    levelTwo: 0,
+    levelThree: 0,
+    levelFour: 0
+  };
+  
+  // Calculate earnings for refs 0-29 (Pre-Level 1)
+  if (referralCount >= 1) {
+    const preLevel1Count = Math.min(referralCount, 29);
+    earnings.preLevelOne = preLevel1Count * 0.50;
+  }
+  
+  // Calculate earnings for refs 30-49 (Level 1)
+  if (referralCount >= 30) {
+    const level1Count = Math.min(referralCount - 29, 20);
+    earnings.levelOne = level1Count * 1.00;
+  }
+  
+  // Calculate earnings for refs 50-69 (Level 2)
+  if (referralCount >= 50) {
+    const level2Count = Math.min(referralCount - 49, 20);
+    earnings.levelTwo = level2Count * 1.20;
+  }
+  
+  // Calculate earnings for refs 70-99 (Level 3)
+  if (referralCount >= 70) {
+    const level3Count = Math.min(referralCount - 69, 30);
+    earnings.levelThree = level3Count * 1.50;
+  }
+  
+  // Calculate earnings for refs 100+ (Level 4)
+  if (referralCount >= 100) {
+    const level4Count = referralCount - 99;
+    earnings.levelFour = level4Count * 2.00;
+  }
+  
+  return earnings;
+}
+
+/**
+ * Get total earnings across all tiers
+ * @param {object} levelEarnings - Earnings breakdown by level
+ * @returns {number} Total amount
+ */
+function getTotalAmbassiadorEarnings(levelEarnings) {
+  return (levelEarnings.preLevelOne || 0) +
+         (levelEarnings.levelOne || 0) +
+         (levelEarnings.levelTwo || 0) +
+         (levelEarnings.levelThree || 0) +
+         (levelEarnings.levelFour || 0);
+}
+
 // Ambassador Waitlist endpoint
 app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
   try {
@@ -1542,6 +1648,44 @@ const userSchema = new mongoose.Schema({
     ambassadorWalletAddress: String,  // Wallet address for ambassador payouts
     ambassadorAvgTransaction: Number,  // Average transaction value
     ambassadorSocialPosts: Number,  // Number of social media posts
+    
+    // Ambassador tiered earnings system
+    ambassadorCurrentLevel: { type: Number, default: 0 }, // 0=pre-level-1, 1, 2, 3, 4
+    ambassadorReferralCount: { type: Number, default: 0 }, // Total referrals
+    ambassadorLevelEarnings: {
+        preLevelOne: { type: Number, default: 0 }, // 0-29 refs @ $0.50/ref
+        levelOne: { type: Number, default: 0 },    // 30-49 refs @ $1.00/ref
+        levelTwo: { type: Number, default: 0 },     // 50-69 refs @ $1.20/ref
+        levelThree: { type: Number, default: 0 },   // 70-99 refs @ $1.50/ref
+        levelFour: { type: Number, default: 0 }     // 100+ refs @ $2.00/ref
+    },
+    ambassadorPendingBalance: { type: Number, default: 0 }, // Balance awaiting withdrawal
+    ambassadorMonthlyWithdrawals: [{
+        month: { type: String }, // Format: "2026-03" 
+        amount: { type: Number },
+        levelBreakdown: {
+            preLevelOne: { type: Number, default: 0 },
+            levelOne: { type: Number, default: 0 },
+            levelTwo: { type: Number, default: 0 },
+            levelThree: { type: Number, default: 0 },
+            levelFour: { type: Number, default: 0 }
+        },
+        stars: { type: Number, default: 0 },
+        nft: { type: String },
+        status: { type: String, enum: ['pending', 'approved', 'declined'], default: 'pending' },
+        withdrawalDate: { type: Date, default: Date.now },
+        approvedBy: String,
+        approvalDate: Date,
+        declineReason: String
+    }],
+    ambassadorLastWithdrawalDate: Date, // Last successful withdrawal
+    ambassadorEarningsHistory: [{
+        timestamp: { type: Date, default: Date.now },
+        referralCount: Number,
+        level: Number,
+        earnedAmount: Number,
+        reason: String // 'referral_added', 'level_upgrade', etc.
+    }]
 });
 
 const bannedUserSchema = new mongoose.Schema({
@@ -1660,7 +1804,22 @@ const referralWithdrawalSchema = new mongoose.Schema({
     createdAt: { 
         type: Date, 
         default: Date.now 
-    }
+    },
+    
+    // Ambassador tier system fields
+    isAmbassadorWithdrawal: { type: Boolean, default: false },
+    ambassadorLevel: { type: Number, default: 0 }, // Current tier level at time of withdrawal
+    ambassadorReferralCount: { type: Number, default: 0 }, // Total refs at time of withdrawal
+    ambassadorLevelBreakdown: {
+        preLevelOne: { type: Number, default: 0 },
+        levelOne: { type: Number, default: 0 },
+        levelTwo: { type: Number, default: 0 },
+        levelThree: { type: Number, default: 0 },
+        levelFour: { type: Number, default: 0 }
+    },
+    ambassadorStars: { type: Number, default: 0 }, // Stars bonus
+    ambassadorNft: { type: String }, // NFT reward (if any)
+    ambassadorMonth: { type: String } // Format: "2026-03"
 });
 
 const referralTrackerSchema = new mongoose.Schema({
