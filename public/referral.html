@@ -7,6 +7,38 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Referral Program - StarStore</title>
+    
+    <!-- EARLY REDIRECT: Check ambassador status BEFORE page displays -->
+    <script>
+        (function() {
+            // Hide page while checking
+            document.documentElement.style.display = 'none';
+            
+            // Get userId from Telegram WebApp
+            const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || localStorage.getItem('userId');
+            
+            if (userId && String(userId).trim() && String(userId) !== 'undefined' && String(userId) !== 'dev-user' && String(userId) !== 'default_user_id') {
+                // Check if ambassador without blocking
+                fetch(`/api/check-ambassador?userId=${userId}`)
+                    .then(r => r.ok ? r.json() : null)
+                    .then(data => {
+                        // Show page and handle redirect
+                        document.documentElement.style.display = '';
+                        if (data && data.isAmbassador) {
+                            window.location.href = '/amb_ref';
+                        }
+                    })
+                    .catch(() => {
+                        // On error, show regular page anyway
+                        document.documentElement.style.display = '';
+                    });
+            } else {
+                // No userId, show regular page
+                document.documentElement.style.display = '';
+            }
+        })();
+    </script>
+    
     <link rel="canonical" href="https://starstore.site/referral">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -481,25 +513,6 @@
     // Initialize on DOM ready
     document.addEventListener('DOMContentLoaded', async () => {
         console.log('Initializing referral page for user:', state.userId);
-        
-        // Check if user should be viewing ambassador page instead
-        if (state.userId && String(state.userId).trim() !== 'dev-user' && typeof state.userId !== 'undefined') {
-            try {
-                const response = await fetch(`/api/check-ambassador?userId=${state.userId}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.isAmbassador) {
-                        console.log('User is ambassador, redirecting to ambassador referral page');
-                        window.location.href = '/amb_ref';
-                        return; // Stop further processing
-                    }
-                }
-            } catch (e) {
-                console.error('Error checking ambassador status:', e);
-                // Continue anyway - user might still access this page
-            }
-        }
-        
         await loadBottomNav();
         await loadReferralData();
         setupEventListeners();
