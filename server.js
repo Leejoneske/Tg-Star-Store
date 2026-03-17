@@ -824,7 +824,6 @@ app.get('/api/check-ambassador', async (req, res) => {
     return res.status(500).json({ error: e.message, isAmbassador: false });
   }
 });
-});
 
 // Sitemap generation
 app.get('/sitemap.xml', async (req, res) => {
