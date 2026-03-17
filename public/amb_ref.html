@@ -836,7 +836,14 @@
             if (!el) return resolve();
             fetch('/bottomnav.html')
                 .then(r => r.ok ? r.text() : '')
-                .then(html => { el.innerHTML = html; resolve(); })
+                .then(html => { 
+                    el.innerHTML = html;
+                    // Initialize bottom nav navigation
+                    if (typeof BottomNavUtils !== 'undefined') {
+                        BottomNavUtils.initBottomNav();
+                    }
+                    resolve();
+                })
                 .catch(() => resolve());
         });
     }

@@ -599,6 +599,10 @@ class FeedbackSystem {
             .then(r => r.ok ? r.text() : '')
             .then(html => {
                 container.innerHTML = html;
+                // Initialize bottom nav navigation
+                if (typeof BottomNavUtils !== 'undefined') {
+                    BottomNavUtils.initBottomNav();
+                }
                 if (typeof TranslationUtils !== 'undefined') {
                     TranslationUtils.applyTranslations();
                 }

@@ -29,6 +29,7 @@
     <script src="/js/theme.js"></script>
     <link rel="icon" href="/favicon.png" type="image/png">
     <script src="/js/loading.js"></script>
+    <script src="/js/bottomnav-init.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         body {
@@ -620,7 +621,11 @@ function initApp() {
     });
     // load shared bottom nav
     fetch('/bottomnav.html').then(r => r.ok ? r.text() : '').then(html => { 
-        document.getElementById('bottomnav-container').innerHTML = html; 
+        document.getElementById('bottomnav-container').innerHTML = html;
+        // Initialize bottom nav navigation
+        if (typeof BottomNavUtils !== 'undefined') {
+            BottomNavUtils.initBottomNav();
+        }
         // Apply translations to bottom nav after loading
         if (typeof TranslationUtils !== 'undefined') {
             TranslationUtils.applyTranslations();

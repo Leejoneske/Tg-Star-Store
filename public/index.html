@@ -20,6 +20,8 @@
     <script src="/js/api.js?v=4"></script>
     <!-- Reconnect Manager Script -->
     <script src="/js/reconnect.js?v=2"></script>
+    <!-- Bottom Nav Init Script -->
+    <script src="/js/bottomnav-init.js"></script>
     <!-- SEO Meta Tags -->
     <meta name="description" content="Buy and sell Telegram Stars securely with StarStore. Convert Stars to USDT, purchase Premium subscriptions, and earn rewards. Fast, secure, and reliable platform for Telegram Stars trading.">
     <meta name="keywords" content="Telegram Stars, buy Telegram Stars, sell Telegram Stars, Stars to USDT, Telegram Premium, TON blockchain, digital payments, crypto payments, StarStore">
@@ -2119,7 +2121,11 @@ function loadBottomNav() {
         fetch('/bottomnav.html')
             .then(r => r.ok ? r.text() : '')
             .then(html => { 
-                container.innerHTML = html; 
+                container.innerHTML = html;
+                // Initialize bottom nav navigation
+                if (typeof BottomNavUtils !== 'undefined') {
+                    BottomNavUtils.initBottomNav();
+                }
                 resolve(); 
             })
             .catch(() => resolve());
