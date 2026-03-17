@@ -11,6 +11,58 @@
     
     <!-- Load Telegram API first -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Ambassador Check: Redirect non-ambassadors to regular referral page -->
+    <script>
+        (function() {
+            // Get user ID from Telegram WebApp
+            function getUserIdFromTelegram() {
+                try {
+                    if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+                        const id = window.Telegram.WebApp.initDataUnsafe.user.id;
+                        if (id && String(id).trim() && String(id) !== 'undefined') {
+                            return String(id);
+                        }
+                    }
+                } catch (e) {
+                    console.log('Telegram not ready');
+                }
+                return null;
+            }
+            
+            // Check ambassador status via API
+            function checkAndRedirect() {
+                const userId = getUserIdFromTelegram();
+                
+                if (!userId || userId === 'dev-user' || userId === 'default_user_id') {
+                    // No valid user ID, redirect to regular referral
+                    window.location.href = '/referral';
+                    return;
+                }
+                
+                fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`)
+                    .then(r => r.ok ? r.json() : null)
+                    .then(data => {
+                        if (data && !data.isAmbassador) {
+                            // User is not ambassador, redirect
+                            window.location.href = '/referral';
+                        }
+                        // If ambassador or data unavailable, stay on this page
+                    })
+                    .catch(() => {
+                        // On error, stay on page (user might still be ambassador)
+                    });
+            }
+            
+            // Check when Telegram is ready
+            if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+                checkAndRedirect();
+            } else {
+                // Wait a moment for Telegram to initialize
+                setTimeout(checkAndRedirect, 100);
+            }
+        })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="/js/translations.js?v=7"></script>
     <link rel="icon" href="/favicon.png" type="image/png">
