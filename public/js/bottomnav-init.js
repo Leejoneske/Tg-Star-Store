@@ -4,6 +4,11 @@ window.BottomNavUtils = {
         const path = window.location.pathname;
         const filename = path.split('/').pop();
         
+        // Handle ambassador referral page as referral page
+        if (filename === 'amb_ref.html' || path.includes('amb_ref')) {
+            return 'referral';
+        }
+        
         switch(filename) {
             case 'index.html':
             case '':
