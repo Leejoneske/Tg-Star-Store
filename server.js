@@ -19,6 +19,30 @@ const app = express();
 const path = require('path');  
 const zlib = require('zlib');
 
+// Scheduled tasks
+const schedule = (() => {
+  // Simple scheduler using setInterval (no external dependency needed)
+  return {
+    scheduleEndOfMonthTask: (callback) => {
+      // Run daily at 11:59 PM UTC to check if it's the last day of the month
+      const checkEndOfMonth = () => {
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        // If tomorrow is the 1st, today is the last day
+        if (tomorrow.getDate() === 1) {
+          console.log(`[Scheduler] Triggering end-of-month task for ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+          callback();
+        }
+      };
+      
+      // Check every hour
+      setInterval(checkEndOfMonth, 60 * 60 * 1000);
+    }
+  };
+})();
+
 // Simple in-memory geolocation cache to avoid API rate limiting
 const geoCache = new Map();
 const GEO_CACHE_TTL = 24 * 60 * 60 * 1000; // Cache for 24 hours
@@ -7878,6 +7902,87 @@ app.get('/api/ambassador/withdrawals/pending', requireAdmin, async (req, res) =>
     }
 });
 
+// Manual Ambassador Enrollment Endpoint (Admin Only)
+app.post('/api/admin/enroll-ambassador', requireAdmin, async (req, res) => {
+    try {
+        const { userId, ambassadorEmail, walletAddress } = req.body;
+        
+        if (!userId || !ambassadorEmail) {
+            return res.status(400).json({ success: false, error: 'userId and ambassadorEmail are required' });
+        }
+        
+        // Verify email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(ambassadorEmail)) {
+            return res.status(400).json({ success: false, error: 'Invalid email format' });
+        }
+        
+        // Find or create user
+        const user = await User.findOne({ id: userId });
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+        
+        // Check if already ambassador
+        if (user.ambassadorEmail) {
+            return res.status(400).json({ success: false, error: 'User is already an ambassador' });
+        }
+        
+        // Update user with ambassador fields
+        await User.findOneAndUpdate(
+            { id: userId },
+            {
+                ambassadorEmail,
+                ambassadorApprovedAt: new Date(),
+                ambassadorApprovedBy: req.user.id,
+                ambassadorCurrentLevel: 0,
+                ambassadorReferralCount: 0,
+                ambassadorLevelEarnings: {
+                    preLevelOne: 0,
+                    levelOne: 0,
+                    levelTwo: 0,
+                    levelThree: 0,
+                    levelFour: 0
+                },
+                ambassadorPendingBalance: 0,
+                ambassadorMonthlyWithdrawals: [],
+                ambassadorEarningsHistory: [{
+                    timestamp: new Date(),
+                    referralCount: 0,
+                    level: 0,
+                    earnedAmount: 0,
+                    reason: 'manual_enrollment'
+                }],
+                ...(walletAddress && { walletAddress })
+            }
+        );
+        
+        // Send notification to user via Telegram
+        try {
+            if (user.telegramId) {
+                const message = `🎉 **Congratulations!** You have been enrolled as an Ambassador.\n\n💼 Email: ${ambassadorEmail}\n\nYou can now earn from your referrals at higher rates!`;
+                await bot.sendMessage(user.telegramId, message, { parse_mode: 'Markdown' });
+            }
+        } catch (botError) {
+            console.warn(`Failed to send Telegram notification to ${user.telegramId}:`, botError.message);
+        }
+        
+        console.log(`✅ Ambassador enrolled: ${userId} (${ambassadorEmail})`);
+        
+        return res.json({
+            success: true,
+            message: 'Ambassador enrolled successfully',
+            userId,
+            ambassadorEmail,
+            enrolledAt: new Date()
+        });
+        
+    } catch (error) {
+        console.error('Error enrolling ambassador:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Withdrawal endpoint
 app.post('/api/referral-withdrawals', async (req, res) => {
     const session = await mongoose.startSession();
@@ -8319,6 +8424,46 @@ async function trackStars(userId, stars, type) {
                 referral.status = 'completed';
                 referral.dateActivated = new Date();
                 await referral.save();
+                
+                // Update ambassador earnings if referrer is an ambassador
+                if (referral.referrerUserId) {
+                    const referrer = await User.findOne({ id: referral.referrerUserId });
+                    if (referrer && referrer.ambassadorEmail) {
+                        // Count total referrals for this ambassador (from March 1st onwards)
+                        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+                        const totalReferrals = await Referral.countDocuments({
+                            referrerUserId: referral.referrerUserId,
+                            dateReferred: { $gte: marchFirstDate }
+                        });
+                        
+                        // Recalculate earnings for all tiers
+                        const levelEarnings = recalculateLevelEarnings(totalReferrals);
+                        const totalAmount = getTotalAmbassiadorEarnings(levelEarnings);
+                        const newLevel = getAmbassadorTier(totalReferrals).level;
+                        
+                        // Update user with new earnings
+                        await User.findOneAndUpdate(
+                            { id: referral.referrerUserId },
+                            {
+                                ambassadorCurrentLevel: newLevel,
+                                ambassadorReferralCount: totalReferrals,
+                                ambassadorLevelEarnings: levelEarnings,
+                                ambassadorPendingBalance: totalAmount,
+                                $push: {
+                                    ambassadorEarningsHistory: {
+                                        timestamp: new Date(),
+                                        referralCount: totalReferrals,
+                                        level: newLevel,
+                                        earnedAmount: totalAmount,
+                                        reason: 'referral_completed'
+                                    }
+                                }
+                            }
+                        );
+                        
+                        console.log(`Ambassador earnings updated for ${referral.referrerUserId}: ${totalReferrals} referrals, level ${newLevel}, $${totalAmount.toFixed(2)}`);
+                    }
+                }
             }
         }
     } catch (error) {
@@ -8351,6 +8496,46 @@ async function trackPremiumActivation(userId) {
                     referral.status = 'completed';
                     referral.dateActivated = new Date();
                     await referral.save();
+                    
+                    // Update ambassador earnings if referrer is an ambassador
+                    if (referral.referrerUserId) {
+                        const referrer = await User.findOne({ id: referral.referrerUserId });
+                        if (referrer && referrer.ambassadorEmail) {
+                            // Count total referrals for this ambassador (from March 1st onwards)
+                            const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+                            const totalReferrals = await Referral.countDocuments({
+                                referrerUserId: referral.referrerUserId,
+                                dateReferred: { $gte: marchFirstDate }
+                            });
+                            
+                            // Recalculate earnings for all tiers
+                            const levelEarnings = recalculateLevelEarnings(totalReferrals);
+                            const totalAmount = getTotalAmbassiadorEarnings(levelEarnings);
+                            const newLevel = getAmbassadorTier(totalReferrals).level;
+                            
+                            // Update user with new earnings
+                            await User.findOneAndUpdate(
+                                { id: referral.referrerUserId },
+                                {
+                                    ambassadorCurrentLevel: newLevel,
+                                    ambassadorReferralCount: totalReferrals,
+                                    ambassadorLevelEarnings: levelEarnings,
+                                    ambassadorPendingBalance: totalAmount,
+                                    $push: {
+                                        ambassadorEarningsHistory: {
+                                            timestamp: new Date(),
+                                            referralCount: totalReferrals,
+                                            level: newLevel,
+                                            earnedAmount: totalAmount,
+                                            reason: 'premium_activation'
+                                        }
+                                    }
+                                }
+                            );
+                            
+                            console.log(`Ambassador earnings updated for ${referral.referrerUserId}: ${totalReferrals} referrals, level ${newLevel}, $${totalAmount.toFixed(2)}`);
+                        }
+                    }
                 }
             }
         }
@@ -14054,6 +14239,53 @@ app.listen(PORT, () => {
     } catch (e) {
       console.warn('Failed to start bot simulator:', e.message);
     }
+  }
+  
+  // Initialize end-of-month withdrawal scheduler
+  if (schedule && schedule.scheduleEndOfMonthTask) {
+    schedule.scheduleEndOfMonthTask(async () => {
+      try {
+        console.log('[Scheduler] Processing end-of-month ambassador withdrawals...');
+        
+        // Find all ambassadors with pending balance
+        const ambassadors = await User.find({
+          ambassadorEmail: { $exists: true, $ne: null },
+          ambassadorPendingBalance: { $gt: 0 }
+        });
+        
+        console.log(`[Scheduler] Found ${ambassadors.length} ambassadors with pending balance`);
+        
+        // Create withdrawal records for each ambassador
+        for (const ambassador of ambassadors) {
+          try {
+            const withdrawal = new ReferralWithdrawal({
+              withdrawalId: generateOrderId(),
+              userId: ambassador.id,
+              username: ambassador.username,
+              isAmbassadorWithdrawal: true,
+              amount: ambassador.ambassadorPendingBalance,
+              ambassadorLevel: ambassador.ambassadorCurrentLevel,
+              ambassadorReferralCount: ambassador.ambassadorReferralCount,
+              ambassadorLevelBreakdown: ambassador.ambassadorLevelEarnings,
+              ambassadorMonth: new Date().toISOString().substring(0, 7), // YYYY-MM format
+              walletAddress: ambassador.walletAddress || 'Not set',
+              status: 'pending',
+              createdAt: new Date()
+            });
+            
+            await withdrawal.save();
+            console.log(`[Scheduler] Created withdrawal for ${ambassador.username}: $${ambassador.ambassadorPendingBalance.toFixed(2)}`);
+          } catch (ambError) {
+            console.error(`[Scheduler] Error creating withdrawal for ${ambassador.username}:`, ambError.message);
+          }
+        }
+        
+        console.log('[Scheduler] End-of-month processing complete');
+      } catch (error) {
+        console.error('[Scheduler] Error processing end-of-month withdrawals:', error);
+      }
+    });
+    console.log('📅 End-of-month withdrawal scheduler initialized');
   }
 });
 
