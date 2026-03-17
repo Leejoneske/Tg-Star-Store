@@ -234,58 +234,86 @@ app.use(compression({
 
 // ==================== REFERRAL PAGE ROUTE ====================
 // Must come BEFORE static file middleware so it takes priority
-app.get('/referral', requireTelegramAuth, async (req, res) => {
-  // Log immediately, before anything else
-  console.log('\n🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴');
-  console.log('📖 /REFERRAL ENDPOINT - START');
-  console.log(`User ID: ${req.user?.id || 'NO USER'}`);
-  console.log('🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴\n');
-  
+// Does NOT require middleware auth - extracts userId from headers/initData if available
+app.get('/referral', async (req, res) => {
   try {
-    const userId = req.user.id;
-    console.log(`\n════════════════════════════════════════════════`);
-    console.log(`📖 /REFERRAL ENDPOINT CALLED`);
-    console.log(`  User ID: ${userId}`);
-    console.log(`════════════════════════════════════════════════`);
-
-    // Check if user is an ambassador
-    const user = await User.findOne({ id: userId });
-    const isAmbassador = user && user.ambassadorEmail;
+    // Try to extract userId from available sources (same as /api/me does)
+    let userId = null;
     
-    console.log(`  1️⃣  User lookup:`);
-    console.log(`      Found: ${!!user}`);
-    if (user) {
-      console.log(`      ambassadorEmail: ${user.ambassadorEmail || 'undefined'}`);
-      console.log(`      ambassadorTier: ${user.ambassadorTier || 'undefined'}`);
+    // First, try from x-telegram-id header
+    const telegramIdHeader = req.headers['x-telegram-id'];
+    if (telegramIdHeader && String(telegramIdHeader).trim() && String(telegramIdHeader) !== 'undefined') {
+      userId = String(telegramIdHeader).trim();
     }
     
-    console.log(`  2️⃣  Ambassador check:`);
-    console.log(`      ambassadorEmail exists: ${!!user?.ambassadorEmail}`);
-    console.log(`      isAmbassador boolean: ${isAmbassador}`);
+    // If no userId yet, try from initData
+    if (!userId && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.id) {
+      userId = String(req.telegramInitData.user.id);
+    }
+    
+    console.log(`\n════════════════════════════════════════════════`);
+    console.log(`📖 /REFERRAL ENDPOINT CALLED`);
+    console.log(`  User ID: ${userId || 'NOT AUTHENTICATED'}`);
+    console.log(`════════════════════════════════════════════════`);
 
-    // Serve appropriate page based on user role
+    // Check if user is an ambassador (only if we have a userId)
+    let isAmbassador = false;
+    let htmlContent;
+    
+    if (userId) {
+      try {
+        const user = await User.findOne({ id: userId }).lean();
+        isAmbassador = !!(user && user.ambassadorEmail);
+        
+        console.log(`  1️⃣  User lookup:`);
+        console.log(`      Found: ${!!user}`);
+        if (user) {
+          console.log(`      ambassadorEmail: ${user.ambassadorEmail || 'undefined'}`);
+          console.log(`      ambassadorTier: ${user.ambassadorTier || 'undefined'}`);
+        }
+        
+        console.log(`  2️⃣  Ambassador check:`);
+        console.log(`      isAmbassador: ${isAmbassador}`);
+      } catch (dbErr) {
+        console.error(`  ❌ Database error checking ambassador status:`, dbErr.message);
+        // Continue anyway - serve regular page on error
+        isAmbassador = false;
+      }
+    } else {
+      console.log(`  ⚠️  No user ID found - serving regular referral page`);
+    }
+
+    // Select appropriate file based on ambassador status
     const fileName = isAmbassador ? 'amb_ref.html' : 'referral.html';
     console.log(`  3️⃣  Page selection:`);
     console.log(`      🎯 SERVING: ${fileName}`);
-    const abs = path.join(__dirname, 'public', fileName);
-    console.log(`      Full path: ${abs}`);
-
-    // Read the file and inject user ID
+    
     const fs = require('fs').promises;
-    let htmlContent = await fs.readFile(abs, 'utf8');
-    console.log(`      File size: ${htmlContent.length} bytes`);
+    const abs = path.join(__dirname, 'public', fileName);
+    
+    try {
+      htmlContent = await fs.readFile(abs, 'utf8');
+      console.log(`      File size: ${htmlContent.length} bytes`);
+    } catch (readErr) {
+      console.error(`  ❌ Failed to read ${fileName}:`, readErr.message);
+      const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+      return res.status(404).sendFile(notFound, (sendErr) => {
+        if (sendErr) return res.status(404).send('Not found');
+      });
+    }
 
-    // Inject user ID as global variable
-    htmlContent = htmlContent.replace(
-      '<script src="https://telegram.org/js/telegram-web-app.js"></script>',
-      `<script src="https://telegram.org/js/telegram-web-app.js"></script>
-      <script>
-        window.authenticatedUserId = "${userId}";
-        window.isAuthenticatedUser = true;
-        window.isAmbassador = ${isAmbassador};
-        console.log('🔍 REFERRAL PAGE LOADED: ambassador=' + ${isAmbassador});
-      </script>`
-    );
+    // Inject user ID as global variable if we have one
+    if (userId) {
+      htmlContent = htmlContent.replace(
+        '<script src="https://telegram.org/js/telegram-web-app.js"></script>',
+        `<script src="https://telegram.org/js/telegram-web-app.js"></script>
+        <script>
+          window.authenticatedUserId = "${userId}";
+          window.isAuthenticatedUser = true;
+          window.isAmbassador = ${isAmbassador};
+        </script>`
+      );
+    }
     
     console.log(`  4️⃣  Sending response...`);
     res.setHeader('Content-Type', 'text/html');
