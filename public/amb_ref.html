@@ -58,7 +58,7 @@
                     .then(data => {
                         if (data && !data.isAmbassador) {
                             console.log('User is not ambassador, redirecting');
-                            window.location.href = '/referral';
+                            window.location.href = '/referral.html';
                         } else if (data && data.isAmbassador) {
                             console.log('✓ Ambassador verified, showing ambassador page');
                         } else {
