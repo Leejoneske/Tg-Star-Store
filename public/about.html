@@ -49,6 +49,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="/js/translations.js?v=4"></script>
     <script src="/js/loading.js?v=1"></script>
+    <script src="/js/bottomnav-init.js"></script>
     <script src="/js/version.js?v=1"></script>
     <script>
         // Initialize translations
@@ -330,7 +331,11 @@
         fetch('/bottomnav.html')
             .then(r => r.ok ? r.text() : '')
             .then(html => { 
-                document.getElementById('bottomnav-container').innerHTML = html; 
+                document.getElementById('bottomnav-container').innerHTML = html;
+                // Initialize bottom nav navigation
+                if (typeof BottomNavUtils !== 'undefined') {
+                    BottomNavUtils.initBottomNav();
+                }
                 if (typeof TranslationUtils !== 'undefined') {
                     TranslationUtils.applyTranslations();
                 }

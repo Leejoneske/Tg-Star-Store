@@ -51,6 +51,7 @@
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="/css/theme.css?v=3">
     <link rel="stylesheet" href="/css/theme-additional.css?v=9">
+    <script src="/js/bottomnav-init.js"></script>
 
     <style>
         * {
@@ -529,6 +530,10 @@
                 .then(r => r.ok ? r.text() : '')
                 .then(html => {
                     container.innerHTML = html;
+                    // Initialize bottom nav navigation
+                    if (typeof BottomNavUtils !== 'undefined') {
+                        BottomNavUtils.initBottomNav();
+                    }
                     // Apply translations to bottom nav after loading
                     if (typeof TranslationUtils !== 'undefined' && TranslationUtils.applyTranslations) {
                         TranslationUtils.applyTranslations();

@@ -85,9 +85,6 @@ class FeedbackSystem {
         if (form) {
             form.addEventListener('submit', (e) => this.handleSubmit(e));
         }
-
-        // Load bottom navigation
-        this.loadBottomNav();
     }
 
     /**
@@ -588,23 +585,6 @@ class FeedbackSystem {
         return key;
     }
 
-    /**
-     * Load bottom navigation
-     */
-    loadBottomNav() {
-        const container = document.getElementById('bottomnav-container');
-        if (!container) return;
-
-        fetch('/bottomnav.html')
-            .then(r => r.ok ? r.text() : '')
-            .then(html => {
-                container.innerHTML = html;
-                if (typeof TranslationUtils !== 'undefined') {
-                    TranslationUtils.applyTranslations();
-                }
-            })
-            .catch(e => console.log('Could not load bottom nav:', e.message));
-    }
 }
 
 // Initialize feedback system when DOM is ready
