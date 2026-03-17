@@ -234,21 +234,39 @@ app.use(compression({
 
 // ==================== REFERRAL PAGE ROUTE ====================
 // Must come BEFORE static file middleware so it takes priority
-// Does NOT require middleware auth - extracts userId from headers/initData if available
+// Does NOT require middleware auth - extracts userId from available sources
 app.get('/referral', async (req, res) => {
   try {
-    // Try to extract userId from available sources (same as /api/me does)
+    // Try to extract userId from available sources
     let userId = null;
     
-    // First, try from x-telegram-id header
-    const telegramIdHeader = req.headers['x-telegram-id'];
-    if (telegramIdHeader && String(telegramIdHeader).trim() && String(telegramIdHeader) !== 'undefined') {
-      userId = String(telegramIdHeader).trim();
+    // 1. Check req.user (set by verifyTelegramAuth middleware on all requests)
+    if (req.user && req.user.id && String(req.user.id).trim() && String(req.user.id) !== 'undefined' && String(req.user.id) !== 'dev-user') {
+      userId = String(req.user.id);
     }
     
-    // If no userId yet, try from initData
-    if (!userId && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.id) {
-      userId = String(req.telegramInitData.user.id);
+    // 2. Try from x-telegram-id header (for API calls)
+    if (!userId) {
+      const telegramIdHeader = req.headers['x-telegram-id'];
+      if (telegramIdHeader && String(telegramIdHeader).trim() && String(telegramIdHeader) !== 'undefined') {
+        userId = String(telegramIdHeader).trim();
+      }
+    }
+    
+    // 3. Try from query parameter
+    if (!userId && req.query && req.query.userId) {
+      userId = String(req.query.userId).trim();
+    }
+    
+    // 4. Try from initData (if middleware set it)
+    if (!userId) {
+      try {
+        if (req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.id) {
+          userId = String(req.telegramInitData.user.id);
+        }
+      } catch (e) {
+        // Ignore initData errors
+      }
     }
     
     console.log(`\n════════════════════════════════════════════════`);
