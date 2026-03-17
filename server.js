@@ -269,11 +269,6 @@ app.get('/referral', async (req, res) => {
       }
     }
     
-    console.log(`\n════════════════════════════════════════════════`);
-    console.log(`📖 /REFERRAL ENDPOINT CALLED`);
-    console.log(`  User ID: ${userId || 'NOT AUTHENTICATED'}`);
-    console.log(`════════════════════════════════════════════════`);
-
     // Check if user is an ambassador (only if we have a userId)
     let isAmbassador = false;
     let htmlContent;
@@ -282,38 +277,21 @@ app.get('/referral', async (req, res) => {
       try {
         const user = await User.findOne({ id: userId }).lean();
         isAmbassador = !!(user && user.ambassadorEmail);
-        
-        console.log(`  1️⃣  User lookup:`);
-        console.log(`      Found: ${!!user}`);
-        if (user) {
-          console.log(`      ambassadorEmail: ${user.ambassadorEmail || 'undefined'}`);
-          console.log(`      ambassadorTier: ${user.ambassadorTier || 'undefined'}`);
-        }
-        
-        console.log(`  2️⃣  Ambassador check:`);
-        console.log(`      isAmbassador: ${isAmbassador}`);
       } catch (dbErr) {
-        console.error(`  ❌ Database error checking ambassador status:`, dbErr.message);
-        // Continue anyway - serve regular page on error
+        // Database error - continue anyway
         isAmbassador = false;
       }
-    } else {
-      console.log(`  ⚠️  No user ID found - serving regular referral page`);
     }
 
     // Select appropriate file based on ambassador status
     const fileName = isAmbassador ? 'amb_ref.html' : 'referral.html';
-    console.log(`  3️⃣  Page selection:`);
-    console.log(`      🎯 SERVING: ${fileName}`);
     
     const fs = require('fs').promises;
     const abs = path.join(__dirname, 'public', fileName);
     
     try {
       htmlContent = await fs.readFile(abs, 'utf8');
-      console.log(`      File size: ${htmlContent.length} bytes`);
     } catch (readErr) {
-      console.error(`  ❌ Failed to read ${fileName}:`, readErr.message);
       const notFound = path.join(__dirname, 'public', 'errors', '404.html');
       return res.status(404).sendFile(notFound, (sendErr) => {
         if (sendErr) return res.status(404).send('Not found');
@@ -333,50 +311,19 @@ app.get('/referral', async (req, res) => {
       );
     }
     
-    console.log(`  4️⃣  Sending response...`);
     res.setHeader('Content-Type', 'text/html');
     // Cache-busting headers to force fresh page load
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    console.log(`════════════════════════════════════════════════\n`);
     return res.status(200).send(htmlContent);
   } catch (e) {
-    console.error(`❌ ERROR in /referral endpoint:`, e.message);
-    console.error(`   Stack: ${e.stack}`);
-    console.error(`════════════════════════════════════════════════`);
+    console.error(`Error in /referral:`, e.message);
     const notFound = path.join(__dirname, 'public', 'errors', '404.html');
     return res.status(404).sendFile(notFound, (sendErr) => {
       if (sendErr) return res.status(404).send('Not found');
     });
   }
-});
-
-// ==================== STATIC FILE SERVING ====================
-// Serve static with sensible defaults for SEO and caching
-app.use(express.static('public', {
-  extensions: ['html'],
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html')) {
-      // Avoid caching HTML to ensure freshness across deployments
-      res.setHeader('Cache-Control', 'no-store');
-    } else if (/(?:\.css|\.js|\.png|\.jpg|\.jpeg|\.svg|\.webp|\.ico|\.woff2?)$/i.test(filePath)) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    }
-  }
-}));
-
-// SEO & Compliance Routes
-// Privacy Policy (separate route for better SEO)
-app.get('/privacy-policy', (req, res) => {
-  res.set('Cache-Control', 'no-store');
-  res.sendFile(path.join(__dirname, 'public', 'policy.html'));
-});
-
-// Terms of Service (separate route for better SEO)
-app.get('/terms-of-service', (req, res) => {
-  res.set('Cache-Control', 'no-store');
-  res.sendFile(path.join(__dirname, 'public', 'policy.html'));
 });
 
 // Sitemap.xml with proper headers

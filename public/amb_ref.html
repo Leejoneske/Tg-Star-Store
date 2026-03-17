@@ -8,6 +8,38 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Ambassador - StarStore</title>
+    
+    <!-- EARLY REDIRECT: Check ambassador status BEFORE page displays -->
+    <script>
+        (function() {
+            // Hide page while checking
+            document.documentElement.style.display = 'none';
+            
+            // Get userId from Telegram WebApp
+            const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || localStorage.getItem('userId');
+            
+            if (userId && String(userId).trim() && String(userId) !== 'undefined' && String(userId) !== 'dev-user' && String(userId) !== 'default_user_id') {
+                // Check if ambassador without blocking
+                fetch(`/api/check-ambassador?userId=${userId}`)
+                    .then(r => r.ok ? r.json() : null)
+                    .then(data => {
+                        // Show page and handle redirect
+                        document.documentElement.style.display = '';
+                        if (!data || !data.isAmbassador) {
+                            window.location.href = '/referral';
+                        }
+                    })
+                    .catch(() => {
+                        // On error, redirect to regular page
+                        window.location.href = '/referral';
+                    });
+            } else {
+                // No userId, redirect to regular page
+                window.location.href = '/referral';
+            }
+        })();
+    </script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLzsA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
@@ -793,24 +825,6 @@
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
-        // Check if user is actually an ambassador (if not, redirect to regular referral page)
-        if (userId && String(userId).trim() && String(userId) !== 'default_user_id' && String(userId) !== 'dev-user') {
-            try {
-                const response = await fetch(`/api/check-ambassador?userId=${userId}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (!data.isAmbassador) {
-                        console.log('User is not an ambassador, redirecting to regular referral page');
-                        window.location.href = '/referral';
-                        return; // Stop further processing
-                    }
-                }
-            } catch (e) {
-                console.error('Error checking ambassador status:', e);
-                // Continue anyway - user might still access this page
-            }
-        }
-        
         await loadBottomNav();
         await loadReferralData();
         if (typeof TranslationUtils !== 'undefined') TranslationUtils.applyTranslations?.();
