@@ -8788,6 +8788,86 @@ bot.onText(/\/unban (\d+)/, async (msg, match) => {
     });
 });
 
+// Add user as ambassador
+bot.onText(/\/add_amb\s+(\d+)\s+(.+)$/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const requesterId = msg.from.id.toString();
+    
+    if (!adminIds.includes(requesterId)) {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+            parse_mode: 'Markdown',
+            reply_to_message_id: msg.message_id
+        });
+    }
+    
+    const userId = match[1];
+    const email = match[2].trim();
+    
+    try {
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return bot.sendMessage(chatId, '❌ Invalid email format. Please provide a valid email address.', {
+                reply_to_message_id: msg.message_id
+            });
+        }
+        
+        // Check if user exists
+        let user = await User.findOne({ id: userId });
+        if (!user) {
+            return bot.sendMessage(chatId, `❌ User ${userId} not found in the system.`, {
+                reply_to_message_id: msg.message_id
+            });
+        }
+        
+        // Check if already an ambassador
+        if (user.ambassadorEmail) {
+            return bot.sendMessage(chatId, `⚠️ User ${userId} is already an ambassador with email: ${user.ambassadorEmail}`, {
+                reply_to_message_id: msg.message_id
+            });
+        }
+        
+        // Add as ambassador
+        user = await User.findOneAndUpdate(
+            { id: userId },
+            { ambassadorEmail: email },
+            { new: true }
+        );
+        
+        // Send notification to the user
+        const ambassadorNotification = `🎉 **Congratulations!**\n\n` +
+            `You've been added to our Ambassador program!\n\n` +
+            `**Email**: ${email}\n` +
+            `**Status**: Active\n\n` +
+            `You can now start earning through referrals. Use /referrals to get your referral link.\n\n` +
+            `Visit the ambassador page to set up your wallet and track your earnings.`;
+        
+        try {
+            await bot.sendMessage(userId, ambassadorNotification, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error(`Failed to send ambassador notification to ${userId}:`, error);
+        }
+        
+        // Send confirmation to admin
+        const adminConfirmation = `✅ **Ambassador Added**\n\n` +
+            `**User ID**: ${userId}\n` +
+            `**Email**: ${email}\n` +
+            `**Status**: Active\n` +
+            `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
+            `**Timestamp**: ${new Date().toLocaleString()}`;
+        
+        await bot.sendMessage(chatId, adminConfirmation, {
+            parse_mode: 'Markdown',
+            reply_to_message_id: msg.message_id
+        });
+    } catch (error) {
+        console.error('Add ambassador error:', error);
+        await bot.sendMessage(chatId, '❌ An error occurred while adding the ambassador. Please try again.', {
+            reply_to_message_id: msg.message_id
+        });
+    }
+});
+
 bot.onText(/\/warnings (\d+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
@@ -9084,15 +9164,9 @@ async function handleHelpCommand(msg) {
 /warnings [user_id] - Check all warnings for a user
 /users - List all users in the system
 /detect_users - Detect and process new users
+/add_amb [user_id] [email] - Add user as ambassador and notify them
 
 **� Ambassador Program:**
-🎯 **Manual Enrollment:**
-POST /api/admin/enroll-ambassador
-  Body: { "userId": "123456789", "ambassadorEmail": "user@example.com", "walletAddress": "UQCxxxx..." }
-  - Enrolls user as ambassador without approval process
-  - Sets tier to 0 (they earn through active referrals)
-  - Optional wallet address can be set during enrollment
-
 📊 **View Pending Withdrawals:**
 GET /api/ambassador/withdrawals/pending
   - Lists all pending ambassador withdrawals awaiting approval

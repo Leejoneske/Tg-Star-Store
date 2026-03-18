@@ -546,15 +546,15 @@
     <div class="stats-row">
         <div class="stat-pill">
             <div class="val" id="referralsCount">0</div>
-            <div class="lbl">Referrals</div>
+            <div class="lbl" data-translate="ambassadorReferrals">Referrals</div>
         </div>
         <div class="stat-pill">
             <div class="val" id="totalEarned">$0</div>
-            <div class="lbl">Earned</div>
+            <div class="lbl" data-translate="ambassadorEarned">Earned</div>
         </div>
         <div class="stat-pill">
             <div class="val" id="freeStars">0</div>
-            <div class="lbl">Free Stars</div>
+            <div class="lbl" data-translate="ambassadorFreeStars">Free Stars</div>
         </div>
     </div>
 
@@ -566,8 +566,8 @@
             <div class="ppc-left">
                 <div class="ppc-icon"><i class="fas fa-clock"></i></div>
                 <div>
-                    <div class="ppc-label">Pending Payout</div>
-                    <div class="ppc-sub">Paid automatically each month</div>
+                    <div class="ppc-label" data-translate="ambassadorPendingPayout">Pending Payout</div>
+                    <div class="ppc-sub" data-translate="ambassadorPaidAutomatically">Paid automatically each month</div>
                 </div>
             </div>
             <div>
@@ -577,11 +577,11 @@
         <div class="ppc-meta">
             <div class="ppc-meta-item">
                 <div class="ppc-meta-val" id="nextPayoutDate">—</div>
-                <div class="ppc-meta-key">Next Payout</div>
+                <div class="ppc-meta-key" data-translate="ambassadorNextPayout">Next Payout</div>
             </div>
             <div class="ppc-meta-item">
                 <div class="ppc-meta-val" id="avgTransaction">0</div>
-                <div class="ppc-meta-key">Avg. Stars/Tx</div>
+                <div class="ppc-meta-key" data-translate="ambassadorAvgStars">Avg. Stars/Tx</div>
             </div>
         </div>
     </div>
@@ -589,7 +589,7 @@
     <div class="divider"></div>
 
     <!-- PROGRESS -->
-    <div class="section-label">Your Progress</div>
+    <div class="section-label" data-translate="ambassadorYourProgress">Your Progress</div>
     <div class="progress-wrap">
         <div class="progress-card" id="progressCard">
             <div class="progress-top">
@@ -790,7 +790,7 @@
         <div class="payout-row">
             <div class="payout-left">
                 <div class="payout-icon"><i class="fas fa-wallet"></i></div>
-                <span class="payout-key">Your wallet</span>
+                <span class="payout-key" data-translate="ambassadorYourWallet">Your wallet</span>
             </div>
             <span class="payout-val" id="walletPreview" style="font-size:12px;color:var(--text-muted,#aaa);">Not set</span>
         </div>
@@ -799,17 +799,17 @@
     <div class="divider"></div>
 
     <!-- REFERRALS -->
-    <div class="section-label">My Referrals</div>
+    <div class="section-label" data-translate="myReferrals">My Referrals</div>
     <div class="referrals-section">
         <div class="ref-filter">
-            <button class="filter-chip active" onclick="setFilter('all',this)">All</button>
-            <button class="filter-chip" onclick="setFilter('paid',this)">Paid</button>
-            <button class="filter-chip" onclick="setFilter('pending',this)">Pending</button>
+            <button class="filter-chip active" onclick="setFilter('all',this)" data-translate="ambassadorFilterAll">All</button>
+            <button class="filter-chip" onclick="setFilter('paid',this)" data-translate="ambassadorFilterPaid">Paid</button>
+            <button class="filter-chip" onclick="setFilter('pending',this)" data-translate="pending">Pending</button>
         </div>
         <div id="noReferrals" class="empty-state">
             <i class="fas fa-user-group"></i>
-            <h3>No referrals yet</h3>
-            <p>Share your ambassador link to get started</p>
+            <h3 data-translate="ambassadorNoReferrals">No referrals yet</h3>
+            <p data-translate="ambassadorShareLink">Share your ambassador link to get started</p>
         </div>
         <div id="referralsList"></div>
     </div>
@@ -818,10 +818,10 @@
 
 <!-- BOTTOM CTA -->
 <div class="bottom-cta">
-    <button class="cta-share" onclick="shareReferral()">
+    <button class="cta-share" onclick="shareReferral()" data-translate="ambassadorInviteFriends">
         <i class="fas fa-share-alt"></i> Invite Friends
     </button>
-    <button class="cta-wallet" onclick="showWalletModal()">
+    <button class="cta-wallet" onclick="showWalletModal()" data-translate="walletAddress">
         <i class="fas fa-wallet"></i> Wallet
     </button>
 </div>
@@ -845,10 +845,11 @@
 
     // Ambassador level config
     const LEVELS = [
-        { id:'tier-1', label:'Explorer',  min:0,  next:50,  earnings:'$30+',  stars:50  },
-        { id:'tier-2', label:'Connector', min:30, next:70,  earnings:'$60+',  stars:100 },
-        { id:'tier-3', label:'Pioneer',   min:50, next:100, earnings:'$80+',  stars:150 },
-        { id:'tier-4', label:'Elite',     min:70, next:null,earnings:'$110+', stars:200 },
+        { id:'tier-1', label:'Explorer',  min:0,  next:30, earnings:'$15+',  stars:50  },
+        { id:'tier-2', label:'Connector', min:30, next:50, earnings:'$30+',  stars:100 },
+        { id:'tier-3', label:'Pioneer',   min:50, next:70, earnings:'$60+',  stars:150 },
+        { id:'tier-4', label:'Elite',     min:70, next:100,earnings:'$90+',  stars:200 },
+        { id:'tier-5', label:'Master',    min:100,next:null,earnings:'$150+',stars:250 },
     ];
 
     const state = {
@@ -1160,7 +1161,7 @@
 
     async function saveWalletAddress(address) {
         try {
-            const res = await fetch(`${BASE_API_URL}/api/ambassador-wallet`, {
+            const res = await fetch(`${BASE_API_URL}/ambassador-wallet`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
