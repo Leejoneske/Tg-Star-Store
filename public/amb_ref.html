@@ -845,10 +845,11 @@
 
     // Ambassador level config
     const LEVELS = [
-        { id:'tier-1', label:'Explorer',  min:0,  next:50,  earnings:'$30+',  stars:50  },
-        { id:'tier-2', label:'Connector', min:30, next:70,  earnings:'$60+',  stars:100 },
-        { id:'tier-3', label:'Pioneer',   min:50, next:100, earnings:'$80+',  stars:150 },
-        { id:'tier-4', label:'Elite',     min:70, next:null,earnings:'$110+', stars:200 },
+        { id:'tier-1', label:'Explorer',  min:0,  next:30, earnings:'$15+',  stars:50  },
+        { id:'tier-2', label:'Connector', min:30, next:50, earnings:'$30+',  stars:100 },
+        { id:'tier-3', label:'Pioneer',   min:50, next:70, earnings:'$60+',  stars:150 },
+        { id:'tier-4', label:'Elite',     min:70, next:100,earnings:'$90+',  stars:200 },
+        { id:'tier-5', label:'Master',    min:100,next:null,earnings:'$150+',stars:250 },
     ];
 
     const state = {
@@ -1160,7 +1161,7 @@
 
     async function saveWalletAddress(address) {
         try {
-            const res = await fetch(`${BASE_API_URL}/api/ambassador-wallet`, {
+            const res = await fetch(`${BASE_API_URL}/ambassador-wallet`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
