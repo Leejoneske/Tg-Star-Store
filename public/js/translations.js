@@ -348,6 +348,8 @@ const translations = {
         ambassadorShareLink: "Share your ambassador link to get started",
         ambassadorInviteFriends: "Invite Friends",
         ambassadorYourWallet: "Your wallet",
+        ambassadorWallet: "Wallet",
+        ambassadorFilterPending: "Pending",
         
         dailyCheckIn: "Daily Check-in",
         earnPoints: "Earn 10 points",
@@ -926,6 +928,8 @@ const translations = {
         ambassadorShareLink: "Поделитесь своей ссылкой на программу послов, чтобы начать",
         ambassadorInviteFriends: "Пригласить друзей",
         ambassadorYourWallet: "Ваш кошелек",
+        ambassadorWallet: "Кошелек",
+        ambassadorFilterPending: "Ожидание",
         
         dailyCheckIn: "Ежедневный вход",
         earnPoints: "Заработать 10 очков",
@@ -1454,6 +1458,8 @@ try {
         ambassadorShareLink: "शुरू करने के लिए अपना राजदूत लिंक साझा करें",
         ambassadorInviteFriends: "दोस्तों को आमंत्रित करें",
         ambassadorYourWallet: "आपका वॉलेट",
+        ambassadorWallet: "वॉलेट",
+        ambassadorFilterPending: "लंबित",
         
         dailyCheckIn: "दैनिक चेक-इन",
         earnPoints: "10 अंक कमाएं",
@@ -1683,6 +1689,8 @@ try {
         ambassadorShareLink: "ابدأ بمشاركة رابط السفير الخاص بك",
         ambassadorInviteFriends: "دعوة الأصدقاء",
         ambassadorYourWallet: "محفظتك",
+        ambassadorWallet: "المحفظة",
+        ambassadorFilterPending: "قيد الانتظار",
         
         dailyCheckIn: "تسجيل الدخول اليومي",
         earnPoints: "اكسب 10 نقاط",
