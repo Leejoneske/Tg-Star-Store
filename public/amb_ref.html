@@ -42,7 +42,7 @@
                 return null;
             }
             
-            // Check ambassador status and redirect if needed
+            // Check ambassador status and redirect if needed (non-blocking)
             function checkAndRedirect() {
                 const userId = getUserId();
                 
@@ -52,8 +52,8 @@
                     return;
                 }
                 
-                // Verify ambassador status via API
-                fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`)
+                // Verify ambassador status via API (non-blocking - don't wait)
+                fetch(`/api/check-ambassador?userId=${encodeURIComponent(userId)}`, { signal: AbortSignal.timeout(3000) })
                     .then(r => r.ok ? r.json() : null)
                     .then(data => {
                         if (data && !data.isAmbassador) {
@@ -66,31 +66,26 @@
                         }
                     })
                     .catch(err => {
-                        console.log('Error checking ambassador status, staying on page:', err.message);
+                        console.log('Error checking ambassador status (non-blocking):', err.message);
                         // On error, stay on page - user might be ambassador
                     });
             }
             
-            // Try immediately (if storage/Telegram ready), or wait a moment
-            if (getUserId()) {
-                checkAndRedirect();
+            // Check ambassador status async (don't block page load)
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', checkAndRedirect, { once: true });
             } else {
-                setTimeout(() => {
-                    if (getUserId()) {
-                        checkAndRedirect();
-                    } else {
-                        console.warn('Could not get user ID after timeout');
-                    }
-                }, 200);
+                // If DOMContentLoaded already fired
+                setTimeout(checkAndRedirect, 0);
             }
         })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="/js/translations.js?v=7"></script>
+    <script src="/js/translations.js?v=10"></script>
     <link rel="icon" href="/favicon.png" type="image/png">
-    <link rel="stylesheet" href="/css/theme.css?v=3">
-    <link rel="stylesheet" href="/css/theme-additional.css?v=9">
-    <script src="/js/bottomnav-init.js"></script>
+    <link rel="stylesheet" href="/css/theme.css?v=4">
+    <link rel="stylesheet" href="/css/theme-additional.css?v=10">
+    <script src="/js/bottomnav-init.js?v=2"></script>
     
     <!-- Missing CSS includes - fonts and icons -->
     <link rel="canonical" href="https://starstore.site/amb_ref.html">
@@ -870,9 +865,42 @@
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
-        await loadBottomNav();
-        await loadReferralData();
-        if (typeof TranslationUtils !== 'undefined') TranslationUtils.applyTranslations?.();
+        // Wait for TranslationUtils to be available before applying
+        const waitForTranslations = () => {
+            return new Promise(resolve => {
+                if (typeof TranslationUtils !== 'undefined') {
+                    resolve();
+                } else {
+                    const check = setInterval(() => {
+                        if (typeof TranslationUtils !== 'undefined') {
+                            clearInterval(check);
+                            resolve();
+                        }
+                    }, 10);
+                    // Failsafe timeout
+                    setTimeout(() => {
+                        clearInterval(check);
+                        resolve();
+                    }, 500);
+                }
+            });
+        };
+
+        // Apply translations early
+        await waitForTranslations();
+        if (typeof TranslationUtils !== 'undefined') {
+            TranslationUtils.applyTranslations?.();
+        }
+        
+        // Load bottom nav and referral data in parallel (don't block UI on these)
+        try {
+            await Promise.all([
+                loadBottomNav(),
+                loadReferralData()
+            ]);
+        } catch (e) {
+            console.error('Error loading page data:', e);
+        }
     });
 
     async function loadBottomNav() {
