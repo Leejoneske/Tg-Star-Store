@@ -7287,13 +7287,15 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         // For ambassadors, add ambassador-specific fields
         let ambassadorStats = {};
         if (isAmbassador) {
-            // Determine current tier based on referrals count
-            let currentTier = 1; // Explorer
-            if (totalReferrals >= 70) currentTier = 4; // Elite
-            else if (totalReferrals >= 50) currentTier = 3; // Pioneer
-            else if (totalReferrals >= 30) currentTier = 2; // Connector
+            // Determine current tier based on ACTIVE referrals count (not total)
+            let currentTier = 0; // No tier if no active referrals
+            if (completedReferrals >= 100) currentTier = 4; // Elite (100+)
+            else if (completedReferrals >= 70) currentTier = 3; // Pioneer (70+)
+            else if (completedReferrals >= 50) currentTier = 2; // Connector (50+)
+            else if (completedReferrals >= 30) currentTier = 1; // Explorer (30+)
             
             const tierBenefits = {
+                0: { freeStars: 0, minEarnings: 0 },
                 1: { freeStars: 50, minEarnings: 30 },
                 2: { freeStars: 100, minEarnings: 60 },
                 3: { freeStars: 150, minEarnings: 80 },
@@ -7302,14 +7304,18 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             
             const benefits = tierBenefits[currentTier];
             
+            // Use tier-based earnings from database or calculate from completed referrals
+            const pendingFromDb = user.ambassadorPendingBalance || 0;
+            const totalEarnedFromDb = user.ambassadorLevelEarnings || {};
+            
             ambassadorStats = {
                 ambassadorTier: currentTier,
                 ambassadorEmail: user.ambassadorEmail,
                 freeStars: benefits.freeStars,
-                pendingAmount: availableReferrals * 0.5,
-                totalEarned: completedReferrals * 0.5,
+                activeReferralsCount: completedReferrals,
+                pendingAmount: pendingFromDb,
+                totalEarned: (totalEarnedFromDb.preLevelOne || 0) + (totalEarnedFromDb.levelOne || 0) + (totalEarnedFromDb.levelTwo || 0) + (totalEarnedFromDb.levelThree || 0) + (totalEarnedFromDb.levelFour || 0),
                 avgTransaction: 0, // Would need to calculate from actual transactions
-                socialPosts: 0, // Would need to track separately
                 walletAddress: user.walletAddress || null,
                 walletPreview: user.walletAddress ? user.walletAddress.substring(0,8) + '…' + user.walletAddress.slice(-4) : 'Not set'
             };
@@ -7977,6 +7983,57 @@ app.post('/api/admin/enroll-ambassador', requireAdmin, async (req, res) => {
         
     } catch (error) {
         console.error('Error enrolling ambassador:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Ambassador Wallet Setting Endpoint
+app.post('/api/ambassador-wallet', requireTelegramAuth, async (req, res) => {
+    try {
+        const { userId, walletAddress } = req.body;
+        
+        if (!userId || !walletAddress) {
+            return res.status(400).json({ success: false, error: 'userId and walletAddress are required' });
+        }
+        
+        // Validate wallet address format (basic check for TON)
+        if (!/^[A-Za-z0-9_-]{46,47}$/.test(walletAddress) && !/^UQ/.test(walletAddress) && !/^0Q/.test(walletAddress)) {
+            console.warn(`Invalid wallet format attempt: ${walletAddress}`);
+            // Be lenient - allow any reasonable string, just warn
+        }
+        
+        // Verify user is setting their own wallet
+        if (req.user.id !== userId) {
+            return res.status(403).json({ success: false, error: 'Can only set your own wallet address' });
+        }
+        
+        // Find user and check if ambassador
+        const user = await User.findOne({ id: userId });
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+        
+        if (!user.ambassadorEmail) {
+            return res.status(403).json({ success: false, error: 'Only ambassadors can set wallet address' });
+        }
+        
+        // Update wallet address
+        await User.findOneAndUpdate(
+            { id: userId },
+            { walletAddress }
+        );
+        
+        console.log(`✅ Wallet address updated for ambassador ${userId}`);
+        
+        return res.json({
+            success: true,
+            message: 'Wallet address saved successfully',
+            walletAddress,
+            walletPreview: walletAddress.substring(0, 8) + '…' + walletAddress.slice(-4)
+        });
+        
+    } catch (error) {
+        console.error('Error setting ambassador wallet:', error);
         return res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -9028,7 +9085,38 @@ async function handleHelpCommand(msg) {
 /users - List all users in the system
 /detect_users - Detect and process new users
 
-**💰 Wallet Management:**
+**� Ambassador Program:**
+🎯 **Manual Enrollment:**
+POST /api/admin/enroll-ambassador
+  Body: { "userId": "123456789", "ambassadorEmail": "user@example.com", "walletAddress": "UQCxxxx..." }
+  - Enrolls user as ambassador without approval process
+  - Sets tier to 0 (they earn through active referrals)
+  - Optional wallet address can be set during enrollment
+
+📊 **View Pending Withdrawals:**
+GET /api/ambassador/withdrawals/pending
+  - Lists all pending ambassador withdrawals awaiting approval
+  - Shows tier breakdown and referral counts
+
+✅ **Approve/Decline Withdrawal:**
+POST /api/ambassador/withdrawal/:withdrawalId/approve
+  Body: { "approved": true/false, "declineReason": "optional reason if declined" }
+  - Approved: marks paid, resets balance to $0, starts new cycle, sends confirmation
+  - Declined: carries balance to next month, sends reason notification
+
+**Tier System:**
+• Level 0: No active referrals
+• Level 1: 30-49 active refs → \$0.50/ref + 50 free stars
+• Level 2: 50-69 active refs → \$1.00/ref + 100 free stars
+• Level 3: 70-99 active refs → \$1.20/ref + 150 free stars
+• Level 4: 100+ active refs → \$1.50/ref + 200 free stars
+
+**Wallet Requirements:**
+⚠️ Users MUST have wallet address set BEFORE month-end
+• Auto-withdrawal created only if wallet is set
+• Reminders sent 3 days before month-end if wallet missing
+
+**�💰 Wallet Management:**
 /updatewallet [user_id] [sell|withdrawal] [order_id] [new_wallet_address]
   - Update a user's wallet address for specific order
   - Example: /updatewallet 123456789 sell ABC123 UQAbc123...
