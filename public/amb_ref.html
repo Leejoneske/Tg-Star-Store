@@ -566,8 +566,8 @@
             <div class="ppc-left">
                 <div class="ppc-icon"><i class="fas fa-clock"></i></div>
                 <div>
-                    <div class="ppc-label" data-translate="ambassadorPendingPayout">Pending Payout</div>
-                    <div class="ppc-sub" data-translate="ambassadorPaidAutomatically">Paid automatically each month</div>
+                    <div class="ppc-label"><span data-translate="ambassadorPendingPayout">Pending Payout</span></div>
+                    <div class="ppc-sub"><span data-translate="ambassadorPaidAutomatically">Paid automatically each month</span></div>
                 </div>
             </div>
             <div>
@@ -802,14 +802,14 @@
     <div class="section-label" data-translate="myReferrals">My Referrals</div>
     <div class="referrals-section">
         <div class="ref-filter">
-            <button class="filter-chip active" onclick="setFilter('all',this)" data-translate="ambassadorFilterAll">All</button>
-            <button class="filter-chip" onclick="setFilter('paid',this)" data-translate="ambassadorFilterPaid">Paid</button>
-            <button class="filter-chip" onclick="setFilter('pending',this)" data-translate="pending">Pending</button>
+            <button class="filter-chip active" onclick="setFilter('all',this)"><span data-translate="ambassadorFilterAll">All</span></button>
+            <button class="filter-chip" onclick="setFilter('paid',this)"><span data-translate="ambassadorFilterPaid">Paid</span></button>
+            <button class="filter-chip" onclick="setFilter('pending',this)"><span data-translate="ambassadorFilterPending">Pending</span></button>
         </div>
         <div id="noReferrals" class="empty-state">
             <i class="fas fa-user-group"></i>
-            <h3 data-translate="ambassadorNoReferrals">No referrals yet</h3>
-            <p data-translate="ambassadorShareLink">Share your ambassador link to get started</p>
+            <h3><span data-translate="ambassadorNoReferrals">No referrals yet</span></h3>
+            <p><span data-translate="ambassadorShareLink">Share your ambassador link to get started</span></p>
         </div>
         <div id="referralsList"></div>
     </div>
@@ -818,11 +818,11 @@
 
 <!-- BOTTOM CTA -->
 <div class="bottom-cta">
-    <button class="cta-share" onclick="shareReferral()" data-translate="ambassadorInviteFriends">
-        <i class="fas fa-share-alt"></i> Invite Friends
+    <button class="cta-share" onclick="shareReferral()">
+        <i class="fas fa-share-alt"></i> <span data-translate="ambassadorInviteFriends">Invite Friends</span>
     </button>
-    <button class="cta-wallet" onclick="showWalletModal()" data-translate="walletAddress">
-        <i class="fas fa-wallet"></i> Wallet
+    <button class="cta-wallet" onclick="showWalletModal()">
+        <i class="fas fa-wallet"></i> <span data-translate="ambassadorWallet">Wallet</span>
     </button>
 </div>
 
