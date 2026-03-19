@@ -2291,12 +2291,39 @@ function initTelegramApp() {
             if (user) {
             currentUser = user;
             
-            // Check ambassador status
+            // Check ambassador status (initial check)
             checkAmbassadorStatus(user.id).then(isAmbassador => {
                 user.isAmbassador = isAmbassador;
                 updateUserInterface(user);
             }).catch(() => {
                 updateUserInterface(user);
+            });
+            
+            // Auto-refresh ambassador status every 45 seconds (catches database changes)
+            setInterval(() => {
+                if (currentUser && currentUser.id) {
+                    checkAmbassadorStatus(currentUser.id).then(isAmbassador => {
+                        if (currentUser.isAmbassador !== isAmbassador) {
+                            console.log(`♻️ Ambassador status changed: ${currentUser.isAmbassador} → ${isAmbassador}`);
+                            currentUser.isAmbassador = isAmbassador;
+                            updateUserInterface(currentUser);
+                        }
+                    });
+                }
+            }, 45000); // Refresh every 45 seconds
+            
+            // Also refresh on page visibility change (when tab becomes active)
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && currentUser && currentUser.id) {
+                    console.log('📱 Page became visible - refreshing ambassador status...');
+                    checkAmbassadorStatus(currentUser.id).then(isAmbassador => {
+                        if (currentUser.isAmbassador !== isAmbassador) {
+                            console.log(`♻️ Ambassador status changed: ${currentUser.isAmbassador} → ${isAmbassador}`);
+                            currentUser.isAmbassador = isAmbassador;
+                            updateUserInterface(currentUser);
+                        }
+                    });
+                }
             });
             
             // Auto-detect Telegram language and map to supported locales

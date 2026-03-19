@@ -403,9 +403,10 @@ async function simulateTick({ useMongo, models, db, bots = DEFAULT_BOTS }) {
         { upsert: true, new: true }
       );
       
-      // Log activity for bot actions
+      // Log activity for bot actions (disabled by default to reduce storage)
       const { Activity } = models || {};
-      if (Activity) {
+      const enableBotActivityLogging = process.env.ENABLE_BOT_ACTIVITY_LOGGING === '1';
+      if (Activity && enableBotActivityLogging) {
         try {
           await Activity.create({
             userId: bot.id,
@@ -624,8 +625,9 @@ async function actBot({ bot, useMongo, models, db, missionIds }) {
       state.lastCheckIn = now;
       state.totalPoints = (state.totalPoints || 0) + 10;
       
-      // Log activity for bot check-in
-      if (Activity && useMongo) {
+      // Log activity for bot check-in (disabled by default to reduce storage)
+      const enableBotActivityLogging = process.env.ENABLE_BOT_ACTIVITY_LOGGING === '1';
+      if (Activity && useMongo && enableBotActivityLogging) {
         try {
           await Activity.create({
             userId: bot.id,
@@ -665,8 +667,9 @@ async function actBot({ bot, useMongo, models, db, missionIds }) {
         const missionPoints = MISSION_POINTS[m] || 0;
         state.totalPoints = (state.totalPoints || 0) + missionPoints;
         
-        // Log activity for bot mission completion
-        if (Activity && useMongo) {
+        // Log activity for bot mission completion (disabled by default to reduce storage)
+        const enableBotActivityLogging = process.env.ENABLE_BOT_ACTIVITY_LOGGING === '1';
+        if (Activity && useMongo && enableBotActivityLogging) {
           try {
             await Activity.create({
               userId: bot.id,

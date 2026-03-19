@@ -1761,6 +1761,10 @@ const userActivityLogSchema = new mongoose.Schema({
     errorMessage: String
 });
 
+// Add TTL index: auto-delete UserActivityLog records older than USERACTIVITYLOG_RETENTION_DAYS (default: 30)
+const userActivityLogRetentionDays = parseInt(process.env.USERACTIVITYLOG_RETENTION_DAYS || '30');
+userActivityLogSchema.index({ timestamp: 1 }, { expireAfterSeconds: userActivityLogRetentionDays * 24 * 60 * 60 });
+
 const UserActivityLog = mongoose.model('UserActivityLog', userActivityLogSchema);
 
 // Device Tracker - identify and track different devices per user
@@ -2016,9 +2020,13 @@ const activitySchema = new mongoose.Schema({
     activityType: { type: String, required: true },
     activityName: { type: String, required: true },
     points: { type: Number, required: true },
-    timestamp: { type: Date, default: Date.now },
+    timestamp: { type: Date, default: Date.now, index: true },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
 });
+
+// Add TTL index: auto-delete Activity records older than ACTIVITY_RETENTION_DAYS (default: 90)
+const activityRetentionDays = parseInt(process.env.ACTIVITY_RETENTION_DAYS || '90');
+activitySchema.index({ timestamp: 1 }, { expireAfterSeconds: activityRetentionDays * 24 * 60 * 60 });
 
 const Activity = mongoose.model('Activity', activitySchema);
 
@@ -4056,27 +4064,30 @@ async function syncUserData(telegramId, username, interactionType = 'unknown', r
             }
         }
         
-        // 6. LOG INTERACTION
-        try {
-            await UserActivityLog.create({
-                userId: telegramId,
-                username: username || user?.username || 'Unknown',
-                actionType: interactionType,
-                location: geo ? {
-                    country: geo.country,
-                    countryCode: geo.countryCode,
-                    city: geo.city,
-                    ip
-                } : null,
-                device: {
-                    userAgent,
-                    browser,
-                    os
-                },
-                timestamp: new Date()
-            });
-        } catch (logErr) {
-            console.error(`[SYNC] Failed to log activity for ${telegramId}:`, logErr.message);
+        // 6. LOG INTERACTION (with sampling to reduce storage)
+        const userActivitySampleRate = parseFloat(process.env.USERACTIVITYLOG_SAMPLE_RATE || '0.5'); // Default: log 50%
+        if (Math.random() <= userActivitySampleRate) {
+            try {
+                await UserActivityLog.create({
+                    userId: telegramId,
+                    username: username || user?.username || 'Unknown',
+                    actionType: interactionType,
+                    location: geo ? {
+                        country: geo.country,
+                        countryCode: geo.countryCode,
+                        city: geo.city,
+                        ip
+                    } : null,
+                    device: {
+                        userAgent,
+                        browser,
+                        os
+                    },
+                    timestamp: new Date()
+                });
+            } catch (logErr) {
+                console.error(`[SYNC] Failed to log activity for ${telegramId}:`, logErr.message);
+            }
         }
         
         return user;
@@ -4170,26 +4181,29 @@ async function trackUserActivity(userId, username, actionType, actionDetails = {
             await user.save();
         }
         
-        // Create activity log
-        await UserActivityLog.create({
-            userId,
-            username: username || user?.username || 'Unknown',
-            timestamp: new Date(),
-            actionType,
-            actionDetails,
-            location: {
-                country: geo.country,
-                countryCode: geo.countryCode,
-                city: geo.city,
-                ip
-            },
-            device: {
-                userAgent,
-                browser,
-                os
-            },
-            status: 'success'
-        });
+        // Create activity log (with sampling to reduce storage)
+        const userActivitySampleRate = parseFloat(process.env.USERACTIVITYLOG_SAMPLE_RATE || '0.5'); // Default: log 50%
+        if (Math.random() <= userActivitySampleRate) {
+            await UserActivityLog.create({
+                userId,
+                username: username || user?.username || 'Unknown',
+                timestamp: new Date(),
+                actionType,
+                actionDetails,
+                location: {
+                    country: geo.country,
+                    countryCode: geo.countryCode,
+                    city: geo.city,
+                    ip
+                },
+                device: {
+                    userAgent,
+                    browser,
+                    os
+                },
+                status: 'success'
+            });
+        }
         
         // Track device
         let deviceTracker = await DeviceTracker.findOne({ 
@@ -14423,6 +14437,19 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Webhook set to: ${WEBHOOK_URL}`);
+  
+  // Log data retention & cleanup configuration
+  const enableBotActivityLogging = process.env.ENABLE_BOT_ACTIVITY_LOGGING === '1';
+  const activityRetentionDays = parseInt(process.env.ACTIVITY_RETENTION_DAYS || '90');
+  const userActivitySampleRate = parseFloat(process.env.USERACTIVITYLOG_SAMPLE_RATE || '0.5');
+  const userActivityRetentionDays = parseInt(process.env.USERACTIVITYLOG_RETENTION_DAYS || '30');
+  
+  console.log('📊 Data Retention & Cleanup Configuration:');
+  console.log(`   • Bot Activity Logging: ${enableBotActivityLogging ? '✅ ENABLED' : '❌ DISABLED (default)'}`);
+  console.log(`   • Activity Retention: ${activityRetentionDays} days (auto-delete older records)`);
+  console.log(`   • UserActivityLog Sampling: ${Math.round(userActivitySampleRate * 100)}% of requests logged`);
+  console.log(`   • UserActivityLog Retention: ${userActivityRetentionDays} days (auto-delete older records)`);
+  
   // Start bot simulator if enabled
   if (process.env.ENABLE_BOT_SIMULATOR === '1' && startBotSimulatorSafe) {
     try {
