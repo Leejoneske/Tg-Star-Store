@@ -69,6 +69,10 @@ try {
 } catch (_) {
   // noop if missing - PDF export will be skipped gracefully
 }
+
+// Email Service for professional notifications (Resend API)
+const emailService = require('./services/email-service');
+
 // Create Telegram bot or a stub in local/dev if no token is provided
 let bot;
 if (process.env.BOT_TOKEN) {
@@ -674,6 +678,13 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
     } catch (e) {
       console.error('Failed to notify admins of ambassador signup:', e.message);
     }
+
+    // Send confirmation email to applicant
+    await emailService.sendAmbassadorApplicationSubmitted(
+      clean.email,
+      clean.username || 'Applicant',
+      clean.socials || {}
+    );
 
     return res.json({ success: true, waitlistId: saved.id });
   } catch (e) {
@@ -5403,6 +5414,16 @@ bot.on('callback_query', async (query) => {
                             console.log(`  ambassadorTier: ${userUpdate.ambassadorTier}`);
                             console.log(`📝 APPROVAL FLOW END\n`);
                             
+                            // Send approval email
+                            const emailResult = await emailService.sendAmbassadorApproved(
+                                waitlistEntry.email,
+                                waitlistEntry.username || 'Ambassador',
+                                userUpdate.ambassadorReferralCode
+                            );
+                            if (!emailResult.success && !emailResult.offline) {
+                                console.warn('⚠️ Failed to send approval email:', emailResult.error);
+                            }
+                            
                             // Send notification to user via Telegram
                             try {
                                 await bot.sendMessage(userUpdate.id, 
@@ -5428,6 +5449,12 @@ bot.on('callback_query', async (query) => {
                         console.error(`📝 APPROVAL FLOW END\n`);
                     }
                 } else {
+                    // Send decline email
+                    await emailService.sendAmbassadorApplicationDenied(
+                        waitlistEntry.email,
+                        waitlistEntry.username || 'Applicant'
+                    );
+                    
                     // Send decline notification to user
                     try {
                         const userId = waitlistEntry.telegramId;
@@ -7700,6 +7727,20 @@ app.post('/api/ambassador/create-monthly-withdrawal', requireAdmin, async (req, 
             }
         );
         
+        // Send email notification to ambassador
+        await emailService.sendWithdrawalCreated(
+            user.ambassadorEmail,
+            user.username || 'Ambassador',
+            totalAmount,
+            [
+                { tier: 'Pre-Level 1', amount: levelEarnings.preLevelOne || 0 },
+                { tier: 'Level 1', amount: levelEarnings.levelOne || 0 },
+                { tier: 'Level 2', amount: levelEarnings.levelTwo || 0 },
+                { tier: 'Level 3', amount: levelEarnings.levelThree || 0 },
+                { tier: 'Level 4', amount: levelEarnings.levelFour || 0 }
+            ].filter(e => e.amount > 0)
+        );
+        
         console.log(`Monthly withdrawal created for ambassador ${userId}: $${totalAmount.toFixed(2)} (${month})`);
         console.log(`Tier breakdown - Pre-Level 1: $${levelEarnings.preLevelOne}, Level 1: $${levelEarnings.levelOne}, Level 2: $${levelEarnings.levelTwo}, Level 3: $${levelEarnings.levelThree}, Level 4: $${levelEarnings.levelFour}`);
         
@@ -7834,6 +7875,21 @@ app.post('/api/ambassador/withdrawal/:withdrawalId/approve', requireAdmin, async
                     ambassadorPendingBalance: 0,
                     ambassadorLastWithdrawalDate: new Date()
                 }
+            );
+            
+            // Send approval email
+            await emailService.sendWithdrawalApproved(
+                user.ambassadorEmail,
+                user.username || 'Ambassador',
+                withdrawal.amount,
+                withdrawal.transactionHash || null
+            );
+        } else {
+            // Send decline email
+            await emailService.sendWithdrawalDeclined(
+                user.ambassadorEmail,
+                user.username || 'Ambassador',
+                declineReason || 'Your withdrawal could not be processed. Please contact support for details.'
             );
         }
         
@@ -8021,6 +8077,15 @@ app.post('/api/ambassador-wallet', requireTelegramAuth, async (req, res) => {
         await User.findOneAndUpdate(
             { id: userId },
             { walletAddress }
+        );
+        
+        // Send confirmation email
+        const userFullName = user.username || user.firstName || 'Ambassador';
+        const walletPreview = walletAddress.substring(0, 8) + '…' + walletAddress.slice(-4);
+        await emailService.sendWalletAddressConfirmation(
+            user.ambassadorEmail,
+            userFullName,
+            walletPreview
         );
         
         console.log(`✅ Wallet address updated for ambassador ${userId}`);
@@ -15921,27 +15986,15 @@ app.get('/api/admin/dashboard/stats', requireAdmin, async (req, res) => {
 	}
 });
 
-// Simple SMTP email sender for newsletter (admin-only)
-let smtpTransport = null;
-try {
-    const nodemailer = require('nodemailer');
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        smtpTransport = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: parseInt(process.env.SMTP_PORT || '587', 10),
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-        });
-    }
-} catch (_) {
-    console.warn('Nodemailer not available; email sending disabled');
-}
+// Email notifications for newsletter (using Resend API via email-service)
+// Nodemailer removed - using Resend API instead for better reliability and professional emails
 
 // Admin send newsletter email to all subscribers
 app.post('/api/newsletter/send', async (req, res) => {
     try {
         if (!req.user?.isAdmin) return res.status(403).json({ success: false, error: 'Forbidden' });
-        if (!smtpTransport) return res.status(500).json({ success: false, error: 'Email service not configured' });
+        if (!emailService.isEmailAvailable()) return res.status(500).json({ success: false, error: 'Email service not configured. Please set RESEND_API_KEY environment variable.' });
+        
         const subject = String(req.body?.subject || '').trim();
         const html = String(req.body?.html || '').trim();
         if (!subject || !html) return res.status(400).json({ success: false, error: 'Subject and HTML are required.' });
@@ -15949,25 +16002,26 @@ app.post('/api/newsletter/send', async (req, res) => {
         const subscribers = await NewsletterSubscriber.find({}, { email: 1, _id: 0 });
         if (!subscribers.length) return res.json({ success: true, sent: 0 });
 
-        // Send in batches to avoid provider limits
-        const batchSize = 50;
+        // Send to each subscriber individually (Resend API rate limit friendly)
         let sentCount = 0;
-        for (let i = 0; i < subscribers.length; i += batchSize) {
-            const batch = subscribers.slice(i, i + batchSize);
-            const toList = batch.map(s => s.email).join(',');
-            try {
-                await smtpTransport.sendMail({
-                    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-                    to: toList,
-                    subject,
-                    html
-                });
-                sentCount += batch.length;
-            } catch (err) {
-                console.error('Email batch failed:', err?.message || err);
+        let failedCount = 0;
+        
+        for (const subscriber of subscribers) {
+            const result = await emailService.sendNewsletterBroadcast(
+                subscriber.email,
+                subject,
+                html
+            );
+            
+            if (result.success || result.offline) {
+                sentCount++;
+            } else {
+                failedCount++;
+                console.warn(`Failed to send newsletter to ${subscriber.email}:`, result.error);
             }
         }
-        return res.json({ success: true, sent: sentCount });
+        
+        return res.json({ success: true, sent: sentCount, failed: failedCount });
     } catch (e) {
         return res.status(500).json({ success: false, error: 'Failed to send emails' });
     }
@@ -16010,27 +16064,8 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
 
         await NewsletterSubscriber.create({ email, ip, userAgent, country: geo.country, city: geo.city });
 
-        // Send welcome email automatically if SMTP is configured
-        try {
-            if (smtpTransport) {
-                const welcomeSubject = process.env.NEWSLETTER_WELCOME_SUBJECT || 'Welcome to StarStore Updates';
-                const welcomeHtml = process.env.NEWSLETTER_WELCOME_HTML || `
-                    <div style="font-family: Arial, sans-serif; color:#111;">
-                        <h2 style="margin:0 0 12px;">Welcome to StarStore 🎉</h2>
-                        <p style="margin:0 0 12px;">Thanks for subscribing. You will receive updates about new features, pricing and promotions.</p>
-                        <p style="margin:0 0 12px;">If you didn't subscribe, you can ignore this email.</p>
-                        <p style="margin:24px 0 0; font-size:12px; color:#666;">StarStore</p>
-                    </div>`;
-                await smtpTransport.sendMail({
-                    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-                    to: email,
-                    subject: welcomeSubject,
-                    html: welcomeHtml
-                });
-            }
-        } catch (err) {
-            console.error('Welcome email failed:', err?.message || err);
-        }
+        // Send welcome email automatically using Resend API
+        await emailService.sendNewsletterWelcome(email);
 
         // Notify admins in real-time via Telegram
         const text = `📬 New newsletter subscriber: ${email}`;
