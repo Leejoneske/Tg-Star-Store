@@ -8885,7 +8885,10 @@ bot.onText(/\/add_amb\s+(\d+)\s+(.+)$/, async (msg, match) => {
     const chatId = msg.chat.id;
     const requesterId = msg.from.id.toString();
     
+    console.log(`[/add_amb] Command received from ${requesterId}. AdminIds: [${adminIds.join(',')}]`);
+    
     if (!adminIds.includes(requesterId)) {
+        console.log(`[/add_amb] Access denied for ${requesterId}`);
         return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
             parse_mode: 'Markdown',
             reply_to_message_id: msg.message_id
