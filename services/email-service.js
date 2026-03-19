@@ -55,7 +55,7 @@ function getEmailTemplate(title, content) {
     <div class="container">
         <div class="header">
             <h1>${title}</h1>
-            <div class="logo">StarStore Ambassador Program</div>
+            <div class="logo">StarStore | Professional Trading Platform</div>
         </div>
         <div class="content">
             ${content}
@@ -81,11 +81,11 @@ async function sendEmail(to, subject, htmlContent) {
 
     try {
         const result = await resend.emails.send({
-            from: process.env.RESEND_FROM_EMAIL || 'StarStore <noreply@starstore.app>',
+            from: process.env.RESEND_FROM_EMAIL || 'StarStore <noreply@StarStore.site>',
             to,
             subject,
             html: htmlContent,
-            reply_to: 'support@starstore.app'
+            reply_to: 'support@StarStore.site'
         });
 
         if (result.error) {
