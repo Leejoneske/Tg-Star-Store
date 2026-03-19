@@ -1,6 +1,6 @@
 {
   "name": "starstore",
-  "version": "2.3.17",
+  "version": "2.3.19",
   "description": "StarStore - A Telegram Mini App for purchasing stars and premium subscriptions.",
   "main": "server.js",
   "scripts": {
@@ -27,6 +27,7 @@
     "node-fetch": "^2.7.0",
     "node-telegram-bot-api": "^0.66.0",
     "pdfmake": "^0.2.23",
+    "resend": "^3.0.0",
     "sweetalert2": "^11.17.2"
   },
   "devDependencies": {

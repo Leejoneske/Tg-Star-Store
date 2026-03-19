@@ -958,7 +958,8 @@
             const data = await res.json();
             if (data.success) {
                 state.referralLink   = data.referralLink || fallbackLink();
-                state.walletAddress  = data.walletAddress || null;
+                // Get wallet address from API response (ambassadorStats spread into response)
+                state.walletAddress  = data.walletAddress || data.ambassadorWalletAddress || null;
                 state.referrals      = data.referrals || [];
                 state.withdrawHistory = data.withdrawHistory || [];
                 state.stats = {
