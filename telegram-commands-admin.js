@@ -4,11 +4,31 @@
  */
 
 module.exports = function registerAdminEmailCommands(bot, adminIds, emailService) {
+    if (!bot || typeof bot.onText !== 'function') {
+        console.warn('[Admin Commands] Bot object not ready, skipping command registration');
+        return;
+    }
+
+    if (!Array.isArray(adminIds)) {
+        console.warn('[Admin Commands] adminIds not an array, skipping registration');
+        return;
+    }
+
+    if (!emailService || typeof emailService.sendCustomEmail !== 'function') {
+        console.warn('[Admin Commands] emailService.sendCustomEmail not available, skipping registration');
+        return;
+    }
+
+    console.log(`[Admin Commands] Registering with ${adminIds.length} admin IDs`);
+
     // Admin command: Send custom email to users
     // Usage: /sendemail user@email.com "Email Subject" "HTML body content"
     bot.onText(/\/sendemail\s+(\S+)\s+"([^"]+)"\s+"(.+)"$/i, async (msg, match) => {
-        const chatId = msg.chat.id;
-        const requesterId = msg.from.id.toString();
+        try {
+            const chatId = msg.chat.id;
+            const requesterId = msg.from.id.toString();
+            
+            console.log(`[/sendemail] Command received from ${requesterId}`);
         
         if (!adminIds.includes(requesterId)) {
             return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
@@ -61,16 +81,20 @@ module.exports = function registerAdminEmailCommands(bot, adminIds, emailService
                 reply_to_message_id: msg.message_id
             });
         }
+        } catch (outerError) {
+            console.error('[/sendemail] Outer error:', outerError);
+        }
     });
 
     // Help command for email sending
-    bot.onText(/\/help\s*email/i, async (msg) => {
-        const chatId = msg.chat.id;
-        const requesterId = msg.from.id.toString();
-        
-        if (!adminIds.includes(requesterId)) {
-            return;  // Silently ignore non-admins
-        }
+    bot.onText(/\/help\s+email/i, async (msg) => {
+        try {
+            const chatId = msg.chat.id;
+            const requesterId = msg.from.id.toString();
+            
+            if (!adminIds.includes(requesterId)) {
+                return;  // Silently ignore non-admins
+            }
         
         const helpText = `📧 **Admin Email Sending Command**\n\n` +
             `/sendemail <email> "<subject>" "<html_body>"\n\n` +
@@ -88,9 +112,14 @@ module.exports = function registerAdminEmailCommands(bot, adminIds, emailService
             `• Email sent from: noreply@starstore.site\n` +
             `• Reply-to: support@starstore.site`;
         
-        await bot.sendMessage(chatId, helpText, {
-            parse_mode: 'Markdown',
-            reply_to_message_id: msg.message_id
-        });
+            await bot.sendMessage(chatId, helpText, {
+                parse_mode: 'Markdown',
+                reply_to_message_id: msg.message_id
+            });
+        } catch (error) {
+            console.error('[Admin Commands] Help email command error:', error.message);
+        }
     });
+
+    console.log('[Admin Commands] Successfully registered /sendemail and /help email commands');
 };

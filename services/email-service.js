@@ -328,3 +328,19 @@ module.exports = {
     isEmailAvailable,
     getEmailStatus
 };
+
+/**
+ * Admin Custom Email - Send email with template styling
+ * Used for admin email sending feature
+ */
+async function sendCustomEmail(to, subject, htmlBody) {
+    const styledHtml = getEmailTemplate(subject, htmlBody);
+    return sendEmail(to, subject, styledHtml);
+}
+
+// Export the new function
+const originalExports = module.exports;
+module.exports = {
+    ...originalExports,
+    sendCustomEmail
+};
