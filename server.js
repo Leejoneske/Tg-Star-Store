@@ -9166,34 +9166,9 @@ async function handleHelpCommand(msg) {
 /detect_users - Detect and process new users
 /add_amb [user_id] [email] - Add user as ambassador and notify them
 
-**� Ambassador Program:**
-📊 **View Pending Withdrawals:**
-GET /api/ambassador/withdrawals/pending
-  - Lists all pending ambassador withdrawals awaiting approval
-  - Shows tier breakdown and referral counts
-
-✅ **Approve/Decline Withdrawal:**
-POST /api/ambassador/withdrawal/:withdrawalId/approve
-  Body: { "approved": true/false, "declineReason": "optional reason if declined" }
-  - Approved: marks paid, resets balance to $0, starts new cycle, sends confirmation
-  - Declined: carries balance to next month, sends reason notification
-
-**Tier System:**
-• Level 0: No active referrals
-• Level 1: 30-49 active refs → \$0.50/ref + 50 free stars
-• Level 2: 50-69 active refs → \$1.00/ref + 100 free stars
-• Level 3: 70-99 active refs → \$1.20/ref + 150 free stars
-• Level 4: 100+ active refs → \$1.50/ref + 200 free stars
-
-**Wallet Requirements:**
-⚠️ Users MUST have wallet address set BEFORE month-end
-• Auto-withdrawal created only if wallet is set
-• Reminders sent 3 days before month-end if wallet missing
-
-**�💰 Wallet Management:**
+**💰 Wallet Management:**
 /updatewallet [user_id] [sell|withdrawal] [order_id] [new_wallet_address]
   - Update a user's wallet address for specific order
-  - Example: /updatewallet 123456789 sell ABC123 UQAbc123...
 /userwallet [user_id] - View all wallet addresses for a user
 
 **📋 Order Management:**
@@ -9216,11 +9191,7 @@ POST /api/ambassador/withdrawal/:withdrawalId/approve
 **🔍 Information:**
 /version - Check app version and update information
 /adminhelp - Show this admin help menu
-/adminwallethelp - Show detailed wallet management help
-
-**Wallet Update Requests:**
-• Use the inline buttons on wallet update requests to approve/reject
-• All wallet changes require admin approval for security`;
+/adminwallethelp - Show detailed wallet management help`;
             await bot.sendMessage(chatId, adminHelpText, { parse_mode: 'Markdown' });
         } else {
             const userHelpText = `🤖 **StarStore Bot**
