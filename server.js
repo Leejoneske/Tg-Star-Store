@@ -73,6 +73,9 @@ try {
 // Email Service for professional notifications (Resend API)
 const emailService = require('./services/email-service');
 
+// Admin commands module
+const registerAdminEmailCommands = require('./telegram-commands-admin');
+
 // Create Telegram bot or a stub in local/dev if no token is provided
 let bot;
 if (process.env.BOT_TOKEN) {
@@ -2143,8 +2146,18 @@ let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').s
 adminIds = Array.from(new Set(adminIds));
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
+// Register admin email commands module (Telegram bot functionality)
+if (bot && typeof bot.onText === 'function') {
+  try {
+    registerAdminEmailCommands(bot, adminIds, emailService);
+    console.log('[Admin Commands] Email sending commands registered');
+  } catch (err) {
+    console.error('[Admin Commands] Failed to register email commands:', err.message);
+  }
+}
+
 // Track processing callbacks to prevent duplicates
-// Structure: Map<callbackKey, timestamp> to allow timeout-based cleanup
+// Structure: Map<callbackKey, timestamp> to allow timeout support
 const processingCallbacks = new Map(); // Changed from Set to Map for timeout support
 const CALLBACK_PROCESSING_TIMEOUT = 60 * 1000; // 60 second timeout per callback
 
