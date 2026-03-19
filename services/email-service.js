@@ -55,14 +55,14 @@ function getEmailTemplate(title, content) {
     <div class="container">
         <div class="header">
             <h1>${title}</h1>
-            <div class="logo">StarStore | Professional Trading Platform</div>
+            <div class="logo">StarStore | Trade Smart</div>
         </div>
         <div class="content">
             ${content}
         </div>
         <div class="footer">
-            <p>StarStore | Professional Trading Platform</p>
-            <p style="margin-top: 8px; color: #999;">© 2024 StarStore. All rights reserved.</p>
+            <p>StarStore | Trade Smart</p>
+            <p style="margin-top: 8px; color: #999;">© 2026 StarStore. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -81,11 +81,11 @@ async function sendEmail(to, subject, htmlContent) {
 
     try {
         const result = await resend.emails.send({
-            from: process.env.RESEND_FROM_EMAIL || 'StarStore <noreply@StarStore.site>',
+            from: process.env.RESEND_FROM_EMAIL || 'StarStore <noreply@starstore.site>',
             to,
             subject,
             html: htmlContent,
-            reply_to: 'support@StarStore.site'
+            reply_to: 'support@starstore.site'
         });
 
         if (result.error) {
@@ -106,14 +106,14 @@ async function sendEmail(to, subject, htmlContent) {
  */
 async function sendAmbassadorApplicationSubmitted(email, username, socialLinks) {
     const content = `
-<h2>Application Received</h2>
-<p>Hi ${username || 'there'},</p>
-<p>We've received your application for the StarStore Ambassador Program. Our team will review it and get back to you soon.</p>
+<h2>Your Application is In</h2>
+<p>Hey ${username || 'there'},</p>
+<p>Got your ambassador application. We're checking it out and will let you know what's next.</p>
 <div class="info-box">
-    <p><strong>What's next?</strong></p>
-    <p>Our admins will review your application, social links, and engagement. You'll receive a notification once a decision has been made.</p>
+    <p><strong>What happens now?</strong></p>
+    <p>We'll look through your profile and social links. Once we decide, you'll get an email with the status.</p>
 </div>
-<p>In the meantime, feel free to explore the platform and familiarize yourself with our features.</p>
+<p>In the meantime, explore the platform and get familiar with how everything works.</p>
 <p>Questions? Contact our support team anytime.</p>
 <p style="margin-top: 24px; font-size: 12px; color: #6c757d;">Application submitted: ${new Date().toLocaleString()}</p>
     `;
@@ -126,13 +126,13 @@ async function sendAmbassadorApplicationSubmitted(email, username, socialLinks) 
  */
 async function sendAmbassadorApplicationDenied(email, username) {
     const content = `
-<h2>Application Status Update</h2>
-<p>Hi ${username || 'there'},</p>
-<p>Thank you for applying for the StarStore Ambassador Program. After careful review, we've decided not to move forward with your application at this time.</p>
+<h2>Application Status</h2>
+<p>Hey ${username || 'there'},</p>
+<p>Thanks for applying to our ambassador program. This time, it's not the right fit, but don't worry—you can always try again.</p>
 <div class="info-box">
-    <p>This doesn't mean your application was rejected permanently. Feel free to reapply in the future as you build your presence on social platforms and increase your engagement with the community.</p>
+    <p>Build up your social presence and engagement, then reapply whenever you're ready. We'd love to have you on the team.</p>
 </div>
-<p>We appreciate your interest and hope to work together in the future.</p>
+<p>Want to grow together? Get back in touch when you feel ready.</p>
 <p style="margin-top: 24px; font-size: 12px; color: #6c757d;">If you have questions, please contact our support team.</p>
     `;
     
@@ -144,24 +144,24 @@ async function sendAmbassadorApplicationDenied(email, username) {
  */
 async function sendAmbassadorApproved(email, username, referralCode) {
     const content = `
-<h2>Congratulations!</h2>
-<p>Hi ${username || 'there'},</p>
-<p>We're excited to let you know that your application for the StarStore Ambassador Program has been <span class="highlight">approved</span>!</p>
+<h2>You're In! 🎉</h2>
+<p>Hey ${username || 'there'},</p>
+<p>Your application got approved! You're officially part of the StarStore ambassador crew now.</p>
 <div class="success-box">
-    <p><strong>Your Ambassador Details:</strong></p>
-    <p>Referral Code: <span class="highlight"><code>${referralCode}</code></span></p>
-    <p>You can now access the ambassador dashboard and start earning commissions from referrals.</p>
+    <p><strong>Your Referral Code:</strong></p>
+    <p><span class="highlight"><code>${referralCode}</code></span></p>
+    <p>Start using this to earn commissions on every referral.</p>
 </div>
-<h3 style="margin-top: 24px; font-size: 16px;">Getting Started:</h3>
+<h3 style="margin-top: 24px; font-size: 16px;">Next Steps:</h3>
 <ol style="padding-left: 20px;">
-    <li>Log in to StarStore and visit your Ambassador Dashboard</li>
-    <li>Set your wallet address for payouts</li>
-    <li>Start sharing your referral code with your community</li>
-    <li>Earn commissions based on your tier level</li>
+    <li>Log into your dashboard</li>
+    <li>Add your wallet address (this is where we'll send your money)</li>
+    <li>Start sharing your code</li>
+    <li>Watch the earnings flow in</li>
 </ol>
 <div class="divider"></div>
-<p><strong>Did you know?</strong> Higher tier ambassadors earn more per referral. Build your network and grow your earnings!</p>
-<p style="margin-top: 24px;">Welcome to the StarStore Ambassador family!</p>
+<p><strong>Pro tip:</strong> Higher-tier ambassadors earn more. Build your network and level up.</p>
+<p style="margin-top: 24px;">Welcome aboard! 🚀</p>
     `;
     
     return sendEmail(email, 'Ambassador Application Approved - StarStore', getEmailTemplate('You\'re Approved!', content));
@@ -172,17 +172,17 @@ async function sendAmbassadorApproved(email, username, referralCode) {
  */
 async function sendWalletAddressConfirmation(email, username, walletPreview) {
     const content = `
-<h2>Wallet Address Confirmed</h2>
-<p>Hi ${username || 'there'},</p>
-<p>Your TON wallet address has been successfully registered for payouts.</p>
+<h2>Wallet Locked In ✓</h2>
+<p>Hey ${username || 'there'},</p>
+<p>Your TON wallet is set. All your earnings will go here.</p>
 <div class="success-box">
-    <p><strong>Wallet Address:</strong> ${walletPreview}</p>
-    <p>All future earnings and withdrawals will be sent to this address.</p>
+    <p><strong>Wallet:</strong> ${walletPreview}</p>
+    <p>You're all set to receive payouts.</p>
 </div>
 <div class="info-box">
-    <p><strong>Important:</strong> Make sure this is the correct wallet address. You can update it anytime from your ambassador dashboard.</p>
+    <p><strong>Important:</strong> Double-check this is the right wallet. You can change it from your dashboard if needed.</p>
 </div>
-<p>Your earnings will be calculated monthly based on your tier level and active referrals.</p>
+<p>Earnings are calculated monthly based on your tier and active referrals.</p>
     `;
     
     return sendEmail(email, 'Wallet Address Confirmed - StarStore', getEmailTemplate('Wallet Registered', content));
@@ -193,21 +193,20 @@ async function sendWalletAddressConfirmation(email, username, walletPreview) {
  */
 async function sendWalletReminderBeforePayout(email, username) {
     const content = `
-<h2>Action Required: Set Your Wallet Address</h2>
-<p>Hi ${username || 'there'},</p>
-<p>Your monthly payout is coming up in 3 days, but we don't have a wallet address on file yet.</p>
+<h2>Quick Action: Add Your Wallet 🕐</h2>
+<p>Hey ${username || 'there'},</p>
+<p>Your payout is in 3 days, but no wallet address on file yet.</p>
 <div class="info-box">
-    <p><strong>To receive your earnings, you must set your TON wallet address in the ambassador dashboard before the payout date.</strong></p>
+    <p><strong>You need to add your wallet before payout or your earnings get held over to next month.</strong></p>
 </div>
-<p>If you don't set a wallet address, your earnings will be held and added to next month's payout.</p>
-<p><strong>Steps to set your wallet:</strong></p>
+<p><strong>Here's how:</strong></p>
 <ol style="padding-left: 20px;">
-    <li>Log in to StarStore</li>
-    <li>Go to Ambassador Dashboard</li>
-    <li>Enter your TON wallet address</li>
-    <li>Save and confirm</li>
+    <li>Log into your StarStore dashboard</li>
+    <li>Find your wallet settings</li>
+    <li>Add your TON wallet</li>
+    <li>Done</li>
 </ol>
-<p style="margin-top: 24px; color: #dc3545;">⏰ You have until <strong>end of month</strong> to set your wallet address.</p>
+<p style="margin-top: 24px; color: #dc3545;">⏰ <strong>Due by end of month</strong> — don't miss it.</p>
     `;
     
     return sendEmail(email, 'Action Required: Set Wallet Address for Payout', getEmailTemplate('Wallet Address Needed', content));
@@ -218,16 +217,16 @@ async function sendWalletReminderBeforePayout(email, username) {
  */
 async function sendWithdrawalCreated(email, username, amount, earnings) {
     const content = `
-<h2>Monthly Withdrawal Request Created</h2>
-<p>Hi ${username || 'there'},</p>
-<p>Your monthly withdrawal request has been created and is pending admin approval.</p>
+<h2>Withdrawal Request Submitted 📤</h2>
+<p>Hey ${username || 'there'},</p>
+<p>Your withdrawal request is in and waiting for approval.</p>
 <div class="info-box">
-    <p><strong>Withdrawal Details:</strong></p>
+    <p><strong>Details:</strong></p>
     <p>Amount: <span class="highlight">$${amount.toFixed(2)}</span></p>
     <p>Breakdown: ${earnings.map(e => `${e.tier} (+$${e.amount.toFixed(2)})`).join(', ')}</p>
 </div>
-<p>Our team will review and process this within 1-2 business days. You'll receive a confirmation email once approved.</p>
-<p style="margin-top: 24px; font-size: 12px; color: #6c757d;">Thank you for being part of the StarStore Ambassador Program!</p>
+<p>We'll process this in 1-2 business days. You'll get another email when it's approved.</p>
+<p style="margin-top: 24px; font-size: 12px; color: #6c757d;">Thanks for being an ambassador with us!</p>
     `;
     
     return sendEmail(email, 'Withdrawal Request Submitted - StarStore', getEmailTemplate('Withdrawal Created', content));
@@ -238,17 +237,17 @@ async function sendWithdrawalCreated(email, username, amount, earnings) {
  */
 async function sendWithdrawalApproved(email, username, amount, txHash) {
     const content = `
-<h2>Withdrawal Approved</h2>
-<p>Hi ${username || 'there'},</p>
-<p>Your withdrawal request has been approved and the payment is being processed.</p>
+<h2>It's Happening! 💰</h2>
+<p>Hey ${username || 'there'},</p>
+<p>Your withdrawal is approved and the money's on its way.</p>
 <div class="success-box">
-    <p><strong>Payment Information:</strong></p>
+    <p><strong>Details:</strong></p>
     <p>Amount: <span class="highlight">$${amount.toFixed(2)}</span></p>
     <p>Status: Processing to your wallet</p>
     ${txHash ? `<p>Transaction: <code style="font-size: 11px;">${txHash}</code></p>` : ''}
 </div>
-<p>Transactions typically complete within 24-48 hours depending on blockchain network congestion.</p>
-<p>You can track your payment status in the ambassador dashboard.</p>
+<p>It'll hit your wallet in 24-48 hours (depends on the blockchain).</p>
+<p>You can check the status in your dashboard anytime.</p>
     `;
     
     return sendEmail(email, 'Withdrawal Approved - StarStore', getEmailTemplate('Payment Approved', content));
@@ -259,14 +258,14 @@ async function sendWithdrawalApproved(email, username, amount, txHash) {
  */
 async function sendWithdrawalDeclined(email, username, reason) {
     const content = `
-<h2>Withdrawal Request Status</h2>
-<p>Hi ${username || 'there'},</p>
-<p>Your withdrawal request could not be processed at this time.</p>
+<h2>Withdrawal Status</h2>
+<p>Hey ${username || 'there'},</p>
+<p>We couldn't process your withdrawal this time.</p>
 <div class="info-box">
-    <p><strong>Reason:</strong> ${reason || 'Please contact support for more details'}</p>
+    <p><strong>Why:</strong> ${reason || 'Message our support team for details'}</p>
 </div>
-<p>Your earnings have been carried over and will be available in your next monthly withdrawal. No funds were lost.</p>
-<p>If you have questions about this decision, please reach out to our support team.</p>
+<p>Your earnings are safe and will be available again next month. Nothing is lost.</p>
+<p>Questions? Hit up our support team and they'll help you out.</p>
     `;
     
     return sendEmail(email, 'Withdrawal Request Update - StarStore', getEmailTemplate('Request Status', content));
@@ -277,13 +276,13 @@ async function sendWithdrawalDeclined(email, username, reason) {
  */
 async function sendNewsletterWelcome(email) {
     const content = `
-<h2>Welcome to StarStore Updates</h2>
-<p>Thank you for subscribing to our newsletter!</p>
-<p>You'll now receive the latest news about new features, platform updates, special promotions, and exclusive ambassador tips.</p>
+<h2>Welcome to the Loop 📬</h2>
+<p>Thanks for signing up for our newsletter!</p>
+<p>You'll get the latest on new features, platform updates, deals, and ambassador tips straight to your inbox.</p>
 <div class="success-box">
-    <p>We're committed to keeping our subscribers informed with valuable content, not spam. Expect updates at most once a week.</p>
+    <p>We keep it real—valuable stuff only, no spam. Expect something weekly at most.</p>
 </div>
-<p style="margin-top: 24px;">Stay tuned for exciting announcements from the StarStore team!</p>
+<p style="margin-top: 24px;">Excited to keep you in the loop. See you in your inbox!</p>
     `;
     
     return sendEmail(email, 'Welcome to StarStore Newsletter', getEmailTemplate('Welcome to Our Newsletter', content));
