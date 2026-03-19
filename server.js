@@ -2161,6 +2161,21 @@ if (bot && typeof bot.onText === 'function') {
 const processingCallbacks = new Map(); // Changed from Set to Map for timeout support
 const CALLBACK_PROCESSING_TIMEOUT = 60 * 1000; // 60 second timeout per callback
 
+// Email sending session management (for interactive /sendemail command)
+const emailSessions = new Map(); // Map<chatId, {step, recipient, subject, templates, createdAt}>
+const EMAIL_SESSION_TIMEOUT = 3 * 60 * 1000; // 3 minutes of inactivity
+
+// Clean up old email sessions every minute
+setInterval(() => {
+    const now = Date.now();
+    for (const [chatId, session] of emailSessions.entries()) {
+        if (now - session.createdAt > EMAIL_SESSION_TIMEOUT) {
+            emailSessions.delete(chatId);
+            console.log(`[Email Session] Timeout for chat ${chatId}`);
+        }
+    }
+}, 60000);
+
 // Clean up old processing entries every 5 minutes and log stats
 setInterval(() => {
     const now = Date.now();
@@ -9674,6 +9689,215 @@ bot.onText(/^\/userinfo\s+(\d+)/i, async (msg, match) => {
     }
 });
 
+// ==== INTERACTIVE EMAIL SENDING COMMAND ====
+// /sendemail - Start interactive email sending session
+bot.onText(/\/sendemail/i, async (msg) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
+    // Verify admin
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
+            parse_mode: 'Markdown'
+        });
+    }
+    
+    // Start a new session
+    emailSessions.set(chatId, {
+        step: 'template_select',
+        recipient: null,
+        subject: null,
+        template: null,
+        createdAt: Date.now(),
+        adminId: adminId,
+        adminName: msg.from.username ? `@${msg.from.username}` : msg.from.first_name
+    });
+    
+    // Show available templates
+    const templateList = `📧 **Email Template Selection**\n\n` +
+        `Choose an email template:\n\n` +
+        `1️⃣ Ambassador Approval\n` +
+        `2️⃣ Welcome/Onboarding\n` +
+        `3️⃣ Promotional\n` +
+        `4️⃣ Support/Notification\n` +
+        `5️⃣ Custom Template\n\n` +
+        `Reply with the number (1-5):`;
+    
+    bot.sendMessage(chatId, templateList, { parse_mode: 'Markdown' });
+});
+
+// Handle email session input
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
+    // Only process if there's an active email session
+    if (!emailSessions.has(chatId)) return;
+    
+    const session = emailSessions.get(chatId);
+    
+    // Verify it's still the same admin
+    if (session.adminId !== adminId) {
+        return bot.sendMessage(chatId, '❌ This session belongs to another admin.');
+    }
+    
+    // Verify session not timed out
+    if (Date.now() - session.createdAt > EMAIL_SESSION_TIMEOUT) {
+        emailSessions.delete(chatId);
+        return bot.sendMessage(chatId, '⏱️ **Session Expired**\n\nEmail sending session timed out after 3 minutes of inactivity. Use /sendemail to start again.', {
+            parse_mode: 'Markdown'
+        });
+    }
+    
+    const text = msg.text?.trim();
+    if (!text) return; // Ignore non-text messages
+    
+    // Skip if this is a command
+    if (text.startsWith('/')) return;
+    
+    try {
+        if (session.step === 'template_select') {
+            const templateChoice = text;
+            const templates = {
+                '1': {
+                    name: 'Ambassador Approval',
+                    subject: 'Welcome to StarStore Ambassador Program',
+                    body: 'Congratulations! You have been approved as a StarStore Ambassador. Your referral link is ready to use.'
+                },
+                '2': {
+                    name: 'Welcome/Onboarding',
+                    subject: 'Welcome to StarStore',
+                    body: 'Welcome! We\'re excited to have you on board. Thank you for joining our community.'
+                },
+                '3': {
+                    name: 'Promotional',
+                    subject: 'Exclusive Offer for You',
+                    body: 'Don\'t miss out on our latest promotions and exclusive offers just for you!'
+                },
+                '4': {
+                    name: 'Support/Notification',
+                    subject: 'Important Update',
+                    body: 'This is an important notification regarding your account or a recent transaction.'
+                },
+                '5': {
+                    name: 'Custom',
+                    subject: null,
+                    body: null
+                }
+            };
+            
+            if (!templates[templateChoice]) {
+                return bot.sendMessage(chatId, '❌ Invalid template number. Please choose 1-5.');
+            }
+            
+            session.template = templates[templateChoice];
+            
+            if (templateChoice === '5') {
+                // Custom template - ask for subject first
+                session.step = 'custom_subject';
+                bot.sendMessage(chatId, '📝 **Custom Email**\n\nEnter the email subject:', { parse_mode: 'Markdown' });
+            } else {
+                // Preset template - show preview and ask for recipient
+                session.step = 'recipient';
+                const preview = `📝 **Template Preview**\n\n**Name**: ${session.template.name}\n**Subject**: ${session.template.subject}\n**Body**: ${session.template.body}\n\n` +
+                    `Now enter the recipient email address:`;
+                bot.sendMessage(chatId, preview, { parse_mode: 'Markdown' });
+            }
+        } 
+        else if (session.step === 'custom_subject') {
+            session.subject = text;
+            session.step = 'custom_body';
+            bot.sendMessage(chatId, '📄 **Custom Body**\n\nEnter the email body (HTML supported):', { parse_mode: 'Markdown' });
+        }
+        else if (session.step === 'custom_body') {
+            session.template.body = text;
+            session.step = 'recipient';
+            const preview = `📝 **Custom Template Preview**\n\n**Subject**: ${session.subject}\n**Body**: ${session.template.body}\n\n` +
+                `Now enter the recipient email address:`;
+            bot.sendMessage(chatId, preview, { parse_mode: 'Markdown' });
+        }
+        else if (session.step === 'recipient') {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(text)) {
+                return bot.sendMessage(chatId, '❌ Invalid email format. Please enter a valid email address.');
+            }
+            
+            session.recipient = text;
+            session.step = 'confirm';
+            
+            const confirmMsg = `✅ **Confirm Email Details**\n\n` +
+                `**Recipient**: ${session.recipient}\n` +
+                `**Subject**: ${session.subject || session.template.subject}\n` +
+                `**Template**: ${session.template.name}\n\n` +
+                `Reply with:\n` +
+                `✅ To send\n` +
+                `❌ To cancel\n` +
+                `🔄 To start over`;
+            
+            bot.sendMessage(chatId, confirmMsg, { parse_mode: 'Markdown' });
+        }
+        else if (session.step === 'confirm') {
+            if (text.toLowerCase() === '✅' || text.toLowerCase() === 'yes') {
+                // Send the email
+                const finalSubject = session.subject || session.template.subject;
+                const finalBody = session.template.body;
+                
+                try {
+                    const result = await emailService.sendCustomEmail(session.recipient, finalSubject, finalBody);
+                    
+                    if (result.success) {
+                        const successMsg = `✅ **Email Sent Successfully!**\n\n` +
+                            `**To**: ${session.recipient}\n` +
+                            `**Subject**: ${finalSubject}\n` +
+                            `**Template**: ${session.template.name}\n` +
+                            `**Message ID**: ${result.messageId || 'N/A'}\n` +
+                            `**Sent At**: ${new Date().toLocaleString()}\n` +
+                            `**Sent By**: ${session.adminName}\n\n` +
+                            `Use /sendemail to send another email.`;
+                        
+                        bot.sendMessage(chatId, successMsg, { parse_mode: 'Markdown' });
+                        console.log(`📧 [Admin Email] From ${session.adminName}: sent "${finalSubject}" to ${session.recipient}`);
+                    } else {
+                        const error = result.offline ? 
+                            '⚠️ Email service is offline (no API key configured)' : 
+                            `❌ Failed to send: ${result.error}`;
+                        
+                        bot.sendMessage(chatId, error);
+                    }
+                } catch (error) {
+                    console.error('[Admin Email] Send error:', error);
+                    bot.sendMessage(chatId, `❌ Error sending email: ${error.message}`);
+                } finally {
+                    emailSessions.delete(chatId);
+                }
+            } 
+            else if (text.toLowerCase() === '❌' || text.toLowerCase() === 'no') {
+                emailSessions.delete(chatId);
+                bot.sendMessage(chatId, '❌ Email sending cancelled. Use /sendemail to start again.');
+            }
+            else if (text.toLowerCase() === '🔄' || text.toLowerCase() === 'restart') {
+                emailSessions.delete(chatId);
+                // Restart the command
+                bot.processUpdate({
+                    message: {
+                        message_id: msg.message_id,
+                        chat: msg.chat,
+                        from: msg.from,
+                        text: '/sendemail'
+                    }
+                });
+            }
+            else {
+                bot.sendMessage(chatId, 'Please reply with one of: ✅, ❌, or 🔄');
+            }
+        }
+    } catch (error) {
+        console.error('[Email Session] Error:', error);
+        emailSessions.delete(chatId);
+        bot.sendMessage(chatId, `❌ An error occurred: ${error.message}`);
+    }
+});
+
 bot.onText(/\/adminhelp/, (msg) => {
     const chatId = msg.chat.id;
     const adminId = msg.from.id.toString();
@@ -9718,6 +9942,8 @@ bot.onText(/\/adminhelp/, (msg) => {
 /reply [user_id1,user_id2,...] [message] - Send message to multiple users
 /broadcast - Send broadcast message to all users
 /notify [all|@username|user_id] [message] - Send targeted notification
+/add_amb [user_id] [email] - Add user as ambassador
+/sendemail - Send custom email to users (interactive session)
 
 **🔍 Information:**
 /version - Check app version and update information
