@@ -1731,12 +1731,11 @@ const bannedUserSchema = new mongoose.Schema({
 const userActivityLogSchema = new mongoose.Schema({
     userId: { type: String, required: true, index: true },
     username: String,
-    timestamp: { type: Date, default: Date.now, index: true },
+    timestamp: { type: Date, default: Date.now },
     actionType: { 
         type: String, 
         enum: ['message', 'button_click', 'command', 'api_call', 'order_created', 'order_completed', 'order_create', 'sell_order_create', 'payment_success', 'daily_checkin', 'mission_complete', 'login'],
-        required: true,
-        index: true
+        required: true
     },
     actionDetails: {
         command: String,
@@ -2020,7 +2019,7 @@ const activitySchema = new mongoose.Schema({
     activityType: { type: String, required: true },
     activityName: { type: String, required: true },
     points: { type: Number, required: true },
-    timestamp: { type: Date, default: Date.now, index: true },
+    timestamp: { type: Date, default: Date.now },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
 });
 
@@ -14569,28 +14568,34 @@ app.get('/api/me', async (req, res) => {
 	let isAmbassador = false;
 	try { 
 		if (req.user && req.user.username) username = req.user.username; 
-		// Check if user is ambassador
+		// Check if user is ambassador (from request object - may be cached)
 		if (req.user && req.user.ambassadorEmail) isAmbassador = true;
 	} catch(_) {}
 	try { 
 		if (!username && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.username) username = req.telegramInitData.user.username; 
 	} catch(_) {}
 	
-	// If we have a tgId but no user object, try to fetch from database
-	if (tgId && !isAmbassador) {
+	// ALWAYS verify ambassador status against fresh database query (don't trust cache)
+	if (tgId) {
 		try {
 			console.log(`🔍 /api/me: Checking ambassador status for user ${tgId} in database`);
 			const user = await User.findOne({ id: tgId }).lean();
 			if (user && user.ambassadorEmail) {
 				isAmbassador = true;
 				console.log(`✓ User ${tgId} IS ambassador (email: ${user.ambassadorEmail})`);
-			} else if (user) {
-				console.log(`✗ User ${tgId} found but NOT ambassador (ambassadorEmail: ${user.ambassadorEmail || 'undefined'})`);
 			} else {
-				console.log(`✗ User ${tgId} NOT found in database`);
+				// User either doesn't exist OR doesn't have ambassadorEmail - not an ambassador
+				isAmbassador = false;
+				if (user) {
+					console.log(`✗ User ${tgId} found but NOT ambassador (ambassadorEmail: ${user.ambassadorEmail || 'undefined'})`);
+				} else {
+					console.log(`✗ User ${tgId} NOT found in database`);
+				}
 			}
 		} catch (e) {
 			console.error('Error checking ambassador status:', e.message);
+			// On error, default to NOT ambassador (safer than assuming)
+			isAmbassador = false;
 		}
 	}
 	
