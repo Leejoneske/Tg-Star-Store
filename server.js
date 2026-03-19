@@ -1731,12 +1731,11 @@ const bannedUserSchema = new mongoose.Schema({
 const userActivityLogSchema = new mongoose.Schema({
     userId: { type: String, required: true, index: true },
     username: String,
-    timestamp: { type: Date, default: Date.now, index: true },
+    timestamp: { type: Date, default: Date.now },
     actionType: { 
         type: String, 
         enum: ['message', 'button_click', 'command', 'api_call', 'order_created', 'order_completed', 'order_create', 'sell_order_create', 'payment_success', 'daily_checkin', 'mission_complete', 'login'],
-        required: true,
-        index: true
+        required: true
     },
     actionDetails: {
         command: String,
@@ -2020,7 +2019,7 @@ const activitySchema = new mongoose.Schema({
     activityType: { type: String, required: true },
     activityName: { type: String, required: true },
     points: { type: Number, required: true },
-    timestamp: { type: Date, default: Date.now, index: true },
+    timestamp: { type: Date, default: Date.now },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
 });
 
