@@ -140,17 +140,17 @@ async function sendAmbassadorApplicationDenied(email, username) {
 }
 
 /**
- * Ambassador Approved - Notify User
+ * Ambassador Approved - Notify User with Referral Link
  */
-async function sendAmbassadorApproved(email, username, referralCode) {
+async function sendAmbassadorApproved(email, username, referralCode, referralLink) {
     const content = `
 <h2>You're In! 🎉</h2>
 <p>Hey ${username || 'there'},</p>
 <p>Your application got approved! You're officially part of the StarStore ambassador crew now.</p>
 <div class="success-box">
-    <p><strong>Your Referral Code:</strong></p>
-    <p><span class="highlight"><code>${referralCode}</code></span></p>
-    <p>Start using this to earn commissions on every referral.</p>
+    <p><strong>Your Referral Link:</strong></p>
+    <p><span class="highlight"><code>${referralLink}</code></span></p>
+    <p>Share this link with your audience to earn commissions on every referral.</p>
 </div>
 <h3 style="margin-top: 24px; font-size: 16px;">Next Steps:</h3>
 <ol style="padding-left: 20px;">
