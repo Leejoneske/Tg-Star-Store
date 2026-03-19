@@ -73,6 +73,9 @@ try {
 // Email Service for professional notifications (Resend API)
 const emailService = require('./services/email-service');
 
+// Admin commands module
+const registerAdminEmailCommands = require('./telegram-commands-admin');
+
 // Create Telegram bot or a stub in local/dev if no token is provided
 let bot;
 if (process.env.BOT_TOKEN) {
@@ -2143,8 +2146,18 @@ let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').s
 adminIds = Array.from(new Set(adminIds));
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
+// Register admin email commands module (Telegram bot functionality)
+if (bot && typeof bot.onText === 'function') {
+  try {
+    registerAdminEmailCommands(bot, adminIds, emailService);
+    console.log('[Admin Commands] Email sending commands registered');
+  } catch (err) {
+    console.error('[Admin Commands] Failed to register email commands:', err.message);
+  }
+}
+
 // Track processing callbacks to prevent duplicates
-// Structure: Map<callbackKey, timestamp> to allow timeout-based cleanup
+// Structure: Map<callbackKey, timestamp> to allow timeout support
 const processingCallbacks = new Map(); // Changed from Set to Map for timeout support
 const CALLBACK_PROCESSING_TIMEOUT = 60 * 1000; // 60 second timeout per callback
 
@@ -5428,6 +5441,7 @@ bot.on('callback_query', async (query) => {
                             console.log(`📝 APPROVAL FLOW END\n`);
                             
                             // Send approval email
+                            const referralLink = `https://t.me/TgStarStore_bot?start=ref_${userUpdate.referralHash}`;
                             const emailResult = await emailService.sendAmbassadorApproved(
                                 waitlistEntry.email,
                                 waitlistEntry.username || 'Ambassador',
@@ -8905,20 +8919,7 @@ bot.onText(/\/add_amb\s+(\d+)\s+(.+)$/, async (msg, match) => {
             });
         }
         
-        // Add as ambassador
-        user = await User.findOneAndUpdate(
-            { id: userId },
-            { ambassadorEmail: email },
-            { new: true }
-        );
-        
-        // Send notification to the user
-        const ambassadorNotification = `🎉 **Congratulations!**\n\n` +
-            `You've been added to our Ambassador program!\n\n` +
-            `**Email**: ${email}\n` +
-            `**Status**: Active\n\n` +
-            `You can now start earning through referrals. Use /referrals to get your referral link.\n\n` +
-            `Visit the ambassador page to set up your wallet and track your earnings.`;
+        // ADD AS AMBASSADOR WITH ALL REQUIRED FIELDS (same as normal approval)\n        user = await User.findOneAndUpdate(\n            { id: userId },\n            { \n                $set: {\n                    ambassadorEmail: email,\n                    ambassadorTier: 'standard',\n                    ambassadorReferralCode: `AMB${Date.now().toString().slice(-6)}`,\n                    ambassadorApprovedAt: new Date(),\n                    ambassadorApprovedBy: requesterId,\n                    ambassadorCurrentLevel: 0,\n                    ambassadorReferralCount: 0,\n                    ambassadorLevelEarnings: {\n                        preLevelOne: 0,\n                        levelOne: 0,\n                        levelTwo: 0,\n                        levelThree: 0,\n                        levelFour: 0\n                    }\n                }\n            },\n            { new: true }\n        );\n        \n        // SEND APPROVAL EMAIL WITH REFERRAL LINK\n        const referralLink = `https://t.me/TgStarStore_bot?start=ref_${user.referralHash}`;\n        try {\n            await emailService.sendAmbassadorApproved(\n                email,\n                user.username || `User ${userId}`,\n                user.ambassadorReferralCode,\n                referralLink\n            );\n            console.log(`📧 Ambassador approval email sent to ${email}`);\n        } catch (emailErr) {\n            console.error(`⚠️ Email sending failed: ${emailErr.message}`);\n            // Don't fail the whole command if email fails\n        }\n        \n        // Send notification to the user via Telegram\n        const ambassadorNotification = `🎉 **Congratulations!**\n\n` +\n            `You've been approved as a StarStore Ambassador!\n\n` +\n            `**Email**: ${email}\n` +\n            `**Tier**: Standard\n` +\n            `**Referral Link**: https://t.me/TgStarStore_bot?start=ref_${user.referralHash}\n\n` +\n            `📧 A confirmation email with your referral link has been sent to ${email}.\n\n` +\n            `Next: Set your wallet address in the ambassador dashboard to start earning!\n\n` +\n            `Use /referrals to view your referral stats.`;
         
         try {
             await bot.sendMessage(userId, ambassadorNotification, { parse_mode: 'Markdown' });
@@ -8929,8 +8930,13 @@ bot.onText(/\/add_amb\s+(\d+)\s+(.+)$/, async (msg, match) => {
         // Send confirmation to admin
         const adminConfirmation = `✅ **Ambassador Added**\n\n` +
             `**User ID**: ${userId}\n` +
+            `**Username**: ${user.username || 'N/A'}\n` +
             `**Email**: ${email}\n` +
-            `**Status**: Active\n` +
+            `**Tier**: Standard\n` +
+            `**Referral Code**: ${user.ambassadorReferralCode}\n` +
+            `**Referral Link**: https://t.me/TgStarStore_bot?start=ref_${user.referralHash}\n` +
+            `**Status**: Active (all fields initialized)\n` +
+            `**Email Sent**: ✅ Yes\n` +
             `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
             `**Timestamp**: ${new Date().toLocaleString()}`;
         
