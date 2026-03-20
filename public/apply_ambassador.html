@@ -359,20 +359,66 @@
                 gap: 15px;
             }
         }
+
+        /* Topbar styling for back button */
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            background: var(--bg, #ffffff);
+        }
+
+        .topbar-exit-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            color: #666;
+            border-radius: 50%;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+
+        .topbar-exit-btn:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .topbar .logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            gap: 8px;
+        }
+
+        .topbar .logo img {
+            height: 32px;
+            width: 32px;
+            border-radius: 6px;
+        }
     </style>
 </head>
 <body>
+    <div class="topbar">
+        <button id="exitButton" class="topbar-exit-btn" aria-label="Back">
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                <path d="M14 5L8 11L14 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        <div class="logo">
+            <img src="/favicon.png" alt="StarStore" style="vertical-align:middle;">
+            <span>StarStore</span>
+        </div>
+    </div>
+
     <div class="container">
-        <header style="position: relative;">
-            <button id="exitButton" style="position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.1); color: #333; border: 1px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 8px 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onmouseover="this.style.background='rgba(0,0,0,0.2)'; this.style.color='#000'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='#333'">
-                ← Back
-            </button>
-            <div class="logo">
-                <img src="/favicon.png" alt="StarStore" style="height:48px;width:48px;vertical-align:middle;margin-right:8px;border-radius:8px;">
-                <span>StarStore</span>
-            </div>
-        </header>
-        
+
         <div class="hero">
             <h1>Become a StarStore<br>Ambassador</h1>
             <p class="subtitle">Join our exclusive community and <span class="highlight">earn while you promote</span> products you love</p>
