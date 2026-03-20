@@ -8318,7 +8318,8 @@ bot.on('callback_query', async (query) => {
             return;
         }
 
-        if (!data.includes('withdrawal_')) {
+        // Only handle withdrawal completion/decline actions, not wallet updates
+        if (!(data.startsWith('complete_withdrawal_') || data.startsWith('decline_withdrawal_') || data.startsWith('decline_reason_'))) {
             return;
         }
 
