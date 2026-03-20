@@ -2452,11 +2452,11 @@ function updateUserInterface(user) {
     }
     
     if (user.username) {
-        usernameElement.innerHTML = `@${user.username}${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''}`;
+        usernameElement.innerHTML = `@${user.username}${user.isAmbassador ? ' <span style="display: inline-flex; align-items: center; justify-content: center; background: #0095F6; color: white; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; font-weight: bold; margin-left: 5px; vertical-align: middle; box-shadow: 0 2px 4px rgba(0, 149, 246, 0.3); flex-shrink: 0;">✓</span>' : ''}`;
     } else if (user.first_name) {
-        usernameElement.innerHTML = `${user.first_name}${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''}`;
+        usernameElement.innerHTML = `${user.first_name}${user.isAmbassador ? ' <span style="display: inline-flex; align-items: center; justify-content: center; background: #0095F6; color: white; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; font-weight: bold; margin-left: 5px; vertical-align: middle; box-shadow: 0 2px 4px rgba(0, 149, 246, 0.3); flex-shrink: 0;">✓</span>' : ''}`;
     } else {
-        usernameElement.innerHTML = `User${user.isAmbassador ? ' <span style="color: #fbbf24; font-size: 0.9em;">✓</span>' : ''}`;
+        usernameElement.innerHTML = `User${user.isAmbassador ? ' <span style="display: inline-flex; align-items: center; justify-content: center; background: #0095F6; color: white; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; font-weight: bold; margin-left: 5px; vertical-align: middle; box-shadow: 0 2px 4px rgba(0, 149, 246, 0.3); flex-shrink: 0;">✓</span>' : ''}`;
     }
 
     if (userIdText) {
