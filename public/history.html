@@ -136,26 +136,44 @@
             font-weight: 600;
             letter-spacing: 0.3px;
             text-transform: uppercase;
+            border: 1.5px solid currentColor;
+            background: transparent;
         }
 
         .status-completed {
-            background: #ecfdf5;
             color: #059669;
+        }
+        @media (prefers-color-scheme: dark) {
+            .status-completed {
+                color: #34d399;
+            }
         }
 
         .status-processing {
-            background: #eff6ff;
             color: #2563eb;
+        }
+        @media (prefers-color-scheme: dark) {
+            .status-processing {
+                color: #60a5fa;
+            }
         }
 
         .status-declined {
-            background: #fef2f2;
             color: #dc2626;
+        }
+        @media (prefers-color-scheme: dark) {
+            .status-declined {
+                color: #f87171;
+            }
         }
 
         .status-failed {
-            background: #fef2f2;
             color: #dc2626;
+        }
+        @media (prefers-color-scheme: dark) {
+            .status-failed {
+                color: #f87171;
+            }
         }
 
         .status-expired {
