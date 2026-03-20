@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-SX6TDXG0N8"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);} 
+      function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-SX6TDXG0N8');
     </script>
@@ -13,398 +12,590 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
     <meta name="description" content="Send feedback to StarStore team">
     <title>Send Feedback | StarStore</title>
-    
     <link rel="canonical" href="https://starstore.site/feedback">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="/js/translations.js?v=4"></script>
     <script src="/js/loading.js?v=1"></script>
     <script src="/js/version.js?v=1"></script>
-    
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="/css/theme.css?v=1">
     <link rel="stylesheet" href="/css/theme-additional.css?v=8">
-    
     <style>
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background: #f5f5f5; 
-            margin: 0; 
-            padding: 0; 
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --green: #25D366;
+            --green-dark: #128C7E;
+            --text: #111111;
+            --text2: #54656f;
+            --text3: #8696a0;
+            --bg: #ffffff;
+            --bg2: #f0f2f5;
+            --border: #e9edef;
+            --input-border: #c4c9cc;
         }
-        /* Hide bottom nav on feedback page */
-        #bottomnav-container {
-            display: none !important;
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            margin: 0;
         }
-        .app-container { 
-            max-width: 600px; 
-            margin: 0 auto; 
-            background: #f5f5f5; 
-            min-height: 100vh; 
-            position: relative; 
-            overflow: hidden; 
+
+        #bottomnav-container { display: none !important; }
+
+        .app {
+            max-width: 560px;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
         }
-        .telegram-fullscreen .app-container { 
-            max-width: 100%; 
-            width: 100%; 
-            margin: 0; 
-            box-shadow: none; 
-            border-radius: 0; 
+
+        .telegram-fullscreen .app { max-width: 100%; width: 100%; margin: 0; }
+        html[dir="rtl"] #exitButton { right: auto !important; left: 16px !important; }
+
+        /* ── TOP BAR ── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
         }
-        /* RTL-aware back button positioning */
-        html[dir="rtl"] #exitButton {
-            right: auto !important;
-            left: 16px !important;
-        }
-        .clean-card { 
-            background: white; 
-            border-radius: 16px; 
-            padding: 20px;
-            margin-bottom: 12px;
-        }
-        .btn-primary {
-            background: #007AFF;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
+
+        #exitButton {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            transition: opacity 0.2s, transform 0.2s;
-            width: 100%;
             justify-content: center;
-        }
-        .btn-primary:active {
-            opacity: 0.8;
-            transform: scale(0.98);
-        }
-        .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
-            padding: 12px;
-            border-radius: 10px;
-            font-weight: 500;
-            font-size: 13px;
-            border: 2px solid #e8e8e8;
+            background: none;
+            border: none;
+            padding: 4px;
             cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
+            color: var(--text2);
+            border-radius: 50%;
+            transition: background 0.15s;
+            flex-shrink: 0;
         }
-        .btn-secondary:hover {
-            border-color: #007AFF;
-            background: #f9f9f9;
+
+        #exitButton:hover { background: var(--bg2); }
+
+        .topbar-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text);
         }
-        .btn-secondary.active {
-            background: #007AFF;
-            color: white;
-            border-color: #007AFF;
+
+        /* ── SCREENS ── */
+        #screenForm { display: flex; flex-direction: column; flex: 1; }
+        #screenThanks { display: none; flex-direction: column; flex: 1; }
+
+        /* ── FORM SCREEN ── */
+        .form-body {
+            flex: 1;
+            padding: 16px 16px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
         }
-        input[type="email"],
+
+        .hint-text {
+            font-size: 13px;
+            color: var(--text2);
+            line-height: 1.55;
+        }
+
+        .hint-text a { color: var(--green-dark); text-decoration: none; font-weight: 500; }
+
+        /* Category row */
+        .cat-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text2);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 10px;
+        }
+
+        .cat-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .pill {
+            padding: 7px 14px;
+            border-radius: 20px;
+            border: 1.5px solid var(--border);
+            background: var(--bg);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text2);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .pill:hover { border-color: var(--green); color: var(--green-dark); }
+        .pill.active { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
+
+        /* Textarea */
         textarea {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #e0e0e0;
+            border: 1.5px solid var(--input-border);
             border-radius: 10px;
-            font-family: 'Inter', sans-serif;
-            font-size: 14px;
-            color: #333;
-            background: white;
-            transition: border 0.2s;
-            box-sizing: border-box;
-        }
-        textarea {
-            resize: vertical;
-            min-height: 100px;
+            padding: 14px;
+            font-family: inherit;
+            font-size: 15px;
+            color: var(--text);
+            background: var(--bg);
+            resize: none;
+            min-height: 130px;
             max-height: 200px;
-        }
-        input[type="email"]::placeholder,
-        textarea::placeholder {
-            color: #999;
-        }
-        input[type="email"]:focus,
-        textarea:focus {
+            line-height: 1.55;
             outline: none;
-            border-color: #007AFF;
-            background: white;
-            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+            transition: border-color 0.15s;
         }
-        .label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-        }
-        .char-counter {
+
+        textarea::placeholder { color: var(--text3); }
+        textarea:focus { border-color: var(--green); }
+
+        .char-count {
             text-align: right;
             font-size: 12px;
-            color: #999;
-            margin-top: 4px;
+            color: var(--text3);
+            margin-top: -10px;
+            font-variant-numeric: tabular-nums;
         }
-        .char-counter.warning {
-            color: #FF9500;
+
+        .char-count.warn { color: #f59e0b; }
+        .char-count.crit { color: #ef4444; }
+
+        /* Email input */
+        input[type="email"] {
+            width: 100%;
+            border: 1.5px solid var(--input-border);
+            border-radius: 10px;
+            padding: 13px 14px;
+            font-family: inherit;
+            font-size: 15px;
+            color: var(--text);
+            background: var(--bg);
+            outline: none;
+            transition: border-color 0.15s;
         }
-        .char-counter.critical {
-            color: #FF3B30;
+
+        input[type="email"]::placeholder { color: var(--text3); }
+        input[type="email"]:focus { border-color: var(--green); }
+
+        /* Media */
+        .media-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 3px;
         }
-        .type-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        .media-upload {
-            border: 2px dashed #d0d0d0;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: #f9f9f9;
-        }
-        .media-upload:hover {
-            border-color: #007AFF;
-            background: #f0f7ff;
-        }
-        .media-upload.drag-over {
-            border-color: #007AFF;
-            background: #e6f2ff;
-        }
-        .upload-icon {
-            font-size: 32px;
-            margin-bottom: 8px;
-            display: block;
-        }
-        .upload-text {
+
+        .media-sublabel {
             font-size: 13px;
-            font-weight: 500;
-            color: #333;
+            color: var(--text2);
+            margin-bottom: 10px;
         }
-        .upload-hint {
-            font-size: 12px;
-            color: #999;
-            margin-top: 4px;
-        }
-        #mediaInput {
-            display: none;
-        }
-        .media-preview {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+
+        .media-grid {
+            display: flex;
+            flex-wrap: wrap;
             gap: 8px;
-            margin-top: 12px;
         }
+
+        .media-add-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            background: var(--bg2);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+
+        .media-add-btn:hover { background: #dde1e5; }
+
         .media-item {
             position: relative;
-            border-radius: 10px;
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
             overflow: hidden;
-            aspect-ratio: 1;
-            background: #e8e8e8;
+            flex-shrink: 0;
+            background: var(--bg2);
         }
-        .media-item img,
-        .media-item video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+
+        .media-item img, .media-item video { width: 100%; height: 100%; object-fit: cover; }
+
         .media-remove {
             position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 24px;
-            height: 24px;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 50%;
+            top: 3px;
+            right: 3px;
+            width: 20px;
+            height: 20px;
+            background: rgba(0,0,0,0.55);
             border: none;
+            border-radius: 50%;
             color: white;
-            font-size: 12px;
+            font-size: 10px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
         }
-        .media-remove:hover {
-            background: rgba(0, 0, 0, 0.9);
-        }
-        .info-text {
+
+        #mediaInput { display: none; }
+
+        /* Footer note */
+        .form-footer-note {
             font-size: 12px;
-            color: #666;
-            line-height: 1.6;
+            color: var(--text2);
+            line-height: 1.55;
+            padding: 16px 16px 0;
         }
-        .info-text strong {
-            color: #333;
-            font-weight: 600;
-        }
-        .alert {
-            padding: 12px;
-            border-radius: 10px;
-            margin-bottom: 12px;
-            font-size: 13px;
-            display: none;
-        }
-        .alert.show {
-            display: block;
-        }
+
+        .form-footer-note a { color: var(--green-dark); font-weight: 500; text-decoration: none; }
+
+        /* Error */
         .alert-error {
-            background: #FFEBEE;
-            border-left: 4px solid #F44336;
-            color: #C62828;
+            margin: 0 16px;
+            padding: 11px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #991b1b;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            display: none;
+            line-height: 1.5;
         }
-        .alert-success {
-            background: #E8F5E9;
-            border-left: 4px solid #4CAF50;
-            color: #2E7D32;
+
+        .alert-error.show { display: block; }
+
+        /* Submit bar */
+        .submit-bar {
+            padding: 14px 16px;
+            padding-bottom: max(14px, env(safe-area-inset-bottom));
+            background: var(--bg);
         }
-        .content-wrapper {
-            padding: 16px;
-            padding-bottom: 16px;
+
+        .btn-send {
+            width: 100%;
+            background: var(--green);
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            padding: 14px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s, opacity 0.15s;
         }
-        .button-section {
-            padding: 16px;
-            padding-top: 8px;
-            padding-bottom: 80px;
-        }
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        .btn-primary.loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
+
+        .btn-send:active { background: #1ebe5d; }
+        .btn-send:disabled { background: var(--bg2); color: var(--text3); cursor: not-allowed; }
+
         .spinner {
             display: inline-block;
             width: 16px;
             height: 16px;
-            border: 2px solid rgba(255,255,255,0.3);
+            border: 2px solid rgba(255,255,255,0.35);
             border-radius: 50%;
             border-top-color: white;
             animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
         }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .success-message {
-            background: #E8F5E9;
-            border-left: 4px solid #4CAF50;
-            color: #2E7D32;
-            padding: 16px;
-            border-radius: 10px;
-            margin-bottom: 16px;
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── THANKS SCREEN ── */
+        .thanks-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 32px;
             text-align: center;
-            animation: slideDown 0.3s ease-out;
+            gap: 0;
         }
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+
+        .thanks-icon {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 28px;
+            position: relative;
         }
+
+        .thanks-icon-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .thanks-sparkle {
+            position: absolute;
+            background: var(--green);
+            border-radius: 1px;
+            transform-origin: center;
+        }
+
+        .sp1 { width: 6px; height: 6px; top: -6px; right: 8px; transform: rotate(45deg); border-radius: 1px; }
+        .sp2 { width: 5px; height: 5px; top: 4px; right: -6px; transform: rotate(20deg); border-radius: 1px; }
+        .sp3 { width: 5px; height: 5px; bottom: 0px; left: -4px; transform: rotate(30deg); border-radius: 1px; }
+
+        .thanks-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .thanks-sub {
+            font-size: 14px;
+            color: var(--text2);
+            line-height: 1.6;
+            max-width: 300px;
+        }
+
+        .thanks-footer {
+            padding: 0 16px 16px;
+            text-align: center;
+        }
+
+        .thanks-help {
+            font-size: 13px;
+            color: var(--text2);
+            margin-bottom: 16px;
+        }
+
+        .thanks-help a { color: var(--green-dark); font-weight: 500; text-decoration: none; }
+
+        .btn-done {
+            width: 100%;
+            background: var(--text);
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            padding: 14px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .btn-done:active { opacity: 0.85; }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header style="padding: 16px 20px; background: #f5f5f5; position: relative;">
-            <button id="exitButton" style="position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.1); color: #333; border: 1px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.15)'; this.style.color='#000'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='#333'">
-                ← Back
-            </button>
-            <h1 style="font-size: 24px; font-weight: 700; color: #000; margin: 0;" data-translate="sendFeedback">Send Feedback</h1>
-            <p style="font-size: 13px; color: #666; margin: 4px 0 0 0;" data-translate="feedbackDescription">Help us improve StarStore</p>
-        </header>
+<div class="app">
 
-        <!-- Content -->
-        <div class="content-wrapper">
-            <div id="errorMessage" class="alert alert-error"></div>
-            <div id="successMessage" class="alert alert-success"></div>
+    <!-- Top bar (shared) -->
+    <div class="topbar">
+        <button id="exitButton" aria-label="Back">
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                <path d="M14 5L8 11L14 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        <span class="topbar-title" data-translate="sendFeedback">Send feedback</span>
+    </div>
 
-            <form id="feedbackForm">
-                <!-- Feedback Type -->
-                <div class="clean-card">
-                    <label class="label" data-translate="feedbackType">📋 Type</label>
-                    <div class="type-grid">
-                        <button type="button" class="btn-secondary feedback-type" data-type="bug">
-                            <div style="font-size: 20px; margin-bottom: 4px;">🐛</div>
-                            <div data-translate="bugReport">Bug</div>
-                        </button>
-                        <button type="button" class="btn-secondary feedback-type" data-type="feature">
-                            <div style="font-size: 20px; margin-bottom: 4px;">💡</div>
-                            <div data-translate="featureRequest">Feature</div>
-                        </button>
-                        <button type="button" class="btn-secondary feedback-type" data-type="improvement">
-                            <div style="font-size: 20px; margin-bottom: 4px;">⚡</div>
-                            <div data-translate="improvement">Improve</div>
-                        </button>
-                        <button type="button" class="btn-secondary feedback-type" data-type="general">
-                            <div style="font-size: 20px; margin-bottom: 4px;">💬</div>
-                            <div data-translate="general">Other</div>
-                        </button>
+    <!-- ── FORM SCREEN ── -->
+    <div id="screenForm">
+        <form id="feedbackForm" style="display:flex;flex-direction:column;flex:1;">
+            <div class="form-body">
+
+                <p class="hint-text" data-translate="feedbackHint">
+                    For order issues or urgent help, please contact
+                    <a href="#">Support</a>. Use this form for general feedback only.
+                </p>
+
+                <!-- Category -->
+                <div>
+                    <div class="cat-label" data-translate="feedbackType">Type</div>
+                    <div class="cat-pills">
+                        <button type="button" class="pill feedback-type" data-type="bug" data-translate="bugReport">Bug</button>
+                        <button type="button" class="pill feedback-type" data-type="feature" data-translate="featureRequest">Feature request</button>
+                        <button type="button" class="pill feedback-type" data-type="improvement" data-translate="improvement">Improvement</button>
+                        <button type="button" class="pill feedback-type" data-type="general" data-translate="general">Other</button>
                     </div>
                     <input type="hidden" id="feedbackType" name="feedbackType" required>
                 </div>
 
-                <!-- Email -->
-                <div class="clean-card">
-                    <label class="label" for="userEmail" data-translate="emailAddress">📧 Email</label>
-                    <input type="email" id="userEmail" name="userEmail" placeholder="your@email.com" required>
+                <!-- Message -->
+                <div>
+                    <textarea id="feedbackMessage" name="feedbackMessage" placeholder="Describe the issue or idea…" maxlength="3000" required></textarea>
+                    <div class="char-count" id="charCount">0 / 3000</div>
                 </div>
 
-                <!-- Message -->
-                <div class="clean-card">
-                    <label class="label" for="feedbackMessage" data-translate="feedbackMessage">✍️ Message</label>
-                    <textarea id="feedbackMessage" name="feedbackMessage" placeholder="Tell us what you think..." maxlength="3000" required></textarea>
-                    <div class="char-counter"><span id="charCount">0</span>/3000</div>
-                </div>
+                <!-- Email -->
+                <input type="email" id="userEmail" name="userEmail" placeholder="Your email address" required>
 
                 <!-- Media -->
-                <div class="clean-card">
-                    <label class="label" data-translate="attachMedia">📎 Add Media (Optional)</label>
-                    <div class="media-upload" id="mediaUploadSection">
-                        <span class="upload-icon">📸</span>
-                        <div class="upload-text" data-translate="dragFilesHere">Add images or videos</div>
-                        <div class="upload-hint" data-translate="supportedFormats">Max 20MB total</div>
+                <div>
+                    <div class="media-label" data-translate="attachMedia">Screenshots or recordings <span style="font-weight:400;color:var(--text2);">(optional)</span></div>
+                    <div class="media-sublabel">Tap to add images or videos</div>
+                    <div class="media-grid" id="mediaGrid">
+                        <button type="button" class="media-add-btn" id="mediaUploadSection" aria-label="Add media">
+                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                                <rect x="3" y="5" width="22" height="18" rx="3" stroke="#8696a0" stroke-width="1.6"/>
+                                <circle cx="9.5" cy="11.5" r="2" stroke="#8696a0" stroke-width="1.4"/>
+                                <path d="M3 19l6-5 4 4 3-3 9 7" stroke="#8696a0" stroke-width="1.4" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
                     </div>
                     <input type="file" id="mediaInput" multiple accept="image/*,video/*">
-                    <div class="media-preview" id="mediaPreview"></div>
                 </div>
 
-                <!-- Info -->
-                <div class="clean-card">
-                    <div class="info-text">
-                        <strong data-translate="userId">User ID:</strong> <span id="displayUserId">Loading...</span><br>
-                        <strong data-translate="timestamp">Time:</strong> <span id="displayTimestamp" data-translate="autoDetected">Auto-detected</span>
-                    </div>
-                </div>
+                <!-- Hidden meta -->
+                <span id="displayUserId" style="display:none;"></span>
+                <span id="displayTimestamp" style="display:none;" data-translate="autoDetected"></span>
 
-                <!-- Submit Button -->
-                <div class="button-section">
-                    <button type="submit" form="feedbackForm" class="btn-primary" id="submitBtn">
-                        <i class="fas fa-paper-plane"></i>
-                        <span data-translate="sendFeedback">Send Feedback</span>
-                    </button>
-                </div>
-            </form>
-        </div>
+            </div>
 
-        <!-- Bottom Nav -->
-        <div id="bottomnav-container"></div>
+            <p class="form-footer-note">
+                By sending, you allow StarStore to review related info to help address your feedback.
+                <a href="#" data-translate="learnMore">Learn more</a>
+            </p>
+
+            <div id="errorMessage" class="alert-error" style="margin-top:12px;"></div>
+
+            <div class="submit-bar">
+                <button type="submit" class="btn-send" id="submitBtn" disabled data-translate="sendFeedback">Send</button>
+            </div>
+        </form>
     </div>
 
-    <script src="/js/feedback.js?v=3"></script>
+    <!-- ── THANKS SCREEN ── -->
+    <div id="screenThanks">
+        <div class="thanks-body">
+            <div class="thanks-icon">
+                <div class="thanks-icon-circle">
+                    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                        <path d="M10 18.5l5.5 5.5 10.5-11" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="thanks-sparkle sp1"></div>
+                <div class="thanks-sparkle sp2"></div>
+                <div class="thanks-sparkle sp3"></div>
+            </div>
+            <h2 class="thanks-title" data-translate="thanksForFeedback">Thanks for your feedback</h2>
+            <p class="thanks-sub" data-translate="thanksSubtext">It helps make StarStore better for everyone. While we don't share updates on your feedback, it tells us what to improve next.</p>
+        </div>
+
+        <div class="thanks-footer">
+            <p class="thanks-help">Need more help? Visit the <a href="#" data-translate="helpCenter">Help Center</a>.</p>
+            <button class="btn-done" id="doneBtn" data-translate="done">Done</button>
+        </div>
+    </div>
+
+    <div id="bottomnav-container"></div>
+</div>
+
+<script>
+    // Char counter
+    const ta = document.getElementById('feedbackMessage');
+    const cc = document.getElementById('charCount');
+    ta.addEventListener('input', validateForm);
+    ta.addEventListener('input', () => {
+        const n = ta.value.length;
+        cc.textContent = n + ' / 3000';
+        cc.className = 'char-count' + (n > 2800 ? ' crit' : n > 2400 ? ' warn' : '');
+    });
+
+    // Category pills
+    document.querySelectorAll('.pill.feedback-type').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.pill.feedback-type').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('feedbackType').value = btn.dataset.type;
+            validateForm();
+        });
+    });
+
+    // Email validation
+    document.getElementById('userEmail').addEventListener('input', validateForm);
+
+    function validateForm() {
+        const hasType = !!document.getElementById('feedbackType').value;
+        const hasMsg = ta.value.trim().length > 0;
+        const hasEmail = document.getElementById('userEmail').value.includes('@');
+        document.getElementById('submitBtn').disabled = !(hasType && hasMsg && hasEmail);
+    }
+
+    // Media upload
+    const mediaInput = document.getElementById('mediaInput');
+    const mediaGrid = document.getElementById('mediaGrid');
+    const addBtn = document.getElementById('mediaUploadSection');
+    let uploadedFiles = [];
+
+    addBtn.addEventListener('click', () => mediaInput.click());
+
+    mediaInput.addEventListener('change', () => {
+        Array.from(mediaInput.files).forEach(file => {
+            if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
+            uploadedFiles.push(file);
+            const item = document.createElement('div');
+            item.className = 'media-item';
+            const el = file.type.startsWith('video/') ? document.createElement('video') : document.createElement('img');
+            el.src = URL.createObjectURL(file);
+            if (el.tagName === 'VIDEO') el.muted = true;
+            item.appendChild(el);
+            const rm = document.createElement('button');
+            rm.type = 'button'; rm.className = 'media-remove'; rm.textContent = '✕';
+            rm.addEventListener('click', () => { uploadedFiles = uploadedFiles.filter(f => f !== file); item.remove(); });
+            item.appendChild(rm);
+            mediaGrid.insertBefore(item, addBtn);
+        });
+        mediaInput.value = '';
+    });
+
+    // Done button
+    document.getElementById('doneBtn').addEventListener('click', () => {
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.close();
+        } else {
+            history.back();
+        }
+    });
+
+    // Show thanks screen after successful submit
+    // feedback.js handles the actual submit — we hook into the success message element
+    const successObs = new MutationObserver(() => {
+        const el = document.getElementById('successMessage');
+        if (el && el.classList.contains('show')) {
+            document.getElementById('screenForm').style.display = 'none';
+            const thanks = document.getElementById('screenThanks');
+            thanks.style.display = 'flex';
+        }
+    });
+    const successEl = document.getElementById('successMessage');
+    if (successEl) successObs.observe(successEl, { attributes: true, attributeFilter: ['class'] });
+</script>
+
+<!-- Hidden element feedback.js may look for -->
+<div id="successMessage" style="display:none;"></div>
+
+<script src="/js/feedback.js?v=3"></script>
 </body>
 </html>
