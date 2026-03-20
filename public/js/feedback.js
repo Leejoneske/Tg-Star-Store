@@ -523,28 +523,17 @@ class FeedbackSystem {
      * Show success message
      */
     showSuccess(message) {
-        const form = document.getElementById('feedbackForm');
-        if (!form) return;
+        // Trigger the hidden #successMessage element to show the thanks screen
+        const successEl = document.getElementById('successMessage');
+        if (successEl) {
+            // Adding 'show' class will trigger the MutationObserver in the HTML
+            successEl.classList.add('show');
+        }
 
-        // Create success element
-        const successEl = document.createElement('div');
-        successEl.className = 'success-message';
-        successEl.innerHTML = `
-            <div style="font-size: 24px; margin-bottom: 8px;">✓</div>
-            <div>${message}</div>
-            <div style="font-size: 12px; color: #16a34a; margin-top: 4px;">${this.translate('redirecting')}</div>
-        `;
-
-        // Insert at top of form
-        form.insertBefore(successEl, form.firstChild);
-
-        // Scroll to success message
-        successEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-        // Redirect after 3 seconds
+        // Redirect after 4 seconds to allow thanks screen to display
         setTimeout(() => {
             window.location.href = '/';
-        }, 3000);
+        }, 4000);
     }
 
     /**
