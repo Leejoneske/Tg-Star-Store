@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -331,7 +332,6 @@
             justify-content: center;
             padding: 40px 32px;
             text-align: center;
-            gap: 0;
         }
 
         .thanks-icon {
@@ -355,12 +355,11 @@
             position: absolute;
             background: var(--green);
             border-radius: 1px;
-            transform-origin: center;
         }
 
-        .sp1 { width: 6px; height: 6px; top: -6px; right: 8px; transform: rotate(45deg); border-radius: 1px; }
-        .sp2 { width: 5px; height: 5px; top: 4px; right: -6px; transform: rotate(20deg); border-radius: 1px; }
-        .sp3 { width: 5px; height: 5px; bottom: 0px; left: -4px; transform: rotate(30deg); border-radius: 1px; }
+        .sp1 { width: 6px; height: 6px; top: -6px; right: 8px; transform: rotate(45deg); }
+        .sp2 { width: 5px; height: 5px; top: 4px;  right: -6px; transform: rotate(20deg); }
+        .sp3 { width: 5px; height: 5px; bottom: 0;  left: -4px; transform: rotate(30deg); }
 
         .thanks-title {
             font-size: 22px;
@@ -467,7 +466,7 @@
                     <input type="file" id="mediaInput" multiple accept="image/*,video/*">
                 </div>
 
-                <!-- Hidden meta -->
+                <!-- Hidden meta fields required by feedback.js -->
                 <span id="displayUserId" style="display:none;"></span>
                 <span id="displayTimestamp" style="display:none;" data-translate="autoDetected"></span>
 
@@ -509,21 +508,24 @@
         </div>
     </div>
 
+    <!-- Required by feedback.js to detect success -->
+    <div id="successMessage" style="display:none;"></div>
+
     <div id="bottomnav-container"></div>
 </div>
 
 <script>
-    // Char counter
+    // ── Char counter ──
     const ta = document.getElementById('feedbackMessage');
     const cc = document.getElementById('charCount');
-    ta.addEventListener('input', validateForm);
     ta.addEventListener('input', () => {
         const n = ta.value.length;
         cc.textContent = n + ' / 3000';
         cc.className = 'char-count' + (n > 2800 ? ' crit' : n > 2400 ? ' warn' : '');
+        validateForm();
     });
 
-    // Category pills
+    // ── Category pills ──
     document.querySelectorAll('.pill.feedback-type').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.pill.feedback-type').forEach(b => b.classList.remove('active'));
@@ -533,24 +535,23 @@
         });
     });
 
-    // Email validation
+    // ── Email ──
     document.getElementById('userEmail').addEventListener('input', validateForm);
 
     function validateForm() {
-        const hasType = !!document.getElementById('feedbackType').value;
-        const hasMsg = ta.value.trim().length > 0;
+        const hasType  = !!document.getElementById('feedbackType').value;
+        const hasMsg   = ta.value.trim().length > 0;
         const hasEmail = document.getElementById('userEmail').value.includes('@');
         document.getElementById('submitBtn').disabled = !(hasType && hasMsg && hasEmail);
     }
 
-    // Media upload
+    // ── Media upload ──
     const mediaInput = document.getElementById('mediaInput');
-    const mediaGrid = document.getElementById('mediaGrid');
-    const addBtn = document.getElementById('mediaUploadSection');
+    const mediaGrid  = document.getElementById('mediaGrid');
+    const addBtn     = document.getElementById('mediaUploadSection');
     let uploadedFiles = [];
 
     addBtn.addEventListener('click', () => mediaInput.click());
-
     mediaInput.addEventListener('change', () => {
         Array.from(mediaInput.files).forEach(file => {
             if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
@@ -570,7 +571,29 @@
         mediaInput.value = '';
     });
 
-    // Done button
+    // ── Thank you screen ──
+    function showThanks() {
+        document.getElementById('screenForm').style.display = 'none';
+        document.getElementById('screenThanks').style.display = 'flex';
+        window.scrollTo(0, 0);
+    }
+
+    // Watch #successMessage for feedback.js adding class "show" or making it visible
+    const successEl = document.getElementById('successMessage');
+    new MutationObserver((mutations) => {
+        for (const m of mutations) {
+            if (
+                successEl.classList.contains('show') ||
+                successEl.style.display === 'block' ||
+                successEl.textContent.trim().length > 0
+            ) {
+                showThanks();
+                break;
+            }
+        }
+    }).observe(successEl, { attributes: true, childList: true, characterData: true, subtree: true });
+
+    // ── Done button ──
     document.getElementById('doneBtn').addEventListener('click', () => {
         if (window.Telegram && window.Telegram.WebApp) {
             window.Telegram.WebApp.close();
@@ -578,23 +601,7 @@
             history.back();
         }
     });
-
-    // Show thanks screen after successful submit
-    // feedback.js handles the actual submit — we hook into the success message element
-    const successObs = new MutationObserver(() => {
-        const el = document.getElementById('successMessage');
-        if (el && el.classList.contains('show')) {
-            document.getElementById('screenForm').style.display = 'none';
-            const thanks = document.getElementById('screenThanks');
-            thanks.style.display = 'flex';
-        }
-    });
-    const successEl = document.getElementById('successMessage');
-    if (successEl) successObs.observe(successEl, { attributes: true, attributeFilter: ['class'] });
 </script>
-
-<!-- Hidden element feedback.js may look for -->
-<div id="successMessage" style="display:none;"></div>
 
 <script src="/js/feedback.js?v=3"></script>
 </body>
