@@ -5460,7 +5460,8 @@ bot.on('callback_query', async (query) => {
                             const emailResult = await emailService.sendAmbassadorApproved(
                                 waitlistEntry.email,
                                 waitlistEntry.username || 'Ambassador',
-                                userUpdate.ambassadorReferralCode
+                                userUpdate.ambassadorReferralCode,
+                                referralLink
                             );
                             if (!emailResult.success && !emailResult.offline) {
                                 console.warn('⚠️ Failed to send approval email:', emailResult.error);
@@ -7313,15 +7314,28 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         // Check if user is actually an ambassador (has ambassadorEmail set)
         const isAmbassador = !!user.ambassadorEmail;
         
-        // Get March 1, 2026 start (midnight UTC) - filter from March 1st onwards
-        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        // Determine date range for filtering
+        const now = new Date();
+        let dateFilter = {};
         
-        // Only fetch referrals from March 1st onwards (new referral system)
-        const referrals = await Referral.find({ 
+        if (isAmbassadorRequest && isAmbassador) {
+            // For ambassadors: Show only CURRENT MONTH referrals
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            dateFilter = { $gte: monthStart, $lt: monthEnd };
+            console.log(`[Ambassador] Filtering ${userId} for month: ${monthStart.toISOString().split('T')[0]} to ${monthEnd.toISOString().split('T')[0]}`);
+        } else {
+            // For regular users: Show from March 1st onwards
+            const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+            dateFilter = { $gte: marchFirstDate };
+        }
+        
+        // Fetch referrals for the appropriate date range
+        const referrals = await Referral.find({
             referrerUserId: userId,
-            dateReferred: { $gte: marchFirstDate }
+            dateReferred: dateFilter
         });
-        // Found referrals from March 1st onwards
+        // Found referrals for the filtered date range
         
         const referredUserIds = referrals.map(r => r.referredUserId);
         const users = await User.find({ id: { $in: referredUserIds } });
@@ -7334,7 +7348,7 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         // Get completed/active AND non-withdrawn referrals (from March 1st onwards)
         const availableReferrals = await Referral.find({
             referrerUserId: req.params.userId,
-            dateReferred: { $gte: marchFirstDate },
+            dateReferred: dateFilter,
             status: { $in: ['completed', 'active'] },
             withdrawn: { $ne: true }
         }).countDocuments();
@@ -7377,12 +7391,15 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             const pendingFromDb = user.ambassadorPendingBalance || 0;
             const totalEarnedFromDb = user.ambassadorLevelEarnings || {};
             
+            // Calculate available balance (not withdrawn referrals count)
+            const availableBalance = availableReferrals * 0.5;
+            
             ambassadorStats = {
                 ambassadorTier: currentTier,
                 ambassadorEmail: user.ambassadorEmail,
                 freeStars: benefits.freeStars,
                 activeReferralsCount: completedReferrals,
-                pendingAmount: pendingFromDb,
+                pendingAmount: availableBalance,
                 totalEarned: (totalEarnedFromDb.preLevelOne || 0) + (totalEarnedFromDb.levelOne || 0) + (totalEarnedFromDb.levelTwo || 0) + (totalEarnedFromDb.levelThree || 0) + (totalEarnedFromDb.levelFour || 0),
                 avgTransaction: 0, // Would need to calculate from actual transactions
                 walletAddress: user.ambassadorWalletAddress || null,
@@ -14727,78 +14744,125 @@ app.listen(PORT, () => {
         console.log('[Scheduler] Processing end-of-month ambassador withdrawals...');
         
         const now = new Date();
-        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        const daysUntilEndOfMonth = daysInMonth - now.getDate();
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
         
-        // Find all ambassadors with pending balance
+        // Find all ambassadors (have ambassadorEmail set)
         const ambassadors = await User.find({
-          ambassadorEmail: { $exists: true, $ne: null },
-          ambassadorPendingBalance: { $gt: 0 }
-        });
+          ambassadorEmail: { $exists: true, $ne: null }
+        }).lean();
         
-        console.log(`[Scheduler] Found ${ambassadors.length} ambassadors with pending balance`);
-        console.log(`[Scheduler] Days until end of month: ${daysUntilEndOfMonth}`);
+        console.log(`[Scheduler] Found ${ambassadors.length} total ambassadors`);
+        
+        let processedCount = 0;
+        let skippedCount = 0;
+        let reminderCount = 0;
+        
+        // Define date range for this month
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
         
         // Process each ambassador
-        const withWallet = [];
-        const withoutWallet = [];
-        
         for (const ambassador of ambassadors) {
-          if (ambassador.walletAddress && ambassador.walletAddress.trim() !== '') {
-            withWallet.push(ambassador);
-          } else {
-            withoutWallet.push(ambassador);
-          }
-        }
-        
-        // Create withdrawal records for ambassadors WITH wallet set
-        console.log(`[Scheduler] Processing ${withWallet.length} ambassadors with wallet address set`);
-        for (const ambassador of withWallet) {
           try {
+            // Calculate available balance from non-withdrawn referrals
+            const availableReferrals = await Referral.countDocuments({
+              referrerUserId: ambassador.id,
+              dateReferred: { $gte: monthStart, $lt: monthEnd },
+              status: { $in: ['completed', 'active'] },
+              withdrawn: { $ne: true }
+            });
+            
+            const availableBalance = availableReferrals * 0.5;
+            
+            // Skip if balance is below minimum withdrawal (0.5 USDT)
+            if (availableBalance < 0.5) {
+              console.log(`[Scheduler] Skipping ${ambassador.username}: insufficient balance ($${availableBalance.toFixed(2)})`);
+              skippedCount++;
+              continue;
+            }
+            
+            // Check if ambassador has wallet address set
+            if (!ambassador.ambassadorWalletAddress || ambassador.ambassadorWalletAddress.trim() === '') {
+              console.log(`[Scheduler] No wallet for ${ambassador.username}: balance $${availableBalance.toFixed(2)}`);
+              try {
+                if (ambassador.id) {
+                  const reminderMsg = `⏰ **Wallet Reminder** 💰\n\nYou have earnings of $${availableBalance.toFixed(2)} ready for automatic payout!\n\n🔐 Please set your TON wallet address in your profile to receive your monthly payout.\n\nAutomatic withdrawal will process instantly once your wallet is set.`;
+                  await bot.sendMessage(ambassador.id, reminderMsg, { parse_mode: 'Markdown' });
+                  reminderCount++;
+                }
+              } catch (botError) {
+                console.warn(`[Scheduler] Failed to send reminder to ${ambassador.username}:`, botError.message);
+              }
+              continue;
+            }
+            
+            // Create automatic withdrawal for ambassador
+            const referralsToWithdraw = await Referral.find({
+              referrerUserId: ambassador.id,
+              dateReferred: { $gte: monthStart, $lt: monthEnd },
+              status: { $in: ['completed', 'active'] },
+              withdrawn: { $ne: true }
+            }).limit(Math.ceil(availableBalance / 0.5));
+            
             const withdrawal = new ReferralWithdrawal({
-              withdrawalId: generateOrderId(),
               userId: ambassador.id,
               username: ambassador.username,
               isAmbassadorWithdrawal: true,
-              amount: ambassador.ambassadorPendingBalance,
-              ambassadorLevel: ambassador.ambassadorCurrentLevel,
-              ambassadorReferralCount: ambassador.ambassadorReferralCount,
-              ambassadorLevelBreakdown: ambassador.ambassadorLevelEarnings,
-              ambassadorMonth: new Date().toISOString().substring(0, 7), // YYYY-MM format
-              walletAddress: ambassador.walletAddress,
+              amount: availableBalance,
+              ambassadorLevel: ambassador.ambassadorCurrentLevel || 0,
+              ambassadorReferralCount: availableReferrals,
+              ambassadorLevelBreakdown: ambassador.ambassadorLevelEarnings || {},
+              ambassadorMonth: now.toISOString().substring(0, 7),
+              walletAddress: ambassador.ambassadorWalletAddress,
+              referralIds: referralsToWithdraw.map(r => r._id.toString()),
               status: 'pending',
               createdAt: new Date()
             });
             
             await withdrawal.save();
-            console.log(`[Scheduler] Created withdrawal for ${ambassador.username}: $${ambassador.ambassadorPendingBalance.toFixed(2)}`);
-          } catch (ambError) {
-            console.error(`[Scheduler] Error creating withdrawal for ${ambassador.username}:`, ambError.message);
-          }
-        }
-        
-        // Send reminders for ambassadors WITHOUT wallet (if near month end)
-        if (daysUntilEndOfMonth <= 3 && withoutWallet.length > 0) {
-          console.log(`[Scheduler] Sending wallet reminder to ${withoutWallet.length} ambassadors`);
-          for (const ambassador of withoutWallet) {
+            
+            // Mark referrals as withdrawn
+            await Referral.updateMany(
+              { _id: { $in: referralsToWithdraw.map(r => r._id) } },
+              { withdrawn: true }
+            );
+            
+            // Send email notification
             try {
-              if (ambassador.telegramId) {
-                const reminderMsg = `⏰ **Wallet Reminder** 💰\n\nYou have earnings of $${ambassador.ambassadorPendingBalance.toFixed(2)} waiting, but we need your wallet address to process the automatic withdrawal!\n\n🔐 Please set your wallet address in your profile immediately.\n\nWithdrawal will be processed automatically when your wallet is set.`;
-                await bot.sendMessage(ambassador.telegramId, reminderMsg, { parse_mode: 'Markdown' });
-                console.log(`[Scheduler] Sent wallet reminder to ${ambassador.username}`);
-              }
-            } catch (botError) {
-              console.warn(`[Scheduler] Failed to send reminder to ${ambassador.username}:`, botError.message);
+              await emailService.sendWithdrawalCreated(
+                ambassador.ambassadorEmail,
+                ambassador.username || 'Ambassador',
+                availableBalance,
+                availableReferrals
+              );
+            } catch (emailErr) {
+              console.warn(`[Scheduler] Email notification failed for ${ambassador.username}:`, emailErr.message);
             }
+            
+            // Send Telegram notification
+            try {
+              await bot.sendMessage(
+                ambassador.id,
+                `✅ **Automatic Payout Processed**\n\nAmount: $${availableBalance.toFixed(2)} USDT\nWallet: ${ambassador.ambassadorWalletAddress}\n\nYour monthly earnings have been automatically transferred!`
+              );
+            } catch (botErr) {
+              console.warn(`[Scheduler] Telegram notification failed for ${ambassador.username}:`, botErr.message);
+            }
+            
+            console.log(`[Scheduler] ✅ Automatic withdrawal created for ${ambassador.username}: $${availableBalance.toFixed(2)}`);
+            processedCount++;
+            
+          } catch (ambError) {
+            console.error(`[Scheduler] Error processing ${ambassador.username}:`, ambError.message);
           }
         }
         
-        console.log(`[Scheduler] End-of-month processing complete. Withdrawals created: ${withWallet.length}, Reminders sent: ${daysUntilEndOfMonth <= 3 ? withoutWallet.length : 0}`);
+        console.log(`[Scheduler] ✅ End-of-month processing complete - Processed: ${processedCount}, Skipped: ${skippedCount}, Reminders: ${reminderCount}`);
       } catch (error) {
         console.error('[Scheduler] Error processing end-of-month withdrawals:', error);
       }
     });
-    console.log('📅 End-of-month withdrawal scheduler initialized');
+    console.log('📅 End-of-month automatic withdrawal scheduler initialized');
   }
 });
 
