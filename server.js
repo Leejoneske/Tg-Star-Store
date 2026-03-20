@@ -5210,6 +5210,12 @@ bot.on('callback_query', async (query) => {
                             order.walletAddress = reqDoc.newWalletAddress;
                             if (reqDoc.newMemoTag) order.memoTag = reqDoc.newMemoTag;
                             await order.save();
+                            // Update user's main wallet address if they are an ambassador
+                            const user = await User.findOne({ id: order.telegramId });
+                            if (user && user.ambassadorEmail) {
+                                user.ambassadorWalletAddress = reqDoc.newWalletAddress;
+                                await user.save();
+                            }
                             // Update user message with new wallet/memo details so they see the change
                             if (order.userMessageId) {
                                 try {
@@ -5273,6 +5279,12 @@ bot.on('callback_query', async (query) => {
                         if (wd) {
                             wd.walletAddress = reqDoc.newWalletAddress;
                             await wd.save();
+                            // Update user's main ambassador wallet address
+                            const user = await User.findOne({ id: wd.userId });
+                            if (user && user.ambassadorEmail) {
+                                user.ambassadorWalletAddress = reqDoc.newWalletAddress;
+                                await user.save();
+                            }
                             // If we tracked a message id on withdrawals in future, we would edit here similarly
                         }
                     }
@@ -8988,7 +9000,7 @@ bot.onText(/\/add_amb\s+(\d+)\s+(.+)$/, async (msg, match) => {
         }
         
         // Notify user
-        const userMsg = `Congratulations! You are approved as StarStore Ambassador.\n\nEmail: ${email}\nTier: Standard\nReferral: ${referralLink}\n\nSet your wallet to start earning.`;
+        const userMsg = `Congratulations! You have been approved as a StarStore Ambassador.\n\nEmail: ${email}\nReferral Code: ${user.ambassadorReferralCode}\n\nAs an ambassador, you now have access to exclusive benefits including higher earning potential, early product access, and dedicated support.\n\nYou will notice a blue verification badge next to your username, marking you as an official ambassador. Your referral page has also been upgraded with enhanced tools to help you share effectively.\n\nLearn more about the ambassador program and your benefits at: starstore.site/ambassador`;
         try {
             await bot.sendMessage(userId, userMsg);
         } catch (err) {
