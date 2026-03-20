@@ -291,6 +291,46 @@
             align-items: center;
             gap: 8px;
         }
+
+        /* Topbar styling for back button */
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border, #e5e7eb);
+            background: var(--surface, #f5f5f5);
+        }
+
+        .topbar-exit-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            color: var(--text2, #666);
+            border-radius: 50%;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+
+        .topbar-exit-btn:hover {
+            background: var(--bg2, rgba(0, 0, 0, 0.05));
+        }
+
+        .topbar-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text, #000);
+            flex: 1;
+        }
+
+        html[dir="rtl"] .topbar-exit-btn {
+            right: auto !important;
+            left: 16px !important;
+        }
     </style>
     <script src="/js/theme.js"></script>
 </head>
@@ -298,13 +338,14 @@
     <div class="app-container">
 
         <!-- Page Header -->
-        <header style="padding: 16px 20px; background: #f5f5f5; position: relative;">
-                <button id="exitButton" style="position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.1); color: #333; border: 1px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 8px 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onmouseover="this.style.background='rgba(0,0,0,0.2)'; this.style.color='#000'" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='#333'">
-                ← Back
+        <div class="topbar">
+            <button id="exitButton" class="topbar-exit-btn" aria-label="Back">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                    <path d="M14 5L8 11L14 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
             </button>
-            <h1 style="font-size: 28px; font-weight: 700; color: #000; margin: 0;" data-translate="dailyRewardsTitle">Daily Rewards</h1>
-            <p style="font-size: 14px; color: #999; margin: 4px 0 0 0;">Keep your streak alive! 🔥</p>
-        </header>
+            <span class="topbar-title" data-translate="dailyRewardsTitle">Daily Rewards</span>
+        </div>
 
         <!-- Main Content -->
         <main style="padding: 0 16px 80px;">
