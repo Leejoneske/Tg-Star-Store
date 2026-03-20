@@ -7314,15 +7314,28 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         // Check if user is actually an ambassador (has ambassadorEmail set)
         const isAmbassador = !!user.ambassadorEmail;
         
-        // Get March 1, 2026 start (midnight UTC) - filter from March 1st onwards
-        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        // Determine date range for filtering
+        const now = new Date();
+        let dateFilter = {};
         
-        // Only fetch referrals from March 1st onwards (new referral system)
-        const referrals = await Referral.find({ 
+        if (isAmbassadorRequest && isAmbassador) {
+            // For ambassadors: Show only CURRENT MONTH referrals
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            dateFilter = { $gte: monthStart, $lt: monthEnd };
+            console.log(`[Ambassador] Filtering ${userId} for month: ${monthStart.toISOString().split('T')[0]} to ${monthEnd.toISOString().split('T')[0]}`);
+        } else {
+            // For regular users: Show from March 1st onwards
+            const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+            dateFilter = { $gte: marchFirstDate };
+        }
+        
+        // Fetch referrals for the appropriate date range
+        const referrals = await Referral.find({
             referrerUserId: userId,
-            dateReferred: { $gte: marchFirstDate }
+            dateReferred: dateFilter
         });
-        // Found referrals from March 1st onwards
+        // Found referrals for the filtered date range
         
         const referredUserIds = referrals.map(r => r.referredUserId);
         const users = await User.find({ id: { $in: referredUserIds } });
@@ -7335,7 +7348,7 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         // Get completed/active AND non-withdrawn referrals (from March 1st onwards)
         const availableReferrals = await Referral.find({
             referrerUserId: req.params.userId,
-            dateReferred: { $gte: marchFirstDate },
+            dateReferred: dateFilter,
             status: { $in: ['completed', 'active'] },
             withdrawn: { $ne: true }
         }).countDocuments();
@@ -14744,13 +14757,17 @@ app.listen(PORT, () => {
         let skippedCount = 0;
         let reminderCount = 0;
         
+        // Define date range for this month
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        
         // Process each ambassador
         for (const ambassador of ambassadors) {
           try {
             // Calculate available balance from non-withdrawn referrals
             const availableReferrals = await Referral.countDocuments({
               referrerUserId: ambassador.id,
-              dateReferred: { $gte: marchFirstDate },
+              dateReferred: { $gte: monthStart, $lt: monthEnd },
               status: { $in: ['completed', 'active'] },
               withdrawn: { $ne: true }
             });
@@ -14782,7 +14799,7 @@ app.listen(PORT, () => {
             // Create automatic withdrawal for ambassador
             const referralsToWithdraw = await Referral.find({
               referrerUserId: ambassador.id,
-              dateReferred: { $gte: marchFirstDate },
+              dateReferred: { $gte: monthStart, $lt: monthEnd },
               status: { $in: ['completed', 'active'] },
               withdrawn: { $ne: true }
             }).limit(Math.ceil(availableBalance / 0.5));

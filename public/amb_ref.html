@@ -794,7 +794,7 @@
     <div class="divider"></div>
 
     <!-- REFERRALS -->
-    <div class="section-label" data-translate="myReferrals">My Referrals</div>
+    <div class="section-label" data-translate="myReferrals">My Referrals <span id="currentMonth" style="font-size:0.85em;color:var(--text-secondary,#aaa);font-weight:400;"></span></div>
     <div class="referrals-section">
         <div class="ref-filter">
             <button class="filter-chip active" onclick="setFilter('all',this)"><span data-translate="ambassadorFilterAll">All</span></button>
@@ -998,6 +998,13 @@
         // Link
         const linkEl = document.getElementById('referralLinkDisplay');
         if (linkEl) { linkEl.textContent = state.referralLink; linkEl.removeAttribute('data-translate'); }
+
+        // Current month display
+        const monthEl = document.getElementById('currentMonth');
+        if (monthEl) {
+            const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            monthEl.textContent = `— ${monthName}`;
+        }
 
         // Wallet preview
         const walletEl = document.getElementById('walletPreview');
