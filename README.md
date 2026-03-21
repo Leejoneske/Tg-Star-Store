@@ -100,7 +100,12 @@ SESSION_SECRET=your_session_secret
 ### Application Structure
 ```
 ├── server.js                 # Main application server
-├── data-persistence.js       # Database abstraction layer
+├── tools/
+│   ├── data-persistence.js       # Database abstraction layer (development fallback)
+│   ├── audit-users.js            # User database audit script
+│   ├── generate-audit-queries.js # MongoDB audit query generator
+│   ├── generate-railway-version.js # Deployment versioning
+│   └── enable-bot-simulator.js   # Bot simulator test script
 ├── middleware/
 │   └── telegramAuth.js       # Telegram authentication
 ├── services/
@@ -111,7 +116,7 @@ SESSION_SECRET=your_session_secret
 │   ├── admin/               # Admin dashboard
 │   ├── css/                 # Stylesheets
 │   └── js/                  # Client-side scripts
-└── generate-railway-version.js # Deployment versioning
+
 ```
 
 ### Key Components
