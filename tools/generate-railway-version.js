@@ -8,9 +8,9 @@ const path = require('path');
 
 class RailwayVersionGenerator {
     constructor() {
-        this.packagePath = path.join(__dirname, 'package.json');
-        this.versionPath = path.join(__dirname, 'public', 'js', 'version.js');
-        this.versionDisplayPath = path.join(__dirname, 'public', 'js', 'version-display.js');
+        this.packagePath = path.join(__dirname, '..', 'package.json');
+        this.versionPath = path.join(__dirname, '..', 'public', 'js', 'version.js');
+        this.versionDisplayPath = path.join(__dirname, '..', 'public', 'js', 'version-display.js');
         this.packageJson = JSON.parse(fs.readFileSync(this.packagePath, 'utf8'));
     }
 
@@ -167,7 +167,7 @@ class RailwayVersionGenerator {
         ];
 
         htmlFiles.forEach(filePath => {
-            const fullPath = path.join(__dirname, filePath);
+            const fullPath = path.join(__dirname, '..', filePath);
             if (fs.existsSync(fullPath)) {
                 try {
                     let content = fs.readFileSync(fullPath, 'utf8');
