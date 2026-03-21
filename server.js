@@ -588,7 +588,7 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
       } else {
         // File DB fallback
         if (!db) {
-          const DataPersistence = require('./data-persistence');
+          const DataPersistence = require('./tools/data-persistence');
           db = new DataPersistence();
         }
         const list = (await db.listAmbassadorWaitlist()) || [];
@@ -625,7 +625,7 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
       console.log(`✅ Ambassador application created (file db): ID=${saved.id}, User=${userId}, Email=${clean.email}, Status=${saved.status}`);
     } else {
       // Fallback: extend dev storage dynamically
-      db = db || new (require('./data-persistence'))();
+      db = db || new (require('./tools/data-persistence'))();
       if (!db.data.ambassadorWaitlist) db.data.ambassadorWaitlist = [];
       clean.status = 'pending';
       db.data.ambassadorWaitlist.push(clean);
@@ -1049,7 +1049,7 @@ if (process.env.BOT_TOKEN) {
     });
 }
 // Database connection (use persistent file storage for development)
-const DataPersistence = require('./data-persistence');
+const DataPersistence = require('./tools/data-persistence');
 let db;
 
 // --- Privacy configuration for usernames (leaderboard masking) ---
