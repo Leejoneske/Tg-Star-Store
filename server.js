@@ -9001,7 +9001,7 @@ bot.onText(/\/add_amb\s+(\d+)\s+(.+)$/, async (msg, match) => {
         }
         
         // Notify user
-        const userMsg = `Congratulations! You have been approved as a StarStore Ambassador.\n\nEmail: ${email}\nReferral Code: ${user.ambassadorReferralCode}\n\nAs an ambassador, you now have access to exclusive benefits including higher earning potential, early product access, and dedicated support.\n\nYou will notice a blue verification badge next to your username, marking you as an official ambassador. Your referral page has also been upgraded with enhanced tools to help you share effectively.`;
+        const userMsg = `Congratulations! You have been approved as a StarStore Ambassador.\n\nEmail: ${email}\nAmbassador ID: ${user.ambassadorReferralCode}\n\nAs an ambassador, you now have access to exclusive benefits including higher earning potential, early product access, and dedicated support.\n\nYou will notice a blue verification badge next to your username, marking you as an official ambassador. Your referral page has also been upgraded with enhanced tools to help you share effectively.`;
         const ambassadorKeyboard = {
             inline_keyboard: [[
                 { text: '📖 Learn About Ambassador Program', url: 'https://amb.starstore.site/' }
