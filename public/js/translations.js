@@ -604,6 +604,7 @@ const translations = {
         
         // Feedback page specific
         feedbackDescription: "We'd love to hear from you! Help us improve StarStore by sharing your feedback.",
+        feedbackHint: "For order issues or urgent help, please contact support. Use this form for general feedback only.",
         feedbackType: "Feedback Type",
         bugReport: "🐛 Bug Report",
         featureRequest: "💡 Feature Request",
@@ -629,7 +630,12 @@ const translations = {
         selectFeedbackType: "Please select a feedback type",
         enterEmail: "Please enter a valid email address",
         enterFeedback: "Please enter your feedback (1-3000 characters)",
-        characterCount: "{count} / 3000"
+        characterCount: "{count} / 3000",
+        thanksForFeedback: "Thanks for your feedback",
+        thanksSubtext: "It helps make StarStore better for everyone. While we don't share updates on your feedback, it tells us what to improve next.",
+        learnMore: "Learn more",
+        helpCenter: "Help Center",
+        done: "Done"
     },
     ru: {
         // Common UI elements

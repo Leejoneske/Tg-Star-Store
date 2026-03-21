@@ -2081,6 +2081,30 @@ const usernameUpdateRequestSchema = new mongoose.Schema({
 
 const UsernameUpdateRequest = mongoose.model('UsernameUpdateRequest', usernameUpdateRequestSchema);
 
+// Ambassador Opt-Out Request schema: track opt-out requests with approval workflow
+const ambassadorOptOutRequestSchema = new mongoose.Schema({
+    requestId: { type: String, required: true, unique: true, default: () => generateOrderId() },
+    userId: { type: String, required: true, index: true },
+    username: String,
+    ambassadorEmail: String,
+    ambassadorCode: String,
+    ambassadorTier: String,
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
+    reason: String,
+    declineReason: String,
+    adminId: String,
+    adminUsername: String,
+    userMessageId: Number,
+    adminMessages: [{
+        adminId: String,
+        messageId: Number,
+        originalText: String
+    }],
+    createdAt: { type: Date, default: Date.now },
+    processedAt: Date
+});
+
+const AmbassadorOptOutRequest = mongoose.model('AmbassadorOptOutRequest', ambassadorOptOutRequestSchema);
 
 // Bot Profile schema (for simulator adaptive behavior)
 const botProfileSchema = new mongoose.Schema({
@@ -5285,7 +5309,28 @@ bot.on('callback_query', async (query) => {
                                 user.ambassadorWalletAddress = reqDoc.newWalletAddress;
                                 await user.save();
                             }
-                            // If we tracked a message id on withdrawals in future, we would edit here similarly
+                            // Update admin messages with new wallet address
+                            if (Array.isArray(wd.adminMessages) && wd.adminMessages.length) {
+                                await Promise.all(wd.adminMessages.map(async (m) => {
+                                    // Replace only wallet line in the original admin message if present
+                                    let text = m.originalText || '';
+                                    if (text) {
+                                        if (text.includes('\nWallet: ')) {
+                                            text = text.replace(/\nWallet:.*?(\n|$)/, `\nWallet: ${wd.walletAddress}$1`);
+                                        }
+                                    }
+                                    
+                                    // Update the originalText in the database to preserve the new wallet address
+                                    m.originalText = text;
+                                    
+                                    try {
+                                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                                    } catch (_) {}
+                                }));
+                                
+                                // Save the updated admin messages back to the database
+                                await wd.save();
+                            }
                         }
                     }
                 }
@@ -5541,6 +5586,173 @@ bot.on('callback_query', async (query) => {
         await bot.answerCallbackQuery(query.id, { 
             text: `Error: ${errorMsg.slice(0, 50)}` 
         });
+    }
+});
+
+// Ambassador Opt-Out Request Handler
+bot.on('callback_query', async (query) => {
+    const data = query.data;
+    const chatId = query.message.chat.id;
+    const messageId = query.message.message_id;
+
+    try {
+        // Handle ambassador opt-out approval and decline
+        if (data.startsWith('opt_out_approve_') || data.startsWith('opt_out_decline_')) {
+            const approve = data.startsWith('opt_out_approve_');
+            const requestId = data.replace('opt_out_approve_', '').replace('opt_out_decline_', '');
+            const adminChatId = query.from.id.toString();
+            const adminUsername = query.from.username || `User${query.from.id}`;
+
+            try {
+                const optOutRequest = await AmbassadorOptOutRequest.findById(requestId);
+                
+                if (!optOutRequest) {
+                    return await bot.answerCallbackQuery(query.id, { text: 'Request not found' });
+                }
+
+                if (optOutRequest.status !== 'pending') {
+                    return await bot.answerCallbackQuery(query.id, { text: `Already ${optOutRequest.status}` });
+                }
+
+                // Update request status
+                optOutRequest.status = approve ? 'approved' : 'rejected';
+                optOutRequest.adminId = adminChatId;
+                optOutRequest.adminUsername = adminUsername;
+                optOutRequest.processedAt = new Date();
+
+                if (!approve) {
+                    optOutRequest.declineReason = 'Declined by admin';
+                }
+
+                await optOutRequest.save();
+
+                // Update all admin message buttons to show final status (single-use pattern)
+                const statusText = approve ? '✅ Approved' : '❌ Declined';
+                if (Array.isArray(optOutRequest.adminMessages) && optOutRequest.adminMessages.length) {
+                    await Promise.all(optOutRequest.adminMessages.map(async (m) => {
+                        try {
+                            // Update text to show approval/decline status
+                            const baseText = m.originalText || 'Opt-Out Request';
+                            const finalText = `${baseText}\n\n${statusText} by @${adminUsername} at ${new Date().toLocaleString()}`;
+                            
+                            // Replace buttons with single read-only status button
+                            const statusKeyboard = {
+                                inline_keyboard: [[{
+                                    text: statusText,
+                                    callback_data: `opt_out_status_${requestId}`
+                                }]]
+                            };
+
+                            await bot.editMessageText(finalText, {
+                                chat_id: parseInt(m.adminId, 10) || m.adminId,
+                                message_id: m.messageId,
+                                parse_mode: 'HTML',
+                                reply_markup: statusKeyboard
+                            });
+                        } catch (err) {
+                            console.error(`Failed to update admin message: ${err.message}`);
+                        }
+                    }));
+                }
+
+                if (approve) {
+                    // Get user data before clearing ambassador fields
+                    const user = await User.findOne({ id: optOutRequest.userId });
+                    
+                    if (user && user.ambassadorEmail) {
+                        // Clear all ambassador fields
+                        user.ambassadorEmail = null;
+                        user.ambassadorTier = null;
+                        user.ambassadorReferralCode = null;
+                        user.ambassadorApprovedAt = null;
+                        user.ambassadorApprovedBy = null;
+                        user.ambassadorWalletAddress = null;
+                        user.ambassadorCurrentLevel = 0;
+                        user.ambassadorReferralCount = 0;
+                        user.ambassadorPendingBalance = 0;
+                        user.ambassadorLevelEarnings = {
+                            preLevelOne: 0,
+                            levelOne: 0,
+                            levelTwo: 0,
+                            levelThree: 0,
+                            levelFour: 0
+                        };
+                        user.ambassadorMonthlyWithdrawals = [];
+                        
+                        await user.save();
+
+                        // Send confirmation to user
+                        const confirmMsg = `✅ <b>Your opt-out request has been approved!</b>\n\n` +
+                            `You have been successfully removed from the StarStore Ambassador program.\n\n` +
+                            `<b>Your Data:</b>\n` +
+                            `• All ambassador privileges have been removed\n` +
+                            `• Your referral code is no longer active\n` +
+                            `• Your balance has been retained (check your withdrawal history)\n\n` +
+                            `Thank you for being part of the StarStore community! 💙\n\n` +
+                            `You can reapply for the ambassador program at any time.`;
+
+                        try {
+                            if (optOutRequest.userMessageId) {
+                                await bot.editMessageText(confirmMsg, {
+                                    chat_id: optOutRequest.userId,
+                                    message_id: optOutRequest.userMessageId,
+                                    parse_mode: 'HTML'
+                                });
+                            } else {
+                                await bot.sendMessage(optOutRequest.userId, confirmMsg, {
+                                    parse_mode: 'HTML'
+                                });
+                            }
+                        } catch (err) {
+                            console.error(`Failed to update user message: ${err.message}`);
+                        }
+
+                        console.log(`[OPT_OUT] Ambassador ${optOutRequest.userId} successfully removed from program`);
+                    }
+                } else {
+                    // Inform user request was rejected
+                    const rejectionMsg = `❌ <b>Your opt-out request was declined.</b>\n\n` +
+                        `You remain an active member of the StarStore Ambassador program.\n\n` +
+                        `If you have any concerns, please contact our support team.`;
+
+                    try {
+                        if (optOutRequest.userMessageId) {
+                            await bot.editMessageText(rejectionMsg, {
+                                chat_id: optOutRequest.userId,
+                                message_id: optOutRequest.userMessageId,
+                                parse_mode: 'HTML'
+                            });
+                        } else {
+                            await bot.sendMessage(optOutRequest.userId, rejectionMsg, {
+                                parse_mode: 'HTML'
+                            });
+                        }
+                    } catch (err) {
+                        console.error(`Failed to update user message: ${err.message}`);
+                    }
+
+                    console.log(`[OPT_OUT] Ambassador ${optOutRequest.userId} opt-out request rejected`);
+                }
+
+                await bot.answerCallbackQuery(query.id, { 
+                    text: approve ? 'Ambassador removed successfully' : 'Opt-out request declined'
+                });
+
+            } catch (err) {
+                console.error('Opt-out processing error:', err);
+                await bot.answerCallbackQuery(query.id, { text: 'Error processing request' });
+            }
+            return;
+        }
+
+        // Ignore status-only buttons (single-use pattern)
+        if (data.startsWith('opt_out_status_')) {
+            return await bot.answerCallbackQuery(query.id, { text: 'This action has been processed' });
+        }
+
+    } catch (err) {
+        console.error('Opt-out callback error:', err);
+        await bot.answerCallbackQuery(query.id, { text: 'Error processing request' });
     }
 });
 
@@ -9001,7 +9213,7 @@ bot.onText(/\/add_amb\s+(\d+)\s+(.+)$/, async (msg, match) => {
         }
         
         // Notify user
-        const userMsg = `Congratulations! You have been approved as a StarStore Ambassador.\n\nEmail: ${email}\nReferral Code: ${user.ambassadorReferralCode}\n\nAs an ambassador, you now have access to exclusive benefits including higher earning potential, early product access, and dedicated support.\n\nYou will notice a blue verification badge next to your username, marking you as an official ambassador. Your referral page has also been upgraded with enhanced tools to help you share effectively.`;
+        const userMsg = `Congratulations! You have been approved as a StarStore Ambassador.\n\nEmail: ${email}\nAmbassador ID: ${user.ambassadorReferralCode}\n\nAs an ambassador, you now have access to exclusive benefits including higher earning potential, early product access, and dedicated support.\n\nYou will notice a blue verification badge next to your username, marking you as an official ambassador. Your referral page has also been upgraded with enhanced tools to help you share effectively.`;
         const ambassadorKeyboard = {
             inline_keyboard: [[
                 { text: '📖 Learn About Ambassador Program', url: 'https://amb.starstore.site/' }
@@ -9022,6 +9234,123 @@ bot.onText(/\/add_amb\s+(\d+)\s+(.+)$/, async (msg, match) => {
     } catch (error) {
         console.error('Add ambassador error:', error);
         await bot.sendMessage(chatId, 'Error adding ambassador', {
+            reply_to_message_id: msg.message_id
+        });
+    }
+});
+
+// Opt-Out Command: Ambassadors can request to leave the ambassador program
+bot.onText(/\/opt_out\s*(.*)?$/, async (msg, match) => {
+    const chatId = msg.chat.id.toString();
+    const userId = msg.from.id.toString();
+    const username = msg.from.username || msg.from.first_name || 'User';
+    const reason = match && match[1] ? match[1].trim() : null;
+
+    try {
+        // Check if user is an ambassador
+        const user = await User.findOne({ id: userId });
+        
+        if (!user || !user.ambassadorEmail) {
+            return bot.sendMessage(chatId, '❌ You are not currently part of the ambassador program.\n\nThis command is only available for active ambassadors.', {
+                reply_to_message_id: msg.message_id,
+                parse_mode: 'HTML'
+            });
+        }
+
+        // Check if user already has a pending opt-out request
+        const existingRequest = await AmbassadorOptOutRequest.findOne({
+            userId,
+            status: 'pending'
+        });
+
+        if (existingRequest) {
+            return bot.sendMessage(chatId, '⏳ You already have a pending opt-out request.\n\nPlease wait for admin approval.', {
+                reply_to_message_id: msg.message_id,
+                parse_mode: 'HTML'
+            });
+        }
+
+        // Create opt-out request
+        const optOutRequest = new AmbassadorOptOutRequest({
+            userId,
+            username,
+            ambassadorEmail: user.ambassadorEmail,
+            ambassadorCode: user.ambassadorReferralCode,
+            ambassadorTier: user.ambassadorTier,
+            reason: reason || 'No reason provided'
+        });
+
+        await optOutRequest.save();
+
+        // Send thoughtful message to user
+        const userConfirmationMsg = `💙 We're sad to see you go!\n\n` +
+            `Your opt-out request has been submitted to our team. We appreciate the time you spent as a StarStore Ambassador and the value you brought to our community.\n\n` +
+            `📋 <b>Request Details:</b>\n` +
+            `• Status: Pending Approval\n` +
+            `• Ambassador ID: ${user.ambassadorReferralCode}\n` +
+            `• Tier: ${user.ambassadorTier || 'Standard'}\n\n` +
+            `Your request will be reviewed shortly. Once approved, you'll be removed from the ambassador program. You can always reapply in the future! 🚀\n\n` +
+            `If you change your mind or want to discuss this, feel free to reach out to our support team.`;
+
+        const userAck = await bot.sendMessage(chatId, userConfirmationMsg, {
+            reply_to_message_id: msg.message_id,
+            parse_mode: 'HTML'
+        });
+
+        // Store user message ID for future updates
+        optOutRequest.userMessageId = userAck.message_id;
+        await optOutRequest.save();
+
+        // Prepare admin notification
+        const adminMsg = `🚪 <b>Ambassador Opt-Out Request</b>\n\n` +
+            `<b>User Information:</b>\n` +
+            `• User ID: ${userId}\n` +
+            `• Username: @${username}\n` +
+            `• Ambassador Email: ${user.ambassadorEmail}\n\n` +
+            `<b>Ambassador Status:</b>\n` +
+            `• Ambassador ID: ${user.ambassadorReferralCode}\n` +
+            `• Tier: ${user.ambassadorTier || 'Standard'}\n` +
+            `• Total Referrals: ${user.ambassadorReferralCount || 0}\n` +
+            `• Approved Date: ${user.ambassadorApprovedAt ? user.ambassadorApprovedAt.toLocaleDateString() : 'N/A'}\n\n` +
+            `<b>Request Reason:</b>\n` +
+            `${reason || 'No reason provided'}\n\n` +
+            `<b>Action Required:</b>\n` +
+            `Click approve to remove this user from the ambassador program and clear all related data.`;
+
+        const adminKeyboard = {
+            inline_keyboard: [[
+                { text: '✅ Approve', callback_data: `opt_out_approve_${optOutRequest._id}` },
+                { text: '❌ Decline', callback_data: `opt_out_decline_${optOutRequest._id}` }
+            ]]
+        };
+
+        // Send to all admins
+        for (const adminId of adminIds) {
+            try {
+                const adminAck = await bot.sendMessage(adminId, adminMsg, {
+                    parse_mode: 'HTML',
+                    reply_markup: adminKeyboard
+                });
+
+                // Store admin message details
+                optOutRequest.adminMessages.push({
+                    adminId,
+                    messageId: adminAck.message_id,
+                    originalText: adminMsg
+                });
+            } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err.message);
+            }
+        }
+
+        // Save all admin message details
+        await optOutRequest.save();
+
+        console.log(`[/opt_out] Request created: ${optOutRequest._id} from user ${userId}`);
+
+    } catch (error) {
+        console.error('Opt-out command error:', error);
+        await bot.sendMessage(chatId, '❌ An error occurred while processing your opt-out request. Please try again.', {
             reply_to_message_id: msg.message_id
         });
     }
