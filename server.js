@@ -5285,7 +5285,28 @@ bot.on('callback_query', async (query) => {
                                 user.ambassadorWalletAddress = reqDoc.newWalletAddress;
                                 await user.save();
                             }
-                            // If we tracked a message id on withdrawals in future, we would edit here similarly
+                            // Update admin messages with new wallet address
+                            if (Array.isArray(wd.adminMessages) && wd.adminMessages.length) {
+                                await Promise.all(wd.adminMessages.map(async (m) => {
+                                    // Replace only wallet line in the original admin message if present
+                                    let text = m.originalText || '';
+                                    if (text) {
+                                        if (text.includes('\nWallet: ')) {
+                                            text = text.replace(/\nWallet:.*?(\n|$)/, `\nWallet: ${wd.walletAddress}$1`);
+                                        }
+                                    }
+                                    
+                                    // Update the originalText in the database to preserve the new wallet address
+                                    m.originalText = text;
+                                    
+                                    try {
+                                        await bot.editMessageText(text, { chat_id: parseInt(m.adminId, 10) || m.adminId, message_id: m.messageId });
+                                    } catch (_) {}
+                                }));
+                                
+                                // Save the updated admin messages back to the database
+                                await wd.save();
+                            }
                         }
                     }
                 }
