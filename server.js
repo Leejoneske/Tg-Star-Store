@@ -4748,6 +4748,42 @@ bot.on('callback_query', async (query) => {
                 bucket = { selections: new Set(), timestamp: Date.now() };
                 walletSelections.set(userId, bucket);
             }
+            
+            const buildKeyboard = (bucket) => {
+                const kb = { inline_keyboard: [] };
+                const bucket_data = walletSelections.get(userId);
+                
+                if (bucket_data?.sellOrders) {
+                    bucket_data.sellOrders.forEach(id => {
+                        const isSelected = bucket.selections.has(`sell:${id}`);
+                        kb.inline_keyboard.push([
+                            { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_sell_${id}` },
+                            { text: '🔄 Update', callback_data: `wallet_update_sell_${id}` }
+                        ]);
+                    });
+                }
+                
+                if (bucket_data?.withdrawals) {
+                    bucket_data.withdrawals.forEach(id => {
+                        const isSelected = bucket.selections.has(`wd:${id}`);
+                        kb.inline_keyboard.push([
+                            { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_withdrawal_${id}` },
+                            { text: '🔄 Update', callback_data: `wallet_update_withdrawal_${id}` }
+                        ]);
+                    });
+                }
+                
+                kb.inline_keyboard.push([
+                    { text: 'Select All', callback_data: 'wallet_sel_all' },
+                    { text: 'Clear', callback_data: 'wallet_sel_clear' }
+                ]);
+                kb.inline_keyboard.push([
+                    { text: `✅ Continue (${bucket.selections.size} selected)`, callback_data: 'wallet_continue_selected' }
+                ]);
+                
+                return kb;
+            };
+            
             if (data === 'wallet_sel_all') {
                 try {
                     // Fetch all processing orders and pending withdrawals for this user
@@ -4763,8 +4799,20 @@ bot.on('callback_query', async (query) => {
                     bucket.timestamp = Date.now();
                     walletSelections.set(userId, bucket);
                     
+                    // Edit message to show all items selected
+                    if (bucket.messageId) {
+                        try {
+                            await bot.editMessageReplyMarkup(buildKeyboard(bucket), {
+                                chat_id: chatId,
+                                message_id: bucket.messageId
+                            });
+                        } catch (e) {
+                            console.error('Failed to edit message:', e.message);
+                        }
+                    }
+                    
                     const totalCount = bucket.selections.size;
-                    await bot.answerCallbackQuery(query.id, { text: `Selected all ${totalCount} item(s)` });
+                    await bot.answerCallbackQuery(query.id, { text: `Selected all ${totalCount} item(s) ✅` });
                     return;
                 } catch (err) {
                     console.error('Error selecting all wallet items:', err);
@@ -4776,17 +4824,52 @@ bot.on('callback_query', async (query) => {
                 bucket.selections.clear();
                 bucket.timestamp = Date.now();
                 walletSelections.set(userId, bucket);
-                await bot.answerCallbackQuery(query.id, { text: 'Selection cleared' });
+                
+                // Edit message to show cleared selection
+                if (bucket.messageId) {
+                    try {
+                        await bot.editMessageReplyMarkup(buildKeyboard(bucket), {
+                            chat_id: chatId,
+                            message_id: bucket.messageId
+                        });
+                    } catch (e) {
+                        console.error('Failed to edit message:', e.message);
+                    }
+                }
+                
+                await bot.answerCallbackQuery(query.id, { text: 'Selection cleared ⚪' });
                 return;
             }
+            
             const parts = data.split('_');
             const type = parts[2];
             const id = parts.slice(3).join('_');
             const key = type === 'sell' ? `sell:${id}` : `wd:${id}`;
-            if (bucket.selections.has(key)) bucket.selections.delete(key); else bucket.selections.add(key);
+            
+            // Toggle selection
+            if (bucket.selections.has(key)) {
+                bucket.selections.delete(key);
+            } else {
+                bucket.selections.add(key);
+            }
+            
             bucket.timestamp = Date.now();
             walletSelections.set(userId, bucket);
-            await bot.answerCallbackQuery(query.id, { text: `Selected: ${bucket.selections.size}` });
+            
+            // Edit message to update button highlighting
+            if (bucket.messageId) {
+                try {
+                    await bot.editMessageReplyMarkup(buildKeyboard(bucket), {
+                        chat_id: chatId,
+                        message_id: bucket.messageId
+                    });
+                } catch (e) {
+                    console.error('Failed to edit message:', e.message);
+                }
+            }
+            
+            const isSelected = bucket.selections.has(key);
+            await bot.answerCallbackQuery(query.id, { text: `${isSelected ? '✅ Selected' : '⚪ Deselected'} - Total: ${bucket.selections.size}` });
             return;
         }
 
@@ -9630,30 +9713,59 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
         }
 
         const keyboard = { inline_keyboard: [] };
-        // Initialize selection bucket with timestamp
-        walletSelections.set(userId, { selections: new Set(), timestamp: Date.now() });
-
-        sellOrders.forEach(o => {
-            keyboard.inline_keyboard.push([
-                { text: `☑️ ${o.id}`, callback_data: `wallet_sel_sell_${o.id}` },
-                { text: '🔄 Update this', callback_data: `wallet_update_sell_${o.id}` }
-            ]);
+        // Initialize selection bucket with timestamp and store order/withdrawal data
+        walletSelections.set(userId, { 
+            selections: new Set(), 
+            timestamp: Date.now(),
+            sellOrders: sellOrders.map(o => o.id),
+            withdrawals: withdrawals.map(w => w.withdrawalId),
+            messageId: null // Will be set after sending
         });
-        withdrawals.forEach(w => {
-            keyboard.inline_keyboard.push([
-                { text: `☑️ ${w.withdrawalId}`, callback_data: `wallet_sel_withdrawal_${w.withdrawalId}` },
-                { text: '🔄 Update this', callback_data: `wallet_update_withdrawal_${w.withdrawalId}` }
-            ]);
-        });
-        keyboard.inline_keyboard.push([
-            { text: 'Select All', callback_data: 'wallet_sel_all' },
-            { text: 'Clear', callback_data: 'wallet_sel_clear' }
-        ]);
-        keyboard.inline_keyboard.push([
-            { text: '✅ Continue with selected', callback_data: 'wallet_continue_selected' }
-        ]);
 
-        await bot.sendMessage(chatId, lines.join('\n') + `\n\nSelect one or more items, then tap "Continue with selected".`, { reply_markup: keyboard });
+        const buildKeyboard = (bucket) => {
+            const kb = { inline_keyboard: [] };
+            const bucket_data = walletSelections.get(userId);
+            
+            if (bucket_data?.sellOrders) {
+                bucket_data.sellOrders.forEach(id => {
+                    const isSelected = bucket.selections.has(`sell:${id}`);
+                    kb.inline_keyboard.push([
+                        { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_sell_${id}` },
+                        { text: '🔄 Update', callback_data: `wallet_update_sell_${id}` }
+                    ]);
+                });
+            }
+            
+            if (bucket_data?.withdrawals) {
+                bucket_data.withdrawals.forEach(id => {
+                    const isSelected = bucket.selections.has(`wd:${id}`);
+                    kb.inline_keyboard.push([
+                        { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_withdrawal_${id}` },
+                        { text: '🔄 Update', callback_data: `wallet_update_withdrawal_${id}` }
+                    ]);
+                });
+            }
+            
+            kb.inline_keyboard.push([
+                { text: 'Select All', callback_data: 'wallet_sel_all' },
+                { text: 'Clear', callback_data: 'wallet_sel_clear' }
+            ]);
+            kb.inline_keyboard.push([
+                { text: `✅ Continue (${bucket.selections.size} selected)`, callback_data: 'wallet_continue_selected' }
+            ]);
+            
+            return kb;
+        };
+
+        const initialKeyboard = buildKeyboard(walletSelections.get(userId));
+        const msg = await bot.sendMessage(chatId, lines.join('\n') + `\n\n📌 Select items (they'll light up 🟢 when selected), then tap "Continue".`, { reply_markup: initialKeyboard });
+        
+        // Store message ID so we can edit it later
+        const bucket = walletSelections.get(userId);
+        if (bucket) {
+            bucket.messageId = msg.message_id;
+            walletSelections.set(userId, bucket);
+        }
     } catch (err) {
         console.error('Wallet command error:', {
             userId: msg.from.id,
@@ -9819,30 +9931,57 @@ async function handleWalletCommand(msg) {
             });
         }
         
-        const keyboard = { inline_keyboard: [] };
-        walletSelections.set(userId, { selections: new Set(), timestamp: Date.now() });
-        
-        sellOrders.forEach(o => {
-            keyboard.inline_keyboard.push([
-                { text: `☑️ ${o.id}`, callback_data: `wallet_sel_sell_${o.id}` },
-                { text: '🔄 Update this', callback_data: `wallet_update_sell_${o.id}` }
-            ]);
+        // Initialize selection bucket with order/withdrawal data
+        walletSelections.set(userId, { 
+            selections: new Set(), 
+            timestamp: Date.now(),
+            sellOrders: sellOrders.map(o => o.id),
+            withdrawals: withdrawals.map(w => w.withdrawalId),
+            messageId: null
         });
-        withdrawals.forEach(w => {
-            keyboard.inline_keyboard.push([
-                { text: `☑️ ${w.withdrawalId}`, callback_data: `wallet_sel_withdrawal_${w.withdrawalId}` },
-                { text: '🔄 Update this', callback_data: `wallet_update_withdrawal_${w.withdrawalId}` }
-            ]);
-        });
-        keyboard.inline_keyboard.push([
-            { text: 'Select All', callback_data: 'wallet_sel_all' },
-            { text: 'Clear', callback_data: 'wallet_sel_clear' }
-        ]);
-        keyboard.inline_keyboard.push([
-            { text: '✅ Continue with selected', callback_data: 'wallet_continue_selected' }
-        ]);
         
-        await bot.sendMessage(chatId, lines.join('\n') + `\n\nSelect one or more items, then tap "Continue with selected".`, { reply_markup: keyboard });
+        const buildKeyboard = (bucket) => {
+            const kb = { inline_keyboard: [] };
+            const bucket_data = walletSelections.get(userId);
+            
+            if (bucket_data?.sellOrders) {
+                bucket_data.sellOrders.forEach(id => {
+                    const isSelected = bucket.selections.has(`sell:${id}`);
+                    kb.inline_keyboard.push([
+                        { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_sell_${id}` },
+                        { text: '🔄 Update', callback_data: `wallet_update_sell_${id}` }
+                    ]);
+                });
+            }
+            
+            if (bucket_data?.withdrawals) {
+                bucket_data.withdrawals.forEach(id => {
+                    const isSelected = bucket.selections.has(`wd:${id}`);
+                    kb.inline_keyboard.push([
+                        { text: `${isSelected ? '🟢' : '⚪'} ${id}`, callback_data: `wallet_sel_withdrawal_${id}` },
+                        { text: '🔄 Update', callback_data: `wallet_update_withdrawal_${id}` }
+                    ]);
+                });
+            }
+            
+            kb.inline_keyboard.push([
+                { text: 'Select All', callback_data: 'wallet_sel_all' },
+                { text: 'Clear', callback_data: 'wallet_sel_clear' }
+            ]);
+            kb.inline_keyboard.push([
+                { text: `✅ Continue (${bucket.selections.size} selected)`, callback_data: 'wallet_continue_selected' }
+            ]);
+            
+            return kb;
+        };
+        
+        const bucket = walletSelections.get(userId);
+        const initialKeyboard = buildKeyboard(bucket);
+        const msg_sent = await bot.sendMessage(chatId, lines.join('\n') + `\n\n📌 Select items (they'll light up 🟢 when selected), then tap "Continue".`, { reply_markup: initialKeyboard });
+        
+        // Store message ID so we can edit it later
+        bucket.messageId = msg_sent.message_id;
+        walletSelections.set(userId, bucket);
     } catch (err) {
         console.error('Wallet handler error:', err);
         await bot.sendMessage(msg.chat.id, '❌ Failed to load your orders. Please try again later.');
