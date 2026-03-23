@@ -7882,11 +7882,17 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             });
         }
         
-        // Auto-repair any stuck pending referrals before showing stats
-        const repairedCount = await repairStuckReferrals(userId);
-        if (repairedCount > 0) {
-            console.log(`[REPAIR] Repaired ${repairedCount} stuck referrals for ${userId}`);
-        }
+        // Auto-repair any stuck pending referrals in BACKGROUND (non-blocking)
+        // Don't await - let it run asynchronously while we return stats immediately
+        repairStuckReferrals(userId)
+            .then(repairedCount => {
+                if (repairedCount > 0) {
+                    console.log(`[REPAIR] Background: Repaired ${repairedCount} stuck referrals for ${userId}`);
+                }
+            })
+            .catch(err => {
+                console.error(`[REPAIR] Background error for ${userId}:`, err.message);
+            });
         
         // Check if user is actually an ambassador (has ambassadorEmail set)
         const isAmbassador = !!user.ambassadorEmail;
