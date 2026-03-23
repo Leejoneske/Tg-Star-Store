@@ -4113,7 +4113,28 @@ async function syncUserData(telegramId, username, interactionType = 'unknown', r
             };
             
             if (hasChanges) {
-                await user.save();
+                try {
+                    await user.save();
+                } catch (saveErr) {
+                    // Handle version conflicts from concurrent updates
+                    if (saveErr.name === 'VersionError') {
+                        console.warn(`[SYNC] Version conflict for user ${telegramId}, reloading and retrying...`);
+                        try {
+                            // Reload the document and retry
+                            const reloadedUser = await User.findOne({ id: telegramId });
+                            if (reloadedUser) {
+                                // Apply only the safe updates
+                                reloadedUser.lastActive = new Date();
+                                reloadedUser.lastDevice = user.lastDevice;
+                                await reloadedUser.save();
+                            }
+                        } catch (retryErr) {
+                            console.error(`[SYNC] Failed to retry saving user ${telegramId}:`, retryErr.message);
+                        }
+                    } else {
+                        throw saveErr;
+                    }
+                }
             }
         }
         
@@ -4807,7 +4828,10 @@ bot.on('callback_query', async (query) => {
                                 message_id: bucket.messageId
                             });
                         } catch (e) {
-                            console.error('Failed to edit message:', e.message);
+                            // Silently ignore "message is not modified" errors - they're harmless
+                            if (!e.message.includes('message is not modified')) {
+                                console.error('Failed to edit message:', e.message);
+                            }
                         }
                     }
                     
@@ -4833,7 +4857,10 @@ bot.on('callback_query', async (query) => {
                             message_id: bucket.messageId
                         });
                     } catch (e) {
-                        console.error('Failed to edit message:', e.message);
+                        // Silently ignore "message is not modified" errors - they're harmless
+                        if (!e.message.includes('message is not modified')) {
+                            console.error('Failed to edit message:', e.message);
+                        }
                     }
                 }
                 
@@ -4864,7 +4891,10 @@ bot.on('callback_query', async (query) => {
                         message_id: bucket.messageId
                     });
                 } catch (e) {
-                    console.error('Failed to edit message:', e.message);
+                    // Silently ignore "message is not modified" errors - they're harmless
+                    if (!e.message.includes('message is not modified')) {
+                        console.error('Failed to edit message:', e.message);
+                    }
                 }
             }
             
