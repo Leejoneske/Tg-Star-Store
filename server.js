@@ -66,7 +66,9 @@ try {
 let pdfGenerator = null;
 try {
   pdfGenerator = require('./services/pdf-generator');
-} catch (_) {
+  console.log('✅ PDF Generator loaded successfully');
+} catch (err) {
+  console.error('❌ Failed to load PDF Generator:', err.message);
   // noop if missing - PDF export will be skipped gracefully
 }
 
@@ -12427,11 +12429,17 @@ app.get('/api/export-transactions-download', async (req, res) => {
 app.post('/api/export-transactions-pdf', requireTelegramAuth, async (req, res) => {
     try {
         if (!pdfGenerator) {
-            return res.status(501).json({ error: 'PDF export not available' });
+            console.error('PDF Generator not available');
+            return res.status(501).json({ error: 'PDF export service not available. Please try again later.' });
         }
 
         const userId = req.user.id;
         const userInfo = req.user || {};
+        
+        if (!userId) {
+            console.error('No user ID found in request');
+            return res.status(401).json({ error: 'User authentication failed' });
+        }
         
         // Fetch transactions
         let buyOrders = [];
@@ -12492,14 +12500,30 @@ app.post('/api/export-transactions-pdf', requireTelegramAuth, async (req, res) =
             });
         }
 
+        console.log(`Generating transaction PDF for user ${userId} with ${transactions.length} transactions`);
+
         // Generate PDF
-        const docDefinition = pdfGenerator.generateTransactionPDF(
-            userId,
-            userInfo.username,
-            transactions
-        );
+        let docDefinition;
+        try {
+            docDefinition = pdfGenerator.generateTransactionPDF(
+                userId,
+                userInfo.username,
+                transactions
+            );
+        } catch (err) {
+            console.error('Error generating transaction PDF definition:', err.message, err.stack);
+            return res.status(500).json({ error: 'Failed to generate PDF document: ' + err.message });
+        }
         
-        const buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+        let buffer;
+        try {
+            buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+            console.log(`PDF buffer created successfully, size: ${buffer.length} bytes`);
+        } catch (err) {
+            console.error('Error creating PDF buffer:', err.message, err.stack);
+            return res.status(500).json({ error: 'Failed to create PDF file: ' + err.message });
+        }
+
         const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
         // Send via Telegram if possible
@@ -12519,9 +12543,10 @@ app.post('/api/export-transactions-pdf', requireTelegramAuth, async (req, res) =
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Cache-Control', 'no-store');
+        console.log(`Sending PDF to user as direct download`);
         return res.send(buffer);
     } catch (error) {
-        console.error('Error exporting transactions PDF:', error);
+        console.error('Error exporting transactions PDF:', error.message, error.stack);
         res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
     }
 });
@@ -12745,24 +12770,46 @@ app.get('/api/export-referrals-download', async (req, res) => {
 app.post('/api/export-referrals-pdf', requireTelegramAuth, async (req, res) => {
     try {
         if (!pdfGenerator) {
-            return res.status(501).json({ error: 'PDF export not available' });
+            console.error('PDF Generator not available');
+            return res.status(501).json({ error: 'PDF export service not available. Please try again later.' });
         }
 
         const userId = req.user.id;
-        const userInfo = req.user;
+        const userInfo = req.user || {};
+        
+        if (!userId) {
+            console.error('No user ID found in request');
+            return res.status(401).json({ error: 'User authentication failed' });
+        }
         
         const referrals = await Referral.find({ referrerUserId: userId })
             .sort({ dateReferred: -1 })
             .lean();
 
+        console.log(`Generating referral PDF for user ${userId} with ${referrals.length} referrals`);
+
         // Generate PDF
-        const docDefinition = pdfGenerator.generateReferralPDF(
-            userId,
-            userInfo.username,
-            referrals
-        );
+        let docDefinition;
+        try {
+            docDefinition = pdfGenerator.generateReferralPDF(
+                userId,
+                userInfo.username,
+                referrals
+            );
+        } catch (err) {
+            console.error('Error generating referral PDF definition:', err.message, err.stack);
+            return res.status(500).json({ error: 'Failed to generate PDF document: ' + err.message });
+        }
         
-        const buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+        let buffer;
+        try {
+            buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+            console.log(`PDF buffer created successfully, size: ${buffer.length} bytes`);
+        } catch (err) {
+            console.error('Error creating PDF buffer:', err.message, err.stack);
+            return res.status(500).json({ error: 'Failed to create PDF file: ' + err.message });
+        }
+
         const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
         // Send via Telegram if possible
@@ -12782,9 +12829,10 @@ app.post('/api/export-referrals-pdf', requireTelegramAuth, async (req, res) => {
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Cache-Control', 'no-store');
+        console.log(`Sending PDF to user as direct download`);
         return res.send(buffer);
     } catch (error) {
-        console.error('Error exporting referrals PDF:', error);
+        console.error('Error exporting referrals PDF:', error.message, error.stack);
         res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
     }
 });
