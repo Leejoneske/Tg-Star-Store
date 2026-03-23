@@ -7691,6 +7691,105 @@ function validateTelegramUser(req, res, next) {
     next();
 }
 
+// Helper function to repair stuck pending referrals that should be activated
+async function repairStuckReferrals(userId) {
+    try {
+        // Find all pending referrals for this user
+        const pendingReferrals = await Referral.find({
+            referrerUserId: userId,
+            status: 'pending'
+        });
+        
+        if (!pendingReferrals.length) {
+            return 0; // No stuck referrals
+        }
+        
+        let repaired = 0;
+        
+        for (const referral of pendingReferrals) {
+            try {
+                // Find the corresponding tracker
+                const tracker = await ReferralTracker.findOne({
+                    referral: referral._id,
+                    referredUserId: referral.referredUserId
+                });
+                
+                if (!tracker) {
+                    continue; // No tracker, skip
+                }
+                
+                // Check if this referral should be activated
+                const totalStars = tracker.totalBoughtStars + tracker.totalSoldStars;
+                
+                if ((totalStars >= 100 || tracker.premiumActivated) && tracker.status === 'pending') {
+                    // Activate the referral
+                    console.log(`[REPAIR] Activating stuck referral ${referral._id} for user ${userId}: ${totalStars} stars`);
+                    
+                    // Update tracker
+                    tracker.status = 'active';
+                    tracker.dateActivated = new Date();
+                    await tracker.save();
+                    
+                    // Update referral
+                    referral.status = 'completed';
+                    referral.dateActivated = new Date();
+                    await referral.save();
+                    
+                    // Update ambassador earnings if referrer is an ambassador
+                    const referrer = await User.findOne({ id: referral.referrerUserId });
+                    if (referrer && referrer.ambassadorEmail) {
+                        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+                        const totalReferrals = await Referral.countDocuments({
+                            referrerUserId: referral.referrerUserId,
+                            dateReferred: { $gte: marchFirstDate },
+                            status: { $in: ['completed', 'active'] }
+                        });
+                        
+                        const levelEarnings = recalculateLevelEarnings(totalReferrals);
+                        const totalAmount = getTotalAmbassiadorEarnings(levelEarnings);
+                        const newLevel = getAmbassadorTier(totalReferrals).level;
+                        
+                        await User.findOneAndUpdate(
+                            { id: referral.referrerUserId },
+                            {
+                                ambassadorCurrentLevel: newLevel,
+                                ambassadorReferralCount: totalReferrals,
+                                ambassadorLevelEarnings: levelEarnings,
+                                ambassadorPendingBalance: totalAmount,
+                                $push: {
+                                    ambassadorEarningsHistory: {
+                                        timestamp: new Date(),
+                                        referralCount: totalReferrals,
+                                        level: newLevel,
+                                        earnedAmount: totalAmount,
+                                        reason: 'repair_stuck_referral'
+                                    }
+                                }
+                            }
+                        );
+                        
+                        console.log(`[REPAIR] Ambassador earnings recalculated for ${referral.referrerUserId}`);
+                    }
+                    
+                    repaired++;
+                }
+            } catch (err) {
+                console.error(`[REPAIR] Error repairing referral ${referral._id}:`, err.message);
+            }
+        }
+        
+        if (repaired > 0) {
+            console.log(`[REPAIR] Successfully repaired ${repaired} stuck referrals for user ${userId}`);
+        }
+        
+        return repaired;
+    } catch (error) {
+        console.error(`[REPAIR] Error checking for stuck referrals:`, error.message);
+        return 0;
+    }
+}
+
+// Leaderboard endpoint (global by points, friends by referrals relationship)
 app.get('/api/referral-stats/:userId', (req, res, next) => {
     // Skip Telegram validation for ambassador app
     if (req.isAmbassadorApp) {
@@ -7712,6 +7811,12 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
                 success: false, 
                 error: 'User not found' 
             });
+        }
+        
+        // Auto-repair any stuck pending referrals before showing stats
+        const repairedCount = await repairStuckReferrals(userId);
+        if (repairedCount > 0) {
+            console.log(`[REPAIR] Repaired ${repairedCount} stuck referrals for ${userId}`);
         }
         
         // Check if user is actually an ambassador (has ambassadorEmail set)
