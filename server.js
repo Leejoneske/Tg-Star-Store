@@ -4252,7 +4252,40 @@ async function trackUserActivity(userId, username, actionType, actionDetails = {
                 }
             }
             
-            await user.save();
+            try {
+                await user.save();
+            } catch (saveErr) {
+                // Handle version conflicts from concurrent updates
+                if (saveErr.name === 'VersionError') {
+                    console.warn(`[ACTIVITY] Version conflict for user ${userId}, reloading and retrying...`);
+                    try {
+                        // Reload the document and retry with fresh version
+                        const reloadedUser = await User.findOne({ id: userId });
+                        if (reloadedUser) {
+                            // Apply only the safe updates that don't conflict with ambassador fields
+                            reloadedUser.lastActive = new Date();
+                            reloadedUser.lastLocation = {
+                                country: geo.country,
+                                countryCode: geo.countryCode,
+                                city: geo.city,
+                                ip,
+                                timestamp: new Date()
+                            };
+                            reloadedUser.lastDevice = {
+                                userAgent,
+                                browser,
+                                os,
+                                timestamp: new Date()
+                            };
+                            await reloadedUser.save();
+                        }
+                    } catch (retryErr) {
+                        console.error(`[ACTIVITY] Failed to retry saving user ${userId}:`, retryErr.message);
+                    }
+                } else {
+                    throw saveErr;
+                }
+            }
         }
         
         // Create activity log (with sampling to reduce storage)
