@@ -1281,7 +1281,10 @@ async function doExportTransactions(format) {
         exportBtn.disabled = true;
 
         const headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
         };
         
         if (window.Telegram?.WebApp?.initData) {
@@ -1298,9 +1301,10 @@ async function doExportTransactions(format) {
             }
         }
 
-        const response = await fetch(`${BASE_API_URL}/api/export-transactions-pdf`, {
+        const response = await fetch(`${BASE_API_URL}/api/export-transactions-pdf?t=${Date.now()}`, {
             method: 'POST',
-            headers: headers
+            headers: headers,
+            body: JSON.stringify({ timestamp: Date.now() })
         });
 
         console.log('Export response status:', response.status);
@@ -1358,9 +1362,21 @@ async function doExportTransactions(format) {
         });
     } catch (error) {
         console.error('Export error:', error);
+        let errorMsg = error.message || 'Failed to export statement. Please try again.';
+        if (errorMsg.startsWith('HTTP 401')) {
+            errorMsg = 'Authentication failed. Please reload the page and try again.';
+        } else if (errorMsg.startsWith('HTTP 403')) {
+            errorMsg = 'You do not have permission to export this data.';
+        } else if (errorMsg.startsWith('HTTP 404')) {
+            errorMsg = 'Export service not found. Please try again later.';
+        } else if (errorMsg.startsWith('HTTP 501')) {
+            errorMsg = 'PDF service is not available. Please try again later.';
+        } else if (errorMsg.startsWith('HTTP 500')) {
+            errorMsg = 'Server error while generating PDF. Please contact support.';
+        }
         Swal.fire({
             title: TranslationUtils.get('error'),
-            text: 'Failed to export statement. Please try again.',
+            text: '❌ ' + errorMsg,
             icon: 'error',
             confirmButtonText: TranslationUtils.get('close'),
             confirmButtonColor: '#dc2626'
@@ -1399,7 +1415,10 @@ async function doExportReferrals(format) {
         exportBtn.disabled = true;
 
         const headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
         };
         
         if (window.Telegram?.WebApp?.initData) {
@@ -1413,9 +1432,10 @@ async function doExportReferrals(format) {
             }
         }
 
-        const response = await fetch(`${BASE_API_URL}/api/export-referrals-pdf`, {
+        const response = await fetch(`${BASE_API_URL}/api/export-referrals-pdf?t=${Date.now()}`, {
             method: 'POST',
-            headers: headers
+            headers: headers,
+            body: JSON.stringify({ timestamp: Date.now() })
         });
 
         if (!response.ok) {
@@ -1471,9 +1491,21 @@ async function doExportReferrals(format) {
 
     } catch (error) {
         console.error('Export error:', error);
+        let errorMsg = error.message || 'Failed to export statement. Please try again.';
+        if (errorMsg.startsWith('HTTP 401')) {
+            errorMsg = 'Authentication failed. Please reload the page and try again.';
+        } else if (errorMsg.startsWith('HTTP 403')) {
+            errorMsg = 'You do not have permission to export this data.';
+        } else if (errorMsg.startsWith('HTTP 404')) {
+            errorMsg = 'Export service not found. Please try again later.';
+        } else if (errorMsg.startsWith('HTTP 501')) {
+            errorMsg = 'PDF service is not available. Please try again later.';
+        } else if (errorMsg.startsWith('HTTP 500')) {
+            errorMsg = 'Server error while generating PDF. Please contact support.';
+        }
         Swal.fire({
             title: TranslationUtils.get('error'),
-            text: 'Failed to export statement. Please try again.',
+            text: '❌ ' + errorMsg,
             icon: 'error',
             confirmButtonText: TranslationUtils.get('close'),
             confirmButtonColor: '#dc2626'
