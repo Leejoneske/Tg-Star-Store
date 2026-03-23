@@ -1281,7 +1281,10 @@ async function doExportTransactions(format) {
         exportBtn.disabled = true;
 
         const headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
         };
         
         if (window.Telegram?.WebApp?.initData) {
@@ -1298,9 +1301,10 @@ async function doExportTransactions(format) {
             }
         }
 
-        const response = await fetch(`${BASE_API_URL}/api/export-transactions-pdf`, {
+        const response = await fetch(`${BASE_API_URL}/api/export-transactions-pdf?t=${Date.now()}`, {
             method: 'POST',
-            headers: headers
+            headers: headers,
+            body: JSON.stringify({ timestamp: Date.now() })
         });
 
         console.log('Export response status:', response.status);
@@ -1411,7 +1415,10 @@ async function doExportReferrals(format) {
         exportBtn.disabled = true;
 
         const headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
         };
         
         if (window.Telegram?.WebApp?.initData) {
@@ -1425,9 +1432,10 @@ async function doExportReferrals(format) {
             }
         }
 
-        const response = await fetch(`${BASE_API_URL}/api/export-referrals-pdf`, {
+        const response = await fetch(`${BASE_API_URL}/api/export-referrals-pdf?t=${Date.now()}`, {
             method: 'POST',
-            headers: headers
+            headers: headers,
+            body: JSON.stringify({ timestamp: Date.now() })
         });
 
         if (!response.ok) {
