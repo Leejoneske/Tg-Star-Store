@@ -7755,6 +7755,9 @@ async function repairStuckReferrals(userId) {
                     }
                     await referral.save();
                     
+                    // Get referred user info for notification
+                    const referredUser = await User.findOne({ id: referral.referredUserId });
+                    
                     // Update ambassador earnings if referrer is an ambassador
                     const referrer = await User.findOne({ id: referral.referrerUserId });
                     if (referrer && referrer.ambassadorEmail) {
@@ -7792,6 +7795,49 @@ async function repairStuckReferrals(userId) {
                         );
                         
                         console.log(`[REPAIR] Ambassador earnings recalculated for ${referral.referrerUserId}`);
+                    }
+                    
+                    // Send notification to referrer about balance recovery
+                    try {
+                        if (referrer && referrer.id) {
+                            await bot.sendMessage(
+                                referrer.id,
+                                `✅ <b>Referral Balance Recovered!</b>\n\n` +
+                                `Your referral from @${referredUser?.username || 'Unknown User'} has been activated and your balance has been updated!\n\n` +
+                                `💰 <b>You earned: +0.5 USDT</b>\n` +
+                                `⭐ Total Stars: ${totalStars}\n\n` +
+                                `Check your referral dashboard to see your updated balance.`,
+                                { parse_mode: 'HTML', disable_web_page_preview: true }
+                            );
+                            console.log(`[REPAIR] Notification sent to referrer ${referrer.id} about balance recovery`);
+                        }
+                    } catch (err) {
+                        console.error(`[REPAIR] Failed to send notification to referrer ${referral.referrerUserId}:`, err.message);
+                    }
+                    
+                    // Send audit notification to admins
+                    try {
+                        const adminIds = ['852842945', '5843755611', '5902903648', '7070816262'];
+                        const adminMessage = `🔧 <b>AUTOMATIC REPAIR: Balance Recovered</b>\n\n` +
+                            `<b>Referrer:</b> @${referrer?.username || 'unknown'} (ID: ${referral.referrerUserId})\n` +
+                            `<b>Referred User:</b> @${referredUser?.username || 'unknown'} (ID: ${referral.referredUserId})\n` +
+                            `<b>Total Stars:</b> ${totalStars}\n` +
+                            `<b>Reason:</b> Stuck pending referral recovered by repair function\n` +
+                            `<b>Balance Earned:</b> +0.5 USDT\n` +
+                            `<b>Time:</b> ${new Date().toISOString()}`;
+                        
+                        for (const adminId of adminIds) {
+                            try {
+                                await bot.sendMessage(adminId, adminMessage, { 
+                                    parse_mode: 'HTML', 
+                                    disable_web_page_preview: true 
+                                });
+                            } catch (adminErr) {
+                                console.error(`[REPAIR] Failed to notify admin ${adminId}:`, adminErr.message);
+                            }
+                        }
+                    } catch (err) {
+                        console.error(`[REPAIR] Error sending admin notifications:`, err.message);
                     }
                     
                     repaired++;
@@ -8651,6 +8697,148 @@ app.post('/api/admin/enroll-ambassador', requireAdmin, async (req, res) => {
     } catch (error) {
         console.error('Error enrolling ambassador:', error);
         return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Admin endpoint: Audit and recover lost referral balances
+app.post('/api/admin/audit-and-recover-balances', requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'userId is required' 
+            });
+        }
+        
+        console.log(`[AUDIT] Starting balance audit for user ${userId}`);
+        
+        // Get the user
+        const user = await User.findOne({ id: userId });
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'User not found' 
+            });
+        }
+        
+        // Count active/completed non-withdrawn referrals
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        const availableReferrals = await Referral.countDocuments({
+            referrerUserId: userId,
+            $or: [
+                { dateReferred: { $gte: marchFirstDate } },
+                { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
+            ],
+            status: { $in: ['completed', 'active'] },
+            withdrawn: { $ne: true }
+        });
+        
+        const expectedBalance = availableReferrals * 0.5;
+        const auditData = {
+            userId,
+            username: user.username,
+            expectingBalance: expectedBalance,
+            isAmbassador: !!user.ambassadorEmail,
+            totalReferralsCount: availableReferrals,
+            timestamp: new Date(),
+            auditedBy: req.user.id
+        };
+        
+        // Log audit for transparency
+        console.log(`[AUDIT] Balance audit for ${userId}: ${availableReferrals} referrals = $${expectedBalance} USDT`);
+        
+        // If admin is requesting recovery, send notification to user about balance update
+        if (req.body.sendNotification) {
+            try {
+                if (user.id) {
+                    const message = `💰 <b>Balance Audit Complete</b>\n\n` +
+                        `An admin has audited your referral balance.\n\n` +
+                        `<b>Active Referrals:</b> ${availableReferrals}\n` +
+                        `<b>Your Balance:</b> $${expectedBalance.toFixed(2)} USDT\n\n` +
+                        `If this doesn't match what you see in your dashboard, please contact support.`;
+                    
+                    await bot.sendMessage(user.id, message, { 
+                        parse_mode: 'HTML', 
+                        disable_web_page_preview: true 
+                    });
+                    console.log(`[AUDIT] Notification sent to user ${userId} about balance audit`);
+                }
+            } catch (err) {
+                console.error(`[AUDIT] Failed to send notification to user:`, err.message);
+            }
+        }
+        
+        return res.json({
+            success: true,
+            message: 'Balance audit completed',
+            audit: auditData,
+            recoveryOptions: {
+                refreshFrontend: 'User should refresh their dashboard to see latest balance',
+                manualCorrection: `Can manually adjust user balance if discrepancy found`,
+                totalReferralsReportable: availableReferrals
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error auditing balance:', error);
+        return res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// Admin endpoint: Manually trigger referral repair for specific user
+app.post('/api/admin/manual-repair-referrals', requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'userId is required' 
+            });
+        }
+        
+        console.log(`[ADMIN-REPAIR] Manual repair triggered for user ${userId} by admin ${req.user.id}`);
+        
+        // Force bypass the debounce by deleting the cache entry
+        repairDebounceCache.delete(userId);
+        
+        // Run repair (will now execute because cache was cleared)
+        const repairedCount = await repairStuckReferrals(userId);
+        
+        // Get updated balance
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        const availableReferrals = await Referral.countDocuments({
+            referrerUserId: userId,
+            $or: [
+                { dateReferred: { $gte: marchFirstDate } },
+                { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
+            ],
+            status: { $in: ['completed', 'active'] },
+            withdrawn: { $ne: true }
+        });
+        
+        const updatedBalance = availableReferrals * 0.5;
+        
+        return res.json({
+            success: true,
+            message: `Manual repair completed for user ${userId}`,
+            repaired: repairedCount,
+            updatedBalance: updatedBalance,
+            timestamp: new Date(),
+            initiatedBy: req.user.id
+        });
+        
+    } catch (error) {
+        console.error('Error in manual repair:', error);
+        return res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
     }
 });
 
