@@ -7691,9 +7691,24 @@ function validateTelegramUser(req, res, next) {
     next();
 }
 
+// Debounce cache for repair function (avoid running too frequently)
+const repairDebounceCache = new Map();
+const REPAIR_DEBOUNCE_MS = 60000; // Only run repair once per minute per user
+
 // Helper function to repair stuck pending referrals that should be activated
 async function repairStuckReferrals(userId) {
     try {
+        // Check if we've already repaired for this user recently
+        const lastRepairTime = repairDebounceCache.get(userId);
+        const now = Date.now();
+        if (lastRepairTime && (now - lastRepairTime) < REPAIR_DEBOUNCE_MS) {
+            // Skip repair - ran too recently for this user
+            return 0;
+        }
+        
+        // Mark that we're attempting repair for this user
+        repairDebounceCache.set(userId, now);
+        
         // Find all pending referrals for this user
         const pendingReferrals = await Referral.find({
             referrerUserId: userId,
@@ -7929,9 +7944,15 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             };
         }
 
+        // Paginate referrals for frontend display (stats still calculated from all referrals)
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const displayLimit = Math.min(parseInt(req.query.limit) || 50, 500);
+        const skip = (page - 1) * displayLimit;
+        const referralsDisplay = referrals.slice(skip, skip + displayLimit);
+
         const responseData = {
             success: true,
-            referrals: referrals.map(ref => ({
+            referrals: referralsDisplay.map(ref => ({
                 userId: ref.referredUserId,
                 name: userMap[ref.referredUserId] || `User ${ref.referredUserId.substring(0, 6)}`,
                 status: ref.status.toLowerCase(),
@@ -7944,6 +7965,12 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
                 totalEarned: completedReferrals * 0.5,
                 referralsCount: totalReferrals,
                 pendingAmount: (completedReferrals - availableReferrals) * 0.5
+            },
+            pagination: {
+                page,
+                limit: displayLimit,
+                total: totalReferrals,
+                pages: Math.ceil(totalReferrals / displayLimit)
             },
             referralLink: `https://t.me/TgStarStore_bot?start=${professionalRefLink}`,
             newReferralLink: `https://t.me/TgStarStore_bot?start=${professionalRefLink}`,
@@ -13238,14 +13265,31 @@ app.get('/api/export-referrals-pdf-download', async (req, res) => {
 app.get('/api/referrals/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(parseInt(req.query.limit) || 50, 500); // Cap at 500 per page
+        const skip = (page - 1) * limit;
+        
+        // Get total count for pagination metadata
+        const totalCount = await Referral.countDocuments({ referrerUserId: userId });
         
         const referrals = await Referral.find({ referrerUserId: userId })
             .sort({ dateReferred: -1 })
+            .skip(skip)
+            .limit(limit)
             .lean();
         
+        // Optimize: Batch fetch all referred users at once instead of N+1 queries
+        const referredUserIds = referrals.map(r => r.referredUserId);
+        const referredUsers = await User.find({ id: { $in: referredUserIds } }).lean();
+        
+        const userMap = {};
+        referredUsers.forEach(user => {
+            userMap[user.id] = user;
+        });
+        
         // Format referral data
-        const formattedReferrals = await Promise.all(referrals.map(async referral => {
-            const referredUser = await User.findOne({ id: referral.referredUserId }).lean();
+        const formattedReferrals = referrals.map(referral => {
+            const referredUser = userMap[referral.referredUserId];
             
             return {
                 id: referral._id.toString(),
@@ -13255,9 +13299,17 @@ app.get('/api/referrals/:userId', async (req, res) => {
                 details: `Referred user ${referredUser?.username || referral.referredUserId}`,
                 amount: 0.5 // Fixed bonus amount or calculate based on your logic
             };
-        }));
+        });
 
-        res.json(formattedReferrals);
+        res.json({
+            data: formattedReferrals,
+            pagination: {
+                page,
+                limit,
+                total: totalCount,
+                pages: Math.ceil(totalCount / limit)
+            }
+        });
     } catch (error) {
         console.error('Error fetching referrals:', error);
         res.status(500).json({ error: 'Internal server error' });
