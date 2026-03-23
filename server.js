@@ -7730,9 +7730,14 @@ async function repairStuckReferrals(userId) {
                     tracker.dateActivated = new Date();
                     await tracker.save();
                     
-                    // Update referral
+                    // Update referral - ensure dateReferred is set if missing
                     referral.status = 'completed';
                     referral.dateActivated = new Date();
+                    if (!referral.dateReferred && referral.dateCreated) {
+                        referral.dateReferred = referral.dateCreated;
+                    } else if (!referral.dateReferred) {
+                        referral.dateReferred = new Date('2026-03-01T00:00:00Z');
+                    }
                     await referral.save();
                     
                     // Update ambassador earnings if referrer is an ambassador
@@ -7741,7 +7746,10 @@ async function repairStuckReferrals(userId) {
                         const marchFirstDate = new Date('2026-03-01T00:00:00Z');
                         const totalReferrals = await Referral.countDocuments({
                             referrerUserId: referral.referrerUserId,
-                            dateReferred: { $gte: marchFirstDate },
+                            $or: [
+                                { dateReferred: { $gte: marchFirstDate } },
+                                { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
+                            ],
                             status: { $in: ['completed', 'active'] }
                         });
                         
@@ -7838,10 +7846,13 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             dateFilter = { $gte: marchFirstDate };
         }
         
-        // Fetch referrals for the appropriate date range
+        // Fetch referrals for the appropriate date range (handle missing dateReferred gracefully)
         const referrals = await Referral.find({
             referrerUserId: userId,
-            dateReferred: dateFilter
+            $or: [
+                { dateReferred: dateFilter },
+                { dateReferred: { $exists: false }, dateCreated: dateFilter }
+            ]
         });
         // Found referrals for the filtered date range
         
@@ -7853,10 +7864,13 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
 
         const totalReferrals = referrals.length;
         
-        // Get completed/active AND non-withdrawn referrals (from March 1st onwards)
+        // Get completed/active AND non-withdrawn referrals (handle missing dateReferred)
         const availableReferrals = await Referral.find({
             referrerUserId: req.params.userId,
-            dateReferred: dateFilter,
+            $or: [
+                { dateReferred: dateFilter },
+                { dateReferred: { $exists: false }, dateCreated: dateFilter }
+            ],
             status: { $in: ['completed', 'active'] },
             withdrawn: { $ne: true }
         }).countDocuments();
@@ -8177,7 +8191,10 @@ app.post('/api/ambassador/update-earnings', async (req, res) => {
         const marchFirstDate = new Date('2026-03-01T00:00:00Z');
         const totalReferrals = await Referral.countDocuments({
             referrerUserId: userId,
-            dateReferred: { $gte: marchFirstDate }
+            $or: [
+                { dateReferred: { $gte: marchFirstDate } },
+                { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
+            ]
         });
         
         // Recalculate earnings for all tiers based on current referral count
@@ -9121,7 +9138,10 @@ async function trackStars(userId, stars, type) {
                         const marchFirstDate = new Date('2026-03-01T00:00:00Z');
                         const totalReferrals = await Referral.countDocuments({
                             referrerUserId: referral.referrerUserId,
-                            dateReferred: { $gte: marchFirstDate }
+                            $or: [
+                                { dateReferred: { $gte: marchFirstDate } },
+                                { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
+                            ]
                         });
                         
                         // Recalculate earnings for all tiers
@@ -9193,7 +9213,10 @@ async function trackPremiumActivation(userId) {
                             const marchFirstDate = new Date('2026-03-01T00:00:00Z');
                             const totalReferrals = await Referral.countDocuments({
                                 referrerUserId: referral.referrerUserId,
-                                dateReferred: { $gte: marchFirstDate }
+                                $or: [
+                                    { dateReferred: { $gte: marchFirstDate } },
+                                    { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
+                                ]
                             });
                             
                             // Recalculate earnings for all tiers
@@ -10326,7 +10349,13 @@ bot.onText(/^\/userinfo\s+(\d+)/i, async (msg, match) => {
         // Get referral data: who referred this user AND how many they referred
         const marchFirstDate = new Date('2026-03-01T00:00:00Z');
         const referralRecord = await Referral.findOne({ referredUserId: userId });
-        const myReferrals = await Referral.find({ referrerUserId: userId, dateReferred: { $gte: marchFirstDate } });
+        const myReferrals = await Referral.find({
+            referrerUserId: userId,
+            $or: [
+                { dateReferred: { $gte: marchFirstDate } },
+                { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
+            ]
+        });
         const activeReferrals = myReferrals.filter(r => r.status === 'completed').length;
         const pendingReferrals = myReferrals.filter(r => r.status === 'pending').length;
         
@@ -13571,9 +13600,24 @@ app.get('/api/admin/analytics', async (req, res) => {
             User.countDocuments({ createdAt: { $gte: today } }),
             User.countDocuments({ createdAt: { $gte: thisWeek } }),
             User.countDocuments({ createdAt: { $gte: thisMonth } }),
-            Referral.countDocuments({ dateReferred: { $gte: today } }),
-            Referral.countDocuments({ dateReferred: { $gte: thisWeek } }),
-            Referral.countDocuments({ dateReferred: { $gte: thisMonth } }),
+            Referral.countDocuments({
+                $or: [
+                    { dateReferred: { $gte: today } },
+                    { dateReferred: { $exists: false }, dateCreated: { $gte: today } }
+                ]
+            }),
+            Referral.countDocuments({
+                $or: [
+                    { dateReferred: { $gte: thisWeek } },
+                    { dateReferred: { $exists: false }, dateCreated: { $gte: thisWeek } }
+                ]
+            }),
+            Referral.countDocuments({
+                $or: [
+                    { dateReferred: { $gte: thisMonth } },
+                    { dateReferred: { $exists: false }, dateCreated: { $gte: thisMonth } }
+                ]
+            }),
             ReferralWithdrawal.aggregate([
                 { $match: { status: 'completed' } },
                 { $group: { _id: null, total: { $sum: '$amount' } } }
@@ -15500,7 +15544,10 @@ app.listen(PORT, () => {
             // Calculate available balance from non-withdrawn referrals
             const availableReferrals = await Referral.countDocuments({
               referrerUserId: ambassador.id,
-              dateReferred: { $gte: monthStart, $lt: monthEnd },
+              $or: [
+                  { dateReferred: { $gte: monthStart, $lt: monthEnd } },
+                  { dateReferred: { $exists: false }, dateCreated: { $gte: monthStart, $lt: monthEnd } }
+              ],
               status: { $in: ['completed', 'active'] },
               withdrawn: { $ne: true }
             });
@@ -15532,7 +15579,10 @@ app.listen(PORT, () => {
             // Create automatic withdrawal for ambassador
             const referralsToWithdraw = await Referral.find({
               referrerUserId: ambassador.id,
-              dateReferred: { $gte: monthStart, $lt: monthEnd },
+              $or: [
+                  { dateReferred: { $gte: monthStart, $lt: monthEnd } },
+                  { dateReferred: { $exists: false }, dateCreated: { $gte: monthStart, $lt: monthEnd } }
+              ],
               status: { $in: ['completed', 'active'] },
               withdrawn: { $ne: true }
             }).limit(Math.ceil(availableBalance / 0.5));
