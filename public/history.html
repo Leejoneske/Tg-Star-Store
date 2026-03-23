@@ -1358,9 +1358,21 @@ async function doExportTransactions(format) {
         });
     } catch (error) {
         console.error('Export error:', error);
+        let errorMsg = error.message || 'Failed to export statement. Please try again.';
+        if (errorMsg.startsWith('HTTP 401')) {
+            errorMsg = 'Authentication failed. Please reload the page and try again.';
+        } else if (errorMsg.startsWith('HTTP 403')) {
+            errorMsg = 'You do not have permission to export this data.';
+        } else if (errorMsg.startsWith('HTTP 404')) {
+            errorMsg = 'Export service not found. Please try again later.';
+        } else if (errorMsg.startsWith('HTTP 501')) {
+            errorMsg = 'PDF service is not available. Please try again later.';
+        } else if (errorMsg.startsWith('HTTP 500')) {
+            errorMsg = 'Server error while generating PDF. Please contact support.';
+        }
         Swal.fire({
             title: TranslationUtils.get('error'),
-            text: 'Failed to export statement. Please try again.',
+            text: '❌ ' + errorMsg,
             icon: 'error',
             confirmButtonText: TranslationUtils.get('close'),
             confirmButtonColor: '#dc2626'
@@ -1471,9 +1483,21 @@ async function doExportReferrals(format) {
 
     } catch (error) {
         console.error('Export error:', error);
+        let errorMsg = error.message || 'Failed to export statement. Please try again.';
+        if (errorMsg.startsWith('HTTP 401')) {
+            errorMsg = 'Authentication failed. Please reload the page and try again.';
+        } else if (errorMsg.startsWith('HTTP 403')) {
+            errorMsg = 'You do not have permission to export this data.';
+        } else if (errorMsg.startsWith('HTTP 404')) {
+            errorMsg = 'Export service not found. Please try again later.';
+        } else if (errorMsg.startsWith('HTTP 501')) {
+            errorMsg = 'PDF service is not available. Please try again later.';
+        } else if (errorMsg.startsWith('HTTP 500')) {
+            errorMsg = 'Server error while generating PDF. Please contact support.';
+        }
         Swal.fire({
             title: TranslationUtils.get('error'),
-            text: 'Failed to export statement. Please try again.',
+            text: '❌ ' + errorMsg,
             icon: 'error',
             confirmButtonText: TranslationUtils.get('close'),
             confirmButtonColor: '#dc2626'
