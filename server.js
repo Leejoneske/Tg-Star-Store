@@ -4805,6 +4805,7 @@ bot.on('callback_query', async (query) => {
                 try {
                     // Create one request per selected item
                     const skipped = [];
+                    const noChange = [];
                     const created = [];
                     for (const key of bucket.selections) {
                         const [kind, id] = key.split(':');
@@ -4825,6 +4826,11 @@ bot.on('callback_query', async (query) => {
                             const wd = await ReferralWithdrawal.findOne({ withdrawalId: id, userId: msg.from.id.toString() });
                             if (!wd) continue;
                             oldWallet = wd.walletAddress || '';
+                        }
+                        // Check if new address is the same as old address (case-insensitive)
+                        if (newAddress.trim().toLowerCase() === (oldWallet || '').trim().toLowerCase()) {
+                            noChange.push(id);
+                            continue;
                         }
                         const requestDoc = await WalletUpdateRequest.create({
                             userId: msg.from.id.toString(),
@@ -4867,6 +4873,7 @@ bot.on('callback_query', async (query) => {
                     const parts = [];
                     if (created.length) parts.push(`✅ Submitted: ${created.join(', ')}`);
                     if (skipped.length) parts.push(`⛔ Skipped (already requested): ${skipped.join(', ')}`);
+                    if (noChange.length) parts.push(`ℹ️ No change needed (same wallet): ${noChange.join(', ')}`);
                     await bot.sendMessage(chatId, parts.length ? parts.join('\n') : 'Nothing to submit.');
                 } catch (e) {
                     await bot.sendMessage(chatId, '❌ Failed to submit requests. Please try again later.');
@@ -4928,6 +4935,11 @@ bot.on('callback_query', async (query) => {
                         const wd = await ReferralWithdrawal.findOne({ withdrawalId: orderId, userId: msg.from.id.toString() });
                         if (!wd) return bot.sendMessage(chatId, '❌ Withdrawal not found.');
                         oldWallet = wd.walletAddress || '';
+                    }
+
+                    // Check if new address is the same as old address (case-insensitive)
+                    if (newAddress.trim().toLowerCase() === (oldWallet || '').trim().toLowerCase()) {
+                        return bot.sendMessage(chatId, `❌ No change needed. The wallet address you submitted is the same as the current one. Please provide a different wallet address if you want to update it.`);
                     }
 
                     const requestDoc = await WalletUpdateRequest.create({
