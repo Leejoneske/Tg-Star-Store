@@ -4749,9 +4749,28 @@ bot.on('callback_query', async (query) => {
                 walletSelections.set(userId, bucket);
             }
             if (data === 'wallet_sel_all') {
-                // naive: cannot enumerate here; user can select individually before
-                await bot.answerCallbackQuery(query.id, { text: 'Select items individually, then Continue.' });
-                return;
+                try {
+                    // Fetch all processing orders and pending withdrawals for this user
+                    const [sellOrders, withdrawals] = await Promise.all([
+                        SellOrder.find({ telegramId: userId, status: 'processing' }).lean(),
+                        ReferralWithdrawal.find({ userId, status: 'pending' }).lean()
+                    ]);
+                    
+                    // Add all items to selection
+                    sellOrders.forEach(o => bucket.selections.add(`sell:${o.id}`));
+                    withdrawals.forEach(w => bucket.selections.add(`wd:${w.withdrawalId}`));
+                    
+                    bucket.timestamp = Date.now();
+                    walletSelections.set(userId, bucket);
+                    
+                    const totalCount = bucket.selections.size;
+                    await bot.answerCallbackQuery(query.id, { text: `Selected all ${totalCount} item(s)` });
+                    return;
+                } catch (err) {
+                    console.error('Error selecting all wallet items:', err);
+                    await bot.answerCallbackQuery(query.id, { text: 'Error selecting all items' });
+                    return;
+                }
             }
             if (data === 'wallet_sel_clear') {
                 bucket.selections.clear();
