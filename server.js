@@ -39,6 +39,16 @@ const schedule = (() => {
       
       // Check every hour
       setInterval(checkEndOfMonth, 60 * 60 * 1000);
+    },
+    
+    // Periodic repair scheduler - runs every 2 hours to repair orphaned referrals
+    schedulePeriodicRepair: (callback) => {
+      console.log('[Scheduler] Periodic referral repair initialized (every 2 hours)');
+      // Run every 2 hours
+      setInterval(() => {
+        console.log('[Scheduler] Running periodic referral repair scan...');
+        callback();
+      }, 2 * 60 * 60 * 1000);
     }
   };
 })();
@@ -15892,6 +15902,59 @@ app.listen(PORT, () => {
       }
     });
     console.log('📅 End-of-month automatic withdrawal scheduler initialized');
+  }
+  
+  // Initialize periodic referral repair scheduler (every 2 hours)
+  if (schedule && schedule.schedulePeriodicRepair) {
+    schedule.schedulePeriodicRepair(async () => {
+      try {
+        console.log('[Scheduler] Starting periodic referral repair scan...');
+        
+        // Find all users with pending referrals that have bought/sold enough stars
+        const pendingReferrals = await Referral.find({ status: 'pending' });
+        
+        if (pendingReferrals.length === 0) {
+          console.log('[Scheduler] No pending referrals found, scan complete');
+          return;
+        }
+        
+        console.log(`[Scheduler] Found ${pendingReferrals.length} pending referrals to check`);
+        
+        // Group by referrer to repair in batches
+        const userMap = {};
+        for (const ref of pendingReferrals) {
+          if (!userMap[ref.referrerUserId]) {
+            userMap[ref.referrerUserId] = [];
+          }
+          userMap[ref.referrerUserId].push(ref);
+        }
+        
+        let totalRepaired = 0;
+        let usersProcessed = 0;
+        
+        // Process each user
+        for (const [userId, refs] of Object.entries(userMap)) {
+          try {
+            // Clear debounce for periodic repair so it always runs
+            repairDebounceCache.delete(userId);
+            
+            const repairedCount = await repairStuckReferrals(userId);
+            if (repairedCount > 0) {
+              totalRepaired += repairedCount;
+              console.log(`[Scheduler] Periodic repair for user ${userId}: ${repairedCount} referrals fixed`);
+            }
+            usersProcessed++;
+          } catch (userError) {
+            console.error(`[Scheduler] Error repairing user ${userId}:`, userError.message);
+          }
+        }
+        
+        console.log(`[Scheduler] ✅ Periodic referral repair complete - Users: ${usersProcessed}, Total Repaired: ${totalRepaired}`);
+      } catch (error) {
+        console.error('[Scheduler] Error in periodic repair scan:', error);
+      }
+    });
+    console.log('🔧 Periodic referral repair scheduler initialized (runs every 2 hours)');
   }
 });
 
