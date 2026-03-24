@@ -10561,7 +10561,7 @@ async function handleReferralsCommand(msg) {
         });
         
         if (referrals.length > 0) {
-            const activeReferrals = referrals.filter(ref => ref.status === 'completed').length;
+            const activeReferrals = referrals.filter(ref => ref.status === 'active').length;
             const pendingReferrals = referrals.filter(ref => ref.status === 'pending').length;
             
             let message = `📊 Your Referrals (ALL):\n\nActive: ${activeReferrals}\nPending: ${pendingReferrals}\n\n`;
@@ -10864,7 +10864,7 @@ bot.onText(/^\/userinfo\s+(\d+)/i, async (msg, match) => {
                 { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
             ]
         });
-        const activeReferrals = myReferrals.filter(r => r.status === 'completed').length;
+        const activeReferrals = myReferrals.filter(r => r.status === 'active').length;
         const pendingReferrals = myReferrals.filter(r => r.status === 'pending').length;
         
         // Build comprehensive report

@@ -1101,8 +1101,8 @@
         const listEl  = document.getElementById('referralsList');
         const emptyEl = document.getElementById('noReferrals');
         let refs = state.referrals;
-        if (state.filterMode === 'paid')    refs = refs.filter(r => r.status === 'completed' || r.status === 'paid');
-        if (state.filterMode === 'pending') refs = refs.filter(r => r.status !== 'completed' && r.status !== 'paid');
+        if (state.filterMode === 'paid')    refs = refs.filter(r => r.status === 'active' || r.status === 'completed' || r.status === 'paid');
+        if (state.filterMode === 'pending') refs = refs.filter(r => r.status !== 'active' && r.status !== 'completed' && r.status !== 'paid');
 
         if (!refs.length) { listEl.innerHTML = ''; emptyEl.style.display = 'block'; return; }
         emptyEl.style.display = 'none';
@@ -1111,7 +1111,7 @@
             const name    = ref.name || `User #${String(ref.userId).substring(0,6)}`;
             const inits   = name.split(' ').map(w => w[0]).join('').toUpperCase().substring(0,2) || '?';
             const dateStr = new Date(ref.date).toLocaleDateString();
-            const isPaid  = ref.status === 'completed' || ref.status === 'paid';
+            const isPaid  = ref.status === 'active' || ref.status === 'completed' || ref.status === 'paid';
             return `
                 <div class="referral-row">
                     <div class="ref-left">

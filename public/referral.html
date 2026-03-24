@@ -707,8 +707,8 @@
             const date = new Date(ref.date);
             const dateStr = date.toLocaleDateString();
             const status = (ref.status || 'pending').toLowerCase();
-            const badgeClass = status === 'completed' || status === 'paid' ? 'paid' : 'pending';
-            const badgeText = badgeClass === 'paid' ? 'Paid' : 'Pending';
+            const badgeClass = status === 'active' || status === 'completed' || status === 'paid' ? 'paid' : 'pending';
+            const badgeText = badgeClass === 'paid' ? 'Active' : 'Pending';
             
             return `
                 <div class="referral-row">
