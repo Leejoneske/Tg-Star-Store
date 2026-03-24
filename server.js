@@ -7110,9 +7110,9 @@ async function getOrderCountForUser(userId) {
 async function getReferralCountForUser(userId) {
   try {
     if (process.env.MONGODB_URI) {
-      return await Referral.countDocuments({ referrerUserId: userId, status: { $in: ['active', 'completed'] } });
+      return await Referral.countDocuments({ referrerUserId: userId, status: 'active' });
     } else {
-      return await db.countReferrals({ referrerUserId: userId, status: { $in: ['active', 'completed'] } });
+      return await db.countReferrals({ referrerUserId: userId, status: 'active' });
     }
   } catch (e) {
     console.error('Error getting referral count:', e);
@@ -7756,7 +7756,7 @@ async function repairStuckReferrals(userId) {
                     await tracker.save();
                     
                     // Update referral - ensure dateReferred is set if missing
-                    referral.status = 'completed';
+                    referral.status = 'active';
                     referral.dateActivated = new Date();
                     if (!referral.dateReferred && referral.dateCreated) {
                         referral.dateReferred = referral.dateCreated;
@@ -7778,7 +7778,7 @@ async function repairStuckReferrals(userId) {
                                 { dateReferred: { $gte: marchFirstDate } },
                                 { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
                             ],
-                            status: { $in: ['completed', 'active'] }
+                            status: 'active'
                         });
                         
                         const levelEarnings = recalculateLevelEarnings(totalReferrals);
@@ -7948,13 +7948,13 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
                 { dateReferred: dateFilter },
                 { dateReferred: { $exists: false }, dateCreated: dateFilter }
             ],
-            status: { $in: ['completed', 'active'] },
+            status: 'active',
             withdrawn: { $ne: true }
         }).countDocuments();
 
-        // Get all completed/active (regardless of withdrawal status) - from March 1st onwards
+        // Get all active (regardless of withdrawal status) - from March 1st onwards
         const completedReferrals = referrals.filter(r => 
-            ['completed', 'active'].includes(r.status)
+            r.status === 'active'
         ).length;
         
         // Use user's stored referral hash (generated when they first joined)
@@ -8063,7 +8063,7 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
 
     if (scope === 'friends') {
       // Show the current user's referrals (referred users), ranked by their activity
-      const referredIds = await Referral.find({ referrerUserId: requesterId, status: { $in: ['active', 'completed'] } }).distinct('referredUserId');
+      const referredIds = await Referral.find({ referrerUserId: requesterId, status: 'active' }).distinct('referredUserId');
       const [users, activity] = await Promise.all([
         User.find({ id: { $in: referredIds } }, { id: 1, username: 1 }),
         DailyState.find({ userId: { $in: referredIds } }, { userId: 1, totalPoints: 1 })
@@ -8101,7 +8101,7 @@ app.get('/api/leaderboard', requireTelegramAuth, async (req, res) => {
       // Production: Use MongoDB
       [referralCounts, dailyUsers] = await Promise.all([
         Referral.aggregate([
-          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $match: { status: 'active' } },
           { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
         ]),
         DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1, lastCheckIn: 1 })
@@ -9599,7 +9599,7 @@ async function trackStars(userId, stars, type) {
         if (tracker.referral && (totalStars >= 100 || tracker.premiumActivated)) {
             const referral = await Referral.findById(tracker.referral);
             if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
-                referral.status = 'completed';
+                referral.status = 'active';
                 referral.dateActivated = new Date();
                 await referral.save();
                 
@@ -9674,7 +9674,7 @@ async function trackPremiumActivation(userId) {
             if (tracker.referral) {
                 const referral = await Referral.findById(tracker.referral);
                 if (referral && referral.status === 'pending' && tracker.instantActivation === true) {
-                    referral.status = 'completed';
+                    referral.status = 'active';
                     referral.dateActivated = new Date();
                     await referral.save();
                     
