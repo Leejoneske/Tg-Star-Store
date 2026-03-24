@@ -8858,6 +8858,248 @@ app.post('/api/admin/manual-repair-referrals', requireAdmin, async (req, res) =>
     }
 });
 
+
+// DIAGNOSTIC ENDPOINT: Check for orphaned/mismatched referrals
+app.post('/api/admin/diagnose-missing-balances', requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'userId is required' 
+            });
+        }
+        
+        console.log(`[DIAGNOSE] Checking referral integrity for user ${userId}`);
+        
+        // Find all referrals for this user
+        const allReferrals = await Referral.find({ referrerUserId: userId }).lean();
+        console.log(`[DIAGNOSE] Found ${allReferrals.length} total referrals`);
+        
+        const diagnostics = {
+            userId,
+            totalReferrals: allReferrals.length,
+            issues: [],
+            summary: {
+                orphanedReferrals: 0,      // Referral without tracker
+                orphanedTrackers: 0,       // Tracker without referral  
+                statusMismatch: 0,         // Status different between referral and tracker
+                missingDateReferred: 0,    // Referral with no dateReferred
+                withdrawnIncorrectly: 0    // Marked withdrawn but shouldn't be
+            }
+        };
+        
+        // Check each referral for issues
+        for (const ref of allReferrals) {
+            const tracker = await ReferralTracker.findOne({ referral: ref._id }).lean();
+            
+            // Issue 1: Orphaned referral (no tracker)
+            if (!tracker) {
+                diagnostics.issues.push({
+                    type: 'orphaned_referral',
+                    referralId: ref._id,
+                    referredUserId: ref.referredUserId,
+                    status: ref.status,
+                    withdrawn: ref.withdrawn,
+                    dateCreated: ref.dateCreated,
+                    dateReferred: ref.dateReferred,
+                    message: 'Referral exists but no ReferralTracker found'
+                });
+                diagnostics.summary.orphanedReferrals++;
+            } else {
+                // Issue 2: Status mismatch
+                if (tracker.status !== ref.status) {
+                    diagnostics.issues.push({
+                        type: 'status_mismatch',
+                        referralId: ref._id,
+                        referredUserId: ref.referredUserId,
+                        referralStatus: ref.status,
+                        trackerStatus: tracker.status,
+                        message: `Status mismatch: Referral=${ref.status} vs ReferralTracker=${tracker.status}`
+                    });
+                    diagnostics.summary.statusMismatch++;
+                }
+            }
+            
+            // Issue 3: Missing dateReferred
+            if (!ref.dateReferred) {
+                diagnostics.issues.push({
+                    type: 'missing_dateReferred',
+                    referralId: ref._id,
+                    referredUserId: ref.referredUserId,
+                    dateCreated: ref.dateCreated,
+                    message: 'Referral missing dateReferred field'
+                });
+                diagnostics.summary.missingDateReferred++;
+            }
+            
+            // Issue 4: Withdrawn status at risk
+            if (ref.withdrawn && ref.status === 'pending') {
+                diagnostics.issues.push({
+                    type: 'withdrawn_pending',
+                    referralId: ref._id,
+                    referredUserId: ref.referredUserId,
+                    message: 'Referral marked withdrawn but still pending'
+                });
+                diagnostics.summary.withdrawnIncorrectly++;
+            }
+        }
+        
+        // Check for orphaned trackers (tracker without referral)
+        const allTrackers = await ReferralTracker.find({ referrerUserId: userId }).lean();
+        for (const tracker of allTrackers) {
+            const referral = await Referral.findById(tracker.referral).lean();
+            if (!referral) {
+                diagnostics.issues.push({
+                    type: 'orphaned_tracker',
+                    trackerId: tracker._id,
+                    referredUserId: tracker.referredUserId,
+                    status: tracker.status,
+                    totalStars: tracker.totalBoughtStars + tracker.totalSoldStars,
+                    message: 'ReferralTracker exists but Referral not found'
+                });
+                diagnostics.summary.orphanedTrackers++;
+            }
+        }
+        
+        return res.json({
+            success: true,
+            diagnostics,
+            hasIssues: diagnostics.issues.length > 0,
+            recommendation: diagnostics.issues.length > 0 ? 'Run /api/admin/recover-missing-balances' : 'No issues found'
+        });
+        
+    } catch (error) {
+        console.error('Diagnostic error:', error);
+        return res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// RECOVERY ENDPOINT: Fix orphaned/mismatched referrals
+app.post('/api/admin/recover-missing-balances', requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'userId is required' 
+            });
+        }
+        
+        console.log(`[RECOVER] Starting recovery for user ${userId}...`);
+        
+        const recovery = {
+            userId,
+            recovered: {
+                referralsCreated: 0,
+                statusFixed: 0,
+                dateReferredFixed: 0,
+                withdrawnFixed: 0
+            },
+            errors: []
+        };
+        
+        // Find all trackers for this user
+        const allTrackers = await ReferralTracker.find({ referrerUserId: userId });
+        
+        for (const tracker of allTrackers) {
+            try {
+                let referral = await Referral.findById(tracker.referral);
+                
+                // Fix 1: Create missing referral from tracker data
+                if (!referral) {
+                    console.log(`[RECOVER] Creating missing Referral for tracker ${tracker._id}`);
+                    
+                    referral = new Referral({
+                        referrerUserId: userId,
+                        referredUserId: tracker.referredUserId,
+                        status: tracker.status,
+                        dateCreated: tracker.dateCreated || new Date(),
+                        dateReferred: tracker.dateReferred || tracker.dateCreated || new Date('2026-03-01T00:00:00Z'),
+                        withdrawn: false
+                    });
+                    
+                    await referral.save();
+                    tracker.referral = referral._id;
+                    await tracker.save();
+                    
+                    recovery.recovered.referralsCreated++;
+                    console.log(`[RECOVER] Created Referral ${referral._id}`);
+                } else {
+                    // Fix 2: Sync status if mismatch
+                    if (tracker.status !== referral.status) {
+                        console.log(`[RECOVER] Fixing status mismatch for ${referral._id}: ${referral.status} → ${tracker.status}`);
+                        referral.status = tracker.status;
+                        if (tracker.status === 'active' && !referral.dateActivated) {
+                            referral.dateActivated = tracker.dateActivated || new Date();
+                        }
+                        await referral.save();
+                        recovery.recovered.statusFixed++;
+                    }
+                    
+                    // Fix 3: Set dateReferred if missing
+                    if (!referral.dateReferred) {
+                        console.log(`[RECOVER] Setting dateReferred for ${referral._id}`);
+                        referral.dateReferred = tracker.dateReferred || referral.dateCreated || new Date('2026-03-01T00:00:00Z');
+                        await referral.save();
+                        recovery.recovered.dateReferredFixed++;
+                    }
+                    
+                    // Fix 4: Clear withdrawn flag if status is pending
+                    if (referral.withdrawn && referral.status === 'pending') {
+                        console.log(`[RECOVER] Clearing withdrawn flag for ${referral._id}`);
+                        referral.withdrawn = false;
+                        await referral.save();
+                        recovery.recovered.withdrawnFixed++;
+                    }
+                }
+            } catch (trackerError) {
+                recovery.errors.push({
+                    trackerId: tracker._id,
+                    error: trackerError.message
+                });
+                console.error(`[RECOVER] Error processing tracker ${tracker._id}:`, trackerError.message);
+            }
+        }
+        
+        // Recalculate balance after recovery
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        const recoveredBalance = await Referral.countDocuments({
+            referrerUserId: userId,
+            $or: [
+                { dateReferred: { $gte: marchFirstDate } },
+                { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
+            ],
+            status: { $in: ['completed', 'active'] },
+            withdrawn: { $ne: true }
+        });
+        
+        console.log(`[RECOVER] Recovery complete for ${userId}: recovered ${recoveredBalance} referrals = $${(recoveredBalance * 0.5).toFixed(2)}`);
+        
+        return res.json({
+            success: true,
+            recovery,
+            recoveredBalance: {
+                count: recoveredBalance,
+                amount: recoveredBalance * 0.5
+            },
+            message: `Successfully recovered ${recoveredBalance} referrals worth $${(recoveredBalance * 0.5).toFixed(2)} for user ${userId}`
+        });
+        
+    } catch (error) {
+        console.error('Recovery error:', error);
+        return res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
 // Ambassador Wallet Setting Endpoint
 app.post('/api/ambassador-wallet', requireTelegramAuth, async (req, res) => {
     try {
