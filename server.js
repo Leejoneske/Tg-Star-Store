@@ -8747,7 +8747,7 @@ app.post('/api/admin/audit-and-recover-balances', requireAdmin, async (req, res)
                 { dateReferred: { $gte: marchFirstDate } },
                 { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
             ],
-            status: { $in: ['completed', 'active'] },
+            status: 'active',
             withdrawn: { $ne: true }
         });
         
@@ -8834,7 +8834,7 @@ app.post('/api/admin/manual-repair-referrals', requireAdmin, async (req, res) =>
                 { dateReferred: { $gte: marchFirstDate } },
                 { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
             ],
-            status: { $in: ['completed', 'active'] },
+            status: 'active',
             withdrawn: { $ne: true }
         });
         
@@ -9211,7 +9211,7 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         const user = await User.findOne({ id: userId }).session(session) || {};
         const availableReferrals = await Referral.find({
             referrerUserId: userId,
-            status: { $in: ['completed', 'active'] },
+            status: 'active',
             withdrawn: { $ne: true }
         }).session(session);
 
@@ -16102,7 +16102,7 @@ app.listen(PORT, async () => {
                   { dateReferred: { $gte: monthStart, $lt: monthEnd } },
                   { dateReferred: { $exists: false }, dateCreated: { $gte: monthStart, $lt: monthEnd } }
               ],
-              status: { $in: ['completed', 'active'] },
+              status: 'active',
               withdrawn: { $ne: true }
             });
             
@@ -16137,7 +16137,7 @@ app.listen(PORT, async () => {
                   { dateReferred: { $gte: monthStart, $lt: monthEnd } },
                   { dateReferred: { $exists: false }, dateCreated: { $gte: monthStart, $lt: monthEnd } }
               ],
-              status: { $in: ['completed', 'active'] },
+              status: 'active',
               withdrawn: { $ne: true }
             }).limit(Math.ceil(availableBalance / 0.5));
             
