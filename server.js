@@ -9075,7 +9075,7 @@ app.post('/api/admin/recover-missing-balances', requireAdmin, async (req, res) =
                 { dateReferred: { $gte: marchFirstDate } },
                 { dateReferred: { $exists: false }, dateCreated: { $gte: marchFirstDate } }
             ],
-            status: { $in: ['completed', 'active'] },
+            status: 'active',
             withdrawn: { $ne: true }
         });
         
@@ -9096,6 +9096,41 @@ app.post('/api/admin/recover-missing-balances', requireAdmin, async (req, res) =
         return res.status(500).json({ 
             success: false, 
             error: error.message 
+        });
+    }
+});
+
+// MIGRATION ENDPOINT: Convert old 'completed' status to 'active'
+app.post('/api/admin/migrate-referral-status', requireAdmin, async (req, res) => {
+    try {
+        console.log('[MIGRATION] Starting referral status migration: completed -> active');
+        
+        // Update all referrals with status='completed' to status='active'
+        const result = await Referral.updateMany(
+            { status: 'completed' },
+            { $set: { status: 'active' } }
+        );
+        
+        console.log(`[MIGRATION] Updated ${result.modifiedCount} referrals from 'completed' to 'active'`);
+        
+        // Verify migration
+        const statusCounts = await Referral.aggregate([
+            { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]);
+        
+        console.log('[MIGRATION] Referral status counts after migration:', statusCounts);
+        
+        return res.json({
+            success: true,
+            migrated: result.modifiedCount,
+            statusDistribution: statusCounts,
+            message: `Successfully migrated ${result.modifiedCount} referrals to new status semantics`
+        });
+    } catch (error) {
+        console.error('Migration error:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message
         });
     }
 });
@@ -15981,10 +16016,31 @@ app.get('/api/feedback/stats', requireAdmin, async (req, res) => {
 
 // ==================== END FEEDBACK API ENDPOINTS ====================
 
+// Run data migrations on startup
+async function runMigrations() {
+  try {
+    // Migrate old 'completed' status to 'active' for backward compatibility
+    const completedCount = await Referral.countDocuments({ status: 'completed' });
+    if (completedCount > 0) {
+      console.log(`[MIGRATION] Found ${completedCount} referrals with old 'completed' status...`);
+      const result = await Referral.updateMany(
+        { status: 'completed' },
+        { $set: { status: 'active' } }
+      );
+      console.log(`[MIGRATION] ✓ Successfully migrated ${result.modifiedCount} referrals to 'active' status`);
+    }
+  } catch (error) {
+    console.warn('[MIGRATION] Warning - could not complete status migration:', error.message);
+  }
+}
+
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Webhook set to: ${WEBHOOK_URL}`);
+  
+  // Run migrations
+  await runMigrations();
   
   // Log data retention & cleanup configuration
   const enableBotActivityLogging = process.env.ENABLE_BOT_ACTIVITY_LOGGING === '1';
