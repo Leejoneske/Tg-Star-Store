@@ -10180,12 +10180,12 @@ bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
         };
 
         const initialKeyboard = buildKeyboard(walletSelections.get(userId));
-        const msg = await bot.sendMessage(chatId, lines.join('\n') + `\n\n📌 Select items (they'll light up 🟢 when selected), then tap "Continue".`, { reply_markup: initialKeyboard });
+        const sentMsg = await bot.sendMessage(chatId, lines.join('\n') + `\n\n📌 Select items (they'll light up 🟢 when selected), then tap "Continue".`, { reply_markup: initialKeyboard });
         
         // Store message ID so we can edit it later
         const bucket = walletSelections.get(userId);
         if (bucket) {
-            bucket.messageId = msg.message_id;
+            bucket.messageId = sentMsg.message_id;
             walletSelections.set(userId, bucket);
         }
     } catch (err) {
