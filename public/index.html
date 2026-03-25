@@ -3872,10 +3872,9 @@ async function handlePurchase(item) {
                         <div class="text-center space-y-3">
                             <div class="text-lg font-semibold text-gray-800">Payment submitted successfully!</div>
                             <div class="text-sm text-gray-600 space-y-2">
-                                <div>🔄 <strong>Status:</strong> Verifying transaction on blockchain...</div>
-                                <div>⏱️ <strong>Processing Time:</strong> 5-10 minutes for verification, up to 2 hours for delivery</div>
-                                <div>⚠️ <strong>Important:</strong> Do not change your username before order completion</div>
-                                <div>📋 <strong>Order ID:</strong> ${response.order.id}</div>
+                                <div>Processing may take up to 2 hours</div>
+                                <div>⚠️ Do not change your username before order completion</div>
+                                <div>Order ID: ${response.order.id}</div>
                             </div>
                         </div>
                     `,

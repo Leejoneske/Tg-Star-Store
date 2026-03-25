@@ -3069,7 +3069,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             if (ip && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
                 const geo = await getGeolocation(ip);
                 if (geo?.country !== 'Unknown') {
-                    userLocation = `\n📍 ${geo.city || 'Unknown'}, ${geo.country}`;
+                    userLocation = `\nLocation: ${geo.city || 'Unknown'}, ${geo.country}`;
                     order.userLocation = { city: geo.city, country: geo.country, ip, timestamp: new Date() };
                 }
             }
