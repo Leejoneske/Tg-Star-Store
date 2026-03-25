@@ -10336,11 +10336,11 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                 // Generate new referral link for future users
                 const newRefLink = generateNewReferralLink(referrerUsername);
                 
-                // Determine instant activation based on current date
-                // Referrals created BEFORE March 1, 2026: manual admin activation
-                // Referrals created ON or AFTER March 1, 2026: automatic tracking
+                // Determine instant activation based on REFERRED USER's join date
+                // Users who joined BEFORE March 1, 2026: manual admin activation
+                // Users who joined ON or AFTER March 1, 2026: automatic activation
                 const marchFirst2026 = new Date('2026-03-01T00:00:00Z');
-                const useInstantActivation = new Date() >= marchFirst2026;
+                const useInstantActivation = (user.createdAt || new Date()) >= marchFirst2026;
                 
                 const referral = await Referral.create({
                     referrerUserId,
