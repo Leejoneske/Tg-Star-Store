@@ -2935,245 +2935,114 @@ app.post('/api/validate-usernames', (req, res) => {
 });
 
 app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
+    const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTestnet } = req.body;
+    const requestKey = transactionHash ? `tx:${transactionHash}` : `order:${telegramId}:${walletAddress}:${stars}`;
+
     try {
-        const { telegramId, username, stars, walletAddress, isPremium, premiumDuration, recipients, transactionHash, isTelegramUser, totalAmount, isTestnet } = req.body;
-
-        // === SYNC USER DATA ON EVERY INTERACTION ===
+        // === VALIDATION PHASE ===
         await syncUserData(telegramId, username, 'order_create', req);
-
-        // Get admin status early for logging
         const requesterIsAdmin = Boolean(req.user?.isAdmin);
 
-        // Create request deduplication key
-        const requestKey = transactionHash ? `tx:${transactionHash}` : `order:${telegramId}:${walletAddress}:${stars}:${totalAmount}`;
-        
-        // Mark this request as processing to prevent duplicates
+        // Prevent duplicate requests
         if (processingRequests.has(requestKey)) {
-            console.warn(`Concurrent request detected: ${requestKey}`);
-            return res.status(429).json({ 
-                error: 'Request already being processed. Please wait...',
-                retryAfter: 2
-            });
+            return res.status(429).json({ error: 'Request already being processed. Please wait...' });
         }
-        
-        // Mark as processing
         processingRequests.set(requestKey, Date.now());
 
-        console.log('📋 Order creation request:', {
-            telegramId,
-            username,
-            stars,
-            walletAddress: walletAddress ? `${walletAddress.slice(0, 8)}...` : 'none',
-            isPremium,
-            premiumDuration,
-            recipientsCount: recipients?.length || 0,
-            totalAmount,
-            isTestnet,
-            isAdmin: requesterIsAdmin
-        });
-
-        // Strict validation: username must be a real Telegram username (not fallback)
+        // Strict validation
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
-            console.error('Missing required fields:', { telegramId: !!telegramId, username: !!username, walletAddress: !!walletAddress, premiumDuration: !!premiumDuration });
             processingRequests.delete(requestKey);
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Additional validation: username must not be a fallback value
+        // Username validation
         const isFallbackUsername = username === 'Unknown' || username === 'User' || !username.match(/^[a-zA-Z0-9_]{5,32}$/);
         if (isFallbackUsername) {
-            console.error('Invalid username detected:', { username, telegramId });
             processingRequests.delete(requestKey);
-            
-            // Send DM instructions to user
             try {
-                const dmMessage = `🔒 *Username Required for Orders*
-
-❌ *Cannot Process Your Order*
-You attempted to place an order but don't have a Telegram username set.
-
-👤 *Your Account:*
-• User ID: \`${telegramId}\`
-• Current Username: Not Set
-
-✅ *How to Fix:*
-1. Go to Telegram Settings
-2. Tap on "Username" 
-3. Create a username (e.g., @yourname)
-4. Return to StarStore and try again
-
-💡 *Why is this required?*
-Usernames help us provide better support and ensure smooth order processing.
-
-Need help? Contact @StarStore_Chat`;
-
-                await bot.sendMessage(telegramId, dmMessage, { 
-                    parse_mode: 'Markdown',
-                    disable_web_page_preview: true 
-                });
-                console.log(`✅ Sent username instructions DM to user ${telegramId}`);
-            } catch (dmError) {
-                console.warn(`⚠️ Could not send DM to user ${telegramId}:`, dmError.message);
-                // Don't fail the API call if DM fails
-            }
-            
-            return res.status(400).json({ 
-                error: 'Telegram username required', 
-                details: 'You must set a Telegram username (@username) to place orders. Go to Telegram Settings → Username to create one.',
-                requiresUsername: true,
-                dmSent: true
-            });
+                await bot.sendMessage(telegramId, `⚠️ You must set a Telegram username to place orders.\n\nGo to Settings → Username and create one, then try again.`);
+            } catch {}
+            return res.status(400).json({ error: 'Telegram username required' });
         }
 
+        // Check banned status
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
             processingRequests.delete(requestKey);
             return res.status(403).json({ error: 'You are banned from placing orders' });
         }
 
-        // Check for duplicate orders with same transaction hash
-        if (transactionHash) {
-            const existingOrder = await BuyOrder.findOne({ transactionHash });
-            if (existingOrder) {
-                // Check if order is recent (within last 10 minutes) - likely a duplicate submission
-                const isRecentOrder = existingOrder.dateCreated && (Date.now() - new Date(existingOrder.dateCreated).getTime()) < 600000;
-                if (isRecentOrder) {
-                    console.error('Duplicate transaction detected (recent):', transactionHash);
-                    processingRequests.delete(requestKey);
-                    return res.status(400).json({ 
-                        error: 'This transaction has already been processed. If you were charged multiple times, contact support.',
-                        orderId: existingOrder.id
-                    });
-                }
+        // Check for recent duplicate orders
+        const existingOrder = transactionHash ? await BuyOrder.findOne({ transactionHash }) : null;
+        if (existingOrder) {
+            const isRecent = existingOrder.dateCreated && (Date.now() - new Date(existingOrder.dateCreated).getTime()) < 600000;
+            if (isRecent) {
+                processingRequests.delete(requestKey);
+                return res.status(400).json({ error: 'This transaction has already been processed' });
             }
         }
 
-        // Check for recent orders from same user to prevent rapid duplicate orders
         const recentOrder = await BuyOrder.findOne({
             telegramId,
-            dateCreated: { $gte: new Date(Date.now() - 60000) }, // Last 1 minute
+            dateCreated: { $gte: new Date(Date.now() - 60000) },
             status: { $in: ['pending', 'processing'] }
         });
-        
         if (recentOrder) {
-            console.error('Recent order detected for user:', telegramId);
             processingRequests.delete(requestKey);
-            return res.status(400).json({ 
-                error: 'Please wait before placing another order. A recent order is still being processed.',
-                orderId: recentOrder.id
-            });
+            return res.status(400).json({ error: 'Please wait before placing another order' });
         }
 
-        // Reject testnet orders for non-admins; allow for admins
+        // Wallet validation
         if (isTestnet === true && !requesterIsAdmin) {
             processingRequests.delete(requestKey);
-            return res.status(400).json({ error: 'Testnet is not supported. Please switch your wallet to TON mainnet.' });
-        }
-        
-        // Additional validation: Check wallet address format
-        if (walletAddress && typeof walletAddress === 'string') {
-            // For admins, allow testnet addresses; for regular users, enforce mainnet only
-            if (!requesterIsAdmin && !isValidTONAddress(walletAddress)) {
-                console.error('❌ Invalid wallet address format:', walletAddress);
-                return res.status(400).json({ error: 'Invalid wallet address format. Please provide a valid TON mainnet address.' });
-            }
-            // For admins, do basic format check but allow testnet
-            if (requesterIsAdmin && walletAddress.trim().length < 10) {
-                console.error('❌ Wallet address too short:', walletAddress);
-                return res.status(400).json({ error: 'Invalid wallet address. Please provide a complete TON wallet address.' });
-            }
-            
-            // Additional validation: Check if wallet address is not empty or just whitespace (for non-admins)
-            if (!requesterIsAdmin && walletAddress.trim().length < 10) {
-                console.error('❌ Wallet address too short:', walletAddress);
-                return res.status(400).json({ error: 'Invalid wallet address. Please provide a complete TON wallet address.' });
-            }
-            
-            // Check for common invalid addresses (only for non-admins)
-            if (!requesterIsAdmin) {
-                const invalidPatterns = ['0x', 'bc1', 'test', 'invalid', 'none', 'null', 'undefined', 'example'];
-                // Only check for invalid patterns, but exclude valid hex format addresses
-                const isHexFormat = /^[0-9-]+:[a-fA-F0-9]{64}$/.test(walletAddress.trim());
-                if (!isHexFormat && invalidPatterns.some(pattern => walletAddress.toLowerCase().includes(pattern))) {
-                    console.error('❌ Wallet address contains invalid pattern:', walletAddress);
-                    return res.status(400).json({ error: 'Invalid wallet address. Please provide a valid TON wallet address.' });
-                }
-            }
-        } else {
-            console.error('❌ Wallet address missing or invalid type:', walletAddress);
-            return res.status(400).json({ error: 'Wallet address is required and must be a valid TON address.' });
+            return res.status(400).json({ error: 'Testnet is not supported' });
         }
 
-        // Handle recipients for "buy for others" functionality
-        let isBuyForOthers = false;
-        let totalRecipients = 0;
-        let starsPerRecipient = null;
-        let premiumDurationPerRecipient = null;
-        let processedRecipients = [];
-        
-        console.log('Order creation - received data:', {
-            stars,
-            isPremium,
-            premiumDuration,
-            recipients: recipients?.length || 0,
-            totalAmount
-        });
+        if (walletAddress && !requesterIsAdmin && !isValidTONAddress(walletAddress)) {
+            processingRequests.delete(requestKey);
+            return res.status(400).json({ error: 'Invalid TON wallet address' });
+        }
 
+        // === ORDER CREATION PHASE ===
+        // Handle recipients
+        let isBuyForOthers = false, totalRecipients = 0, starsPerRecipient = null, premiumDurationPerRecipient = null, processedRecipients = [];
+        
         if (recipients && Array.isArray(recipients) && recipients.length > 0) {
             isBuyForOthers = true;
             totalRecipients = recipients.length;
-            
             if (isPremium) {
-                // For premium, duration is shared equally
                 premiumDurationPerRecipient = premiumDuration;
             } else {
-                // For stars, distribute equally
                 starsPerRecipient = Math.floor(stars / totalRecipients);
                 const remainingStars = stars % totalRecipients;
-                
-                // Process recipients with equal distribution
                 processedRecipients = recipients.map((recipient, index) => ({
                     username: recipient,
-                    userId: null, // Will be filled when order is completed
-                    starsReceived: starsPerRecipient + (index < remainingStars ? 1 : 0),
-                    premiumDurationReceived: null
+                    starsReceived: starsPerRecipient + (index < remainingStars ? 1 : 0)
                 }));
             }
         }
 
-        // Use totalAmount from frontend if provided (for accurate multi-recipient pricing)
-        let amount, packageType;
-        if (totalAmount && typeof totalAmount === 'number' && totalAmount > 0) {
-            // Use the accurate total amount from frontend quote
-            amount = totalAmount;
-            packageType = isPremium ? 'premium' : 'regular';
+        // Calculate amount
+        let amount;
+        if (req.body.totalAmount && typeof req.body.totalAmount === 'number' && req.body.totalAmount > 0) {
+            amount = req.body.totalAmount;
         } else {
-            // Fallback to old pricing logic for backward compatibility
-            const priceMap = {
-                regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
-                premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
-            };
-
-            if (isPremium) {
-                packageType = 'premium';
-                amount = priceMap.premium[premiumDuration];
-            } else {
-                packageType = 'regular';
-                amount = priceMap.regular[stars];
-            }
-
+            const priceMap = { regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 }, premium: { 3: 19.31, 6: 26.25, 12: 44.79 } };
+            amount = isPremium ? priceMap.premium[premiumDuration] : priceMap.regular[stars];
             if (!amount) {
+                processingRequests.delete(requestKey);
                 return res.status(400).json({ error: 'Invalid selection' });
             }
         }
 
+        // Create order
         const order = new BuyOrder({
             id: generateBuyOrderId(),
             telegramId,
             username,
             amount,
             stars: isPremium ? null : stars,
-            premiumDuration: isPremium ? null : premiumDuration,
+            premiumDuration: isPremium ? premiumDuration : null,
             walletAddress,
             isPremium,
             status: 'pending',
@@ -3185,141 +3054,86 @@ Need help? Contact @StarStore_Chat`;
             starsPerRecipient,
             premiumDurationPerRecipient,
             transactionHash: transactionHash || null,
-            transactionVerified: false, // Always start as unverified
-            verificationAttempts: 0,
-            userLocation: null // Will be set below after geolocation
+            transactionVerified: false,
+            verificationAttempts: 0
         });
 
+        // Save order
         await order.save();
-        
-        console.log('Final order details:', {
-            orderId: order.id,
-            amount: amount,
-            isBuyForOthers,
-            totalRecipients,
-            starsPerRecipient
-        });
 
-        // Create user message based on order type
-        let userMessage = `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStatus: Pending\n\n⏱️ Processing Time: Up to 2 hours to complete\n⚠️ Important: Do not change your username before order completion`;
-        
-        if (isPremium) {
-            userMessage = `🎉 Premium order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nDuration: ${premiumDuration} months\nStatus: Pending\n\n⏱️ Processing Time: Up to 2 hours to complete\n⚠️ Important: Do not change your username before order completion`;
-            if (isBuyForOthers) {
-                userMessage += `\n\nRecipients: ${totalRecipients} user(s)`;
-            }
-        } else {
-            userMessage = `🎉 Order received!\n\nOrder ID: ${order.id}\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Pending\n\n⏱️ Processing Time: Up to 2 hours to complete\n⚠️ Important: Do not change your username before order completion`;
-            if (isBuyForOthers) {
-                userMessage += `\n\nRecipients: ${totalRecipients} user(s)\nStars per recipient: ${starsPerRecipient}`;
-            }
-        }
-
-        await bot.sendMessage(telegramId, userMessage);
-
-        // Track user activity (buy order created) and get location data
-        let userLocation = 'Location: Not available';
-        let locationGeo = null;
+        // === ADMIN NOTIFICATION PHASE (CRITICAL) ===
+        // Extract geolocation
+        let userLocation = '';
         try {
-            // Extract IP from request - x-forwarded-for is set by Railway proxies
-            let ip = req.headers?.['x-forwarded-for'] || req.headers?.['cf-connecting-ip'] || req.socket?.remoteAddress || 'unknown';
-            
-            // Handle multiple IPs in x-forwarded-for (take first one)
-            if (typeof ip === 'string') {
-                ip = ip.split(',')[0].trim();
-            }
-            
-            console.log(`[BUY-ORDER] IP extraction: x-forwarded-for=${req.headers?.['x-forwarded-for']}, final-ip=${ip}`);
-            
-            // Only try to get geolocation if we have a valid IP (not from Telegram)
-            if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
-                console.log(`[BUY-ORDER] Attempting geolocation for IP: ${ip}`);
-                locationGeo = await getGeolocation(ip);
-                console.log(`[BUY-ORDER] Geolocation result: ${locationGeo.city}, ${locationGeo.country}`);
-                
-                if (locationGeo.country !== 'Unknown') {
-                    userLocation = `Location: ${locationGeo.city || 'Unknown'}, ${locationGeo.country}`;
-                    // Store in order as well
-                    order.userLocation = {
-                        city: locationGeo.city,
-                        country: locationGeo.country,
-                        countryCode: locationGeo.countryCode,
-                        ip: ip,
-                        timestamp: new Date()
-                    };
-                    console.log(`[BUY-ORDER] Location set: ${userLocation}`);
+            let ip = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
+            if (ip && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
+                const geo = await getGeolocation(ip);
+                if (geo?.country !== 'Unknown') {
+                    userLocation = `\n📍 ${geo.city || 'Unknown'}, ${geo.country}`;
+                    order.userLocation = { city: geo.city, country: geo.country, ip, timestamp: new Date() };
                 }
-            } else {
-                console.log(`[BUY-ORDER] Skipped geolocation: IP is ${ip}`);
             }
-        } catch (err) {
-            console.error('Error getting location for buy order:', err.message);
-        }
-        
-        // Now track activity with location data (pass locationGeo to override)
-        await trackUserActivity(telegramId, username, 'order_created', {
-            orderId: order.id,
-            orderType: isPremium ? 'premium_buy' : 'buy',
-            amount: amount,
-            isPremium: isPremium
-        }, req, null, locationGeo);
+        } catch {}
 
-        // Create enhanced admin message with Telegram ID and location
-        let adminMessage = `🛒 New ${isPremium ? 'Premium' : 'Buy'} Order!\n\nOrder ID: ${order.id}\nUser: @${username} (ID: ${telegramId})\n${userLocation}\nAmount: ${amount} USDT`;
-        
-        if (isPremium) {
-            adminMessage += `\nDuration: ${premiumDuration} months`;
-        } else {
-            adminMessage += `\nStars: ${stars}`;
-        }
+        // Build admin message
+        let adminMessage = `🛒 NEW ${isPremium ? 'PREMIUM' : 'BUY'} ORDER\n\nOrder ID: ${order.id}\nUser: @${username} (ID: ${telegramId})${userLocation}\nAmount: ${amount} USDT`;
+        if (isPremium) adminMessage += `\nDuration: ${premiumDuration} months`;
+        else adminMessage += `\nStars: ${stars}`;
         
         if (isBuyForOthers) {
-            adminMessage += `\n\n🎯 Buy For Others: ${totalRecipients} recipient(s)`;
-            if (isPremium) {
-                adminMessage += `\nDuration per recipient: ${premiumDurationPerRecipient} months`;
-            } else {
-                adminMessage += `\nStars per recipient: ${starsPerRecipient}`;
-            }
-            adminMessage += `\n\nRecipients: ${recipients.map(r => `@${r}`).join(', ')}`;
+            adminMessage += `\n\n👥 Buy For Others: ${totalRecipients} user(s)`;
+            if (!isPremium) adminMessage += `\nPer user: ${starsPerRecipient} stars`;
+            else adminMessage += `\nDuration: ${premiumDurationPerRecipient} months each`;
+            adminMessage += `\nRecipients: ${recipients.map(r => `@${r}`).join(', ')}`;
         }
 
-        const adminKeyboard = {
-            inline_keyboard: [[
-                { text: '✅ Complete', callback_data: `complete_buy_${order.id}` },
-                { text: '❌ Decline', callback_data: `decline_buy_${order.id}` }
-            ]]
-        };
+        const adminKeyboard = { inline_keyboard: [[ { text: '✅ Complete', callback_data: `complete_buy_${order.id}` }, { text: '❌ Decline', callback_data: `decline_buy_${order.id}` } ]] };
+
+        // Send to admins with retry (MUST succeed for at least one admin)
+        let adminNotificationSucceeded = false;
+        let lastAdminError = null;
 
         for (const adminId of adminIds) {
-            try {
-                const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
-                order.adminMessages.push({ 
-                    adminId, 
-                    messageId: message.message_id,
-                    originalText: adminMessage 
-                });
-            } catch (err) {
-                console.error(`Failed to notify admin ${adminId}:`, err);
+            let retryCount = 0;
+            while (retryCount < 3) {
+                try {
+                    const message = await bot.sendMessage(adminId, adminMessage, { reply_markup: adminKeyboard });
+                    order.adminMessages.push({ adminId, messageId: message.message_id, originalText: adminMessage });
+                    adminNotificationSucceeded = true;
+                    break;
+                } catch (err) {
+                    lastAdminError = err;
+                    retryCount++;
+                    if (retryCount < 3) await new Promise(r => setTimeout(r, 500)); // Wait before retry
+                }
             }
         }
 
+        // Save order with admin messages (whether or not notifications succeeded)
         await order.save();
-        
-        // Do NOT award or log points yet; award on completion
-        console.log(`🛒 Buy order created for user ${telegramId}`);
-        
-        console.log('Order created successfully:', order.id);
+
+        // === USER NOTIFICATION & ACTIVITY TRACKING ===
+        if (adminNotificationSucceeded) {
+            const userMsg = `🎉 Order #${order.id} submitted!\n\nAmount: ${amount} USDT${isPremium ? `\nDuration: ${premiumDuration} mo` : `\nStars: ${stars}`}\nStatus: Awaiting admin review\n\n⏱️ Processing: Up to 2 hours`;
+            try { await bot.sendMessage(telegramId, userMsg); } catch {}
+        } else {
+            // Admin notification failed - inform user to contact support
+            const fallbackMsg = `⚠️ Order #${order.id} created but experiencing delays.\n\nAmount: ${amount} USDT\nStatus: Pending\n\n📞 Please contact @StarStore_Chat if not processed within 2 hours.`;
+            try { await bot.sendMessage(telegramId, fallbackMsg); } catch {}
+            console.error(`❌ CRITICAL: Order ${order.id} admin notification failed after retries. Error: ${lastAdminError?.message}`);
+        }
+
+        await trackUserActivity(telegramId, username, 'order_created', { orderId: order.id, amount, stars, isPremium });
+
+        // === SUCCESS RESPONSE ===
+        // Always return success if order was saved (order exists in DB regardless of admin notification)
         processingRequests.delete(requestKey);
         res.json({ success: true, order });
+
     } catch (err) {
-        console.error('Order creation error:', err);
-        console.error('Error details:', {
-            message: err.message,
-            stack: err.stack,
-            name: err.name
-        });
         processingRequests.delete(requestKey);
-        res.status(500).json({ error: 'Failed to create order: ' + err.message });
+        console.error(`❌ Order creation error for user ${req.body?.telegramId}: ${err.message}`);
+        res.status(500).json({ error: 'Failed to create order. Please try again.' });
     }
 });
 
@@ -4484,23 +4298,40 @@ bot.on("successful_payment", async (msg) => {
         ]
     };
 
+    // Send to admins with retry - CRITICAL: Must succeed for at least one admin
+    let adminNotificationSucceeded = false;
+    let lastAdminError = null;
+
     for (const adminId of adminIds) {
-        try {
-            const message = await bot.sendMessage(
-                adminId,
-                adminMessage,
-                { reply_markup: adminKeyboard }
-            );
-            order.adminMessages.push({ 
-                adminId, 
-                messageId: message.message_id,
-                originalText: adminMessage 
-            });
-            await order.save();
-        } catch (err) {
-            console.error(`Failed to notify admin ${adminId}:`, err);
+        let retryCount = 0;
+        while (retryCount < 3) {
+            try {
+                const message = await bot.sendMessage(
+                    adminId,
+                    adminMessage,
+                    { reply_markup: adminKeyboard }
+                );
+                order.adminMessages.push({ 
+                    adminId, 
+                    messageId: message.message_id,
+                    originalText: adminMessage 
+                });
+                adminNotificationSucceeded = true;
+                break;
+            } catch (err) {
+                lastAdminError = err;
+                retryCount++;
+                if (retryCount < 3) await new Promise(r => setTimeout(r, 500)); // Wait before retry
+            }
         }
     }
+
+    // Log if admin notifications failed
+    if (!adminNotificationSucceeded) {
+        console.error(`❌ CRITICAL: Sell order ${order.id} failed to notify ANY admin. Error: ${lastAdminError?.message}`);
+    }
+
+    await order.save();
 });
 
 // Helper function to show confirmation buttons for admin actions
