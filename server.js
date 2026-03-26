@@ -10207,18 +10207,6 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
                 });
                 
                 await bot.sendMessage(referrerUserId, `🎉 Someone used your referral link and joined StarStore!`);
-            } else {
-                // User already has a referral from someone else - inform referrer
-                const existingReferrer = await User.findOne({ id: existing.referrerUserId });
-                const existingReferrerName = existingReferrer?.username ? `@${existingReferrer.username}` : `user ${existing.referrerUserId}`;
-                
-                try {
-                    await bot.sendMessage(referrerUserId, `⚠️ Cannot add referral\n\n@${username} is already referred by ${existingReferrerName}\n\nEach user can only be referred by one person.`);
-                } catch (err) {
-                    console.error(`Failed to notify user ${referrerUserId} about duplicate referral:`, err.message);
-                }
-                
-                console.log(`⚠️ Duplicate referral rejected: ${referrerUserId} tried to refer ${chatId} (already referred by ${existing.referrerUserId})`);
             }
         }
     } catch (error) {
