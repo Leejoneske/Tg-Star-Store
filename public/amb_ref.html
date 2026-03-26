@@ -399,7 +399,7 @@
         .payout-val.green { color:#16a34a; }
 
         /* REFERRALS */
-        .referrals-section { padding: 0 24px 8px; }
+        .referrals-section { padding: 0 24px 180px; }
         .ref-filter { display:flex; gap:6px; margin-bottom:14px; }
         .filter-chip {
             font-size:12px; font-weight:600; padding:5px 13px; border-radius:50px;
@@ -972,9 +972,15 @@
                 state.walletAddress  = data.walletAddress || data.ambassadorWalletAddress || null;
                 state.referrals      = data.referrals || [];
                 state.withdrawHistory = data.withdrawHistory || [];
+                
+                // Calculate totalEarned from fetched referrals ONLY (current month for ambassadors)
+                // This ensures balance matches the referrals actually fetched, not all-time from API
+                const activeRefCount = state.referrals.filter(r => r.status === 'active').length;
+                const calculatedTotalEarned = activeRefCount * 0.5; // Level 1 rate: $0.5 per active referral
+                
                 state.stats = {
                     referralsCount:  parseInt(data.stats?.activeReferralsCount  || data.activeReferralsCount || 0),
-                    totalEarned:     parseFloat(data.stats?.totalEarned    || data.totalEarned || 0),
+                    totalEarned:     calculatedTotalEarned,
                     pendingAmount:   parseFloat(data.stats?.pendingAmount  || data.pendingAmount || 0),
                     freeStars:       parseInt(data.freeStars        || 0),
                     avgTransaction:  parseInt(data.avgTransaction   || 0)
@@ -995,7 +1001,7 @@
     function updateUI() {
         const s = state.stats;
         setText('referralsCount', s.referralsCount);
-        setText('totalEarned', `$${s.totalEarned.toFixed(0)}`);
+        setText('totalEarned', `$${s.totalEarned.toFixed(2)}`);
         setText('freeStars', s.freeStars);
         setText('pendingAmount', s.pendingAmount.toFixed(2));
         setText('avgTransaction', s.avgTransaction || '—');
@@ -1112,6 +1118,8 @@
             const inits   = name.split(' ').map(w => w[0]).join('').toUpperCase().substring(0,2) || '?';
             const dateStr = new Date(ref.date).toLocaleDateString();
             const isPaid  = ref.status === 'active' || ref.status === 'completed' || ref.status === 'paid';
+            // Calculate reward: active/paid referrals earn $0.5 (level 1 rate), pending earn $0
+            const reward = isPaid ? 0.5 : 0;
             return `
                 <div class="referral-row">
                     <div class="ref-left">
@@ -1125,7 +1133,7 @@
                         </div>
                     </div>
                     <div class="ref-right">
-                        <div class="ref-amount">+${(ref.reward || 0).toFixed(2)} USDT</div>
+                        <div class="ref-amount">+${reward.toFixed(2)} USDT</div>
                         <span class="ref-badge ${isPaid ? 'paid' : 'pending'}">${isPaid ? 'Paid' : 'Pending'}</span>
                     </div>
                 </div>`;
