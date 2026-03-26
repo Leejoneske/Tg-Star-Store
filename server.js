@@ -9401,22 +9401,33 @@ async function handleReferralActivation(tracker) {
 
         // Send to all admins
         let adminNotificationSuccess = false;
+        // Send to admins with retry (3x retry, 500ms exponential backoff)
         for (const adminId of adminIds) {
-            try {
-                await bot.sendMessage(adminId, adminMessage, {
-                    parse_mode: 'HTML',
-                    disable_web_page_preview: true
-                });
-                adminNotificationSuccess = true;
-                console.log(`Successfully notified admin ${adminId} about referral activation`);
-            } catch (err) {
-                console.error(`Failed to notify admin ${adminId} about referral activation:`, err);
+            let retryCount = 0;
+            while (retryCount < 3) {
+                try {
+                    await bot.sendMessage(adminId, adminMessage, {
+                        parse_mode: 'HTML',
+                        disable_web_page_preview: true
+                    });
+                    adminNotificationSuccess = true;
+                    console.log(`Successfully notified admin ${adminId} about referral activation`);
+                    break;  // Success, exit retry loop
+                } catch (err) {
+                    retryCount++;
+                    if (retryCount < 3) {
+                        console.warn(`Retry ${retryCount}/3 for admin ${adminId} referral notification:`, err.message);
+                        await new Promise(r => setTimeout(r, 500 * retryCount));  // Exponential backoff: 500ms, 1s, 1.5s
+                    } else {
+                        console.error(`FAILED after 3 retries - admin ${adminId} referral notification:`, err.message);
+                    }
+                }
             }
         }
 
-        // Log if no admins were successfully notified
+        // CRITICAL: Log if no admins were successfully notified
         if (!adminNotificationSuccess && adminIds.length > 0) {
-            console.error(`CRITICAL: Failed to notify any admin about referral activation for tracker ${tracker._id}`);
+            console.error(`❌ CRITICAL: Failed to notify ANY admin about referral activation for tracker ${tracker._id}`);
         }
 
         // Send notification to referrer
