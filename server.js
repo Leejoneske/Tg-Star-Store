@@ -11961,8 +11961,7 @@ bot.on('message', async (msg) => {
         const approvalKeyboard = {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: '💰 Sell Page', web_app: { url: 'https://starstore.site/sell.html' } }],
-                    [{ text: '👥 Referral Program', web_app: { url: 'https://starstore.site/referral.html' } }],
+                    [{ text: '💰 Sell at a Higher Price', web_app: { url: 'https://starstore.site/sell.html' } }],
                     [{ text: '✅ Continue Broadcasting', callback_data: `approve_broadcast_${jobId}` }],
                     [{ text: '❌ Cancel', callback_data: `reject_broadcast_${jobId}` }]
                 ]
