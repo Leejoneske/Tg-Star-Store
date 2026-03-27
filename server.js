@@ -420,12 +420,7 @@ async function getAmbassadorWaitlistModel() {
     status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
     processedBy: String,
     processedAt: Date,
-    createdAt: { type: Date, default: Date.now },
-    adminMessages: [{
-      adminId: String,
-      messageId: Number,
-      originalText: String
-    }]
+    createdAt: { type: Date, default: Date.now }
   }, { collection: 'ambassador_waitlist' });
   
   global.AmbassadorWaitlist = mongoose.model('AmbassadorWaitlist', schema);
@@ -687,21 +682,13 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
           ]]
         };
         
-        saved.adminMessages = await Promise.all(admins.map(async adminId => {
+        for (const adminId of admins) {
           try {
-            const message = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
-            return {
-              adminId,
-              messageId: message.message_id,
-              originalText: adminText
-            };
+            await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
           } catch (e) {
             console.error('Failed to notify admin of ambassador signup:', e.message);
-            return null;
           }
-        })).then(results => results.filter(Boolean));
-        
-        await saved.save();
+        }
       }
     } catch (e) {
       console.error('Failed to notify admins of ambassador signup:', e.message);
@@ -5478,28 +5465,7 @@ bot.on('callback_query', async (query) => {
                     }]] 
                 };
 
-                // Edit all stored admin messages
-                if (Array.isArray(waitlistEntry.adminMessages)) {
-                    for (const m of waitlistEntry.adminMessages) {
-                        if (m && m.adminId && m.messageId) {
-                            try {
-                                await bot.editMessageText(finalText, {
-                                    chat_id: parseInt(m.adminId, 10) || m.adminId,
-                                    message_id: m.messageId
-                                });
-                                await bot.editMessageReplyMarkup(statusKeyboard, {
-                                    chat_id: parseInt(m.adminId, 10) || m.adminId,
-                                    message_id: m.messageId
-                                });
-                            } catch (editError) {
-                                console.error(`Failed to edit message for admin ${m.adminId}:`, editError.message);
-                            }
-                        }
-                    }
-                }
-
                 try {
-                    // Backward compatibility: also update the message that triggered the callback
                     await bot.editMessageText(finalText, {
                         chat_id: query.message.chat.id,
                         message_id: query.message.message_id
@@ -5590,41 +5556,6 @@ bot.on('callback_query', async (query) => {
 
                             // Log approval
                             console.log(`Ambassador approved: ${waitlistEntry.email} - User ID: ${userUpdate.id}`);
-                            
-                            // Update all admin messages about this application
-                            if (Array.isArray(waitlistEntry.adminMessages)) {
-                                const editedText = `Ambassador Application\n\n` +
-                                    `User: @${waitlistEntry.username || 'unknown'} (ID: ${waitlistEntry.telegramId})\n` +
-                                    `Email: ${waitlistEntry.email}\n` +
-                                    `Socials: ${Object.entries(waitlistEntry.socials||{}).map(([k,v])=>`${k}: ${v}`).join(', ')}\n` +
-                                    `Entry ID: ${waitlistEntry.id}\n\n` +
-                                    `${approve ? '✅ Approved' : '❌ Declined'} by @${adminName}`;
-                                
-                                const statusKeyboard = { 
-                                    inline_keyboard: [[{ 
-                                        text: approve ? 'Approved' : 'Declined', 
-                                        callback_data: `ambassador_status_${entryId}` 
-                                    }]] 
-                                };
-                                
-                                for (const m of waitlistEntry.adminMessages) {
-                                    if (m && m.adminId && m.messageId) {
-                                        try {
-                                            await bot.editMessageText(editedText, {
-                                                chat_id: parseInt(m.adminId, 10) || m.adminId,
-                                                message_id: m.messageId
-                                            });
-                                            await bot.editMessageReplyMarkup(statusKeyboard, {
-                                                chat_id: parseInt(m.adminId, 10) || m.adminId,
-                                                message_id: m.messageId
-                                            });
-                                        } catch (editErr) {
-                                            console.error(`Failed to edit message for admin ${m.adminId}:`, editErr.message);
-                                        }
-                                    }
-                                }
-                            }
-
                         } else {
                             console.error(`❌ FAILED: User.findOneAndUpdate returned null/undefined`);
                             console.error(`  Query: { id: "${userId}" }`);
@@ -5656,45 +5587,6 @@ bot.on('callback_query', async (query) => {
                     } catch (notifyError) {
                         console.error('Failed to notify user of ambassador decline:', notifyError.message);
                     }
-                    
-                    // Notify all admins about the decline by editing their messages
-                    try {
-                        if (Array.isArray(waitlistEntry.adminMessages)) {
-                            const editedText = `Ambassador Application\n\n` +
-                                `User: @${waitlistEntry.username || 'unknown'} (ID: ${waitlistEntry.telegramId})\n` +
-                                `Email: ${waitlistEntry.email}\n` +
-                                `Socials: ${Object.entries(waitlistEntry.socials||{}).map(([k,v])=>`${k}: ${v}`).join(', ')}\n` +
-                                `Entry ID: ${waitlistEntry.id}\n\n` +
-                                `❌ Declined by @${adminName}`;
-                            
-                            const statusKeyboard = { 
-                                inline_keyboard: [[{ 
-                                    text: 'Declined', 
-                                    callback_data: `ambassador_status_${entryId}` 
-                                }]] 
-                            };
-                            
-                            for (const m of waitlistEntry.adminMessages) {
-                                if (m && m.adminId && m.messageId) {
-                                    try {
-                                        await bot.editMessageText(editedText, {
-                                            chat_id: parseInt(m.adminId, 10) || m.adminId,
-                                            message_id: m.messageId
-                                        });
-                                        await bot.editMessageReplyMarkup(statusKeyboard, {
-                                            chat_id: parseInt(m.adminId, 10) || m.adminId,
-                                            message_id: m.messageId
-                                        });
-                                    } catch (editErr) {
-                                        console.error(`Failed to edit message for admin ${m.adminId}:`, editErr.message);
-                                    }
-                                }
-                            }
-                        }
-                    } catch (adminNotifyErr) {
-                        console.error('Error updating admin messages about decline:', adminNotifyErr.message);
-                    }
-
                 }
 
                 await bot.answerCallbackQuery(query.id, { text: approve ? 'Approved' : 'Declined' });
@@ -8524,38 +8416,6 @@ app.post('/api/ambassador/withdrawal/:withdrawalId/approve', requireAdmin, async
                 await bot.sendMessage(withdrawal.userId, approvalMessage);
             } catch (botErr) {
                 console.warn(`Could not send approval message to user ${withdrawal.userId}:`, botErr.message);
-            }
-        }
-        
-        // Update all admin messages about this withdrawal
-        const updatedAdminText = approved
-            ? `✅ <b>Ambassador Withdrawal APPROVED</b>\n\n<b>Details:</b>\nWithdrawal ID: ${withdrawalId}\nUser: ${withdrawal.username} (ID: ${withdrawal.userId})\nMonth: ${withdrawal.ambassadorMonth}\nAmount: $${withdrawal.amount.toFixed(2)}\n\n<b>Action by:</b> ${adminName}\n<b>Timestamp:</b> ${new Date().toLocaleString()}`
-            : `❌ <b>Ambassador Withdrawal DECLINED</b>\n\n<b>Details:</b>\nWithdrawal ID: ${withdrawalId}\nUser: ${withdrawal.username} (ID: ${withdrawal.userId})\nMonth: ${withdrawal.ambassadorMonth}\nAmount: $${withdrawal.amount.toFixed(2)}\nReason: ${declineReason || 'No reason provided'}\n\n<b>Action by:</b> ${adminName}\n<b>Timestamp:</b> ${new Date().toLocaleString()}`;
-        
-        const statusKeyboard = {
-            inline_keyboard: [[{
-                text: approved ? 'Approved' : 'Declined',
-                callback_data: `withdrawal_status_${withdrawalId}`
-            }]]
-        };
-        
-        if (Array.isArray(withdrawal.adminMessages)) {
-            for (const m of withdrawal.adminMessages) {
-                if (m && m.adminId && m.messageId) {
-                    try {
-                        await bot.editMessageText(updatedAdminText, {
-                            chat_id: parseInt(m.adminId, 10) || m.adminId,
-                            message_id: m.messageId,
-                            parse_mode: 'HTML'
-                        });
-                        await bot.editMessageReplyMarkup(statusKeyboard, {
-                            chat_id: parseInt(m.adminId, 10) || m.adminId,
-                            message_id: m.messageId
-                        });
-                    } catch (editErr) {
-                        console.error(`Failed to edit withdrawal message for admin ${m.adminId}:`, editErr.message);
-                    }
-                }
             }
         }
         
@@ -12440,4 +12300,5371 @@ app.get('/api/notifications', requireTelegramAuth, async (req, res) => {
             const newNotification = {
                 id: newTemplate._id.toString(),
                 title: newTemplate.title,
-                message: newTem
+                message: newTemplate.message,
+                actionUrl: newTemplate.actionUrl,
+                icon: newTemplate.icon,
+                createdAt: newTemplate.createdAt,
+                read: false,
+                priority: newTemplate.priority
+            };
+
+            formattedNotifications.unshift(newNotification);
+            
+            // Update counts
+            const newUnreadCount = unreadCount + 1;
+            const newTotalCount = totalCount + 1;
+            
+            return res.json({ 
+                notifications: formattedNotifications, 
+                unreadCount: newUnreadCount, 
+                totalCount: newTotalCount 
+            });
+        }
+
+        res.json({ notifications: formattedNotifications, unreadCount, totalCount });
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+});
+
+// Unread notifications count endpoint to support frontend polling
+app.get('/api/notifications/unread-count', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const unreadCount = await UserNotification.countDocuments({ userId, read: false });
+        res.json({ unreadCount });
+    } catch (error) {
+        console.error('Error fetching unread notifications count:', error);
+        res.status(500).json({ error: 'Failed to fetch unread notifications count' });
+    }
+});
+
+// Debug endpoint to create sample notification
+app.post('/api/debug/create-notification', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const template = await NotificationTemplate.create({
+            title: 'Test Notification 📢',
+            message: 'This is a test notification created via debug endpoint. Everything is working correctly!',
+            icon: 'fa-bell',
+            audience: 'user',
+            targetUserId: userId,
+            priority: 1,
+            actionUrl: '/daily',
+            createdBy: 'debug'
+        });
+
+        await UserNotification.create({
+            userId: userId,
+            templateId: template._id,
+            read: false
+        });
+
+        res.json({ success: true, templateId: template._id, userId });
+    } catch (error) {
+        console.error('Debug create notification error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Debug endpoint to check database state
+app.get('/api/debug/db-state', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const dbState = {
+            userId,
+            userNotifications: await UserNotification.countDocuments({ userId }),
+            allUserNotifications: await UserNotification.countDocuments(),
+            notificationTemplates: await NotificationTemplate.countDocuments(),
+            buyOrders: await BuyOrder.countDocuments({ telegramId: userId }),
+            sellOrders: await SellOrder.countDocuments({ telegramId: userId }),
+            referrals: await Referral.countDocuments({ referrerUserId: userId }),
+            
+            // Sample data
+            sampleUserNotifications: await UserNotification.find({ userId }).limit(3).lean(),
+            sampleTemplates: await NotificationTemplate.find().limit(3).lean()
+        };
+        
+        res.json(dbState);
+    } catch (error) {
+        console.error('Debug DB state error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Dev-only: seed sample notifications for local verification
+if (process.env.NODE_ENV !== 'production') {
+    app.post('/dev/seed-notifications', async (req, res) => {
+        try {
+            const { userId = 'test-user', count = 3 } = req.body || {};
+            const templates = [];
+            for (let i = 0; i < Number(count) || 0; i++) {
+                templates.push({
+                    title: `Test Notification ${i + 1}`,
+                    message: `This is a test notification #${i + 1}`,
+                    audience: 'user',
+                    targetUserId: userId,
+                    priority: i % 3,
+                    icon: 'fa-bell',
+                });
+            }
+            templates.push({
+                title: 'Global Announcement',
+                message: 'This is a global message visible to all users',
+                audience: 'global',
+                priority: 1,
+                icon: 'fa-bullhorn'
+            });
+
+            const createdTemplates = await NotificationTemplate.insertMany(templates);
+
+            // Fan out user-scoped templates to UserNotification for that user
+            const directTemplates = createdTemplates.filter(t => t.audience === 'user');
+            const userNotifs = directTemplates.map(t => ({ userId, templateId: t._id }));
+
+            // For global, just create one example user mapping to verify UI for dev user
+            const globalTemplate = createdTemplates.find(t => t.audience === 'global');
+            if (globalTemplate) userNotifs.push({ userId, templateId: globalTemplate._id });
+
+            await UserNotification.insertMany(userNotifs);
+            res.json({ success: true, createdTemplates: createdTemplates.length, createdUserNotifications: userNotifs.length });
+        } catch (error) {
+            console.error('Error seeding notifications:', error);
+            res.status(500).json({ error: 'Failed to seed notifications' });
+        }
+    });
+}
+
+// Create notification with enhanced validation
+app.post('/api/notifications', requireTelegramAuth, async (req, res) => {
+    try {
+        const { targetUserId, title, message, actionUrl, audience = 'global', priority = 0 } = req.body;
+        
+        // Enhanced validation
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ error: "Valid message is required" });
+        }
+
+        // Admin check (implement your actual admin verification)
+        if (!req.user || !req.user.isAdmin) {
+            return res.status(403).json({ error: "Unauthorized: Admin access required" });
+        }
+
+        const template = await NotificationTemplate.create({
+            title: title || 'Notification',
+            message: message.trim(),
+            actionUrl,
+            audience: audience === 'user' ? 'user' : 'global',
+            targetUserId: audience === 'user' ? (targetUserId || '').toString() : undefined,
+            priority: Math.min(2, Math.max(0, parseInt(priority) || 0)),
+            createdBy: req.user.id
+        });
+
+        // Fan out: for user audience, create one UserNotification for that user.
+        if (template.audience === 'user' && template.targetUserId) {
+            await UserNotification.create({ userId: template.targetUserId, templateId: template._id });
+        }
+
+        res.status(201).json({ id: template._id, success: true, message: "Notification created successfully" });
+    } catch (error) {
+        console.error('Error creating notification:', error);
+        res.status(500).json({ error: "Failed to create notification" });
+    }
+});
+
+// Enhanced mark as read endpoint
+app.post('/api/notifications/:id/read', requireTelegramAuth, async (req, res) => {
+    try {
+        const { id } = req.params; // this is UserNotification id now
+        const userId = req.user.id;
+
+        const updated = await UserNotification.findOneAndUpdate({ _id: id, userId }, { $set: { read: true } });
+        if (!updated) return res.status(404).json({ error: 'Notification not found' });
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+});
+
+// Optimized mark all as read
+app.post('/api/notifications/mark-all-read', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const result = await UserNotification.updateMany({ userId, read: false }, { $set: { read: true } });
+        res.json({ success: true, markedCount: result.modifiedCount });
+    } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        res.status(500).json({ error: "Failed to mark all notifications as read" });
+    }
+});
+
+// Enhanced notification deletion with ownership check
+app.delete('/api/notifications/:id', requireTelegramAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // Try delete as user-owned notification first
+        const deleted = await UserNotification.findOneAndDelete({ _id: id, userId });
+        if (deleted) return res.json({ success: true });
+
+        // If not found and user is admin, allow deleting template and cascade
+        if (req.user.isAdmin) {
+            const template = await NotificationTemplate.findById(id);
+            if (!template) return res.status(404).json({ error: 'Notification not found' });
+            await NotificationTemplate.deleteOne({ _id: id });
+            await UserNotification.deleteMany({ templateId: id });
+            return res.json({ success: true, deletedTemplate: true });
+        }
+
+        return res.status(404).json({ error: 'Notification not found' });
+    } catch (error) {
+        console.error('Error dismissing notification:', error);
+        res.status(500).json({ error: "Failed to dismiss notification" });
+    }
+});
+
+// Active heartbeat: update user's lastActive from web or Telegram
+app.post('/api/active-ping', async (req, res) => {
+    try {
+        // Prefer authenticated user (Telegram WebApp), otherwise fallback to explicit header
+        const authUserId = req.user?.id;
+        const headerId = (req.headers['x-telegram-id'] || '').toString().trim();
+        const userId = authUserId || (headerId || null);
+        const username = req.body?.username || '';
+        
+        if (!userId) return res.status(400).json({ error: 'Missing user id' });
+        
+        // Detect username change if provided
+        if (username) {
+            try {
+                const usernameChange = await detectUsernameChange(userId, username, 'page_visit');
+                if (usernameChange) {
+                    await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
+                }
+            } catch (usernameErr) {
+                console.error('Error detecting username in active-ping:', usernameErr.message);
+            }
+        }
+        
+        await User.updateOne(
+            { id: userId },
+            { $set: { lastActive: new Date(), username: username || undefined }, $setOnInsert: { createdAt: new Date() } },
+            { upsert: true }
+        );
+        return res.json({ success: true });
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to update activity' });
+    }
+});
+
+/**
+ * Track user location on every page load
+ * Captures IP-based geolocation for all website visitors
+ * Runs silently - no user interaction needed
+ */
+app.post('/api/track-location', async (req, res) => {
+    try {
+        const userId = req.body?.userId || req.headers['x-telegram-id'];
+        const username = req.body?.username || '';
+        if (!userId) {
+            return res.status(400).json({ error: 'Missing userId' });
+        }
+
+        // Extract IP from request
+        const ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
+            .toString().split(',')[0].trim();
+
+        // Detect username change if provided
+        if (username) {
+            try {
+                const usernameChange = await detectUsernameChange(userId, username, 'page_visit');
+                if (usernameChange) {
+                    await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
+                }
+            } catch (usernameErr) {
+                console.error('Error detecting username in track-location:', usernameErr.message);
+            }
+        }
+
+        // Get geolocation from IP
+        let geo = null;
+        if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
+            geo = await getGeolocation(ip);
+        }
+
+        if (!geo) {
+            return res.json({ success: false, reason: 'No location data' });
+        }
+
+        // Update user with location data
+        await User.updateOne(
+            { id: userId.toString() },
+            {
+                $set: {
+                    lastActive: new Date(),
+                    lastLocation: {
+                        country: geo.country,
+                        countryCode: geo.countryCode,
+                        city: geo.city,
+                        ip,
+                        source: 'website_visit',
+                        timestamp: new Date()
+                    }
+                },
+                $setOnInsert: {
+                    id: userId.toString(),
+                    createdAt: new Date()
+                },
+                $addToSet: {
+                    locationHistory: {
+                        country: geo.country,
+                        countryCode: geo.countryCode,
+                        city: geo.city,
+                        ip,
+                        source: 'website_visit',
+                        timestamp: new Date()
+                    }
+                }
+            },
+            { upsert: true }
+        );
+
+        return res.json({ 
+            success: true, 
+            location: geo.country,
+            city: geo.city
+        });
+    } catch (error) {
+        console.error('Track location error:', error);
+        return res.status(500).json({ error: 'Failed to track location' });
+    }
+});
+
+// Enhanced Telegram bot command handler with more options
+bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+
+    const [_, target, notificationMessage] = match;
+    const timestamp = new Date();
+
+    try {
+        let template;
+        let responseMessage;
+        let userNotificationsCreated = 0;
+
+        if (target === 'all') {
+            // Create global notification template
+            template = await NotificationTemplate.create({
+                title: 'Global Announcement 📢',
+                message: notificationMessage,
+                audience: 'global',
+                priority: 1,
+                icon: 'fa-bullhorn',
+                createdBy: `admin_${chatId}`
+            });
+
+            // Get all users and create UserNotification for each
+            const users = await User.find({}, { id: 1 }).limit(10000);
+            const userNotifications = users.map(user => ({
+                userId: user.id.toString(),
+                templateId: template._id,
+                read: false
+            }));
+
+            if (userNotifications.length > 0) {
+                await UserNotification.insertMany(userNotifications);
+                userNotificationsCreated = userNotifications.length;
+            }
+
+            responseMessage = `🌍 Global notification sent to ${userNotificationsCreated} users`;
+        } 
+        else if (target && (target.startsWith('@') || !isNaN(target))) {
+            const userId = target.startsWith('@') ? target.substring(1) : target;
+            
+            // Create user-specific notification template
+            template = await NotificationTemplate.create({
+                title: 'Personal Message 💬',
+                message: notificationMessage,
+                audience: 'user',
+                targetUserId: userId,
+                priority: 2,
+                icon: 'fa-envelope',
+                createdBy: `admin_${chatId}`
+            });
+
+            // Create UserNotification for the specific user
+            await UserNotification.create({
+                userId: userId,
+                templateId: template._id,
+                read: false
+            });
+
+            userNotificationsCreated = 1;
+            responseMessage = `👤 Notification sent to ${target}`;
+
+            // Also try to send direct Telegram message if possible
+            try {
+                await bot.sendMessage(userId, `📢 Admin Message:\n\n${notificationMessage}`);
+                responseMessage += ` (also sent via Telegram)`;
+            } catch (telegramErr) {
+                console.log(`Could not send direct Telegram message to ${userId}:`, telegramErr.message);
+            }
+        } 
+        else {
+            // Default to global notification
+            template = await NotificationTemplate.create({
+                title: 'System Notification 🔔',
+                message: notificationMessage,
+                audience: 'global',
+                priority: 1,
+                icon: 'fa-bell',
+                createdBy: `admin_${chatId}`
+            });
+
+            // Get all users and create UserNotification for each
+            const users = await User.find({}, { id: 1 }).limit(10000);
+            const userNotifications = users.map(user => ({
+                userId: user.id.toString(),
+                templateId: template._id,
+                read: false
+            }));
+
+            if (userNotifications.length > 0) {
+                await UserNotification.insertMany(userNotifications);
+                userNotificationsCreated = userNotifications.length;
+            }
+
+            responseMessage = `✅ System notification sent to ${userNotificationsCreated} users`;
+        }
+
+        // Format the response with timestamp and preview
+        await bot.sendMessage(chatId,
+            `${responseMessage} at ${timestamp.toLocaleTimeString()}\n\n` +
+            `📝 Preview: ${notificationMessage.substring(0, 100)}${notificationMessage.length > 100 ? '...' : ''}\n` +
+            `🆔 Template ID: ${template._id}`
+        );
+
+    } catch (err) {
+        console.error('Notification error:', err);
+        bot.sendMessage(chatId, '❌ Failed to send notification: ' + err.message);
+    }
+});
+// Get transaction history and should NOT TOUCH THIS CODE
+app.get('/api/transactions/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        console.log(`📊 [Transactions API] Fetching transactions for userId: ${userId}`);
+        
+        // Get both buy and sell orders for the user
+        const buyOrders = await BuyOrder.find({ telegramId: userId })
+            .sort({ dateCreated: -1 })
+            .lean();
+        
+        const sellOrders = await SellOrder.find({ telegramId: userId })
+            .sort({ dateCreated: -1 })
+            .lean();
+
+        console.log(`📊 [Transactions API] Found ${buyOrders.length} buy orders and ${sellOrders.length} sell orders`);
+
+        // Combine and format the data
+        const transactions = [
+            ...buyOrders.map(order => ({
+                id: order.id,
+                type: 'Buy Stars',
+                amount: order.stars,
+                status: (order.status || 'pending').toLowerCase(),
+                date: order.dateCreated,
+                details: `Buy order for ${order.stars} stars`,
+                usdtValue: order.amount
+            })),
+            ...sellOrders.map(order => ({
+                id: order.id,
+                type: 'Sell Stars',
+                amount: order.stars,
+                status: (order.status || 'pending').toLowerCase(),
+                date: order.dateCreated,
+                details: `Sell order for ${order.stars} stars`,
+                usdtValue: null 
+            }))
+        ];
+
+        console.log(`📊 [Transactions API] Returning ${transactions.length} total transactions`);
+        res.json(transactions);
+    } catch (error) {
+        console.error('❌ [Transactions API] Error fetching transactions:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Export transactions as CSV via Telegram
+app.post('/api/export-transactions', requireTelegramAuth, async (req, res) => {
+    try {
+        console.log('[CSV Export] Request initiated for user:', req.user.id);
+        
+        // Check if user authentication worked and extract user ID
+        let userId = null;
+        if (req.user && req.user.id) {
+            userId = req.user.id;
+            // Get transaction counts
+        const buyOrdersCount = await BuyOrder.countDocuments({ telegramId: userId });
+        const sellOrdersCount = await SellOrder.countDocuments({ telegramId: userId });
+        } else {
+            console.log('[CSV Export] Authentication failed');
+            
+            // Try to extract user ID from init data directly
+            try {
+                const initData = req.headers['x-telegram-init-data'];
+                if (initData) {
+                    console.log('Trying to parse init data directly...');
+                    const params = new URLSearchParams(initData);
+                    const userParam = params.get('user');
+                    if (userParam) {
+                        const user = JSON.parse(userParam);
+                        userId = user.id?.toString();
+                        console.log('[CSV Export] Extracted user ID from init data:', userId);
+                        // Create a minimal user object for CSV generation
+                        req.user = { id: userId, username: user.username };
+                    }
+                }
+            } catch (parseError) {
+                console.error('Error parsing init data:', parseError.message);
+            }
+            
+            // Final fallback
+            if (!userId && req.headers['x-telegram-id']) {
+                userId = req.headers['x-telegram-id'];
+                console.log('⚠️ Using fallback user ID from header:', userId);
+            }
+            
+            if (!userId) {
+                return res.status(401).json({ error: 'Authentication failed. Please refresh and try again.' });
+            }
+        }
+        console.log('Using user ID:', userId);
+        
+        // Get both buy and sell orders for the user
+        console.log('Fetching buy orders for user:', userId);
+        let buyOrders = [];
+        let sellOrders = [];
+        
+        try {
+            buyOrders = await BuyOrder.find({ telegramId: userId })
+                .sort({ dateCreated: -1 })
+                .lean();
+            // Buy orders fetched
+        } catch (buyError) {
+            console.error('❌ Error fetching buy orders:', buyError.message);
+            buyOrders = [];
+        }
+        
+        try {
+            sellOrders = await SellOrder.find({ telegramId: userId })
+                .sort({ dateCreated: -1 })
+                .lean();
+            console.log('✅ Found sell orders:', sellOrders.length);
+        } catch (sellError) {
+            console.error('❌ Error fetching sell orders:', sellError.message);
+            sellOrders = [];
+        }
+
+        // Combine and format the data
+        // Combining transaction data
+        const transactions = [];
+        
+        // Safely map buy orders
+        if (buyOrders && buyOrders.length > 0) {
+            buyOrders.forEach(order => {
+                try {
+                    transactions.push({
+                        id: order.id || 'N/A',
+                        type: 'Buy Stars',
+                        amount: order.stars || 0,
+                        status: (order.status || 'unknown').toLowerCase(),
+                        date: order.dateCreated || new Date(),
+                        details: `Buy order for ${order.stars || 0} stars`,
+                        usdtValue: order.amount || 0
+                    });
+                } catch (orderError) {
+                    console.error('Error processing buy order:', orderError.message);
+                }
+            });
+        }
+        
+        // Safely map sell orders
+        if (sellOrders && sellOrders.length > 0) {
+            sellOrders.forEach(order => {
+                try {
+                    transactions.push({
+                        id: order.id || 'N/A',
+                        type: 'Sell Stars',
+                        amount: order.stars || 0,
+                        status: (order.status || 'unknown').toLowerCase(),
+                        date: order.dateCreated || new Date(),
+                        details: `Sell order for ${order.stars || 0} stars`,
+                        usdtValue: order.amount || 0
+                    });
+                } catch (orderError) {
+                    console.error('Error processing sell order:', orderError.message);
+                }
+            });
+        }
+        
+        // Transactions combined
+
+        // Generate professional CSV with enhanced formatting for Excel/Sheets
+        let csv = '';
+        
+        try {
+            const userInfo = req.user || {};
+            const generationDate = new Date();
+            const formattedDate = generationDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            const formattedTime = generationDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            const totalTransactions = transactions.length;
+            const completedCount = transactions.filter(t => t.status === 'completed').length;
+            const processingCount = transactions.filter(t => t.status === 'processing').length;
+            const declinedCount = transactions.filter(t => t.status === 'declined').length;
+            const totalStarsTraded = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalUsdtValue = transactions.reduce((sum, t) => sum + (t.usdtValue || 0), 0);
+            
+            console.log('Transaction counts:', { totalTransactions, completedCount, processingCount, declinedCount });
+            
+            // Professional statement-style header with visual separation
+            csv = `═══════════════════════════════════════════════════════════════\n`;
+            csv += `STARSTORE TRANSACTION STATEMENT\n`;
+            csv += `═══════════════════════════════════════════════════════════════\n`;
+            csv += `\n`;
+            csv += `ACCOUNT INFORMATION\n`;
+            csv += `───────────────────────────────────────────────────────────────\n`;
+            csv += `Account Holder,${userInfo.username ? '@' + userInfo.username : 'Unknown'}\n`;
+            csv += `Account ID,${userId}\n`;
+            csv += `Statement Date,${formattedDate}\n`;
+            csv += `Generated Time,${formattedTime} UTC\n`;
+            csv += `\n`;
+            csv += `SUMMARY OVERVIEW\n`;
+            csv += `───────────────────────────────────────────────────────────────\n`;
+            csv += `Description,Count,Amount (USDT)\n`;
+            csv += `Total Transactions,${totalTransactions},${totalUsdtValue.toFixed(2)}\n`;
+            csv += `Completed Orders,${completedCount},-\n`;
+            csv += `Processing Orders,${processingCount},-\n`;
+            csv += `Declined Orders,${declinedCount},-\n`;
+            csv += `Total Stars Traded,-,${totalStarsTraded.toFixed(2)}\n`;
+            csv += `\n`;
+            csv += `TRANSACTION DETAILS\n`;
+            csv += `───────────────────────────────────────────────────────────────\n`;
+            csv += `Date & Time,Type,Stars Traded,Amount (USDT),Status,Reference ID\n`;
+            
+            // Add transaction data with enhanced formatting
+            if (transactions.length > 0) {
+                transactions.forEach((txn, index) => {
+                    try {
+                        const dateStr = new Date(txn.date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                        const timeStr = new Date(txn.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        const typeDisplay = txn.type.replace(' Stars', '');
+                        const statusDisplay = txn.status.charAt(0).toUpperCase() + txn.status.slice(1);
+                        
+                        // Right-align numbers for better readability
+                        const starsFormatted = txn.amount.toFixed(2).padStart(12);
+                        const usdtFormatted = txn.usdtValue.toFixed(2).padStart(12);
+                        
+                        csv += `${dateStr} ${timeStr},${typeDisplay},${starsFormatted},${usdtFormatted},${statusDisplay},${txn.id}\n`;
+                    } catch (rowError) {
+                        console.error('Error processing transaction row:', rowError.message);
+                    }
+                });
+            } else {
+                csv += `\n`;
+                csv += `No transactions available for this account\n`;
+            }
+            
+            csv += `\n`;
+            csv += `═══════════════════════════════════════════════════════════════\n`;
+            csv += `TOTALS\n`;
+            csv += `═══════════════════════════════════════════════════════════════\n`;
+            csv += `Total Stars,${totalStarsTraded.toFixed(2)}\n`;
+            csv += `Total USDT Value,${totalUsdtValue.toFixed(2)}\n`;
+            csv += `Average Per Transaction,${(totalTransactions > 0 ? totalUsdtValue / totalTransactions : 0).toFixed(2)}\n`;
+            csv += `\n`;
+            csv += `═══════════════════════════════════════════════════════════════\n`;
+            csv += `FOOTER\n`;
+            csv += `═══════════════════════════════════════════════════════════════\n`;
+            csv += `This is an official StarStore transaction record.\n`;
+            csv += `For disputes or questions, contact support at https://starstore.site\n`;
+            csv += `Generated by StarStore - Your Trusted Telegram Stars Marketplace\n`;
+            csv += `Statement generated on: ${new Date().toISOString()}\n`;
+            
+        } catch (csvError) {
+            console.error('Error generating CSV:', csvError.message);
+            csv = `STARSTORE TRANSACTION STATEMENT\nError: Unable to generate report\nDetails: ${csvError.message}`;
+        }
+
+        // Send CSV file via Telegram bot when possible, otherwise provide direct download
+        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        const buffer = Buffer.from(csv, 'utf8');
+        // CSV buffer created
+
+        if (process.env.BOT_TOKEN) {
+            try {
+                // Prefer Buffer with filename to avoid filesystem usage
+                await bot.sendDocument(userId, buffer, {
+                    caption: 'Your StarStore transaction statement is ready for download.'
+                }, {
+                    filename: filename,
+                    contentType: 'text/csv'
+                });
+                console.log('CSV sent via Telegram to user:', userId);
+                return res.json({ success: true, message: 'CSV file sent to your Telegram' });
+            } catch (botError) {
+                const message = String(botError && botError.message || '');
+                const forbidden = (botError && botError.response && botError.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
+                if (forbidden) {
+                    console.warn('Telegram sendDocument forbidden, falling back to direct download');
+                } else {
+                    console.error('Bot sendDocument failed, falling back to direct download:', botError.message);
+                }
+                // Fall through to direct download
+            }
+        }
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        console.log('✅ CSV direct download for user:', userId);
+        return res.send(csv);
+    } catch (error) {
+        console.error('❌ ERROR in CSV export:', error);
+        console.error('Error details:', error.message);
+        console.error('Stack trace:', error.stack);
+        console.error('User ID:', req.user?.id);
+        console.error('Bot token available:', !!process.env.BOT_TOKEN);
+        console.error('=== CSV EXPORT DEBUG END (ERROR) ===');
+        res.status(500).json({ error: 'Failed to export transactions: ' + error.message });
+    }
+});
+
+// Direct-download variant for environments where programmatic downloads are restricted
+app.get('/api/export-transactions-download', async (req, res) => {
+    try {
+        let userId = null;
+        // Prefer init data if provided (Telegram signed payload)
+        const initData = req.query.init || req.query.init_data;
+        if (initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userParam = params.get('user');
+                if (userParam) userId = JSON.parse(userParam).id?.toString();
+            } catch (_) {}
+        }
+        // Fallback: explicit tg_id
+        if (!userId && req.query.tg_id) {
+            userId = String(req.query.tg_id);
+        }
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const [buyOrders, sellOrders] = await Promise.all([
+            BuyOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).lean().catch(() => []),
+            SellOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).lean().catch(() => [])
+        ]);
+
+        const transactions = [];
+        (buyOrders || []).forEach(order => {
+            transactions.push({
+                id: order.id || 'N/A',
+                type: 'Buy Stars',
+                amount: order.stars || 0,
+                status: (order.status || 'unknown').toLowerCase(),
+                date: order.dateCreated || new Date(),
+                details: `Buy order for ${order.stars || 0} stars`,
+                usdtValue: order.amount || 0
+            });
+        });
+        (sellOrders || []).forEach(order => {
+            transactions.push({
+                id: order.id || 'N/A',
+                type: 'Sell Stars',
+                amount: order.stars || 0,
+                status: (order.status || 'unknown').toLowerCase(),
+                date: order.dateCreated || new Date(),
+                details: `Sell order for ${order.stars || 0} stars`,
+                usdtValue: order.amount || 0
+            });
+        });
+
+        const generationDate = new Date().toLocaleString();
+        const totalTransactions = transactions.length;
+        const completedCount = transactions.filter(t => t.status === 'completed').length;
+        const processingCount = transactions.filter(t => t.status === 'processing').length;
+        const declinedCount = transactions.filter(t => t.status === 'declined').length;
+        let csv = '';
+        csv = `# StarStore - Transaction History Export\n`;
+        csv += `# Generated on: ${generationDate}\n`;
+        csv += `# User ID: ${userId}\n`;
+        csv += `# Total Transactions: ${totalTransactions}\n`;
+        csv += `# Completed: ${completedCount} | Processing: ${processingCount} | Declined: ${declinedCount}\n`;
+        csv += `# Website: https://starstore.site\n`;
+        csv += `# Export Type: Transaction History\n`;
+        csv += `#\n`;
+        csv += `ID,Type,Amount (Stars),USDT Value,Status,Date,Details\n`;
+        if (transactions.length > 0) {
+            transactions.forEach(txn => {
+                const dateStr = new Date(txn.date).toISOString().split('T')[0];
+                csv += `"${txn.id}","${txn.type}","${txn.amount}","${txn.usdtValue}","${txn.status}","${dateStr}","${txn.details}"\n`;
+            });
+        } else {
+            csv += `"No Data","No transactions found","0","0","none","${new Date().toISOString().split('T')[0]}","No transactions available for this user"\n`;
+        }
+
+        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(csv);
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to export' });
+    }
+});
+
+// Export transactions as PDF (professional formatted statement)
+app.post('/api/export-transactions-pdf', requireTelegramAuth, async (req, res) => {
+    try {
+        if (!pdfGenerator) {
+            console.error('PDF Generator not available');
+            return res.status(501).json({ error: 'PDF export service not available. Please try again later.' });
+        }
+
+        const userId = req.user.id;
+        const userInfo = req.user || {};
+        
+        if (!userId) {
+            console.error('No user ID found in request');
+            return res.status(401).json({ error: 'User authentication failed' });
+        }
+        
+        // Fetch transactions
+        let buyOrders = [];
+        let sellOrders = [];
+        
+        try {
+            buyOrders = await BuyOrder.find({ telegramId: userId })
+                .sort({ dateCreated: -1 })
+                .lean();
+        } catch (err) {
+            console.error('Error fetching buy orders:', err.message);
+            buyOrders = [];
+        }
+        
+        try {
+            sellOrders = await SellOrder.find({ telegramId: userId })
+                .sort({ dateCreated: -1 })
+                .lean();
+        } catch (err) {
+            console.error('Error fetching sell orders:', err.message);
+            sellOrders = [];
+        }
+
+        // Format transactions
+        const transactions = [];
+        
+        if (buyOrders && buyOrders.length > 0) {
+            buyOrders.forEach(order => {
+                try {
+                    transactions.push({
+                        id: order.id || 'N/A',
+                        type: 'Buy Stars',
+                        amount: order.stars || 0,
+                        status: (order.status || 'unknown').toLowerCase(),
+                        date: order.dateCreated || new Date(),
+                        usdtValue: order.amount || 0
+                    });
+                } catch (err) {
+                    console.error('Error processing buy order:', err.message);
+                }
+            });
+        }
+        
+        if (sellOrders && sellOrders.length > 0) {
+            sellOrders.forEach(order => {
+                try {
+                    transactions.push({
+                        id: order.id || 'N/A',
+                        type: 'Sell Stars',
+                        amount: order.stars || 0,
+                        status: (order.status || 'unknown').toLowerCase(),
+                        date: order.dateCreated || new Date(),
+                        usdtValue: order.amount || 0
+                    });
+                } catch (err) {
+                    console.error('Error processing sell order:', err.message);
+                }
+            });
+        }
+
+        console.log(`Generating transaction PDF for user ${userId} with ${transactions.length} transactions`);
+
+        // Generate PDF
+        let docDefinition;
+        try {
+            docDefinition = pdfGenerator.generateTransactionPDF(
+                userId,
+                userInfo.username,
+                transactions
+            );
+        } catch (err) {
+            console.error('Error generating transaction PDF definition:', err.message, err.stack);
+            return res.status(500).json({ error: 'Failed to generate PDF document: ' + err.message });
+        }
+        
+        let buffer;
+        try {
+            buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+            console.log(`PDF buffer created successfully, size: ${buffer.length} bytes`);
+        } catch (err) {
+            console.error('Error creating PDF buffer:', err.message, err.stack);
+            return res.status(500).json({ error: 'Failed to create PDF file: ' + err.message });
+        }
+
+        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        // Send via Telegram if possible
+        if (process.env.BOT_TOKEN) {
+            try {
+                await bot.sendDocument(userId, buffer, {
+                    caption: 'Your StarStore transaction statement PDF is ready for download.'
+                });
+                console.log('PDF sent via Telegram to user:', userId);
+                return res.json({ success: true, message: 'PDF file sent to your Telegram' });
+            } catch (botError) {
+                console.error('Bot sendDocument failed, falling back to direct download:', botError.message);
+            }
+        }
+
+        // Direct download fallback
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        console.log(`Sending PDF to user as direct download`);
+        return res.send(buffer);
+    } catch (error) {
+        console.error('Error exporting transactions PDF:', error.message, error.stack);
+        res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+    }
+});
+
+// Direct PDF download variant
+app.get('/api/export-transactions-pdf-download', async (req, res) => {
+    try {
+        if (!pdfGenerator) {
+            return res.status(501).json({ error: 'PDF export not available' });
+        }
+
+        let userId = null;
+        const initData = req.query.init || req.query.init_data;
+        if (initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userParam = params.get('user');
+                if (userParam) userId = JSON.parse(userParam).id?.toString();
+            } catch (_) {}
+        }
+        if (!userId && req.query.tg_id) {
+            userId = req.query.tg_id;
+        }
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        // Fetch transactions
+        let buyOrders = await BuyOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).lean();
+        let sellOrders = await SellOrder.find({ telegramId: userId }).sort({ dateCreated: -1 }).lean();
+
+        const transactions = [];
+        if (buyOrders) buyOrders.forEach(order => {
+            transactions.push({
+                id: order.id || 'N/A',
+                type: 'Buy Stars',
+                amount: order.stars || 0,
+                status: (order.status || 'unknown').toLowerCase(),
+                date: order.dateCreated || new Date(),
+                usdtValue: order.amount || 0
+            });
+        });
+        if (sellOrders) sellOrders.forEach(order => {
+            transactions.push({
+                id: order.id || 'N/A',
+                type: 'Sell Stars',
+                amount: order.stars || 0,
+                status: (order.status || 'unknown').toLowerCase(),
+                date: order.dateCreated || new Date(),
+                usdtValue: order.amount || 0
+            });
+        });
+
+        const docDefinition = pdfGenerator.generateTransactionPDF(userId, null, transactions);
+        const buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+        const filename = `transactions_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(buffer);
+    } catch (error) {
+        console.error('Error in PDF download:', error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+});
+
+// Export referrals as CSV via Telegram
+app.post('/api/export-referrals', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
+        
+        // Generate professional CSV with enhanced formatting
+        const userInfo = req.user;
+        const generationDate = new Date();
+        const formattedDate = generationDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        const formattedTime = generationDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        const totalReferrals = referrals.length;
+        const activeCount = referrals.filter(r => r.status === 'active').length;
+        const inactiveCount = referrals.filter(r => r.status !== 'active').length;
+        const totalReferralValue = referrals.reduce((sum, r) => sum + (r.amount || 0), 0);
+        
+        let csv = `═══════════════════════════════════════════════════════════════\n`;
+        csv += `STARSTORE REFERRAL EARNINGS STATEMENT\n`;
+        csv += `═══════════════════════════════════════════════════════════════\n`;
+        csv += `\n`;
+        csv += `ACCOUNT INFORMATION\n`;
+        csv += `───────────────────────────────────────────────────────────────\n`;
+        csv += `Account Holder,${userInfo.username ? '@' + userInfo.username : 'Unknown'}\n`;
+        csv += `Account ID,${userId}\n`;
+        csv += `Statement Date,${formattedDate}\n`;
+        csv += `Generated Time,${formattedTime} UTC\n`;
+        csv += `\n`;
+        csv += `EARNINGS SUMMARY\n`;
+        csv += `───────────────────────────────────────────────────────────────\n`;
+        csv += `Description,Count,Earnings (USDT)\n`;
+        csv += `Total Referrals,${totalReferrals},${totalReferralValue.toFixed(2)}\n`;
+        csv += `Active Referrals,${activeCount},-\n`;
+        csv += `Inactive Referrals,${inactiveCount},-\n`;
+        csv += `Average Per Referral,-,${(totalReferrals > 0 ? totalReferralValue / totalReferrals : 0).toFixed(2)}\n`;
+        csv += `\n`;
+        csv += `REFERRAL DETAILS\n`;
+        csv += `───────────────────────────────────────────────────────────────\n`;
+        csv += `Date & Time,Referred User,Earnings (USDT),Status,User ID\n`;
+        
+        referrals.forEach((ref, index) => {
+            const dateStr = new Date(ref.dateReferred).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            const timeStr = new Date(ref.dateReferred).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            const statusDisplay = ref.status.charAt(0).toUpperCase() + ref.status.slice(1);
+            const earningsFormatted = (ref.amount || 0).toFixed(2).padStart(12);
+            csv += `${dateStr} ${timeStr},${ref.referredUsername || 'Unknown'},${earningsFormatted},${statusDisplay},${ref.referredUserId || 'Unknown'}\n`;
+        });
+
+        csv += `\n`;
+        csv += `═══════════════════════════════════════════════════════════════\n`;
+        csv += `TOTALS\n`;
+        csv += `═══════════════════════════════════════════════════════════════\n`;
+        csv += `Total Referrals,${totalReferrals}\n`;
+        csv += `Total Earnings,${totalReferralValue.toFixed(2)} USDT\n`;
+        csv += `Average Per Referral,${(totalReferrals > 0 ? totalReferralValue / totalReferrals : 0).toFixed(2)} USDT\n`;
+        csv += `\n`;
+        csv += `═══════════════════════════════════════════════════════════════\n`;
+        csv += `FOOTER\n`;
+        csv += `═══════════════════════════════════════════════════════════════\n`;
+        csv += `This is an official StarStore referral earnings record.\n`;
+        csv += `For disputes or questions, contact support at https://starstore.site\n`;
+        csv += `Generated by StarStore - Your Trusted Telegram Stars Marketplace\n`;
+        csv += `Statement generated on: ${new Date().toISOString()}\n`;
+
+        // Send CSV file via Telegram bot
+        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        const buffer = Buffer.from(csv, 'utf8');
+        
+        // Try to send via Telegram first
+        try {
+            // Create a readable stream from the buffer for better compatibility
+            const stream = require('stream');
+            const readable = new stream.Readable();
+            readable.push(buffer);
+            readable.push(null);
+            readable.path = filename; // Set filename for the stream
+            
+            await bot.sendDocument(userId, readable, {
+                caption: `Your referral earnings statement (${referrals.length} referrals)\n\nGenerated on: ${formattedDate}`
+            });
+        } catch (botError) {
+            console.error('Bot sendDocument failed, providing direct download:', botError.message);
+            // Fallback: provide CSV for direct download
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.setHeader('Cache-Control', 'no-store');
+            return res.send(csv);
+        }
+
+        res.json({ success: true, message: 'CSV file sent to your Telegram' });
+    } catch (error) {
+        console.error('Error exporting referrals:', error);
+        console.error('Error details:', error.message);
+        console.error('Stack trace:', error.stack);
+        console.error('User ID:', req.user?.id);
+        console.error('Bot token available:', !!process.env.BOT_TOKEN);
+        res.status(500).json({ error: 'Failed to export referrals: ' + error.message });
+    }
+});
+
+// Direct-download variant for referrals
+app.get('/api/export-referrals-download', async (req, res) => {
+    try {
+        let userId = null;
+        const initData = req.query.init || req.query.init_data;
+        if (initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userParam = params.get('user');
+                if (userParam) userId = JSON.parse(userParam).id?.toString();
+            } catch (_) {}
+        }
+        if (!userId && req.query.tg_id) userId = String(req.query.tg_id);
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
+
+        const generationDate = new Date().toLocaleString();
+        const totalReferrals = referrals.length;
+        const activeCount = referrals.filter(r => r.status === 'active').length;
+        const processingCount = referrals.filter(r => r.status === 'processing').length;
+        let csv = '';
+        csv = `# StarStore - Referral History Export\n`;
+        csv += `# Generated on: ${generationDate}\n`;
+        csv += `# User ID: ${userId}\n`;
+        csv += `# Total Referrals: ${totalReferrals}\n`;
+        csv += `# Active: ${activeCount} | Processing: ${processingCount}\n`;
+        csv += `# Website: https://starstore.site\n`;
+        csv += `# Export Type: Referral History\n`;
+        csv += `#\n`;
+        csv += `ID,Referred User,Amount,Status,Date,Details\n`;
+        referrals.forEach(ref => {
+            const dateStr = new Date(ref.dateReferred).toISOString().split('T')[0];
+            csv += `"${ref.id}","${ref.referredUsername || 'Unknown'}","${ref.amount}","${ref.status}","${dateStr}","${ref.details || 'Referral bonus'}"\n`;
+        });
+
+        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(csv);
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to export' });
+    }
+});
+
+// Export referrals as PDF (professional formatted statement)
+app.post('/api/export-referrals-pdf', requireTelegramAuth, async (req, res) => {
+    try {
+        if (!pdfGenerator) {
+            console.error('PDF Generator not available');
+            return res.status(501).json({ error: 'PDF export service not available. Please try again later.' });
+        }
+
+        const userId = req.user.id;
+        const userInfo = req.user || {};
+        
+        if (!userId) {
+            console.error('No user ID found in request');
+            return res.status(401).json({ error: 'User authentication failed' });
+        }
+        
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
+
+        console.log(`Generating referral PDF for user ${userId} with ${referrals.length} referrals`);
+
+        // Generate PDF
+        let docDefinition;
+        try {
+            docDefinition = pdfGenerator.generateReferralPDF(
+                userId,
+                userInfo.username,
+                referrals
+            );
+        } catch (err) {
+            console.error('Error generating referral PDF definition:', err.message, err.stack);
+            return res.status(500).json({ error: 'Failed to generate PDF document: ' + err.message });
+        }
+        
+        let buffer;
+        try {
+            buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+            console.log(`PDF buffer created successfully, size: ${buffer.length} bytes`);
+        } catch (err) {
+            console.error('Error creating PDF buffer:', err.message, err.stack);
+            return res.status(500).json({ error: 'Failed to create PDF file: ' + err.message });
+        }
+
+        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        // Send via Telegram if possible
+        if (process.env.BOT_TOKEN) {
+            try {
+                await bot.sendDocument(userId, buffer, {
+                    caption: 'Your StarStore referral earnings statement PDF is ready for download.'
+                });
+                console.log('Referral PDF sent via Telegram to user:', userId);
+                return res.json({ success: true, message: 'PDF file sent to your Telegram' });
+            } catch (botError) {
+                console.error('Bot sendDocument failed, falling back to direct download:', botError.message);
+            }
+        }
+
+        // Direct download fallback
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        console.log(`Sending PDF to user as direct download`);
+        return res.send(buffer);
+    } catch (error) {
+        console.error('Error exporting referrals PDF:', error.message, error.stack);
+        res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+    }
+});
+
+// Direct PDF download variant for referrals
+app.get('/api/export-referrals-pdf-download', async (req, res) => {
+    try {
+        if (!pdfGenerator) {
+            return res.status(501).json({ error: 'PDF export not available' });
+        }
+
+        let userId = null;
+        const initData = req.query.init || req.query.init_data;
+        if (initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userParam = params.get('user');
+                if (userParam) userId = JSON.parse(userParam).id?.toString();
+            } catch (_) {}
+        }
+        if (!userId && req.query.tg_id) {
+            userId = req.query.tg_id;
+        }
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .lean();
+
+        const docDefinition = pdfGenerator.generateReferralPDF(userId, null, referrals);
+        const buffer = await pdfGenerator.createPDFBuffer(docDefinition);
+        const filename = `referrals_${userId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(buffer);
+    } catch (error) {
+        console.error('Error in referral PDF download:', error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+});
+
+// Get referral history
+app.get('/api/referrals/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(parseInt(req.query.limit) || 50, 500); // Cap at 500 per page
+        const skip = (page - 1) * limit;
+        
+        // Get total count for pagination metadata
+        const totalCount = await Referral.countDocuments({ referrerUserId: userId });
+        
+        const referrals = await Referral.find({ referrerUserId: userId })
+            .sort({ dateReferred: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+        
+        // Optimize: Batch fetch all referred users at once instead of N+1 queries
+        const referredUserIds = referrals.map(r => r.referredUserId);
+        const referredUsers = await User.find({ id: { $in: referredUserIds } }).lean();
+        
+        const userMap = {};
+        referredUsers.forEach(user => {
+            userMap[user.id] = user;
+        });
+        
+        // Format referral data
+        const formattedReferrals = referrals.map(referral => {
+            const referredUser = userMap[referral.referredUserId];
+            
+            return {
+                id: referral._id.toString(),
+                name: referredUser?.username || 'Unknown User',
+                status: referral.status.toLowerCase(),
+                date: referral.dateReferred,
+                details: `Referred user ${referredUser?.username || referral.referredUserId}`,
+                amount: 0.5 // Fixed bonus amount or calculate based on your logic
+            };
+        });
+
+        res.json({
+            data: formattedReferrals,
+            pagination: {
+                page,
+                limit,
+                total: totalCount,
+                pages: Math.ceil(totalCount / limit)
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching referrals:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ============================================================================
+// AMBASSADOR DASHBOARD INTEGRATION ENDPOINTS
+// Added for seamless integration with Ambassador Dashboard
+// ============================================================================
+
+// Get user information by Telegram ID (for Ambassador app)
+app.get('/api/users/:telegramId', async (req, res) => {
+    try {
+        const { telegramId } = req.params;
+        
+        // Track location on profile read
+        const ip = (req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
+            .toString().split(',')[0].trim();
+        
+        if (ip && ip !== 'unknown' && ip !== 'localhost' && ip !== '127.0.0.1' && ip !== '::1') {
+            try {
+                const geo = await getGeolocation(ip);
+                if (geo && geo.country !== 'Unknown') {
+                    // Update location in background (non-blocking)
+                    User.updateOne(
+                        { id: telegramId },
+                        {
+                            $set: {
+                                lastLocation: {
+                                    country: geo.country,
+                                    countryCode: geo.countryCode,
+                                    city: geo.city,
+                                    ip,
+                                    source: 'profile_read',
+                                    timestamp: new Date()
+                                }
+                            },
+                            $addToSet: {
+                                locationHistory: {
+                                    country: geo.country,
+                                    countryCode: geo.countryCode,
+                                    city: geo.city,
+                                    ip,
+                                    source: 'profile_read',
+                                    timestamp: new Date()
+                                }
+                            }
+                        }
+                    ).catch(() => {}); // Silent fail
+                }
+            } catch (_) {}
+        }
+        
+        // Find user in MongoDB
+        const user = await User.findOne({ id: telegramId }).lean();
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Get comprehensive user stats
+        const totalReferrals = await Referral.countDocuments({ referrerUserId: telegramId });
+        const activeReferrals = await Referral.countDocuments({ referrerUserId: telegramId, status: 'active' });
+        const pendingReferrals = await Referral.countDocuments({ referrerUserId: telegramId, status: 'pending' });
+        
+        const totalEarnings = await ReferralWithdrawal.aggregate([
+            { $match: { userId: telegramId, status: 'completed' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+
+        // Get transaction stats
+        const buyOrders = await BuyOrder.countDocuments({ telegramId, status: 'completed' });
+        const sellOrders = await SellOrder.countDocuments({ telegramId, status: 'completed' });
+        
+        const totalStarsEarned = await BuyOrder.aggregate([
+            { $match: { telegramId, status: 'completed' } },
+            { $group: { _id: null, total: { $sum: '$stars' } } }
+        ]);
+
+        const userData = {
+            id: user.id,
+            username: user.username,
+            telegramId: user.id,
+            totalReferrals,
+            activeReferrals,
+            pendingReferrals,
+            totalEarnings: totalEarnings[0]?.total || 0,
+            buyOrders,
+            sellOrders,
+            totalStarsEarned: totalStarsEarned[0]?.total || 0,
+            createdAt: user.createdAt,
+            lastActive: user.lastActive,
+            ambassadorEmail: user.ambassadorEmail,
+            ambassadorFullName: user.ambassadorFullName,
+            ambassadorTier: user.ambassadorTier,
+            ambassadorReferralCode: user.ambassadorReferralCode,
+            ambassadorSyncedAt: user.ambassadorSyncedAt
+        };
+        
+        res.json(userData);
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ error: 'Failed to fetch user' });
+    }
+});
+
+// Get all users data for Ambassador admin dashboard
+app.get('/api/admin/users-data', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const page = parseInt(req.query.page) || 1;
+        const skip = (page - 1) * limit;
+        
+        // Get users with comprehensive data
+        const users = await User.find({})
+            .sort({ lastActive: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        const enrichedUsers = await Promise.all(users.map(async (user) => {
+            const [
+                totalReferrals,
+                activeReferrals,
+                pendingReferrals,
+                totalEarnings,
+                buyOrders,
+                sellOrders,
+                totalStarsEarned,
+                recentReferrals
+            ] = await Promise.all([
+                Referral.countDocuments({ referrerUserId: user.id }),
+                Referral.countDocuments({ referrerUserId: user.id, status: 'active' }),
+                Referral.countDocuments({ referrerUserId: user.id, status: 'pending' }),
+                ReferralWithdrawal.aggregate([
+                    { $match: { userId: user.id, status: 'completed' } },
+                    { $group: { _id: null, total: { $sum: '$amount' } } }
+                ]),
+                BuyOrder.countDocuments({ telegramId: user.id, status: 'completed' }),
+                SellOrder.countDocuments({ telegramId: user.id, status: 'completed' }),
+                BuyOrder.aggregate([
+                    { $match: { telegramId: user.id, status: 'completed' } },
+                    { $group: { _id: null, total: { $sum: '$stars' } } }
+                ]),
+                Referral.find({ referrerUserId: user.id })
+                    .sort({ dateReferred: -1 })
+                    .limit(5)
+                    .lean()
+            ]);
+
+            return {
+                id: user.id,
+                username: user.username,
+                createdAt: user.createdAt,
+                lastActive: user.lastActive,
+                totalReferrals,
+                activeReferrals,
+                pendingReferrals,
+                totalEarnings: totalEarnings[0]?.total || 0,
+                buyOrders,
+                sellOrders,
+                totalStarsEarned: totalStarsEarned[0]?.total || 0,
+                recentReferrals: recentReferrals.length,
+                isAmbassador: !!user.ambassadorEmail,
+                ambassadorTier: user.ambassadorTier,
+                ambassadorSyncedAt: user.ambassadorSyncedAt
+            };
+        }));
+
+        const totalUsers = await User.countDocuments({});
+        
+        res.json({
+            users: enrichedUsers,
+            pagination: {
+                page,
+                limit,
+                total: totalUsers,
+                pages: Math.ceil(totalUsers / limit),
+                hasMore: skip + limit < totalUsers
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching users data:', error);
+        res.status(500).json({ error: 'Failed to fetch users data' });
+    }
+});
+
+// Get comprehensive referrals data for admin
+app.get('/api/admin/referrals-data', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const page = parseInt(req.query.page) || 1;
+        const skip = (page - 1) * limit;
+        
+        const referrals = await Referral.find({})
+            .sort({ dateReferred: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        const enrichedReferrals = await Promise.all(referrals.map(async (referral) => {
+            const [referrer, referred] = await Promise.all([
+                User.findOne({ id: referral.referrerUserId }).lean(),
+                User.findOne({ id: referral.referredUserId }).lean()
+            ]);
+
+            return {
+                id: referral._id,
+                referrerUserId: referral.referrerUserId,
+                referredUserId: referral.referredUserId,
+                referrerUsername: referrer?.username || 'Unknown',
+                referredUsername: referred?.username || 'Unknown',
+                status: referral.status,
+                dateReferred: referral.dateReferred,
+                withdrawn: referral.withdrawn,
+                referrerIsAmbassador: !!referrer?.ambassadorEmail,
+                referrerTier: referrer?.ambassadorTier
+            };
+        }));
+
+        const totalReferrals = await Referral.countDocuments({});
+        
+        res.json({
+            referrals: enrichedReferrals,
+            pagination: {
+                page,
+                limit,
+                total: totalReferrals,
+                pages: Math.ceil(totalReferrals / limit),
+                hasMore: skip + limit < totalReferrals
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching referrals data:', error);
+        res.status(500).json({ error: 'Failed to fetch referrals data' });
+    }
+});
+
+// Get comprehensive transactions data for admin
+app.get('/api/admin/transactions-data', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const page = parseInt(req.query.page) || 1;
+        const skip = (page - 1) * limit;
+        
+        // Get both buy and sell orders
+        const [buyOrders, sellOrders] = await Promise.all([
+            BuyOrder.find({})
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(Math.floor(limit / 2))
+                .lean(),
+            SellOrder.find({})
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(Math.floor(limit / 2))
+                .lean()
+        ]);
+
+        // Combine and format transactions
+        const transactions = [
+            ...buyOrders.map(order => ({
+                id: order.id,
+                type: 'buy',
+                telegramId: order.telegramId,
+                username: order.username,
+                amount: order.amount,
+                stars: order.stars,
+                status: order.status,
+                createdAt: order.createdAt,
+                isPremium: order.isPremium,
+                premiumDuration: order.premiumDuration
+            })),
+            ...sellOrders.map(order => ({
+                id: order.id,
+                type: 'sell',
+                telegramId: order.telegramId,
+                username: order.username,
+                amount: order.amount,
+                stars: order.stars,
+                status: order.status,
+                createdAt: order.createdAt,
+                walletAddress: order.walletAddress
+            }))
+        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        const [totalBuyOrders, totalSellOrders] = await Promise.all([
+            BuyOrder.countDocuments({}),
+            SellOrder.countDocuments({})
+        ]);
+        
+        res.json({
+            transactions,
+            pagination: {
+                page,
+                limit,
+                total: totalBuyOrders + totalSellOrders,
+                pages: Math.ceil((totalBuyOrders + totalSellOrders) / limit),
+                hasMore: skip + limit < (totalBuyOrders + totalSellOrders)
+            },
+            stats: {
+                totalBuyOrders,
+                totalSellOrders,
+                totalTransactions: totalBuyOrders + totalSellOrders
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching transactions data:', error);
+        res.status(500).json({ error: 'Failed to fetch transactions data' });
+    }
+});
+
+// Get dashboard analytics for admin
+app.get('/api/admin/analytics', async (req, res) => {
+    try {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const [
+            totalUsers,
+            totalReferrals,
+            activeReferrals,
+            totalTransactions,
+            todayUsers,
+            weekUsers,
+            monthUsers,
+            todayReferrals,
+            weekReferrals,
+            monthReferrals,
+            totalEarnings,
+            totalStarsTraded
+        ] = await Promise.all([
+            User.countDocuments({}),
+            Referral.countDocuments({}),
+            Referral.countDocuments({ status: 'active' }),
+            BuyOrder.countDocuments({ status: 'completed' }) + await SellOrder.countDocuments({ status: 'completed' }),
+            User.countDocuments({ createdAt: { $gte: today } }),
+            User.countDocuments({ createdAt: { $gte: thisWeek } }),
+            User.countDocuments({ createdAt: { $gte: thisMonth } }),
+            Referral.countDocuments({
+                $or: [
+                    { dateReferred: { $gte: today } },
+                    { dateReferred: { $exists: false }, dateCreated: { $gte: today } }
+                ]
+            }),
+            Referral.countDocuments({
+                $or: [
+                    { dateReferred: { $gte: thisWeek } },
+                    { dateReferred: { $exists: false }, dateCreated: { $gte: thisWeek } }
+                ]
+            }),
+            Referral.countDocuments({
+                $or: [
+                    { dateReferred: { $gte: thisMonth } },
+                    { dateReferred: { $exists: false }, dateCreated: { $gte: thisMonth } }
+                ]
+            }),
+            ReferralWithdrawal.aggregate([
+                { $match: { status: 'completed' } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]),
+            BuyOrder.aggregate([
+                { $match: { status: 'completed' } },
+                { $group: { _id: null, total: { $sum: '$stars' } } }
+            ])
+        ]);
+
+        res.json({
+            overview: {
+                totalUsers,
+                totalReferrals,
+                activeReferrals,
+                totalTransactions,
+                conversionRate: totalReferrals > 0 ? ((activeReferrals / totalReferrals) * 100).toFixed(2) : 0
+            },
+            growth: {
+                today: { users: todayUsers, referrals: todayReferrals },
+                week: { users: weekUsers, referrals: weekReferrals },
+                month: { users: monthUsers, referrals: monthReferrals }
+            },
+            financial: {
+                totalEarnings: totalEarnings[0]?.total || 0,
+                totalStarsTraded: totalStarsTraded[0]?.total || 0
+            },
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error fetching analytics:', error);
+        res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+});
+
+// Sync ambassador data (called from Ambassador app)
+app.post('/api/ambassador/sync', async (req, res) => {
+    try {
+        const { telegramId, email, fullName, tier, referralCode } = req.body;
+        
+        if (!telegramId) {
+            return res.status(400).json({ error: 'Telegram ID is required' });
+        }
+
+        // Store ambassador info in the User collection with additional fields
+        const result = await User.findOneAndUpdate(
+            { id: telegramId },
+            { 
+                $set: {
+                    ambassadorEmail: email,
+                    ambassadorFullName: fullName,
+                    ambassadorTier: tier,
+                    ambassadorReferralCode: referralCode,
+                    ambassadorSyncedAt: new Date()
+                }
+            },
+            { upsert: false, new: true }
+        );
+
+        if (!result) {
+            return res.status(404).json({ error: 'User not found. Please interact with the bot first.' });
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Ambassador data synced successfully',
+            user: {
+                id: result.id,
+                username: result.username,
+                ambassadorTier: result.ambassadorTier,
+                syncedAt: result.ambassadorSyncedAt
+            }
+        });
+    } catch (error) {
+        console.error('Error syncing ambassador data:', error);
+        res.status(500).json({ error: 'Failed to sync ambassador data' });
+    }
+});
+
+// ========== AMBASSADOR WAITLIST ADMIN ENDPOINT ==========
+// GET /api/admin/ambassador-waitlist - Fetch all ambassador waitlist entries
+app.get('/api/admin/ambassador-waitlist', async (req, res) => {
+  try {
+    // Verify request is from Ambassador app
+    if (!req.isAmbassadorApp) {
+      return res.status(401).json({ success: false, error: 'Unauthorized - Ambassador app authentication required' });
+    }
+
+    let waitlist = [];
+    
+    if (process.env.MONGODB_URI && global.AmbassadorWaitlist) {
+      // Fetch from MongoDB
+      waitlist = await global.AmbassadorWaitlist.find({}).lean();
+    } else if (db && typeof db.listAmbassadorWaitlist === 'function') {
+      // Fallback to file DB
+      waitlist = (await db.listAmbassadorWaitlist()) || [];
+    }
+
+    console.log(`✅ Ambassador waitlist fetched: ${waitlist.length} entries`);
+
+    return res.json({
+      success: true,
+      waitlist: waitlist.map(entry => ({
+        id: entry.id || entry._id?.toString(),
+        _id: entry._id?.toString(),
+        email: entry.email,
+        fullName: entry.fullName,
+        username: entry.username,
+        telegramId: entry.telegramId,
+        socials: entry.socials,
+        status: entry.status || 'pending',
+        processedBy: entry.processedBy,
+        processedAt: entry.processedAt,
+        createdAt: entry.createdAt
+      })),
+      total: waitlist.length
+    });
+  } catch (e) {
+    console.error('Ambassador waitlist fetch error:', e.message);
+    return res.status(500).json({ success: false, error: 'Failed to fetch waitlist' });
+  }
+});
+
+// Register webhook endpoint (for Ambassador app to register for updates)
+app.post('/api/webhook/register', async (req, res) => {
+    try {
+        const { url, events, source } = req.body;
+        
+        if (!url || !events || !Array.isArray(events)) {
+            return res.status(400).json({ error: 'URL and events array are required' });
+        }
+
+        // Log webhook registration (enhance this to store in DB if needed)
+        console.log(`🔗 Webhook registered: ${url} for events: ${events.join(', ')} from ${source}`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Webhook registered successfully',
+            url,
+            events,
+            registeredAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error registering webhook:', error);
+        res.status(500).json({ error: 'Failed to register webhook' });
+    }
+});
+
+// Health check endpoint for Ambassador app connection testing
+app.get('/api/health', async (req, res) => {
+    try {
+        // Quick health check - no sensitive data
+        const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+        
+        // Don't count all users for every health check - expensive operation
+        // Just verify database can respond quickly
+        const isDbHealthy = mongoose.connection.readyState === 1;
+        
+        res.status(isDbHealthy ? 200 : 503).json({
+            status: isDbHealthy ? 'ok' : 'degraded',
+            timestamp: new Date().toISOString(),
+            service: 'StarStore',
+            version: '1.0.0'
+        });
+    } catch (error) {
+        console.error('[HEALTH-CHECK] Error:', error.message);
+        res.status(503).json({
+            status: 'error',
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Webhook registration endpoint for ambassador app
+app.post('/api/webhook/register', (req, res, next) => {
+    // Only allow ambassador app to register webhooks
+    if (req.isAmbassadorApp) {
+        return next();
+    }
+    res.status(401).json({ error: 'Unauthorized webhook registration' });
+}, async (req, res) => {
+    try {
+        const { url, events, source } = req.body;
+        
+        if (!url || !events || !Array.isArray(events)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'URL and events array are required' 
+            });
+        }
+        
+        // Store webhook configuration
+        const webhookConfig = {
+            url,
+            events,
+            source: source || 'ambassador-app',
+            registeredAt: new Date(),
+            active: true
+        };
+        
+        console.log('✅ Webhook registered for ambassador app:', webhookConfig);
+        
+        res.json({ 
+            success: true, 
+            data: true,
+            message: 'Webhook registered successfully' 
+        });
+        
+    } catch (error) {
+        console.error('❌ Webhook registration error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to register webhook' 
+        });
+    }
+});
+
+// ============================================================================
+// END OF AMBASSADOR DASHBOARD INTEGRATION ENDPOINTS
+// ============================================================================
+
+// Handle both /referrals command and plain text "referrals"
+bot.onText(/\/referrals|referrals/i, async (msg) => {
+    handleReferralsCommand(msg);
+});
+
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = chatId.toString();
+    const username = msg.from.username || '';
+    const text = msg.text;
+
+    // Auto-detect and update username in real-time on ANY message
+    if (username) {
+        const usernameChange = await detectUsernameChange(userId, username, 'telegram');
+        if (usernameChange) {
+            await processUsernameUpdate(userId, usernameChange.oldUsername, usernameChange.newUsername);
+        }
+    }
+
+    if (!text) return;
+
+    const orderId = text.startsWith('/order ') ? text.split(' ')[1] : text;
+
+    const buyOrder = await BuyOrder.findOne({ id: orderId, telegramId: chatId });
+    const sellOrder = await SellOrder.findOne({ id: orderId, telegramId: chatId });
+
+    if (buyOrder) {
+        const message = `🛒 Buy Order Details:\n\nOrder ID: ${buyOrder.id}\nAmount: ${buyOrder.amount} USDT\nStatus: ${buyOrder.status}`;
+        await bot.sendMessage(chatId, message);
+    } else if (sellOrder) {
+        const message = `🛒 Sell Order Details:\n\nOrder ID: ${sellOrder.id}\nStars: ${sellOrder.stars}\nStatus: ${sellOrder.status}`;
+        await bot.sendMessage(chatId, message);
+    }
+});
+
+
+
+// Handle orders recreation                     
+
+   bot.onText(/\/cso- (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const orderId = match[1];
+
+    try {
+        const order = await SellOrder.findOne({ id: orderId });
+
+        if (order) {
+            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            try { const sent = await bot.sendMessage(order.telegramId, userOrderDetails); try { order.userMessageId = sent?.message_id || order.userMessageId; await order.save(); } catch (_) {} } catch (_) {}
+
+            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            bot.sendMessage(chatId, adminOrderDetails);
+
+            const confirmButton = {
+                reply_markup: {
+                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${order.id}_${chatId}` }]]
+                }
+            };
+            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+        } else {
+            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the Telegram ID of the user:');
+
+            const handleTelegramId = async (userMsg) => {
+                const telegramId = userMsg.text;
+
+                bot.sendMessage(chatId, 'Enter the username of the user:');
+
+                const handleUsername = async (userMsg) => {
+                    const username = userMsg.text;
+
+                    bot.sendMessage(chatId, 'Enter the number of stars:');
+
+                    const handleStars = async (userMsg) => {
+                        const stars = parseInt(userMsg.text, 10);
+
+                        bot.sendMessage(chatId, 'Enter the wallet address:');
+
+                        const handleWalletAddress = async (userMsg) => {
+                            const walletAddress = userMsg.text;
+
+                            const newOrder = new SellOrder({
+                                id: orderId,
+                                telegramId,
+                                username,
+                                stars,
+                                walletAddress,
+                                status: 'pending',
+                                reversible: true,
+                                dateCreated: new Date(),
+                                adminMessages: []
+                            });
+
+                            await newOrder.save();
+
+                            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
+                            try { const sent = await bot.sendMessage(telegramId, userOrderDetails); try { newOrder.userMessageId = sent?.message_id || newOrder.userMessageId; await newOrder.save(); } catch (_) {} } catch (_) {}
+
+                            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
+                            bot.sendMessage(chatId, adminOrderDetails);
+
+                            const confirmButton = {
+                                reply_markup: {
+                                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${orderId}_${chatId}` }]]
+                                }
+                            };
+                            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+                        };
+
+                        bot.once('message', handleWalletAddress);
+                    };
+
+                    bot.once('message', handleStars);
+                };
+
+                bot.once('message', handleUsername);
+            };
+
+            bot.once('message', handleTelegramId);
+        }
+    } catch (error) {
+        console.error('Error recreating sell order:', error);
+        bot.sendMessage(chatId, 'An error occurred while processing your request.');
+    }
+});
+
+bot.onText(/\/cbo- (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const orderId = match[1];
+
+    try {
+        const order = await BuyOrder.findOne({ id: orderId });
+
+        if (order) {
+            const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            bot.sendMessage(order.telegramId, userOrderDetails);
+
+            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
+            bot.sendMessage(chatId, adminOrderDetails);
+
+            const confirmButton = {
+                reply_markup: {
+                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${order.id}_${chatId}` }]]
+                }
+            };
+            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+        } else {
+            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the Telegram ID of the user:');
+
+            const handleTelegramId = async (userMsg) => {
+                const telegramId = userMsg.text;
+
+                bot.sendMessage(chatId, 'Enter the username of the user:');
+
+                const handleUsername = async (userMsg) => {
+                    const username = userMsg.text;
+
+                    bot.sendMessage(chatId, 'Enter the amount:');
+
+                    const handleAmount = async (userMsg) => {
+                        const amount = parseFloat(userMsg.text);
+
+                        bot.sendMessage(chatId, 'Enter the number of stars:');
+
+                        const handleStars = async (userMsg) => {
+                            const stars = parseInt(userMsg.text, 10);
+
+                            bot.sendMessage(chatId, 'Enter the wallet address:');
+
+                            const handleWalletAddress = async (userMsg) => {
+                                const walletAddress = userMsg.text;
+
+                                const newOrder = new BuyOrder({
+                                    id: orderId,
+                                    telegramId,
+                                    username,
+                                    amount,
+                                    stars,
+                                    walletAddress,
+                                    status: 'pending',
+                                    dateCreated: new Date(),
+                                    adminMessages: []
+                                });
+
+                                await newOrder.save();
+
+                                const userOrderDetails = `Your buy order has been recreated:\n\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
+                                bot.sendMessage(telegramId, userOrderDetails);
+
+                                const adminOrderDetails = `Buy Order Recreated:\n\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
+                                bot.sendMessage(chatId, adminOrderDetails);
+
+                                const confirmButton = {
+                                    reply_markup: {
+                                        inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${orderId}_${chatId}` }]]
+                                    }
+                                };
+                                bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+                            };
+
+                            bot.once('message', handleWalletAddress);
+                        };
+
+                        bot.once('message', handleStars);
+                    };
+
+                    bot.once('message', handleAmount);
+                };
+
+                bot.once('message', handleUsername);
+            };
+
+            bot.once('message', handleTelegramId);
+        }
+    } catch (error) {
+        console.error('Error recreating buy order:', error);
+        bot.sendMessage(chatId, 'An error occurred while processing your request.');
+    }
+});
+                
+bot.on('callback_query', async (query) => {
+    const chatId = query.message.chat.id;
+    const data = query.data;
+
+    try {
+        if (data.startsWith('confirm_sell_')) {
+            const [_, __, orderId, adminChatId] = data.split('_');
+            const order = await SellOrder.findOne({ id: orderId });
+
+            if (order) {
+                order.status = 'confirmed';
+                order.dateConfirmed = new Date();
+                await order.save();
+
+                const userOrderDetails = `Your sell order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                try {
+                    const sent = await bot.sendMessage(order.telegramId, userOrderDetails);
+                    try {
+                        order.userMessageId = sent?.message_id || order.userMessageId;
+                        await order.save();
+                    } catch (_) {}
+                } catch (err) {
+                    const message = String(err && err.message || '');
+                    const forbidden = (err && err.response && err.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
+                    if (!forbidden) throw err;
+                }
+
+                const adminOrderDetails = `Sell Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                bot.sendMessage(adminChatId, adminOrderDetails);
+
+                const disabledButton = {
+                    reply_markup: {
+                        inline_keyboard: [[{ text: 'Confirmed', callback_data: 'confirmed', disabled: true }]]
+                    }
+                };
+                bot.editMessageReplyMarkup(disabledButton, { chat_id: chatId, message_id: query.message.message_id });
+            }
+        } else if (data.startsWith('confirm_buy_')) {
+            const [_, __, orderId, adminChatId] = data.split('_');
+            const order = await BuyOrder.findOne({ id: orderId });
+
+            if (order) {
+                order.status = 'confirmed';
+                order.dateConfirmed = new Date();
+                await order.save();
+
+                const userOrderDetails = `Your buy order has been confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                try {
+                    await bot.sendMessage(order.telegramId, userOrderDetails);
+                } catch (err) {
+                    const message = String(err && err.message || '');
+                    const forbidden = (err && err.response && err.response.statusCode === 403) || /user is deactivated|bot was blocked/i.test(message);
+                    if (!forbidden) throw err;
+                }
+
+                const adminOrderDetails = `Buy Order Confirmed:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: confirmed\nDate Created: ${order.dateCreated}`;
+                bot.sendMessage(adminChatId, adminOrderDetails);
+
+                const disabledButton = {
+                    reply_markup: {
+                        inline_keyboard: [[{ text: 'Confirmed', callback_data: 'confirmed', disabled: true }]]
+                    }
+                };
+                bot.editMessageReplyMarkup(disabledButton, { chat_id: chatId, message_id: query.message.message_id });
+            }
+        }
+    } catch (error) {
+        console.error('Error confirming order:', error);
+        bot.sendMessage(chatId, 'An error occurred while confirming the order.');
+    }
+});  
+            
+   //second user detection for adding users incase the start command doesn't work or not reachable 
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const username = msg.from.username || 'user';
+
+    try {
+        // Skip /start command since it already adds users to the database
+        if (msg.text && msg.text.startsWith('/start')) {
+            return;
+        }
+
+        // Only cache users who are NOT already in the User database
+        const existingUser = await User.findOne({ id: chatId });
+        if (existingUser) {
+            // User already in database, no need to cache
+            return;
+        }
+
+        // Check if already in cache
+        const existingCache = await Cache.findOne({ id: chatId });
+        if (!existingCache) {
+            // Only add to cache if they're not already a saved user
+            await Cache.create({ id: chatId, username: username });
+        }
+    } catch (error) {
+        console.error('Error caching user interaction:', error);
+    }
+});
+
+bot.onText(/\/detect_users/, async (msg) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
+    const startTime = Date.now();
+
+    try {
+        if (!adminIds.includes(adminId)) {
+            console.warn(`[SECURITY] Unauthorized detect_users attempt by user ${adminId} (@${adminUsername})`);
+            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        }
+
+        console.log(`[ADMIN-ACTION] detect_users command initiated by @${adminUsername} (${adminId})`);
+
+        await bot.sendMessage(chatId, '🔍 Detecting all users from bot interactions...');
+
+        // Collect all unique user IDs from ALL interaction sources
+        const userIds = new Set();
+        const userMap = new Map(); // Store user info for upsert
+
+        console.log('[ADMIN-ACTION] Scanning all user interaction sources...');
+
+        // 1. From BUY orders
+        const buyOrders = await BuyOrder.find({}, { telegramId: 1, username: 1 }).lean();
+        console.log(`   • Found ${buyOrders.length} buy orders`);
+        for (const order of buyOrders) {
+            if (order.telegramId) {
+                userIds.add(order.telegramId);
+                if (!userMap.has(order.telegramId)) {
+                    userMap.set(order.telegramId, { id: order.telegramId, username: order.username });
+                }
+            }
+        }
+
+        // 2. From SELL orders
+        const sellOrders = await SellOrder.find({}, { telegramId: 1, username: 1 }).lean();
+        console.log(`   • Found ${sellOrders.length} sell orders`);
+        for (const order of sellOrders) {
+            if (order.telegramId) {
+                userIds.add(order.telegramId);
+                if (!userMap.has(order.telegramId)) {
+                    userMap.set(order.telegramId, { id: order.telegramId, username: order.username });
+                }
+            }
+        }
+
+        // 3. From DAILY activity/check-ins
+        const dailyStates = await DailyState.find({}, { userId: 1 }).lean();
+        console.log(`   • Found ${dailyStates.length} daily state records`);
+        for (const state of dailyStates) {
+            if (state.userId) {
+                userIds.add(state.userId);
+                if (!userMap.has(state.userId)) {
+                    userMap.set(state.userId, { id: state.userId, username: null });
+                }
+            }
+        }
+
+        // 4. From REFERRALS (both referrer and referred)
+        const referrals = await Referral.find({}, { referrerUserId: 1, referredUserId: 1 }).lean();
+        console.log(`   • Found ${referrals.length} referral records`);
+        for (const ref of referrals) {
+            if (ref.referrerUserId) {
+                userIds.add(ref.referrerUserId);
+                if (!userMap.has(ref.referrerUserId)) {
+                    userMap.set(ref.referrerUserId, { id: ref.referrerUserId, username: null });
+                }
+            }
+            if (ref.referredUserId) {
+                userIds.add(ref.referredUserId);
+                if (!userMap.has(ref.referredUserId)) {
+                    userMap.set(ref.referredUserId, { id: ref.referredUserId, username: null });
+                }
+            }
+        }
+
+        // 5. From REFERRAL WITHDRAWALS
+        const withdrawals = await ReferralWithdrawal.find({}, { userId: 1, username: 1 }).lean();
+        console.log(`   • Found ${withdrawals.length} withdrawal records`);
+        for (const wd of withdrawals) {
+            if (wd.userId) {
+                userIds.add(wd.userId);
+                if (!userMap.has(wd.userId)) {
+                    userMap.set(wd.userId, { id: wd.userId, username: wd.username });
+                }
+            }
+        }
+
+        // 6. From WARNINGS/BANS
+        const warnings = await Warning.find({}, { userId: 1 }).lean();
+        console.log(`   • Found ${warnings.length} warning/ban records`);
+        for (const warn of warnings) {
+            if (warn.userId) {
+                userIds.add(warn.userId);
+                if (!userMap.has(warn.userId)) {
+                    userMap.set(warn.userId, { id: warn.userId, username: null });
+                }
+            }
+        }
+
+        // 7. From CACHE (legacy)
+        const cachedUsers = await Cache.find({}, { id: 1, username: 1 }).lean();
+        console.log(`   • Found ${cachedUsers.length} cached users`);
+        for (const cached of cachedUsers) {
+            if (cached.id) {
+                userIds.add(cached.id);
+                if (!userMap.has(cached.id)) {
+                    userMap.set(cached.id, { id: cached.id, username: cached.username });
+                }
+            }
+        }
+
+        // Now process all detected users
+        console.log(`Processing ${userIds.size} unique users...`);
+        let totalNew = 0;
+        let totalAlreadySaved = 0;
+        let totalFailed = 0;
+
+        // Check existing users efficiently
+        const existingUsers = await User.find({ id: { $in: Array.from(userIds) } }, { id: 1 }).lean();
+        const existingUserIds = new Set(existingUsers.map(u => u.id));
+
+        // Process each user
+        for (const userId of userIds) {
+            try {
+                if (existingUserIds.has(userId)) {
+                    // User already in database
+                    totalAlreadySaved++;
+                } else {
+                    // Add new user
+                    const userData = userMap.get(userId) || { id: userId, username: null };
+                    try {
+                        await User.findOneAndUpdate(
+                            { id: userId },
+                            { 
+                                $set: { 
+                                    id: userId, 
+                                    username: userData.username || null,
+                                    createdAt: new Date(),
+                                    lastActive: new Date()
+                                } 
+                            },
+                            { upsert: true, new: true }
+                        );
+                        totalNew++;
+                    } catch (createErr) {
+                        // Handle E11000 duplicate key error (race condition)
+                        if (createErr.code === 11000) {
+                            totalAlreadySaved++;
+                        } else {
+                            throw createErr;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`Failed to process user ${userId}:`, error);
+                totalFailed++;
+            }
+        }
+
+        // Clear cache after successful processing
+        await Cache.deleteMany({});
+
+        // === COMPREHENSIVE DATA ANALYSIS ===
+        // Get all users with detailed stats
+        const allUsers = await User.find({}, { 
+            id: 1, 
+            username: 1, 
+            createdAt: 1, 
+            lastActive: 1,
+            lastLocation: 1,
+            devices: 1
+        }).lean();
+        
+        // Analyze data completeness
+        let usersWithUsername = 0;
+        let usersWithLocation = 0;
+        let usersWithDevices = 0;
+        let usersActive24h = 0;
+        let usersActive7d = 0;
+        let usersInactive30d = 0;
+        let completeDataCount = 0;
+        const now = new Date();
+        const day24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const day7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const day30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        
+        for (const user of allUsers) {
+            if (user.username) usersWithUsername++;
+            if (user.lastLocation && user.lastLocation.country !== 'Unknown') usersWithLocation++;
+            if (user.devices && user.devices.length > 0) usersWithDevices++;
+            
+            if (user.lastActive >= day24h) usersActive24h++;
+            if (user.lastActive >= day7d) usersActive7d++;
+            if (user.lastActive < day30d) usersInactive30d++;
+            
+            // Complete data = has username + location + device info
+            if (user.username && user.lastLocation && user.lastLocation.country !== 'Unknown' && user.devices && user.devices.length > 0) {
+                completeDataCount++;
+            }
+        }
+        
+        const totalUsers = allUsers.length;
+        const locationCoverage = totalUsers > 0 ? ((usersWithLocation / totalUsers) * 100).toFixed(1) : 0;
+        const usernameCoverage = totalUsers > 0 ? ((usersWithUsername / totalUsers) * 100).toFixed(1) : 0;
+        const deviceCoverage = totalUsers > 0 ? ((usersWithDevices / totalUsers) * 100).toFixed(1) : 0;
+        const completeDataCoverage = totalUsers > 0 ? ((completeDataCount / totalUsers) * 100).toFixed(1) : 0;
+        
+        // Get recent interactions
+        const recentInteractions = await UserActivityLog.countDocuments({
+            timestamp: { $gte: day24h }
+        });
+        
+        // Top locations
+        const topLocations = await User.aggregate([
+            { $match: { 'lastLocation.country': { $nin: [null, undefined, 'Unknown'] } } },
+            { $group: { _id: '$lastLocation.country', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]);
+
+        const duration = Date.now() - startTime;
+        const reportMessage = 
+            `📊 *COMPREHENSIVE USER ANALYTICS REPORT*\n\n` +
+            
+            `*═══ DETECTION SUMMARY ═══*\n` +
+            `Total Detected: ${userIds.size}\n` +
+            `Newly Added: ${totalNew}\n` +
+            `Already Saved: ${totalAlreadySaved}\n` +
+            `Failed: ${totalFailed}\n\n` +
+            
+            `*═══ DATABASE STATS ═══*\n` +
+            `Total Users in DB: ${totalUsers}\n` +
+            `Users Added (All-time): ${totalUsers}\n\n` +
+            
+            `*═══ DATA COMPLETENESS ═══*\n` +
+            `✅ With Username: ${usersWithUsername}/${totalUsers} (${usernameCoverage}%)\n` +
+            `📍 With Location: ${usersWithLocation}/${totalUsers} (${locationCoverage}%)\n` +
+            `💻 With Device Info: ${usersWithDevices}/${totalUsers} (${deviceCoverage}%)\n` +
+            `🎯 Complete Profile: ${completeDataCount}/${totalUsers} (${completeDataCoverage}%)\n\n` +
+            
+            `*═══ ACTIVITY METRICS ═══*\n` +
+            `Active (24h): ${usersActive24h} users\n` +
+            `Active (7d): ${usersActive7d} users\n` +
+            `Inactive (30d+): ${usersInactive30d} users\n` +
+            `Recent Interactions (24h): ${recentInteractions} actions\n\n` +
+            
+            `*═══ TOP 5 LOCATIONS ═══*\n` +
+            (topLocations.length > 0 ? 
+                topLocations.map((loc, i) => `${i+1}. ${loc._id}: ${loc.count} users`).join('\n') :
+                'No location data available') +
+            `\n\n` +
+            
+            `*═══ PROCESSING ═══*\n` +
+            `Duration: ${duration}ms\n` +
+            `Scanned Sources:\n` +
+            `  • Buy Orders\n` +
+            `  • Sell Orders\n` +
+            `  • Daily Activity\n` +
+            `  • Referrals\n` +
+            `  • Withdrawals\n` +
+            `  • Warnings/Bans\n` +
+            `  • Cache`;
+        
+        bot.sendMessage(chatId, reportMessage, { parse_mode: 'Markdown' });
+        console.log(`[ADMIN-ACTION] detect_users completed by @${adminUsername} in ${duration}ms - Data Quality: ${completeDataCoverage}% complete profiles`);
+    } catch (error) {
+        console.error(`[ADMIN-ACTION] detect_users error by @${adminUsername}:`, error);
+        bot.sendMessage(chatId, `❌ User detection failed: ${error.message}`);
+    }
+});
+
+// Audit users - check for duplicate Telegram user IDs in database
+bot.onText(/\/audit_users/, async (msg) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
+    const auditStartTime = Date.now();
+    const AUDIT_TIMEOUT = 25000; // 25 second timeout (safer than 30s Telegram limit)
+
+    try {
+        // Security check - admin only
+        if (!adminIds.includes(adminId)) {
+            console.warn(`[SECURITY] Unauthorized audit_users attempt by user ${adminId} (@${adminUsername})`);
+            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        }
+
+        console.log(`[ADMIN-ACTION] audit_users command initiated by @${adminUsername} (${adminId})`);
+
+        bot.sendMessage(chatId, '🔍 Running user database audit...');
+
+        // Run all queries in parallel for better performance
+        const [
+            totalUsers,
+            duplicateIds,
+            duplicateUsernames,
+            nullIds,
+            missingCreatedAt,
+            timeInconsistencies
+        ] = await Promise.all([
+            // 1. Total users - fastest query
+            User.countDocuments({}).hint({ id: 1 }).exec(),
+
+            // 2. Check for duplicate Telegram IDs - uses aggregation pipeline
+            (async () => {
+                try {
+                    return await User.aggregate([
+                        { $group: { _id: '$id', count: { $sum: 1 } } },
+                        { $match: { count: { $gt: 1 } } }
+                    ]).exec();
+                } catch (err) {
+                    console.warn('Duplicate ID check timeout, returning empty', err.message);
+                    return [];
+                }
+            })(),
+
+            // 3. Check for duplicate usernames - filters first to reduce data
+            (async () => {
+                try {
+                    return await User.aggregate([
+                        { $match: { username: { $ne: null } } },
+                        { $group: { _id: '$username', count: { $sum: 1 } } },
+                        { $match: { count: { $gt: 1 } } }
+                    ]).exec();
+                } catch (err) {
+                    console.warn('Duplicate username check timeout, returning empty', err.message);
+                    return [];
+                }
+            })(),
+
+            // 4. Check for null IDs - simple count
+            User.countDocuments({ id: null }).hint({ id: 1 }).exec(),
+
+            // 5. Check for missing createdAt - simple count
+            User.countDocuments({ createdAt: null }).hint({ createdAt: 1 }).exec(),
+
+            // 6. Check for time inconsistencies - expression query
+            (async () => {
+                try {
+                    return await User.countDocuments({
+                        $expr: { $gt: ['$createdAt', '$lastActive'] }
+                    }).exec();
+                } catch (err) {
+                    console.warn('Time inconsistency check timeout, returning 0', err.message);
+                    return 0;
+                }
+            })()
+        ]);
+
+        const auditDuration = Date.now() - auditStartTime;
+
+        // Check if audit took too long (might be incomplete/slow)
+        const isSlowAudit = auditDuration > 20000;
+        const speedWarning = isSlowAudit ? '⚠️ *WARNING: Audit took longer than expected*\n' : '';
+
+        // Build report
+        let report = `📊 *User Database Audit Report*\n\n`;
+        report += `Total Users: *${totalUsers}*\n\n`;
+        
+        report += `*Duplicate Telegram IDs:* ${duplicateIds.length === 0 ? '✅ None' : `❌ ${duplicateIds.length}`}\n`;
+        report += `*Duplicate Usernames:* ${duplicateUsernames.length === 0 ? '✅ None' : `❌ ${duplicateUsernames.length}`}\n`;
+        report += `*Null Telegram IDs:* ${nullIds === 0 ? '✅ None' : `❌ ${nullIds}`}\n`;
+        report += `*Missing CreatedAt:* ${missingCreatedAt === 0 ? '✅ None' : `❌ ${missingCreatedAt}`}\n`;
+        report += `*Time Inconsistencies:* ${timeInconsistencies === 0 ? '✅ None' : `❌ ${timeInconsistencies}`}\n\n`;
+
+        const hasIssues = duplicateIds.length > 0 || duplicateUsernames.length > 0 || nullIds > 0 || missingCreatedAt > 0 || timeInconsistencies > 0;
+        report += hasIssues ? '⚠️ *STATUS: ISSUES FOUND*' : '✅ *STATUS: ALL PASSED*';
+        report += `\n\n*Duration:* ${auditDuration}ms`;
+        
+        if (speedWarning) {
+            report = speedWarning + report;
+        }
+
+        bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+        console.log(`[ADMIN-ACTION] audit_users completed by @${adminUsername} in ${auditDuration}ms`);
+    } catch (error) {
+        const auditDuration = Date.now() - auditStartTime;
+        console.error(`[ADMIN-ACTION] audit_users error by @${adminUsername}:`, error);
+        
+        let errorMsg = `❌ Audit failed`;
+        if (error.name === 'MongoServerSelectionError') {
+            errorMsg += ': Database connection issue';
+        } else if (error.name === 'MongoServerError' && error.message.includes('exceeded')) {
+            errorMsg += ': Audit took too long (database timeout)';
+        } else {
+            errorMsg += `: ${error.message}`;
+        }
+        
+        errorMsg += `\n⏱️ Duration: ${auditDuration}ms`;
+        bot.sendMessage(chatId, errorMsg);
+    }
+});
+
+// Geographic analysis - analyze user distribution by country
+bot.onText(/\/geo_analysis(?:\s+(cities))?/i, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    const adminUsername = msg.from.username || 'Unknown';
+    const includesCities = match?.[1]?.toLowerCase() === 'cities';
+    const analysisStart = Date.now();
+
+    try {
+        // Security check - admin only
+        if (!adminIds.includes(adminId)) {
+            console.warn(`[SECURITY] Unauthorized geo_analysis attempt by user ${adminId} (@${adminUsername})`);
+            return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        }
+
+        console.log(`[ADMIN-ACTION] geo_analysis command initiated by @${adminUsername} (${adminId})`);
+        
+        await bot.sendMessage(chatId, 'Analyzing geographic distribution...');
+
+        // Get all users with location data
+        const users = await User.find({
+            'lastLocation.country': { $ne: null }
+        }, { 'lastLocation.country': 1, 'lastLocation.city': 1 }).lean();
+
+        // Country code to full name mapping
+        const countryNames = {
+            'KE': 'Kenya', 'UG': 'Uganda', 'BD': 'Bangladesh', 'US': 'United States', 'GB': 'United Kingdom',
+            'IN': 'India', 'NG': 'Nigeria', 'PK': 'Pakistan', 'BR': 'Brazil', 'MX': 'Mexico',
+            'DE': 'Germany', 'FR': 'France', 'IT': 'Italy', 'ES': 'Spain', 'CA': 'Canada',
+            'AU': 'Australia', 'NZ': 'New Zealand', 'JP': 'Japan', 'CN': 'China', 'RU': 'Russia',
+            'ZA': 'South Africa', 'EG': 'Egypt', 'TZ': 'Tanzania', 'GH': 'Ghana', 'ET': 'Ethiopia',
+            'PH': 'Philippines', 'TH': 'Thailand', 'VN': 'Vietnam', 'ID': 'Indonesia', 'MY': 'Malaysia',
+            'SG': 'Singapore', 'HK': 'Hong Kong', 'KR': 'South Korea', 'TW': 'Taiwan', 'NL': 'Netherlands',
+            'BE': 'Belgium', 'CH': 'Switzerland', 'SE': 'Sweden', 'NO': 'Norway', 'DK': 'Denmark',
+            'FI': 'Finland', 'PL': 'Poland', 'CZ': 'Czech Republic', 'AT': 'Austria', 'PT': 'Portugal',
+            'GR': 'Greece', 'TR': 'Turkey', 'IL': 'Israel', 'SA': 'Saudi Arabia', 'AE': 'United Arab Emirates',
+            'KW': 'Kuwait', 'QA': 'Qatar', 'AR': 'Argentina', 'CL': 'Chile', 'CO': 'Colombia',
+            'PE': 'Peru', 'VE': 'Venezuela', 'EC': 'Ecuador', 'BO': 'Bolivia', 'PY': 'Paraguay',
+            'UY': 'Uruguay', 'CR': 'Costa Rica', 'PA': 'Panama', 'SV': 'El Salvador', 'HN': 'Honduras',
+            'NI': 'Nicaragua', 'GT': 'Guatemala', 'BZ': 'Belize', 'JM': 'Jamaica', 'CU': 'Cuba',
+            'DO': 'Dominican Republic', 'HT': 'Haiti', 'PR': 'Puerto Rico', 'TT': 'Trinidad and Tobago',
+            // additional codes seen in reports
+            'MM': 'Myanmar', 'DZ': 'Algeria', 'CM': 'Cameroon', 'UA': 'Ukraine', 'UZ': 'Uzbekistan',
+            'LK': 'Sri Lanka', 'IQ': 'Iraq', 'KH': 'Cambodia', 'NP': 'Nepal', 'ML': 'Mali',
+            'AF': 'Afghanistan', 'CI': 'Côte d\'Ivoire', 'TN': 'Tunisia'
+        };
+
+        // Aggregate by country, filter out 'unknown'
+        const countryStats = {};
+        const cityStats = {};
+        
+        for (const user of users) {
+            if (user.lastLocation?.country && user.lastLocation.country.toLowerCase() !== 'unknown') {
+                const countryCode = user.lastLocation.country;
+                const countryName = countryNames[countryCode] || countryCode;
+                countryStats[countryName] = (countryStats[countryName] || 0) + 1;
+                
+                if (includesCities && user.lastLocation?.city) {
+                    const cityKey = `${user.lastLocation.city}, ${countryName}`;
+                    cityStats[cityKey] = (cityStats[cityKey] || 0) + 1;
+                }
+            }
+        }
+
+        // Sort countries by user count (descending)
+        const sortedCountries = Object.entries(countryStats)
+            .sort((a, b) => b[1] - a[1]); // include all countries (no top-50 limit)
+
+        const totalUsersWithLocation = Object.values(countryStats).reduce((a, b) => a + b, 0);
+        const totalUsers = await User.countDocuments({});
+        const usersWithoutLocation = totalUsers - totalUsersWithLocation;
+
+        let report = `<b>Geographic User Distribution</b>\n\n`;
+        report += `Total Users: <code>${totalUsers}</code>\n`;
+        report += `With Location: <code>${totalUsersWithLocation}</code>\n`;
+        report += `Without Location: <code>${usersWithoutLocation}</code>\n`;
+        report += `Countries Represented: <code>${Object.keys(countryStats).length}</code>\n\n`;
+        report += `<b>Top Countries:</b>\n`;
+
+        sortedCountries.forEach(([country, count], index) => {
+            const percentage = ((count / totalUsersWithLocation) * 100).toFixed(1);
+            report += `${index + 1}. ${country}: <code>${count}</code> users (<code>${percentage}%</code>)\n`;
+        });
+
+        // Add city breakdown if requested
+        if (includesCities && Object.keys(cityStats).length > 0) {
+            const sortedCities = Object.entries(cityStats)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 20); // Top 20 cities
+
+            report += `\n<b>Top Cities:</b>\n`;
+            sortedCities.forEach(([city, count], index) => {
+                const percentage = ((count / totalUsersWithLocation) * 100).toFixed(1);
+                report += `${index + 1}. ${city}: <code>${count}</code> users (<code>${percentage}%</code>)\n`;
+            });
+        }
+
+        const duration = Date.now() - analysisStart;
+        report += `\n<b>Duration:</b> <code>${duration}ms</code>`;
+        if (includesCities) {
+            report += `\n\nTip: Use /geo_analysis for countries only`;
+        } else {
+            report += `\n\nTip: Use /geo_analysis cities for city breakdown`;
+        }
+
+        console.log(`[ADMIN-ACTION] geo_analysis completed by @${adminUsername} in ${duration}ms`);
+        bot.sendMessage(chatId, report, { parse_mode: 'HTML' });
+    } catch (error) {
+        console.error(`[ADMIN-ACTION] geo_analysis error by @${adminUsername} (${adminId}):`, error);
+        bot.sendMessage(chatId, `❌ Analysis failed: ${error.message}`);
+    }
+});
+
+app.post('/api/survey', async (req, res) => {
+    try {
+        const surveyData = req.body;
+        
+        let message = `📊 *New Survey Submission*\n\n`;
+        message += `*Usage Frequency*: ${surveyData.usageFrequency}\n`;
+        
+        if (surveyData.favoriteFeatures) {
+            const features = Array.isArray(surveyData.favoriteFeatures) 
+                ? surveyData.favoriteFeatures.join(', ') 
+                : surveyData.favoriteFeatures;
+            message += `*Favorite Features*: ${features}\n`;
+        }
+        
+        message += `*Desired Features*: ${surveyData.desiredFeatures}\n`;
+        message += `*Overall Rating*: ${surveyData.overallRating}/5\n`;
+        
+        if (surveyData.improvementFeedback) {
+            message += `*Improvement Feedback*: ${surveyData.improvementFeedback}\n`;
+        }
+        
+        message += `*Technical Issues*: ${surveyData.technicalIssues || 'No'}\n`;
+        
+        if (surveyData.technicalIssues === 'yes' && surveyData.technicalIssuesDetails) {
+            message += `*Issue Details*: ${surveyData.technicalIssuesDetails}\n`;
+        }
+        
+        message += `\n📅 Submitted: ${new Date().toLocaleString()}`;
+        
+        const sendPromises = adminIds.map(chatId => {
+            return bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        });
+        
+        await Promise.all(sendPromises);
+        
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('Error processing survey:', error);
+        res.status(500).json({ success: false, error: 'Failed to process survey' });
+    }
+});
+
+        
+//feedback on sell orders
+bot.onText(/\/sell_complete (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+
+    const orderId = match[1].trim();
+    const order = await SellOrder.findOne({ id: orderId });
+    
+    if (!order) {
+        return bot.sendMessage(chatId, `❌ Order ${orderId} not found.`);
+    }
+
+    try {
+        // Send confirmation to user
+        const confirmationMessage = `🎉 Order #${orderId} Completed!\n\n` +
+                                 `We've successfully processed your sell order for ${order.stars} stars.\n\n` +
+                                 `Payment was sent to:\n` +
+                                 `\`${order.walletAddress}\`\n\n` +
+                                 `We'd love to hear about your experience!`;
+        
+        const feedbackKeyboard = {
+            inline_keyboard: [
+                [{ text: "⭐ Leave Feedback", callback_data: `start_feedback_${orderId}` }],
+                [{ text: "Skip Feedback", callback_data: `skip_feedback_${orderId}` }]
+            ]
+        };
+
+        await bot.sendMessage(
+            order.telegramId,
+            confirmationMessage,
+            { 
+                parse_mode: 'Markdown',
+                reply_markup: feedbackKeyboard 
+            }
+        );
+
+        await bot.sendMessage(chatId, `✅ Sent completion notification for order ${orderId} to user @${order.username}`);
+        
+    } catch (error) {
+        if (error.response?.error_code === 403) {
+            await bot.sendMessage(chatId, `❌ Failed to notify user @${order.username} (user blocked the bot)`);
+        } else {
+            console.error('Notification error:', error);
+            await bot.sendMessage(chatId, `❌ Failed to send notification for order ${orderId}`);
+        }
+    }
+});
+
+// Feedback session state management
+const feedbackSessions = {};
+const completedFeedbacks = new Set(); // Track users who have already submitted feedback
+
+bot.on('callback_query', async (query) => {
+    const data = query.data;
+    const chatId = query.message.chat.id;
+    const messageId = query.message.message_id;
+    
+    if (data.startsWith('start_feedback_')) {
+        const orderId = data.split('_')[2];
+        const order = await SellOrder.findOne({ id: orderId });
+        
+        if (!order) return;
+        
+        // Check if user has already completed feedback for this order
+        if (completedFeedbacks.has(chatId.toString() + '_' + orderId)) {
+            await bot.sendMessage(chatId, "You have already submitted feedback for this order. Thank you!");
+            await bot.answerCallbackQuery(query.id);
+            return;
+        }
+        
+        // Initialize feedback session
+        feedbackSessions[chatId] = {
+            orderId: orderId,
+            telegramId: order.telegramId,
+            username: order.username,
+            currentQuestion: 1, // 1 = satisfaction, 2 = reasons, 3 = suggestions, 4 = additional info
+            responses: {},
+            active: true
+        };
+
+        // Ask first question
+        await askFeedbackQuestion(chatId, 1);
+        await bot.answerCallbackQuery(query.id);
+        
+    } else if (data.startsWith('skip_feedback_')) {
+        const orderId = data.split('_')[2];
+        
+        // Update message to show feedback was skipped
+        await bot.editMessageReplyMarkup(
+            { inline_keyboard: [[{ text: "✓ Feedback Skipped", callback_data: 'feedback_skipped' }]] },
+            { chat_id: chatId, message_id: messageId }
+        );
+        
+        await bot.sendMessage(chatId, "Thank you for your order! We appreciate your business.");
+        await bot.answerCallbackQuery(query.id);
+        
+    } else if (data.startsWith('feedback_rating_')) {
+        // Handle rating selection
+        const rating = parseInt(data.split('_')[2]);
+        const session = feedbackSessions[chatId];
+        
+        if (session && session.active) {
+            session.responses.satisfaction = rating;
+            session.currentQuestion = 2;
+            
+            await askFeedbackQuestion(chatId, 2);
+            await bot.answerCallbackQuery(query.id);
+        }
+    }
+    // Add other feedback handlers here if needed
+});
+
+async function askFeedbackQuestion(chatId, questionNumber) {
+    const session = feedbackSessions[chatId];
+    if (!session) return;
+    
+    let questionText = '';
+    let replyMarkup = {};
+    
+    switch(questionNumber) {
+        case 1: // Satisfaction rating
+            questionText = "How satisfied are you with our service? (1-5 stars)";
+            replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "⭐", callback_data: `feedback_rating_1` },
+                        { text: "⭐⭐", callback_data: `feedback_rating_2` },
+                        { text: "⭐⭐⭐", callback_data: `feedback_rating_3` },
+                        { text: "⭐⭐⭐⭐", callback_data: `feedback_rating_4` },
+                        { text: "⭐⭐⭐⭐⭐", callback_data: `feedback_rating_5` }
+                    ],
+                    [{ text: "Skip", callback_data: `feedback_skip_1` }]
+                ]
+            };
+            break;
+            
+        case 2: // Reasons for rating
+            questionText = "Could you tell us why you gave this rating?";
+            replyMarkup = {
+                inline_keyboard: [
+                    [{ text: "Skip", callback_data: `feedback_skip_2` }]
+                ]
+            };
+            break;
+            
+        case 3: // Suggestions
+            questionText = "What could we improve or add to make your experience better?";
+            replyMarkup = {
+                inline_keyboard: [
+                    [{ text: "Skip", callback_data: `feedback_skip_3` }]
+                ]
+            };
+            break;
+            
+        case 4: // Additional info
+            questionText = "Any additional comments? (Optional - you can skip this)";
+            replyMarkup = {
+                inline_keyboard: [
+                    [{ text: "Skip and Submit", callback_data: `feedback_complete` }]
+                ]
+            };
+            break;
+    }
+    
+    // If we're moving to a new question, send it (but don't delete previous ones)
+    if (questionText) {
+        const message = await bot.sendMessage(chatId, questionText, { reply_markup: replyMarkup });
+        session.lastQuestionMessageId = message.message_id;
+    }
+}
+
+// Handle text responses to feedback questions
+bot.on('message', async (msg) => {
+    if (!msg.text || msg.text.startsWith('/')) return;
+    
+    const chatId = msg.chat.id.toString();
+    const session = feedbackSessions[chatId];
+    
+    if (!session || !session.active) return;
+    
+    try {
+        switch(session.currentQuestion) {
+            case 2: // Reasons for rating
+                session.responses.reasons = msg.text;
+                session.currentQuestion = 3;
+                await askFeedbackQuestion(chatId, 3);
+                break;
+                
+            case 3: // Suggestions
+                session.responses.suggestions = msg.text;
+                session.currentQuestion = 4;
+                await askFeedbackQuestion(chatId, 4);
+                break;
+                
+            case 4: // Additional info
+                session.responses.additionalInfo = msg.text;
+                await completeFeedback(chatId);
+                break;
+        }
+    } catch (error) {
+        console.error('Feedback processing error:', error);
+    }
+});
+
+async function completeFeedback(chatId) {
+    const session = feedbackSessions[chatId];
+    if (!session) return;
+    
+    try {
+        // Save feedback to database
+        const feedback = new Feedback({
+            orderId: session.orderId,
+            telegramId: session.telegramId,
+            username: session.username,
+            satisfaction: session.responses.satisfaction,
+            reasons: session.responses.reasons,
+            suggestions: session.responses.suggestions,
+            additionalInfo: session.responses.additionalInfo
+        });
+        
+        await feedback.save();
+        
+        // Add to completed feedbacks set
+        completedFeedbacks.add(chatId.toString() + '_' + session.orderId);
+        
+        // Notify admins
+        const adminMessage = `📝 New Feedback Received\n\n` +
+                            `Order: ${session.orderId}\n` +
+                            `User: @${session.username} (ID: ${chatId})\n` +
+                            `Rating: ${session.responses.satisfaction}/5\n` +
+                            `Reasons: ${session.responses.reasons || 'Not provided'}\n` +
+                            `Suggestions: ${session.responses.suggestions || 'Not provided'}\n` +
+                            `Additional Info: ${session.responses.additionalInfo || 'None'}`;
+        
+        for (const adminId of adminIds) {
+            try {
+                await bot.sendMessage(adminId, adminMessage);
+            } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
+            }
+        }
+        
+        // Thank user
+        await bot.sendMessage(chatId, "Thank you for your feedback! We appreciate your time.");
+        
+    } catch (error) {
+        console.error('Error saving feedback:', error);
+        await bot.sendMessage(chatId, "Sorry, we couldn't save your feedback. Please try again later.");
+    } finally {
+        // Clean up session
+        delete feedbackSessions[chatId];
+    }
+}
+
+// Handle skip actions for feedback questions
+bot.on('callback_query', async (query) => {
+    const data = query.data;
+    const chatId = query.message.chat.id;
+    
+    if (data.startsWith('feedback_skip_')) {
+        const questionNumber = parseInt(data.split('_')[2]);
+        const session = feedbackSessions[chatId];
+        
+        if (session) {
+            if (questionNumber < 4) {
+                // Move to next question
+                session.currentQuestion = questionNumber + 1;
+                await askFeedbackQuestion(chatId, session.currentQuestion);
+            } else {
+                // Complete feedback if on last question
+                await completeFeedback(chatId);
+            }
+        }
+        await bot.answerCallbackQuery(query.id);
+        
+    } else if (data === 'feedback_complete') {
+        await completeFeedback(chatId);
+        await bot.answerCallbackQuery(query.id);
+    }
+});
+//end of sell order feedback
+
+
+
+//notification for reversing orders
+bot.onText(/\/sell_decline (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    
+    if (!adminIds.includes(chatId.toString())) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+
+    const orderId = match[1].trim();
+    const order = await SellOrder.findOne({ id: orderId });
+    
+    if (!order) {
+        return bot.sendMessage(chatId, `❌ Order ${orderId} not found.`);
+    }
+
+    try {
+        await bot.sendMessage(
+            order.telegramId,
+            `⚠️ Order #${orderId} Notification\n\n` +
+            `Your order was canceled because the stars were reversed during our 21-day holding period.\n\n` +
+            `Since the transaction cannot be completed after any reversal, you'll need to submit a new order if you still wish to sell your stars.\n\n` +
+            `We'd appreciate your feedback to help us improve:`,
+            {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: "Provide Feedback", callback_data: `reversal_feedback_${orderId}` },
+                            { text: "Skip", callback_data: `skip_feedback_${orderId}` }
+                        ]
+                    ]
+                }
+            }
+        );
+
+        await bot.sendMessage(chatId, `✅ Sent reversal notification for order ${orderId} to user @${order.username}`);
+        
+    } catch (error) {
+        if (error.response?.error_code === 403) {
+            await bot.sendMessage(chatId, `❌ Failed to notify user @${order.username} (user blocked the bot)`);
+        } else {
+            console.error('Notification error:', error);
+            await bot.sendMessage(chatId, `❌ Failed to send notification for order ${orderId}`);
+        }
+    }
+});
+
+bot.on('callback_query', async (query) => {
+    const data = query.data;
+    const chatId = query.message.chat.id;
+    const messageId = query.message.message_id;
+    
+    if (data.startsWith('reversal_feedback_')) {
+        const orderId = data.split('_')[2];
+        
+        // Update buttons to show feedback submitted
+        await bot.editMessageReplyMarkup(
+            {
+                inline_keyboard: [
+                    [{ text: "✓ Feedback Submitted", callback_data: `feedback_submitted_${orderId}` }]
+                ]
+            },
+            {
+                chat_id: chatId,
+                message_id: messageId
+            }
+        );
+        
+        // Prompt for feedback
+        await bot.sendMessage(
+            chatId,
+            `Please tell us why the stars were reversed and how we can improve:`
+        );
+        
+        // Set temporary state to collect feedback
+        userFeedbackState[chatId] = {
+            orderId: orderId,
+            timestamp: Date.now()
+        };
+        
+        await bot.answerCallbackQuery(query.id);
+        
+    } else if (data.startsWith('skip_feedback_')) {
+        const orderId = data.split('_')[2];
+        
+        // Update buttons to show feedback skipped
+        await bot.editMessageReplyMarkup(
+            {
+                inline_keyboard: [
+                    [{ text: "✗ Feedback Skipped", callback_data: `feedback_skipped_${orderId}` }]
+                ]
+            },
+            {
+                chat_id: chatId,
+                message_id: messageId
+            }
+        );
+        
+        await bot.answerCallbackQuery(query.id);
+    }
+});
+
+// Handle feedback messages
+bot.on('message', async (msg) => {
+    if (!msg.text || msg.text.startsWith('/')) return;
+    
+    const chatId = msg.chat.id.toString();
+    const feedbackState = userFeedbackState[chatId];
+    
+    if (feedbackState && Date.now() - feedbackState.timestamp < 600000) { // 10 minute window
+        const orderId = feedbackState.orderId;
+        const username = msg.from.username ? `@${msg.from.username}` : msg.from.first_name;
+        
+        // Notify admins
+        const adminMessage = `📝 Reversal Feedback\n\n` +
+                            `Order: ${orderId}\n` +
+                            `User: ${username}\n` +
+                            `Feedback: ${msg.text}`;
+        
+        adminIds.forEach(adminId => {
+            bot.sendMessage(adminId, adminMessage);
+        });
+        
+        // Confirm receipt
+        await bot.sendMessage(chatId, `Thank you for your feedback!`);
+        
+        // Clear state
+        delete userFeedbackState[chatId];
+    }
+});
+
+// Temporary state storage
+const userFeedbackState = {};
+
+// Cleanup expired feedback states (runs hourly)
+setInterval(() => {
+    const now = Date.now();
+    for (const [chatId, state] of Object.entries(userFeedbackState)) {
+        if (now - state.timestamp > 600000) { // 10 minutes
+            delete userFeedbackState[chatId];
+        }
+    }
+}, 60 * 60 * 1000);
+
+// Clean up broadcast sessions that expire
+setInterval(() => {
+    const now = Date.now();
+    const timeout = 15 * 60 * 1000; // 15 minutes
+    
+    for (const [chatId, session] of broadcastSessions.entries()) {
+        if (now - session.timestamp > timeout) {
+            broadcastSessions.delete(chatId);
+        }
+    }
+}, 5 * 60 * 1000); // Check every 5 minutes
+
+//get total users from db
+bot.onText(/\/users/, async (msg) => {
+    const chatId = msg.chat.id;
+    if (!adminIds.includes(chatId.toString())) {
+        bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+        return;
+    }
+
+    try {
+        const userCount = await User.countDocuments({});
+        bot.sendMessage(chatId, `📊 Total users in the database: ${userCount}`);
+    } catch (err) {
+        console.error('Error fetching user count:', err);
+        bot.sendMessage(chatId, '❌ Failed to fetch user count.');
+    }
+});
+
+// Duplicate activity command removed - using the comprehensive one above
+
+// ==================== FEEDBACK API ENDPOINTS ====================
+
+/**
+ * POST /api/feedback/submit
+ * Submit general feedback with optional media attachments
+ * Expected form-data:
+ * - userId: User's Telegram ID
+ * - type: 'bug' | 'feature' | 'improvement' | 'general'
+ * - email: User's email
+ * - message: Feedback message (max 3000 chars)
+ * - timestamp: ISO timestamp
+ * - media_*: File attachments (images/videos, max 20MB total)
+ */
+app.post('/api/feedback/submit', upload.any(), async (req, res) => {
+    try {
+        // Check if MongoDB is available
+        if (!process.env.MONGODB_URI) {
+            console.warn('Feedback submission attempted without MongoDB connection');
+            return res.status(503).json({
+                success: false,
+                error: 'Feedback service temporarily unavailable. Please try again later.'
+            });
+        }
+
+        const { userId, type, email, message, timestamp } = req.body;
+
+        // Validate required fields
+        if (!userId || !type || !email || !message) {
+            console.warn('Feedback validation failed: missing required fields');
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: userId, type, email, message'
+            });
+        }
+
+        // Validate feedback type
+        if (!['bug', 'feature', 'improvement', 'general'].includes(type)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid feedback type'
+            });
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid email format'
+            });
+        }
+
+        // Validate message length
+        if (message.length === 0 || message.length > 3000) {
+            return res.status(400).json({
+                success: false,
+                error: 'Message must be between 1 and 3000 characters'
+            });
+        }
+
+        // Create feedback document
+        const feedbackData = {
+            userId,
+            type,
+            email,
+            message,
+            mediaFiles: [],
+            totalMediaSize: 0,
+            createdAt: timestamp ? new Date(timestamp) : new Date()
+        };
+
+        // Process uploaded files
+        if (req.files && req.files.length > 0) {
+            req.files.forEach((file, index) => {
+                feedbackData.mediaFiles.push({
+                    filename: file.filename || `file_${index}`,
+                    originalName: file.originalname || file.fieldname,
+                    mimetype: file.mimetype,
+                    size: file.size,
+                    uploadedAt: new Date()
+                });
+                feedbackData.totalMediaSize += file.size;
+            });
+            console.log(`Feedback has ${feedbackData.mediaFiles.length} attached files`);
+        }
+
+        // Save to database
+        const feedback = new GeneralFeedback(feedbackData);
+        await feedback.save();
+        console.log('Feedback saved:', { id: feedback._id, email, type, attachments: feedbackData.mediaFiles.length });
+
+        // Notify admins via Telegram (if bot is available)
+        try {
+            // Create full message with complete feedback text
+            const adminMessage = `📬 New ${type} feedback from User ID: ${userId}\n\n📧 Email: ${email}\n\n💬 Message:\n${message}${feedbackData.mediaFiles.length > 0 ? `\n\n📎 Attachments: ${feedbackData.mediaFiles.length} file(s)` : ''}`;
+            
+            for (const adminId of adminIds) {
+                try {
+                    await bot.sendMessage(adminId, adminMessage, {
+                        parse_mode: 'HTML'
+                    });
+                    
+                    // Send attached files if any
+                    if (req.files && req.files.length > 0) {
+                        for (const file of req.files) {
+                            try {
+                                await bot.sendDocument(adminId, file.buffer, {
+                                    caption: `📎 ${file.originalname || 'Attachment'} (${(file.size / 1024).toFixed(2)} KB)`
+                                });
+                            } catch (fileErr) {
+                                console.error(`Failed to send file to admin ${adminId}:`, fileErr.message);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Failed to notify admin ${adminId}:`, e.message);
+                }
+            }
+        } catch (e) {
+            console.error('Error notifying admins:', e.message);
+        }
+
+        return res.json({
+            success: true,
+            message: 'Feedback submitted successfully',
+            feedbackId: feedback._id
+        });
+
+    } catch (error) {
+        console.error('Feedback submission error:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to save feedback: ' + error.message
+        });
+    }
+});
+
+/**
+ * GET /api/feedback/list
+ * Get all feedback submissions (admin only)
+ * Query params:
+ * - status: 'new' | 'read' | 'archived' (optional)
+ * - type: feedback type filter (optional)
+ * - limit: number of results (default 50)
+ * - skip: pagination offset (default 0)
+ */
+app.get('/api/feedback/list', requireAdmin, async (req, res) => {
+    try {
+        const { status, type, limit = 50, skip = 0 } = req.query;
+        
+        const query = {};
+        if (status) query.status = status;
+        if (type) query.type = type;
+
+        const feedbacks = await GeneralFeedback.find(query)
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit))
+            .skip(parseInt(skip))
+            .lean();
+
+        const total = await GeneralFeedback.countDocuments(query);
+
+        return res.json({
+            success: true,
+            data: feedbacks,
+            pagination: {
+                total,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                pages: Math.ceil(total / parseInt(limit))
+            }
+        });
+
+    } catch (error) {
+        console.error('Feedback list error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to fetch feedback list'
+        });
+    }
+});
+
+/**
+ * GET /api/feedback/:feedbackId
+ * Get single feedback submission details (admin only)
+ */
+app.get('/api/feedback/:feedbackId', requireAdmin, async (req, res) => {
+    try {
+        const { feedbackId } = req.params;
+
+        const feedback = await GeneralFeedback.findById(feedbackId).lean();
+        
+        if (!feedback) {
+            return res.status(404).json({
+                success: false,
+                error: 'Feedback not found'
+            });
+        }
+
+        return res.json({
+            success: true,
+            data: feedback
+        });
+
+    } catch (error) {
+        console.error('Feedback detail error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to fetch feedback details'
+        });
+    }
+});
+
+/**
+ * PATCH /api/feedback/:feedbackId
+ * Update feedback status or add admin notes (admin only)
+ * Body:
+ * - status: 'new' | 'read' | 'archived'
+ * - adminNotes: Admin's notes
+ */
+app.patch('/api/feedback/:feedbackId', requireAdmin, async (req, res) => {
+    try {
+        const { feedbackId } = req.params;
+        const { status, adminNotes } = req.body;
+
+        const updateData = {
+            updatedAt: new Date()
+        };
+
+        if (status) {
+            if (!['new', 'read', 'archived'].includes(status)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid status'
+                });
+            }
+            updateData.status = status;
+        }
+
+        if (adminNotes !== undefined) {
+            updateData.adminNotes = adminNotes;
+        }
+
+        if (status || adminNotes) {
+            updateData.processedBy = req.user?.id;
+            updateData.processedAt = new Date();
+        }
+
+        const feedback = await GeneralFeedback.findByIdAndUpdate(
+            feedbackId,
+            updateData,
+            { new: true }
+        );
+
+        if (!feedback) {
+            return res.status(404).json({
+                success: false,
+                error: 'Feedback not found'
+            });
+        }
+
+        return res.json({
+            success: true,
+            message: 'Feedback updated successfully',
+            data: feedback
+        });
+
+    } catch (error) {
+        console.error('Feedback update error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to update feedback'
+        });
+    }
+});
+
+/**
+ * GET /api/feedback/stats
+ * Get feedback statistics (admin only)
+ */
+app.get('/api/feedback/stats', requireAdmin, async (req, res) => {
+    try {
+        const stats = {
+            total: await GeneralFeedback.countDocuments({}),
+            byType: await GeneralFeedback.aggregate([
+                { $group: { _id: '$type', count: { $sum: 1 } } }
+            ]),
+            byStatus: await GeneralFeedback.aggregate([
+                { $group: { _id: '$status', count: { $sum: 1 } } }
+            ]),
+            thisMonth: await GeneralFeedback.countDocuments({
+                createdAt: {
+                    $gte: new Date(new Date().setDate(1)),
+                    $lt: new Date()
+                }
+            })
+        };
+
+        return res.json({
+            success: true,
+            data: stats
+        });
+
+    } catch (error) {
+        console.error('Feedback stats error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to fetch feedback statistics'
+        });
+    }
+});
+
+// ==================== END FEEDBACK API ENDPOINTS ====================
+
+// Run data migrations on startup
+async function runMigrations() {
+  try {
+    // Migrate old 'completed' status to 'active' for backward compatibility
+    const completedCount = await Referral.countDocuments({ status: 'completed' });
+    if (completedCount > 0) {
+      console.log(`[MIGRATION] Found ${completedCount} referrals with old 'completed' status...`);
+      const result = await Referral.updateMany(
+        { status: 'completed' },
+        { $set: { status: 'active' } }
+      );
+      console.log(`[MIGRATION] ✓ Successfully migrated ${result.modifiedCount} referrals to 'active' status`);
+    }
+  } catch (error) {
+    console.warn('[MIGRATION] Warning - could not complete status migration:', error.message);
+  }
+}
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, async () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Webhook set to: ${WEBHOOK_URL}`);
+  
+  // Run migrations
+  await runMigrations();
+  
+  // Log data retention & cleanup configuration
+  const enableBotActivityLogging = process.env.ENABLE_BOT_ACTIVITY_LOGGING === '1';
+  const activityRetentionDays = parseInt(process.env.ACTIVITY_RETENTION_DAYS || '90');
+  const userActivitySampleRate = parseFloat(process.env.USERACTIVITYLOG_SAMPLE_RATE || '0.5');
+  const userActivityRetentionDays = parseInt(process.env.USERACTIVITYLOG_RETENTION_DAYS || '30');
+  
+  console.log('📊 Data Retention & Cleanup Configuration:');
+  console.log(`   • Bot Activity Logging: ${enableBotActivityLogging ? '✅ ENABLED' : '❌ DISABLED (default)'}`);
+  console.log(`   • Activity Retention: ${activityRetentionDays} days (auto-delete older records)`);
+  console.log(`   • UserActivityLog Sampling: ${Math.round(userActivitySampleRate * 100)}% of requests logged`);
+  console.log(`   • UserActivityLog Retention: ${userActivityRetentionDays} days (auto-delete older records)`);
+  
+  // Start bot simulator if enabled
+  if (process.env.ENABLE_BOT_SIMULATOR === '1' && startBotSimulatorSafe) {
+    try {
+      startBotSimulatorSafe({
+        useMongo: !!process.env.MONGODB_URI,
+        models: { User, DailyState, BotProfile, Activity },
+        db
+      });
+      console.log('🤖 Bot simulator enabled');
+    } catch (e) {
+      console.warn('Failed to start bot simulator:', e.message);
+    }
+  }
+  
+  // Initialize end-of-month withdrawal scheduler
+  if (schedule && schedule.scheduleEndOfMonthTask) {
+    schedule.scheduleEndOfMonthTask(async () => {
+      try {
+        console.log('[Scheduler] Processing end-of-month ambassador withdrawals...');
+        
+        const now = new Date();
+        const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        // Find all ambassadors (have ambassadorEmail set)
+        const ambassadors = await User.find({
+          ambassadorEmail: { $exists: true, $ne: null }
+        }).lean();
+        
+        console.log(`[Scheduler] Found ${ambassadors.length} total ambassadors`);
+        
+        let processedCount = 0;
+        let skippedCount = 0;
+        let reminderCount = 0;
+        
+        // Define date range for this month
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        
+        // Process each ambassador
+        for (const ambassador of ambassadors) {
+          try {
+            // Calculate available balance from non-withdrawn referrals
+            const availableReferrals = await Referral.countDocuments({
+              referrerUserId: ambassador.id,
+              $or: [
+                  { dateReferred: { $gte: monthStart, $lt: monthEnd } },
+                  { dateReferred: { $exists: false }, dateCreated: { $gte: monthStart, $lt: monthEnd } }
+              ],
+              status: 'active',
+              withdrawn: { $ne: true }
+            });
+            
+            const availableBalance = availableReferrals * 0.5;
+            
+            // Skip if balance is below minimum withdrawal (0.5 USDT)
+            if (availableBalance < 0.5) {
+              console.log(`[Scheduler] Skipping ${ambassador.username}: insufficient balance ($${availableBalance.toFixed(2)})`);
+              skippedCount++;
+              continue;
+            }
+            
+            // Check if ambassador has wallet address set
+            if (!ambassador.ambassadorWalletAddress || ambassador.ambassadorWalletAddress.trim() === '') {
+              console.log(`[Scheduler] No wallet for ${ambassador.username}: balance $${availableBalance.toFixed(2)}`);
+              try {
+                if (ambassador.id) {
+                  const reminderMsg = `⏰ **Wallet Reminder** 💰\n\nYou have earnings of $${availableBalance.toFixed(2)} ready for automatic payout!\n\n🔐 Please set your TON wallet address in your profile to receive your monthly payout.\n\nAutomatic withdrawal will process instantly once your wallet is set.`;
+                  await bot.sendMessage(ambassador.id, reminderMsg, { parse_mode: 'Markdown' });
+                  reminderCount++;
+                }
+              } catch (botError) {
+                console.warn(`[Scheduler] Failed to send reminder to ${ambassador.username}:`, botError.message);
+              }
+              continue;
+            }
+            
+            // Create automatic withdrawal for ambassador
+            const referralsToWithdraw = await Referral.find({
+              referrerUserId: ambassador.id,
+              $or: [
+                  { dateReferred: { $gte: monthStart, $lt: monthEnd } },
+                  { dateReferred: { $exists: false }, dateCreated: { $gte: monthStart, $lt: monthEnd } }
+              ],
+              status: 'active',
+              withdrawn: { $ne: true }
+            }).limit(Math.ceil(availableBalance / 0.5));
+            
+            const withdrawal = new ReferralWithdrawal({
+              userId: ambassador.id,
+              username: ambassador.username,
+              isAmbassadorWithdrawal: true,
+              amount: availableBalance,
+              ambassadorLevel: ambassador.ambassadorCurrentLevel || 0,
+              ambassadorReferralCount: availableReferrals,
+              ambassadorLevelBreakdown: ambassador.ambassadorLevelEarnings || {},
+              ambassadorMonth: now.toISOString().substring(0, 7),
+              walletAddress: ambassador.ambassadorWalletAddress,
+              referralIds: referralsToWithdraw.map(r => r._id.toString()),
+              status: 'pending',
+              createdAt: new Date()
+            });
+            
+            await withdrawal.save();
+            
+            // Mark referrals as withdrawn
+            await Referral.updateMany(
+              { _id: { $in: referralsToWithdraw.map(r => r._id) } },
+              { withdrawn: true }
+            );
+            
+            // Send email notification
+            try {
+              await emailService.sendWithdrawalCreated(
+                ambassador.ambassadorEmail,
+                ambassador.username || 'Ambassador',
+                availableBalance,
+                availableReferrals
+              );
+            } catch (emailErr) {
+              console.warn(`[Scheduler] Email notification failed for ${ambassador.username}:`, emailErr.message);
+            }
+            
+            // Send Telegram notification
+            try {
+              await bot.sendMessage(
+                ambassador.id,
+                `✅ **Automatic Payout Processed**\n\nAmount: $${availableBalance.toFixed(2)} USDT\nWallet: ${ambassador.ambassadorWalletAddress}\n\nYour monthly earnings have been automatically transferred!`
+              );
+            } catch (botErr) {
+              console.warn(`[Scheduler] Telegram notification failed for ${ambassador.username}:`, botErr.message);
+            }
+            
+            console.log(`[Scheduler] ✅ Automatic withdrawal created for ${ambassador.username}: $${availableBalance.toFixed(2)}`);
+            processedCount++;
+            
+          } catch (ambError) {
+            console.error(`[Scheduler] Error processing ${ambassador.username}:`, ambError.message);
+          }
+        }
+        
+        console.log(`[Scheduler] ✅ End-of-month processing complete - Processed: ${processedCount}, Skipped: ${skippedCount}, Reminders: ${reminderCount}`);
+      } catch (error) {
+        console.error('[Scheduler] Error processing end-of-month withdrawals:', error);
+      }
+    });
+    console.log('📅 End-of-month automatic withdrawal scheduler initialized');
+  }
+  
+  // Initialize periodic referral repair scheduler (every 2 hours)
+  if (schedule && schedule.schedulePeriodicRepair) {
+    schedule.schedulePeriodicRepair(async () => {
+      try {
+        console.log('[Scheduler] Starting periodic referral repair scan...');
+        
+        // Find all users with pending referrals that have bought/sold enough stars
+        const pendingReferrals = await Referral.find({ status: 'pending' });
+        
+        if (pendingReferrals.length === 0) {
+          console.log('[Scheduler] No pending referrals found, scan complete');
+          return;
+        }
+        
+        console.log(`[Scheduler] Found ${pendingReferrals.length} pending referrals to check`);
+        
+        // Group by referrer to repair in batches
+        const userMap = {};
+        for (const ref of pendingReferrals) {
+          if (!userMap[ref.referrerUserId]) {
+            userMap[ref.referrerUserId] = [];
+          }
+          userMap[ref.referrerUserId].push(ref);
+        }
+        
+        let totalRepaired = 0;
+        let usersProcessed = 0;
+        
+        // Process each user
+        for (const [userId, refs] of Object.entries(userMap)) {
+          try {
+            // Clear debounce for periodic repair so it always runs
+            repairDebounceCache.delete(userId);
+            
+            const repairedCount = await repairStuckReferrals(userId);
+            if (repairedCount > 0) {
+              totalRepaired += repairedCount;
+              console.log(`[Scheduler] Periodic repair for user ${userId}: ${repairedCount} referrals fixed`);
+            }
+            usersProcessed++;
+          } catch (userError) {
+            console.error(`[Scheduler] Error repairing user ${userId}:`, userError.message);
+          }
+        }
+        
+        console.log(`[Scheduler] ✅ Periodic referral repair complete - Users: ${usersProcessed}, Total Repaired: ${totalRepaired}`);
+      } catch (error) {
+        console.error('[Scheduler] Error in periodic repair scan:', error);
+      }
+    });
+    console.log('🔧 Periodic referral repair scheduler initialized (runs every 2 hours)');
+  }
+});
+
+function requireAdmin(req, res, next) {
+	try {
+		const tgId = (req.headers['x-telegram-id'] || '').toString();
+		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId)) {
+			req.user = { id: tgId, isAdmin: true };
+			return next();
+		}
+		return res.status(403).json({ error: 'Forbidden' });
+	} catch (e) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+}
+
+app.get('/api/me', async (req, res) => {
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		return res.json({ id: sess.payload.tgId, isAdmin: true, username: null, isAmbassador: false });
+	}
+	const tgId = (req.headers['x-telegram-id'] || '').toString();
+	let username = null;
+	let isAmbassador = false;
+	try { 
+		if (req.user && req.user.username) username = req.user.username; 
+		// Check if user is ambassador (from request object - may be cached)
+		if (req.user && req.user.ambassadorEmail) isAmbassador = true;
+	} catch(_) {}
+	try { 
+		if (!username && req.telegramInitData && req.telegramInitData.user && req.telegramInitData.user.username) username = req.telegramInitData.user.username; 
+	} catch(_) {}
+	
+	// ALWAYS verify ambassador status against fresh database query (don't trust cache)
+	if (tgId) {
+		try {
+			console.log(`🔍 /api/me: Checking ambassador status for user ${tgId} in database`);
+			const user = await User.findOne({ id: tgId }).lean();
+			if (user && user.ambassadorEmail) {
+				isAmbassador = true;
+				console.log(`✓ User ${tgId} IS ambassador (email: ${user.ambassadorEmail})`);
+			} else {
+				// User either doesn't exist OR doesn't have ambassadorEmail - not an ambassador
+				isAmbassador = false;
+				if (user) {
+					console.log(`✗ User ${tgId} found but NOT ambassador (ambassadorEmail: ${user.ambassadorEmail || 'undefined'})`);
+				} else {
+					console.log(`✗ User ${tgId} NOT found in database`);
+				}
+			}
+		} catch (e) {
+			console.error('Error checking ambassador status:', e.message);
+			// On error, default to NOT ambassador (safer than assuming)
+			isAmbassador = false;
+		}
+	}
+	
+	return res.json({ id: tgId || null, isAdmin: tgId ? adminIds.includes(tgId) : false, username, isAmbassador });
+});
+
+// Basic admin stats
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+	try {
+		const [totalOrders, pendingWithdrawals, totalUsers, revenueUsdt] = await Promise.all([
+			Promise.resolve(await BuyOrder.countDocuments({}).catch(()=>0) + await SellOrder.countDocuments({}).catch(()=>0)),
+			ReferralWithdrawal.countDocuments({ status: 'pending' }).catch(()=>0),
+			User.countDocuments({}).catch(()=>0),
+			Promise.resolve(0)
+		]);
+		res.json({ totalOrders, pendingWithdrawals, totalUsers, revenueUsdt });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load stats' });
+	}
+});
+
+// Leaderboard and engagement performance for admins
+app.get('/api/admin/performance', requireAdmin, async (req, res) => {
+  try {
+    // Load leaderboard inputs similarly to /api/leaderboard global scope
+    let referralCounts, dailyUsers;
+    if (process.env.MONGODB_URI) {
+      [referralCounts, dailyUsers] = await Promise.all([
+        Referral.aggregate([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        DailyState.find({}, { userId: 1, totalPoints: 1, streak: 1, missionsCompleted: 1, lastCheckIn: 1 })
+      ]);
+    } else {
+      [referralCounts, dailyUsers] = await Promise.all([
+        db.aggregateReferrals([
+          { $match: { status: { $in: ['active', 'completed'] } } },
+          { $group: { _id: '$referrerUserId', referralsCount: { $sum: 1 } } }
+        ]),
+        db.findAllDailyStates()
+      ]);
+    }
+
+    const allUserIds = Array.from(new Set([
+      ...referralCounts.map(r => r._id),
+      ...dailyUsers.map(d => d.userId)
+    ]));
+
+    let users;
+    if (process.env.MONGODB_URI) {
+      users = await User.find({ id: { $in: allUserIds } }, { id: 1, username: 1 });
+    } else {
+      users = await Promise.all(allUserIds.map(id => db.findUser(id)));
+    }
+
+    const idToUsername = new Map(users.filter(Boolean).map(u => [u.id, u.username]));
+    const idToReferrals = new Map(referralCounts.map(r => [r._id, r.referralsCount]));
+    const idToDaily = new Map(dailyUsers.map(d => [d.userId, d]));
+
+    const maxPoints = Math.max(1, ...dailyUsers.map(d => d.totalPoints || 0));
+    const maxReferrals = Math.max(1, ...referralCounts.map(r => r.referralsCount), 1);
+
+    const entries = allUserIds.map(userId => {
+      const referrals = idToReferrals.get(userId) || 0;
+      const s = idToDaily.get(userId) || {};
+      const missions = (s.missionsCompleted || []).length;
+      const lastCheckIn = s.lastCheckIn ? new Date(s.lastCheckIn) : null;
+      const daysSinceCheckIn = lastCheckIn ? Math.floor((Date.now() - lastCheckIn.getTime()) / (1000*60*60*24)) : null;
+      const points = s.totalPoints || 0;
+      const referralPoints = referrals * 5;
+      const penaltyPoints = (() => {
+        const today = new Date();
+        if (!lastCheckIn) return 0;
+        const diff = Math.floor((today - lastCheckIn) / (1000*60*60*24));
+        return Math.max(0, diff - 1) * 2;
+      })();
+      const totalPoints = points + referralPoints - penaltyPoints;
+      const score = ((totalPoints / Math.max(maxPoints + (maxReferrals * 5), 1)) * 0.6)
+                  + ((referrals / maxReferrals) * 0.25)
+                  + (Math.min(missions / 10, 1) * 0.15);
+      return {
+        userId,
+        username: idToUsername.get(userId) || null,
+        totalPoints,
+        activityPoints: points,
+        referralPoints,
+        referralsCount: referrals,
+        missionsCompleted: missions,
+        streak: s.streak || 0,
+        daysSinceCheckIn,
+        score: Math.round(score * 100)
+      };
+    }).sort((a,b) => b.score - a.score);
+
+    const top10 = entries.slice(0, 10);
+    const totals = {
+      usersCount: entries.length,
+      totalActivityPoints: entries.reduce((sum, e) => sum + (e.activityPoints || 0), 0),
+      totalReferralPoints: entries.reduce((sum, e) => sum + (e.referralPoints || 0), 0),
+      avgMissionsCompleted: entries.length ? (entries.reduce((sum, e) => sum + (e.missionsCompleted || 0), 0) / entries.length) : 0,
+      activeToday: entries.filter(e => e.daysSinceCheckIn === 0).length,
+      active7d: entries.filter(e => e.daysSinceCheckIn !== null && e.daysSinceCheckIn <= 7).length
+    };
+
+    res.json({ success: true, top10, totals });
+  } catch (e) {
+    console.error('admin/performance error:', e);
+    res.status(500).json({ success: false, error: 'Failed to load performance data' });
+  }
+});
+
+// List recent orders (buy + sell)
+app.get('/api/admin/orders', requireAdmin, async (req, res) => {
+	try {
+		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+		const page = Math.max(parseInt(req.query.page) || 1, 1);
+		const status = (req.query.status || '').toString().trim();
+		const type = (req.query.type || 'all').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+
+		const textFilter = q ? { $or: [
+			{ id: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ telegramId: { $regex: q, $options: 'i' } }
+		] } : {};
+		const statusFilter = status ? { status } : {};
+
+		const buyQuery = { ...statusFilter, ...textFilter };
+		const sellQuery = { ...statusFilter, ...textFilter };
+		const needBuy = type === 'all' || type === 'buy';
+		const needSell = type === 'all' || type === 'sell';
+		const [buyCount, sellCount] = await Promise.all([
+			needBuy ? BuyOrder.countDocuments(buyQuery).catch(()=>0) : Promise.resolve(0),
+			needSell ? SellOrder.countDocuments(sellQuery).catch(()=>0) : Promise.resolve(0)
+		]);
+
+		const take = limit * page;
+		const [buys, sells] = await Promise.all([
+			needBuy ? BuyOrder.find(buyQuery).sort({ dateCreated: -1 }).limit(take).lean() : Promise.resolve([]),
+			needSell ? SellOrder.find(sellQuery).sort({ dateCreated: -1 }).limit(take).lean() : Promise.resolve([])
+		]);
+
+		const merged = [
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
+
+		const start = (page - 1) * limit;
+		const orders = merged.slice(start, start + limit);
+		const total = buyCount + sellCount;
+		res.json({ orders, total });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load orders' });
+	}
+});
+
+app.get('/api/admin/orders/export', requireAdmin, async (req, res) => {
+	try {
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+		const textFilter = q ? { $or: [
+			{ id: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ telegramId: { $regex: q, $options: 'i' } }
+		] } : {};
+		const statusFilter = status ? { status } : {};
+		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
+		const [buys, sells] = await Promise.all([
+			BuyOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(limit).lean(),
+			SellOrder.find({ ...statusFilter, ...textFilter }).sort({ dateCreated: -1 }).limit(limit).lean()
+		]);
+		const rows = [
+			...buys.map(b => ({ id: b.id, type: 'buy', username: b.username, telegramId: b.telegramId, amount: b.amount, status: b.status, dateCreated: b.dateCreated })),
+			...sells.map(s => ({ id: s.id, type: 'sell', username: s.username, telegramId: s.telegramId, amount: s.amount, status: s.status, dateCreated: s.dateCreated }))
+		].sort((a,b)=> new Date(b.dateCreated) - new Date(a.dateCreated));
+		const csv = ['id,type,username,telegramId,amount,status,dateCreated']
+			.concat(rows.map(r => [r.id, r.type, r.username || '', r.telegramId || '', r.amount || 0, r.status || '', new Date(r.dateCreated || Date.now()).toISOString()]
+				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
+			.join('\n');
+		res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+		res.setHeader('Content-Disposition', 'attachment; filename="orders.csv"');
+		res.setHeader('Cache-Control', 'no-store');
+		return res.send(csv);
+	} catch (e) {
+		return res.status(500).send('Failed to export');
+	}
+});
+
+// Order actions
+app.post('/api/admin/orders/:id/complete', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        // Try buy first, then sell
+        let order = await BuyOrder.findOne({ id });
+        let orderType = 'buy';
+        if (!order) { order = await SellOrder.findOne({ id }); orderType = 'sell'; }
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        if (orderType === 'sell' && order.status !== 'processing') {
+            return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
+        if (orderType === 'buy' && order.status !== 'pending' && order.status !== 'processing') {
+            return res.status(409).json({ error: `Order is ${order.status} - cannot complete` });
+        }
+
+        order.status = 'completed';
+        order.dateCompleted = new Date();
+        await order.save();
+
+        // Mirror side effects
+        if (orderType === 'sell') {
+            if (order.stars) { 
+                try { 
+                    await trackStars(order.telegramId, order.stars, 'sell'); 
+                } catch (error) {
+                    console.error('Failed to track stars for sell order:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Sell Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
+        } else {
+            if (!order.isPremium && order.stars) { 
+                try { 
+                    await trackStars(order.telegramId, order.stars, 'buy'); 
+                } catch (error) {
+                    console.error('Failed to track stars for buy order:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Buy Order #${order.id}\n\nFailed to track stars for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
+            if (order.isPremium) { 
+                try { 
+                    await trackPremiumActivation(order.telegramId); 
+                } catch (error) {
+                    console.error('Failed to track premium activation:', error);
+                    // Notify admins about tracking failure
+                    for (const adminId of adminIds) {
+                        try {
+                            await bot.sendMessage(adminId, `⚠️ Tracking Error - Premium Order #${order.id}\n\nFailed to track premium activation for user ${order.telegramId}\nError: ${error.message}`);
+                        } catch (notifyErr) {
+                            console.error(`Failed to notify admin ${adminId} about tracking error:`, notifyErr);
+                        }
+                    }
+                } 
+            }
+        }
+
+        // Collapse admin buttons
+        const statusText = '✅ Completed';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}${orderType === 'sell' ? '\n\nPayments have been transferred to the seller.' : ''}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        // Notify user
+        const userMessage = `✅ Your ${orderType} order #${order.id} has been confirmed!${orderType === 'sell' ? '\n\nPayment has been sent to your wallet.' : '\n\nThank you for choosing StarStore!'}`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to complete order' });
+    }
+});
+
+app.post('/api/admin/orders/:id/decline', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        let order = await BuyOrder.findOne({ id });
+        let orderType = 'buy';
+        if (!order) { order = await SellOrder.findOne({ id }); orderType = 'sell'; }
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        order.status = orderType === 'sell' ? 'failed' : 'declined';
+        order.dateDeclined = new Date();
+        await order.save();
+
+        const statusText = order.status === 'failed' ? '❌ Failed' : '❌ Declined';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        const userMessage = order.status === 'failed' 
+          ? `❌ Your sell order #${order.id} has failed.\n\nTry selling a lower amount or contact support if the issue persist.`
+          : `❌ Your buy order #${order.id} has been declined.\n\nContact support if you believe this was a mistake.`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to decline order' });
+    }
+});
+
+app.post('/api/admin/orders/:id/refund', requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        const order = await SellOrder.findOne({ id });
+        if (!order) return res.status(404).json({ error: 'Sell order not found' });
+
+        order.status = 'refunded';
+        order.dateRefunded = new Date();
+        await order.save();
+
+        const statusText = '💸 Refunded';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (order.adminMessages?.length) {
+            await Promise.all(order.adminMessages.map(async (adminMsg) => {
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\n${statusText}\n${processedBy}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_${order.id}_${Date.now()}` }]] }
+                    });
+                } catch {}
+            }));
+        }
+
+        const userMessage = `💸 Your sell order #${order.id} has been refunded.\n\nPlease check your Account for the refund.`;
+        try { await bot.sendMessage(order.telegramId, userMessage); } catch {}
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to refund order' });
+    }
+});
+
+// List recent withdrawals
+app.get('/api/admin/withdrawals', requireAdmin, async (req, res) => {
+	try {
+		const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+		const page = Math.max(parseInt(req.query.page) || 1, 1);
+		const status = (req.query.status || '').toString().trim();
+		const qq = (req.query.q || '').toString().trim();
+		const statusFilter = status ? { status } : {};
+		const textFilter = qq ? { $or: [
+			{ userId: { $regex: qq, $options: 'i' } },
+			{ username: { $regex: qq, $options: 'i' } },
+			{ walletAddress: { $regex: qq, $options: 'i' } },
+		] } : {};
+		const total = await ReferralWithdrawal.countDocuments({ ...statusFilter, ...textFilter }).catch(()=>0);
+		const withdrawals = await ReferralWithdrawal.find({ ...statusFilter, ...textFilter })
+			.sort({ createdAt: -1 })
+			.skip((page - 1) * limit)
+			.limit(limit)
+			.lean();
+		res.json({ withdrawals, total });
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to load withdrawals' });
+	}
+});
+
+app.get('/api/admin/withdrawals/export', requireAdmin, async (req, res) => {
+	try {
+		const status = (req.query.status || '').toString().trim();
+		const q = (req.query.q || '').toString().trim();
+		const statusFilter = status ? { status } : {};
+		const textFilter = q ? { $or: [
+			{ userId: { $regex: q, $options: 'i' } },
+			{ username: { $regex: q, $options: 'i' } },
+			{ walletAddress: { $regex: q, $options: 'i' } }
+		] } : {};
+		const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
+		const withdrawals = await ReferralWithdrawal
+			.find({ ...statusFilter, ...textFilter })
+			.sort({ createdAt: -1 })
+			.limit(limit)
+			.lean();
+		const csv = ['id,userId,username,amount,walletAddress,status,reason,createdAt']
+			.concat(withdrawals.map(w => [w._id, w.userId || '', w.username || '', w.amount || 0, w.walletAddress || '', w.status || '', w.declineReason || '', new Date(w.createdAt || Date.now()).toISOString()]
+				.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))
+			.join('\n');
+		res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+		res.setHeader('Content-Disposition', 'attachment; filename="withdrawals.csv"');
+		res.setHeader('Cache-Control', 'no-store');
+		return res.send(csv);
+	} catch (e) {
+		return res.status(500).send('Failed to export');
+	}
+});
+
+// Complete a withdrawal
+app.post('/api/admin/withdrawals/:id/complete', requireAdmin, async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const id = req.params.id;
+        const admin = req.user?.id || 'admin';
+
+        const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(id), status: 'pending' },
+            { $set: { status: 'completed', processedBy: parseInt(admin, 10) || admin, processedAt: new Date() } },
+            { new: true, session }
+        );
+        if (!withdrawal) {
+            await session.abortTransaction();
+            return res.status(409).json({ error: 'Withdrawal not found or already processed' });
+        }
+
+        // Notify user
+        try {
+            await bot.sendMessage(withdrawal.userId, `✅ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Completed!\n\nAmount: ${withdrawal.amount} USDT\nWallet: ${withdrawal.walletAddress}\n\nFunds have been sent to your wallet.`);
+        } catch {}
+
+        // Update admin messages to collapsed status
+        const statusText = '✅ Completed';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (withdrawal.adminMessages?.length) {
+            await Promise.all(withdrawal.adminMessages.map(async (adminMsg) => {
+                if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\nStatus: ${statusText}\n${processedBy}\nProcessed at: ${new Date().toLocaleString()}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] }
+                    });
+                } catch {
+                    try {
+                        await bot.editMessageReplyMarkup(
+                            { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] },
+                            { chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId, message_id: adminMsg.messageId }
+                        );
+                    } catch {}
+                }
+            }));
+        }
+
+        await session.commitTransaction();
+        return res.json({ success: true });
+    } catch (e) {
+        await session.abortTransaction();
+        return res.status(500).json({ error: 'Failed to complete withdrawal' });
+    } finally {
+        session.endSession();
+    }
+});
+
+// Decline a withdrawal with reason
+app.post('/api/admin/withdrawals/:id/decline', requireAdmin, async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const id = req.params.id;
+        const { reason } = req.body || {};
+        const admin = req.user?.id || 'admin';
+
+        const withdrawal = await ReferralWithdrawal.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(id), status: 'pending' },
+            { $set: { status: 'declined', processedBy: parseInt(admin, 10) || admin, processedAt: new Date(), declineReason: reason || 'Declined' } },
+            { new: true, session }
+        );
+        if (!withdrawal) {
+            await session.abortTransaction();
+            return res.status(409).json({ error: 'Withdrawal not found or already processed' });
+        }
+
+        // Revert referral withdrawn flags
+        await Referral.updateMany(
+            { _id: { $in: withdrawal.referralIds } },
+            { $set: { withdrawn: false } },
+            { session }
+        );
+
+        // Notify user with reason
+        try {
+            await bot.sendMessage(withdrawal.userId, `❌ Withdrawal WD${withdrawal._id.toString().slice(-8).toUpperCase()} Declined\nReason: ${withdrawal.declineReason}\n\nAmount: ${withdrawal.amount} USDT\nContact support for more information.`);
+        } catch {}
+
+        // Update admin messages
+        const statusText = '❌ Declined';
+        const processedBy = `Processed by: @${req.user?.id || 'admin'}`;
+        if (withdrawal.adminMessages?.length) {
+            await Promise.all(withdrawal.adminMessages.map(async (adminMsg) => {
+                if (!adminMsg?.adminId || !adminMsg?.messageId) return;
+                const baseText = adminMsg.originalText || '';
+                const updatedText = `${baseText}\n\nStatus: ${statusText}\nReason: ${withdrawal.declineReason}\n${processedBy}\nProcessed at: ${new Date().toLocaleString()}`;
+                try {
+                    await bot.editMessageText(updatedText, {
+                        chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId,
+                        message_id: adminMsg.messageId,
+                        reply_markup: { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] }
+                    });
+                } catch {
+                    try {
+                        await bot.editMessageReplyMarkup(
+                            { inline_keyboard: [[{ text: statusText, callback_data: `processed_withdrawal_${withdrawal._id}_${Date.now()}` }]] },
+                            { chat_id: parseInt(adminMsg.adminId, 10) || adminMsg.adminId, message_id: adminMsg.messageId }
+                        );
+                    } catch {}
+                }
+            }));
+        }
+
+        await session.commitTransaction();
+        return res.json({ success: true });
+    } catch (e) {
+        await session.abortTransaction();
+        return res.status(500).json({ error: 'Failed to decline withdrawal' });
+    } finally {
+        session.endSession();
+    }
+});
+
+// List referrals for admin
+app.get('/api/admin/referrals', requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const referrals = await Referral.find({}).sort({ dateReferred: -1 }).limit(limit).lean();
+        res.json({ referrals });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load referrals' });
+    }
+});
+
+// List users for admin
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const filter = {};
+        const activeSinceMin = parseInt(req.query.activeMinutes || '0', 10);
+        if (activeSinceMin > 0) {
+            filter.lastActive = { $gte: new Date(Date.now() - activeSinceMin * 60 * 1000) };
+        }
+        const users = await User.find(filter).sort({ lastActive: -1 }).limit(limit).lean();
+        res.json({ users, total: await User.countDocuments(filter).catch(()=>0) });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load users' });
+    }
+});
+
+// Force enable bot simulator endpoint (admin only)
+app.post('/api/admin/force-enable-bots', requireAdmin, async (req, res) => {
+  try {
+    // Set environment variable programmatically
+    process.env.ENABLE_BOT_SIMULATOR = '1';
+    
+    // Try to start bot simulator immediately
+    if (startBotSimulatorSafe) {
+      try {
+        await startBotSimulatorSafe({
+          useMongo: !!process.env.MONGODB_URI,
+          models: { User, DailyState, BotProfile, Activity },
+          db
+        });
+        
+        res.json({
+          success: true,
+          message: 'Bot simulator force enabled and started',
+          status: 'enabled',
+          environment: process.env.ENABLE_BOT_SIMULATOR
+        });
+      } catch (startError) {
+        res.json({
+          success: true,
+          message: 'Bot simulator enabled but start failed',
+          status: 'enabled_but_not_started',
+          environment: process.env.ENABLE_BOT_SIMULATOR,
+          startError: startError.message
+        });
+      }
+    } else {
+      res.json({
+        success: true,
+        message: 'Bot simulator enabled (restart required)',
+        status: 'enabled_restart_needed',
+        environment: process.env.ENABLE_BOT_SIMULATOR
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to enable bot simulator',
+      details: error.message
+    });
+  }
+});
+
+// Diagnostic endpoint to check bot simulator status (admin only)
+app.get('/api/admin/bot-simulator/diagnostic', requireAdmin, async (req, res) => {
+  try {
+    const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+    const botActivities = await Activity.countDocuments({ 
+      userId: { $regex: '^200000' },
+      timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    });
+    const botStates = await DailyState.countDocuments({ userId: { $regex: '^200000' } });
+    
+    // Get sample bot users
+    const sampleBots = await User.find({ id: { $regex: '^200000' } }).limit(5).select('id username');
+    
+    // Check if bot simulator is running
+    const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+    const hasStartFunction = !!startBotSimulatorSafe;
+    
+    res.json({
+      success: true,
+      diagnostic: {
+        environment: {
+          ENABLE_BOT_SIMULATOR: process.env.ENABLE_BOT_SIMULATOR,
+          isEnabled,
+          hasStartFunction
+        },
+        database: {
+          botUsers,
+          botActivities,
+          botStates,
+          sampleBots
+        },
+        expected: {
+          botUsers: 135,
+          botActivities: '20-40 per day',
+          botStates: 135
+        },
+        recommendations: []
+      }
+    });
+    
+    // Add recommendations based on findings
+    if (botUsers < 10) {
+      res.json.diagnostic?.recommendations.push('Bot seeding failed - need to restart bot simulator');
+    }
+    if (botActivities === 0 && botUsers > 0) {
+      res.json.diagnostic?.recommendations.push('Bots exist but not generating activities - check tick function');
+    }
+    if (!isEnabled) {
+      res.json.diagnostic?.recommendations.push('Set ENABLE_BOT_SIMULATOR=1 in environment variables');
+    }
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Diagnostic failed',
+      details: error.message
+    });
+  }
+});
+
+// Force restart bot simulator (admin only)
+app.post('/api/admin/bot-simulator/restart', requireAdmin, async (req, res) => {
+  try {
+    if (!startBotSimulatorSafe) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bot simulator not available'
+      });
+    }
+    
+    // Force restart the bot simulator
+    const result = startBotSimulatorSafe({
+      useMongo: !!process.env.MONGODB_URI,
+      models: { User, DailyState, BotProfile, Activity },
+      db
+    });
+    
+    res.json({
+      success: true,
+      message: 'Bot simulator restarted',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to restart bot simulator',
+      details: error.message
+    });
+  }
+});
+
+// Admin endpoint to view activity statistics
+app.get('/api/admin/activity/stats', requireAdmin, async (req, res) => {
+    try {
+        const { timeframe = '24h' } = req.query;
+        
+        // Calculate time range
+        let startTime;
+        switch (timeframe) {
+            case '1h':
+                startTime = new Date(Date.now() - 60 * 60 * 1000);
+                break;
+            case '24h':
+                startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                break;
+            case '7d':
+                startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case '30d':
+                startTime = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                break;
+            default:
+                startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        }
+
+        // Get activity statistics
+        const [
+            totalActivities,
+            recentActivities,
+            activityTypes,
+            topUsers,
+            botActivities,
+            totalUsers,
+            activeUsers
+        ] = await Promise.all([
+            Activity.countDocuments(),
+            Activity.countDocuments({ timestamp: { $gte: startTime } }),
+            Activity.aggregate([
+                { $match: { timestamp: { $gte: startTime } } },
+                { $group: { 
+                    _id: '$activityType', 
+                    count: { $sum: 1 }, 
+                    totalPoints: { $sum: '$points' },
+                    avgPoints: { $avg: '$points' }
+                }},
+                { $sort: { count: -1 } }
+            ]),
+            Activity.aggregate([
+                { $match: { timestamp: { $gte: startTime } } },
+                { $group: { 
+                    _id: '$userId', 
+                    count: { $sum: 1 }, 
+                    totalPoints: { $sum: '$points' }
+                }},
+                { $sort: { totalPoints: -1 } },
+                { $limit: 10 }
+            ]),
+            Activity.countDocuments({ 
+                userId: { $regex: '^200000' },
+                timestamp: { $gte: startTime }
+            }),
+            User.countDocuments(),
+            User.countDocuments({ lastActive: { $gte: startTime } })
+        ]);
+
+        // Get bot simulator status
+        const botSimulatorEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+        const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+
+        res.json({
+            timeframe,
+            period: {
+                start: startTime.toISOString(),
+                end: new Date().toISOString()
+            },
+            overview: {
+                totalActivities,
+                recentActivities,
+                totalUsers,
+                activeUsers,
+                botUsers,
+                botActivities
+            },
+            activityTypes,
+            topUsers,
+            botSimulator: {
+                enabled: botSimulatorEnabled,
+                botUsers,
+                recentBotActivities: botActivities
+            }
+        });
+    } catch (error) {
+        console.error('Admin activity stats error:', error);
+        res.status(500).json({ error: 'Failed to fetch activity statistics' });
+    }
+});
+
+// Admin endpoint to view recent activities
+app.get('/api/admin/activity/recent', requireAdmin, async (req, res) => {
+    try {
+        const { limit = 50, skip = 0, userId, activityType } = req.query;
+        
+        const filter = {};
+        if (userId) filter.userId = userId;
+        if (activityType) filter.activityType = activityType;
+
+        const activities = await Activity.find(filter)
+            .sort({ timestamp: -1 })
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
+            .lean();
+
+        const total = await Activity.countDocuments(filter);
+
+        res.json({
+            activities,
+            pagination: {
+                total,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                hasMore: (parseInt(skip) + parseInt(limit)) < total
+            }
+        });
+    } catch (error) {
+        console.error('Admin recent activities error:', error);
+        res.status(500).json({ error: 'Failed to fetch recent activities' });
+    }
+});
+
+// Admin endpoint to enable/disable bot simulator
+app.post('/api/admin/bot-simulator/enable', requireAdmin, async (req, res) => {
+    try {
+        process.env.ENABLE_BOT_SIMULATOR = '1';
+        
+        // Try to start bot simulator if not already running
+        if (startBotSimulatorSafe) {
+            try {
+                startBotSimulatorSafe({
+                    useMongo: !!process.env.MONGODB_URI,
+                    models: { User, DailyState, BotProfile, Activity },
+                    db
+                });
+                console.log('🤖 Bot simulator enabled via admin command');
+            } catch (e) {
+                console.warn('Failed to start bot simulator:', e.message);
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: 'Bot simulator enabled. Note: Changes will be lost on server restart. Update environment variables for persistence.',
+            enabled: true
+        });
+    } catch (error) {
+        console.error('Enable bot simulator error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to enable bot simulator',
+            details: error.message 
+        });
+    }
+});
+
+// Admin endpoint to test bot simulator
+app.post('/api/admin/bot-simulator/test', requireAdmin, async (req, res) => {
+    try {
+        const isEnabled = process.env.ENABLE_BOT_SIMULATOR === '1';
+        
+        if (!isEnabled) {
+            return res.json({
+                success: false,
+                message: 'Bot simulator is disabled. Set ENABLE_BOT_SIMULATOR=1 to enable.',
+                enabled: false
+            });
+        }
+
+        // Check if bot simulator is actually working
+        const botUsers = await User.countDocuments({ id: { $regex: '^200000' } });
+        const recentBotActivity = await Activity.countDocuments({
+            userId: { $regex: '^200000' },
+            timestamp: { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+        });
+
+        // Try to create a test bot user
+        const testBotId = '200999999';
+        let testBotCreated = false;
+        const existingTestBot = await User.findOne({ id: testBotId });
+        
+        if (!existingTestBot) {
+            try {
+                await User.findOneAndUpdate(
+                    { id: testBotId },
+                    { $set: { id: testBotId, username: 'test_bot_admin', lastActive: new Date(), createdAt: new Date() } },
+                    { upsert: true, new: true }
+                );
+                testBotCreated = true;
+            } catch (createErr) {
+                // Handle E11000 duplicate key error - already exists
+                if (createErr.code !== 11000) {
+                    throw createErr;
+                }
+            }
+        }
+
+        res.json({
+            success: true,
+            enabled: true,
+            stats: {
+                botUsers,
+                recentBotActivity,
+                testBotCreated
+            },
+            message: `Bot simulator is enabled. Found ${botUsers} bot users with ${recentBotActivity} recent activities.`
+        });
+    } catch (error) {
+        console.error('Bot simulator test error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to test bot simulator',
+            details: error.message 
+        });
+    }
+});
+
+// Enhanced notification system - sends both Telegram messages and creates database notifications
+app.post('/api/admin/notify', requireAdmin, async (req, res) => {
+    try {
+        const { target, message, title, sendTelegram = true, createDbNotification = true } = req.body || {};
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ error: 'Message required' });
+        }
+
+        const telegramSent = [];
+        const dbNotificationsCreated = [];
+        let template = null;
+
+        // Create notification template if database notifications are requested
+        if (createDbNotification) {
+            const notificationTitle = title || 'Admin Notification 📢';
+            template = await NotificationTemplate.create({
+                title: notificationTitle,
+                message: message,
+                audience: (!target || target === 'all' || target === 'active') ? 'global' : 'user',
+                targetUserId: (/^\d+$/.test(target)) ? target : null,
+                priority: 1,
+                icon: 'fa-bullhorn',
+                createdBy: `admin_api_${req.user.id}`
+            });
+        }
+
+        if (!target || target === 'all') {
+            const users = await User.find({}, { id: 1 }).limit(10000);
+            
+            // Send Telegram messages
+            if (sendTelegram) {
+                for (const u of users) {
+                    try { 
+                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
+                        telegramSent.push(u.id); 
+                    } catch {}
+                }
+            }
+
+            // Create database notifications
+            if (createDbNotification && template) {
+                const userNotifications = users.map(user => ({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                }));
+                
+                if (userNotifications.length > 0) {
+                    await UserNotification.insertMany(userNotifications);
+                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
+                }
+            }
+        } else if (target === 'active') {
+            // Active users in last 24h
+            const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const users = await User.find({ lastActive: { $gte: since } }, { id: 1 }).limit(10000);
+            
+            // Send Telegram messages
+            if (sendTelegram) {
+                for (const u of users) {
+                    try { 
+                        await bot.sendMessage(u.id, `📢 Admin Notification:\n\n${message}`); 
+                        telegramSent.push(u.id); 
+                    } catch {}
+                }
+            }
+
+            // Create database notifications
+            if (createDbNotification && template) {
+                const userNotifications = users.map(user => ({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                }));
+                
+                if (userNotifications.length > 0) {
+                    await UserNotification.insertMany(userNotifications);
+                    dbNotificationsCreated.push(...userNotifications.map(n => n.userId));
+                }
+            }
+        } else if (/^@/.test(target)) {
+            const username = target.replace(/^@/, '');
+            const user = await User.findOne({ username });
+            if (!user) return res.status(404).json({ error: 'User not found' });
+            
+            // Send Telegram message
+            if (sendTelegram) {
+                try {
+                    await bot.sendMessage(user.id, `📢 Personal Admin Message:\n\n${message}`); 
+                    telegramSent.push(user.id);
+                } catch (err) {
+                    console.log(`Failed to send Telegram message to @${username}:`, err.message);
+                }
+            }
+
+            // Create database notification
+            if (createDbNotification && template) {
+                template.audience = 'user';
+                template.targetUserId = user.id.toString();
+                await template.save();
+
+                await UserNotification.create({
+                    userId: user.id.toString(),
+                    templateId: template._id,
+                    read: false
+                });
+                dbNotificationsCreated.push(user.id.toString());
+            }
+        } else if (/^\d+$/.test(target)) {
+            // Send Telegram message
+            if (sendTelegram) {
+                try {
+                    await bot.sendMessage(target, `📢 Personal Admin Message:\n\n${message}`); 
+                    telegramSent.push(target);
+                } catch (err) {
+                    console.log(`Failed to send Telegram message to ${target}:`, err.message);
+                }
+            }
+
+            // Create database notification
+            if (createDbNotification && template) {
+                template.audience = 'user';
+                template.targetUserId = target;
+                await template.save();
+
+                await UserNotification.create({
+                    userId: target,
+                    templateId: template._id,
+                    read: false
+                });
+                dbNotificationsCreated.push(target);
+            }
+        } else {
+            return res.status(400).json({ error: 'Invalid target' });
+        }
+        
+        res.json({ 
+            success: true, 
+            telegramSent: telegramSent.length,
+            dbNotificationsCreated: dbNotificationsCreated.length,
+            templateId: template?._id
+        });
+    } catch (error) {
+        console.error('Admin notify error:', error);
+        res.status(500).json({ error: 'Failed to send notification' });
+    }
+});
+
+// Admin endpoint to view all notifications and templates
+app.get('/api/admin/notifications', requireAdmin, async (req, res) => {
+    try {
+        const { limit = 50, skip = 0, type = 'all' } = req.query;
+
+        let query = {};
+        if (type === 'global') query.audience = 'global';
+        if (type === 'user') query.audience = 'user';
+
+        const templates = await NotificationTemplate.find(query)
+            .sort({ createdAt: -1 })
+            .skip(parseInt(skip))
+            .limit(parseInt(limit))
+            .lean();
+
+        const templateStats = await Promise.all(templates.map(async (template) => {
+            const userNotificationCount = await UserNotification.countDocuments({ templateId: template._id });
+            const unreadCount = await UserNotification.countDocuments({ templateId: template._id, read: false });
+            
+            return {
+                ...template,
+                totalRecipients: userNotificationCount,
+                unreadCount: unreadCount,
+                readCount: userNotificationCount - unreadCount
+            };
+        }));
+
+        const totalTemplates = await NotificationTemplate.countDocuments(query);
+        const totalUserNotifications = await UserNotification.countDocuments();
+        const totalUnread = await UserNotification.countDocuments({ read: false });
+
+        res.json({
+            templates: templateStats,
+            pagination: {
+                total: totalTemplates,
+                limit: parseInt(limit),
+                skip: parseInt(skip),
+                hasMore: (parseInt(skip) + parseInt(limit)) < totalTemplates
+            },
+            stats: {
+                totalTemplates,
+                totalUserNotifications,
+                totalUnread,
+                totalRead: totalUserNotifications - totalUnread
+            }
+        });
+    } catch (error) {
+        console.error('Admin notifications fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch notifications' });
+    }
+});
+
+// Admin endpoint to delete notification templates and cascade to user notifications
+app.delete('/api/admin/notifications/:templateId', requireAdmin, async (req, res) => {
+    try {
+        const { templateId } = req.params;
+        
+        // Delete the template
+        const deletedTemplate = await NotificationTemplate.findByIdAndDelete(templateId);
+        if (!deletedTemplate) {
+            return res.status(404).json({ error: 'Notification template not found' });
+        }
+
+        // Delete all associated user notifications
+        const deletedUserNotifications = await UserNotification.deleteMany({ templateId });
+
+        res.json({ 
+            success: true, 
+            deletedTemplate: deletedTemplate.title,
+            deletedUserNotifications: deletedUserNotifications.deletedCount
+        });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to send notification' });
+    }
+});
+
+function parseCookies(cookieHeader) {
+	const out = {};
+	if (!cookieHeader) return out;
+	cookieHeader.split(';').forEach(part => {
+		const idx = part.indexOf('=');
+		if (idx > -1) {
+			const k = part.slice(0, idx).trim();
+			const v = part.slice(idx + 1).trim();
+			out[k] = decodeURIComponent(v);
+		}
+	});
+	return out;
+}
+
+function base64url(input) {
+	return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function signAdminToken(payload, ttlMs) {
+	const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
+	const header = { alg: 'HS256', typ: 'JWT' };
+	const exp = Date.now() + (ttlMs || 12 * 60 * 60 * 1000);
+	const body = { ...payload, exp };
+	const h = base64url(JSON.stringify(header));
+	const b = base64url(JSON.stringify(body));
+	const sig = require('crypto').createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+	return `${h}.${b}.${sig}`;
+}
+
+function verifyAdminToken(token) {
+	try {
+		const secret = process.env.ADMIN_JWT_SECRET || (process.env.TELEGRAM_BOT_TOKEN || 'secret');
+		const [h, b, sig] = token.split('.');
+		const expected = require('crypto').createHmac('sha256', secret).update(`${h}.${b}`).digest('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+		if (expected !== sig) return null;
+		const body = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+		if (!body || !body.exp || Date.now() > body.exp) return null;
+		return body;
+	} catch {
+		return null;
+	}
+}
+
+function getAdminSession(req) {
+	const cookies = parseCookies(req.headers.cookie || '');
+	const token = cookies['admin_session'];
+	if (!token) return null;
+	const payload = verifyAdminToken(token);
+	if (!payload || !payload.sid || !payload.tgId) return null;
+	return { token, payload };
+}
+
+function requireAdmin(req, res, next) {
+	// Backward-compatible GET-only header auth, or cookie session with CSRF for mutations
+	const sess = getAdminSession(req);
+	if (sess && adminIds.includes(sess.payload.tgId)) {
+		if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+			const csrf = req.headers['x-csrf-token'];
+			if (!csrf || csrf !== sess.payload.sid) {
+				return res.status(403).json({ error: 'CSRF check failed' });
+			}
+		}
+		req.user = { id: sess.payload.tgId, isAdmin: true };
+		return next();
+	}
+	try {
+		const tgId = (req.headers['x-telegram-id'] || '').toString();
+		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId) && (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS')) {
+			req.user = { id: tgId, isAdmin: true };
+			return next();
+		}
+		return res.status(403).json({ error: 'Forbidden' });
+	} catch (e) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+}
+
+// DUPLICATE /api/me endpoint removed - using the detailed one defined earlier (line 13563+)
+// The detailed version includes ambassador status checking
+
+app.get('/api/admin/csrf', (req, res) => {
+	const sess = getAdminSession(req);
+	if (!sess || !adminIds.includes(sess.payload.tgId)) {
+		return res.status(403).json({ error: 'Forbidden' });
+	}
+	return res.json({ csrfToken: sess.payload.sid });
+});
+
+app.post('/api/admin/auth/send-otp', async (req, res) => {
+	try {
+		const tgId = (req.body?.tgId || '').toString().trim();
+		
+		console.log('🔐 Admin OTP send attempt:', {
+			tgId,
+			adminIds: adminIds,
+			adminIdsType: typeof adminIds,
+			adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array',
+			includes: adminIds.includes(tgId)
+		});
+		
+		if (!tgId || !/^\d+$/.test(tgId)) {
+			console.log('❌ Invalid Telegram ID format');
+			return res.status(400).json({ error: 'Invalid Telegram ID' });
+		}
+		
+		if (!adminIds.includes(tgId)) {
+			console.log('❌ Telegram ID not in admin list:', { tgId, adminIds });
+			return res.status(403).json({ error: 'Not authorized - ID not in admin list' });
+		}
+		const code = (Math.floor(100000 + Math.random() * 900000)).toString();
+		const now = Date.now();
+		global.__adminOtpStore = global.__adminOtpStore || new Map();
+		const prev = global.__adminOtpStore.get(tgId);
+		if (prev && prev.nextAllowedAt && now < prev.nextAllowedAt) {
+			const waitSec = Math.ceil((prev.nextAllowedAt - now) / 1000);
+			return res.status(429).json({ error: `Please wait ${waitSec}s before requesting another code` });
+		}
+		global.__adminOtpStore.set(tgId, { code, expiresAt: now + 5 * 60 * 1000, nextAllowedAt: now + 60 * 1000 });
+		try {
+			console.log(`[ADMIN OTP] Sending code to ${tgId} ...`);
+			await bot.sendMessage(tgId, `StarStore Admin Login Code\n\nYour code: ${code}\n\nThis code expires in 5 minutes.`);
+			console.log(`[ADMIN OTP] Code delivered to ${tgId}`);
+		} catch (err) {
+			console.error(`[ADMIN OTP] Delivery failed to ${tgId}:`, err?.message || err);
+			return res.status(500).json({ error: 'Failed to deliver OTP. Ensure you have started the bot and try again.' });
+		}
+		return res.json({ success: true });
+	} catch (e) {
+		console.error('[ADMIN OTP] Unexpected error:', e?.message || e);
+		return res.status(500).json({ error: 'Failed to send OTP' });
+	}
+});
+
+app.post('/api/admin/auth/verify-otp', (req, res) => {
+	try {
+		const tgId = (req.body?.tgId || '').toString().trim();
+		const code = (req.body?.code || '').toString().trim();
+		
+		console.log('🔐 Admin OTP verify attempt:', {
+			tgId,
+			code: code ? '***' + code.slice(-2) : 'none',
+			adminIds: adminIds,
+			adminIdsIncludes: adminIds.includes(tgId)
+		});
+		
+		if (!tgId || !/^\d+$/.test(tgId) || !code) {
+			console.log('❌ Invalid credentials provided');
+			return res.status(400).json({ error: 'Invalid credentials' });
+		}
+		
+		if (!adminIds.includes(tgId)) {
+			console.log('❌ Not in admin list:', { tgId, adminIds });
+			return res.status(403).json({ error: 'Not authorized - ID not in admin list' });
+		}
+		
+		global.__adminOtpStore = global.__adminOtpStore || new Map();
+		const rec = global.__adminOtpStore.get(tgId);
+		
+		console.log('🔐 OTP record check:', {
+			hasRecord: !!rec,
+			codeMatch: rec ? rec.code === code : false,
+			expired: rec ? Date.now() > rec.expiresAt : true
+		});
+		
+		if (!rec || rec.code !== code || Date.now() > rec.expiresAt) {
+			console.log('❌ Invalid or expired OTP');
+			return res.status(401).json({ error: 'Invalid or expired code' });
+		}
+		
+		global.__adminOtpStore.delete(tgId);
+		const sid = require('crypto').randomBytes(16).toString('hex');
+		const token = signAdminToken({ tgId, sid }, 12 * 60 * 60 * 1000);
+		const isProd = process.env.NODE_ENV === 'production';
+		const cookie = `admin_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Strict${isProd ? '; Secure' : ''}; Max-Age=${12 * 60 * 60}`;
+		res.setHeader('Set-Cookie', cookie);
+		
+		console.log('✅ Admin OTP verification successful for:', tgId);
+		return res.json({ success: true, csrfToken: sid });
+	} catch (error) {
+		console.error('❌ Admin OTP verification error:', error);
+		return res.status(500).json({ error: 'Failed to verify OTP' });
+	}
+});
+
+app.post('/api/admin/logout', (req, res) => {
+	try {
+		res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0');
+		return res.json({ success: true });
+	} catch {
+		return res.json({ success: true });
+	}
+});
+
+// Modern admin auth verification endpoint
+app.get('/api/admin/auth/verify', (req, res) => {
+	const telegramId = req.headers['x-telegram-id'];
+	console.log('🔐 Admin auth verify attempt:', {
+		telegramId,
+		adminIds: adminIds,
+		adminIdsType: typeof adminIds,
+		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array'
+	});
+	
+	if (!telegramId) {
+		return res.status(401).json({ error: 'No telegram ID provided' });
+	}
+	
+	const isAdmin = Array.isArray(adminIds) && adminIds.includes(telegramId);
+	console.log('🔐 Admin check result:', { telegramId, isAdmin, adminIds });
+	
+	if (!isAdmin) {
+		return res.status(403).json({ error: 'Access denied - ID not in admin list' });
+	}
+	
+	res.json({
+		success: true,
+		user: {
+			telegramId,
+			isAdmin: true
+		}
+	});
+});
+
+// Debug endpoint to check admin configuration
+app.get('/api/admin/debug/config', (req, res) => {
+	const telegramId = req.headers['x-telegram-id'];
+	
+	res.json({
+		requestedId: telegramId,
+		adminIds: adminIds,
+		adminIdsType: typeof adminIds,
+		adminIdsLength: Array.isArray(adminIds) ? adminIds.length : 'not array',
+		isAdmin: Array.isArray(adminIds) && adminIds.includes(telegramId),
+		envVars: {
+			hasAdminTelegramIds: !!process.env.ADMIN_TELEGRAM_IDS,
+			hasAdminIds: !!process.env.ADMIN_IDS,
+			adminTelegramIdsValue: process.env.ADMIN_TELEGRAM_IDS ? '***set***' : 'not set',
+			adminIdsValue: process.env.ADMIN_IDS ? '***set***' : 'not set'
+		}
+	});
+});
+
+// Enhanced admin stats endpoint for modern dashboard
+app.get('/api/admin/dashboard/stats', requireAdmin, async (req, res) => {
+	try {
+		// Get existing stats and enhance them
+		const orders = await db.getOrders();
+		const users = await db.getUsers();
+		const withdrawals = await db.getWithdrawals();
+		
+		const stats = {
+			totalUsers: users.length,
+			totalOrders: orders.length,
+			totalRevenue: orders.reduce((sum, order) => sum + (parseFloat(order.amount) || 0), 0),
+			pendingOrders: orders.filter(o => o.status === 'pending').length,
+			completedOrders: orders.filter(o => o.status === 'completed').length,
+			activeUsers24h: users.filter(u => {
+				const lastActive = new Date(u.lastActive || u.createdAt);
+				return Date.now() - lastActive.getTime() < 24 * 60 * 60 * 1000;
+			}).length,
+			totalWithdrawals: withdrawals.length,
+			pendingWithdrawals: withdrawals.filter(w => w.status === 'pending').length,
+			lastUpdated: new Date().toISOString()
+		};
+		
+		res.json(stats);
+	} catch (error) {
+		console.error('Enhanced admin stats error:', error);
+		res.status(500).json({ error: 'Failed to fetch enhanced stats' });
+	}
+});
+
+// Email notifications for newsletter (using Resend API via email-service)
+// Nodemailer removed - using Resend API instead for better reliability and professional emails
+
+// Admin send newsletter email to all subscribers
+app.post('/api/newsletter/send', async (req, res) => {
+    try {
+        if (!req.user?.isAdmin) return res.status(403).json({ success: false, error: 'Forbidden' });
+        if (!emailService.isEmailAvailable()) return res.status(500).json({ success: false, error: 'Email service not configured. Please set RESEND_API_KEY environment variable.' });
+        
+        const subject = String(req.body?.subject || '').trim();
+        const html = String(req.body?.html || '').trim();
+        if (!subject || !html) return res.status(400).json({ success: false, error: 'Subject and HTML are required.' });
+
+        const subscribers = await NewsletterSubscriber.find({}, { email: 1, _id: 0 });
+        if (!subscribers.length) return res.json({ success: true, sent: 0 });
+
+        // Send to each subscriber individually (Resend API rate limit friendly)
+        let sentCount = 0;
+        let failedCount = 0;
+        
+        for (const subscriber of subscribers) {
+            const result = await emailService.sendNewsletterBroadcast(
+                subscriber.email,
+                subject,
+                html
+            );
+            
+            if (result.success || result.offline) {
+                sentCount++;
+            } else {
+                failedCount++;
+                console.warn(`Failed to send newsletter to ${subscriber.email}:`, result.error);
+            }
+        }
+        
+        return res.json({ success: true, sent: sentCount, failed: failedCount });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: 'Failed to send emails' });
+    }
+});
+
+// Newsletter subscription (simple backend)
+const NewsletterSubscriberSchema = new mongoose.Schema({
+    email: { type: String, required: true, unique: true, index: true },
+    ip: { type: String },
+    country: { type: String },
+    city: { type: String },
+    userAgent: { type: String },
+    createdAt: { type: Date, default: Date.now }
+});
+const NewsletterSubscriber = mongoose.model('NewsletterSubscriber', NewsletterSubscriberSchema);
+
+app.post('/api/newsletter/subscribe', async (req, res) => {
+    try {
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ success: false, error: 'Please enter a valid email address.' });
+        }
+        const existing = await NewsletterSubscriber.findOne({ email });
+        if (existing) {
+            return res.status(409).json({ success: false, error: 'This email is already subscribed.' });
+        }
+
+        // Capture requester details
+        const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+        const userAgent = (req.headers['user-agent'] || '').toString();
+        let geo = { country: undefined, city: undefined };
+        try {
+            const geoResp = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { timeout: 4000 });
+            if (geoResp.ok) {
+                const g = await geoResp.json();
+                geo.country = g?.country_name || g?.country || undefined;
+                geo.city = g?.city || undefined;
+            }
+        } catch (_) {}
+
+        await NewsletterSubscriber.create({ email, ip, userAgent, country: geo.country, city: geo.city });
+
+        // Send welcome email automatically using Resend API
+        await emailService.sendNewsletterWelcome(email);
+
+        // Notify admins in real-time via Telegram
+        const text = `📬 New newsletter subscriber: ${email}`;
+        for (const adminId of adminIds) {
+            try { await bot.sendMessage(adminId, text); } catch (_) {}
+        }
+
+        return res.json({ success: true, message: 'Subscribed successfully.' });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: 'Something went wrong. Please try again later.' });
+    }
+});
