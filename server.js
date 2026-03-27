@@ -7740,51 +7740,57 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
         
         // Determine date range for filtering
         const now = new Date();
-        let dateFilter = {};
+        let dateFilterForDisplay = {}; // For display list
+        let dateFilterForStats = {}; // For balance calculation
         
         if (isAmbassadorRequest && isAmbassador) {
             // For ambassadors: Show only CURRENT MONTH referrals
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
             const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-            dateFilter = { $gte: monthStart, $lt: monthEnd };
+            dateFilterForDisplay = { $gte: monthStart, $lt: monthEnd };
+            dateFilterForStats = { $gte: monthStart, $lt: monthEnd }; // Ambassadors: stats also from current month
             console.log(`[Ambassador] Filtering ${userId} for month: ${monthStart.toISOString().split('T')[0]} to ${monthEnd.toISOString().split('T')[0]}`);
         } else {
-            // For regular users: Show from March 1st onwards
+            // For regular users: Display list from March 1st onwards, but STATS from ALL TIME
             const marchFirstDate = new Date('2026-03-01T00:00:00Z');
-            dateFilter = { $gte: marchFirstDate };
+            dateFilterForDisplay = { $gte: marchFirstDate }; // Display: from March 1st
+            dateFilterForStats = {}; // Stats: ALL TIME (no filter)
+            console.log(`[Regular User] Display from March 1st onwards, but calculating stats from ALL TIME for user ${userId}`);
         }
         
-        // Fetch referrals for the appropriate date range (handle missing dateReferred gracefully)
-        const referrals = await Referral.find({
+        // Fetch referrals for display (filtered by date)
+        const referralsForDisplay = await Referral.find({
             referrerUserId: userId,
             $or: [
-                { dateReferred: dateFilter },
-                { dateReferred: { $exists: false }, dateCreated: dateFilter }
+                { dateReferred: dateFilterForDisplay },
+                { dateReferred: { $exists: false }, dateCreated: dateFilterForDisplay }
             ]
         });
-        // Found referrals for the filtered date range
         
-        const referredUserIds = referrals.map(r => r.referredUserId);
-        const users = await User.find({ id: { $in: referredUserIds } });
+        // Fetch ALL referrals for balance calculation (for regular users: all-time; for ambassadors: current month)
+        const referralsForStats = await Referral.find({
+            referrerUserId: userId,
+            $or: [
+                { dateReferred: dateFilterForStats },
+                { dateReferred: { $exists: false }, dateCreated: dateFilterForStats }
+            ]
+        });
+        
+        const referredUserIds = referralsForDisplay.map(r => r.referredUserId);
+        const userIds = await User.find({ id: { $in: referredUserIds } });
         
         const userMap = {};
-        users.forEach(user => userMap[user.id] = user.username);
+        userIds.forEach(user => userMap[user.id] = user.username);
 
-        const totalReferrals = referrals.length;
+        const totalReferrals = referralsForDisplay.length;
         
-        // Get completed/active AND non-withdrawn referrals (handle missing dateReferred)
-        const availableReferrals = await Referral.find({
-            referrerUserId: req.params.userId,
-            $or: [
-                { dateReferred: dateFilter },
-                { dateReferred: { $exists: false }, dateCreated: dateFilter }
-            ],
-            status: 'active',
-            withdrawn: { $ne: true }
-        }).countDocuments();
+        // Get completed/active AND non-withdrawn referrals - for STATS (all-time for regular users)
+        const availableReferrals = referralsForStats.filter(r =>
+            r.status === 'active' && !r.withdrawn
+        ).length;
 
-        // Get all active (regardless of withdrawal status) - from March 1st onwards
-        const completedReferrals = referrals.filter(r => 
+        // Get all active referrals - for STATS (all-time for regular users)
+        const completedReferrals = referralsForStats.filter(r => 
             r.status === 'active'
         ).length;
         
@@ -7837,11 +7843,11 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             };
         }
 
-        // Paginate referrals for frontend display (stats still calculated from all referrals)
+        // Paginate referrals for frontend display (stats calculated from all-time for regular users, or current month for ambassadors)
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const displayLimit = Math.min(parseInt(req.query.limit) || 50, 500);
         const skip = (page - 1) * displayLimit;
-        const referralsDisplay = referrals.slice(skip, skip + displayLimit);
+        const referralsDisplay = referralsForDisplay.slice(skip, skip + displayLimit);
 
         const responseData = {
             success: true,
