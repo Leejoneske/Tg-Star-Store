@@ -420,7 +420,12 @@ async function getAmbassadorWaitlistModel() {
     status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
     processedBy: String,
     processedAt: Date,
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    adminMessages: [{
+      adminId: String,
+      messageId: Number,
+      originalText: String
+    }]
   }, { collection: 'ambassador_waitlist' });
   
   global.AmbassadorWaitlist = mongoose.model('AmbassadorWaitlist', schema);
@@ -682,13 +687,21 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
           ]]
         };
         
-        for (const adminId of admins) {
+        saved.adminMessages = await Promise.all(admins.map(async adminId => {
           try {
-            await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+            const message = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+            return {
+              adminId,
+              messageId: message.message_id,
+              originalText: adminText
+            };
           } catch (e) {
             console.error('Failed to notify admin of ambassador signup:', e.message);
+            return null;
           }
-        }
+        })).then(results => results.filter(Boolean));
+        
+        await saved.save();
       }
     } catch (e) {
       console.error('Failed to notify admins of ambassador signup:', e.message);
@@ -5465,7 +5478,28 @@ bot.on('callback_query', async (query) => {
                     }]] 
                 };
 
+                // Edit all stored admin messages
+                if (Array.isArray(waitlistEntry.adminMessages)) {
+                    for (const m of waitlistEntry.adminMessages) {
+                        if (m && m.adminId && m.messageId) {
+                            try {
+                                await bot.editMessageText(finalText, {
+                                    chat_id: parseInt(m.adminId, 10) || m.adminId,
+                                    message_id: m.messageId
+                                });
+                                await bot.editMessageReplyMarkup(statusKeyboard, {
+                                    chat_id: parseInt(m.adminId, 10) || m.adminId,
+                                    message_id: m.messageId
+                                });
+                            } catch (editError) {
+                                console.error(`Failed to edit message for admin ${m.adminId}:`, editError.message);
+                            }
+                        }
+                    }
+                }
+
                 try {
+                    // Backward compatibility: also update the message that triggered the callback
                     await bot.editMessageText(finalText, {
                         chat_id: query.message.chat.id,
                         message_id: query.message.message_id
