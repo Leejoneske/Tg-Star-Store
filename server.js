@@ -420,6 +420,11 @@ async function getAmbassadorWaitlistModel() {
     status: { type: String, default: 'pending', enum: ['pending', 'approved', 'declined'] },
     processedBy: String,
     processedAt: Date,
+    adminMessages: [{
+      adminId: String,
+      messageId: Number,
+      originalText: String
+    }],
     createdAt: { type: Date, default: Date.now }
   }, { collection: 'ambassador_waitlist' });
   
@@ -682,11 +687,30 @@ app.post('/api/ambassador/waitlist', requireTelegramAuth, async (req, res) => {
           ]]
         };
         
-        for (const adminId of admins) {
+        const adminMessagePromises = admins.map(async (adminId) => {
           try {
-            await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+            const message = await bot.sendMessage(adminId, adminText, { reply_markup: adminKeyboard });
+            return { adminId, messageId: message.message_id, originalText: adminText };
           } catch (e) {
             console.error('Failed to notify admin of ambassador signup:', e.message);
+            return null;
+          }
+        });
+        
+        const messageResults = await Promise.all(adminMessagePromises);
+        const adminMessages = messageResults.filter(m => m !== null);
+        
+        // Store admin message info for later updates
+        if (adminMessages.length > 0) {
+          if (process.env.MONGODB_URI && global.AmbassadorWaitlist) {
+            await global.AmbassadorWaitlist.updateOne(
+              { id: saved.id },
+              { $set: { adminMessages } }
+            );
+            saved.adminMessages = adminMessages;
+          } else if (db && typeof db.updateAmbassadorWaitlist === 'function') {
+            await db.updateAmbassadorWaitlist(saved.id, { adminMessages });
+            saved.adminMessages = adminMessages;
           }
         }
       }
@@ -5465,17 +5489,31 @@ bot.on('callback_query', async (query) => {
                     }]] 
                 };
 
-                try {
-                    await bot.editMessageText(finalText, {
-                        chat_id: query.message.chat.id,
-                        message_id: query.message.message_id
+                // Update message for ALL admins
+                if (Array.isArray(waitlistEntry.adminMessages) && waitlistEntry.adminMessages.length) {
+                    const updatePromises = waitlistEntry.adminMessages.map(async (m) => {
+                        try {
+                            await bot.editMessageText(finalText, {
+                                chat_id: m.adminId,
+                                message_id: m.messageId,
+                                reply_markup: statusKeyboard
+                            });
+                        } catch (editError) {
+                            console.error(`Error updating ambassador message for admin ${m.adminId}:`, editError.message);
+                        }
                     });
-                    await bot.editMessageReplyMarkup(statusKeyboard, {
-                        chat_id: query.message.chat.id,
-                        message_id: query.message.message_id
-                    });
-                } catch (editError) {
-                    console.error('Error updating ambassador message:', editError.message);
+                    await Promise.all(updatePromises);
+                } else {
+                    // Fallback: try to update just the current admin's message
+                    try {
+                        await bot.editMessageText(finalText, {
+                            chat_id: query.message.chat.id,
+                            message_id: query.message.message_id,
+                            reply_markup: statusKeyboard
+                        });
+                    } catch (editError) {
+                        console.error('Error updating ambassador message (fallback):', editError.message);
+                    }
                 }
 
                 if (approve) {
