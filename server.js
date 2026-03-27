@@ -7754,7 +7754,7 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
             // For regular users: Display list from March 1st onwards, but STATS from ALL TIME
             const marchFirstDate = new Date('2026-03-01T00:00:00Z');
             dateFilterForDisplay = { $gte: marchFirstDate }; // Display: from March 1st
-            dateFilterForStats = {}; // Stats: ALL TIME (no filter)
+            dateFilterForStats = { $gte: new Date(0) }; // Stats: ALL TIME (from epoch onwards)
             console.log(`[Regular User] Display from March 1st onwards, but calculating stats from ALL TIME for user ${userId}`);
         }
         
