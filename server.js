@@ -5556,6 +5556,32 @@ bot.on('callback_query', async (query) => {
 
                             // Log approval
                             console.log(`Ambassador approved: ${waitlistEntry.email} - User ID: ${userUpdate.id}`);
+                            
+                            // Notify all other admins about the approval
+                            try {
+                                const approvalNotificationMessage = 
+                                    `✅ <b>Ambassador Application APPROVED</b>\n\n` +
+                                    `<b>User:</b> @${waitlistEntry.username} (ID: ${waitlistEntry.telegramId})\n` +
+                                    `<b>Email:</b> ${waitlistEntry.email}\n` +
+                                    `<b>Approved by:</b> @${adminName}\n` +
+                                    `<b>Timestamp:</b> ${new Date().toLocaleString()}\n` +
+                                    `<b>Entry ID:</b> ${waitlistEntry.id}`;
+                                
+                                if (Array.isArray(adminIds) && adminIds.length > 0) {
+                                    for (const otherAdminId of adminIds) {
+                                        // Don't send to the admin who approved it (already updated their message)
+                                        if (otherAdminId !== adminChatId) {
+                                            try {
+                                                await bot.sendMessage(otherAdminId, approvalNotificationMessage, { parse_mode: 'HTML' });
+                                            } catch (notifyErr) {
+                                                console.error(`Failed to notify admin ${otherAdminId} about approval:`, notifyErr.message);
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (adminNotifyErr) {
+                                console.error('Error notifying other admins about approval:', adminNotifyErr.message);
+                            }
                         } else {
                             console.error(`❌ FAILED: User.findOneAndUpdate returned null/undefined`);
                             console.error(`  Query: { id: "${userId}" }`);
@@ -5586,6 +5612,32 @@ bot.on('callback_query', async (query) => {
                         }
                     } catch (notifyError) {
                         console.error('Failed to notify user of ambassador decline:', notifyError.message);
+                    }
+                    
+                    // Notify all other admins about the decline
+                    try {
+                        const declineNotificationMessage = 
+                            `❌ <b>Ambassador Application DECLINED</b>\n\n` +
+                            `<b>User:</b> @${waitlistEntry.username} (ID: ${waitlistEntry.telegramId})\n` +
+                            `<b>Email:</b> ${waitlistEntry.email}\n` +
+                            `<b>Declined by:</b> @${adminName}\n` +
+                            `<b>Timestamp:</b> ${new Date().toLocaleString()}\n` +
+                            `<b>Entry ID:</b> ${waitlistEntry.id}`;
+                        
+                        if (Array.isArray(adminIds) && adminIds.length > 0) {
+                            for (const otherAdminId of adminIds) {
+                                // Don't send to the admin who declined it (already updated their message)
+                                if (otherAdminId !== adminChatId) {
+                                    try {
+                                        await bot.sendMessage(otherAdminId, declineNotificationMessage, { parse_mode: 'HTML' });
+                                    } catch (notifyErr) {
+                                        console.error(`Failed to notify admin ${otherAdminId} about decline:`, notifyErr.message);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (adminNotifyErr) {
+                        console.error('Error notifying other admins about decline:', adminNotifyErr.message);
                     }
                 }
 
@@ -8417,6 +8469,25 @@ app.post('/api/ambassador/withdrawal/:withdrawalId/approve', requireAdmin, async
             } catch (botErr) {
                 console.warn(`Could not send approval message to user ${withdrawal.userId}:`, botErr.message);
             }
+        }
+        
+        // Notify all admins about the action
+        try {
+            const adminNotificationMessage = approved
+                ? `✅ <b>Ambassador Withdrawal APPROVED</b>\n\n<b>Details:</b>\nWithdrawal ID: ${withdrawalId}\nUser: ${withdrawal.username} (ID: ${withdrawal.userId})\nMonth: ${withdrawal.ambassadorMonth}\nAmount: $${withdrawal.amount.toFixed(2)}\n\n<b>Action by:</b> ${adminName}\n<b>Timestamp:</b> ${new Date().toLocaleString()}`
+                : `❌ <b>Ambassador Withdrawal DECLINED</b>\n\n<b>Details:</b>\nWithdrawal ID: ${withdrawalId}\nUser: ${withdrawal.username} (ID: ${withdrawal.userId})\nMonth: ${withdrawal.ambassadorMonth}\nAmount: $${withdrawal.amount.toFixed(2)}\nReason: ${declineReason || 'No reason provided'}\n\n<b>Action by:</b> ${adminName}\n<b>Timestamp:</b> ${new Date().toLocaleString()}`;
+            
+            if (Array.isArray(adminIds) && adminIds.length > 0) {
+                for (const adminId of adminIds) {
+                    try {
+                        await bot.sendMessage(adminId, adminNotificationMessage, { parse_mode: 'HTML' });
+                    } catch (notifyErr) {
+                        console.error(`Failed to notify admin ${adminId} about withdrawal approval:`, notifyErr.message);
+                    }
+                }
+            }
+        } catch (adminNotifyErr) {
+            console.error('Error notifying admins about withdrawal action:', adminNotifyErr.message);
         }
         
         return res.json({
