@@ -322,6 +322,8 @@
             border-radius: 12px;
             margin-top: 20px;
             text-align: center;
+            line-height: 1.6;
+            font-weight: 500;
         }
 
         .error-message {
@@ -332,7 +334,18 @@
             padding: 20px;
             border-radius: 12px;
             margin-top: 20px;
-            text-align: center;
+            text-align: left;
+            line-height: 1.6;
+        }
+        
+        .error-message strong {
+            display: block;
+            margin-bottom: 12px;
+        }
+        
+        .error-message br {
+            display: block;
+            margin-bottom: 6px;
         }
         
         @media (max-width: 768px) {
@@ -557,49 +570,86 @@
             <h2>Join the Ambassador Program</h2>
             <form id="ambassadorForm">
                 <div class="form-group">
-                    <label for="email">Email Address *</label>
-                    <input type="email" id="email" name="email" required placeholder="john@example.com">
+                    <label for="email">Email Address <span style="color:#dc2626">*</span></label>
+                    <input type="email" id="email" name="email" required placeholder="john@example.com" aria-label="Email address" aria-required="true">
+                    <small style="color:#5D6D7E;display:block;margin-top:6px;">We'll use this to contact you about your application.</small>
                 </div>
 
                 <div class="form-group">
-                    <label>Where will you post? (links only, no @ usernames) <span style="color:#dc2626">*</span></label>
+                    <label style="font-weight:700;margin-bottom:12px;">Social Media Platforms <span style="color:#dc2626">*</span></label>
+                    <small style="color:#5D6D7E;display:block;margin-bottom:12px;">Check the platforms you use and provide the full URL (not just @username).</small>
                     <div style="display:grid; gap:10px;">
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <input type="checkbox" id="cbInstagram" style="width:16px;height:16px;" />
-                            <label for="instagram" style="min-width:120px;">Instagram</label>
-                            <input type="text" id="instagram" placeholder="https://instagram.com/username" style="flex:1;" />
+                        <div style="display:flex; gap:10px; align-items:flex-start;">
+                            <input type="checkbox" id="cbInstagram" style="width:16px;height:16px;margin-top:4px;" aria-label="I post on Instagram" />
+                            <div style="flex:1;">
+                                <div style="display:flex; gap:8px;">
+                                    <label for="instagram" style="min-width:120px;">Instagram</label>
+                                    <input type="text" id="instagram" placeholder="https://instagram.com/username" style="flex:1;" aria-label="Instagram profile URL" />
+                                </div>
+                                <small style="color:#5D6D7E;display:block;margin-top:4px;margin-left:128px;"></small>
+                            </div>
                         </div>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <input type="checkbox" id="cbTikTok" style="width:16px;height:16px;" />
-                            <label for="tiktok" style="min-width:120px;">TikTok</label>
-                            <input type="text" id="tiktok" placeholder="https://tiktok.com/@username" style="flex:1;" />
+                        <div style="display:flex; gap:10px; align-items:flex-start;">
+                            <input type="checkbox" id="cbTikTok" style="width:16px;height:16px;margin-top:4px;" aria-label="I post on TikTok" />
+                            <div style="flex:1;">
+                                <div style="display:flex; gap:8px;">
+                                    <label for="tiktok" style="min-width:120px;">TikTok</label>
+                                    <input type="text" id="tiktok" placeholder="https://tiktok.com/@username" style="flex:1;" aria-label="TikTok profile URL" />
+                                </div>
+                                <small style="color:#5D6D7E;display:block;margin-top:4px;margin-left:128px;"></small>
+                            </div>
                         </div>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <input type="checkbox" id="cbX" style="width:16px;height:16px;" />
-                            <label for="x" style="min-width:120px;">X (Twitter)</label>
-                            <input type="text" id="x" placeholder="https://x.com/username" style="flex:1;" />
+                        <div style="display:flex; gap:10px; align-items:flex-start;">
+                            <input type="checkbox" id="cbX" style="width:16px;height:16px;margin-top:4px;" aria-label="I post on X" />
+                            <div style="flex:1;">
+                                <div style="display:flex; gap:8px;">
+                                    <label for="x" style="min-width:120px;">X (Twitter)</label>
+                                    <input type="text" id="x" placeholder="https://x.com/username" style="flex:1;" aria-label="X profile URL" />
+                                </div>
+                                <small style="color:#5D6D7E;display:block;margin-top:4px;margin-left:128px;"></small>
+                            </div>
                         </div>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <input type="checkbox" id="cbYouTube" style="width:16px;height:16px;" />
-                            <label for="youtube" style="min-width:120px;">YouTube</label>
-                            <input type="text" id="youtube" placeholder="https://youtube.com/@channel" style="flex:1;" />
+                        <div style="display:flex; gap:10px; align-items:flex-start;">
+                            <input type="checkbox" id="cbYouTube" style="width:16px;height:16px;margin-top:4px;" aria-label="I post on YouTube" />
+                            <div style="flex:1;">
+                                <div style="display:flex; gap:8px;">
+                                    <label for="youtube" style="min-width:120px;">YouTube</label>
+                                    <input type="text" id="youtube" placeholder="https://youtube.com/@channel" style="flex:1;" aria-label="YouTube channel URL" />
+                                </div>
+                                <small style="color:#5D6D7E;display:block;margin-top:4px;margin-left:128px;"></small>
+                            </div>
                         </div>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <input type="checkbox" id="cbFacebook" style="width:16px;height:16px;" />
-                            <label for="facebook" style="min-width:120px;">Facebook</label>
-                            <input type="text" id="facebook" placeholder="https://facebook.com/yourpage" style="flex:1;" />
+                        <div style="display:flex; gap:10px; align-items:flex-start;">
+                            <input type="checkbox" id="cbFacebook" style="width:16px;height:16px;margin-top:4px;" aria-label="I post on Facebook" />
+                            <div style="flex:1;">
+                                <div style="display:flex; gap:8px;">
+                                    <label for="facebook" style="min-width:120px;">Facebook</label>
+                                    <input type="text" id="facebook" placeholder="https://facebook.com/yourpage" style="flex:1;" aria-label="Facebook page URL" />
+                                </div>
+                                <small style="color:#5D6D7E;display:block;margin-top:4px;margin-left:128px;"></small>
+                            </div>
                         </div>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <input type="checkbox" id="cbTelegram" style="width:16px;height:16px;" />
-                            <label for="telegram" style="min-width:120px;">Telegram Channel</label>
-                            <input type="text" id="telegram" placeholder="https://t.me/yourchannel" style="flex:1;" />
+                        <div style="display:flex; gap:10px; align-items:flex-start;">
+                            <input type="checkbox" id="cbTelegram" style="width:16px;height:16px;margin-top:4px;" aria-label="I have a Telegram channel" />
+                            <div style="flex:1;">
+                                <div style="display:flex; gap:8px;">
+                                    <label for="telegram" style="min-width:120px;">Telegram Channel</label>
+                                    <input type="text" id="telegram" placeholder="https://t.me/yourchannel" style="flex:1;" aria-label="Telegram channel URL" />
+                                </div>
+                                <small style="color:#5D6D7E;display:block;margin-top:4px;margin-left:128px;"></small>
+                            </div>
                         </div>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <input type="checkbox" id="cbOther" style="width:16px;height:16px;" />
-                            <label for="other" style="min-width:120px;">Other</label>
-                            <input type="text" id="other" placeholder="https://example.com/profile" style="flex:1;" />
+                        <div style="display:flex; gap:10px; align-items:flex-start;">
+                            <input type="checkbox" id="cbOther" style="width:16px;height:16px;margin-top:4px;" aria-label="I have another platform" />
+                            <div style="flex:1;">
+                                <div style="display:flex; gap:8px;">
+                                    <label for="other" style="min-width:120px;">Other</label>
+                                    <input type="text" id="other" placeholder="https://example.com/profile" style="flex:1;" aria-label="Other profile URL" />
+                                </div>
+                                <small style="color:#5D6D7E;display:block;margin-top:4px;margin-left:128px;"></small>
+                            </div>
                         </div>
-                        <small style="color:#5D6D7E;">Add at least one platform you use or plan to use.</small>
+                        <small style="color:#5D6D7E;margin-top:4px;">Add at least one platform. Use full URLs (not just @username).</small>
                     </div>
                 </div>
                 
@@ -649,68 +699,181 @@
             // Retry once shortly after in case Telegram SDK initializes slightly later
             setTimeout(attemptAutofill, 300);
 
+            // URL validation helper
+            function normalizeUrl(value) {
+                const raw = (value || '').trim();
+                if (!raw) return null;
+                if (raw.startsWith('@')) return null; // Reject usernames
+                let candidate = raw;
+                if (!/^https?:\/\//i.test(candidate)) {
+                    candidate = 'https://' + candidate;
+                }
+                try {
+                    const u = new URL(candidate);
+                    if (!u.hostname || !u.protocol.startsWith('http')) return null;
+                    return u.href;
+                } catch { return null; }
+            }
+
+            // Email validation
+            function isValidEmail(email) {
+                const trimmed = (email || '').trim();
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+            }
+
+            // Real-time validation for email
+            emailInput.addEventListener('blur', function() {
+                if (this.value.trim() && !isValidEmail(this.value)) {
+                    this.style.borderColor = '#E74C3C';
+                    this.style.backgroundColor = '#FEF5F4';
+                } else {
+                    this.style.borderColor = '#E0E0E0';
+                    this.style.backgroundColor = '';
+                }
+            });
+
+            emailInput.addEventListener('focus', function() {
+                this.style.borderColor = '#5DADE2';
+                this.style.backgroundColor = '';
+            });
+
+            // Real-time validation for social media URLs
+            const socialsMap = [
+                ['instagram','cbInstagram'],
+                ['tiktok','cbTikTok'],
+                ['x','cbX'],
+                ['youtube','cbYouTube'],
+                ['facebook','cbFacebook'],
+                ['telegram','cbTelegram'],
+                ['other','cbOther']
+            ];
+
+            socialsMap.forEach(([id, cbId]) => {
+                const inputEl = document.getElementById(id);
+                const checkboxEl = document.getElementById(cbId);
+
+                // Validate on blur
+                inputEl.addEventListener('blur', function() {
+                    if (!this.value.trim()) {
+                        this.style.borderColor = '#E0E0E0';
+                        this.style.backgroundColor = '';
+                        return;
+                    }
+
+                    if (this.value.trim().startsWith('@')) {
+                        this.style.borderColor = '#E74C3C';
+                        this.style.backgroundColor = '#FEF5F4';
+                        const hint = this.nextElementSibling;
+                        if (hint?.tagName === 'SMALL') {
+                            hint.textContent = '❌ Please use the full URL, not just the username (e.g., https://instagram.com/yourname)';
+                            hint.style.color = '#E74C3C';
+                        }
+                    } else if (normalizeUrl(this.value)) {
+                        this.style.borderColor = '#52C788';
+                        this.style.backgroundColor = '#F0FDF4';
+                        const hint = this.nextElementSibling;
+                        if (hint?.tagName === 'SMALL') {
+                            hint.textContent = '✓ Valid URL';
+                            hint.style.color = '#52C788';
+                        }
+                    } else {
+                        this.style.borderColor = '#E74C3C';
+                        this.style.backgroundColor = '#FEF5F4';
+                        const hint = this.nextElementSibling;
+                        if (hint?.tagName === 'SMALL') {
+                            hint.textContent = '❌ Please enter a valid URL (e.g., https://instagram.com/yourname)';
+                            hint.style.color = '#E74C3C';
+                        }
+                    }
+                });
+
+                // Reset on focus
+                inputEl.addEventListener('focus', function() {
+                    this.style.borderColor = '#5DADE2';
+                    this.style.backgroundColor = '';
+                    const hint = this.nextElementSibling;
+                    if (hint?.tagName === 'SMALL') {
+                        hint.textContent = '';
+                    }
+                });
+            });
+
+            // Validate entire form before submission
+            function validateForm() {
+                const errors = [];
+
+                // Validate email
+                const email = (emailInput.value || '').trim();
+                if (!email) {
+                    errors.push('Email address is required.');
+                } else if (!isValidEmail(email)) {
+                    errors.push('Please enter a valid email address (e.g., john@example.com).');
+                }
+
+                // Validate at least one social
+                let validSocialsCount = 0;
+                let firstInvalidSocial = null;
+
+                socialsMap.forEach(([id, cbId]) => {
+                    const checked = document.getElementById(cbId)?.checked;
+                    const val = (document.getElementById(id)?.value || '').trim();
+
+                    if (checked) {
+                        if (!val) {
+                            errors.push(`Please provide a URL for the checked social platform.`);
+                            if (!firstInvalidSocial) firstInvalidSocial = id;
+                        } else if (val.startsWith('@')) {
+                            errors.push(`${id}: Please use the full URL, not just a username (e.g., https://${id}.com/yourname).`);
+                            if (!firstInvalidSocial) firstInvalidSocial = id;
+                        } else if (!normalizeUrl(val)) {
+                            errors.push(`${id}: Please enter a valid URL.`);
+                            if (!firstInvalidSocial) firstInvalidSocial = id;
+                        } else {
+                            validSocialsCount++;
+                        }
+                    }
+                });
+
+                if (validSocialsCount === 0) {
+                    errors.push('Please add at least one valid social media platform.');
+                }
+
+                return { isValid: errors.length === 0, errors, firstInvalidSocial };
+            }
+
             async function submitForm(e) {
                 e.preventDefault();
                 errorMessage.style.display = 'none';
                 errorMessage.textContent = '';
                 successMessage.style.display = 'none';
 
+                // Validate form BEFORE submission
+                const validation = validateForm();
+                if (!validation.isValid) {
+                    errorMessage.innerHTML = '<strong>⚠️ Please fix the following:</strong><br>' + 
+                        validation.errors.map(err => `• ${err}`).join('<br>');
+                    errorMessage.style.display = 'block';
+                    errorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return; // STOP HERE - DO NOT SUBMIT
+                }
+
+                // Only proceed if validation passed
                 const formData = {
                     email: (emailInput.value || '').trim(),
                     socials: {}
                 };
 
-                if (!formData.email || !formData.email.includes('@')) {
-                    errorMessage.textContent = 'Please enter a valid email address.';
-                    errorMessage.style.display = 'block';
-                    return;
-                }
-
-                // Helpers for URL validation
-                function normalizeUrl(value) {
-                    const raw = (value || '').trim();
-                    if (!raw || raw.startsWith('@')) return null;
-                    let candidate = raw;
-                    if (!/^https?:\/\//i.test(candidate)) {
-                        // Allow bare domains like t.me/..., instagram.com/...
-                        candidate = 'https://' + candidate;
-                    }
-                    try {
-                        const u = new URL(candidate);
-                        if (!u.hostname || !u.protocol.startsWith('http')) return null;
-                        return u.href;
-                    } catch { return null; }
-                }
-
-                // Collect socials (only valid links and box-checked)
-                const socialsMap = [
-                    ['instagram','cbInstagram'],
-                    ['tiktok','cbTikTok'],
-                    ['x','cbX'],
-                    ['youtube','cbYouTube'],
-                    ['facebook','cbFacebook'],
-                    ['telegram','cbTelegram'],
-                    ['other','cbOther']
-                ];
-                let socialsCount = 0;
-                socialsMap.forEach(([id, cb]) => {
-                    const checked = document.getElementById(cb)?.checked;
+                // Collect validated socials
+                socialsMap.forEach(([id, cbId]) => {
+                    const checked = document.getElementById(cbId)?.checked;
                     const val = (document.getElementById(id)?.value || '').trim();
-                    if (checked) {
+                    if (checked && val) {
                         const normalized = normalizeUrl(val);
                         if (normalized) {
                             formData.socials[id] = normalized;
-                            socialsCount++;
-                        } else if (val) {
-                            throw new Error(`Please enter a valid link for ${id}.`);
                         }
                     }
                 });
-                if (socialsCount === 0) {
-                    errorMessage.textContent = 'Please add at least one social platform (handle or link).';
-                    errorMessage.style.display = 'block';
-                    return;
-                }
 
                 const headers = { 'Content-Type': 'application/json' };
                 if (window.Telegram?.WebApp?.initData) {
@@ -752,13 +915,23 @@
                     }
                     successMessage.style.display = 'block';
                     form.reset();
+                    
+                    // Clear all input styling
+                    emailInput.style.borderColor = '#E0E0E0';
+                    emailInput.style.backgroundColor = '';
+                    socialsMap.forEach(([id]) => {
+                        const el = document.getElementById(id);
+                        el.style.borderColor = '#E0E0E0';
+                        el.style.backgroundColor = '';
+                    });
+                    
                     successMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 } catch (err) {
-                    errorMessage.textContent = err.message || 'Something went wrong. Please try again later.';
+                    errorMessage.textContent = '❌ ' + (err.message || 'Something went wrong. Please try again later.');
                     errorMessage.style.display = 'block';
                 } finally {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Join the Waitlist';
+                    submitBtn.textContent = 'Join the Program';
                 }
             }
 
