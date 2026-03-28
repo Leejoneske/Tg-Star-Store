@@ -424,6 +424,37 @@
         .toast.success { background: var(--success); color: var(--surface); }
         .toast.error { background: var(--error); color: var(--surface); }
 
+        /* SweetAlert Dark Theme Support */
+        [data-theme="dark"] .swal2-popup,
+        @media (prefers-color-scheme: dark) {
+            .swal2-popup {
+                background: var(--surface, #161b22);
+                color: var(--text, #e6edf3);
+            }
+            .swal2-title {
+                color: var(--text, #e6edf3);
+            }
+            .swal2-html-container {
+                color: var(--text, #e6edf3);
+            }
+            .swal2-input {
+                background: var(--surface-elevated, #1c2128);
+                border: 1.5px solid var(--border, #21262d);
+                color: var(--text, #e6edf3);
+            }
+            .swal2-input::placeholder {
+                color: var(--text-secondary, #6e7681);
+            }
+            .swal2-confirm {
+                background: var(--brand, #58a6ff);
+                color: var(--surface, #161b22);
+            }
+            .swal2-cancel {
+                background: var(--border, #21262d);
+                color: var(--text, #e6edf3);
+            }
+        }
+
         /* Responsive */
         @media (max-width: 600px) {
             .hero-title {

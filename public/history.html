@@ -404,7 +404,7 @@
         .export-btn {
             width: 100%;
             padding: 12px 16px;
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            background: var(--brand, #4f46e5);
             color: white;
             border: none;
             border-radius: 12px;
@@ -417,7 +417,19 @@
             justify-content: center;
             gap: 8px;
             margin-bottom: 16px;
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.15);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .export-btn {
+                background: var(--brand, #58a6ff);
+                box-shadow: 0 2px 8px rgba(88, 166, 255, 0.15);
+            }
+        }
+
+        [data-theme="dark"] .export-btn {
+            background: var(--brand, #58a6ff);
+            box-shadow: 0 2px 8px rgba(88, 166, 255, 0.15);
         }
 
         .export-btn:active {
@@ -837,7 +849,7 @@ function loadReferralHistory() {
         return;
     }
 
-    fetch(`${BASE_API_URL}/referrals/${user.id}`, {
+    fetch(`${BASE_API_URL}/referrals/${user.id}?type=referral`, {
         headers: {
             'x-telegram-init-data': Telegram.WebApp.initData,
             'x-telegram-id': user.id,
