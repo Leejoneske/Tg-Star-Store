@@ -180,10 +180,30 @@
             background: #fef2f2;
             color: #dc2626;
         }
+        @media (prefers-color-scheme: dark) {
+            .status-expired {
+                background: #3d1212;
+                color: #f87171;
+            }
+        }
+        [data-theme="dark"] .status-expired {
+            background: #3d1212;
+            color: #f87171;
+        }
 
         .status-active {
             background: #ecfdf5;
             color: #059669;
+        }
+        @media (prefers-color-scheme: dark) {
+            .status-active {
+                background: #0a3d2a;
+                color: #3fb950;
+            }
+        }
+        [data-theme="dark"] .status-active {
+            background: #0a3d2a;
+            color: #3fb950;
         }
 
         .empty-state {
@@ -224,6 +244,20 @@
             background: white;
             color: #6b7280;
             cursor: pointer;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .pagination-btn {
+                background: #1c2128;
+                border-color: #21262d;
+                color: #8b949e;
+            }
+        }
+
+        [data-theme="dark"] .pagination-btn {
+            background: #1c2128;
+            border-color: #21262d;
+            color: #8b949e;
         }
 
         .pagination-btn.active {
