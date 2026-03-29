@@ -10865,14 +10865,11 @@ bot.onText(/\/sendemail/i, async (msg) => {
     // Show available templates
     const templateList = `📧 **Email Template Selection**\n\n` +
         `Choose an email template:\n\n` +
-        `1️⃣ Ambassador Approval\n` +
-        `2️⃣ Welcome/Onboarding\n` +
-        `3️⃣ Promotional\n` +
-        `4️⃣ Support/Notification\n` +
-        `5️⃣ Custom Template\n\n` +
-        `Reply with the number (1-5):`;
-    
-    bot.sendMessage(chatId, templateList, { parse_mode: 'Markdown' });
+            `1 - Ambassador Approval\n` +
+            `2 - Welcome/Onboarding\n` +
+            `3 - Promotional\n` +
+            `4 - Support/Notification\n` +
+            `5 - Custom Template\n\n` +
 });
 
 // Handle email session input
@@ -10911,22 +10908,22 @@ bot.on('message', async (msg) => {
                 '1': {
                     name: 'Ambassador Approval',
                     subject: 'Welcome to StarStore Ambassador Program',
-                    body: 'Congratulations! You have been approved as a StarStore Ambassador. Your referral link is ready to use.'
+                    body: ''
                 },
                 '2': {
                     name: 'Welcome/Onboarding',
                     subject: 'Welcome to StarStore',
-                    body: 'Welcome! We\'re excited to have you on board. Thank you for joining our community.'
+                    body: ''
                 },
                 '3': {
                     name: 'Promotional',
                     subject: 'Exclusive Offer for You',
-                    body: 'Don\'t miss out on our latest promotions and exclusive offers just for you!'
+                    body: ''
                 },
                 '4': {
                     name: 'Support/Notification',
                     subject: 'Important Update',
-                    body: 'This is an important notification regarding your account or a recent transaction.'
+                    body: ''
                 },
                 '5': {
                     name: 'Custom',
@@ -10936,7 +10933,7 @@ bot.on('message', async (msg) => {
             };
             
             if (!templates[templateChoice]) {
-                return bot.sendMessage(chatId, '❌ Invalid template number. Please choose 1-5.');
+                return bot.sendMessage(chatId, '❌ Invalid template number. Please reply with 1-5.');
             }
             
             session.template = templates[templateChoice];
@@ -10979,14 +10976,14 @@ bot.on('message', async (msg) => {
                 `**Subject**: ${session.subject || session.template.subject}\n` +
                 `**Template**: ${session.template.name}\n\n` +
                 `Reply with:\n` +
-                `✅ To send\n` +
-                `❌ To cancel\n` +
-                `🔄 To start over`;
+                `1 - Send email\n` +
+                `2 - Cancel\n` +
+                `3 - Start over`;
             
             bot.sendMessage(chatId, confirmMsg, { parse_mode: 'Markdown' });
         }
         else if (session.step === 'confirm') {
-            if (text.toLowerCase() === '✅' || text.toLowerCase() === 'yes') {
+            if (text === '1' || text.toLowerCase() === 'yes') {
                 // Send the email
                 const finalSubject = session.subject || session.template.subject;
                 const finalBody = session.template.body;
@@ -11020,11 +11017,11 @@ bot.on('message', async (msg) => {
                     emailSessions.delete(chatId);
                 }
             } 
-            else if (text.toLowerCase() === '❌' || text.toLowerCase() === 'no') {
+            else if (text === '2' || text.toLowerCase() === 'no' || text.toLowerCase() === 'cancel') {
                 emailSessions.delete(chatId);
                 bot.sendMessage(chatId, '❌ Email sending cancelled. Use /sendemail to start again.');
             }
-            else if (text.toLowerCase() === '🔄' || text.toLowerCase() === 'restart') {
+            else if (text === '3' || text.toLowerCase() === 'restart') {
                 emailSessions.delete(chatId);
                 // Restart the command
                 bot.processUpdate({
@@ -11037,7 +11034,7 @@ bot.on('message', async (msg) => {
                 });
             }
             else {
-                bot.sendMessage(chatId, 'Please reply with one of: ✅, ❌, or 🔄');
+                bot.sendMessage(chatId, 'Please reply with one of: 1 (send), 2 (cancel), or 3 (restart)');
             }
         }
     } catch (error) {
@@ -16085,6 +16082,75 @@ app.listen(PORT, async () => {
       }
     });
     console.log('📅 End-of-month automatic withdrawal scheduler initialized');
+  }
+
+  // Initialize wallet reminder email scheduler (2-3 days before end of month)
+  if (schedule && schedule.scheduleEndOfMonthTask) {
+    schedule.scheduleEndOfMonthTask(async () => {
+      try {
+        const now = new Date();
+        const dayOfMonth = now.getDate();
+        
+        // Send wallet reminders on the 27th or 28th (2-3 days before month end)
+        if (dayOfMonth === 27 || dayOfMonth === 28) {
+          console.log('[Scheduler] Sending wallet reminder emails for ambassadors with balance...');
+          
+          // Find all ambassadors with available balance
+          const ambassadors = await User.find({
+            ambassadorEmail: { $exists: true, $ne: null }
+          }).lean();
+          
+          let reminderEmailCount = 0;
+          
+          for (const ambassador of ambassadors) {
+            try {
+              // Calculate available balance
+              const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+              const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+              
+              const referrals = await Referral.find({
+                referrerUserId: ambassador.id,
+                $or: [
+                  { dateReferred: { $exists: true, $gte: monthStart, $lt: monthEnd } },
+                  { dateReferred: { $exists: false }, dateCreated: { $gte: monthStart, $lt: monthEnd } }
+                ],
+                status: 'active',
+                withdrawn: { $ne: true }
+              }).lean();
+              
+              let availableBalance = 0;
+              for (const referral of referrals) {
+                availableBalance += (referral.earnedAmount || 0.5);
+              }
+              
+              // Only send reminder if balance is >= 0.5 USDT and ambassador has earnings
+              if (availableBalance >= 0.5) {
+                // Only send if ambassador doesn't have wallet set (so they need a reminder)
+                if (!ambassador.ambassadorWalletAddress || ambassador.ambassadorWalletAddress.trim() === '') {
+                  const result = await emailService.sendAmbassadorWalletReminder(
+                    ambassador.ambassadorEmail,
+                    ambassador.username || 'Ambassador',
+                    availableBalance
+                  );
+                  
+                  if (result.success) {
+                    reminderEmailCount++;
+                    console.log(`[Scheduler] ✓ Sent wallet reminder email to ${ambassador.ambassadorEmail} ($${availableBalance.toFixed(2)} balance)`);
+                  }
+                }
+              }
+            } catch (ambError) {
+              console.warn(`[Scheduler] Error sending reminder for ${ambassador.username}:`, ambError.message);
+            }
+          }
+          
+          console.log(`[Scheduler] ✅ Wallet reminder emails sent: ${reminderEmailCount}`);
+        }
+      } catch (error) {
+        console.error('[Scheduler] Error sending wallet reminder emails:', error);
+      }
+    }, 'walletReminder');
+    console.log('📧 Ambassador wallet reminder email scheduler initialized');
   }
   
   // Initialize periodic referral repair scheduler (every 2 hours)

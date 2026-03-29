@@ -55,13 +55,13 @@ function getEmailTemplate(title, content) {
     <div class="container">
         <div class="header">
             <h1>${title}</h1>
-            <div class="logo">StarStore Buy & Sell Telegram Stars</div>
+            <div class="logo">| StarStore | sell buy telegram stars</div>
         </div>
         <div class="content">
             ${content}
         </div>
         <div class="footer">
-            <p>StarStore Buy & Sell Telegram Stars</p>
+            <p>| StarStore | sell buy telegram stars</p>
             <p style="margin-top: 8px; color: #999;">© 2026 StarStore. All rights reserved.</p>
         </div>
     </div>
@@ -296,6 +296,35 @@ async function sendNewsletterBroadcast(email, subject, htmlContent) {
 }
 
 /**
+ * Ambassador Wallet Reminder Email - Before Automatic Monthly Withdrawal
+ * Sent 2-3 days before end of month to ambassadors with balance to withdraw
+ */
+async function sendAmbassadorWalletReminder(email, username, availableBalance) {
+    const content = `
+<h2>Wallet Reminder 💰</h2>
+<p>Hey ${username || 'there'},</p>
+<p>You have earnings of <span class="highlight">$${availableBalance.toFixed(2)}</span> ready for automatic payout!</p>
+<div class="info-box">
+    <p><strong>🔐 Automatic withdrawal starts in 2-3 days</strong></p>
+    <p>Please make sure your TON wallet address is set in your profile to receive your monthly payout automatically.</p>
+</div>
+<h3 style="margin-top: 16px; font-size: 14px;">What you need to do:</h3>
+<ol style="padding-left: 20px; font-size: 14px;">
+    <li>Log into your StarStore dashboard</li>
+    <li>Go to your profile settings</li>
+    <li>Add or verify your TON wallet address</li>
+    <li>Done! Your earnings will be sent automatically</li>
+</ol>
+<div class="success-box">
+    <p><strong>⚡ Pro Tip:</strong> Automatic withdrawal processes instantly once your wallet is verified.</p>
+</div>
+<p style="margin-top: 24px; font-size: 12px; color: #6c757d;">This is an automated reminder. Your balance will be automatically withdrawn at the end of the month.</p>
+    `;
+    
+    return sendEmail(email, 'Automatic Payout Reminder - Please Set Your Wallet - StarStore', getEmailTemplate('Wallet Reminder', content));
+}
+
+/**
  * Check if email service is available
  */
 function isEmailAvailable() {
@@ -320,6 +349,7 @@ module.exports = {
     sendAmbassadorApproved,
     sendWalletAddressConfirmation,
     sendWalletReminderBeforePayout,
+    sendAmbassadorWalletReminder,
     sendWithdrawalCreated,
     sendWithdrawalApproved,
     sendWithdrawalDeclined,
