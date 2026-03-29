@@ -16071,7 +16071,7 @@ app.listen(PORT, async () => {
                 });
                 
                 if (!alreadySentToday) {
-                  console.log(`[Scheduler] No wallet for ${ambassador.username}: balance $${availableBalance.toFixed(2)} - sending reminder`);
+                  console.log(`[Scheduler] Sending ${reminderType} reminder to ${ambassador.username} (balance: $${availableBalance.toFixed(2)}) - FIRST TIME THIS DAY`);
                   try {
                     if (ambassador.id) {
                       const reminderMsg = isLastDayOfMonth 
@@ -16079,7 +16079,7 @@ app.listen(PORT, async () => {
                         : `⏰ **LAST CHANCE - WITHDRAWAL TODAY** 💰\n\nYou have earnings of $${availableBalance.toFixed(2)}!\n\n🔐 Set your wallet address NOW to receive your payout.\n\nAutomatic withdrawal is processing today.`;
                       await bot.sendMessage(ambassador.id, reminderMsg, { parse_mode: 'Markdown' });
                       
-                      // Log the reminder for deduplication
+                      // Save reminder record for deduplication (prevents sending again same day even if app restarts)
                       const reminder = new WalletReminder({
                         userId: ambassador.id,
                         username: ambassador.username,
@@ -16098,7 +16098,7 @@ app.listen(PORT, async () => {
                     console.warn(`[Scheduler] Failed to send reminder to ${ambassador.username}:`, botError.message);
                   }
                 } else {
-                  console.log(`[Scheduler] Reminder already sent to ${ambassador.username}, skipping duplicate`);
+                  console.log(`[Scheduler] ${reminderType} reminder ALREADY SENT today to ${ambassador.username} - deduplicating (sent at ${alreadySentToday.sentAt.toLocaleTimeString()})`);
                 }
               } else {
                 console.log(`[Scheduler] No wallet for ${ambassador.username}: balance $${availableBalance.toFixed(2)} - skipping reminder (day ${dayOfMonth}, last day: ${daysInMonth})`);
