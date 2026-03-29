@@ -10964,13 +10964,20 @@ bot.on('message', async (msg) => {
                 session.step = 'custom_subject';
                 bot.sendMessage(chatId, '📝 **Custom Email**\n\nEnter the email subject:', { parse_mode: 'Markdown' });
             } else {
-                // Preset template - show preview and ask for recipient
-                session.step = 'recipient';
-                const preview = `📝 **Template Preview**\n\n**Name**: ${session.template.name}\n**Subject**: ${session.template.subject}\n**Body**: ${session.template.body}\n\n` +
-                    `Now enter the recipient email address:`;
-                bot.sendMessage(chatId, preview, { parse_mode: 'Markdown' });
+                // Preset template - ask for body content
+                session.step = 'preset_body';
+                const bodyPrompt = `📝 **${session.template.name}**\n\n**Subject**: ${session.template.subject}\n\n` +
+                    `Now enter the email body content:`;
+                bot.sendMessage(chatId, bodyPrompt, { parse_mode: 'Markdown' });
             }
         } 
+        else if (session.step === 'preset_body') {
+            session.template.body = text;
+            session.step = 'recipient';
+            const preview = `📝 **Email Preview**\n\n**Template**: ${session.template.name}\n**Subject**: ${session.template.subject}\n**Body**: ${session.template.body}\n\n` +
+                `Now enter the recipient email address:`;
+            bot.sendMessage(chatId, preview, { parse_mode: 'Markdown' });
+        }
         else if (session.step === 'custom_subject') {
             session.subject = text;
             session.step = 'custom_body';
