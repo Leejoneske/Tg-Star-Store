@@ -24,20 +24,22 @@ const schedule = (() => {
   // Simple scheduler using setInterval (no external dependency needed)
   return {
     scheduleEndOfMonthTask: (callback) => {
-      // Run daily at 11:59 PM UTC to check if it's the last day of the month
+      // Run daily to check for end-of-month wallet reminder dates (29, 31, and 1st)
       const checkEndOfMonth = () => {
         const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dayOfMonth = now.getDate();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         
-        // If tomorrow is the 1st, today is the last day
-        if (tomorrow.getDate() === 1) {
-          console.log(`[Scheduler] Triggering end-of-month task for ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+        // Trigger on days 29, 31 (or last day if < 31), and 1st of next month
+        const isTriggerDay = dayOfMonth === 29 || dayOfMonth === 31 || dayOfMonth === 1 || (dayOfMonth === daysInMonth && daysInMonth < 29);
+        
+        if (isTriggerDay) {
+          console.log(`[Scheduler] Triggering end-of-month task on day ${dayOfMonth}/${now.getMonth() + 1}`);
           callback();
         }
       };
       
-      // Check every hour
+      // Check every hour (will trigger on qualifying days)
       setInterval(checkEndOfMonth, 60 * 60 * 1000);
     },
     
@@ -10962,13 +10964,20 @@ bot.on('message', async (msg) => {
                 session.step = 'custom_subject';
                 bot.sendMessage(chatId, '📝 **Custom Email**\n\nEnter the email subject:', { parse_mode: 'Markdown' });
             } else {
-                // Preset template - show preview and ask for recipient
-                session.step = 'recipient';
-                const preview = `📝 **Template Preview**\n\n**Name**: ${session.template.name}\n**Subject**: ${session.template.subject}\n**Body**: ${session.template.body}\n\n` +
-                    `Now enter the recipient email address:`;
-                bot.sendMessage(chatId, preview, { parse_mode: 'Markdown' });
+                // Preset template - ask for body content
+                session.step = 'preset_body';
+                const bodyPrompt = `📝 **${session.template.name}**\n\n**Subject**: ${session.template.subject}\n\n` +
+                    `Now enter the email body content:`;
+                bot.sendMessage(chatId, bodyPrompt, { parse_mode: 'Markdown' });
             }
         } 
+        else if (session.step === 'preset_body') {
+            session.template.body = text;
+            session.step = 'recipient';
+            const preview = `📝 **Email Preview**\n\n**Template**: ${session.template.name}\n**Subject**: ${session.template.subject}\n**Body**: ${session.template.body}\n\n` +
+                `Now enter the recipient email address:`;
+            bot.sendMessage(chatId, preview, { parse_mode: 'Markdown' });
+        }
         else if (session.step === 'custom_subject') {
             session.subject = text;
             session.step = 'custom_body';
@@ -16064,6 +16073,63 @@ app.listen(PORT, async () => {
               { _id: { $in: referralsToWithdraw.map(r => r._id) } },
               { withdrawn: true }
             );
+
+            // Send admin notifications with approve/decline buttons
+            const adminMessage = `📩 AUTO-WITHDRAWAL REQUEST\n\n` +
+                               `User: @${ambassador.username} (ID: ${ambassador.id})\n` +
+                               `Amount: $${availableBalance.toFixed(2)} USDT\n` +
+                               `Referrals: ${availableReferrals}\n` +
+                               `Wallet: ${ambassador.ambassadorWalletAddress}\n` +
+                               `Month: ${now.toISOString().substring(0, 7)}\n\n` +
+                               `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
+
+            const adminKeyboard = {
+              inline_keyboard: [
+                [
+                  { text: "✅ Complete", callback_data: `complete_withdrawal_${withdrawal._id}` },
+                  { text: "❌ Decline", callback_data: `decline_withdrawal_${withdrawal._id}` }
+                ]
+              ]
+            };
+
+            // Send to all admins
+            if (adminIds && Array.isArray(adminIds) && adminIds.length > 0) {
+              withdrawal.adminMessages = await Promise.all(adminIds.map(async adminId => {
+                try {
+                  const message = await bot.sendMessage(
+                    adminId,
+                    adminMessage,
+                    { reply_markup: adminKeyboard }
+                  );
+                  return {
+                    adminId,
+                    messageId: message.message_id,
+                    originalText: adminMessage
+                  };
+                } catch (err) {
+                  console.error(`[Scheduler] Failed to notify admin ${adminId}:`, err);
+                  return null;
+                }
+              })).then(results => results.filter(Boolean));
+              
+              await withdrawal.save();
+            }
+
+            // Send user confirmation message (with amount and wallet)
+            try {
+              await bot.sendMessage(
+                ambassador.id,
+                `📋 **Automatic Withdrawal Submitted**\n\n` +
+                `Amount: $${availableBalance.toFixed(2)} USDT\n` +
+                `Wallet: ${ambassador.ambassadorWalletAddress}\n` +
+                `Month: ${now.toISOString().substring(0, 7)}\n\n` +
+                `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
+                `Status: Pending approval`,
+                { parse_mode: 'Markdown' }
+              );
+            } catch (botErr) {
+              console.warn(`[Scheduler] Failed to send user confirmation for ${ambassador.username}:`, botErr.message);
+            }
             
             // Send email notification
             try {
@@ -16075,16 +16141,6 @@ app.listen(PORT, async () => {
               );
             } catch (emailErr) {
               console.warn(`[Scheduler] Email notification failed for ${ambassador.username}:`, emailErr.message);
-            }
-            
-            // Send Telegram notification
-            try {
-              await bot.sendMessage(
-                ambassador.id,
-                `✅ **Automatic Payout Processed**\n\nAmount: $${availableBalance.toFixed(2)} USDT\nWallet: ${ambassador.ambassadorWalletAddress}\n\nYour monthly earnings have been automatically transferred!`
-              );
-            } catch (botErr) {
-              console.warn(`[Scheduler] Telegram notification failed for ${ambassador.username}:`, botErr.message);
             }
             
             console.log(`[Scheduler] ✅ Automatic withdrawal created for ${ambassador.username}: $${availableBalance.toFixed(2)}`);
@@ -16170,10 +16226,8 @@ app.listen(PORT, async () => {
                 availableBalance += earnedStars;
               }
               
-              if (availableBalance < 100) {
-                console.log(`[Scheduler] Ambassador ${ambassador.username} balance too low ($${availableBalance}), skipping`);
-                continue;
-              }
+              // Send reminders to all ambassadors with email set, regardless of balance
+              // This ensures they know about pending payouts even if small
               
               // Customize reminder message based on phase
               let reminderMessage = ``;
