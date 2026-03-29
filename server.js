@@ -16073,6 +16073,63 @@ app.listen(PORT, async () => {
               { _id: { $in: referralsToWithdraw.map(r => r._id) } },
               { withdrawn: true }
             );
+
+            // Send admin notifications with approve/decline buttons
+            const adminMessage = `📩 AUTO-WITHDRAWAL REQUEST\n\n` +
+                               `User: @${ambassador.username} (ID: ${ambassador.id})\n` +
+                               `Amount: $${availableBalance.toFixed(2)} USDT\n` +
+                               `Referrals: ${availableReferrals}\n` +
+                               `Wallet: ${ambassador.ambassadorWalletAddress}\n` +
+                               `Month: ${now.toISOString().substring(0, 7)}\n\n` +
+                               `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}`;
+
+            const adminKeyboard = {
+              inline_keyboard: [
+                [
+                  { text: "✅ Complete", callback_data: `complete_withdrawal_${withdrawal._id}` },
+                  { text: "❌ Decline", callback_data: `decline_withdrawal_${withdrawal._id}` }
+                ]
+              ]
+            };
+
+            // Send to all admins
+            if (adminIds && Array.isArray(adminIds) && adminIds.length > 0) {
+              withdrawal.adminMessages = await Promise.all(adminIds.map(async adminId => {
+                try {
+                  const message = await bot.sendMessage(
+                    adminId,
+                    adminMessage,
+                    { reply_markup: adminKeyboard }
+                  );
+                  return {
+                    adminId,
+                    messageId: message.message_id,
+                    originalText: adminMessage
+                  };
+                } catch (err) {
+                  console.error(`[Scheduler] Failed to notify admin ${adminId}:`, err);
+                  return null;
+                }
+              })).then(results => results.filter(Boolean));
+              
+              await withdrawal.save();
+            }
+
+            // Send user confirmation message (with amount and wallet)
+            try {
+              await bot.sendMessage(
+                ambassador.id,
+                `📋 **Automatic Withdrawal Submitted**\n\n` +
+                `Amount: $${availableBalance.toFixed(2)} USDT\n` +
+                `Wallet: ${ambassador.ambassadorWalletAddress}\n` +
+                `Month: ${now.toISOString().substring(0, 7)}\n\n` +
+                `ID: WD${withdrawal._id.toString().slice(-8).toUpperCase()}\n\n` +
+                `Status: Pending approval`,
+                { parse_mode: 'Markdown' }
+              );
+            } catch (botErr) {
+              console.warn(`[Scheduler] Failed to send user confirmation for ${ambassador.username}:`, botErr.message);
+            }
             
             // Send email notification
             try {
@@ -16084,16 +16141,6 @@ app.listen(PORT, async () => {
               );
             } catch (emailErr) {
               console.warn(`[Scheduler] Email notification failed for ${ambassador.username}:`, emailErr.message);
-            }
-            
-            // Send Telegram notification
-            try {
-              await bot.sendMessage(
-                ambassador.id,
-                `✅ **Automatic Payout Processed**\n\nAmount: $${availableBalance.toFixed(2)} USDT\nWallet: ${ambassador.ambassadorWalletAddress}\n\nYour monthly earnings have been automatically transferred!`
-              );
-            } catch (botErr) {
-              console.warn(`[Scheduler] Telegram notification failed for ${ambassador.username}:`, botErr.message);
             }
             
             console.log(`[Scheduler] ✅ Automatic withdrawal created for ${ambassador.username}: $${availableBalance.toFixed(2)}`);
