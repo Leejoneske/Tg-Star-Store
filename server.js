@@ -24,22 +24,24 @@ const schedule = (() => {
   // Simple scheduler using setInterval (no external dependency needed)
   return {
     scheduleEndOfMonthTask: (callback) => {
-      // Run daily to check for end-of-month wallet reminder dates (29, 31, and 1st)
+      // Run daily to check for end-of-month wallet reminder dates (last day of month and 1st)
       const checkEndOfMonth = () => {
         const now = new Date();
         const dayOfMonth = now.getDate();
         const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         
-        // Trigger on days 29, 31 (or last day if < 31), and 1st of next month
-        const isTriggerDay = dayOfMonth === 29 || dayOfMonth === 31 || dayOfMonth === 1 || (dayOfMonth === daysInMonth && daysInMonth < 29);
+        // Trigger on: last day of month (works for all months) OR day 1 of next month
+        const isLastDayOfMonth = dayOfMonth === daysInMonth;
+        const isFirstDayOfMonth = dayOfMonth === 1;
+        const isTriggerDay = isLastDayOfMonth || isFirstDayOfMonth;
         
         if (isTriggerDay) {
-          console.log(`[Scheduler] Triggering end-of-month task on day ${dayOfMonth}/${now.getMonth() + 1}`);
+          console.log(`[Scheduler] Triggering end-of-month task on day ${dayOfMonth} (last day of month: ${isLastDayOfMonth}, day 1: ${isFirstDayOfMonth})`);
           callback();
         }
       };
       
-      // Check every hour (will trigger on qualifying days)
+      // Check every hour (will trigger on last day of any month OR day 1)
       setInterval(checkEndOfMonth, 60 * 60 * 1000);
     },
     
@@ -15985,7 +15987,31 @@ app.listen(PORT, async () => {
         console.log('[Scheduler] Processing end-of-month ambassador withdrawals...');
         
         const now = new Date();
+        const dayOfMonth = now.getDate();
+        
+        // CRITICAL: Only process auto-withdrawals on day 1 of the month
+        // This prevents multiple withdrawals and ensures all reminders have been sent first
+        if (dayOfMonth !== 1) {
+          console.log(`[Scheduler] Skipping withdrawal processing on day ${dayOfMonth} (only day 1 processes withdrawals)`);
+          return;
+        }
+        
+        console.log('[Scheduler] Day 1 detected - processing end-of-month auto-withdrawals...');
+        
         const marchFirstDate = new Date('2026-03-01T00:00:00Z');
+        
+        // Check if withdrawals already processed today to prevent duplicates
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        const alreadyProcessed = await ReferralWithdrawal.findOne({
+          isAmbassadorWithdrawal: true,
+          createdAt: { $gte: today, $lt: todayEnd }
+        });
+        
+        if (alreadyProcessed) {
+          console.log(`[Scheduler] Withdrawals already processed today (${alreadyProcessed._id}), skipping duplicate run`);
+          return;
+        }
         
         // Find all ambassadors (have ambassadorEmail set)
         const ambassadors = await User.find({
@@ -16027,15 +16053,55 @@ app.listen(PORT, async () => {
             
             // Check if ambassador has wallet address set
             if (!ambassador.ambassadorWalletAddress || ambassador.ambassadorWalletAddress.trim() === '') {
-              console.log(`[Scheduler] No wallet for ${ambassador.username}: balance $${availableBalance.toFixed(2)}`);
-              try {
-                if (ambassador.id) {
-                  const reminderMsg = `⏰ **Wallet Reminder** 💰\n\nYou have earnings of $${availableBalance.toFixed(2)} ready for automatic payout!\n\n🔐 Please set your TON wallet address in your profile to receive your monthly payout.\n\nAutomatic withdrawal will process instantly once your wallet is set.`;
-                  await bot.sendMessage(ambassador.id, reminderMsg, { parse_mode: 'Markdown' });
-                  reminderCount++;
+              const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+              const isLastDayOfMonth = dayOfMonth === daysInMonth;
+              const isFirstDayOfMonth = dayOfMonth === 1;
+              
+              // Only send wallet reminders on last day of month or day 1 (not day 29)
+              if (isLastDayOfMonth || isFirstDayOfMonth) {
+                // Check if reminder already sent today to prevent duplicates when scheduler runs multiple times per hour
+                const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                const reminderType = isLastDayOfMonth ? 'final' : 'last_chance';
+                
+                const alreadySentToday = await WalletReminder.findOne({
+                  userId: ambassador.id,
+                  reminderType: reminderType,
+                  month: monthStr,
+                  dayOfMonth: dayOfMonth
+                });
+                
+                if (!alreadySentToday) {
+                  console.log(`[Scheduler] Sending ${reminderType} reminder to ${ambassador.username} (balance: $${availableBalance.toFixed(2)}) - FIRST TIME THIS DAY`);
+                  try {
+                    if (ambassador.id) {
+                      const reminderMsg = isLastDayOfMonth 
+                        ? `⏰ **FINAL WALLET REMINDER** 💰\n\nYou have earnings of $${availableBalance.toFixed(2)} ready for payout!\n\n🔐 Set your TON wallet ADDRESS TODAY or your payout will be delayed.\n\nWithdraws tomorrow!`
+                        : `⏰ **LAST CHANCE - WITHDRAWAL TODAY** 💰\n\nYou have earnings of $${availableBalance.toFixed(2)}!\n\n🔐 Set your wallet address NOW to receive your payout.\n\nAutomatic withdrawal is processing today.`;
+                      await bot.sendMessage(ambassador.id, reminderMsg, { parse_mode: 'Markdown' });
+                      
+                      // Save reminder record for deduplication (prevents sending again same day even if app restarts)
+                      const reminder = new WalletReminder({
+                        userId: ambassador.id,
+                        username: ambassador.username,
+                        email: ambassador.ambassadorEmail,
+                        reminderType: reminderType,
+                        dayOfMonth: dayOfMonth,
+                        month: monthStr,
+                        balance: availableBalance,
+                        sentAt: new Date()
+                      });
+                      await reminder.save();
+                      
+                      reminderCount++;
+                    }
+                  } catch (botError) {
+                    console.warn(`[Scheduler] Failed to send reminder to ${ambassador.username}:`, botError.message);
+                  }
+                } else {
+                  console.log(`[Scheduler] ${reminderType} reminder ALREADY SENT today to ${ambassador.username} - deduplicating (sent at ${alreadySentToday.sentAt.toLocaleTimeString()})`);
                 }
-              } catch (botError) {
-                console.warn(`[Scheduler] Failed to send reminder to ${ambassador.username}:`, botError.message);
+              } else {
+                console.log(`[Scheduler] No wallet for ${ambassador.username}: balance $${availableBalance.toFixed(2)} - skipping reminder (day ${dayOfMonth}, last day: ${daysInMonth})`);
               }
               continue;
             }
