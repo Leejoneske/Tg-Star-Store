@@ -10881,11 +10881,14 @@ bot.onText(/\/sendemail/i, async (msg) => {
     // Show available templates
     const templateList = `📧 **Email Template Selection**\n\n` +
         `Choose an email template:\n\n` +
-            `1 - Ambassador Approval\n` +
-            `2 - Welcome/Onboarding\n` +
-            `3 - Promotional\n` +
-            `4 - Support/Notification\n` +
-            `5 - Custom Template\n\n` +
+        `1 - Ambassador Approval\n` +
+        `2 - Welcome/Onboarding\n` +
+        `3 - Promotional\n` +
+        `4 - Support/Notification\n` +
+        `5 - Custom Template\n\n` +
+        `Reply with the number (1-5):`;
+    
+    bot.sendMessage(chatId, templateList, { parse_mode: 'Markdown' });
 });
 
 // Handle email session input
@@ -10949,7 +10952,7 @@ bot.on('message', async (msg) => {
             };
             
             if (!templates[templateChoice]) {
-                return bot.sendMessage(chatId, '❌ Invalid template number. Please reply with 1-5.');
+                return bot.sendMessage(chatId, '❌ Invalid template number. Please choose 1-5.');
             }
             
             session.template = templates[templateChoice];
@@ -16162,89 +16165,82 @@ app.listen(PORT, async () => {
               }).lean();
               
               let availableBalance = 0;
-              for (const referral of referrals) {
-                availableBalance += (referral.earnedAmount || 0.5);
+              for (const ref of referrals) {
+                const earnedStars = Math.floor(ref.starsPurchased * 0.1);
+                availableBalance += earnedStars;
               }
               
-              // Only proceed if balance is >= 0.5 USDT
-              if (availableBalance < 0.5) continue;
+              if (availableBalance < 100) {
+                console.log(`[Scheduler] Ambassador ${ambassador.username} balance too low ($${availableBalance}), skipping`);
+                continue;
+              }
               
-              // Check if wallet address is set
-              const hasWallet = ambassador.ambassadorWalletAddress && ambassador.ambassadorWalletAddress.trim() !== '';
+              // Customize reminder message based on phase
+              let reminderMessage = ``;
+              if (isFirstReminder) {
+                reminderMessage = `[WALLET REMINDER]\n\nYour payout is ready for withdrawal in 2 days. You have $${availableBalance.toFixed(2)} pending.\n\nAdd your wallet address now to avoid missing the deadline.`;
+              } else if (isFinalReminder) {
+                reminderMessage = `[FINAL WARNING]\n\nAutomatic withdrawal is tomorrow! You have $${availableBalance.toFixed(2)} pending.\n\nAdd your wallet address today or your earnings will be held.`;
+              } else if (isLastChanceReminder) {
+                reminderMessage = `[LAST CHANCE]\n\nAutomatic withdrawal is processing today! You have $${availableBalance.toFixed(2)} pending.\n\nAdd your wallet address immediately or your earnings will be held.`;
+              }
               
-              // Logic:
-              // - If on day 29/31 and no wallet: send reminder
-              // - If on day 1 and still no wallet: send final reminder
-              // - If on day 1 and HAS wallet: let normal withdrawal proceed
+              let emailSent = false;
+              let telegramSent = false;
               
-              if (!hasWallet) {
-                // Build custom reminder message based on which day
-                let reminderMessage = '';
-                if (isFirstReminder) {
-                  reminderMessage = `[WALLET REMINDER]\n\nYou have $${availableBalance.toFixed(2)} ready for automatic payout in 2-3 days.\n\nPlease add your TON wallet address to receive your earnings automatically.`;
-                } else if (isFinalReminder) {
-                  reminderMessage = `[FINAL REMINDER]\n\nYour automatic payout is tomorrow! You have $${availableBalance.toFixed(2)} pending.\n\nSet your TON wallet address NOW to receive your earnings.`;
-                } else if (isLastChanceReminder) {
-                  reminderMessage = `[LAST CHANCE]\n\nAutomatic withdrawal is processing today! You have $${availableBalance.toFixed(2)} pending.\n\nAdd your wallet address immediately or your earnings will be held.`;
+              // Send email
+              try {
+                await emailService.sendAmbassadorWalletReminder(
+                  ambassador.ambassadorEmail,
+                  ambassador.username || 'Ambassador',
+                  availableBalance
+                );
+                emailCount++;
+                emailSent = true;
+              } catch (emailErr) {
+                console.warn(`[Scheduler] Email failed for ${ambassador.username}:`, emailErr.message);
+              }
+              
+              // Send Telegram notification
+              try {
+                if (ambassador.id) {
+                  await bot.sendMessage(ambassador.id, reminderMessage, { parse_mode: 'Markdown' });
+                  telegramCount++;
+                  telegramSent = true;
                 }
-                
-                let emailSent = false;
-                let telegramSent = false;
-                
-                // Send email
-                try {
-                  await emailService.sendAmbassadorWalletReminder(
-                    ambassador.ambassadorEmail,
-                    ambassador.username || 'Ambassador',
-                    availableBalance
-                  );
-                  emailCount++;
-                  emailSent = true;
-                } catch (emailErr) {
-                  console.warn(`[Scheduler] Email failed for ${ambassador.username}:`, emailErr.message);
-                }
-                
-                // Send Telegram notification
-                try {
-                  if (ambassador.id) {
-                    await bot.sendMessage(ambassador.id, reminderMessage, { parse_mode: 'Markdown' });
-                    telegramCount++;
-                    telegramSent = true;
-                  }
-                } catch (telegramErr) {
-                  console.warn(`[Scheduler] Telegram failed for ${ambassador.username}:`, telegramErr.message);
-                }
-                
-                // Track the sent reminder in database
-                try {
-                  const reminder = new WalletReminder({
-                    userId: ambassador.id,
-                    username: ambassador.username,
-                    email: ambassador.ambassadorEmail,
-                    reminderType: reminderType,
-                    dayOfMonth: dayOfMonth,
-                    month: monthStr,
-                    balance: availableBalance,
-                    emailSent: emailSent,
-                    telegramSent: telegramSent,
-                    sentAt: new Date()
-                  });
-                  await reminder.save();
-                } catch (dbErr) {
-                  console.warn(`[Scheduler] Failed to track reminder for ${ambassador.username}:`, dbErr.message);
-                }
-                
-                reminderCount++;
-                sentReminders.push({
+              } catch (telegramErr) {
+                console.warn(`[Scheduler] Telegram failed for ${ambassador.username}:`, telegramErr.message);
+              }
+              
+              // Track the sent reminder in database
+              try {
+                const reminder = new WalletReminder({
+                  userId: ambassador.id,
                   username: ambassador.username,
                   email: ambassador.ambassadorEmail,
+                  reminderType: reminderType,
+                  dayOfMonth: dayOfMonth,
+                  month: monthStr,
                   balance: availableBalance,
-                  emailSent,
-                  telegramSent,
-                  sentAt: new Date().toLocaleString()
+                  emailSent: emailSent,
+                  telegramSent: telegramSent,
+                  sentAt: new Date()
                 });
-                console.log(`[Scheduler] Reminder sent to ${ambassador.username}: email=${emailSent}, telegram=${telegramSent}`);
+                await reminder.save();
+              } catch (dbErr) {
+                console.warn(`[Scheduler] Failed to track reminder for ${ambassador.username}:`, dbErr.message);
               }
+              
+              reminderCount++;
+              sentReminders.push({
+                username: ambassador.username,
+                email: ambassador.ambassadorEmail,
+                balance: availableBalance,
+                emailSent,
+                telegramSent,
+                sentAt: new Date().toLocaleString()
+              });
+              console.log(`[Scheduler] Reminder sent to ${ambassador.username}: email=${emailSent}, telegram=${telegramSent}`);
             } catch (ambError) {
               console.warn(`[Scheduler] Error processing ${ambassador.username}:`, ambError.message);
             }
