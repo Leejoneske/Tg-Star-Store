@@ -16084,23 +16084,35 @@ app.listen(PORT, async () => {
     console.log('📅 End-of-month automatic withdrawal scheduler initialized');
   }
 
-  // Initialize wallet reminder email scheduler (2-3 days before end of month)
+  // Initialize smart wallet reminder scheduler (Days 29, 31, and 1st for multi-day reminders)
   if (schedule && schedule.scheduleEndOfMonthTask) {
     schedule.scheduleEndOfMonthTask(async () => {
       try {
         const now = new Date();
         const dayOfMonth = now.getDate();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         
-        // Send wallet reminders on the 27th or 28th (2-3 days before month end)
-        if (dayOfMonth === 27 || dayOfMonth === 28) {
-          console.log('[Scheduler] Sending wallet reminder emails for ambassadors with balance...');
+        // Smart reminder schedule:
+        // - Day 29 (or earlier for shorter months): First reminder (2 days before)
+        // - Day 31 (or last day of month): Second reminder (final warning)
+        // - Day 1: Third reminder (final chance before auto-withdrawal)
+        
+        const isFirstReminder = dayOfMonth === 29;
+        const isFinalReminder = dayOfMonth === daysInMonth; // Last day of month
+        const isLastChanceReminder = dayOfMonth === 1; // First day of next month
+        
+        if (isFirstReminder || isFinalReminder || isLastChanceReminder) {
+          const reminderType = isFirstReminder ? 'first' : (isFinalReminder ? 'final' : 'last-chance');
+          console.log(`[Scheduler] Running ${reminderType} wallet reminder on day ${dayOfMonth}...`);
           
           // Find all ambassadors with available balance
           const ambassadors = await User.find({
             ambassadorEmail: { $exists: true, $ne: null }
           }).lean();
           
-          let reminderEmailCount = 0;
+          let reminderCount = 0;
+          let emailCount = 0;
+          let telegramCount = 0;
           
           for (const ambassador of ambassadors) {
             try {
@@ -16123,34 +16135,65 @@ app.listen(PORT, async () => {
                 availableBalance += (referral.earnedAmount || 0.5);
               }
               
-              // Only send reminder if balance is >= 0.5 USDT and ambassador has earnings
-              if (availableBalance >= 0.5) {
-                // Only send if ambassador doesn't have wallet set (so they need a reminder)
-                if (!ambassador.ambassadorWalletAddress || ambassador.ambassadorWalletAddress.trim() === '') {
-                  const result = await emailService.sendAmbassadorWalletReminder(
+              // Only proceed if balance is >= 0.5 USDT
+              if (availableBalance < 0.5) continue;
+              
+              // Check if wallet address is set
+              const hasWallet = ambassador.ambassadorWalletAddress && ambassador.ambassadorWalletAddress.trim() !== '';
+              
+              // Logic:
+              // - If on day 29/31 and no wallet: send reminder
+              // - If on day 1 and still no wallet: send final reminder
+              // - If on day 1 and HAS wallet: let normal withdrawal proceed
+              
+              if (!hasWallet) {
+                // Build custom reminder message based on which day
+                let reminderMessage = '';
+                if (isFirstReminder) {
+                  reminderMessage = `⏰ **Wallet Reminder** 💰\n\nYou have $${availableBalance.toFixed(2)} ready for automatic payout in 2-3 days.\n\n🔐 Please add your TON wallet address to receive your earnings automatically.`;
+                } else if (isFinalReminder) {
+                  reminderMessage = `⏰ **Final Reminder** 💰\n\nYour automatic payout is tomorrow! You have $${availableBalance.toFixed(2)} pending.\n\n🔐 Set your TON wallet address NOW to receive your earnings.`;
+                } else if (isLastChanceReminder) {
+                  reminderMessage = `⚠️ **Last Chance to Set Wallet** 💰\n\nAutomatic withdrawal is processing today! You have $${availableBalance.toFixed(2)} pending.\n\n🔐 Add your wallet address immediately or your earnings will be held.`;
+                }
+                
+                // Send email
+                try {
+                  await emailService.sendAmbassadorWalletReminder(
                     ambassador.ambassadorEmail,
                     ambassador.username || 'Ambassador',
                     availableBalance
                   );
-                  
-                  if (result.success) {
-                    reminderEmailCount++;
-                    console.log(`[Scheduler] ✓ Sent wallet reminder email to ${ambassador.ambassadorEmail} ($${availableBalance.toFixed(2)} balance)`);
-                  }
+                  emailCount++;
+                } catch (emailErr) {
+                  console.warn(`[Scheduler] Email failed for ${ambassador.username}:`, emailErr.message);
                 }
+                
+                // Send Telegram notification
+                try {
+                  if (ambassador.id) {
+                    await bot.sendMessage(ambassador.id, reminderMessage, { parse_mode: 'Markdown' });
+                    telegramCount++;
+                  }
+                } catch (telegramErr) {
+                  console.warn(`[Scheduler] Telegram failed for ${ambassador.username}:`, telegramErr.message);
+                }
+                
+                reminderCount++;
+                console.log(`[Scheduler] ✓ Reminder sent to ${ambassador.username}: email + telegram`);
               }
             } catch (ambError) {
-              console.warn(`[Scheduler] Error sending reminder for ${ambassador.username}:`, ambError.message);
+              console.warn(`[Scheduler] Error processing ${ambassador.username}:`, ambError.message);
             }
           }
           
-          console.log(`[Scheduler] ✅ Wallet reminder emails sent: ${reminderEmailCount}`);
+          console.log(`[Scheduler] ✅ ${reminderType} reminders complete - Total: ${reminderCount}, Emails: ${emailCount}, Telegrams: ${telegramCount}`);
         }
       } catch (error) {
-        console.error('[Scheduler] Error sending wallet reminder emails:', error);
+        console.error('[Scheduler] Error in wallet reminder scheduler:', error);
       }
     }, 'walletReminder');
-    console.log('📧 Ambassador wallet reminder email scheduler initialized');
+    console.log('📧 Smart wallet reminder scheduler initialized (Days 29, 31, 1)');
   }
   
   // Initialize periodic referral repair scheduler (every 2 hours)

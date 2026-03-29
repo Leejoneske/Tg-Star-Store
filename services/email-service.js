@@ -55,13 +55,13 @@ function getEmailTemplate(title, content) {
     <div class="container">
         <div class="header">
             <h1>${title}</h1>
-            <div class="logo">| StarStore | sell buy telegram stars</div>
+            <div class="logo">StarStore<br>Buy & Sell Telegram Stars</div>
         </div>
         <div class="content">
             ${content}
         </div>
         <div class="footer">
-            <p>| StarStore | sell buy telegram stars</p>
+            <p>StarStore<br>Buy & Sell Telegram Stars</p>
             <p style="margin-top: 8px; color: #999;">© 2026 StarStore. All rights reserved.</p>
         </div>
     </div>
