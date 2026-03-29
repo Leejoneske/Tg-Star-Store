@@ -24,20 +24,22 @@ const schedule = (() => {
   // Simple scheduler using setInterval (no external dependency needed)
   return {
     scheduleEndOfMonthTask: (callback) => {
-      // Run daily at 11:59 PM UTC to check if it's the last day of the month
+      // Run daily to check for end-of-month wallet reminder dates (29, 31, and 1st)
       const checkEndOfMonth = () => {
         const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dayOfMonth = now.getDate();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         
-        // If tomorrow is the 1st, today is the last day
-        if (tomorrow.getDate() === 1) {
-          console.log(`[Scheduler] Triggering end-of-month task for ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+        // Trigger on days 29, 31 (or last day if < 31), and 1st of next month
+        const isTriggerDay = dayOfMonth === 29 || dayOfMonth === 31 || dayOfMonth === 1 || (dayOfMonth === daysInMonth && daysInMonth < 29);
+        
+        if (isTriggerDay) {
+          console.log(`[Scheduler] Triggering end-of-month task on day ${dayOfMonth}/${now.getMonth() + 1}`);
           callback();
         }
       };
       
-      // Check every hour
+      // Check every hour (will trigger on qualifying days)
       setInterval(checkEndOfMonth, 60 * 60 * 1000);
     },
     
@@ -16170,10 +16172,8 @@ app.listen(PORT, async () => {
                 availableBalance += earnedStars;
               }
               
-              if (availableBalance < 100) {
-                console.log(`[Scheduler] Ambassador ${ambassador.username} balance too low ($${availableBalance}), skipping`);
-                continue;
-              }
+              // Send reminders to all ambassadors with email set, regardless of balance
+              // This ensures they know about pending payouts even if small
               
               // Customize reminder message based on phase
               let reminderMessage = ``;
