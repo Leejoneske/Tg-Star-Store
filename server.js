@@ -4830,7 +4830,7 @@ bot.on('callback_query', async (query) => {
                 return;
             }
             await bot.answerCallbackQuery(query.id);
-            await bot.sendMessage(chatId, `Please send the new wallet address and optional memo for ${bucket.selections.size} selected item(s).\n\nFormat: <wallet>[, <memo>]\n\nNote: Special characters like < > $ # + will be automatically removed.\n\nThis request will time out in 10 minutes.`);
+            await bot.sendMessage(chatId, `Please send the new wallet address for ${bucket.selections.size} selected item(s). If needed, you can add a memo after a comma.\n\nSome characters will be removed automatically.\n\nThis request will time out in 10 minutes.`);
             const selectionAt = Date.now();
 
             const onMessage = async (msg) => {
@@ -4943,7 +4943,7 @@ bot.on('callback_query', async (query) => {
             const chatId = query.message.chat.id;
 
             await bot.answerCallbackQuery(query.id);
-            await bot.sendMessage(chatId, `Please send the new wallet address${orderType === 'sell' ? ' and memo (if required)' : ''} for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}.\n\nFormat: <wallet>[, <memo>]\n\nNote: Special characters like < > $ # + will be automatically removed.\n\nThis request will time out in 10 minutes.`);
+            await bot.sendMessage(chatId, `Please send the new wallet address for ${orderType === 'sell' ? 'Sell order' : 'Withdrawal'} ${orderId}. If needed, add a memo after a comma.\n\nSome characters will be removed automatically.\n\nThis request will time out in 10 minutes.`);
 
             const startedAtSingle = Date.now();
             const onMessage = async (msg) => {
