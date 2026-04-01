@@ -11114,7 +11114,10 @@ bot.onText(/\/adminhelp/, (msg) => {
 /adminrefund [order_id] - Process a refund for an order
 /refundtx [order_id] [tx_hash] - Update refund transaction hash
 
-**📢 Communication:**
+**� Referral Management:**
+/referral_stats - Show top 20 referrers with active and pending referral counts
+
+**�📢 Communication:**
 /reply [user_id1,user_id2,...] [message] - Send message to multiple users
 /broadcast - Send broadcast message to all users
 /notify [all|@username|user_id] [message] - Send targeted notification
@@ -11245,6 +11248,71 @@ ${activityTypes.length > 0 ?
     } catch (error) {
         console.error(`[ADMIN-ACTION] activity command error by @${adminUsername}:`, error);
         await bot.sendMessage(chatId, `❌ Error fetching activity statistics: ${error.message}`);
+    }
+});
+
+// Admin referral stats command - shows top 20 referrers with active/pending counts
+bot.onText(/\/referral_stats/, async (msg) => {
+    const chatId = msg.chat.id;
+    const adminId = msg.from.id.toString();
+    
+    // Verify admin
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, '❌ Unauthorized');
+    }
+    
+    try {
+        await bot.sendMessage(chatId, '📊 Analyzing referral data...');
+        
+        // Fetch all referrals and group by referrerUserId
+        const allReferrals = await Referral.find({}).lean();
+        
+        // Group by referrerUserId and count active/pending
+        const referralStats = {};
+        allReferrals.forEach(referral => {
+            const userId = referral.referrerUserId;
+            if (!referralStats[userId]) {
+                referralStats[userId] = {
+                    userId,
+                    total: 0,
+                    active: 0,
+                    pending: 0
+                };
+            }
+            referralStats[userId].total++;
+            if (referral.status === 'active') {
+                referralStats[userId].active++;
+            } else if (referral.status === 'pending') {
+                referralStats[userId].pending++;
+            }
+        });
+        
+        // Convert to array and sort by total (descending)
+        const sortedStats = Object.values(referralStats)
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 20);
+        
+        // Get user info for display
+        const userIds = sortedStats.map(s => s.userId);
+        const users = await User.find({ id: { $in: userIds } }).lean();
+        const userMap = {};
+        users.forEach(u => {
+            userMap[u.id] = u;
+        });
+        
+        // Format message
+        let message = '📊 **Top 20 Referrers**\n\n';
+        sortedStats.forEach((stat, index) => {
+            const user = userMap[stat.userId];
+            const username = user?.username || 'Unknown';
+            message += `${index + 1}. @${username} (ID: ${stat.userId})\n`;
+            message += `   Active: ${stat.active} | Pending: ${stat.pending} | Total: ${stat.total}\n\n`;
+        });
+        
+        await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } catch (error) {
+        console.error('Error in /referral_stats:', error);
+        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
     }
 });
 
