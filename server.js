@@ -11262,7 +11262,7 @@ bot.onText(/\/referral_stats/, async (msg) => {
     }
     
     try {
-        await bot.sendMessage(chatId, '📊 Analyzing referral data...');
+        await bot.sendMessage(chatId, 'Analyzing referral data...');
         
         // Fetch all referrals and group by referrerUserId
         const allReferrals = await Referral.find({}).lean();
@@ -11301,15 +11301,15 @@ bot.onText(/\/referral_stats/, async (msg) => {
         });
         
         // Format message
-        let message = '📊 **Top 20 Referrers**\n\n';
+        let message = '<b>Top 20 Referrers</b>\n\n';
         sortedStats.forEach((stat, index) => {
             const user = userMap[stat.userId];
             const username = user?.username || 'Unknown';
             message += `${index + 1}. @${username} (ID: ${stat.userId})\n`;
-            message += `   Active: ${stat.active} | Pending: ${stat.pending} | Total: ${stat.total}\n\n`;
+            message += `Active: ${stat.active} | Pending: ${stat.pending} | Total: ${stat.total}\n\n`;
         });
         
-        await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
     } catch (error) {
         console.error('Error in /referral_stats:', error);
         await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
