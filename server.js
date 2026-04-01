@@ -332,6 +332,32 @@ app.get('/referral', async (req, res) => {
       }
     }
     
+    // Check if user is banned - deny access immediately
+    if (userId) {
+      const isBanned = await checkUserBanStatus(userId);
+      if (isBanned) {
+        const fs = require('fs').promises;
+        const banned = path.join(__dirname, 'public', 'errors', '403.html');
+        try {
+          const banContent = await fs.readFile(banned, 'utf8');
+          const customContent = banContent.replace(
+            /<\/body>/,
+            `<script>
+              document.title = 'Access Denied';
+              if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.showAlert('Your account is restricted. Contact support with your case ID.');
+              }
+            </script></body>`
+          );
+          res.setHeader('Content-Type', 'text/html');
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+          return res.status(403).send(customContent);
+        } catch (e) {
+          return res.status(403).send('Access Denied: Your account is restricted');
+        }
+      }
+    }
+    
     // Check if user is an ambassador (only if we have a userId)
     let isAmbassador = false;
     let htmlContent;
@@ -1498,13 +1524,30 @@ app.post('/api/admin/bot-simulator/toggle', requireAdmin, (req, res) => {
 });
 
 // Simple whoami endpoint to expose admin flag to frontend
-app.get('/api/whoami', (req, res) => {
+app.get('/api/whoami', async (req, res) => {
   try {
     const tgId = String(req.headers['x-telegram-id'] || '').trim();
-    if (!tgId) return res.json({ id: null, isAdmin: false });
-    return res.json({ id: tgId, isAdmin: Array.isArray(adminIds) && adminIds.includes(tgId) });
-  } catch (_) {
-    return res.json({ id: null, isAdmin: false });
+    if (!tgId) return res.json({ id: null, isAdmin: false, isBanned: false });
+    
+    // Check if user is banned
+    const isBanned = await checkUserBanStatus(tgId);
+    if (isBanned) {
+      return res.json({ 
+        id: tgId, 
+        isAdmin: false, 
+        isBanned: true,
+        message: 'Access Denied: Your account is restricted'
+      });
+    }
+    
+    return res.json({ 
+      id: tgId, 
+      isAdmin: Array.isArray(adminIds) && adminIds.includes(tgId),
+      isBanned: false
+    });
+  } catch (error) {
+    console.error('Error in /api/whoami:', error);
+    return res.json({ id: null, isAdmin: false, isBanned: false });
   }
 });
 
@@ -1979,7 +2022,38 @@ const warningSchema = new mongoose.Schema({
     issuedAt: { type: Date, default: Date.now },
     expiresAt: { type: Date },
     isActive: { type: Boolean, default: true },
-    autoRemove: { type: Boolean, default: false }
+    autoRemove: { type: Boolean, default: false },
+    // Enhanced for appeal system
+    caseId: { type: String, unique: true, sparse: true },
+    appealStatus: { type: String, enum: ['pending', 'under_review', 'approved', 'rejected', 'closed'], default: 'pending' },
+    appealDeadline: { type: Date }
+});
+
+// Ban Appeal Schema - tracks user appeals and appeals process
+const banAppealSchema = new mongoose.Schema({
+    userId: { type: String, required: true, index: true },
+    caseId: { type: String, required: true, unique: true, index: true },
+    warningId: { type: mongoose.Schema.Types.ObjectId, ref: 'Warning', required: true },
+    email: String,
+    appealReason: { type: String, required: true },
+    attachmentUrl: String,
+    status: { type: String, enum: ['submitted', 'under_review', 'approved', 'rejected'], default: 'submitted' },
+    submittedAt: { type: Date, default: Date.now },
+    reviewedBy: String,
+    reviewedAt: Date,
+    reviewNotes: String,
+    createdAt: { type: Date, default: Date.now, index: true },
+    expiresAt: { type: Date, index: true }
+});
+
+// Ban Audit Log - tracks all ban-related actions
+const banAuditLogSchema = new mongoose.Schema({
+    userId: { type: String, required: true, index: true },
+    caseId: String,
+    action: { type: String, enum: ['banned', 'unbanned', 'appeal_submitted', 'appeal_reviewed', 'appeal_approved', 'appeal_rejected'], required: true },
+    performedBy: { type: String, required: true },
+    details: mongoose.Schema.Types.Mixed,
+    timestamp: { type: Date, default: Date.now, index: true }
 });
 
 // New notification template (content & targeting)
@@ -2034,6 +2108,8 @@ const Sticker = mongoose.model('Sticker', stickerSchema);
 const NotificationTemplate = mongoose.model('NotificationTemplate', notificationTemplateSchema);
 const UserNotification = mongoose.model('UserNotification', userNotificationSchema);
 const Warning = mongoose.model('Warning', warningSchema);
+const BanAppeal = mongoose.model('BanAppeal', banAppealSchema);
+const BanAuditLog = mongoose.model('BanAuditLog', banAuditLogSchema);
 const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
 const GeneralFeedback = mongoose.model('GeneralFeedback', generalFeedbackSchema);
@@ -2363,6 +2439,76 @@ function isValidTONAddress(address) {
     
     return false;
 }
+
+// ==================== BAN SYSTEM HELPERS ====================
+
+// Generate unique case ID for ban appeals
+function generateBanCaseId() {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `CASE-${timestamp}-${random}`;
+}
+
+// Check if user is currently banned
+async function checkUserBanStatus(userId) {
+    try {
+        const ban = await Warning.findOne({ 
+            userId: userId.toString(),
+            type: 'ban',
+            isActive: true
+        }).lean();
+        return !!ban;
+    } catch (error) {
+        console.error('Error checking ban status for user', userId, ':', error);
+        return false;
+    }
+}
+
+// Get ban details for user
+async function getBanDetails(userId) {
+    try {
+        const ban = await Warning.findOne({ 
+            userId: userId.toString(),
+            type: 'ban',
+            isActive: true
+        }).lean();
+        return ban || null;
+    } catch (error) {
+        console.error('Error fetching ban details for user', userId, ':', error);
+        return null;
+    }
+}
+
+// Get appeal details for a case
+async function getAppealDetails(caseId) {
+    try {
+        const appeal = await BanAppeal.findOne({ caseId }).lean();
+        return appeal || null;
+    } catch (error) {
+        console.error('Error fetching appeal for case', caseId, ':', error);
+        return null;
+    }
+}
+
+// Middleware to check if user is banned
+const checkBanmiddleware = async (req, res, next) => {
+    try {
+        const userId = req.telegramInitData?.user?.id?.toString();
+        if (!userId) return next();
+        
+        const isBanned = await checkUserBanStatus(userId);
+        if (isBanned) {
+            req.userBanned = true;
+            req.banDetails = await getBanDetails(userId);
+        }
+        next();
+    } catch (error) {
+        console.error('Ban check middleware error:', error);
+        next();
+    }
+};
+
+// ==================== END BAN SYSTEM HELPERS ====================
 
 // Cleanup function for wallet selections
 function cleanupWalletSelections() {
@@ -9678,8 +9824,7 @@ bot.onText(/\/ban(?:\s+(\d+))$/, async (msg, match) => {
     const requesterId = msg.from.id.toString();
     
     if (!adminIds.includes(requesterId)) {
-        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
-            parse_mode: 'Markdown',
+        return bot.sendMessage(chatId, 'Access Denied - Insufficient privileges', {
             reply_to_message_id: msg.message_id
         });
     }
@@ -9689,48 +9834,76 @@ bot.onText(/\/ban(?:\s+(\d+))$/, async (msg, match) => {
     const userId = match[1];
     const existing = await Warning.findOne({ userId: userId, type: 'ban', isActive: true });
     if (existing) {
-        return bot.sendMessage(chatId, `⚠️ User ${userId} is already banned.`, {
+        return bot.sendMessage(chatId, `User ${userId} is already banned with case: ${existing.caseId}`, {
             reply_to_message_id: msg.message_id
         });
     }
     
+    // Generate unique case ID for tracking
+    const caseId = generateBanCaseId();
+    const appealDeadline = new Date();
+    appealDeadline.setDate(appealDeadline.getDate() + 30); // 30-day appeal window
+    
+    // Create ban record
     await Warning.create({
         userId: userId,
         type: 'ban',
         reason: 'Policy violation',
         issuedBy: requesterId,
         isActive: true,
-        autoRemove: false
+        autoRemove: false,
+        caseId: caseId,
+        appealStatus: 'pending',
+        appealDeadline: appealDeadline
     });
     
+    // Add to banned users collection
     await BannedUser.updateOne(
         {}, 
         { $push: { users: userId } },
         { upsert: true }
     );
     
+    // Log ban action
+    await BanAuditLog.create({
+        userId: userId,
+        caseId: caseId,
+        action: 'banned',
+        performedBy: requesterId,
+        details: { reason: 'Policy violation' }
+    });
+    
+    // Send professional notification to user with appeal option
     try {
-        const userSuspensionNotice = `**ACCOUNT NOTICE**\n\n` +
-            `We've detected unusual account activities that violate our terms of service.\n\n` +
-            `**Account Status**: Temporarily Restricted\n` +
-            `**Effective Date**: ${new Date().toLocaleDateString()}\n\n` +
-            `During this time, you will not be able to place orders until the restriction period ends.\n\n` +
-            `If you believe this is an error, contact our support team.`;
+        const userNotification = `<b>Account Restriction Notice</b>\n\n` +
+            `Your account has been temporarily restricted due to a policy violation.\n\n` +
+            `<b>Case ID:</b> ${caseId}\n` +
+            `<b>Restriction Date:</b> ${new Date().toLocaleDateString()}\n` +
+            `<b>Appeal Deadline:</b> ${appealDeadline.toLocaleDateString()}\n\n` +
+            `<b>What This Means:</b>\n` +
+            `You cannot access the app or place any orders during this period.\n\n` +
+            `<b>How to Appeal:</b>\n` +
+            `You have 30 days to submit an appeal with your case ID. ` +
+            `Reply with your case ID and explanation for review.\n\n` +
+            `<b>Questions?</b>\n` +
+            `Contact support with your case ID: ${caseId}`;
         
-        await bot.sendMessage(userId, userSuspensionNotice, { parse_mode: 'Markdown' });
+        await bot.sendMessage(userId, userNotification, { parse_mode: 'HTML' });
     } catch (error) {
-        console.error('Suspension notification delivery failed:', error);
+        console.error('Ban notification delivery failed:', error);
     }
     
-    const adminSummary = `✅ **Account Ban Applied**\n\n` +
-        `**Target Account**: ${userId}\n` +
-        `**Suspension Type**: Indefinite\n` +
-        `**Reason**: Rule violation\n` +
-        `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
-        `**Timestamp**: ${new Date().toLocaleString()}`;
+    // Admin confirmation
+    const adminSummary = `<b>Account Banned</b>\n\n` +
+        `<b>User ID:</b> ${userId}\n` +
+        `<b>Case ID:</b> ${caseId}\n` +
+        `<b>Reason:</b> Policy violation\n` +
+        `<b>Appeals Allowed Until:</b> ${appealDeadline.toLocaleDateString()}\n` +
+        `<b>Authorized By:</b> ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
+        `<b>Timestamp:</b> ${new Date().toLocaleString()}`;
     
     await bot.sendMessage(chatId, adminSummary, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_to_message_id: msg.message_id
     });
 });
@@ -9813,47 +9986,64 @@ bot.onText(/\/unban (\d+)/, async (msg, match) => {
     const requesterId = msg.from.id.toString();
     
     if (!adminIds.includes(requesterId)) {
-        return bot.sendMessage(chatId, '⛔ **Access Denied**\n\nInsufficient privileges to execute this command.', {
-            parse_mode: 'Markdown',
-            reply_to_message_id: msg.message_id
-        });
+        return bot.sendMessage(chatId, 'Access Denied - Insufficient privileges');
     }
     
     const userId = match[1];
-    const activeWarning = await Warning.findOne({ userId: userId, isActive: true });
+    const activeWarning = await Warning.findOne({ userId: userId, type: 'ban', isActive: true });
     
     if (!activeWarning) {
-        return bot.sendMessage(chatId, `⚠️ User ${userId} is not currently banned.`, {
+        return bot.sendMessage(chatId, `User ${userId} is not currently banned.`, {
             reply_to_message_id: msg.message_id
         });
     }
     
+    const caseId = activeWarning.caseId;
+    
+    //  Update ban status
     await Warning.updateOne(
         { userId: userId, isActive: true },
-        { isActive: false }
+        { isActive: false, appealStatus: 'closed' }
     );
     await BannedUser.updateOne({}, { $pull: { users: userId } });
     
+    // Log unban action
+    await BanAuditLog.create({
+        userId: userId,
+        caseId: caseId,
+        action: 'unbanned',
+        performedBy: requesterId,
+        details: { manualUnban: true, autorizedBy: requesterId }
+    });
+    
+    // Send restoration notice to user
     try {
-        const reinstatementNotice = `**ACCOUNT RESTORED**\n\n` +
+        const reinstatementNotice = `<b>Account Restored</b>\n\n` +
             `Your account has been restored to full functionality.\n\n` +
-            `**Account Status**: Active\n` +
-            `**Restoration Date**: ${new Date().toLocaleDateString()}\n\n` +
-            `You can now resume all normal activities including placing orders.`;
+            `<b>Case ID:</b> ${caseId}\n` +
+            `<b>Restoration Date:</b> ${new Date().toLocaleDateString()}\n` +
+            `<b>Status:</b> Active\n\n` +
+            `You can now resume all activities including:\n` +
+            `- Buying and selling Telegram Stars\n` +
+            `- Placing orders\n` +
+            `- Referral transactions\n` +
+            `- All platform features`;
         
-        await bot.sendMessage(userId, reinstatementNotice, { parse_mode: 'Markdown' });
+        await bot.sendMessage(userId, reinstatementNotice, { parse_mode: 'HTML' });
     } catch (error) {
-        console.error('Reinstatement notification delivery failed:', error);
+        console.error('Unban notification delivery failed:', error);
     }
     
-    const adminConfirmation = `✅ **Account Unbanned**\n\n` +
-        `**Account**: ${userId}\n` +
-        `**Status**: Active\n` +
-        `**Authorized By**: ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
-        `**Timestamp**: ${new Date().toLocaleString()}`;
+    // Admin confirmation
+    const adminConfirmation = `<b>Account Unbanned</b>\n\n` +
+        `<b>User ID:</b> ${userId}\n` +
+        `<b>Case ID:</b> ${caseId}\n` +
+        `<b>Status:</b> Active\n` +
+        `<b>Authorized By:</b> ${msg.from.username ? `@${msg.from.username}` : msg.from.first_name}\n` +
+        `<b>Timestamp:</b> ${new Date().toLocaleString()}`;
     
     await bot.sendMessage(chatId, adminConfirmation, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_to_message_id: msg.message_id
     });
 });
@@ -13726,6 +13916,16 @@ app.get('/api/export-referrals-pdf-download', async (req, res) => {
 app.get('/api/referrals/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
+        
+        // Check if user is banned
+        const isBanned = await checkUserBanStatus(userId);
+        if (isBanned) {
+            return res.status(403).json({ 
+                error: 'Access Denied',
+                message: 'Your account is restricted and cannot access referral data'
+            });
+        }
+        
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const limit = Math.min(parseInt(req.query.limit) || 50, 500); // Cap at 500 per page
         const skip = (page - 1) * limit;
