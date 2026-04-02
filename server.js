@@ -897,8 +897,41 @@ if (typeof module !== 'undefined') {
 }
 
 // Ensure directories with index.html return 200 (no 302/redirects)
-app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], (req, res, next) => {
+app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], async (req, res, next) => {
   try {
+    // Extract user ID from available sources
+    let userId = null;
+    
+    if (req.user && req.user.id) {
+      userId = String(req.user.id).trim();
+    } else if (req.headers['x-telegram-id']) {
+      userId = String(req.headers['x-telegram-id']).trim();
+    } else if (req.telegramInitData?.user?.id) {
+      userId = String(req.telegramInitData.user.id).trim();
+    }
+    
+    // Check if user is banned - deny app access immediately
+    if (userId) {
+      const isBanned = await checkUserBanStatus(userId);
+      if (isBanned) {
+        const banDetails = await getBanDetails(userId);
+        const fs = require('fs').promises;
+        let banAccessDenied = await fs.readFile(path.join(__dirname, 'public', 'errors', 'ban-access-denied.html'), 'utf8');
+        
+        // Inject case ID and appeal deadline into the page
+        if (banDetails) {
+          const appealDeadline = banDetails.appealDeadline ? new Date(banDetails.appealDeadline).toLocaleDateString() : 'N/A';
+          banAccessDenied = banAccessDenied
+            .replace('{{CASE_ID}}', banDetails.caseId || 'N/A')
+            .replace('{{APPEAL_DEADLINE}}', appealDeadline);
+        }
+        
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+        return res.status(403).send(banAccessDenied);
+      }
+    }
+    
     const map = {
       '/': 'index.html',
       '/about': 'about.html',

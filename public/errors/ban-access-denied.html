@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Restricted</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            padding: 20px;
+        }
+
+        .error-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            padding: 60px 40px;
+            text-align: center;
+            max-width: 550px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .error-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #dc2626, #ef4444, #f87171);
+        }
+
+        .error-icon {
+            font-size: 80px;
+            color: #dc2626;
+            margin-bottom: 20px;
+            animation: shake 2s ease infinite;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        .error-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+
+        .error-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .restriction-details {
+            background: #fef2f2;
+            border: 2px solid #fecaca;
+            border-radius: 14px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #fed7d7;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #991b1b;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .detail-value {
+            color: #7f1d1d;
+            font-weight: 700;
+            font-size: 15px;
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            word-break: break-all;
+        }
+
+        .what-this-means {
+            background: #f9fafb;
+            border-left: 4px solid #dc2626;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .what-this-means h4 {
+            color: #1f2937;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .what-this-means ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .what-this-means li {
+            color: #4b5563;
+            font-size: 13px;
+            margin-bottom: 8px;
+            padding-left: 24px;
+            position: relative;
+        }
+
+        .what-this-means li::before {
+            content: '✕';
+            color: #dc2626;
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .appeal-section {
+            background: #f0fdf4;
+            border: 2px solid #bbf7d0;
+            border-radius: 14px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .appeal-section h4 {
+            color: #166534;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .appeal-section p {
+            color: #166534;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .appeal-section p:last-child {
+            margin-bottom: 0;
+        }
+
+        .appeal-deadline {
+            background: white;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            text-align: center;
+            font-weight: 600;
+            color: #166534;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            min-width: 140px;
+            justify-content: center;
+        }
+
+        .btn-appeal {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+        }
+
+        .btn-appeal:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .btn-home {
+            background: #f3f4f6;
+            color: #374151;
+            border: 2px solid #d1d5db;
+        }
+
+        .btn-home:hover {
+            background: #e5e7eb;
+            transform: translateY(-2px);
+        }
+
+        .contact-info {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        .contact-info a {
+            color: #dc2626;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .contact-info a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .error-container {
+                padding: 40px 20px;
+            }
+
+            .error-title {
+                font-size: 24px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .detail-value {
+                margin-top: 8px;
+                width: 100%;
+            }
+        }
+
+        .telegram-fullscreen .error-container {
+            border-radius: 0;
+            box-shadow: none;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">
+            <i class="fas fa-lock"></i>
+        </div>
+        
+        <h1 class="error-title">Account Restricted</h1>
+        <p class="error-subtitle">Your account has been temporarily restricted</p>
+
+        <div class="restriction-details">
+            <div class="detail-row">
+                <span class="detail-label">
+                    <i class="fas fa-id-card"></i>
+                    Case ID
+                </span>
+                <span class="detail-value">{{CASE_ID}}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">
+                    <i class="fas fa-calendar"></i>
+                    Appeal Deadline
+                </span>
+                <span class="detail-value">{{APPEAL_DEADLINE}}</span>
+            </div>
+        </div>
+
+        <div class="what-this-means">
+            <h4>
+                <i class="fas fa-exclamation-triangle"></i>
+                What This Means
+            </h4>
+            <ul>
+                <li>You cannot access the app or trading features</li>
+                <li>All orders and transactions are blocked</li>
+                <li>Referral activities are suspended</li>
+                <li>You have 30 days to submit an appeal</li>
+            </ul>
+        </div>
+
+        <div class="appeal-section">
+            <h4>
+                <i class="fas fa-shield-alt"></i>
+                Submit an Appeal
+            </h4>
+            <p>
+                If you believe this restriction is incorrect or have additional information to provide, you can submit an appeal to our support team.
+            </p>
+            <p style="font-size: 12px; margin-top: 15px;">
+                Include your case ID {{CASE_ID}} in your email for faster processing.
+            </p>
+            <div class="appeal-deadline">
+                Appeal Deadline: {{APPEAL_DEADLINE}}
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-appeal" onclick="openAppealEmail()">
+                <i class="fas fa-envelope"></i>
+                Submit Appeal
+            </button>
+            
+            <a href="/" class="btn btn-home">
+                <i class="fas fa-home"></i>
+                Return Home
+            </a>
+        </div>
+
+        <div class="contact-info">
+            Need help? <a href="#" onclick="openAppealEmail(); return false;">Contact support with your case ID</a>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Telegram WebApp if available
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+            document.body.classList.add('telegram-fullscreen');
+        }
+
+        function openAppealEmail() {
+            const caseId = '{{CASE_ID}}';
+            const subject = encodeURIComponent(`Appeal Request - Case: ${caseId}`);
+            const body = encodeURIComponent(
+                `Case ID: ${caseId}\n\n` +
+                `Dear Support Team,\n\n` +
+                `I am writing to appeal my account restriction.\n\n` +
+                `[Please explain your situation here - why you believe this restriction is incorrect or provide any additional context]\n\n` +
+                `Thank you for your consideration.\n\n` +
+                `Best regards`
+            );
+            
+            const mailtoLink = `mailto:support@starstore.site?subject=${subject}&body=${body}`;
+            window.location.href = mailtoLink;
+        }
+    </script>
+</body>
+</html>
