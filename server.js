@@ -3188,7 +3188,19 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             return res.status(400).json({ error: 'Telegram username required' });
         }
 
-        // Check banned status
+        // Check ban status using Warning schema
+        const isBanned = await checkUserBanStatus(telegramId.toString());
+        if (isBanned) {
+            processingRequests.delete(requestKey);
+            const banDetails = await getBanDetails(telegramId.toString());
+            return res.status(403).json({ 
+                error: 'Your account is restricted and cannot place orders',
+                caseId: banDetails?.caseId,
+                message: "Contact support with your case ID to appeal"
+            });
+        }
+
+        // Keep legacy check for backward compatibility
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
             processingRequests.delete(requestKey);
@@ -3382,6 +3394,18 @@ app.post("/api/sell-orders", async (req, res) => {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
+        // Check ban status using Warning schema
+        const isBanned = await checkUserBanStatus(telegramId.toString());
+        if (isBanned) {
+            const banDetails = await getBanDetails(telegramId.toString());
+            return res.status(403).json({ 
+                error: "Your account is restricted and cannot place orders",
+                caseId: banDetails?.caseId,
+                message: "Contact support with your case ID to appeal"
+            });
+        }
+
+        // Keep legacy check for backward compatibility
         const bannedUser = await BannedUser.findOne({ users: telegramId.toString() });
         if (bannedUser) {
             return res.status(403).json({ error: "You are banned from placing orders" });
@@ -7246,6 +7270,19 @@ app.get('/api/daily/activities', requireTelegramAuth, async (req, res) => {
 app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    
+    // Check if user is banned - prevent mission interactions
+    const isBanned = await checkUserBanStatus(userId.toString());
+    if (isBanned) {
+      const banDetails = await getBanDetails(userId.toString());
+      return res.status(403).json({
+        success: false,
+        error: 'Your account is restricted',
+        caseId: banDetails?.caseId,
+        message: 'You cannot participate in daily missions. Contact support with your case ID to appeal'
+      });
+    }
+
     const { missionId } = req.params;
     const mission = DAILY_MISSIONS.find(m => m.id === missionId);
     if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
@@ -7317,6 +7354,19 @@ app.get('/api/daily/missions/validate/:missionId', requireTelegramAuth, async (r
 app.post('/api/daily/missions/complete', requireTelegramAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    
+    // Check if user is banned - prevent mission completion
+    const isBanned = await checkUserBanStatus(userId.toString());
+    if (isBanned) {
+      const banDetails = await getBanDetails(userId.toString());
+      return res.status(403).json({
+        success: false,
+        error: 'Your account is restricted',
+        caseId: banDetails?.caseId,
+        message: 'You cannot complete missions. Contact support with your case ID to appeal'
+      });
+    }
+
     const { missionId } = req.body || {};
     const mission = DAILY_MISSIONS.find(m => m.id === missionId);
     if (!mission) return res.status(400).json({ success: false, error: 'Invalid mission' });
@@ -7947,6 +7997,19 @@ app.get('/api/referral-stats/:userId', (req, res, next) => {
 }, async (req, res) => {
     try {
         const userId = req.params.userId;
+        
+        // Check if user is banned - blocked from accessing referral stats
+        const isBanned = await checkUserBanStatus(userId.toString());
+        if (isBanned) {
+            const banDetails = await getBanDetails(userId.toString());
+            return res.status(403).json({
+                success: false,
+                error: 'Your account is restricted',
+                caseId: banDetails?.caseId,
+                message: 'You cannot access referral statistics. Contact support with your case ID to appeal'
+            });
+        }
+
         const isAmbassadorRequest = req.query.type === 'ambassador';
         console.log(`Fetching referral data for user: ${userId}${isAmbassadorRequest ? ' (ambassador)' : ''}`);
         
@@ -9279,7 +9342,23 @@ app.post('/api/referral-withdrawals', async (req, res) => {
         const amountNum = parseFloat(amount);
 
         if (!userId || !amount || !walletAddress) {
+            await session.abortTransaction();
+            session.endSession();
             throw new Error('Missing required fields');
+        }
+
+        // Check if user is banned - prevent referral withdrawals
+        const isBanned = await checkUserBanStatus(userId.toString());
+        if (isBanned) {
+            await session.abortTransaction();
+            session.endSession();
+            const banDetails = await getBanDetails(userId.toString());
+            return res.status(403).json({
+                success: false,
+                error: 'Your account is restricted',
+                caseId: banDetails?.caseId,
+                message: 'You cannot process withdrawals. Contact support with your case ID to appeal'
+            });
         }
 
         const user = await User.findOne({ id: userId }).session(session) || {};
