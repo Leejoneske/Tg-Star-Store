@@ -3045,6 +3045,7 @@ app.post('/api/quote', requireTelegramAuth, (req, res) => {
         if (typeof mapPrice === 'number') {
             // Use exact package price - total amount is the package price
             const totalAmount = Number(mapPrice.toFixed(2));
+            console.log(`📊 Quote: Package ${starsNum} stars = ${totalAmount} USDT (from price map)`);
             return res.json({ 
                 success: true, 
                 totalAmount, 
@@ -3052,9 +3053,10 @@ app.post('/api/quote', requireTelegramAuth, (req, res) => {
                 quantity 
             });
         } else {
-            // Fallback to linear rate for custom amounts
+            // Fallback to linear rate for custom amounts: $0.02 per star
             const unitAmount = Number((starsNum * 0.02).toFixed(2));
             const totalAmount = Number((unitAmount * quantity).toFixed(2));
+            console.log(`📊 Quote: Custom ${starsNum} stars @ $0.02/star = ${totalAmount} USDT (fallback linear rate)`);
             return res.json({ success: true, totalAmount, unitAmount, quantity });
         }
     } catch (error) {
@@ -3180,6 +3182,9 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         await syncUserData(telegramId, username, 'order_create', req);
         const requesterIsAdmin = Boolean(req.user?.isAdmin);
 
+        // Log incoming request details
+        console.log(`🛒 Order Request: user=${telegramId}, stars=${stars}, isPremium=${isPremium}, totalAmount=${req.body.totalAmount}`);
+
         // Prevent duplicate requests
         if (processingRequests.has(requestKey)) {
             return res.status(429).json({ error: 'Request already being processed. Please wait...' });
@@ -3271,17 +3276,29 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             }
         }
 
-        // Calculate amount
+        // Calculate amount - prioritize totalAmount from frontend (most accurate)
         let amount;
-        if (req.body.totalAmount && typeof req.body.totalAmount === 'number' && req.body.totalAmount > 0) {
-            amount = req.body.totalAmount;
+        const totalAmountFromBody = req.body.totalAmount ? Number(req.body.totalAmount) : null;
+        
+        if (totalAmountFromBody && !isNaN(totalAmountFromBody) && totalAmountFromBody > 0) {
+            // Use the totalAmount sent from frontend (server-calculated quote)
+            amount = totalAmountFromBody;
+            console.log(`✅ Using totalAmount from frontend: ${amount} USDT for ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`);
         } else {
+            // Fallback to preset price map only for standard packages
             const priceMap = { regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 }, premium: { 3: 19.31, 6: 26.25, 12: 44.79 } };
-            amount = isPremium ? priceMap.premium[premiumDuration] : priceMap.regular[stars];
-            if (!amount) {
+            const fallbackAmount = isPremium ? priceMap.premium[premiumDuration] : priceMap.regular[stars];
+            
+            if (!fallbackAmount) {
                 processingRequests.delete(requestKey);
-                return res.status(400).json({ error: 'Invalid selection' });
+                console.error(`❌ Amount calculation failed: stars=${stars}, isPremium=${isPremium}, premiumDuration=${premiumDuration}, totalAmount=${req.body.totalAmount}`);
+                return res.status(400).json({ 
+                    error: 'Invalid selection or amount calculation failed. Please refresh and try again.',
+                    details: `Unable to calculate price for: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`
+                });
             }
+            amount = fallbackAmount;
+            console.log(`⚠️ Using fallback price map: ${amount} USDT`);
         }
 
         // Create order
@@ -3309,6 +3326,8 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
 
         // Save order
         await order.save();
+        
+        console.log(`✅ Order created successfully: ID=${order.id}, user=${telegramId}, amount=${amount}, stars=${stars || premiumDuration + 'mo'} isPremium=${isPremium}`);
 
         // === ADMIN NOTIFICATION PHASE (CRITICAL) ===
         // Extract geolocation
