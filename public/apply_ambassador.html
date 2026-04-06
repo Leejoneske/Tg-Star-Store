@@ -8,7 +8,7 @@
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="/js/translations.js?v=10"></script>
+    <script src="/js/translations.js?v=11"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
         
@@ -897,44 +897,17 @@
         })();
 
         // Exit button functionality
+        // Exit button handler
         document.getElementById('exitButton').addEventListener('click', function() {
-            window.location.href = '/about';
+            window.location.href = '/about.html';
         });
 
-        // Apply translations to page elements
-        function applyTranslations() {
-            const lang = localStorage.getItem('userLanguage') || 'en';
-            const trans = translations[lang] || translations.en;
-            
-            const textMap = {
-                'applyAmbassadorTitle': document.querySelector('.hero h1'),
-                'applyAmbassadorSubtitle': document.querySelector('.hero .subtitle'),
-                'applyBenefitEarnTitle': document.querySelectorAll('.benefit-card h3')[0],
-                'applyBenefitPerksTitle': document.querySelectorAll('.benefit-card h3')[1],
-                'applyBenefitSupportTitle': document.querySelectorAll('.benefit-card h3')[2],
-                'applyLevelsHeading': document.querySelector('.perks-section h2'),
-                'applyFormHeading': document.querySelector('.waitlist-form h2'),
-                'applyFormSubmitBtn': document.querySelector('.submit-btn')
-            };
-            
-            Object.entries(textMap).forEach(([key, el]) => {
-                if (el && trans[key]) {
-                    if (el.tagName === 'BUTTON') {
-                        el.textContent = trans[key];
-                    } else if (key === 'applyAmbassadorSubtitle') {
-                        // Handle the nested highlight span
-                        el.innerHTML = trans[key];
-                    } else {
-                        el.textContent = trans[key];
-                    }
-                }
-            });
-        }
-        
-        // Apply translations when page loads
-        if (typeof translations !== 'undefined') {
-            applyTranslations();
-        }
+        // Initialize translations when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.TranslationUtils && window.TranslationUtils.applyTranslations) {
+                window.TranslationUtils.applyTranslations();
+            }
+        });
     </script>
 </body>
 </html>
