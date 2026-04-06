@@ -16755,19 +16755,6 @@ app.listen(PORT, async () => {
   }
 });
 
-function requireAdmin(req, res, next) {
-	try {
-		const tgId = (req.headers['x-telegram-id'] || '').toString();
-		if (tgId && Array.isArray(adminIds) && adminIds.includes(tgId)) {
-			req.user = { id: tgId, isAdmin: true };
-			return next();
-		}
-		return res.status(403).json({ error: 'Forbidden' });
-	} catch (e) {
-		return res.status(403).json({ error: 'Forbidden' });
-	}
-}
-
 app.get('/api/me', async (req, res) => {
 	const sess = getAdminSession(req);
 	if (sess && adminIds.includes(sess.payload.tgId)) {
