@@ -533,16 +533,16 @@
             <div class="cluster-icon"><i class="fas fa-dollar-sign"></i></div>
             <div class="cluster-icon"><i class="fas fa-bolt"></i></div>
         </div>
-        <h2 class="hero-title">Higher rewards,<br>every referral</h2>
-        <p class="hero-sub">Earn more as you grow. Unlock better tiers, free Stars, and exclusive benefits — paid out automatically every month.</p>
+        <h2 class="hero-title" data-translate="ambassadorHeroTitle">Higher rewards,<br>every referral</h2>
+        <p class="hero-sub" data-translate="ambassadorHeroSubtitle">Earn more as you grow. Unlock better tiers, free Stars, and exclusive benefits — paid out automatically every month.</p>
     </div>
 
     <!-- LINK -->
     <div class="link-section">
         <div class="link-box">
-            <div class="link-text" id="referralLinkDisplay">Loading your link…</div>
+            <div class="link-text" id="referralLinkDisplay" data-translate="ambassadorLoadingLink">Loading your link…</div>
             <button class="copy-btn" onclick="copyReferralLink()">
-                <i class="fas fa-copy"></i> Copy
+                <i class="fas fa-copy"></i> <span data-translate="ambassadorCopyButton">Copy</span>
             </button>
         </div>
     </div>
@@ -613,17 +613,17 @@
     <div class="divider"></div>
 
     <!-- AMBASSADOR TIERS -->
-    <div class="section-label">Ambassador Levels</div>
+    <div class="section-label" data-translate="ambassadorLevelsHeading">Ambassador Levels</div>
     <div class="tiers-list" id="tiersList">
 
         <div class="tier-row" id="tier-1" onclick="toggleTier('tier-1')">
             <div class="tier-icon-wrap">🌱</div>
             <div class="tier-body">
                 <div class="tier-top-row">
-                    <div class="tier-name">Level 1 — Explorer</div>
-                    <div class="tier-req-badge">30 Referrals</div>
+                    <div class="tier-name" data-translate="ambassadorTier1Name">Level 1 — Explorer</div>
+                    <div class="tier-req-badge" data-translate="ambassadorTier1Requirement">30 Referrals</div>
                 </div>
-                <div class="tier-sub">Entry-level ambassador</div>
+                <div class="tier-sub" data-translate="ambassadorTier1Description">Entry-level ambassador</div>
                 <div class="tier-benefits-preview">
                     <div class="benefit-chip"><i class="fas fa-check"></i> $30+ earnings</div>
                     <div class="benefit-chip"><i class="fas fa-check"></i> 50 free Stars</div>
@@ -658,10 +658,10 @@
             <div class="tier-icon-wrap">🔗</div>
             <div class="tier-body">
                 <div class="tier-top-row">
-                    <div class="tier-name">Level 2 — Connector</div>
-                    <div class="tier-req-badge">50 Referrals</div>
+                    <div class="tier-name" data-translate="ambassadorTier2Name">Level 2 — Connector</div>
+                    <div class="tier-req-badge" data-translate="ambassadorTier2Requirement">50 Referrals</div>
                 </div>
-                <div class="tier-sub">Growing ambassador</div>
+                <div class="tier-sub" data-translate="ambassadorTier2Description">Growing ambassador</div>
                 <div class="tier-benefits-preview">
                     <div class="benefit-chip"><i class="fas fa-check"></i> $60+ earnings</div>
                     <div class="benefit-chip"><i class="fas fa-check"></i> 100 free Stars</div>
@@ -693,10 +693,10 @@
             <div class="tier-icon-wrap">🚀</div>
             <div class="tier-body">
                 <div class="tier-top-row">
-                    <div class="tier-name">Level 3 — Pioneer</div>
-                    <div class="tier-req-badge">70 Referrals</div>
+                    <div class="tier-name" data-translate="ambassadorTier3Name">Level 3 — Pioneer</div>
+                    <div class="tier-req-badge" data-translate="ambassadorTier3Requirement">70 Referrals</div>
                 </div>
-                <div class="tier-sub">Established ambassador</div>
+                <div class="tier-sub" data-translate="ambassadorTier3Description">Advanced ambassador</div>
                 <div class="tier-benefits-preview">
                     <div class="benefit-chip"><i class="fas fa-check"></i> $80+ earnings</div>
                     <div class="benefit-chip"><i class="fas fa-check"></i> 150 free Stars</div>
@@ -731,10 +731,10 @@
             <div class="tier-icon-wrap">💎</div>
             <div class="tier-body">
                 <div class="tier-top-row">
-                    <div class="tier-name">Level 4 — Elite</div>
-                    <div class="tier-req-badge">100 Referrals</div>
+                    <div class="tier-name" data-translate="ambassadorTier4Name">Level 4 — Elite</div>
+                    <div class="tier-req-badge" data-translate="ambassadorTier4Requirement">100 Referrals</div>
                 </div>
-                <div class="tier-sub">Top-tier ambassador</div>
+                <div class="tier-sub" data-translate="ambassadorTier4Description">Top-tier ambassador</div>
                 <div class="tier-benefits-preview">
                     <div class="benefit-chip"><i class="fas fa-check"></i> $110+ earnings</div>
                     <div class="benefit-chip"><i class="fas fa-check"></i> 200 free Stars</div>
@@ -769,35 +769,35 @@
     <div class="divider"></div>
 
     <!-- PAYOUT INFO -->
-    <div class="section-label">Payout Info</div>
+    <div class="section-label" data-translate="ambassadorPayoutInfoHeading">Payout Info</div>
     <div class="payout-list">
         <div class="payout-row">
             <div class="payout-left">
                 <div class="payout-icon"><i class="fas fa-calendar-check"></i></div>
-                <span class="payout-key">Payout schedule</span>
+                <span class="payout-key" data-translate="ambassadorPayoutSchedule">Payout schedule</span>
             </div>
-            <span class="payout-val green">Monthly (auto)</span>
+            <span class="payout-val green" data-translate="ambassadorPayoutFrequency">Monthly (auto)</span>
         </div>
         <div class="payout-row">
             <div class="payout-left">
                 <div class="payout-icon"><i class="fas fa-network-wired"></i></div>
-                <span class="payout-key">Network</span>
+                <span class="payout-key" data-translate="ambassadorPayoutNetwork">Network</span>
             </div>
-            <span class="payout-val">TON Blockchain</span>
+            <span class="payout-val" data-translate="ambassadorPayoutNetworkValue">TON Blockchain</span>
         </div>
         <div class="payout-row">
             <div class="payout-left">
                 <div class="payout-icon"><i class="fas fa-percent"></i></div>
-                <span class="payout-key">Withdrawal fee</span>
+                <span class="payout-key" data-translate="ambassadorWithdrawalFee">Withdrawal fee</span>
             </div>
-            <span class="payout-val green">Free</span>
+            <span class="payout-val green" data-translate="ambassadorWithdrawalFeeValue">Free</span>
         </div>
         <div class="payout-row">
             <div class="payout-left">
                 <div class="payout-icon"><i class="fas fa-wallet"></i></div>
                 <span class="payout-key" data-translate="ambassadorYourWallet">Your wallet</span>
             </div>
-            <span class="payout-val" id="walletPreview" style="font-size:12px;color:var(--text-muted,#aaa);">Not set</span>
+            <span class="payout-val" id="walletPreview" style="font-size:12px;color:var(--text-muted,#aaa);" data-translate="ambassadorWalletNotSet">Not set</span>
         </div>
     </div>
 
