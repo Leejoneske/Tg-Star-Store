@@ -153,7 +153,42 @@ SESSION_SECRET=your_session_secret
 - `POST /api/referral-withdrawals` - Process withdrawals
 - `GET /api/withdrawal-history/:userId` - Withdrawal history
 
-## 🚀 Deployment
+### Transaction APIs (TON Sub-Second)
+- `POST /api/verify-transaction` - Verify blockchain transaction with Pending/Confirmed status
+- `POST /api/transaction-status-poll` - Poll for real-time transaction status changes
+
+## 🔄 TON Sub-Second Mainnet Support
+
+**As of April 2026, the app is fully compatible with TON's Sub-Second mainnet rollout.**
+
+### Key Improvements
+✅ **Pending/Confirmed Status Tracking** - Follows TON Sub-Second model
+- `pending`: Transaction in mempool, awaiting block inclusion
+- `confirmed`: Transaction finalized on masterchain
+- Real-time UX updates via polling (3-5 second confirmation typical)
+
+✅ **Toncenter Streaming API V2** - Latest API recommendations
+- Optimized transaction queries
+- WebSocket-ready for future enhancements
+- Sub-second block time compatible
+
+✅ **Near-Instant UX** - Best practices implemented
+- Display "Pending" status immediately after transaction submission
+- Update to "Confirmed" once blockchain finalizes
+- 3-5 second typical confirmation time on Sub-Second network
+
+✅ **Backward Compatible** - Works with existing TON infrastructure
+- Polling fallback mechanism for reliability
+- No breaking changes to existing integrations
+- Automatic status updates
+
+### Implementation Details
+- **Service**: `services/ton-transaction-service.js` - Manages transaction verification
+- **Endpoints**: `/api/verify-transaction`, `/api/transaction-status-poll`
+- **Frontend**: Real-time Pending→Confirmed UX flow
+- **Configuration**: Automatic via `TON_MAINNET_ENDPOINT` and `TON_API_KEY`
+
+**Reference**: [TON Sub-Second Guidance](https://ton.org/docs/develop/infra/ton-blockchain#sub-second-architecture)
 
 ### Railway Deployment
 ```bash
