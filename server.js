@@ -88,6 +88,7 @@ try {
 
 // Email Service for professional notifications (Resend API)
 const emailService = require('./services/email-service');
+const tonTransactionService = require('./services/ton-transaction-service');
 
 // Admin commands module
 const registerAdminEmailCommands = require('./telegram-commands-admin');
@@ -2962,18 +2963,74 @@ app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
             return res.status(400).json({ success: false, error: 'Missing required parameters' });
         }
 
-        const isVerified = await verifyTONTransaction(transactionHash, targetAddress, expectedAmount);
+        // Use new TON Transaction Service with Pending/Confirmed support
+        const result = await tonTransactionService.verifyTransaction(transactionHash, targetAddress, expectedAmount);
         
-        if (isVerified) {
-            console.log('Transaction verified successfully:', transactionHash);
-            res.json({ success: true, verified: true });
+        if (result.status === 'confirmed') {
+            console.log('✅ [TON] Transaction CONFIRMED:', transactionHash);
+            res.json({ 
+                success: true, 
+                verified: true,
+                status: 'confirmed',
+                transaction: result.transaction
+            });
+        } else if (result.status === 'pending') {
+            console.log('⏳ [TON] Transaction PENDING (in mempool):', transactionHash);
+            res.json({ 
+                success: true,
+                verified: false,
+                status: 'pending',
+                message: 'Transaction received and in mempool. Waiting for block confirmation...',
+                transaction: result.transaction
+            });
         } else {
-            console.log('Transaction verification failed:', transactionHash);
-            res.json({ success: false, verified: false });
+            console.log('❌ [TON] Transaction verification failed:', transactionHash);
+            res.json({ 
+                success: false, 
+                verified: false,
+                status: 'unknown',
+                error: result.error || 'Transaction not found'
+            });
         }
     } catch (error) {
-        console.error('Transaction verification error:', error);
+        console.error('❌ [TON] Transaction verification error:', error);
         res.status(500).json({ success: false, error: 'Verification failed' });
+    }
+});
+
+/**
+ * New endpoint for polling transaction status changes
+ * Follows TON Sub-Second best practices
+ */
+app.post('/api/transaction-status-poll', requireTelegramAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { transactionHash, targetAddress, expectedAmount, timeout = 60000 } = req.body;
+
+        if (!transactionHash || !targetAddress) {
+            return res.status(400).json({ success: false, error: 'Missing transaction data' });
+        }
+
+        console.log(`🔔 [TON] Polling transaction status: ${transactionHash}`);
+
+        // Poll with timeout (max 60 seconds by default)
+        const result = await tonTransactionService.pollTransactionStatus(
+            transactionHash,
+            targetAddress,
+            Math.min(timeout, 120000) // Cap at 2 minutes
+        );
+
+        res.json({
+            success: true,
+            status: result.status,
+            transaction: result.transaction,
+            message: result.status === 'confirmed' ? 'Transaction confirmed!' : 
+                     result.status === 'timeout' ? 'Verification timed out. Transaction may still be processing.' :
+                     'Unknown status'
+        });
+    } catch (error) {
+        console.error('❌ [TON] Poll error:', error);
+        res.status(500).json({ success: false, error: 'Polling failed' });
     }
 });
 
