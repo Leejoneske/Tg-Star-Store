@@ -2738,7 +2738,7 @@ async function verifyTONTransaction(transactionHash, targetAddress, expectedAmou
                 }
 
                 const data = await response.json();
-                console.log(`API ${endpointIndex + 1} response:`, JSON.stringify(data, null, 2));
+                console.debug(`API ${endpointIndex + 1}: Response received`);
                 
                 // Handle different API response formats
                 let transactions = [];
@@ -2787,7 +2787,7 @@ async function verifyTONTransaction(transactionHash, targetAddress, expectedAmou
                 }
 
                 const transaction = matchingTransaction;
-                console.log(`API ${endpointIndex + 1}: Found transaction:`, JSON.stringify(transaction, null, 2));
+                console.debug(`API ${endpointIndex + 1}: Found transaction, verifying...`);
                 
                 // Check if transaction has incoming message
                 if (!transaction.in_msg) {
@@ -2939,60 +2939,104 @@ app.get('/api/get-wallet-address', requireTelegramAuth, (req, res) => {
 
 // Quote endpoint for pricing (used by Buy page)
 // Transaction verification endpoint
+// ===== TRANSACTION VERIFICATION ENDPOINT =====
+// Handles blockchain transaction status checks
+// Returns: { success, verified, status: 'pending'|'confirmed'|'failed' }
 app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
     try {
         const userId = req.user.id;
+        const { transactionHash, targetAddress, expectedAmount } = req.body;
         
-        // Check if user is banned - prevent transaction verification
+        // Validate inputs
+        if (!transactionHash || !targetAddress || !expectedAmount) {
+            return res.status(400).json({ 
+                success: false, 
+                verified: false,
+                error: 'Missing required parameters' 
+            });
+        }
+
+        // Check if user is banned
         const isBanned = await checkUserBanStatus(userId.toString());
         if (isBanned) {
             const banDetails = await getBanDetails(userId.toString());
             return res.status(403).json({
                 success: false,
+                verified: false,
                 error: 'Your account is restricted',
-                caseId: banDetails?.caseId,
-                message: 'You cannot verify transactions. Contact support with your case ID to appeal'
+                caseId: banDetails?.caseId
             });
         }
 
-        const { transactionHash, targetAddress, expectedAmount } = req.body;
-        
-        if (!transactionHash || !targetAddress || !expectedAmount) {
-            return res.status(400).json({ success: false, error: 'Missing required parameters' });
-        }
-
-        // Use new TON Transaction Service with Pending/Confirmed support
-        const result = await tonTransactionService.verifyTransaction(transactionHash, targetAddress, expectedAmount);
-        
-        if (result.status === 'confirmed') {
-            console.debug('[TON] Transaction CONFIRMED:', transactionHash);
-            res.json({ 
-                success: true, 
-                verified: true,
-                status: 'confirmed',
-                transaction: result.transaction
-            });
-        } else if (result.status === 'pending') {
-            console.debug('[TON] Transaction PENDING (in mempool):', transactionHash);
-            res.json({ 
+        // Use tonTransactionService for proper blockchain verification
+        let result;
+        try {
+            result = await tonTransactionService.verifyTransaction(
+                transactionHash, 
+                targetAddress, 
+                expectedAmount
+            );
+        } catch (serviceError) {
+            console.error('[TON Service Error]:', serviceError.message);
+            // Return pending status so frontend keeps polling
+            return res.json({ 
                 success: true,
                 verified: false,
                 status: 'pending',
-                message: 'Transaction received and in mempool. Waiting for block confirmation...',
-                transaction: result.transaction
-            });
-        } else {
-            console.debug('[TON] Transaction not verified:', transactionHash);
-            res.json({ 
-                success: false, 
-                verified: false,
-                status: 'unknown',
-                error: result.error || 'Transaction not found'
+                error: 'Transaction verification in progress...'
             });
         }
+
+        // Return appropriate response based on transaction status
+        if (result.status === 'confirmed') {
+            console.log('✅ [Transaction] CONFIRMED on blockchain');
+            return res.json({ 
+                success: true, 
+                verified: true,
+                status: 'confirmed',
+                transaction: result.transaction,
+                message: 'Transaction finalized on blockchain'
+            });
+        }
+        
+        if (result.status === 'pending') {
+            console.log('⏳ [Transaction] PENDING - in mempool');
+            return res.json({ 
+                success: true,
+                verified: false,
+                status: 'pending',
+                transaction: result.transaction,
+                message: 'Waiting for blockchain confirmation...'
+            });
+        }
+
+        // Unknown/timeout status
+        if (result.status === 'timeout') {
+            console.warn('⏱ [Transaction] TIMEOUT - check status manually');
+            return res.json({ 
+                success: true,
+                verified: false,
+                status: 'pending',
+                error: 'Verification timeout - transaction may still be processing'
+            });
+        }
+        
+        // Failed verification
+        console.error('❌ [Transaction] FAILED verification');
+        return res.json({ 
+            success: false, 
+            verified: false,
+            status: 'failed',
+            error: result.error || 'Transaction verification failed'
+        });
+        
     } catch (error) {
-        console.error('[TON] Verification error:', error.message);
-        res.status(500).json({ success: false, error: 'Verification failed' });
+        console.error('[Verify Transaction] Unexpected error:', error.message);
+        return res.status(500).json({ 
+            success: false, 
+            verified: false,
+            error: 'Verification service error' 
+        });
     }
 });
 
@@ -18206,7 +18250,7 @@ app.get('/api/admin/auth/verify', (req, res) => {
 	}
 	
 	const isAdmin = Array.isArray(adminIds) && adminIds.includes(telegramId);
-	console.log('🔐 Admin check result:', { telegramId, isAdmin, adminIds });
+        console.debug('🔐 Admin check:', isAdmin ? 'YES' : 'NO');
 	
 	if (!isAdmin) {
 		return res.status(403).json({ error: 'Access denied - ID not in admin list' });
