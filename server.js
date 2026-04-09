@@ -2945,14 +2945,14 @@ app.get('/api/get-wallet-address', requireTelegramAuth, (req, res) => {
 app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { transactionHash, targetAddress, expectedAmount } = req.body;
+        const { orderId, userWalletAddress } = req.body;
         
         // Validate inputs
-        if (!transactionHash || !targetAddress || !expectedAmount) {
+        if (!orderId || !userWalletAddress) {
             return res.status(400).json({ 
                 success: false, 
                 verified: false,
-                error: 'Missing required parameters' 
+                error: 'Missing orderId or wallet address' 
             });
         }
 
@@ -2968,13 +2968,35 @@ app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
             });
         }
 
+        // Look up order to get payment details
+        let order;
+        try {
+            order = await BuyOrder.findOne({ id: orderId });
+            if (!order) {
+                return res.status(404).json({
+                    success: false,
+                    verified: false,
+                    error: 'Order not found'
+                });
+            }
+        } catch (dbError) {
+            console.error('[Database Error]:', dbError.message);
+            return res.status(500).json({
+                success: false,
+                verified: false,
+                error: 'Database error'
+            });
+        }
+
         // Use tonTransactionService for proper blockchain verification
         let result;
         try {
-            result = await tonTransactionService.verifyTransaction(
-                transactionHash, 
-                targetAddress, 
-                expectedAmount
+            // Find transaction by amount and target address (more reliable)
+            // This works even if we don't have a valid transaction hash
+            result = await tonTransactionService.findTransactionByAmountAndTarget(
+                userWalletAddress,
+                order.walletAddress,  // Payment destination
+                order.amount           // Expected amount in USDT
             );
         } catch (serviceError) {
             console.error('[TON Service Error]:', serviceError.message);
@@ -2989,45 +3011,45 @@ app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
 
         // Return appropriate response based on transaction status
         if (result.status === 'confirmed') {
-            console.log('✅ [Transaction] CONFIRMED on blockchain');
+            console.log(`✅ [Order ${orderId}] Transaction CONFIRMED on blockchain`);
+            
+            // Update order status
+            try {
+                await BuyOrder.updateOne(
+                    { id: orderId },
+                    { 
+                        transactionVerified: true,
+                        status: 'verified',
+                        dateVerified: new Date()
+                    }
+                );
+            } catch {}
+            
             return res.json({ 
                 success: true, 
                 verified: true,
                 status: 'confirmed',
-                transaction: result.transaction,
                 message: 'Transaction finalized on blockchain'
             });
         }
         
         if (result.status === 'pending') {
-            console.log('⏳ [Transaction] PENDING - in mempool');
+            console.log(`⏳ [Order ${orderId}] Transaction PENDING - still indexing`);
             return res.json({ 
                 success: true,
                 verified: false,
                 status: 'pending',
-                transaction: result.transaction,
                 message: 'Waiting for blockchain confirmation...'
             });
         }
 
-        // Unknown/timeout status
-        if (result.status === 'timeout') {
-            console.warn('⏱ [Transaction] TIMEOUT - check status manually');
-            return res.json({ 
-                success: true,
-                verified: false,
-                status: 'pending',
-                error: 'Verification timeout - transaction may still be processing'
-            });
-        }
-        
-        // Failed verification
-        console.error('❌ [Transaction] FAILED verification');
+        // Unknown/timeout status - keep polling
+        console.debug(`⏳ [Order ${orderId}] Transaction status unknown - will retry`);
         return res.json({ 
-            success: false, 
+            success: true,
             verified: false,
-            status: 'failed',
-            error: result.error || 'Transaction verification failed'
+            status: 'pending',
+            error: 'Blockchain indexing in progress - please wait'
         });
         
     } catch (error) {

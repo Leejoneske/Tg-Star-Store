@@ -3948,9 +3948,7 @@ async function handlePurchase(item) {
                 console.log('🔄 Starting automatic transaction verification...');
                 await window.TransactionVerifier.startAutoVerification({
                     orderId: response.order.id,
-                    transactionHash: orderData.transactionHash,
-                    walletAddress: orderData.walletAddress,
-                    totalAmount: orderData.totalAmount
+                    userWalletAddress: orderData.walletAddress  // User's wallet that sent the transaction
                 });
                 
                 return; // Exit payment flow after verification modal

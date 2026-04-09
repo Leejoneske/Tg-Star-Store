@@ -15,7 +15,7 @@ window.TransactionVerifier = {
      * Verify a transaction using backend API
      * Returns: { status: 'pending'|'confirmed'|'failed', transaction: {...}, error?: string }
      */
-    async verify(transactionHash, walletAddress, expectedAmount, orderId) {
+    async verify(orderId, userWalletAddress) {
         try {
             const response = await fetch('/api/verify-transaction', {
                 method: 'POST',
@@ -25,17 +25,16 @@ window.TransactionVerifier = {
                     'x-telegram-id': window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'dev-user'
                 },
                 body: JSON.stringify({
-                    transactionHash,
-                    targetAddress: walletAddress,
-                    expectedAmount
+                    orderId,
+                    userWalletAddress
                 })
             });
 
             if (!response.ok) {
                 console.error('❌ Verification API error:', response.status);
                 return {
-                    status: 'failed',
-                    error: `API error: ${response.status}`,
+                    status: 'pending',  // Return pending on error to keep polling
+                    error: `Verification service error`,
                     orderId
                 };
             }
@@ -44,20 +43,18 @@ window.TransactionVerifier = {
             
             // Map API response to verify result
             if (!result.success || !result.verified) {
-                // Transaction not yet confirmed, or unknown status
+                // Transaction not yet confirmed, keep polling
                 if (result.status === 'pending') {
-                    console.log('⏳ Transaction pending in mempool...');
+                    console.log('⏳ Waiting for blockchain confirmation...');
                     return {
                         status: 'pending',
-                        transaction: result.transaction,
                         orderId
                     };
                 }
                 
-                console.log('⏳ Transaction still being processed...');
+                console.log('⏳ Still verifying transaction...');
                 return {
                     status: 'pending',
-                    transaction: result.transaction,
                     orderId
                 };
             }
@@ -66,14 +63,14 @@ window.TransactionVerifier = {
             console.log('✅ Transaction CONFIRMED on blockchain');
             return {
                 status: 'confirmed',
-                transaction: result.transaction,
                 orderId
             };
 
         } catch (error) {
             console.error('❌ Verification error:', error.message);
+            // Return pending on network errors to retry
             return {
-                status: 'failed',
+                status: 'pending',
                 error: error.message,
                 orderId
             };
@@ -105,17 +102,14 @@ window.TransactionVerifier = {
         // Define verification function
         const verifyFn = async (data) => {
             return this.verify(
-                orderData.transactionHash,
-                orderData.walletAddress,
-                orderData.totalAmount,
-                orderData.orderId
+                orderData.orderId,
+                orderData.userWalletAddress
             );
         };
 
         // Open modal with auto-verification
         await modal.open(verifyFn, {
-            orderId: orderData.orderId,
-            transactionHash: orderData.transactionHash
+            orderId: orderData.orderId
         });
 
         return modal;
