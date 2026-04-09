@@ -924,6 +924,22 @@
             font-size: 13px;
         }
     }
+
+    /* Loading Spinner Animation */
+    .spinner {
+        border: 4px solid rgba(203, 213, 225, 0.3);
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
 </style>
     <script src="/js/theme.js"></script>
 </head>
@@ -4049,13 +4065,7 @@ async function handlePurchase(item) {
             throw new Error(TranslationUtils.get('transactionFailed'));
         }
     } catch (error) {
-        console.error('❌ Payment error:', error);
-        console.error('❌ Error details:', {
-            name: error?.name,
-            message: error?.message,
-            stack: error?.stack,
-            response: error?.response?.data
-        });
+        console.debug('Payment error:', error.message);
         
         // Close loading before showing error
         if (loadingShown) {

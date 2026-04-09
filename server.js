@@ -2849,14 +2849,12 @@ async function verifyTONTransaction(transactionHash, targetAddress, expectedAmou
     }
     
     // If all API endpoints failed, use fallback verification
-    console.log('All TON API endpoints failed, using fallback verification');
     return await fallbackTransactionVerification(transactionHash, targetAddress, expectedAmount);
 }
 
 // Fallback verification method when TON APIs are down
 async function fallbackTransactionVerification(transactionHash, targetAddress, expectedAmount) {
     try {
-        console.log('Using fallback verification - enhanced validation with stricter checks');
         
         // Basic validation: check if transaction hash looks valid
         if (!transactionHash || transactionHash.length < 20) {
@@ -2906,7 +2904,7 @@ async function fallbackTransactionVerification(transactionHash, targetAddress, e
         return false;
         
     } catch (error) {
-        console.error('Fallback verification error:', error);
+        console.error('Fallback verification error:', error.message);
         return false;
     }
 }
@@ -2967,7 +2965,7 @@ app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
         const result = await tonTransactionService.verifyTransaction(transactionHash, targetAddress, expectedAmount);
         
         if (result.status === 'confirmed') {
-            console.log('✅ [TON] Transaction CONFIRMED:', transactionHash);
+            console.debug('[TON] Transaction CONFIRMED:', transactionHash);
             res.json({ 
                 success: true, 
                 verified: true,
@@ -2975,7 +2973,7 @@ app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
                 transaction: result.transaction
             });
         } else if (result.status === 'pending') {
-            console.log('⏳ [TON] Transaction PENDING (in mempool):', transactionHash);
+            console.debug('[TON] Transaction PENDING (in mempool):', transactionHash);
             res.json({ 
                 success: true,
                 verified: false,
@@ -2984,7 +2982,7 @@ app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
                 transaction: result.transaction
             });
         } else {
-            console.log('❌ [TON] Transaction verification failed:', transactionHash);
+            console.debug('[TON] Transaction not verified:', transactionHash);
             res.json({ 
                 success: false, 
                 verified: false,
@@ -2993,7 +2991,7 @@ app.post('/api/verify-transaction', requireTelegramAuth, async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('❌ [TON] Transaction verification error:', error);
+        console.error('[TON] Verification error:', error.message);
         res.status(500).json({ success: false, error: 'Verification failed' });
     }
 });
@@ -3011,7 +3009,7 @@ app.post('/api/transaction-status-poll', requireTelegramAuth, async (req, res) =
             return res.status(400).json({ success: false, error: 'Missing transaction data' });
         }
 
-        console.log(`🔔 [TON] Polling transaction status: ${transactionHash}`);
+        console.debug('[TON] Polling transaction:', transactionHash);
 
         // Poll with timeout (max 60 seconds by default)
         const result = await tonTransactionService.pollTransactionStatus(
@@ -3029,7 +3027,7 @@ app.post('/api/transaction-status-poll', requireTelegramAuth, async (req, res) =
                      'Unknown status'
         });
     } catch (error) {
-        console.error('❌ [TON] Poll error:', error);
+        console.error('[TON] Poll error:', error.message);
         res.status(500).json({ success: false, error: 'Polling failed' });
     }
 });
