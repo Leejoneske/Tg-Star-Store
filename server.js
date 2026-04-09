@@ -2559,15 +2559,18 @@ function cleanupWalletSelections() {
 // Run cleanup every 10 minutes
 setInterval(cleanupWalletSelections, 10 * 60 * 1000);
 
-// Background job to verify pending transactions
+// Background job to verify pending transactions (DISABLED - frontend no longer waits)
+// Orders are now shown as successful immediately after creation.
+// Manual admin processing handles the rest.
+// Re-enable if needed for reconciliation purposes only.
+/*
 setInterval(async () => {
     try {
         const pendingOrders = await BuyOrder.find({
             status: 'pending',
             transactionHash: { $exists: true, $ne: null },
             transactionVerified: false,
-            verificationAttempts: { $lt: 5 }, // Increased attempts
-            // Only verify orders that are at least 30 seconds old
+            verificationAttempts: { $lt: 5 },
             dateCreated: { $lt: new Date(Date.now() - 30000) }
         }).limit(10);
 
@@ -2591,7 +2594,6 @@ setInterval(async () => {
                     console.log(`✅ Order ${order.id} verified and confirmed after ${orderAgeMinutes} minutes`);
                     await order.save();
                     
-                    // Automatically track stars when buy order is verified (no admin action needed)
                     try {
                         if (order.stars && !order.isPremium) {
                             await trackStars(order.telegramId, order.stars, 'buy');
@@ -2604,8 +2606,7 @@ setInterval(async () => {
                 } else {
                     console.log(`❌ Order ${order.id} verification failed (attempt ${order.verificationAttempts}/5)`);
                     
-                    // More generous timeout - fail only after 30 minutes and 5 attempts
-                    if (order.verificationAttempts >= 5 && orderAge > 1800000) { // 30 minutes
+                    if (order.verificationAttempts >= 5 && orderAge > 1800000) {
                         order.status = 'failed';
                         console.log(`❌ Order ${order.id} marked as failed after ${orderAgeMinutes} minutes and ${order.verificationAttempts} attempts`);
                     }
@@ -2617,7 +2618,7 @@ setInterval(async () => {
                 order.verificationAttempts += 1;
                 
                 const orderAge = Date.now() - order.dateCreated.getTime();
-                if (order.verificationAttempts >= 5 && orderAge > 1800000) { // 30 minutes
+                if (order.verificationAttempts >= 5 && orderAge > 1800000) {
                     order.status = 'failed';
                     console.log(`❌ Order ${order.id} marked as failed due to verification errors`);
                 }
@@ -2628,6 +2629,7 @@ setInterval(async () => {
         console.error('Background verification error:', error);
     }
 }, 30000);
+*/
 
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
@@ -3299,12 +3301,13 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
     const requestKey = transactionHash ? `tx:${transactionHash}` : `order:${telegramId}:${walletAddress}:${stars}`;
 
     try {
+        const timestamp = new Date().toISOString();
         // === VALIDATION PHASE ===
         await syncUserData(telegramId, username, 'order_create', req);
         const requesterIsAdmin = Boolean(req.user?.isAdmin);
 
-        // Log incoming request details
-        console.log(`🛒 Order Request: user=${telegramId}, stars=${stars}, isPremium=${isPremium}, totalAmount=${req.body.totalAmount}`);
+        // Log incoming request - IMPORTANT for troubleshooting
+        console.log(`[${timestamp}] 📝 ORDER CREATE REQUEST | User: ${telegramId} (@${username}) | Wallet: ${walletAddress.slice(0, 20)}... | Item: ${isPremium ? premiumDuration + 'mo Premium' : stars + ' stars'} | Amount: ${req.body.totalAmount} USDT`);
 
         // Prevent duplicate requests
         if (processingRequests.has(requestKey)) {
@@ -3315,7 +3318,9 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         // Strict validation
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
             processingRequests.delete(requestKey);
-            return res.status(400).json({ error: 'Missing required fields' });
+            const reason = 'Missing required fields';
+            console.log(`[${timestamp}] ❌ ORDER FAILED | User: ${telegramId} | Reason: ${reason}`);
+            return res.status(400).json({ error: reason });
         }
 
         // Username validation
@@ -3448,7 +3453,8 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         // Save order
         await order.save();
         
-        console.log(`✅ Order created successfully: ID=${order.id}, user=${telegramId}, amount=${amount}, stars=${stars || premiumDuration + 'mo'} isPremium=${isPremium}`);
+        // SUCCESS LOG - Easy to grep and debug order creation
+        console.log(`[${timestamp}] ✅ ORDER CREATED | OrderID: ${order.id} | User: ${telegramId} (@${username}) |  Wallet: ${walletAddress.slice(0, 20)}... | Amount: ${amount} USDT | Stars: ${stars || 'premium'} | Status: pending`);
 
         // === ADMIN NOTIFICATION PHASE (CRITICAL) ===
         // Extract geolocation
@@ -3509,7 +3515,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             // Admin notification failed - inform user to contact support
             const fallbackMsg = `⚠️ Order #${order.id} created but experiencing delays.\n\nAmount: ${amount} USDT\nStatus: Pending\n\n📞 Please contact @StarStore_Chat if not processed within 2 hours.`;
             try { await bot.sendMessage(telegramId, fallbackMsg); } catch {}
-            console.error(`❌ CRITICAL: Order ${order.id} admin notification failed after retries. Error: ${lastAdminError?.message}`);
+            console.error(`[${timestamp}] ❌ CRITICAL - Admin notification failed for Order ${order.id}. Error: ${lastAdminError?.message}. Order still created in DB.`);
         }
 
         await trackUserActivity(telegramId, username, 'order_created', { orderId: order.id, amount, stars, isPremium });
@@ -3521,7 +3527,9 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
 
     } catch (err) {
         processingRequests.delete(requestKey);
-        console.error(`❌ Order creation error for user ${req.body?.telegramId}: ${err.message}`);
+        const timestamp = new Date().toISOString();
+        const userId = req.body?.telegramId;
+        console.error(`[${timestamp}] ❌ ORDER CREATION ERROR | User: ${userId} | Error: ${err.message} | Stack: ${err.stack ? err.stack.split('\n')[1].trim() : 'N/A'}`);
         res.status(500).json({ error: 'Failed to create order. Please try again.' });
     }
 });
