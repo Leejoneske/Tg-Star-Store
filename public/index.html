@@ -3938,20 +3938,46 @@ async function handlePurchase(item) {
             }
             
             if (response && response.success) {
-                // Close loading and start automated verification
+                // Close loading modal
                 if (loadingShown) {
                     Swal.close();
                     loadingShown = false;
                 }
                 
-                // Use TransactionVerifier for automatic verification with modal
-                console.log('🔄 Starting automatic transaction verification...');
-                await window.TransactionVerifier.startAutoVerification({
-                    orderId: response.order.id,
-                    userWalletAddress: orderData.walletAddress  // User's wallet that sent the transaction
+                // Order is created = success. Show confirmation immediately.
+                // (Payment was already confirmed by wallet app and has left user's wallet)
+                console.log('✅ Order created successfully:', response.order.id);
+                
+                await Swal.fire({
+                    title: '✅ Order Confirmed',
+                    html: `
+                        <div class="text-center space-y-4">
+                            <div class="text-5xl text-green-600">✓</div>
+                            <div class="text-lg font-semibold text-gray-800">Payment Received</div>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div><strong>Order ID:</strong> ${response.order.id}</div>
+                                <div><strong>Amount:</strong> ${totalAmountUsdt} USDT</div>
+                                <div><strong>Status:</strong> Processing</div>
+                            </div>
+                            <div class="text-xs text-gray-500 bg-blue-50 p-3 rounded mt-4">
+                                ✓ Payment confirmed by your wallet<br/>
+                                ✓ Order entered our system<br/>
+                                ✓ You'll receive your order within 2 hours
+                            </div>
+                        </div>
+                    `,
+                    icon: null,
+                    confirmButtonText: 'Done',
+                    confirmButtonColor: '#10b981',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    customClass: {
+                        popup: 'rounded-xl shadow-lg',
+                        confirmButton: 'rounded-lg px-6 py-2'
+                    }
                 });
                 
-                return; // Exit payment flow after verification modal
+                return; // Exit payment flow - order is complete
             } else {
                 throw new Error(response?.error || TranslationUtils.get('orderFailed'));
             }

@@ -2559,15 +2559,18 @@ function cleanupWalletSelections() {
 // Run cleanup every 10 minutes
 setInterval(cleanupWalletSelections, 10 * 60 * 1000);
 
-// Background job to verify pending transactions
+// Background job to verify pending transactions (DISABLED - frontend no longer waits)
+// Orders are now shown as successful immediately after creation.
+// Manual admin processing handles the rest.
+// Re-enable if needed for reconciliation purposes only.
+/*
 setInterval(async () => {
     try {
         const pendingOrders = await BuyOrder.find({
             status: 'pending',
             transactionHash: { $exists: true, $ne: null },
             transactionVerified: false,
-            verificationAttempts: { $lt: 5 }, // Increased attempts
-            // Only verify orders that are at least 30 seconds old
+            verificationAttempts: { $lt: 5 },
             dateCreated: { $lt: new Date(Date.now() - 30000) }
         }).limit(10);
 
@@ -2591,7 +2594,6 @@ setInterval(async () => {
                     console.log(`✅ Order ${order.id} verified and confirmed after ${orderAgeMinutes} minutes`);
                     await order.save();
                     
-                    // Automatically track stars when buy order is verified (no admin action needed)
                     try {
                         if (order.stars && !order.isPremium) {
                             await trackStars(order.telegramId, order.stars, 'buy');
@@ -2604,8 +2606,7 @@ setInterval(async () => {
                 } else {
                     console.log(`❌ Order ${order.id} verification failed (attempt ${order.verificationAttempts}/5)`);
                     
-                    // More generous timeout - fail only after 30 minutes and 5 attempts
-                    if (order.verificationAttempts >= 5 && orderAge > 1800000) { // 30 minutes
+                    if (order.verificationAttempts >= 5 && orderAge > 1800000) {
                         order.status = 'failed';
                         console.log(`❌ Order ${order.id} marked as failed after ${orderAgeMinutes} minutes and ${order.verificationAttempts} attempts`);
                     }
@@ -2617,7 +2618,7 @@ setInterval(async () => {
                 order.verificationAttempts += 1;
                 
                 const orderAge = Date.now() - order.dateCreated.getTime();
-                if (order.verificationAttempts >= 5 && orderAge > 1800000) { // 30 minutes
+                if (order.verificationAttempts >= 5 && orderAge > 1800000) {
                     order.status = 'failed';
                     console.log(`❌ Order ${order.id} marked as failed due to verification errors`);
                 }
@@ -2628,6 +2629,7 @@ setInterval(async () => {
         console.error('Background verification error:', error);
     }
 }, 30000);
+*/
 
 function generateOrderId() {
     return Array.from({ length: 6 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
