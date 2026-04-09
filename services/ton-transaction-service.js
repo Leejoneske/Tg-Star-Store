@@ -113,6 +113,12 @@ class TonTransactionService extends EventEmitter {
       throw error;
     }
   }
+
+  /**
+   * Get transaction by address with optimized filters
+   * Returns transactions sorted by newest first
+   */
+  async getTransactionsByAddress(address, limit = 20, beforeLt = null) {
     try {
       const url = new URL('https://toncenter.com/api/v2/getTransactions');
       url.searchParams.append('address', address);
