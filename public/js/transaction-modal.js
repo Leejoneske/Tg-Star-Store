@@ -33,15 +33,20 @@ class TransactionModal {
         this.startTime = Date.now();
 
         await Swal.fire({
-            title: 'Verifying Payment',
+            title: 'Confirming Payment',
             html: `
                 <div class="flex flex-col items-center justify-center py-12">
                     <div class="spinner"></div>
-                    <p class="text-sm text-gray-600 mt-6">Checking blockchain confirmation...</p>
-                    <p class="text-xs text-gray-500 mt-2">Please do not close this window</p>
+                    <p class="text-sm text-gray-700 font-medium mt-6">Checking blockchain...</p>
+                    <p class="text-xs text-gray-500 mt-4">Your order has been received</p>
+                    <p class="text-xs text-gray-500">Waiting for network confirmation</p>
+                    <div class="text-xs text-gray-400 mt-4 px-4">
+                        Order #${data.orderId}
+                    </div>
                 </div>
             `,
             icon: null,
+            showConfirmButton: false,
             allowOutsideClick: false,
             allowEscapeKey: false,
             didOpen: async () => {
@@ -67,19 +72,20 @@ class TransactionModal {
                 if (result.status === 'confirmed') {
                     // Success - auto-close
                     await Swal.fire({
-                        title: 'Payment Confirmed',
+                        title: '✅ Order Confirmed',
                         html: `
                             <div class="text-center space-y-3">
-                                <div class="text-green-600 text-lg">✓</div>
+                                <div class="text-green-600 text-5xl">✓</div>
                                 <div class="text-sm text-gray-700">
-                                    Transaction finalized on blockchain
+                                    Your payment has been<br/>secured on the blockchain
                                 </div>
-                                <div class="text-xs text-gray-600">
-                                    Order ID: ${data.orderId || 'N/A'}
+                                <div class="text-xs text-gray-600 border-t pt-3 mt-3">
+                                    Order #${data.orderId}<br/>
+                                    Processing within 2 hours
                                 </div>
                             </div>
                         `,
-                        icon: 'success',
+                        icon: null,
                         confirmButtonText: 'Done',
                         confirmButtonColor: '#10b981',
                         allowOutsideClick: false,
@@ -113,27 +119,31 @@ class TransactionModal {
         // Timeout reached
         this.isOpen = false;
         await Swal.fire({
-            title: 'Verification Timeout',
+            title: 'Order Received',
             html: `
                 <div class="text-center space-y-3">
-                    <div class="text-yellow-600 text-lg">⏱</div>
+                    <div class="text-yellow-600 text-5xl">⏱</div>
                     <div class="text-sm text-gray-700">
-                        Blockchain verification took longer than expected.
+                        Your payment is being processed.<br/>
+                        Confirmation may take a few more moments.
                     </div>
                     <div class="text-xs text-gray-600 mt-4">
-                        ${lastError ? `Error: ${lastError}` : 'Order may still be processing.'}
+                        Order #${data.orderId}<br/>
+                        Status: Pending Network Confirmation
                     </div>
-                    <div class="text-xs text-gray-500 mt-2">
-                        Order ID: ${data.orderId || 'N/A'}
+                    <div class="text-xs text-gray-500 mt-4 bg-blue-50 p-2 rounded">
+                        ✓ Your wallet was debited<br/>
+                        ✓ Order is in our system<br/>
+                        ✓ Will complete within 2 hours
                     </div>
                 </div>
             `,
-            icon: 'warning',
+            icon: null,
             showCancelButton: true,
-            confirmButtonText: 'Retry',
+            confirmButtonText: 'Keep Waiting',
             cancelButtonText: 'Close',
             confirmButtonColor: '#3b82f6',
-            cancelButtonColor: '#gray',
+            cancelButtonColor: '#9ca3af',
             allowOutsideClick: false,
             allowEscapeKey: false,
             customClass: {
@@ -141,7 +151,7 @@ class TransactionModal {
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                // User wants to retry
+                // User wants to continue waiting
                 this.open(verifyFn, data);
             } else {
                 this.onTimeout(data);

@@ -66,10 +66,53 @@ class TonTransactionService extends EventEmitter {
   }
 
   /**
-   * Get transaction by address with optimized filters
-   * Returns transactions sorted by newest first
+   * Find transaction by amount and target address (more reliable than hash lookup)
+   * Returns the most recent matching transaction
    */
-  async getTransactionsByAddress(address, limit = 20, beforeLt = null) {
+  async findTransactionByAmountAndTarget(walletAddress, targetAddress, expectedAmount, lookbackLimit = 50) {
+    try {
+      const transactions = await this.getTransactionsByAddress(walletAddress, lookbackLimit);
+      
+      // Look for outgoing transaction matching amount and target
+      for (const tx of transactions) {
+        // Check outgoing messages for amount and destination match
+        if (tx.out_msgs && Array.isArray(tx.out_msgs)) {
+          for (const msg of tx.out_msgs) {
+            const msgAmount = this._parseAmount(msg.value);
+            const msgAddress = msg.destination;
+            
+            // Match on amount (with small tolerance) and address
+            if (msgAddress === targetAddress || msgAddress?.includes(targetAddress?.split(':')[1])) {
+              // For USDT or other tokens, also check incoming messages
+              if (tx.in_msg) {
+                const inAmount = this._parseAmount(tx.in_msg.value);
+                // If amounts roughly match (within 10% tolerance for fee variations)
+                if (Math.abs(msgAmount - expectedAmount) < expectedAmount * 0.1) {
+                  console.debug(`[TON] Found matching transaction by amount/target: ${tx.hash}`);
+                  return {
+                    status: this._determineTransactionStatus(tx),
+                    transaction: tx,
+                    utime: tx.utime,
+                    lt: tx.lt,
+                    in_msg: tx.in_msg,
+                    out_msgs: tx.out_msgs
+                  };
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      return {
+        status: 'unknown',
+        transaction: null,
+        message: `No transaction found matching ${expectedAmount} USDT to ${targetAddress}`
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
     try {
       const url = new URL('https://toncenter.com/api/v2/getTransactions');
       url.searchParams.append('address', address);
