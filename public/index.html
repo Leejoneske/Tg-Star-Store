@@ -18,6 +18,8 @@
     <title>StarStore | Buy & Sell Telegram Stars | Stars to USDT Converter</title>
     <!-- API Utility Script (restored) -->
     <script src="/js/api.js?v=4"></script>
+    <!-- TON Address Utilities -->
+    <script src="/js/ton-utils.js?v=1"></script>
     <!-- Reconnect Manager Script -->
     <script src="/js/reconnect.js?v=2"></script>
     <!-- Bottom Nav Init Script -->
@@ -2662,8 +2664,22 @@ function updateWalletButton() {
     
     if (walletConnected && currentWalletAddress) {
         btn.classList.add('wallet-connected');
-        const shortAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
-        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address">${shortAddress}</span>`;
+        
+        // Format address properly using TON Utils
+        let displayAddress = currentWalletAddress;
+        let fullAddress = currentWalletAddress;
+        
+        if (typeof TonUtils !== 'undefined') {
+            const addressInfo = TonUtils.getDisplayAddress(currentWalletAddress);
+            displayAddress = addressInfo.short;
+            fullAddress = addressInfo.full;
+            console.log('📍 Wallet formatted:', { original: currentWalletAddress, display: displayAddress, full: fullAddress });
+        } else {
+            // Fallback if TonUtils not available
+            displayAddress = `${currentWalletAddress.slice(0, 4)}...${currentWalletAddress.slice(-4)}`;
+        }
+        
+        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span class="wallet-address" title="${fullAddress}">${displayAddress}</span>`;
         btn.disabled = false;
     } else {
         btn.classList.remove('wallet-connected');
