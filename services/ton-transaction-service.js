@@ -56,7 +56,7 @@ class TonTransactionService extends EventEmitter {
 
       return result;
     } catch (error) {
-      console.error('❌ [TON] Transaction verification failed:', error.message);
+      console.debug('[TON] Transaction verification failed:', error.message);
       return {
         status: 'unknown',
         error: error.message,
@@ -81,7 +81,7 @@ class TonTransactionService extends EventEmitter {
         url.searchParams.append('api_key', this.tonApiKey);
       }
 
-      console.log('🔍 [TON] Fetching transactions:', address);
+      console.debug('[TON] Fetching transactions:', address);
       const response = await axios.get(url.toString(), {
         timeout: 8000, // Sub-Second requires fast responses
         headers: {
@@ -95,7 +95,7 @@ class TonTransactionService extends EventEmitter {
 
       // Enhance transaction data with pending/confirmed status
       const transactions = response.data.result.map(tx => this._enhanceTransaction(tx));
-      console.log(`✅ [TON] Found ${transactions.length} transactions`);
+      console.debug(`[TON] Found ${transactions.length} transactions`);
       return transactions;
     } catch (error) {
       console.error('❌ [TON] Failed to get transactions:', error.message);
@@ -165,7 +165,7 @@ class TonTransactionService extends EventEmitter {
           
           // Emit status change events
           if (result.status !== lastKnownStatus) {
-            console.log(`🔔 [TON] Transaction status changed: ${lastKnownStatus} -> ${result.status}`);
+      console.debug(`[TON] Transaction status changed: ${lastKnownStatus} -> ${result.status}`);
             this.emit('statusChanged', {
               txHash,
               address,
@@ -193,7 +193,7 @@ class TonTransactionService extends EventEmitter {
             return;
           }
         } catch (error) {
-          console.error('❌ [TON] Poll error:', error.message);
+          console.debug('[TON] Poll error:', error.message);
         }
       }, this.pollInterval);
     });

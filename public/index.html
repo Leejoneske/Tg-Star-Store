@@ -4049,13 +4049,7 @@ async function handlePurchase(item) {
             throw new Error(TranslationUtils.get('transactionFailed'));
         }
     } catch (error) {
-        console.error('❌ Payment error:', error);
-        console.error('❌ Error details:', {
-            name: error?.name,
-            message: error?.message,
-            stack: error?.stack,
-            response: error?.response?.data
-        });
+        console.debug('Payment error:', error.message);
         
         // Close loading before showing error
         if (loadingShown) {
