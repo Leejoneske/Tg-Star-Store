@@ -20,6 +20,10 @@
     <script src="/js/api.js?v=4"></script>
     <!-- TON Address Utilities -->
     <script src="/js/ton-utils.js?v=1"></script>
+    <!-- Transaction Modal - Auto-verification -->
+    <script src="/js/transaction-modal.js?v=1"></script>
+    <!-- Transaction Verification Service -->
+    <script src="/js/transaction-verify.js?v=1"></script>
     <!-- Reconnect Manager Script -->
     <script src="/js/reconnect.js?v=2"></script>
     <!-- Bottom Nav Init Script -->
@@ -3934,15 +3938,26 @@ async function handlePurchase(item) {
             }
             
             if (response && response.success) {
-                // Close loading before showing success
+                // Close loading and start automated verification
                 if (loadingShown) {
                     Swal.close();
                     loadingShown = false;
                 }
                 
-                // Show Pending Status (TON Sub-Second best practice)
-                await Swal.fire({
-                    title: '⏳ Payment Pending',
+                // Use TransactionVerifier for automatic verification with modal
+                console.log('🔄 Starting automatic transaction verification...');
+                await window.TransactionVerifier.startAutoVerification({
+                    orderId: response.order.id,
+                    transactionHash: orderData.transactionHash,
+                    walletAddress: orderData.walletAddress,
+                    totalAmount: orderData.totalAmount
+                });
+                
+                return; // Exit payment flow after verification modal
+                
+                // OLD: Show Pending Status (TON Sub-Second best practice)
+                // await Swal.fire({
+                    // title: '⏳ Payment Pending',
                     html: `
                         <div class="text-center space-y-4">
                             <div class="text-sm text-gray-600 space-y-3">
