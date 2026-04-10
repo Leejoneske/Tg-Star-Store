@@ -3679,10 +3679,21 @@ async function handlePurchase(item) {
     let loadingShown = false;
     try {
         // Determine selection: package or custom stars
-        let stars = item.stars || null;
-        const customStarsVal = Number(document.getElementById('customStarsInput')?.value || 0);
-        if (!item.isPremium && customStarsVal >= 50) {
-            stars = customStarsVal;
+        // IMPORTANT: If user clicked a package button, item.stars will be set
+        // Only use custom input if NO package was selected (item.stars is null/undefined)
+        let stars = null;
+        
+        if (item.stars) {
+            // Package button was clicked - use package amount
+            stars = item.stars;
+            console.log(`📦 Purchase: Package selected | Stars: ${stars}`);
+        } else {
+            // No package - check for custom input
+            const customStarsVal = Number(document.getElementById('customStarsInput')?.value || 0);
+            if (!item.isPremium && customStarsVal >= 50) {
+                stars = customStarsVal;
+                console.log(`✏️ Purchase: Custom amount entered | Stars: ${stars}`);
+            }
         }
         
         // Collect and validate recipients based on section
