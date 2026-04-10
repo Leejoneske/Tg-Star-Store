@@ -12265,7 +12265,32 @@ bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, 
         let summary = `📬 Delivery report (${successCount} sent, ${failureCount} failed):\n\n`;
         summary += results.map(r => r.ok ? `✅ ${r.userId}` : `❌ ${r.userId} — ${r.reason}`).join('\n');
 
+        // Send delivery report to the admin who created the reply
         await bot.sendMessage(msg.chat.id, summary);
+
+        // Notify OTHER admins about the reply (skip sender to avoid duplicate)
+        if (successCount > 0) {  // Only notify if at least one message was sent
+            const senderAdminId = String(msg.from.id);
+            const senderName = msg.from.username || `${msg.from.first_name} ${msg.from.last_name}`.trim() || `Admin ${senderAdminId}`;
+            
+            // Create clean admin notification without emojis
+            const messagePreview = textMessage.length > 100 ? 
+                textMessage.substring(0, 100) + '...' : 
+                textMessage || '[Media only]';
+            
+            const adminNotification = `[ADMIN NOTIFICATION]\nReply from: ${senderName}\nRecipients: ${recipientIds.join(', ')}\nStatus: ${successCount} sent, ${failureCount} failed\nMessage: ${messagePreview}`;
+            
+            // Send notification to all OTHER admins
+            for (const adminId of adminIds) {
+                if (adminId !== senderAdminId) {
+                    try {
+                        await bot.sendMessage(adminId, adminNotification);
+                    } catch (err) {
+                        console.error(`Failed to notify admin ${adminId}:`, err.message);
+                    }
+                }
+            }
+        }
     } 
     catch (error) {
         let errorMsg = `❌ Failed to send: ${error.message}`;
