@@ -2792,6 +2792,14 @@ function initBuyButtons() {
                 try {
                     const item = JSON.parse(itemData);
                     
+                    // Clear custom input when package button is clicked
+                    if (item.stars) {
+                        const customInput = document.getElementById('customStarsInput');
+                        if (customInput && customInput.value) {
+                            customInput.value = '';
+                        }
+                    }
+                    
                     // Additional validation for "buy for others"
                     if (item.stars && item.stars < 50) {
                         const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
@@ -3679,10 +3687,28 @@ async function handlePurchase(item) {
     let loadingShown = false;
     try {
         // Determine selection: package or custom stars
-        let stars = item.stars || null;
-        const customStarsVal = Number(document.getElementById('customStarsInput')?.value || 0);
-        if (!item.isPremium && customStarsVal >= 50) {
-            stars = customStarsVal;
+        // IMPORTANT: If user clicked a package button, item.stars will be set
+        // Only use custom input if NO package was selected (item.stars is null/undefined)
+        let stars = null;
+        
+        if (item.stars) {
+            // Package button was clicked - use package amount
+            stars = item.stars;
+            console.log(`📦 Purchase: Package selected | Stars: ${stars}`);
+            
+            // Clear custom input field to avoid confusion
+            const customInput = document.getElementById('customStarsInput');
+            if (customInput) {
+                customInput.value = '';
+                console.log('✨ Custom input cleared');
+            }
+        } else {
+            // No package - check for custom input
+            const customStarsVal = Number(document.getElementById('customStarsInput')?.value || 0);
+            if (!item.isPremium && customStarsVal >= 50) {
+                stars = customStarsVal;
+                console.log(`✏️ Purchase: Custom amount entered | Stars: ${stars}`);
+            }
         }
         
         // Collect and validate recipients based on section
