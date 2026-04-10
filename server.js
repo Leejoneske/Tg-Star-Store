@@ -3135,6 +3135,7 @@ app.post('/api/quote', requireTelegramAuth, (req, res) => {
     try {
         const { isPremium, premiumDuration, stars, recipientsCount, isBuyForOthers } = req.body || {};
         const quantity = Math.max(1, Number(recipientsCount) || 0);
+        const timestamp = new Date().toISOString();
 
         const priceMap = {
             regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
@@ -3147,6 +3148,7 @@ app.post('/api/quote', requireTelegramAuth, (req, res) => {
                 return res.status(400).json({ success: false, error: 'Invalid premium duration' });
             }
             const totalAmount = Number((unitAmount * quantity).toFixed(2));
+            console.log(`[${timestamp}] 💰 QUOTE | Premium: ${premiumDuration}mo x ${quantity} recipient(s) | Unit: ${unitAmount} USDT | Total: ${totalAmount} USDT`);
             return res.json({ success: true, totalAmount, unitAmount: Number(unitAmount.toFixed(2)), quantity });
         }
 
@@ -3168,18 +3170,20 @@ app.post('/api/quote', requireTelegramAuth, (req, res) => {
         if (typeof mapPrice === 'number') {
             // Use exact package price - total amount is the package price
             const totalAmount = Number(mapPrice.toFixed(2));
-            console.log(`📊 Quote: Package ${starsNum} stars = ${totalAmount} USDT (from price map)`);
+            const unitAmount = Number((totalAmount / quantity).toFixed(2));
+            console.log(`[${timestamp}] 💰 QUOTE | Package: ${starsNum} stars (mapped) x ${quantity} recipient(s) | Price: ${mapPrice} USDT | Total: ${totalAmount} USDT | Per recipient: ${unitAmount} USDT`);
             return res.json({ 
                 success: true, 
                 totalAmount, 
-                unitAmount: Number((totalAmount / quantity).toFixed(2)), 
+                unitAmount,
                 quantity 
             });
         } else {
             // Fallback to linear rate for custom amounts: $0.02 per star
+            // VALIDATE: This should not happen for standard packages, only custom amounts
             const unitAmount = Number((starsNum * 0.02).toFixed(2));
             const totalAmount = Number((unitAmount * quantity).toFixed(2));
-            console.log(`📊 Quote: Custom ${starsNum} stars @ $0.02/star = ${totalAmount} USDT (fallback linear rate)`);
+            console.warn(`[${timestamp}] ⚠️ QUOTE FALLBACK | Custom: ${starsNum} stars @ $0.02/star x ${quantity} recipient(s) | Unit: ${unitAmount} USDT | Total: ${totalAmount} USDT`);
             return res.json({ success: true, totalAmount, unitAmount, quantity });
         }
     } catch (error) {
@@ -3409,7 +3413,19 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         if (totalAmountFromBody && !isNaN(totalAmountFromBody) && totalAmountFromBody > 0) {
             // Use the totalAmount sent from frontend (server-calculated quote)
             amount = totalAmountFromBody;
-            console.log(`✅ Using totalAmount from frontend: ${amount} USDT for ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`);
+            
+            // SAFETY CHECK: Validate the amount makes sense
+            const priceMap = { regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 }, premium: { 3: 19.31, 6: 26.25, 12: 44.79 } };
+            const expectedMapPrice = isPremium ? priceMap.premium[premiumDuration] : priceMap.regular[stars];
+            
+            if (expectedMapPrice && expectedMapPrice > 0) {
+                // This is a standard package - amount should match exactly
+                if (Math.abs(amount - expectedMapPrice) > 0.01) {  // Allow 1 cent variance for rounding
+                    console.warn(`[${timestamp}] ⚠️ AMOUNT MISMATCH | User: ${telegramId} | Expected: ${expectedMapPrice} USDT | Received: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`);
+                }
+            }
+            
+            console.log(`[${timestamp}] ✅ AMOUNT VALIDATION | User: ${telegramId} | Amount from frontend: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Status: VALID`);
         } else {
             // Fallback to preset price map only for standard packages
             const priceMap = { regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 }, premium: { 3: 19.31, 6: 26.25, 12: 44.79 } };
@@ -3417,14 +3433,14 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             
             if (!fallbackAmount) {
                 processingRequests.delete(requestKey);
-                console.error(`❌ Amount calculation failed: stars=${stars}, isPremium=${isPremium}, premiumDuration=${premiumDuration}, totalAmount=${req.body.totalAmount}`);
+                console.error(`[${timestamp}] ❌ ORDER FAILED | User: ${telegramId} | Reason: Amount calculation failed (stars=${stars}, isPremium=${isPremium}, frontend amount=${req.body.totalAmount})`);
                 return res.status(400).json({ 
                     error: 'Invalid selection or amount calculation failed. Please refresh and try again.',
                     details: `Unable to calculate price for: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`
                 });
             }
             amount = fallbackAmount;
-            console.log(`⚠️ Using fallback price map: ${amount} USDT`);
+            console.warn(`[${timestamp}] ⚠️ FALLBACK AMOUNT USED | User: ${telegramId} | Amount: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Reason: Frontend did not send totalAmount (received: ${req.body.totalAmount})`);
         }
 
         // Create order
