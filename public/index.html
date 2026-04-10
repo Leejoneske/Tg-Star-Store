@@ -2792,6 +2792,14 @@ function initBuyButtons() {
                 try {
                     const item = JSON.parse(itemData);
                     
+                    // Clear custom input when package button is clicked
+                    if (item.stars) {
+                        const customInput = document.getElementById('customStarsInput');
+                        if (customInput && customInput.value) {
+                            customInput.value = '';
+                        }
+                    }
+                    
                     // Additional validation for "buy for others"
                     if (item.stars && item.stars < 50) {
                         const buyForValue = Array.from(document.querySelectorAll('input[name="buyForStars"]')).find(r => r.checked)?.value;
@@ -3687,6 +3695,13 @@ async function handlePurchase(item) {
             // Package button was clicked - use package amount
             stars = item.stars;
             console.log(`📦 Purchase: Package selected | Stars: ${stars}`);
+            
+            // Clear custom input field to avoid confusion
+            const customInput = document.getElementById('customStarsInput');
+            if (customInput) {
+                customInput.value = '';
+                console.log('✨ Custom input cleared');
+            }
         } else {
             // No package - check for custom input
             const customStarsVal = Number(document.getElementById('customStarsInput')?.value || 0);
