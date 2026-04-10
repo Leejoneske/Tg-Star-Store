@@ -3413,6 +3413,18 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         if (totalAmountFromBody && !isNaN(totalAmountFromBody) && totalAmountFromBody > 0) {
             // Use the totalAmount sent from frontend (server-calculated quote)
             amount = totalAmountFromBody;
+            
+            // SAFETY CHECK: Validate the amount makes sense
+            const priceMap = { regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 }, premium: { 3: 19.31, 6: 26.25, 12: 44.79 } };
+            const expectedMapPrice = isPremium ? priceMap.premium[premiumDuration] : priceMap.regular[stars];
+            
+            if (expectedMapPrice && expectedMapPrice > 0) {
+                // This is a standard package - amount should match exactly
+                if (Math.abs(amount - expectedMapPrice) > 0.01) {  // Allow 1 cent variance for rounding
+                    console.warn(`[${timestamp}] ⚠️ AMOUNT MISMATCH | User: ${telegramId} | Expected: ${expectedMapPrice} USDT | Received: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`);
+                }
+            }
+            
             console.log(`[${timestamp}] ✅ AMOUNT VALIDATION | User: ${telegramId} | Amount from frontend: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Status: VALID`);
         } else {
             // Fallback to preset price map only for standard packages
