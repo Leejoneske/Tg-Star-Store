@@ -3822,9 +3822,11 @@ async function handlePurchase(item) {
             throw new Error('Failed to fetch current exchange rate');
         }
         
-        // Calculate amount in TON
+        // Calculate amount in TON - ALWAYS ROUND UP to prevent undercharging
         const tonAmount = totalAmountUsdt / tonToUsdtRate;
-        const nanoTonAmount = Math.round(tonAmount * 1e9);
+        const nanoTonAmount = Math.ceil(tonAmount * 1e9);  // Round UP not down
+        
+        console.log(`💱 TON Conversion | USDT: ${totalAmountUsdt} | Rate: ${tonToUsdtRate} | TON: ${(tonAmount).toFixed(8)} | nanoTON: ${nanoTonAmount}`);
         
         // Get payment address directly from server
         const headers = {
