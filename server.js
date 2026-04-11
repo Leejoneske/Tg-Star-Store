@@ -3311,7 +3311,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         const requesterIsAdmin = Boolean(req.user?.isAdmin);
 
         // Log incoming request - IMPORTANT for troubleshooting
-        console.log(`[${timestamp}] 📝 ORDER CREATE REQUEST | User: ${telegramId} (@${username}) | Wallet: ${walletAddress.slice(0, 20)}... | Item: ${isPremium ? premiumDuration + 'mo Premium' : stars + ' stars'} | Amount: ${req.body.totalAmount} USDT`);
+        console.log(`[${timestamp}] 📝 ORDER CREATE REQUEST | User: ${telegramId} (@${username}) | Wallet: ${walletAddress.slice(0, 20)}... | Item: ${isPremium ? premiumDuration + 'mo Premium' : stars + ' stars'} | Amount from frontend: ${req.body.totalAmount} USDT`);
 
         // Prevent duplicate requests
         if (processingRequests.has(requestKey)) {
@@ -3420,8 +3420,17 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             
             if (expectedMapPrice && expectedMapPrice > 0) {
                 // This is a standard package - amount should match exactly
+                const amountRatio = (amount / expectedMapPrice).toFixed(4);
                 if (Math.abs(amount - expectedMapPrice) > 0.01) {  // Allow 1 cent variance for rounding
                     console.warn(`[${timestamp}] ⚠️ AMOUNT MISMATCH | User: ${telegramId} | Expected: ${expectedMapPrice} USDT | Received: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`);
+                    
+                    // Log additional diagnostic info for pattern detection
+                    console.warn(`[${timestamp}] 🔍 DIAGNOSTIC | Ratio: ${amountRatio} | Diff: ${Math.abs(amount - expectedMapPrice).toFixed(4)} USDT | RecipientCount: ${totalRecipients || 1}`);
+                    
+                    // Flag specific suspicious patterns (like 0.66 for 50 stars)
+                    if (stars === 50 && amount >= 0.64 && amount <= 0.68) {
+                        console.error(`[${timestamp}] 🚨 SUSPICIOUS PATTERN DETECTED | 50-star = 0.66 USDT anomaly | User: ${telegramId} | Amount: ${amount}`);
+                    }
                 }
             }
             
