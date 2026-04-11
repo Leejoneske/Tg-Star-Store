@@ -2776,11 +2776,128 @@ function updateLanguage() {
 }
 
 
-// Rate limiting for purchase operations
+// Simple toast notification system (non-intrusive messages)
+const ToastNotification = {
+    show(message, type = 'info', duration = 3000) {
+        const toastContainer = document.getElementById('toastContainer') || this.createContainer();
+        
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = message;
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 9999;
+            animation: slideInUp 0.3s ease-out;
+            max-width: 300px;
+            word-wrap: break-word;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        
+        // Style based on type
+        if (type === 'warning') {
+            toast.style.backgroundColor = '#f97316';
+            toast.style.color = 'white';
+        } else if (type === 'error') {
+            toast.style.backgroundColor = '#dc2626';
+            toast.style.color = 'white';
+        } else if (type === 'success') {
+            toast.style.backgroundColor = '#10b981';
+            toast.style.color = 'white';
+        } else {
+            toast.style.backgroundColor = '#3b82f6';
+            toast.style.color = 'white';
+        }
+        
+        toastContainer.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideOutDown 0.3s ease-in forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    },
+    
+    createContainer() {
+        const container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText = 'position: fixed; z-index: 9998;';
+        document.body.appendChild(container);
+        
+        // Add animation styles if not already added
+        if (!document.querySelector('#toastStyles')) {
+            const style = document.createElement('style');
+            style.id = 'toastStyles';
+            style.textContent = `
+                @keyframes slideInUp {
+                    from { transform: translateY(100px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+                @keyframes slideOutDown {
+                    from { transform: translateY(0); opacity: 1; }
+                    to { transform: translateY(100px); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        return container;
+    }
+};
+
+// Progressive rate limiting with intelligent penalties
 const purchaseRateLimiter = {
     lastPurchaseTime: 0,
     isProcessing: false,
-    minInterval: 3000, // Minimum 3 seconds between purchases
+    minInterval: 3000, // 3 seconds between normal purchases
+    rateLimitViolations: [], // Track violation timestamps
+    violationThreshold: 5, // 5 violations triggers 10-min ban
+    violationWindow: 60000, // Consider violations within last 60 seconds
+    temporaryBanUntil: 0, // Timestamp when temp ban expires
+    temporaryBanDuration: 600000, // 10 minutes (600 seconds)
+    
+    isTemporarilyBanned() {
+        const now = Date.now();
+        if (this.temporaryBanUntil > now) {
+            return true;
+        } else if (this.temporaryBanUntil > 0) {
+            // Ban expired, reset
+            this.temporaryBanUntil = 0;
+            this.rateLimitViolations = [];
+        }
+        return false;
+    },
+    
+    getRemainingBanTime() {
+        if (!this.isTemporarilyBanned()) return 0;
+        const remaining = this.temporaryBanUntil - Date.now();
+        return Math.ceil(remaining / 1000);
+    },
+    
+    recordViolation() {
+        const now = Date.now();
+        // Remove violations older than the window
+        this.rateLimitViolations = this.rateLimitViolations.filter(
+            time => now - time < this.violationWindow
+        );
+        // Add new violation
+        this.rateLimitViolations.push(now);
+        
+        // Check if threshold reached
+        if (this.rateLimitViolations.length >= this.violationThreshold) {
+            this.activateTemporaryBan();
+            return true; // Ban activated
+        }
+        return false; // No ban yet
+    },
+    
+    activateTemporaryBan() {
+        this.temporaryBanUntil = Date.now() + this.temporaryBanDuration;
+        console.warn(`⛔ Temporary purchase ban activated for ${this.temporaryBanDuration / 1000}s`);
+    },
     
     canPurchase() {
         const now = Date.now();
@@ -2809,26 +2926,44 @@ function initBuyButtons() {
         button.addEventListener('click', function(e) {
             e.preventDefault();
             
-            // Rate limiting check
+            // Check for temporary ban first
+            if (purchaseRateLimiter.isTemporarilyBanned()) {
+                const banRemaining = purchaseRateLimiter.getRemainingBanTime();
+                const minutes = Math.ceil(banRemaining / 60);
+                console.warn(`⛔ User temporarily banned for ${banRemaining}s`);
+                
+                ToastNotification.show(
+                    `Temporary limit active. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`,
+                    'error',
+                    4000
+                );
+                return;
+            }
+            
+            // Normal rate limiting check
             if (!purchaseRateLimiter.canPurchase()) {
                 const remainingSeconds = purchaseRateLimiter.getRemainingWaitTime();
                 console.warn(`⏱️ Rate limit: Wait ${remainingSeconds}s before next purchase`);
                 
-                // Show informative popup about rate limiting
-                Swal.fire({
-                    title: 'Please Wait',
-                    text: `To prevent accidental duplicate purchases, please wait ${remainingSeconds} second${remainingSeconds > 1 ? 's' : ''} before trying again.`,
-                    icon: 'info',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#3b82f6',
-                    customClass: {
-                        popup: 'rounded-xl shadow-lg'
-                    },
-                    allowOutsideClick: true,
-                    showClass: {
-                        popup: 'animate__animated animate__fadeInUp animate__faster'
-                    }
-                });
+                // Record this violation
+                const banActivated = purchaseRateLimiter.recordViolation();
+                
+                if (banActivated) {
+                    // Just activated temporary ban
+                    ToastNotification.show(
+                        'Clicking too fast. Please slow down. You\'ll be able to purchase again in 10 minutes.',
+                        'error',
+                        5000
+                    );
+                    console.warn(`🚨 Temporary ban activated after ${purchaseRateLimiter.rateLimitViolations.length} rapid attempts`);
+                } else {
+                    // Normal rate limit message
+                    ToastNotification.show(
+                        `Please wait a moment before trying again.`,
+                        'warning',
+                        2500
+                    );
+                }
                 return;
             }
             
