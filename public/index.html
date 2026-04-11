@@ -2776,10 +2776,61 @@ function updateLanguage() {
 }
 
 
+// Rate limiting for purchase operations
+const purchaseRateLimiter = {
+    lastPurchaseTime: 0,
+    isProcessing: false,
+    minInterval: 3000, // Minimum 3 seconds between purchases
+    
+    canPurchase() {
+        const now = Date.now();
+        const timeSinceLastPurchase = now - this.lastPurchaseTime;
+        return !this.isProcessing && timeSinceLastPurchase >= this.minInterval;
+    },
+    
+    markRequestStart() {
+        this.isProcessing = true;
+    },
+    
+    markRequestEnd() {
+        this.lastPurchaseTime = Date.now();
+        this.isProcessing = false;
+    },
+    
+    getRemainingWaitTime() {
+        const timeSinceLastPurchase = Date.now() - this.lastPurchaseTime;
+        const remainingTime = Math.max(0, this.minInterval - timeSinceLastPurchase);
+        return Math.ceil(remainingTime / 1000);
+    }
+};
+
 function initBuyButtons() {
     document.querySelectorAll('.btn-primary[data-item], .buy-button').forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
+            
+            // Rate limiting check
+            if (!purchaseRateLimiter.canPurchase()) {
+                const remainingSeconds = purchaseRateLimiter.getRemainingWaitTime();
+                console.warn(`⏱️ Rate limit: Wait ${remainingSeconds}s before next purchase`);
+                
+                // Show informative popup about rate limiting
+                Swal.fire({
+                    title: 'Please Wait',
+                    text: `To prevent accidental duplicate purchases, please wait ${remainingSeconds} second${remainingSeconds > 1 ? 's' : ''} before trying again.`,
+                    icon: 'info',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#3b82f6',
+                    customClass: {
+                        popup: 'rounded-xl shadow-lg'
+                    },
+                    allowOutsideClick: true,
+                    showClass: {
+                        popup: 'animate__animated animate__fadeInUp animate__faster'
+                    }
+                });
+                return;
+            }
             
             // Check if button is disabled
             if (button.disabled) {
@@ -2809,6 +2860,9 @@ function initBuyButtons() {
                         }
                     }
                     
+                    // Mark rate limiter as processing
+                    purchaseRateLimiter.markRequestStart();
+                    
                     // Add loading state to button
                     const originalText = button.innerHTML;
                     button.disabled = true;
@@ -2820,6 +2874,9 @@ function initBuyButtons() {
                             showErrorToUser(error.message || 'Purchase failed. Please try again.');
                         })
                         .finally(() => {
+                            // Mark rate limiter as done (this updates lastPurchaseTime)
+                            purchaseRateLimiter.markRequestEnd();
+                            
                             // Restore button state
                             button.disabled = false;
                             button.innerHTML = originalText;
@@ -2827,6 +2884,7 @@ function initBuyButtons() {
                 } catch (error) {
                     console.error('Purchase parse error:', error);
                     showErrorToUser(TranslationUtils.get('error'));
+                    purchaseRateLimiter.markRequestEnd();
                 }
             }
         });
@@ -3735,6 +3793,7 @@ async function handlePurchase(item) {
         // Fetch server quote for accurate amount per recipients
         let quote;
         try {
+            console.log(`[QUOTE REQUEST] Stars: ${stars} | Recipients: ${recipients.length} | IsPremium: ${item.isPremium}`);
             quote = await window.API.getQuote({
                 isPremium: !!item.isPremium,
                 premiumDuration: item.premiumDuration || null,
@@ -3745,6 +3804,7 @@ async function handlePurchase(item) {
             if (!quote.success) {
                 throw new Error(quote.error || 'Failed to get quote');
             }
+            console.log(`[QUOTE RESPONSE] Success | Amount: ${quote.totalAmount} USDT | UnitAmount: ${quote.unitAmount} USDT | Quantity: ${quote.quantity}`);
         } catch (error) {
             console.error('Quote API failed:', error);
             if (error.name === 'TypeError' || error.message.includes('fetch')) {
@@ -3754,6 +3814,8 @@ async function handlePurchase(item) {
             }
         }
         const totalAmountUsdt = Number(quote.totalAmount);
+        console.log(`[QUOTE AMOUNT SET] Total USDT: ${totalAmountUsdt}`);
+        
         
         // Fetch rate non-blocking with short cap to avoid delaying confirm
         const ratePromise = fetchCurrentRate();
@@ -3911,6 +3973,8 @@ async function handlePurchase(item) {
                 totalAmount: totalAmountUsdt
             };
             
+            console.log(`[ORDER DATA PREPARED] Amount: ${totalAmountUsdt} USDT | Stars: ${orderData.stars} | Recipients: ${orderData.recipients.length} | Item: ${item.isPremium ? `${item.premiumDuration}mo Premium` : `${orderData.stars} stars`}`);
+            
             // Create order with retry mechanism
             let response;
             let retryCount = 0;
@@ -3971,6 +4035,9 @@ async function handlePurchase(item) {
                     Swal.close();
                     loadingShown = false;
                 }
+                
+                // Log successful order creation with full details
+                console.log(`[ORDER SUCCESS] OrderID: ${response.order.id} | Amount stored on server: ${response.order.amount} USDT | Amount sent from frontend: ${totalAmountUsdt} USDT | Match: ${response.order.amount === totalAmountUsdt ? '✅ YES' : '❌ NO - MISMATCH!'}`);
                 
                 // Order is created = success. Show confirmation immediately.
                 // (Payment was already confirmed by wallet app and has left user's wallet)
