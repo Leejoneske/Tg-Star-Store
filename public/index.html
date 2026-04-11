@@ -1614,6 +1614,9 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             loadBottomNav()
                 .then(() => {
+                    // Initialize rate limiter (load persistent ban state from localStorage)
+                    purchaseRateLimiter.init();
+                    
                     initLanguageToggle();
                     initSectionToggle();
                     updateLanguage();
@@ -2848,7 +2851,7 @@ const ToastNotification = {
     }
 };
 
-// Progressive rate limiting with intelligent penalties
+// Progressive rate limiting with intelligent penalties - PERSISTENT across sessions
 const purchaseRateLimiter = {
     lastPurchaseTime: 0,
     isProcessing: false,
@@ -2859,6 +2862,54 @@ const purchaseRateLimiter = {
     temporaryBanUntil: 0, // Timestamp when temp ban expires
     temporaryBanDuration: 600000, // 10 minutes (600 seconds)
     
+    // localStorage keys for persistence
+    STORAGE_KEY_BAN: 'tg_purchase_ban_until',
+    STORAGE_KEY_VIOLATIONS: 'tg_purchase_violations',
+    
+    // Load persistent ban state from localStorage on init
+    init() {
+        const storedBan = localStorage.getItem(this.STORAGE_KEY_BAN);
+        if (storedBan) {
+            const banTime = parseInt(storedBan, 10);
+            if (banTime > Date.now()) {
+                this.temporaryBanUntil = banTime;
+                console.warn(`⛔ Loaded persistent ban from storage. Ban ends: ${new Date(banTime).toLocaleTimeString()}`);
+            } else {
+                // Ban has expired, clear it
+                localStorage.removeItem(this.STORAGE_KEY_BAN);
+            }
+        }
+        
+        const storedViolations = localStorage.getItem(this.STORAGE_KEY_VIOLATIONS);
+        if (storedViolations) {
+            try {
+                const violations = JSON.parse(storedViolations);
+                // Only load recent violations (within last 60s)
+                const now = Date.now();
+                this.rateLimitViolations = violations.filter(time => now - time < this.violationWindow);
+                if (this.rateLimitViolations.length > 0) {
+                    console.log(`📋 Loaded ${this.rateLimitViolations.length} recent violations from storage`);
+                }
+            } catch (e) {
+                console.error('Error loading violations:', e);
+                localStorage.removeItem(this.STORAGE_KEY_VIOLATIONS);
+            }
+        }
+    },
+    
+    // Save ban to localStorage so it persists across app restarts
+    saveBanToStorage() {
+        if (this.temporaryBanUntil > Date.now()) {
+            localStorage.setItem(this.STORAGE_KEY_BAN, this.temporaryBanUntil.toString());
+            console.warn(`💾 Saved ban to storage until ${new Date(this.temporaryBanUntil).toLocaleTimeString()}`);
+        }
+    },
+    
+    // Save violations to localStorage
+    saveViolationsToStorage() {
+        localStorage.setItem(this.STORAGE_KEY_VIOLATIONS, JSON.stringify(this.rateLimitViolations));
+    },
+    
     isTemporarilyBanned() {
         const now = Date.now();
         if (this.temporaryBanUntil > now) {
@@ -2867,6 +2918,8 @@ const purchaseRateLimiter = {
             // Ban expired, reset
             this.temporaryBanUntil = 0;
             this.rateLimitViolations = [];
+            localStorage.removeItem(this.STORAGE_KEY_BAN);
+            localStorage.removeItem(this.STORAGE_KEY_VIOLATIONS);
         }
         return false;
     },
@@ -2886,6 +2939,9 @@ const purchaseRateLimiter = {
         // Add new violation
         this.rateLimitViolations.push(now);
         
+        // Save to localStorage immediately
+        this.saveViolationsToStorage();
+        
         // Check if threshold reached
         if (this.rateLimitViolations.length >= this.violationThreshold) {
             this.activateTemporaryBan();
@@ -2896,6 +2952,7 @@ const purchaseRateLimiter = {
     
     activateTemporaryBan() {
         this.temporaryBanUntil = Date.now() + this.temporaryBanDuration;
+        this.saveBanToStorage(); // Persist ban across app restarts
         console.warn(`⛔ Temporary purchase ban activated for ${this.temporaryBanDuration / 1000}s`);
     },
     

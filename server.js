@@ -68,6 +68,55 @@ const USERNAME_CHANGE_DEDUPE_MS = 3000; // 3 second window to prevent duplicates
 // Track processing requests to prevent duplicate order creation within same request window
 const processingRequests = new Map(); // Maps request key to Promise
 const REQUEST_DEDUPE_MS = 5000; // 5 second window for request deduplication
+
+// Server-side rate limiting: track temporary purchase bans (survives client-side workarounds)
+const purchaseTempBans = new Map(); // Maps userId to ban expiry timestamp
+const TEMP_BAN_DURATION_MS = 600000; // 10 minutes (600 seconds)
+const VIOLATION_RECORDS = new Map(); // Maps userId to array of violation timestamps
+const VIOLATION_THRESHOLD = 5; // Ban after 5 violations
+const VIOLATION_WINDOW_MS = 60000; // Consider violations within 60 seconds
+
+function checkPurchaseBan(telegramId) {
+    const now = Date.now();
+    const banUntil = purchaseTempBans.get(String(telegramId));
+    
+    if (banUntil && banUntil > now) {
+        const secondsRemaining = Math.ceil((banUntil - now) / 1000);
+        return { isBanned: true, secondsRemaining };
+    } else if (banUntil) {
+        // Ban expired, clean up
+        purchaseTempBans.delete(String(telegramId));
+        VIOLATION_RECORDS.delete(String(telegramId));
+    }
+    
+    return { isBanned: false };
+}
+
+function recordPurchaseViolation(telegramId) {
+    const userId = String(telegramId);
+    const now = Date.now();
+    
+    // Get or create violation list for this user
+    let violations = VIOLATION_RECORDS.get(userId) || [];
+    
+    // Clean old violations (outside the window)
+    violations = violations.filter(time => now - time < VIOLATION_WINDOW_MS);
+    
+    // Add new violation
+    violations.push(now);
+    VIOLATION_RECORDS.set(userId, violations);
+    
+    // Check if threshold reached
+    if (violations.length >= VIOLATION_THRESHOLD) {
+        const banUntil = now + TEMP_BAN_DURATION_MS;
+        purchaseTempBans.set(userId, banUntil);
+        console.error(`🚨 SERVER: Rapid purchase attempts detected! User ${userId} banned for 10 minutes (${violations.length} violations in ${(now - violations[0]) / 1000}s)`);
+        return { banActivated: true, violationCount: violations.length, banUntil };
+    }
+    
+    return { banActivated: false, violationCount: violations.length };
+}
+
 // Optional bot simulator (to avoid bloating monolith logic)
 let startBotSimulatorSafe = null;
 try {
@@ -3318,6 +3367,23 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             return res.status(429).json({ error: 'Request already being processed. Please wait...' });
         }
         processingRequests.set(requestKey, Date.now());
+
+        // === SERVER-SIDE RATE LIMIT CHECK (Ultimate defense) ===
+        // Even if user clears localStorage, backend enforces the ban
+        const banCheck = checkPurchaseBan(telegramId);
+        if (banCheck.isBanned) {
+            processingRequests.delete(requestKey);
+            console.warn(`[${timestamp}] ⛔ BLOCKED: User ${telegramId} is under temporary purchase ban (${banCheck.secondsRemaining}s remaining)`);
+            
+            // If user tries to bypass ban, record additional violation to extend ban
+            recordPurchaseViolation(telegramId);
+            
+            return res.status(429).json({ 
+                error: 'Temporary purchase limit active',
+                banRemaining: banCheck.secondsRemaining,
+                message: `Please wait ${Math.ceil(banCheck.secondsRemaining / 60)} minutes before trying again.`
+            });
+        }
 
         // Strict validation
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
