@@ -2888,7 +2888,7 @@ const purchaseRateLimiter = {
             const banTime = parseInt(storedBan, 10);
             if (banTime > Date.now()) {
                 this.temporaryBanUntil = banTime;
-                console.warn(`⛔ Loaded persistent ban from storage. Ban ends: ${new Date(banTime).toLocaleTimeString()}`);
+                console.warn(`Loaded persistent ban from storage. Ban ends: ${new Date(banTime).toLocaleTimeString()}`);
             } else {
                 // Ban has expired, clear it
                 localStorage.removeItem(this.STORAGE_KEY_BAN);
@@ -2903,7 +2903,7 @@ const purchaseRateLimiter = {
                 const now = Date.now();
                 this.rateLimitViolations = violations.filter(time => now - time < this.violationWindow);
                 if (this.rateLimitViolations.length > 0) {
-                    console.log(`📋 Loaded ${this.rateLimitViolations.length} recent violations from storage`);
+                    console.log(`Loaded ${this.rateLimitViolations.length} recent violations from storage`);
                 }
             } catch (e) {
                 console.error('Error loading violations:', e);
@@ -2916,7 +2916,7 @@ const purchaseRateLimiter = {
     saveBanToStorage() {
         if (this.temporaryBanUntil > Date.now()) {
             localStorage.setItem(this.STORAGE_KEY_BAN, this.temporaryBanUntil.toString());
-            console.warn(`💾 Saved ban to storage until ${new Date(this.temporaryBanUntil).toLocaleTimeString()}`);
+            console.warn(`Saved ban to storage until ${new Date(this.temporaryBanUntil).toLocaleTimeString()}`);
         }
     },
     
@@ -2968,7 +2968,7 @@ const purchaseRateLimiter = {
     activateTemporaryBan() {
         this.temporaryBanUntil = Date.now() + this.temporaryBanDuration;
         this.saveBanToStorage(); // Persist ban across app restarts
-        console.warn(`⛔ Temporary purchase ban activated for ${this.temporaryBanDuration / 1000}s`);
+        console.warn(`Temporary purchase ban activated for ${this.temporaryBanDuration / 1000}s`);
     },
     
     canPurchase() {
@@ -3002,10 +3002,10 @@ function initBuyButtons() {
             if (purchaseRateLimiter.isTemporarilyBanned()) {
                 const banRemaining = purchaseRateLimiter.getRemainingBanTime();
                 const minutes = Math.ceil(banRemaining / 60);
-                console.warn(`⛔ User temporarily banned for ${banRemaining}s`);
+                console.warn(`User temporarily banned for ${banRemaining}s`);
                 
                 ToastNotification.show(
-                    `Temporary limit active. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`,
+                    `You have been rate limited. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`,
                     'error',
                     4000
                 );
@@ -3015,7 +3015,7 @@ function initBuyButtons() {
             // Normal rate limiting check
             if (!purchaseRateLimiter.canPurchase()) {
                 const remainingSeconds = purchaseRateLimiter.getRemainingWaitTime();
-                console.warn(`⏱️ Rate limit: Wait ${remainingSeconds}s before next purchase`);
+                console.warn(`Rate limit: Wait ${remainingSeconds}s before next purchase`);
                 
                 // Record this violation
                 const banActivated = purchaseRateLimiter.recordViolation();
@@ -3023,11 +3023,11 @@ function initBuyButtons() {
                 if (banActivated) {
                     // Just activated temporary ban
                     ToastNotification.show(
-                        'Clicking too fast. Please slow down. You\'ll be able to purchase again in 10 minutes.',
+                        'Clicking too fast. Please slow down. You will be able to purchase again in 10 minutes.',
                         'error',
                         5000
                     );
-                    console.warn(`🚨 Temporary ban activated after ${purchaseRateLimiter.rateLimitViolations.length} rapid attempts`);
+                    console.warn(`Temporary ban activated after ${purchaseRateLimiter.rateLimitViolations.length} rapid attempts`);
                 } else {
                     // Normal rate limit message
                     ToastNotification.show(
@@ -3503,10 +3503,10 @@ function initCustomStars() {
         if (purchaseRateLimiter.isTemporarilyBanned()) {
             const banRemaining = purchaseRateLimiter.getRemainingBanTime();
             const minutes = Math.ceil(banRemaining / 60);
-            console.warn(`⛔ User temporarily banned for ${banRemaining}s`);
+            console.warn(`User temporarily banned for ${banRemaining}s`);
             
             ToastNotification.show(
-                `Temporary limit active. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`,
+                `You have been rate limited. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`,
                 'error',
                 4000
             );
@@ -3516,7 +3516,7 @@ function initCustomStars() {
         // Normal rate limiting check
         if (!purchaseRateLimiter.canPurchase()) {
             const remainingSeconds = purchaseRateLimiter.getRemainingWaitTime();
-            console.warn(`⏱️ Rate limit: Wait ${remainingSeconds}s before next purchase`);
+            console.warn(`Rate limit: Wait ${remainingSeconds}s before next purchase`);
             
             // Record this violation
             const banActivated = purchaseRateLimiter.recordViolation();
@@ -3524,11 +3524,11 @@ function initCustomStars() {
             if (banActivated) {
                 // Just activated temporary ban
                 ToastNotification.show(
-                    'Clicking too fast. Please slow down. You\'ll be able to purchase again in 10 minutes.',
+                    'Clicking too fast. Please slow down. You will be able to purchase again in 10 minutes.',
                     'error',
                     5000
                 );
-                console.warn(`🚨 Temporary ban activated after ${purchaseRateLimiter.rateLimitViolations.length} rapid attempts`);
+                console.warn(`Temporary ban activated after ${purchaseRateLimiter.rateLimitViolations.length} rapid attempts`);
             } else {
                 // Normal rate limit message
                 ToastNotification.show(
