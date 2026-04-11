@@ -92,7 +92,7 @@ function checkPurchaseBan(telegramId) {
     return { isBanned: false };
 }
 
-function recordPurchaseViolation(telegramId) {
+function recordPurchaseViolation(telegramId, username) {
     const userId = String(telegramId);
     const now = Date.now();
     
@@ -110,7 +110,21 @@ function recordPurchaseViolation(telegramId) {
     if (violations.length >= VIOLATION_THRESHOLD) {
         const banUntil = now + TEMP_BAN_DURATION_MS;
         purchaseTempBans.set(userId, banUntil);
-        console.error(`🚨 SERVER: Rapid purchase attempts detected! User ${userId} banned for 10 minutes (${violations.length} violations in ${(now - violations[0]) / 1000}s)`);
+        console.error(`SERVER: Rapid purchase attempts detected! User ${userId} banned for 10 minutes (${violations.length} violations in ${(now - violations[0]) / 1000}s)`);
+        
+        // Notify admins about the rate limit ban
+        const banDurationMinutes = Math.ceil(TEMP_BAN_DURATION_MS / 60000);
+        const adminNotification = `RATE LIMIT BAN\nUser: @${username} (ID: ${userId})\nReason: ${violations.length} purchase attempts in ${Math.round((now - violations[0]) / 1000)}s\nBan Duration: ${banDurationMinutes} minutes\nBan Until: ${new Date(banUntil).toLocaleString()}`;
+        
+        // Send to admins (non-blocking)
+        if (bot && Array.isArray(adminIds) && adminIds.length > 0) {
+            adminIds.forEach(adminId => {
+                bot.sendMessage(adminId, adminNotification).catch(err => {
+                    console.error(`Failed to notify admin ${adminId}:`, err.message);
+                });
+            });
+        }
+        
         return { banActivated: true, violationCount: violations.length, banUntil };
     }
     
@@ -3360,7 +3374,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         const requesterIsAdmin = Boolean(req.user?.isAdmin);
 
         // Log incoming request - IMPORTANT for troubleshooting
-        console.log(`[${timestamp}] 📝 ORDER CREATE REQUEST | User: ${telegramId} (@${username}) | Wallet: ${walletAddress.slice(0, 20)}... | Item: ${isPremium ? premiumDuration + 'mo Premium' : stars + ' stars'} | Amount from frontend: ${req.body.totalAmount} USDT`);
+        console.log(`[${timestamp}] ORDER CREATE REQUEST | User: ${telegramId} (@${username}) | Wallet: ${walletAddress.slice(0, 20)}... | Item: ${isPremium ? premiumDuration + 'mo Premium' : stars + ' stars'} | Amount from frontend: ${req.body.totalAmount} USDT`);
 
         // Prevent duplicate requests
         if (processingRequests.has(requestKey)) {
@@ -3373,10 +3387,10 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         const banCheck = checkPurchaseBan(telegramId);
         if (banCheck.isBanned) {
             processingRequests.delete(requestKey);
-            console.warn(`[${timestamp}] ⛔ BLOCKED: User ${telegramId} is under temporary purchase ban (${banCheck.secondsRemaining}s remaining)`);
+            console.warn(`[${timestamp}] BLOCKED: User ${telegramId} is under temporary purchase ban (${banCheck.secondsRemaining}s remaining)`);
             
             // If user tries to bypass ban, record additional violation to extend ban
-            recordPurchaseViolation(telegramId);
+            recordPurchaseViolation(telegramId, username);
             
             return res.status(429).json({ 
                 error: 'Temporary purchase limit active',
@@ -3389,7 +3403,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
             processingRequests.delete(requestKey);
             const reason = 'Missing required fields';
-            console.log(`[${timestamp}] ❌ ORDER FAILED | User: ${telegramId} | Reason: ${reason}`);
+            console.log(`[${timestamp}] ORDER FAILED | User: ${telegramId} | Reason: ${reason}`);
             return res.status(400).json({ error: reason });
         }
 
@@ -3488,7 +3502,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
                 // This is a standard package - amount should match exactly
                 const amountRatio = (amount / expectedMapPrice).toFixed(4);
                 if (Math.abs(amount - expectedMapPrice) > 0.01) {  // Allow 1 cent variance for rounding
-                    console.warn(`[${timestamp}] ⚠️ AMOUNT MISMATCH | User: ${telegramId} | Expected: ${expectedMapPrice} USDT | Received: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`);
+                    console.warn(`[${timestamp}] AMOUNT MISMATCH | User: ${telegramId} | Expected: ${expectedMapPrice} USDT | Received: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`);
                     
                     // Log additional diagnostic info for pattern detection
                     console.warn(`[${timestamp}] 🔍 DIAGNOSTIC | Ratio: ${amountRatio} | Diff: ${Math.abs(amount - expectedMapPrice).toFixed(4)} USDT | RecipientCount: ${totalRecipients || 1}`);
@@ -3500,7 +3514,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
                 }
             }
             
-            console.log(`[${timestamp}] ✅ AMOUNT VALIDATION | User: ${telegramId} | Amount from frontend: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Status: VALID`);
+            console.log(`[${timestamp}] AMOUNT VALIDATION | User: ${telegramId} | Amount from frontend: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Status: VALID`);
         } else {
             // Fallback to preset price map only for standard packages
             const priceMap = { regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 }, premium: { 3: 19.31, 6: 26.25, 12: 44.79 } };
@@ -3545,7 +3559,7 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         await order.save();
         
         // SUCCESS LOG - Easy to grep and debug order creation
-        console.log(`[${timestamp}] ✅ ORDER CREATED | OrderID: ${order.id} | User: ${telegramId} (@${username}) |  Wallet: ${walletAddress.slice(0, 20)}... | Amount: ${amount} USDT | Stars: ${stars || 'premium'} | Status: pending`);
+        console.log(`[${timestamp}] ORDER CREATED | OrderID: ${order.id} | User: ${telegramId} (@${username}) |  Wallet: ${walletAddress.slice(0, 20)}... | Amount: ${amount} USDT | Stars: ${stars || 'premium'} | Status: pending`);
 
         // === ADMIN NOTIFICATION PHASE (CRITICAL) ===
         // Extract geolocation
@@ -3786,7 +3800,7 @@ app.post("/api/sell-orders", async (req, res) => {
         await order.save();
 
         // Do NOT award or log points at creation
-        console.log(`💰 Sell order created for user ${telegramId}`);
+        console.log(`Sell order created for user ${telegramId}`);
 
         const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
         try { await bot.sendMessage(telegramId, userMessage); } catch {}
