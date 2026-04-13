@@ -3939,8 +3939,15 @@ async function handlePurchase(item) {
     }
     
     if (!walletConnected) {
-        console.warn('⚠️ Wallet not connected');
+        console.warn('Wallet not connected');
         showErrorToUser(TranslationUtils.get('walletNotConnected') || 'Please connect your wallet first');
+        return;
+    }
+
+    // Check if using testnet - reject for non-admins
+    if (isTestnetWallet(tonConnectUI?.wallet) && !currentUserIsAdmin) {
+        console.warn('Purchase blocked: Testnet wallet detected for non-admin user');
+        showErrorToUser('Testnet wallets are not supported. Please switch to TON mainnet.');
         return;
     }
     

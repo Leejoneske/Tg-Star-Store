@@ -78,69 +78,8 @@ const VIOLATION_WINDOW_MS = 60000; // Consider violations within 60 seconds
 const PURCHASE_MIN_INTERVAL_MS = 3000; // 3 second minimum between purchases
 const userLastPurchaseTime = new Map(); // Track last purchase time per user
 
-function checkPurchaseBan(telegramId) {
-    const now = Date.now();
-    const banUntil = purchaseTempBans.get(String(telegramId));
-    
-    if (banUntil && banUntil > now) {
-        const secondsRemaining = Math.ceil((banUntil - now) / 1000);
-        return { isBanned: true, secondsRemaining };
-    } else if (banUntil) {
-        // Ban expired, clean up
-        const userId = String(telegramId);
-        purchaseTempBans.delete(userId);
-        VIOLATION_RECORDS.delete(userId);
-        userLastPurchaseTime.delete(userId);
-    }
-    
-    return { isBanned: false };
-}
-
-function recordPurchaseViolation(telegramId, username) {
-    const userId = String(telegramId);
-    const now = Date.now();
-    
-    // Get or create violation list for this user
-    let violations = VIOLATION_RECORDS.get(userId) || [];
-    
-    // Clean old violations (outside the window)
-    violations = violations.filter(time => now - time < VIOLATION_WINDOW_MS);
-    
-    // Add new violation
-    violations.push(now);
-    VIOLATION_RECORDS.set(userId, violations);
-    
-    // Check if threshold reached
-    if (violations.length >= VIOLATION_THRESHOLD) {
-        const banUntil = now + TEMP_BAN_DURATION_MS;
-        purchaseTempBans.set(userId, banUntil);
-        console.error(`SERVER: Rapid purchase attempts detected! User ${userId} banned for 10 minutes (${violations.length} violations in ${(now - violations[0]) / 1000}s)`);
-        
-        // Notify admins about the rate limit ban
-        const banDurationMinutes = Math.ceil(TEMP_BAN_DURATION_MS / 60000);
-        const adminNotification = `RATE LIMIT BAN\nUser: @${username} (ID: ${userId})\nReason: ${violations.length} purchase attempts in ${Math.round((now - violations[0]) / 1000)}s\nBan Duration: ${banDurationMinutes} minutes\nBan Until: ${new Date(banUntil).toLocaleString()}`;
-        
-        // Send to admins (non-blocking)
-        if (bot && Array.isArray(adminIds) && adminIds.length > 0) {
-            adminIds.forEach(adminId => {
-                bot.sendMessage(adminId, adminNotification).then(() => {
-                    console.log(`[ADMIN NOTIFY] Rate limit ban alert sent to admin ${adminId} for user ${userId}`);
-                }).catch(err => {
-                    console.error(`[ADMIN NOTIFY] Failed to notify admin ${adminId} about rate limit ban for user ${userId}:`, err.message);
-                });
-            });
-        } else {
-            console.warn(`[ADMIN NOTIFY] Cannot send rate limit ban notification - bot=${!!bot}, adminIds=${adminIds ? adminIds.length : 0}`);
-        }
-        
-        return { banActivated: true, violationCount: violations.length, banUntil };
-    }
-    
-    return { banActivated: false, violationCount: violations.length };
-}
-
-// Optional bot simulator (to avoid bloating monolith logic)
-let startBotSimulatorSafe = null;
+// Rate limit functions will be defined after adminIds is initialized
+let checkPurchaseBan, recordPurchaseViolation;
 try {
   ({ startBotSimulator: startBotSimulatorSafe } = require('./services/bot-simulator'));
 } catch (_) {
@@ -2406,6 +2345,68 @@ let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').s
 // Deduplicate to avoid duplicate notifications per admin
 adminIds = Array.from(new Set(adminIds));
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
+
+// Initialize rate limit functions (now adminIds is available)
+checkPurchaseBan = function(telegramId) {
+    const now = Date.now();
+    const banUntil = purchaseTempBans.get(String(telegramId));
+    
+    if (banUntil && banUntil > now) {
+        const secondsRemaining = Math.ceil((banUntil - now) / 1000);
+        return { isBanned: true, secondsRemaining };
+    } else if (banUntil) {
+        // Ban expired, clean up
+        const userId = String(telegramId);
+        purchaseTempBans.delete(userId);
+        VIOLATION_RECORDS.delete(userId);
+        userLastPurchaseTime.delete(userId);
+    }
+    
+    return { isBanned: false };
+};
+
+recordPurchaseViolation = function(telegramId, username) {
+    const userId = String(telegramId);
+    const now = Date.now();
+    
+    // Get or create violation list for this user
+    let violations = VIOLATION_RECORDS.get(userId) || [];
+    
+    // Clean old violations (outside the window)
+    violations = violations.filter(time => now - time < VIOLATION_WINDOW_MS);
+    
+    // Add new violation
+    violations.push(now);
+    VIOLATION_RECORDS.set(userId, violations);
+    
+    // Check if threshold reached
+    if (violations.length >= VIOLATION_THRESHOLD) {
+        const banUntil = now + TEMP_BAN_DURATION_MS;
+        purchaseTempBans.set(userId, banUntil);
+        console.error(`SERVER: Rapid purchase attempts detected! User ${userId} banned for 10 minutes (${violations.length} violations in ${(now - violations[0]) / 1000}s)`);
+        
+        // Notify admins about the rate limit ban
+        const banDurationMinutes = Math.ceil(TEMP_BAN_DURATION_MS / 60000);
+        const adminNotification = `RATE LIMIT BAN\nUser: @${username} (ID: ${userId})\nReason: ${violations.length} purchase attempts in ${Math.round((now - violations[0]) / 1000)}s\nBan Duration: ${banDurationMinutes} minutes\nBan Until: ${new Date(banUntil).toLocaleString()}`;
+        
+        // Send to admins (non-blocking) - adminIds is now properly initialized
+        if (bot && Array.isArray(adminIds) && adminIds.length > 0) {
+            adminIds.forEach(adminId => {
+                bot.sendMessage(adminId, adminNotification).then(() => {
+                    console.log(`[ADMIN NOTIFY] Rate limit ban alert sent to admin ${adminId} for user ${userId}`);
+                }).catch(err => {
+                    console.error(`[ADMIN NOTIFY] Failed to notify admin ${adminId} about rate limit ban for user ${userId}:`, err.message);
+                });
+            });
+        } else {
+            console.warn(`[ADMIN NOTIFY] Cannot send rate limit ban notification - bot=${!!bot}, adminIds=${adminIds ? adminIds.length : 0}`);
+        }
+        
+        return { banActivated: true, violationCount: violations.length, banUntil };
+    }
+    
+    return { banActivated: false, violationCount: violations.length };
+};
 
 // Register admin email commands module (Telegram bot functionality)
 if (bot && typeof bot.onText === 'function') {
