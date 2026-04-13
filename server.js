@@ -108,10 +108,13 @@ const registerAdminEmailCommands = require('./telegram-commands-admin');
 
 // Create Telegram bot or a stub in local/dev if no token is provided
 let bot;
+let isBotStub = false;
 if (process.env.BOT_TOKEN) {
   bot = new TelegramBot(process.env.BOT_TOKEN, { webHook: true });
+  console.log('[BOT INIT] Real Telegram Bot initialized with token');
 } else {
-  console.warn('BOT_TOKEN not set. Using a no-op Telegram bot stub for local/dev.');
+  console.warn('[BOT INIT] ❌ BOT_TOKEN not set. Using a no-op Telegram bot stub for local/dev.');
+  isBotStub = true;
   bot = {
     setWebHook: async () => Promise.resolve(),
     sendMessage: async () => Promise.resolve({}),
@@ -2347,19 +2350,30 @@ const broadcastRateLimiter = {
 let adminIds = (process.env.ADMIN_TELEGRAM_IDS || process.env.ADMIN_IDS || '').split(',').filter(Boolean).map(id => id.trim());
 // Deduplicate to avoid duplicate notifications per admin
 adminIds = Array.from(new Set(adminIds));
+
+// Log admin initialization status
+if (adminIds.length > 0) {
+  console.log(`[ADMIN INIT] ✅ Admin IDs loaded: ${adminIds.join(', ')}`);
+} else {
+  console.error('[ADMIN INIT] ❌ NO ADMIN IDS CONFIGURED! Set ADMIN_TELEGRAM_IDS or ADMIN_IDS environment variable.');
+}
+console.log(`[SYSTEM INIT] Bot type: ${isBotStub ? 'STUB' : 'REAL'} | Admin IDs: ${adminIds.length > 0 ? adminIds.join(', ') : 'NONE'}`);
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
 // Initialize rate limit functions (now adminIds is available)
 checkPurchaseBan = function(telegramId) {
     const now = Date.now();
-    const banUntil = purchaseTempBans.get(String(telegramId));
+    const userId = String(telegramId);
+    const banUntil = purchaseTempBans.get(userId);
     
     if (banUntil && banUntil > now) {
         const secondsRemaining = Math.ceil((banUntil - now) / 1000);
+        const minutesRemaining = Math.ceil(secondsRemaining / 60);
+        console.log(`[BAN CHECK] User ${userId} is banned for ${minutesRemaining}m (${secondsRemaining}s remaining)`);
         return { isBanned: true, secondsRemaining };
     } else if (banUntil) {
         // Ban expired, clean up
-        const userId = String(telegramId);
+        console.log(`[BAN CHECK] Ban expired for user ${userId}, cleaning up records`);
         purchaseTempBans.delete(userId);
         VIOLATION_RECORDS.delete(userId);
         userLastPurchaseTime.delete(userId);
@@ -2382,27 +2396,48 @@ recordPurchaseViolation = function(telegramId, username) {
     violations.push(now);
     VIOLATION_RECORDS.set(userId, violations);
     
+    const logTimestamp = new Date().toISOString();
+    console.log(`[VIOLATION RECORD] User ${userId} (@${username}) | Violation count: ${violations.length}/${VIOLATION_THRESHOLD} | Time window: ${Math.round((now - violations[0]) / 1000)}s`);
+    
     // Check if threshold reached
     if (violations.length >= VIOLATION_THRESHOLD) {
         const banUntil = now + TEMP_BAN_DURATION_MS;
         purchaseTempBans.set(userId, banUntil);
-        console.error(`SERVER: Rapid purchase attempts detected! User ${userId} banned for 10 minutes (${violations.length} violations in ${(now - violations[0]) / 1000}s)`);
+        
+        console.error(`[🚫 BAN ACTIVATED] ${logTimestamp}`);
+        console.error(`  User ID: ${userId}`);
+        console.error(`  Username: @${username}`);
+        console.error(`  Violations: ${violations.length} purchase attempts in ${Math.round((now - violations[0]) / 1000)}s`);
+        console.error(`  Ban Duration: 10 minutes`);
+        console.error(`  Ban Until: ${new Date(banUntil).toLocaleString()}`);
         
         // Notify admins about the rate limit ban
         const banDurationMinutes = Math.ceil(TEMP_BAN_DURATION_MS / 60000);
-        const adminNotification = `RATE LIMIT BAN\nUser: @${username} (ID: ${userId})\nReason: ${violations.length} purchase attempts in ${Math.round((now - violations[0]) / 1000)}s\nBan Duration: ${banDurationMinutes} minutes\nBan Until: ${new Date(banUntil).toLocaleString()}`;
+        const adminNotification = `🚫 RATE LIMIT BAN\nUser: @${username} (ID: ${userId})\nReason: ${violations.length} purchase attempts in ${Math.round((now - violations[0]) / 1000)}s\nBan Duration: ${banDurationMinutes} minutes\nBan Until: ${new Date(banUntil).toLocaleString()}`;
+        
+        // Log notification intent
+        console.log(`[ADMIN NOTIFY ATTEMPT] ${logTimestamp}`);
+        console.log(`  Bot status: ${isBotStub ? '❌ STUB (no-op)' : '✅ REAL'}`);
+        console.log(`  Admin count: ${adminIds.length}`);
+        console.log(`  Admin IDs: ${adminIds.length > 0 ? adminIds.join(', ') : 'NONE'}`);
         
         // Send to admins (non-blocking) - adminIds is now properly initialized
-        if (bot && Array.isArray(adminIds) && adminIds.length > 0) {
+        if (!isBotStub && bot && Array.isArray(adminIds) && adminIds.length > 0) {
             adminIds.forEach(adminId => {
+                console.log(`  ➡️ Sending to admin ${adminId}...`);
                 bot.sendMessage(adminId, adminNotification).then(() => {
-                    console.log(`[ADMIN NOTIFY] Rate limit ban alert sent to admin ${adminId} for user ${userId}`);
+                    console.log(`  ✅ [ADMIN NOTIFY SUCCESS] Message sent to admin ${adminId} for user ${userId}`);
                 }).catch(err => {
-                    console.error(`[ADMIN NOTIFY] Failed to notify admin ${adminId} about rate limit ban for user ${userId}:`, err.message);
+                    console.error(`  ❌ [ADMIN NOTIFY ERROR] Failed to send to admin ${adminId} for user ${userId}: ${err.message}`);
+                    if (err.response) {
+                        console.error(`     Response status: ${err.response.statusCode}`);
+                        console.error(`     Response body: ${JSON.stringify(err.response.body)}`);
+                    }
                 });
             });
         } else {
-            console.warn(`[ADMIN NOTIFY] Cannot send rate limit ban notification - bot=${!!bot}, adminIds=${adminIds ? adminIds.length : 0}`);
+            const reason = !bot ? 'bot=null' : isBotStub ? 'bot=STUB' : adminIds.length === 0 ? 'adminIds=empty' : 'unknown';
+            console.warn(`  ⚠️ [ADMIN NOTIFY SKIPPED] ${reason}`);
         }
         
         return { banActivated: true, violationCount: violations.length, banUntil };
@@ -2414,34 +2449,50 @@ recordPurchaseViolation = function(telegramId, username) {
 // Notify admins about prolonged bans that exceed 9 minutes
 function checkAndNotifyProlongedBans() {
     const now = Date.now();
+    let activeBanCount = 0;
+    let prolongedBanCount = 0;
     
     for (const [userId, banUntil] of purchaseTempBans) {
         // Check if ban is still active
         if (banUntil <= now) continue;
         
+        activeBanCount++;
+        
         // Check if ban has been active for 9+ minutes (9 minutes = 540000 ms)
         const banDuration = TEMP_BAN_DURATION_MS - (banUntil - now);
         if (banDuration < PROLONGED_BAN_THRESHOLD_MS) continue;
         
+        prolongedBanCount++;
+        
         // Check if we've already notified about this user's prolonged ban recently
         const lastNotification = prolongedBanNotifications.get(userId);
         if (lastNotification && (now - lastNotification) < PROLONGED_BAN_NOTIFICATION_INTERVAL_MS) {
+            console.log(`[PROLONGED BAN CHECK] User ${userId}: 9+ min ban (already notified ${Math.round((now - lastNotification) / 1000)}s ago)`);
             continue; // Skip - already notified within 3 minutes
         }
         
         // Send notification to admins about prolonged ban
         const timeRemaining = Math.ceil((banUntil - now) / 1000);
         const minutesRemaining = Math.ceil(timeRemaining / 60);
-        const prolongedBanMsg = `🔔 PROLONGED BAN ALERT\nUser ID: ${userId}\nBan Duration: 9+ minutes has passed\nTime Remaining: ${minutesRemaining} minutes\nAction: User has exceeded 9-minute ban threshold. Monitor for appeals or further violations.`;
+        const prolongedBanMsg = `⏰ PROLONGED BAN ALERT\nUser ID: ${userId}\nBan Duration: 9+ minutes elapsed\nTime Remaining: ${minutesRemaining} minutes\nNote: User has exceeded 9-minute threshold. Consider review if suspicious.`;
         
-        if (bot && Array.isArray(adminIds) && adminIds.length > 0) {
+        console.log(`[PROLONGED BAN NOTIFY] ${new Date().toISOString()}`);
+        console.log(`  User ID: ${userId}`);
+        console.log(`  Ban Duration: ${Math.round(banDuration / 1000)}s (9+ minute threshold)`);
+        console.log(`  Time Remaining: ${minutesRemaining} minutes`);
+        
+        if (!isBotStub && bot && Array.isArray(adminIds) && adminIds.length > 0) {
             adminIds.forEach(adminId => {
+                console.log(`  Sending to admin ${adminId}...`);
                 bot.sendMessage(adminId, prolongedBanMsg).then(() => {
-                    console.log(`[ADMIN NOTIFY] Prolonged ban alert sent to admin ${adminId} for user ${userId}`);
+                    console.log(`  ✅ Prolonged ban alert sent to admin ${adminId}`);
                 }).catch(err => {
-                    console.error(`[ADMIN NOTIFY] Failed to notify admin ${adminId} about prolonged ban for user ${userId}:`, err.message);
+                    console.error(`  ❌ Failed to send to admin ${adminId}: ${err.message}`);
                 });
             });
+        } else {
+            const reason = !bot ? 'bot=null' : isBotStub ? 'bot=STUB' : adminIds.length === 0 ? 'adminIds=empty' : 'unknown';
+            console.warn(`  ⚠️ Notification skipped: ${reason}`);
         }
         
         // Mark this user as notified about prolonged ban
