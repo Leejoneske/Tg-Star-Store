@@ -77,6 +77,9 @@ const VIOLATION_THRESHOLD = 5; // Ban after 5 violations
 const VIOLATION_WINDOW_MS = 60000; // Consider violations within 60 seconds
 const PURCHASE_MIN_INTERVAL_MS = 3000; // 3 second minimum between purchases
 const userLastPurchaseTime = new Map(); // Track last purchase time per user
+const prolongedBanNotifications = new Map(); // Track which users we've notified admins about for prolonged bans
+const PROLONGED_BAN_THRESHOLD_MS = 540000; // 9 minutes - threshold for admin notification about prolonged bans
+const PROLONGED_BAN_NOTIFICATION_INTERVAL_MS = 180000; // 3 minutes - minimum wait between repeated notifications
 
 // Rate limit functions will be defined after adminIds is initialized
 let checkPurchaseBan, recordPurchaseViolation;
@@ -2408,6 +2411,53 @@ recordPurchaseViolation = function(telegramId, username) {
     return { banActivated: false, violationCount: violations.length };
 };
 
+// Notify admins about prolonged bans that exceed 9 minutes
+function checkAndNotifyProlongedBans() {
+    const now = Date.now();
+    
+    for (const [userId, banUntil] of purchaseTempBans) {
+        // Check if ban is still active
+        if (banUntil <= now) continue;
+        
+        // Check if ban has been active for 9+ minutes (9 minutes = 540000 ms)
+        const banDuration = TEMP_BAN_DURATION_MS - (banUntil - now);
+        if (banDuration < PROLONGED_BAN_THRESHOLD_MS) continue;
+        
+        // Check if we've already notified about this user's prolonged ban recently
+        const lastNotification = prolongedBanNotifications.get(userId);
+        if (lastNotification && (now - lastNotification) < PROLONGED_BAN_NOTIFICATION_INTERVAL_MS) {
+            continue; // Skip - already notified within 3 minutes
+        }
+        
+        // Send notification to admins about prolonged ban
+        const timeRemaining = Math.ceil((banUntil - now) / 1000);
+        const minutesRemaining = Math.ceil(timeRemaining / 60);
+        const prolongedBanMsg = `🔔 PROLONGED BAN ALERT\nUser ID: ${userId}\nBan Duration: 9+ minutes has passed\nTime Remaining: ${minutesRemaining} minutes\nAction: User has exceeded 9-minute ban threshold. Monitor for appeals or further violations.`;
+        
+        if (bot && Array.isArray(adminIds) && adminIds.length > 0) {
+            adminIds.forEach(adminId => {
+                bot.sendMessage(adminId, prolongedBanMsg).then(() => {
+                    console.log(`[ADMIN NOTIFY] Prolonged ban alert sent to admin ${adminId} for user ${userId}`);
+                }).catch(err => {
+                    console.error(`[ADMIN NOTIFY] Failed to notify admin ${adminId} about prolonged ban for user ${userId}:`, err.message);
+                });
+            });
+        }
+        
+        // Mark this user as notified about prolonged ban
+        prolongedBanNotifications.set(userId, now);
+    }
+}
+
+// Periodic task to check for prolonged bans (every 2 minutes)
+setInterval(() => {
+    try {
+        checkAndNotifyProlongedBans();
+    } catch (err) {
+        console.error('[Prolonged Ban Check] Error checking for prolonged bans:', err.message);
+    }
+}, 2 * 60 * 1000); // Check every 2 minutes
+
 // Register admin email commands module (Telegram bot functionality)
 if (bot && typeof bot.onText === 'function') {
   try {
@@ -3378,6 +3428,13 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
 
     try {
         const timestamp = new Date().toISOString();
+        
+        // === SECURITY VALIDATION: Ensure user can only create orders for themselves ===
+        if (String(telegramId) !== String(req.user?.id)) {
+            console.warn(`[${timestamp}] SECURITY ALERT: User ${req.user?.id} attempted to create order for user ${telegramId}`);
+            return res.status(401).json({ error: 'Unauthorized: Cannot create orders for other users' });
+        }
+        
         // === VALIDATION PHASE ===
         await syncUserData(telegramId, username, 'order_create', req);
         const requesterIsAdmin = Boolean(req.user?.isAdmin);
@@ -3684,7 +3741,7 @@ function sanitizeUsername(username) {
     return username.replace(/[^\w\d_]/g, '');
 }
 
-app.post("/api/sell-orders", async (req, res) => {
+app.post("/api/sell-orders", requireTelegramAuth, async (req, res) => {
     try {
         const { 
             telegramId, 
@@ -3693,6 +3750,12 @@ app.post("/api/sell-orders", async (req, res) => {
             walletAddress, 
             memoTag = '' 
         } = req.body;
+        
+        // === SECURITY VALIDATION: Ensure user can only create sell orders for themselves ===
+        if (String(telegramId) !== String(req.user?.id)) {
+            console.warn(`[${new Date().toISOString()}] SECURITY ALERT: User ${req.user?.id} attempted to create sell order for user ${telegramId}`);
+            return res.status(401).json({ error: 'Unauthorized: Cannot create sell orders for other users' });
+        }
         
         // === SYNC USER DATA ON EVERY INTERACTION ===
         await syncUserData(telegramId, username, 'sell_order_create', req);
