@@ -2396,6 +2396,8 @@ recordPurchaseViolation = function(telegramId, username) {
     violations.push(now);
     VIOLATION_RECORDS.set(userId, violations);
     
+    console.log(`[VIOLATION] User ${userId}: ${violations.length}/${VIOLATION_THRESHOLD} violations`);
+    
     // Check if threshold reached
     if (violations.length >= VIOLATION_THRESHOLD) {
         const banUntil = now + TEMP_BAN_DURATION_MS;
@@ -2404,19 +2406,21 @@ recordPurchaseViolation = function(telegramId, username) {
         const banDurationMinutes = Math.ceil(TEMP_BAN_DURATION_MS / 60000);
         const adminNotification = `RATE LIMIT BAN\nUser: @${username} (ID: ${userId})\nReason: ${violations.length} purchase attempts in ${Math.round((now - violations[0]) / 1000)}s\nBan Duration: ${banDurationMinutes} minutes\nBan Until: ${new Date(banUntil).toLocaleString()}`;
         
-        // Only log and notify for bans > 5 minutes
+        console.log(`[BAN] User ${userId} (@${username}) banned for ${banDurationMinutes}m`);
+        console.log(`[BAN] Bot: ${isBotStub ? 'stub' : 'real'} | Admins: ${adminIds.length} | Config: TEMP_BAN_DURATION_MS=${TEMP_BAN_DURATION_MS}`);
+        
+        // Only notify for bans > 5 minutes
         if (TEMP_BAN_DURATION_MS > 300000) {
-            console.log(`[BAN] User ${userId} (@${username}) banned for ${banDurationMinutes} minutes (${violations.length} violations in ${Math.round((now - violations[0]) / 1000)}s)`);
-            
-            // Send to admins (non-blocking)
             if (!isBotStub && bot && Array.isArray(adminIds) && adminIds.length > 0) {
                 adminIds.forEach(adminId => {
                     bot.sendMessage(adminId, adminNotification).then(() => {
-                        console.log(`[BAN NOTIFY] Message sent to admin ${adminId} for user ${userId}`);
+                        console.log(`[BAN NOTIFY] Sent to admin ${adminId}`);
                     }).catch(err => {
-                        console.error(`[BAN NOTIFY] Failed to send to admin ${adminId}: ${err.message}`);
+                        console.error(`[BAN NOTIFY] Error sending to admin ${adminId}: ${err.message}`);
                     });
                 });
+            } else {
+                console.warn(`[BAN NOTIFY] Skipped - Bot stub: ${isBotStub}, Bot exists: ${!!bot}, Admins: ${adminIds.length}`);
             }
         }
         
@@ -3470,10 +3474,11 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
 
         // === SERVER-SIDE RATE LIMIT CHECK (Ultimate defense) ===
         // Even if user clears localStorage, backend enforces the ban
+        console.log(`[RATE CHECK] User ${telegramId} attempting order`);
         const banCheck = checkPurchaseBan(telegramId);
         if (banCheck.isBanned) {
             processingRequests.delete(requestKey);
-            console.warn(`[${timestamp}] BLOCKED: User ${telegramId} is under temporary purchase ban (${banCheck.secondsRemaining}s remaining)`);
+            console.warn(`[RATE CHECK] User ${telegramId} is banned (${banCheck.secondsRemaining}s remaining). Recording violation.`);
             
             // If user tries to bypass ban, record additional violation to extend ban
             recordPurchaseViolation(telegramId, username);
@@ -3492,7 +3497,8 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         
         if (lastPurchaseTime && (now - lastPurchaseTime) < PURCHASE_MIN_INTERVAL_MS) {
             processingRequests.delete(requestKey);
-            console.warn(`[${timestamp}] RAPID PURCHASE ATTEMPT: User ${userId} tried to purchase ${Math.round((PURCHASE_MIN_INTERVAL_MS - (now - lastPurchaseTime)) / 1000)}s too soon`);
+            const timeTooSoon = Math.round((PURCHASE_MIN_INTERVAL_MS - (now - lastPurchaseTime)) / 1000);
+            console.warn(`[RATE CHECK] User ${userId} rapid purchase (${timeTooSoon}s too soon). Recording violation.`);
             
             // Record violation for rapid-fire purchase attempt
             const violationResult = recordPurchaseViolation(telegramId, username);
