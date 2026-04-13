@@ -75,6 +75,8 @@ const TEMP_BAN_DURATION_MS = 600000; // 10 minutes (600 seconds)
 const VIOLATION_RECORDS = new Map(); // Maps userId to array of violation timestamps
 const VIOLATION_THRESHOLD = 5; // Ban after 5 violations
 const VIOLATION_WINDOW_MS = 60000; // Consider violations within 60 seconds
+const PURCHASE_MIN_INTERVAL_MS = 3000; // 3 second minimum between purchases
+const userLastPurchaseTime = new Map(); // Track last purchase time per user
 
 function checkPurchaseBan(telegramId) {
     const now = Date.now();
@@ -85,8 +87,10 @@ function checkPurchaseBan(telegramId) {
         return { isBanned: true, secondsRemaining };
     } else if (banUntil) {
         // Ban expired, clean up
-        purchaseTempBans.delete(String(telegramId));
-        VIOLATION_RECORDS.delete(String(telegramId));
+        const userId = String(telegramId);
+        purchaseTempBans.delete(userId);
+        VIOLATION_RECORDS.delete(userId);
+        userLastPurchaseTime.delete(userId);
     }
     
     return { isBanned: false };
@@ -3403,6 +3407,34 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             });
         }
 
+        // Check for rapid-fire purchases (3-second minimum interval)
+        const userId = String(telegramId);
+        const lastPurchaseTime = userLastPurchaseTime.get(userId);
+        const now = Date.now();
+        
+        if (lastPurchaseTime && (now - lastPurchaseTime) < PURCHASE_MIN_INTERVAL_MS) {
+            processingRequests.delete(requestKey);
+            console.warn(`[${timestamp}] RAPID PURCHASE ATTEMPT: User ${userId} tried to purchase ${Math.round((PURCHASE_MIN_INTERVAL_MS - (now - lastPurchaseTime)) / 1000)}s too soon`);
+            
+            // Record violation for rapid-fire purchase attempt
+            const violationResult = recordPurchaseViolation(telegramId, username);
+            
+            // If ban was activated by this violation, return 429
+            if (violationResult.banActivated) {
+                return res.status(429).json({ 
+                    error: 'Temporary purchase limit active',
+                    banRemaining: Math.ceil(TEMP_BAN_DURATION_MS / 1000),
+                    message: `You are rate limited. Please wait ${Math.ceil(TEMP_BAN_DURATION_MS / 60000)} minutes before trying again.`
+                });
+            } else {
+                // Still under cooldown warning
+                return res.status(429).json({ 
+                    error: 'Please slow down',
+                    message: 'You can only make one purchase every 3 seconds.'
+                });
+            }
+        }
+
         // Strict validation
         if (!telegramId || !username || !walletAddress || (isPremium && !premiumDuration)) {
             processingRequests.delete(requestKey);
@@ -3630,6 +3662,9 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         await trackUserActivity(telegramId, username, 'order_created', { orderId: order.id, amount, stars, isPremium });
 
         // === SUCCESS RESPONSE ===
+        // Update last purchase time for rate limiting
+        userLastPurchaseTime.set(userId, now);
+        
         // Always return success if order was saved (order exists in DB regardless of admin notification)
         processingRequests.delete(requestKey);
         res.json({ success: true, order });
