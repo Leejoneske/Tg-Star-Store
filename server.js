@@ -119,10 +119,14 @@ function recordPurchaseViolation(telegramId, username) {
         // Send to admins (non-blocking)
         if (bot && Array.isArray(adminIds) && adminIds.length > 0) {
             adminIds.forEach(adminId => {
-                bot.sendMessage(adminId, adminNotification).catch(err => {
-                    console.error(`Failed to notify admin ${adminId}:`, err.message);
+                bot.sendMessage(adminId, adminNotification).then(() => {
+                    console.log(`[ADMIN NOTIFY] Rate limit ban alert sent to admin ${adminId} for user ${userId}`);
+                }).catch(err => {
+                    console.error(`[ADMIN NOTIFY] Failed to notify admin ${adminId} about rate limit ban for user ${userId}:`, err.message);
                 });
             });
+        } else {
+            console.warn(`[ADMIN NOTIFY] Cannot send rate limit ban notification - bot=${!!bot}, adminIds=${adminIds ? adminIds.length : 0}`);
         }
         
         return { banActivated: true, violationCount: violations.length, banUntil };
@@ -3211,7 +3215,7 @@ app.post('/api/quote', requireTelegramAuth, (req, res) => {
                 return res.status(400).json({ success: false, error: 'Invalid premium duration' });
             }
             const totalAmount = Number((unitAmount * quantity).toFixed(2));
-            console.log(`[${timestamp}] 💰 QUOTE | Premium: ${premiumDuration}mo x ${quantity} recipient(s) | Unit: ${unitAmount} USDT | Total: ${totalAmount} USDT`);
+            console.log(`[${timestamp}] QUOTE | Premium: ${premiumDuration}mo x ${quantity} recipient(s) | Unit: ${unitAmount} USDT | Total: ${totalAmount} USDT`);
             return res.json({ success: true, totalAmount, unitAmount: Number(unitAmount.toFixed(2)), quantity });
         }
 
@@ -3234,7 +3238,7 @@ app.post('/api/quote', requireTelegramAuth, (req, res) => {
             // Use exact package price - total amount is the package price
             const totalAmount = Number(mapPrice.toFixed(2));
             const unitAmount = Number((totalAmount / quantity).toFixed(2));
-            console.log(`[${timestamp}] 💰 QUOTE | Package: ${starsNum} stars (mapped) x ${quantity} recipient(s) | Price: ${mapPrice} USDT | Total: ${totalAmount} USDT | Per recipient: ${unitAmount} USDT`);
+            console.log(`[${timestamp}] QUOTE | Package: ${starsNum} stars (mapped) x ${quantity} recipient(s) | Price: ${mapPrice} USDT | Total: ${totalAmount} USDT | Per recipient: ${unitAmount} USDT`);
             return res.json({ 
                 success: true, 
                 totalAmount, 
@@ -3246,7 +3250,7 @@ app.post('/api/quote', requireTelegramAuth, (req, res) => {
             // VALIDATE: This should not happen for standard packages, only custom amounts
             const unitAmount = Number((starsNum * 0.02).toFixed(2));
             const totalAmount = Number((unitAmount * quantity).toFixed(2));
-            console.warn(`[${timestamp}] ⚠️ QUOTE FALLBACK | Custom: ${starsNum} stars @ $0.02/star x ${quantity} recipient(s) | Unit: ${unitAmount} USDT | Total: ${totalAmount} USDT`);
+            console.warn(`[${timestamp}] QUOTE FALLBACK | Custom: ${starsNum} stars @ $0.02/star x ${quantity} recipient(s) | Unit: ${unitAmount} USDT | Total: ${totalAmount} USDT`);
             return res.json({ success: true, totalAmount, unitAmount, quantity });
         }
     } catch (error) {
@@ -13503,7 +13507,7 @@ bot.onText(/\/notify(?:\s+(all|@\w+|\d+))?\s+(.+)/, async (msg, match) => {
 app.get('/api/transactions/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
-        console.log(`📊 [Transactions API] Fetching transactions for userId: ${userId}`);
+        console.log(`[Transactions API] Fetching transactions for userId: ${userId}`);
         
         // Get both buy and sell orders for the user
         const buyOrders = await BuyOrder.find({ telegramId: userId })
@@ -13514,7 +13518,7 @@ app.get('/api/transactions/:userId', async (req, res) => {
             .sort({ dateCreated: -1 })
             .lean();
 
-        console.log(`📊 [Transactions API] Found ${buyOrders.length} buy orders and ${sellOrders.length} sell orders`);
+        console.log(`[Transactions API] Found ${buyOrders.length} buy orders and ${sellOrders.length} sell orders`);
 
         // Combine and format the data
         const transactions = [
@@ -13538,10 +13542,10 @@ app.get('/api/transactions/:userId', async (req, res) => {
             }))
         ];
 
-        console.log(`📊 [Transactions API] Returning ${transactions.length} total transactions`);
+        console.log(`[Transactions API] Returning ${transactions.length} total transactions`);
         res.json(transactions);
     } catch (error) {
-        console.error('❌ [Transactions API] Error fetching transactions:', error);
+        console.error('[Transactions API] Error fetching transactions:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -17034,18 +17038,18 @@ app.get('/api/me', async (req, res) => {
 	// ALWAYS verify ambassador status against fresh database query (don't trust cache)
 	if (tgId) {
 		try {
-			console.log(`🔍 /api/me: Checking ambassador status for user ${tgId} in database`);
+			console.log(`Checking ambassador status for user ${tgId} in database`);
 			const user = await User.findOne({ id: tgId }).lean();
 			if (user && user.ambassadorEmail) {
 				isAmbassador = true;
-				console.log(`✓ User ${tgId} IS ambassador (email: ${user.ambassadorEmail})`);
+				console.log(`User ${tgId} IS ambassador (email: ${user.ambassadorEmail})`);
 			} else {
 				// User either doesn't exist OR doesn't have ambassadorEmail - not an ambassador
 				isAmbassador = false;
 				if (user) {
-					console.log(`✗ User ${tgId} found but NOT ambassador (ambassadorEmail: ${user.ambassadorEmail || 'undefined'})`);
+					console.log(`User ${tgId} found but NOT ambassador (ambassadorEmail: ${user.ambassadorEmail || 'undefined'})`);
 				} else {
-					console.log(`✗ User ${tgId} NOT found in database`);
+					console.log(`User ${tgId} NOT found in database`);
 				}
 			}
 		} catch (e) {
