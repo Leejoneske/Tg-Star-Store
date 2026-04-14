@@ -3606,50 +3606,39 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             }
         }
 
-        // Calculate amount - prioritize totalAmount from frontend (most accurate)
+        // SECURITY: Calculate amount server-side only, ignore client-submitted totalAmount
+        // Never trust client-submitted amounts - they can be manipulated
         let amount;
-        const totalAmountFromBody = req.body.totalAmount ? Number(req.body.totalAmount) : null;
+        const priceMap = {
+            regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 },
+            premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
+        };
         
-        if (totalAmountFromBody && !isNaN(totalAmountFromBody) && totalAmountFromBody > 0) {
-            // Use the totalAmount sent from frontend (server-calculated quote)
-            amount = totalAmountFromBody;
-            
-            // SAFETY CHECK: Validate the amount makes sense
-            const priceMap = { regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 }, premium: { 3: 19.31, 6: 26.25, 12: 44.79 } };
-            const expectedMapPrice = isPremium ? priceMap.premium[premiumDuration] : priceMap.regular[stars];
-            
-            if (expectedMapPrice && expectedMapPrice > 0) {
-                // This is a standard package - amount should match exactly
-                const amountRatio = (amount / expectedMapPrice).toFixed(4);
-                if (Math.abs(amount - expectedMapPrice) > 0.01) {  // Allow 1 cent variance for rounding
-                    console.warn(`[${timestamp}] AMOUNT MISMATCH | User: ${telegramId} | Expected: ${expectedMapPrice} USDT | Received: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`);
-                    
-                    // Log additional diagnostic info for pattern detection
-                    console.warn(`[${timestamp}] 🔍 DIAGNOSTIC | Ratio: ${amountRatio} | Diff: ${Math.abs(amount - expectedMapPrice).toFixed(4)} USDT | RecipientCount: ${totalRecipients || 1}`);
-                    
-                    // Flag specific suspicious patterns (like 0.66 for 50 stars)
-                    if (stars === 50 && amount >= 0.64 && amount <= 0.68) {
-                        console.error(`[${timestamp}] 🚨 SUSPICIOUS PATTERN DETECTED | 50-star = 0.66 USDT anomaly | User: ${telegramId} | Amount: ${amount}`);
-                    }
-                }
-            }
-            
-            console.log(`[${timestamp}] AMOUNT VALIDATION | User: ${telegramId} | Amount from frontend: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Status: VALID`);
-        } else {
-            // Fallback to preset price map only for standard packages
-            const priceMap = { regular: { 1000: 20, 500: 10, 100: 2, 50: 1, 25: 0.6, 15: 0.35 }, premium: { 3: 19.31, 6: 26.25, 12: 44.79 } };
-            const fallbackAmount = isPremium ? priceMap.premium[premiumDuration] : priceMap.regular[stars];
-            
-            if (!fallbackAmount) {
-                processingRequests.delete(requestKey);
-                console.error(`[${timestamp}] ❌ ORDER FAILED | User: ${telegramId} | Reason: Amount calculation failed (stars=${stars}, isPremium=${isPremium}, frontend amount=${req.body.totalAmount})`);
-                return res.status(400).json({ 
-                    error: 'Invalid selection or amount calculation failed. Please refresh and try again.',
-                    details: `Unable to calculate price for: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`
-                });
-            }
-            amount = fallbackAmount;
-            console.warn(`[${timestamp}] ⚠️ FALLBACK AMOUNT USED | User: ${telegramId} | Amount: ${amount} USDT | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Reason: Frontend did not send totalAmount (received: ${req.body.totalAmount})`);
+        // Get base unit price
+        const basePrice = isPremium ? priceMap.premium[premiumDuration] : priceMap.regular[stars];
+        
+        if (!basePrice) {
+            processingRequests.delete(requestKey);
+            console.error(`[${timestamp}] SECURITY: Rejected invalid item. User: ${telegramId} | Stars: ${stars} | Premium: ${isPremium ? `${premiumDuration}mo` : 'no'} | Reason: No valid price mapping`);
+            return res.status(400).json({
+                error: 'Invalid item selection',
+                details: `No price for: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`
+            });
+        }
+        
+        // Calculate total based on recipients if applicable
+        const quantityMultiplier = isBuyForOthers && totalRecipients > 0 ? totalRecipients : 1;
+        amount = Number((basePrice * quantityMultiplier).toFixed(2));
+        
+        // Log what we calculated server-side
+        const clientSubmittedAmount = req.body.totalAmount ? Number(req.body.totalAmount) : null;
+        console.log(`[AMOUNT CALC] User: ${telegramId} | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Recipients: ${quantityMultiplier} | Base: ${basePrice} USDT | Total: ${amount} USDT | Client submitted: ${clientSubmittedAmount}`);
+        
+        // SECURITY CHECK: If client submitted amount differs significantly, flag it
+        if (clientSubmittedAmount && Math.abs(clientSubmittedAmount - amount) > 0.01) {
+            console.warn(`[SECURITY] AMOUNT MISMATCH DETECTED - Possible tampering attempt`);
+            console.warn(`  User: ${telegramId} | Client amount: ${clientSubmittedAmount} USDT | Server calculated: ${amount} USDT | Diff: ${Math.abs(clientSubmittedAmount - amount).toFixed(4)} USDT`);
+            // Accept order but use server-calculated amount (critical security fix)
         }
 
         // Create order
