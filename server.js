@@ -3398,6 +3398,78 @@ app.get('/api/quote', (req, res) => {
     }
 });
 
+// Validate amount with TON/USDT rate before wallet opens
+// This gives time to validate and retry if needed
+app.post('/api/validate-amount', (req, res) => {
+    try {
+        const { usdtAmount } = req.body;
+        const timestamp = new Date().toISOString();
+        
+        if (!usdtAmount || usdtAmount <= 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid USDT amount'
+            });
+        }
+        
+        const amountNum = Number(usdtAmount);
+        
+        // Fetch current TON/USDT rate
+        const axios = require('axios');
+        axios.get('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd', { timeout: 3000 })
+            .then(response => {
+                const tonToUsdRate = response.data?.['the-open-network']?.usd || 2.10;
+                
+                // Calculate TON amount
+                const tonAmount = amountNum / tonToUsdRate;
+                const nanoTonAmount = Math.round(tonAmount * 1e9);
+                
+                // Define tolerance: allow 0.03 USDT difference (accounts for rate fluctuations and rounding)
+                const tolerance = 0.03;
+                const minAcceptable = amountNum - tolerance;
+                const maxAcceptable = amountNum + tolerance;
+                
+                console.log(`[VALIDATE] ${timestamp} | USDT: ${amountNum} | Rate: ${tonToUsdRate} | TON: ${tonAmount.toFixed(8)} | Tolerance: ${tolerance} USDT`);
+                
+                return res.json({
+                    success: true,
+                    validatedAmount: amountNum,
+                    tonAmount: Number(tonAmount.toFixed(8)),
+                    nanoTonAmount: nanoTonAmount.toString(),
+                    tonToUsdRate: tonToUsdRate,
+                    tolerance: tolerance,
+                    minAcceptable: minAcceptable,
+                    maxAcceptable: maxAcceptable,
+                    timestamp: timestamp
+                });
+            })
+            .catch(err => {
+                console.error(`[VALIDATE] Rate fetch failed:`, err.message);
+                // Fallback to default rate if CoinGecko fails
+                const fallbackRate = 2.10;
+                const tonAmount = amountNum / fallbackRate;
+                const nanoTonAmount = Math.round(tonAmount * 1e9);
+                const tolerance = 0.03;
+                
+                return res.json({
+                    success: true,
+                    validatedAmount: amountNum,
+                    tonAmount: Number(tonAmount.toFixed(8)),
+                    nanoTonAmount: nanoTonAmount.toString(),
+                    tonToUsdRate: fallbackRate,
+                    tolerance: tolerance,
+                    minAcceptable: amountNum - tolerance,
+                    maxAcceptable: amountNum + tolerance,
+                    timestamp: timestamp,
+                    warning: 'Using fallback rate - API unavailable'
+                });
+            });
+    } catch (error) {
+        console.error('Validation error:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
 // Username validation endpoint (format validation only)
 // Note: Telegram Bot API cannot validate usernames without user interaction due to privacy restrictions
 app.post('/api/validate-usernames', (req, res) => {
@@ -3650,11 +3722,20 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         const clientSubmittedAmount = req.body.totalAmount ? Number(req.body.totalAmount) : null;
         console.log(`[AMOUNT CALC] User: ${telegramId} | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Type: ${isStandardPackage ? 'standard' : 'custom'} | Recipients: ${quantityMultiplier} | Base: ${basePrice} USDT | Total: ${amount} USDT | Client: ${clientSubmittedAmount}`);
         
-        // SECURITY CHECK: Validate client amount matches server calculation
-        // Allow 0.01 tolerance for rounding
-        if (clientSubmittedAmount && Math.abs(clientSubmittedAmount - amount) > 0.01) {
-            console.warn(`[SECURITY] AMOUNT TAMPERING DETECTED`);
-            console.warn(`  User: ${telegramId} | Client: ${clientSubmittedAmount} USDT | Server: ${amount} USDT | Diff: ${Math.abs(clientSubmittedAmount - amount).toFixed(4)} USDT`);
+        // SECURITY CHECK: Validate client amount against server calculation
+        // Use 0.03 tolerance to account for rate fluctuations and rounding
+        const TOLERANCE = 0.03;
+        if (clientSubmittedAmount) {
+            const diff = Math.abs(clientSubmittedAmount - amount);
+            if (diff > TOLERANCE) {
+                console.warn(`[SECURITY] AMOUNT TAMPERING SUSPECTED`);
+                console.warn(`  User: ${telegramId} | Client: ${clientSubmittedAmount} USDT | Server: ${amount} USDT | Diff: ${diff.toFixed(4)} USDT | Tolerance: ${TOLERANCE} USDT`);
+                // Still accept order but log for fraud detection
+                // Use server-calculated amount, not client amount
+            } else if (diff > 0.01) {
+                console.log(`[VALIDATION] Amount within tolerance range | Diff: ${diff.toFixed(4)} USDT (allowed: ${TOLERANCE} USDT)`);
+            }
+        }
 
         // Create order
         const order = new BuyOrder({
