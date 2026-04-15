@@ -3614,16 +3614,32 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             premium: { 3: 19.31, 6: 26.25, 12: 44.79 }
         };
         
-        // Get base unit price
-        const basePrice = isPremium ? priceMap.premium[premiumDuration] : priceMap.regular[stars];
+        // Calculate base unit price
+        let basePrice;
+        let isStandardPackage = false;
         
-        if (!basePrice) {
-            processingRequests.delete(requestKey);
-            console.error(`[${timestamp}] SECURITY: Rejected invalid item. User: ${telegramId} | Stars: ${stars} | Premium: ${isPremium ? `${premiumDuration}mo` : 'no'} | Reason: No valid price mapping`);
-            return res.status(400).json({
-                error: 'Invalid item selection',
-                details: `No price for: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`}`
-            });
+        if (isPremium) {
+            // Premium only allows standard durations from map
+            basePrice = priceMap.premium[premiumDuration];
+            if (!basePrice) {
+                processingRequests.delete(requestKey);
+                console.error(`[${timestamp}] SECURITY: Rejected invalid premium duration. User: ${telegramId} | Duration: ${premiumDuration}mo | Reason: Not in price map`);
+                return res.status(400).json({
+                    error: 'Invalid premium duration',
+                    details: `${premiumDuration} months not available. Choose 3, 6, or 12 months.`
+                });
+            }
+            isStandardPackage = true;
+        } else {
+            // Regular stars: use map if available, otherwise calculate at $0.02/star
+            if (priceMap.regular[stars]) {
+                basePrice = priceMap.regular[stars];
+                isStandardPackage = true;
+            } else {
+                // Custom amount: use $0.02 per star as base rate
+                basePrice = Number((stars * 0.02).toFixed(4));
+                isStandardPackage = false;
+            }
         }
         
         // Calculate total based on recipients if applicable
@@ -3632,14 +3648,13 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         
         // Log what we calculated server-side
         const clientSubmittedAmount = req.body.totalAmount ? Number(req.body.totalAmount) : null;
-        console.log(`[AMOUNT CALC] User: ${telegramId} | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Recipients: ${quantityMultiplier} | Base: ${basePrice} USDT | Total: ${amount} USDT | Client submitted: ${clientSubmittedAmount}`);
+        console.log(`[AMOUNT CALC] User: ${telegramId} | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Type: ${isStandardPackage ? 'standard' : 'custom'} | Recipients: ${quantityMultiplier} | Base: ${basePrice} USDT | Total: ${amount} USDT | Client: ${clientSubmittedAmount}`);
         
-        // SECURITY CHECK: If client submitted amount differs significantly, flag it
+        // SECURITY CHECK: Validate client amount matches server calculation
+        // Allow 0.01 tolerance for rounding
         if (clientSubmittedAmount && Math.abs(clientSubmittedAmount - amount) > 0.01) {
-            console.warn(`[SECURITY] AMOUNT MISMATCH DETECTED - Possible tampering attempt`);
-            console.warn(`  User: ${telegramId} | Client amount: ${clientSubmittedAmount} USDT | Server calculated: ${amount} USDT | Diff: ${Math.abs(clientSubmittedAmount - amount).toFixed(4)} USDT`);
-            // Accept order but use server-calculated amount (critical security fix)
-        }
+            console.warn(`[SECURITY] AMOUNT TAMPERING DETECTED`);
+            console.warn(`  User: ${telegramId} | Client: ${clientSubmittedAmount} USDT | Server: ${amount} USDT | Diff: ${Math.abs(clientSubmittedAmount - amount).toFixed(4)} USDT`);
 
         // Create order
         const order = new BuyOrder({
