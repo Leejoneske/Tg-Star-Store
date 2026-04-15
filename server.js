@@ -2404,7 +2404,7 @@ recordPurchaseViolation = function(telegramId, username) {
         purchaseTempBans.set(userId, banUntil);
         
         const banDurationMinutes = Math.ceil(TEMP_BAN_DURATION_MS / 60000);
-        const adminNotification = `RATE LIMIT BAN\nUser: @${username} (ID: ${userId})\nReason: ${violations.length} purchase attempts in ${Math.round((now - violations[0]) / 1000)}s\nBan Duration: ${banDurationMinutes} minutes\nBan Until: ${new Date(banUntil).toLocaleString()}`;
+        const adminNotification = `⛔ RATE LIMIT BAN\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nUser: @${username} (ID: ${userId})\nReason: ${violations.length} attempts in ${Math.round((now - violations[0]) / 1000)}s\nBan Duration: ${banDurationMinutes}min\nUntil: ${new Date(banUntil).toLocaleString()}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
         
         console.log(`[BAN] User ${userId} (@${username}) banned for ${banDurationMinutes}m`);
         console.log(`[BAN] Bot: ${isBotStub ? 'stub' : 'real'} | Admins: ${adminIds.length} | Config: TEMP_BAN_DURATION_MS=${TEMP_BAN_DURATION_MS}`);
@@ -2454,7 +2454,7 @@ function checkAndNotifyProlongedBans() {
         // Send notification to admins about prolonged ban
         const timeRemaining = Math.ceil((banUntil - now) / 1000);
         const minutesRemaining = Math.ceil(timeRemaining / 60);
-        const prolongedBanMsg = `PROLONGED BAN ALERT\nUser ID: ${userId}\nBan Duration: 9+ minutes\nTime Remaining: ${minutesRemaining} minutes`;
+        const prolongedBanMsg = `⚠️ PROLONGED BAN ONGOING\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nUser ID: ${userId}\nDuration: 9+ minutes\nRemaining: ${minutesRemaining}min\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
         
         console.log(`[BAN] Prolonged ban alert for user ${userId} (${minutesRemaining}m remaining)`);
         
@@ -12609,12 +12609,11 @@ bot.onText(/\/reply\s+([0-9]+(?:\s*,\s*[0-9]+)*)(?:\s+([\s\S]+))?/, async (msg, 
             const senderAdminId = String(msg.from.id);
             const senderName = msg.from.username || `${msg.from.first_name} ${msg.from.last_name}`.trim() || `Admin ${senderAdminId}`;
             
-            // Create clean admin notification without emojis
-            const messagePreview = textMessage.length > 100 ? 
-                textMessage.substring(0, 100) + '...' : 
-                textMessage || '[Media only]';
+            // Show full message or indicate media-only
+            const fullMessage = textMessage || '[Media only]';
+            const recipient = recipientIds.length === 1 ? recipientIds[0] : `${recipientIds.length} recipients`;
             
-            const adminNotification = `[ADMIN NOTIFICATION]\nReply from: ${senderName}\nRecipients: ${recipientIds.join(', ')}\nStatus: ${successCount} sent, ${failureCount} failed\nMessage: ${messagePreview}`;
+            const adminNotification = `📨 ADMIN REPLY SENT\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nFrom: ${senderName}\nTo: ${recipient}\nStatus: ${successCount} sent, ${failureCount} failed\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n${fullMessage}`;
             
             // Send notification to all OTHER admins
             for (const adminId of adminIds) {
