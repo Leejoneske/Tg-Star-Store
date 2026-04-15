@@ -1058,86 +1058,75 @@
                     </section>
                     <!-- Stars Packages -->
                     <section class="clean-card">
-                        <h3 style="font-size: 17px; font-weight: 600; color: #000; margin-bottom: 16px;" data-translate="chooseStarsPackage">⭐ Choose a Stars Package</h3>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
-                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
-                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">15 Stars</div>
-                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;">0.35 USDT</div>
-                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>
-                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                    <span>Buy Now</span>
+                        <h3 style="font-size: 17px; font-weight: 600; color: #000; margin-bottom: 16px;" data-translate="chooseStarsPackage">Star Packages</h3>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <!-- Package 1: 15 Stars (visible) -->
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="flex: 1;">
+                                    <div style="font-size: 16px; font-weight: 600; color: #000;">15 Stars</div>
+                                    <div style="font-size: 13px; color: #666; margin-top: 2px;">0.35 USDT</div>
+                                </div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 8px 14px; white-space: nowrap; margin-left: 12px;" data-translate="buygift" data-item='{"stars": 15, "isPremium": false, "amount": "0.35"}'>
+                                    <span>Buy</span>
                                 </button>
-                                <div style="margin-top: 8px;">
-                                    <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
+                            </div>
+                            <!-- Package 2: 25 Stars (visible) -->
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                                <div style="flex: 1;">
+                                    <div style="font-size: 16px; font-weight: 600; color: #000;">25 Stars</div>
+                                    <div style="font-size: 13px; color: #666; margin-top: 2px;">0.60 USDT</div>
+                                </div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 8px 14px; white-space: nowrap; margin-left: 12px;" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>
+                                    <span>Buy</span>
+                                </button>
+                            </div>
+                            <!-- Package 3: 50 Stars (visible) -->
+                            <div style="background: #f9f9f9; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'" data-stars="50">
+                                <div style="flex: 1;">
+                                    <div style="font-size: 16px; font-weight: 600; color: #000;">50 Stars</div>
+                                    <div style="font-size: 13px; color: #666; margin-top: 2px;">1.00 USDT</div>
+                                </div>
+                                <button class="btn-primary" style="font-size: 13px; padding: 8px 14px; white-space: nowrap; margin-left: 12px;" data-translate="buyNow" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>
+                                    <span>Buy</span>
+                                </button>
+                            </div>
+                            <!-- Hidden packages container -->
+                            <div id="hiddenStarsPackages" style="display: none; flex-direction: column; gap: 10px; margin-top: 4px;">
+                                <!-- Package 4: 100 Stars (hidden) -->
+                                <div style="background: #f9f9f9; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'" data-stars="100">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 16px; font-weight: 600; color: #000;">100 Stars</div>
+                                        <div style="font-size: 13px; color: #666; margin-top: 2px;">2.00 USDT</div>
+                                    </div>
+                                    <button class="btn-primary" style="font-size: 13px; padding: 8px 14px; white-space: nowrap; margin-left: 12px;" data-translate="buyNow" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>
+                                        <span>Buy</span>
+                                    </button>
+                                </div>
+                                <!-- Package 5: 500 Stars (hidden) -->
+                                <div style="background: #f9f9f9; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'" data-stars="500">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 16px; font-weight: 600; color: #000;">500 Stars</div>
+                                        <div style="font-size: 13px; color: #666; margin-top: 2px;">10.00 USDT</div>
+                                    </div>
+                                    <button class="btn-primary" style="font-size: 13px; padding: 8px 14px; white-space: nowrap; margin-left: 12px;" data-translate="buyNow" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>
+                                        <span>Buy</span>
+                                    </button>
+                                </div>
+                                <!-- Package 6: 1000 Stars (hidden) -->
+                                <div style="background: #f9f9f9; border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'" data-stars="1000">
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 16px; font-weight: 600; color: #000;">1000 Stars</div>
+                                        <div style="font-size: 13px; color: #666; margin-top: 2px;">20.00 USDT</div>
+                                    </div>
+                                    <button class="btn-primary" style="font-size: 13px; padding: 8px 14px; white-space: nowrap; margin-left: 12px;" data-translate="buyNow" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>
+                                        <span>Buy</span>
+                                    </button>
                                 </div>
                             </div>
-                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
-                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">25 Stars</div>
-                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;">0.60 USDT</div>
-                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buygift" data-item='{"stars": 25, "isPremium": false, "amount": "0.60"}'>
-                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                    <span>Buy Now</span>
-                                </button>
-                                <div style="margin-top: 8px;">
-                                    <div class="sticker-container" data-sticker-id="AgADmQAD8NhFFg"></div>
-                                </div>
-                            </div>
-                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" data-stars="50" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
-                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">50 Stars</div>
-                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;" class="package-price">1.00 USDT</div>
-                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": 50, "isPremium": false, "amount": "1.00"}'>
-                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                    <span>Buy Now</span>
-                                </button>
-                                <div style="margin-top: 8px;">
-                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
-                                </div>
-                            </div>
-                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" data-stars="100" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
-                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">100 Stars</div>
-                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;" class="package-price">2.00 USDT</div>
-                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": 100, "isPremium": false, "amount": "2.00"}'>
-                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                    <span>Buy Now</span>
-                                </button>
-                                <div style="margin-top: 8px;">
-                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
-                                </div>
-                            </div>
-                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" data-stars="500" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
-                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">500 Stars</div>
-                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;" class="package-price">10.00 USDT</div>
-                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": 500, "isPremium": false, "amount": "10.00"}'>
-                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                    <span>Buy Now</span>
-                                </button>
-                                <div style="margin-top: 8px;">
-                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
-                                </div>
-                            </div>
-                            <div style="background: #f9f9f9; border-radius: 12px; padding: 16px; text-align: center; transition: transform 0.2s, background 0.2s; cursor: pointer;" class="package-option stars-package" data-stars="1000" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
-                                <div style="font-size: 18px; font-weight: 700; color: #000; margin-bottom: 4px;">1000 Stars</div>
-                                <div style="font-size: 16px; font-weight: 600; color: #007AFF; margin-bottom: 12px;" class="package-price">20.00 USDT</div>
-                                <button class="btn-primary" style="font-size: 13px; padding: 10px 16px;" data-translate="buyNow" data-item='{"stars": 1000, "isPremium": false, "amount": "20.00"}'>
-                                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                    <span>Buy Now</span>
-                                </button>
-                                <div style="margin-top: 8px;">
-                                    <div class="sticker-container" data-sticker-id="AgADLFEAAucRQUk"></div>
-                                </div>
-                            </div>
+                            <!-- View All Toggle Button -->
+                            <button id="toggleStarsPackages" style="background: white; color: #007AFF; border: 1px solid #e0e0e0; padding: 12px 16px; border-radius: 10px; font-weight: 500; cursor: pointer; font-size: 14px; transition: background 0.2s; margin-top: 6px;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='white'">
+                                View All (3 more)
+                            </button>
                         </div>
                     </section>
                 </div>
@@ -1619,6 +1608,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     initLanguageToggle();
                     initSectionToggle();
+                    initPackageToggle();
                     updateLanguage();
                     initBuyButtons();
                     initRecipientsUI();
@@ -2260,6 +2250,33 @@ function initSectionToggle() {
             // Update section visibility
             premiumSection.classList.add('active');
             starsSection.classList.remove('active');
+        });
+    }
+}
+
+/**
+ * Toggle visibility of additional star packages (4-6)
+ * Shows first 3, allows expanding to view all
+ */
+function initPackageToggle() {
+    const toggleBtn = document.getElementById('toggleStarsPackages');
+    const hiddenPackages = document.getElementById('hiddenStarsPackages');
+    
+    if (toggleBtn && hiddenPackages) {
+        let isExpanded = false;
+        
+        toggleBtn.addEventListener('click', () => {
+            isExpanded = !isExpanded;
+            
+            if (isExpanded) {
+                hiddenPackages.style.display = 'flex';
+                toggleBtn.textContent = 'View Less';
+            } else {
+                hiddenPackages.style.display = 'none';
+                toggleBtn.textContent = 'View All (3 more)';
+                // Smooth scroll back to packages section
+                document.querySelector('[data-translate="chooseStarsPackage"]')?.parentElement?.scrollIntoView({ behavior: 'smooth' });
+            }
         });
     }
 }
