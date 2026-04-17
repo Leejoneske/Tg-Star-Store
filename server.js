@@ -3747,6 +3747,17 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
         const quantityMultiplier = isBuyForOthers && totalRecipients > 0 ? totalRecipients : 1;
         amount = Number((basePrice * quantityMultiplier).toFixed(2));
         
+        // === CLEANUP EXPIRED ORDERS ===
+        // Mark old abandoned/expired pending orders as expired (those past their timeout)
+        await BuyOrder.updateMany(
+            {
+                telegramId: telegramId,
+                status: "pending",
+                dateCreated: { $lt: new Date(Date.now() - 15 * 60 * 1000) } // Older than 15 mins
+            },
+            { status: "expired" }
+        );
+
         // Log what we calculated server-side
         const clientSubmittedAmount = req.body.totalAmount ? Number(req.body.totalAmount) : null;
         console.log(`[AMOUNT CALC] User: ${telegramId} | Item: ${isPremium ? `${premiumDuration}mo premium` : `${stars} stars`} | Type: ${isStandardPackage ? 'standard' : 'custom'} | Recipients: ${quantityMultiplier} | Base: ${basePrice} USDT | Total: ${amount} USDT | Client: ${clientSubmittedAmount}`);
@@ -3937,21 +3948,16 @@ app.post("/api/sell-orders", requireTelegramAuth, async (req, res) => {
             }
         }
 
-        // Check for existing ACTIVE pending orders for this user (not expired)
-        const existingOrder = await SellOrder.findOne({ 
-            telegramId: telegramId,
-            status: "pending",
-            sessionExpiry: { $gt: new Date() } 
-        });
-
-        if (existingOrder) {
-            // If there's an existing active pending order, auto-expire it and allow new one
-            // Users should be able to retry without waiting for session to expire
-            await SellOrder.updateOne(
-                { _id: existingOrder._id },
-                { status: "expired", sessionExpiry: new Date() }
-            );
-        }
+        // === CLEANUP EXPIRED ORDERS ===
+        // Mark old abandoned/expired pending orders as expired (those past their 15-min timeout)
+        await SellOrder.updateMany(
+            {
+                telegramId: telegramId,
+                status: "pending",
+                sessionExpiry: { $lt: new Date() } // Expired by timeout
+            },
+            { status: "expired" }
+        );
 
         // Extract and get location from request (web-based sell order)
         let userLocation = null;
@@ -15304,73 +15310,209 @@ bot.on('message', async (msg) => {
 
 // Handle orders recreation                     
 
-   bot.onText(/\/cso- (.+)/, async (msg, match) => {
+// Helper: Send sell order notification to admin (for both creation and recreation)
+async function notifyAdminOfSellOrder(order) {
+    try {
+        const userDisplayName = await getUserDisplayName(order.telegramId);
+        const userLocationInfo = order.userLocation ? 
+            `Location: ${order.userLocation.city || 'Unknown'}, ${order.userLocation.country || 'Unknown'}` : 
+            '';
+        
+        const adminMessage = `💰 New Payment Received!\n\n` +
+            `Order ID: ${order.id}\n` +
+            `User: ${order.username ? `@${order.username}` : userDisplayName} (ID: ${order.telegramId})\n` +
+            (userLocationInfo ? `${userLocationInfo}\n` : '') +
+            `Stars: ${order.stars}\n` +
+            `Wallet: ${order.walletAddress}\n` +  
+            `Memo: ${order.memoTag || 'None'}`;
+
+        const adminKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                    { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                    { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                ]
+            ]
+        };
+
+        let adminNotificationSucceeded = false;
+        for (const adminId of adminIds) {
+            let retryCount = 0;
+            while (retryCount < 3) {
+                try {
+                    const message = await bot.sendMessage(
+                        adminId,
+                        adminMessage,
+                        { reply_markup: adminKeyboard }
+                    );
+                    order.adminMessages = order.adminMessages || [];
+                    order.adminMessages.push({ 
+                        adminId, 
+                        messageId: message.message_id,
+                        originalText: adminMessage 
+                    });
+                    adminNotificationSucceeded = true;
+                    break;
+                } catch (err) {
+                    retryCount++;
+                    if (retryCount < 3) await new Promise(r => setTimeout(r, 500));
+                }
+            }
+        }
+        
+        if (adminNotificationSucceeded) {
+            await order.save();
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error notifying admin of sell order:', error);
+        return false;
+    }
+}
+
+// Helper: Send sell order user notification (for both creation and recreation)
+async function notifyUserOfSellOrder(order, status = 'processing') {
+    try {
+        let userMessage = '';
+        if (status === 'processing') {
+            userMessage = `✅ Payment successful!\n\n` +
+                `Order ID: ${order.id}\n` +
+                `Stars: ${order.stars}\n` +
+                `Wallet: ${order.walletAddress}\n` +
+                `${order.memoTag ? `Memo: ${order.memoTag}\n` : ''}` +
+                `\nStatus: Processing (21-day hold)\n\n` +
+                `Funds will be released to your wallet after the hold period.`;
+        } else if (status === 'pending') {
+            userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes`;
+        }
+
+        const sent = await bot.sendMessage(order.telegramId, userMessage);
+        order.userMessageId = sent?.message_id;
+        await order.save();
+    } catch (error) {
+        console.error('Error notifying user of sell order:', error);
+    }
+}
+
+// /cso- Command: Recreate Sell Order exactly as original
+bot.onText(/\/cso- (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
-    const orderId = match[1];
+    const adminId = msg.from.id.toString();
+    
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+
+    const orderId = match[1].trim();
 
     try {
-        const order = await SellOrder.findOne({ id: orderId });
+        let order = await SellOrder.findOne({ id: orderId });
 
         if (order) {
-            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-            try { const sent = await bot.sendMessage(order.telegramId, userOrderDetails); try { order.userMessageId = sent?.message_id || order.userMessageId; await order.save(); } catch (_) {} } catch (_) {}
-
-            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-            bot.sendMessage(chatId, adminOrderDetails);
-
-            const confirmButton = {
-                reply_markup: {
-                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${order.id}_${chatId}` }]]
-                }
-            };
-            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+            // Order already exists - recreate as if it just received payment
+            // Set status to processing to match payment received state
+            order.status = 'processing';
+            order.datePaid = new Date();
+            order.sessionToken = null;
+            order.sessionExpiry = null;
+            order.adminMessages = []; // Reset admin messages for fresh notification
+            
+            // Notify user with processing message
+            await notifyUserOfSellOrder(order, 'processing');
+            
+            // Notify admins as if payment just arrived
+            const notified = await notifyAdminOfSellOrder(order);
+            
+            if (notified) {
+                await bot.sendMessage(chatId, 
+                    `✅ Sell order <code>${orderId}</code> has been recreated and notified to admins!\n\n` +
+                    `User: @${order.username} (ID: ${order.telegramId})\n` +
+                    `Stars: ${order.stars}\n` +
+                    `Wallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\n` +
+                    `Status: Processing (ready for admin action)`,
+                    { parse_mode: 'HTML' }
+                );
+            } else {
+                await bot.sendMessage(chatId, `⚠️ Order recreated but failed to notify admins. Please check admin chat.`);
+            }
         } else {
-            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the Telegram ID of the user:');
+            // Order doesn't exist - create it manually via prompts
+            await bot.sendMessage(chatId, '️📝 Order not found. Let\'s create it. Please enter the Telegram ID of the user:');
 
             const handleTelegramId = async (userMsg) => {
-                const telegramId = userMsg.text;
+                const telegramId = userMsg.text.trim();
+                if (!telegramId || isNaN(telegramId)) {
+                    return await bot.sendMessage(chatId, '❌ Invalid Telegram ID. Please try again with /cso-');
+                }
 
-                bot.sendMessage(chatId, 'Enter the username of the user:');
+                await bot.sendMessage(chatId, 'Enter username (@username or just the name):');
 
                 const handleUsername = async (userMsg) => {
-                    const username = userMsg.text;
+                    let username = userMsg.text.trim();
+                    if (username.startsWith('@')) username = username.slice(1);
 
-                    bot.sendMessage(chatId, 'Enter the number of stars:');
+                    await bot.sendMessage(chatId, 'Enter the number of stars:');
 
                     const handleStars = async (userMsg) => {
-                        const stars = parseInt(userMsg.text, 10);
+                        const stars = parseInt(userMsg.text.trim(), 10);
+                        if (isNaN(stars) || stars < 50) {
+                            return await bot.sendMessage(chatId, '❌ Invalid amount. Minimum 50 stars required.');
+                        }
 
-                        bot.sendMessage(chatId, 'Enter the wallet address:');
+                        await bot.sendMessage(chatId, 'Enter the wallet address (TON address):');
 
                         const handleWalletAddress = async (userMsg) => {
-                            const walletAddress = userMsg.text;
+                            const walletAddress = userMsg.text.trim();
+                            if (!walletAddress || walletAddress.length < 20) {
+                                return await bot.sendMessage(chatId, '❌ Invalid wallet address.');
+                            }
 
-                            const newOrder = new SellOrder({
-                                id: orderId,
-                                telegramId,
-                                username,
-                                stars,
-                                walletAddress,
-                                status: 'pending',
-                                reversible: true,
-                                dateCreated: new Date(),
-                                adminMessages: []
-                            });
+                            await bot.sendMessage(chatId, 'Enter memo (or type "none"):');
 
-                            await newOrder.save();
+                            const handleMemo = async (userMsg) => {
+                                let memoTag = userMsg.text.trim();
+                                if (memoTag.toLowerCase() === 'none') memoTag = '';
 
-                            const userOrderDetails = `Your sell order has been recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
-                            try { const sent = await bot.sendMessage(telegramId, userOrderDetails); try { newOrder.userMessageId = sent?.message_id || newOrder.userMessageId; await newOrder.save(); } catch (_) {} } catch (_) {}
+                                // Create the order
+                                const newOrder = new SellOrder({
+                                    id: orderId,
+                                    telegramId,
+                                    username,
+                                    stars,
+                                    walletAddress,
+                                    memoTag,
+                                    status: 'processing',
+                                    telegram_payment_charge_id: `admin_recreate_${Date.now()}`,
+                                    reversible: true,
+                                    dateCreated: new Date(),
+                                    datePaid: new Date(),
+                                    adminMessages: []
+                                });
 
-                            const adminOrderDetails = `Sell Order Recreated:\n\nID: ${orderId}\nUsername: ${username}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
-                            bot.sendMessage(chatId, adminOrderDetails);
+                                // Notify user as if payment succeeded
+                                await notifyUserOfSellOrder(newOrder, 'processing');
 
-                            const confirmButton = {
-                                reply_markup: {
-                                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_sell_${orderId}_${chatId}` }]]
+                                // Notify admins
+                                const notified = await notifyAdminOfSellOrder(newOrder);
+
+                                if (notified) {
+                                    await bot.sendMessage(chatId,
+                                        `✅ Sell order <code>${orderId}</code> has been created successfully!\n\n` +
+                                        `User: @${username} (ID: ${telegramId})\n` +
+                                        `Stars: ${stars}\n` +
+                                        `Wallet: ${walletAddress}${memoTag ? `\nMemo: ${memoTag}` : ''}\n` +
+                                        `Status: Processing\n\n` +
+                                        `Admins have been notified.`,
+                                        { parse_mode: 'HTML' }
+                                    );
+                                } else {
+                                    await bot.sendMessage(chatId, `⚠️ Order created but failed to notify admins.`);
                                 }
                             };
-                            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+
+                            bot.once('message', handleMemo);
                         };
 
                         bot.once('message', handleWalletAddress);
@@ -15385,83 +15527,206 @@ bot.on('message', async (msg) => {
             bot.once('message', handleTelegramId);
         }
     } catch (error) {
-        console.error('Error recreating sell order:', error);
-        bot.sendMessage(chatId, 'An error occurred while processing your request.');
+        console.error('Error in /cso- command:', error);
+        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
     }
 });
 
 bot.onText(/\/cbo- (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
-    const orderId = match[1];
+    const adminId = msg.from.id.toString();
+    
+    if (!adminIds.includes(adminId)) {
+        return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
+    }
+
+    const orderId = match[1].trim();
 
     try {
-        const order = await BuyOrder.findOne({ id: orderId });
+        let order = await BuyOrder.findOne({ id: orderId });
 
         if (order) {
-            const userOrderDetails = `Your buy order has been recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-            bot.sendMessage(order.telegramId, userOrderDetails);
+            // Order already exists - recreate as if it was just created
+            order.status = 'pending';
+            order.dateCreated = new Date();
+            order.adminMessages = []; // Reset admin messages for fresh notification
 
-            const adminOrderDetails = `Buy Order Recreated:\n\nID: ${order.id}\nUsername: ${order.username}\nAmount: ${order.amount}\nStars: ${order.stars}\nWallet: ${order.walletAddress}${order.memoTag ? `\nMemo: ${order.memoTag}` : ''}\nStatus: ${order.status}\nDate Created: ${order.dateCreated}`;
-            bot.sendMessage(chatId, adminOrderDetails);
+            // Build admin message matching original format
+            let userLocation = '';
+            if (order.userLocation && order.userLocation.country !== 'Unknown') {
+                userLocation = `\nLocation: ${order.userLocation.city || 'Unknown'}, ${order.userLocation.country}`;
+            }
 
-            const confirmButton = {
-                reply_markup: {
-                    inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${order.id}_${chatId}` }]]
-                }
+            let adminMessage = `🛒 NEW ${order.isPremium ? 'PREMIUM' : 'BUY'} ORDER\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})${userLocation}\nAmount: ${order.amount} USDT`;
+            if (order.isPremium) adminMessage += `\nDuration: ${order.premiumDuration} months`;
+            else adminMessage += `\nStars: ${order.stars}`;
+            
+            if (order.isBuyForOthers && order.recipients && order.recipients.length > 0) {
+                adminMessage += `\n\n👥 Buy For Others: ${order.totalRecipients} user(s)`;
+                if (!order.isPremium) adminMessage += `\nPer user: ${order.starsPerRecipient} stars`;
+                else adminMessage += `\nDuration: ${order.premiumDurationPerRecipient} months each`;
+                adminMessage += `\nRecipients: ${order.recipients.map(r => `@${r.username}`).join(', ')}`;
+            }
+
+            const adminKeyboard = { 
+                inline_keyboard: [[ 
+                    { text: '✅ Complete', callback_data: `complete_buy_${order.id}` }, 
+                    { text: '❌ Decline', callback_data: `decline_buy_${order.id}` } 
+                ]] 
             };
-            bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+
+            // Send to admins
+            let adminNotificationSucceeded = false;
+            for (const adminIdTarget of adminIds) {
+                let retryCount = 0;
+                while (retryCount < 3) {
+                    try {
+                        const message = await bot.sendMessage(adminIdTarget, adminMessage, { reply_markup: adminKeyboard });
+                        order.adminMessages.push({ 
+                            adminId: adminIdTarget, 
+                            messageId: message.message_id, 
+                            originalText: adminMessage 
+                        });
+                        adminNotificationSucceeded = true;
+                        break;
+                    } catch (err) {
+                        retryCount++;
+                        if (retryCount < 3) await new Promise(r => setTimeout(r, 500));
+                    }
+                }
+            }
+
+            // Send user message
+            const userMsg = `🎉 Order #${order.id} submitted!\n\nAmount: ${order.amount} USDT${order.isPremium ? `\nDuration: ${order.premiumDuration} mo` : `\nStars: ${order.stars}`}\nStatus: Awaiting admin review\n\n⏱️ Processing: Up to 2 hours`;
+            try { 
+                const sent = await bot.sendMessage(order.telegramId, userMsg);
+                order.userMessageId = sent?.message_id;
+            } catch {}
+
+            await order.save();
+
+            if (adminNotificationSucceeded) {
+                await bot.sendMessage(chatId,
+                    `✅ Buy order <code>${orderId}</code> has been recreated successfully!\n\n` +
+                    `User: @${order.username} (ID: ${order.telegramId})\n` +
+                    `Amount: ${order.amount} USDT\n` +
+                    `${order.isPremium ? `Duration: ${order.premiumDuration} months` : `Stars: ${order.stars}`}\n` +
+                    `Status: Pending review\n\n` +
+                    `Admins have been notified.`,
+                    { parse_mode: 'HTML' }
+                );
+            } else {
+                await bot.sendMessage(chatId, `⚠️ Order recreated but failed to notify admins.`);
+            }
         } else {
-            bot.sendMessage(chatId, 'Order not found. Let\'s create it manually. Please enter the Telegram ID of the user:');
+            // Order doesn't exist - create via prompts
+            await bot.sendMessage(chatId, '️📝 Order not found. Let\'s create it. Please enter the Telegram ID:');
 
             const handleTelegramId = async (userMsg) => {
-                const telegramId = userMsg.text;
+                const telegramId = userMsg.text.trim();
+                if (!telegramId || isNaN(telegramId)) {
+                    return await bot.sendMessage(chatId, '❌ Invalid Telegram ID. Please try again.');
+                }
 
-                bot.sendMessage(chatId, 'Enter the username of the user:');
+                await bot.sendMessage(chatId, 'Enter username (@username or just the name):');
 
                 const handleUsername = async (userMsg) => {
-                    const username = userMsg.text;
+                    let username = userMsg.text.trim();
+                    if (username.startsWith('@')) username = username.slice(1);
 
-                    bot.sendMessage(chatId, 'Enter the amount:');
+                    await bot.sendMessage(chatId, 'Enter amount in USDT:');
 
                     const handleAmount = async (userMsg) => {
-                        const amount = parseFloat(userMsg.text);
+                        const amount = parseFloat(userMsg.text.trim());
+                        if (isNaN(amount) || amount < 1) {
+                            return await bot.sendMessage(chatId, '❌ Invalid amount.');
+                        }
 
-                        bot.sendMessage(chatId, 'Enter the number of stars:');
+                        await bot.sendMessage(chatId, 'Enter number of stars (or 0 for none):');
 
                         const handleStars = async (userMsg) => {
-                            const stars = parseInt(userMsg.text, 10);
+                            const stars = parseInt(userMsg.text.trim(), 10);
+                            if (isNaN(stars) || stars < 0) {
+                                return await bot.sendMessage(chatId, '❌ Invalid stars.');
+                            }
 
-                            bot.sendMessage(chatId, 'Enter the wallet address:');
+                            await bot.sendMessage(chatId, 'Enter wallet address:');
 
                             const handleWalletAddress = async (userMsg) => {
-                                const walletAddress = userMsg.text;
+                                const walletAddress = userMsg.text.trim();
+                                if (!walletAddress || walletAddress.length < 10) {
+                                    return await bot.sendMessage(chatId, '❌ Invalid wallet address.');
+                                }
 
+                                // Create order
                                 const newOrder = new BuyOrder({
                                     id: orderId,
                                     telegramId,
                                     username,
                                     amount,
-                                    stars,
+                                    stars: stars > 0 ? stars : null,
                                     walletAddress,
                                     status: 'pending',
                                     dateCreated: new Date(),
-                                    adminMessages: []
+                                    adminMessages: [],
+                                    recipients: [],
+                                    isBuyForOthers: false,
+                                    totalRecipients: 1,
+                                    starsPerRecipient: stars,
+                                    premiumDurationPerRecipient: null,
+                                    isPremium: false,
+                                    transactionHash: null,
+                                    transactionVerified: false,
+                                    verificationAttempts: 0
                                 });
+
+                                // Build and send admin message
+                                let adminMessage = `🛒 NEW BUY ORDER\n\nOrder ID: ${newOrder.id}\nUser: @${username} (ID: ${telegramId})\nAmount: ${amount} USDT\nStars: ${stars}`;
+
+                                const adminKeyboard = { 
+                                    inline_keyboard: [[ 
+                                        { text: '✅ Complete', callback_data: `complete_buy_${newOrder.id}` }, 
+                                        { text: '❌ Decline', callback_data: `decline_buy_${newOrder.id}` } 
+                                    ]] 
+                                };
+
+                                let adminNotificationSucceeded = false;
+                                for (const adminIdTarget of adminIds) {
+                                    try {
+                                        const message = await bot.sendMessage(adminIdTarget, adminMessage, { reply_markup: adminKeyboard });
+                                        newOrder.adminMessages.push({ 
+                                            adminId: adminIdTarget, 
+                                            messageId: message.message_id, 
+                                            originalText: adminMessage 
+                                        });
+                                        adminNotificationSucceeded = true;
+                                    } catch (err) {
+                                        console.error(`Failed to notify admin ${adminIdTarget}:`, err.message);
+                                    }
+                                }
+
+                                // Send user message
+                                const userMessage = `🎉 Order #${newOrder.id} submitted!\n\nAmount: ${amount} USDT\nStars: ${stars}\nStatus: Awaiting admin review\n\n⏱️ Processing: Up to 2 hours`;
+                                try { 
+                                    const sent = await bot.sendMessage(telegramId, userMessage);
+                                    newOrder.userMessageId = sent?.message_id;
+                                } catch {}
 
                                 await newOrder.save();
 
-                                const userOrderDetails = `Your buy order has been recreated:\n\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
-                                bot.sendMessage(telegramId, userOrderDetails);
-
-                                const adminOrderDetails = `Buy Order Recreated:\n\nID: ${orderId}\nUsername: ${username}\nAmount: ${amount}\nStars: ${stars}\nWallet: ${walletAddress}\nStatus: pending\nDate Created: ${new Date()}`;
-                                bot.sendMessage(chatId, adminOrderDetails);
-
-                                const confirmButton = {
-                                    reply_markup: {
-                                        inline_keyboard: [[{ text: 'Confirm Order', callback_data: `confirm_buy_${orderId}_${chatId}` }]]
-                                    }
-                                };
-                                bot.sendMessage(chatId, 'Please confirm the order:', confirmButton);
+                                if (adminNotificationSucceeded) {
+                                    await bot.sendMessage(chatId,
+                                        `✅ Buy order <code>${orderId}</code> created successfully!\n\n` +
+                                        `User: @${username}\n` +
+                                        `Amount: ${amount} USDT\n` +
+                                        `Stars: ${stars}\n` +
+                                        `Status: Pending\n\n` +
+                                        `Admins have been notified.`,
+                                        { parse_mode: 'HTML' }
+                                    );
+                                } else {
+                                    await bot.sendMessage(chatId, `⚠️ Order created but admin notification failed.`);
+                                }
                             };
 
                             bot.once('message', handleWalletAddress);
@@ -15479,8 +15744,8 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
             bot.once('message', handleTelegramId);
         }
     } catch (error) {
-        console.error('Error recreating buy order:', error);
-        bot.sendMessage(chatId, 'An error occurred while processing your request.');
+        console.error('Error in /cbo- command:', error);
+        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
     }
 });
                 
