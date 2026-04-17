@@ -15664,7 +15664,8 @@ bot.onText(/\/cbo$/, async (msg) => {
     const handleOrderId = async (orderIdMsg) => {
         const orderId = orderIdMsg.text.trim();
         if (!orderId) {
-            return await bot.sendMessage(chatId, '❌ Order ID cannot be empty. Try /cbo');
+            await bot.sendMessage(chatId, '❌ Order ID cannot be empty. Try /cbo');
+            return;
         }
 
         try {
@@ -15684,6 +15685,10 @@ bot.onText(/\/cbo$/, async (msg) => {
                 };
 
                 let adminMessage = `🛒 BUY ORDER\n\nOrder ID: ${order.id}\nUser: @${order.username}\nAmount: ${order.amount} USDT\nStars: ${order.stars || 0}`;
+                
+                if (order.userLocation && order.userLocation.city) {
+                    adminMessage += `\nLocation: ${order.userLocation.city}, ${order.userLocation.country || 'Unknown'}`;
+                }
                 
                 let adminNotificationSucceeded = false;
                 for (const adminIdTarget of adminIds) {
@@ -15719,7 +15724,8 @@ bot.onText(/\/cbo$/, async (msg) => {
                 const handleStep1 = async (userMsg) => {
                     const telegramId = userMsg.text.trim();
                     if (!telegramId || isNaN(telegramId)) {
-                        return await bot.sendMessage(chatId, '❌ Invalid ID. Try /cbo');
+                        await bot.sendMessage(chatId, '❌ Invalid ID. Try /cbo');
+                        return;
                     }
                     data.telegramId = telegramId;
                     
@@ -15752,47 +15758,37 @@ bot.onText(/\/cbo$/, async (msg) => {
                     }
                 };
                 
-                bot.once('message', handleStep1);
-                
                 const handleStep2 = async (userMsg) => {
                     const amount = parseFloat(userMsg.text.trim());
                     if (isNaN(amount) || amount < 1) {
-                        return await bot.sendMessage(chatId, '❌ Invalid amount.');
+                        await bot.sendMessage(chatId, '❌ Invalid amount.');
+                        return;
                     }
                     data.amount = amount;
                     
-                    await bot.sendMessage(chatId, '📝 <b>Step 5:</b> Enter stars (or 0):', { parse_mode: 'HTML' });
+                    await bot.sendMessage(chatId, '📝 <b>Step 4:</b> Enter stars (or 0):', { parse_mode: 'HTML' });
                     bot.once('message', handleStep3);
                 };
                 
                 const handleStep3 = async (userMsg) => {
                     const stars = parseInt(userMsg.text.trim(), 10);
                     if (isNaN(stars) || stars < 0) {
-                        return await bot.sendMessage(chatId, '❌ Invalid stars.');
+                        await bot.sendMessage(chatId, '❌ Invalid stars.');
+                        return;
                     }
                     data.stars = stars;
                     
-                    await bot.sendMessage(chatId, '📝 <b>Step 6:</b> Enter wallet address:', { parse_mode: 'HTML' });
-                    bot.once('message', handleStep4);
-                };
-                
-                const handleStep4 = async (userMsg) => {
-                    const wallet = userMsg.text.trim();
-                    if (!wallet || wallet.length < 10) {
-                        return await bot.sendMessage(chatId, '❌ Invalid wallet.');
-                    }
-                    data.walletAddress = wallet;
-                    await handleCreateorder();
+                    await handleCreateOrder();
                 };
 
-                const handleCreateorder = async () => {
+                const handleCreateOrder = async () => {
                     const newOrder = new BuyOrder({
                         id: orderId,
                         telegramId: data.telegramId,
                         username: data.username,
                         amount: data.amount,
                         stars: data.stars > 0 ? data.stars : null,
-                        walletAddress: data.walletAddress,
+                        walletAddress: null,
                         userLocation: data.userLocation || null,
                         status: 'pending',
                         dateCreated: new Date(),
@@ -15808,7 +15804,7 @@ bot.onText(/\/cbo$/, async (msg) => {
                         verificationAttempts: 0
                     });
                     
-                    let adminMessage = `🛒 NEW BUY ORDER\n\nOrder ID: ${newOrder.id}\nUser: @${data.username}\nAmount: ${data.amount} USDT\nStars: ${data.stars}`;
+                    let adminMessage = `🛒 NEW BUY ORDER\n\nOrder ID: ${newOrder.id}\nUser: @${data.username} (ID: ${data.telegramId})\nAmount: ${data.amount} USDT\nStars: ${data.stars}`;
                     
                     if (data.userLocation && data.userLocation.city) {
                         adminMessage += `\nLocation: ${data.userLocation.city}, ${data.userLocation.country || 'Unknown'}`;
