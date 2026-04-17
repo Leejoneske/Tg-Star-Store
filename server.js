@@ -15518,12 +15518,12 @@ bot.onText(/\/cso$/, async (msg) => {
                 // Step 2: Get Telegram ID
                 await bot.sendMessage(chatId, '📝 <b>Step 2:</b> Enter the user\'s Telegram ID:', { parse_mode: 'HTML' });
                 
-            const handleStep1 = async (userMsg) => {
-                const telegramId = userMsg.text.trim();
-                if (!telegramId || isNaN(telegramId)) {
-                    return await bot.sendMessage(chatId, '❌ Invalid ID. Try /cso');
-                }
-                data.telegramId = telegramId;
+                const handleStep1 = async (userMsg) => {
+                    const telegramId = userMsg.text.trim();
+                    if (!telegramId || isNaN(telegramId)) {
+                        return await bot.sendMessage(chatId, '❌ Invalid ID. Try /cso');
+                    }
+                    data.telegramId = telegramId;
                 
                 // Step 3: Auto-fetch username and location from DB
                 let dbUser = await User.findOne({ id: telegramId });
@@ -15554,6 +15554,8 @@ bot.onText(/\/cso$/, async (msg) => {
                     bot.once('message', handleUsername);
                 }
             };
+            
+            bot.once('message', handleStep1);
             
             // Step 2: Get Stars
             const handleStep2 = async (userMsg) => {
@@ -15748,6 +15750,8 @@ bot.onText(/\/cbo$/, async (msg) => {
                         bot.once('message', handleUsername);
                     }
                 };
+                
+                bot.once('message', handleStep1);
                 
                 const handleStep2 = async (userMsg) => {
                     const amount = parseFloat(userMsg.text.trim());
