@@ -15707,6 +15707,21 @@ bot.onText(/\/cbo$/, async (msg) => {
 
                 await order.save();
 
+                // Send notification to user
+                try {
+                    const userNotification = `🛍️ <b>Buy order recreated!</b>\n\n` +
+                        `Order ID: <code>${order.id}</code>\n` +
+                        `Amount: ${order.amount} USDT\n` +
+                        `Stars: ${order.stars}\n` +
+                        `Status: Pending approval\n\n` +
+                        `An admin will review and complete your order.`;
+                    const sent = await bot.sendMessage(order.telegramId, userNotification, { parse_mode: 'HTML' });
+                    order.userMessageId = sent?.message_id;
+                    await order.save();
+                } catch (err) {
+                    console.error(`Failed to notify user ${order.telegramId}:`, err.message);
+                }
+
                 if (adminNotificationSucceeded) {
                     await bot.sendMessage(chatId,
                         `✅ Buy order <code>${orderId}</code> recreated!`,
@@ -15833,6 +15848,21 @@ bot.onText(/\/cbo$/, async (msg) => {
                     }
                     
                     await newOrder.save();
+                    
+                    // Send notification to user
+                    try {
+                        const userNotification = `🛍️ <b>Buy order created!</b>\n\n` +
+                            `Order ID: <code>${newOrder.id}</code>\n` +
+                            `Amount: ${data.amount} USDT\n` +
+                            `Stars: ${data.stars}\n` +
+                            `Status: Pending approval\n\n` +
+                            `An admin will review and complete your order.`;
+                        const sent = await bot.sendMessage(data.telegramId, userNotification, { parse_mode: 'HTML' });
+                        newOrder.userMessageId = sent?.message_id;
+                        await newOrder.save();
+                    } catch (err) {
+                        console.error(`Failed to notify user ${data.telegramId}:`, err.message);
+                    }
                     
                     if (adminNotificationSucceeded) {
                         await bot.sendMessage(chatId,
