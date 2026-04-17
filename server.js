@@ -4056,7 +4056,7 @@ app.post("/api/sell-orders", requireTelegramAuth, async (req, res) => {
         console.log(`Sell order created for user ${telegramId}`);
 
         const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
-        try { await bot.sendMessage(telegramId, userMessage); } catch {}
+        try { const sent = await bot.sendMessage(telegramId, userMessage); if (sent?.message_id) { order.userMessageId = sent.message_id; await order.save(); } } catch {}
 
         res.json({ 
             success: true, 
@@ -15467,7 +15467,7 @@ async function notifyUserOfSellOrder(order, status = 'processing') {
 }
 
 // /cso- Command: Recreate Sell Order exactly as original
-bot.onText(/\/cso- (.+)/, async (msg, match) => {
+bot.onText(/\/cso$/, async (msg) => {
     const chatId = msg.chat.id;
     const adminId = msg.from.id.toString();
     
@@ -15475,67 +15475,78 @@ bot.onText(/\/cso- (.+)/, async (msg, match) => {
         return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
 
-    const orderId = match[1].trim();
+    // Step 1: Get Order ID
+    await bot.sendMessage(chatId, '📝 <b>Step 1:</b> Enter the order ID to recreate:', { parse_mode: 'HTML' });
+    
+    const handleOrderId = async (orderIdMsg) => {
+        const orderId = orderIdMsg.text.trim();
+        if (!orderId) {
+            return await bot.sendMessage(chatId, '❌ Order ID cannot be empty. Try /cso');
+        }
 
-    try {
-        let order = await SellOrder.findOne({ id: orderId });
+        try {
+            let order = await SellOrder.findOne({ id: orderId });
 
-        if (order) {
-            // Order already exists - recreate as if it just received payment
-            order.status = 'processing';
-            order.datePaid = new Date();
-            order.sessionToken = null;
-            order.sessionExpiry = null;
-            order.adminMessages = [];
-            
-            await notifyUserOfSellOrder(order, 'processing');
-            const notified = await notifyAdminOfSellOrder(order);
-            
-            if (notified) {
-                await bot.sendMessage(chatId, 
-                    `✅ Sell order <code>${orderId}</code> recreated!\n\n` +
-                    `User: @${order.username} (ID: ${order.telegramId})\n` +
-                    `Stars: ${order.stars}\n` +
-                    `Wallet: <code>${order.walletAddress}</code>\n` +
-                    (order.memoTag ? `Memo: ${order.memoTag}\n` : '') +
-                    `Status: Processing`,
-                    { parse_mode: 'HTML' }
-                );
+            if (order) {
+                // Order already exists - recreate as if it just received payment
+                order.status = 'processing';
+                order.datePaid = new Date();
+                order.sessionToken = null;
+                order.sessionExpiry = null;
+                order.adminMessages = [];
+                
+                await notifyUserOfSellOrder(order, 'processing');
+                const notified = await notifyAdminOfSellOrder(order);
+                
+                if (notified) {
+                    await bot.sendMessage(chatId, 
+                        `✅ Sell order <code>${orderId}</code> recreated!\n\n` +
+                        `User: @${order.username} (ID: ${order.telegramId})\n` +
+                        `Stars: ${order.stars}\n` +
+                        `Wallet: <code>${order.walletAddress}</code>\n` +
+                        (order.memoTag ? `Memo: ${order.memoTag}\n` : '') +
+                        `Status: Processing`,
+                        { parse_mode: 'HTML' }
+                    );
+                } else {
+                    await bot.sendMessage(chatId, `⚠️ Order recreated but admin notification failed.`);
+                }
             } else {
-                await bot.sendMessage(chatId, `⚠️ Order recreated but admin notification failed.`);
-            }
-        } else {
-            // Order doesn't exist - initiate dialogue for manual creation
-            const data = {};
-            
-            // Step 1: Get Telegram ID
-            await bot.sendMessage(chatId, '📝 <b>Step 1:</b> Enter the user\'s Telegram ID:', { parse_mode: 'HTML' });
-            
+                // Order doesn't exist - initiate dialogue for manual creation
+                const data = {};
+                
+                // Step 2: Get Telegram ID
+                await bot.sendMessage(chatId, '📝 <b>Step 2:</b> Enter the user\'s Telegram ID:', { parse_mode: 'HTML' });
+                
             const handleStep1 = async (userMsg) => {
                 const telegramId = userMsg.text.trim();
                 if (!telegramId || isNaN(telegramId)) {
-                    return await bot.sendMessage(chatId, '❌ Invalid ID. Try /cso- ' + orderId);
+                    return await bot.sendMessage(chatId, '❌ Invalid ID. Try /cso');
                 }
                 data.telegramId = telegramId;
                 
-                // Step 2: Auto-fetch username from DB, or ask
+                // Step 3: Auto-fetch username and location from DB
                 let dbUser = await User.findOne({ id: telegramId });
                 if (dbUser && dbUser.username) {
                     data.username = dbUser.username;
+                    // Get location from user's last login location
+                    if (dbUser.lastLogin && dbUser.lastLogin.location) {
+                        data.userLocation = dbUser.lastLogin.location;
+                    }
                     await bot.sendMessage(chatId, 
-                        `✅ Found user: <b>@${dbUser.username}</b>\n\n📝 <b>Step 2:</b> Enter the number of stars:`,
+                        `✅ Found user: <b>@${dbUser.username}</b>\n\n📝 <b>Step 3:</b> Enter the number of stars:`,
                         { parse_mode: 'HTML' }
                     );
                     bot.once('message', handleStep2);
                 } else {
                     await bot.sendMessage(chatId, 
-                        `📝 <b>Step 2:</b> Username not found in DB. Enter user's username:`,
+                        `📝 <b>Step 3:</b> Username not found in DB. Enter user's username:`,
                         { parse_mode: 'HTML' }
                     );
                     const handleUsername = async (msg) => {
                         data.username = msg.text.trim().replace(/^@/, '');
                         await bot.sendMessage(chatId, 
-                            `📝 <b>Step 3:</b> Enter the number of stars:`,
+                            `📝 <b>Step 4:</b> Enter the number of stars:`,
                             { parse_mode: 'HTML' }
                         );
                         bot.once('message', handleStep2);
@@ -15564,57 +15575,12 @@ bot.onText(/\/cso- (.+)/, async (msg, match) => {
                 }
                 data.walletAddress = wallet;
                 
-                // Step 4: Get Memo with Skip button
-                const skipKeyboard = {
-                    inline_keyboard: [[
-                        { text: '⏭️ Skip Memo', callback_data: `skip_memo_${orderId}` }
-                    ]]
-                };
+                // Step 4: Get Date Created (optional)
                 await bot.sendMessage(chatId, 
-                    `📝 <b>Step 5:</b> Enter a memo tag (or click Skip):`,
-                    { parse_mode: 'HTML', reply_markup: skipKeyboard }
+                    `📝 <b>Step 5:</b> Enter order creation time (e.g., "2024-04-17 14:30" or leave blank for now):`,
+                    { parse_mode: 'HTML' }
                 );
-                
-                // Handle memo input
-                const handleMemoInput = async (memoMsg) => {
-                    data.memoTag = memoMsg.text.trim();
-                    if (data.memoTag.toLowerCase() === 'skip') {
-                        data.memoTag = '';
-                    }
-                    
-                    // Step 5: Get Time Created
-                    await bot.sendMessage(chatId, 
-                        `📝 <b>Step 6:</b> Enter order creation time (e.g., "2024-04-17 14:30" or leave blank for now):`,
-                        { parse_mode: 'HTML' }
-                    );
-                    bot.once('message', handleTimeCreated);
-                };
-                
-                // Handle skip button
-                const handleSkipMemo = async (query) => {
-                    await bot.answerCallbackQuery(query.id);
-                    data.memoTag = '';
-                    
-                    // Try to remove the skip button message
-                    try {
-                        await bot.deleteMessage(chatId, query.message.message_id);
-                    } catch {}
-                    
-                    await bot.sendMessage(chatId, 
-                        `📝 <b>Step 6:</b> Enter order creation time (e.g., "2024-04-17 14:30" or leave blank for now):`,
-                        { parse_mode: 'HTML' }
-                    );
-                    bot.once('message', handleTimeCreated);
-                };
-                
-                // Listen for both memo input and skip button
-                const messageHandler = bot.once('message', handleMemoInput);
-                const callbackHandler = bot.once('callback_query', async (query) => {
-                    if (query.data === `skip_memo_${orderId}`) {
-                        bot.removeListener('message', messageHandler);
-                        await handleSkipMemo(query);
-                    }
-                });
+                bot.once('message', handleTimeCreated);
             };
             
             // Step 5: Get Time Created
@@ -15663,7 +15629,6 @@ bot.onText(/\/cso- (.+)/, async (msg, match) => {
                         `User: @${data.username}\n` +
                         `Stars: ${data.stars}\n` +
                         `Wallet: <code>${data.walletAddress}</code>\n` +
-                        (data.memoTag ? `Memo: ${data.memoTag}\n` : '') +
                         `Created: ${data.dateCreated.toLocaleString()}\n` +
                         `Status: Processing`,
                         { parse_mode: 'HTML' }
@@ -15672,17 +15637,18 @@ bot.onText(/\/cso- (.+)/, async (msg, match) => {
                     await bot.sendMessage(chatId, `⚠️ Order created but admin notification failed.`);
                 }
             };
-            
-            // Start dialogue
-            bot.once('message', handleStep1);
+            }
+        } catch (error) {
+            console.error('Error in /cso command:', error);
+            await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
         }
-    } catch (error) {
-        console.error('Error in /cso- command:', error);
-        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
-    }
+    };
+    
+    // Start dialogue
+    bot.once('message', handleOrderId);
 });
 
-bot.onText(/\/cbo- (.+)/, async (msg, match) => {
+bot.onText(/\/cbo$/, async (msg) => {
     const chatId = msg.chat.id;
     const adminId = msg.from.id.toString();
     
@@ -15690,267 +15656,37 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
         return bot.sendMessage(chatId, '❌ Unauthorized: Only admins can use this command.');
     }
 
-    const orderId = match[1].trim();
+    await bot.sendMessage(chatId, '📝 <b>Step 1:</b> Enter the order ID:', { parse_mode: 'HTML' });
+    
+    const handleOrderId = async (orderIdMsg) => {
+        const orderId = orderIdMsg.text.trim();
+        if (!orderId) {
+            return await bot.sendMessage(chatId, '❌ Order ID cannot be empty. Try /cbo');
+        }
 
-    try {
-        let order = await BuyOrder.findOne({ id: orderId });
+        try {
+            let order = await BuyOrder.findOne({ id: orderId });
 
-        if (order) {
-            // Order already exists - recreate
-            order.status = 'pending';
-            order.dateCreated = new Date();
-            order.adminMessages = [];
+            if (order) {
+                // Order already exists - recreate
+                order.status = 'pending';
+                order.dateCreated = new Date();
+                order.adminMessages = [];
 
-            let userLocation = '';
-            if (order.userLocation && order.userLocation.country !== 'Unknown') {
-                userLocation = `\nLocation: ${order.userLocation.city || 'Unknown'}, ${order.userLocation.country}`;
-            }
-
-            let adminMessage = `🛒 NEW ${order.isPremium ? 'PREMIUM' : 'BUY'} ORDER\n\nOrder ID: ${order.id}\nUser: @${order.username} (ID: ${order.telegramId})${userLocation}\nAmount: ${order.amount} USDT`;
-            if (order.isPremium) adminMessage += `\nDuration: ${order.premiumDuration} months`;
-            else adminMessage += `\nStars: ${order.stars}`;
-            
-            if (order.isBuyForOthers && order.recipients && order.recipients.length > 0) {
-                adminMessage += `\n\n👥 Buy For Others: ${order.totalRecipients} user(s)`;
-                if (!order.isPremium) adminMessage += `\nPer user: ${order.starsPerRecipient} stars`;
-                else adminMessage += `\nDuration: ${order.premiumDurationPerRecipient} months each`;
-                adminMessage += `\nRecipients: ${order.recipients.map(r => `@${r.username}`).join(', ')}`;
-            }
-
-            const adminKeyboard = { 
-                inline_keyboard: [[ 
-                    { text: '✅ Complete', callback_data: `complete_buy_${order.id}` }, 
-                    { text: '❌ Decline', callback_data: `decline_buy_${order.id}` } 
-                ]] 
-            };
-
-            let adminNotificationSucceeded = false;
-            for (const adminIdTarget of adminIds) {
-                let retryCount = 0;
-                while (retryCount < 3) {
-                    try {
-                        const message = await bot.sendMessage(adminIdTarget, adminMessage, { reply_markup: adminKeyboard });
-                        order.adminMessages.push({ 
-                            adminId: adminIdTarget, 
-                            messageId: message.message_id, 
-                            originalText: adminMessage 
-                        });
-                        adminNotificationSucceeded = true;
-                        break;
-                    } catch (err) {
-                        retryCount++;
-                        if (retryCount < 3) await new Promise(r => setTimeout(r, 500));
-                    }
-                }
-            }
-
-            const userMsg = `🎉 Order #${order.id} submitted!\n\nAmount: ${order.amount} USDT${order.isPremium ? `\nDuration: ${order.premiumDuration} mo` : `\nStars: ${order.stars}`}\nStatus: Awaiting admin review\n\n⏱️ Processing: Up to 2 hours`;
-            try { 
-                const sent = await bot.sendMessage(order.telegramId, userMsg);
-                order.userMessageId = sent?.message_id;
-            } catch {}
-
-            await order.save();
-
-            if (adminNotificationSucceeded) {
-                await bot.sendMessage(chatId,
-                    `✅ Buy order <code>${orderId}</code> recreated!\n\n` +
-                    `User: @${order.username}\n` +
-                    `Amount: ${order.amount} USDT\n` +
-                    `${order.isPremium ? `Duration: ${order.premiumDuration} months` : `Stars: ${order.stars}`}\n` +
-                    `Status: Pending`,
-                    { parse_mode: 'HTML' }
-                );
-            } else {
-                await bot.sendMessage(chatId, `⚠️ Order recreated but admin notification failed.`);
-            }
-        } else {
-            // Create new order via dialogue
-            const data = {};
-            
-            // Step 1: Telegram ID
-            await bot.sendMessage(chatId, '📝 <b>Step 1:</b> Enter user\'s Telegram ID:', { parse_mode: 'HTML' });
-            
-            const handleStep1 = async (userMsg) => {
-                const telegramId = userMsg.text.trim();
-                if (!telegramId || isNaN(telegramId)) {
-                    return await bot.sendMessage(chatId, '❌ Invalid ID. Try /cbo- ' + orderId);
-                }
-                data.telegramId = telegramId;
-                
-                // Step 2: Username with DB lookup
-                let dbUser = await User.findOne({ id: telegramId });
-                if (dbUser && dbUser.username) {
-                    data.username = dbUser.username;
-                    await bot.sendMessage(chatId, 
-                        `✅ Found: <b>@${dbUser.username}</b>\n\n📝 <b>Step 2:</b> Enter amount in USDT:`,
-                        { parse_mode: 'HTML' }
-                    );
-                    bot.once('message', handleStep2);
-                } else {
-                    await bot.sendMessage(chatId,
-                        `📝 <b>Step 2:</b> Username not found. Enter username:`,
-                        { parse_mode: 'HTML' }
-                    );
-                    const handleUsername = async (msg) => {
-                        data.username = msg.text.trim().replace(/^@/, '');
-                        await bot.sendMessage(chatId,
-                            `📝 <b>Step 3:</b> Enter amount in USDT:`,
-                            { parse_mode: 'HTML' }
-                        );
-                        bot.once('message', handleStep2);
-                    };
-                    bot.once('message', handleUsername);
-                }
-            };
-            
-            // Step 2: Amount
-            const handleStep2 = async (userMsg) => {
-                const amount = parseFloat(userMsg.text.trim());
-                if (isNaN(amount) || amount < 1) {
-                    return await bot.sendMessage(chatId, '❌ Invalid amount.');
-                }
-                data.amount = amount;
-                
-                await bot.sendMessage(chatId,
-                    `📝 <b>Step 4:</b> Enter stars (or 0 for none):`,
-                    { parse_mode: 'HTML' }
-                );
-                bot.once('message', handleStep3);
-            };
-            
-            // Step 3: Stars
-            const handleStep3 = async (userMsg) => {
-                const stars = parseInt(userMsg.text.trim(), 10);
-                if (isNaN(stars) || stars < 0) {
-                    return await bot.sendMessage(chatId, '❌ Invalid stars.');
-                }
-                data.stars = stars;
-                
-                await bot.sendMessage(chatId,
-                    `📝 <b>Step 5:</b> Enter wallet address:`,
-                    { parse_mode: 'HTML' }
-                );
-                bot.once('message', handleStep4);
-            };
-            
-            // Step 4: Wallet
-            const handleStep4 = async (userMsg) => {
-                const wallet = userMsg.text.trim();
-                if (!wallet || wallet.length < 10) {
-                    return await bot.sendMessage(chatId, '❌ Invalid wallet.');
-                }
-                data.walletAddress = wallet;
-                
-                // Optional: Recipients
-                const skipKeyboard = {
-                    inline_keyboard: [[
-                        { text: '⏭️ Skip Recipients', callback_data: `skip_recipients_${orderId}` }
-                    ]]
-                };
-                await bot.sendMessage(chatId,
-                    `📝 <b>Step 6:</b> Enter recipient usernames (comma-separated, or click Skip):`,
-                    { parse_mode: 'HTML', reply_markup: skipKeyboard }
-                );
-                
-                const handleRecipientsInput = async (msg) => {
-                    data.recipients = msg.text.trim()
-                        .split(',')
-                        .map(r => r.trim().replace(/^@/, ''))
-                        .filter(r => r.length > 0);
-                    
-                    await bot.sendMessage(chatId,
-                        `📝 <b>Step 7:</b> Enter order creation time (e.g., "2024-04-17 14:30" or leave blank):`,
-                        { parse_mode: 'HTML' }
-                    );
-                    bot.once('message', handleStep5);
-                };
-                
-                const handleSkipRecipients = async (query) => {
-                    await bot.answerCallbackQuery(query.id);
-                    data.recipients = [];
-                    try {
-                        await bot.deleteMessage(chatId, query.message.message_id);
-                    } catch {}
-                    
-                    await bot.sendMessage(chatId,
-                        `📝 <b>Step 7:</b> Enter order creation time (e.g., "2024-04-17 14:30" or leave blank):`,
-                        { parse_mode: 'HTML' }
-                    );
-                    bot.once('message', handleStep5);
-                };
-                
-                const msgHandler = bot.once('message', handleRecipientsInput);
-                const callHandler = bot.once('callback_query', async (query) => {
-                    if (query.data === `skip_recipients_${orderId}`) {
-                        bot.removeListener('message', msgHandler);
-                        await handleSkipRecipients(query);
-                    }
-                });
-            };
-            
-            // Step 5: Time Created
-            const handleStep5 = async (userMsg) => {
-                let timeStr = userMsg.text.trim();
-                let dateCreated = new Date();
-                
-                if (timeStr && timeStr.toLowerCase() !== 'now') {
-                    try {
-                        dateCreated = new Date(timeStr);
-                        if (isNaN(dateCreated.getTime())) {
-                            dateCreated = new Date();
-                        }
-                    } catch {
-                        dateCreated = new Date();
-                    }
-                }
-                data.dateCreated = dateCreated;
-                
-                // Build recipients array
-                const recipients = data.recipients.map(username => ({ username }));
-                
-                // Create order
-                const newOrder = new BuyOrder({
-                    id: orderId,
-                    telegramId: data.telegramId,
-                    username: data.username,
-                    amount: data.amount,
-                    stars: data.stars > 0 ? data.stars : null,
-                    walletAddress: data.walletAddress,
-                    status: 'pending',
-                    dateCreated: data.dateCreated,
-                    adminMessages: [],
-                    recipients: recipients,
-                    isBuyForOthers: recipients.length > 0,
-                    totalRecipients: Math.max(recipients.length, 1),
-                    starsPerRecipient: data.stars,
-                    premiumDurationPerRecipient: null,
-                    isPremium: false,
-                    transactionHash: null,
-                    transactionVerified: false,
-                    verificationAttempts: 0
-                });
-                
-                // Build admin message
-                let adminMessage = `🛒 NEW BUY ORDER\n\nOrder ID: ${newOrder.id}\nUser: @${data.username} (ID: ${data.telegramId})\nAmount: ${data.amount} USDT\nStars: ${data.stars}`;
-                
-                if (recipients.length > 0) {
-                    adminMessage += `\n\n👥 Buy For Others: ${recipients.length} user(s)`;
-                    adminMessage += `\nRecipients: ${recipients.map(r => `@${r.username}`).join(', ')}`;
-                }
-                
                 const adminKeyboard = { 
                     inline_keyboard: [[ 
-                        { text: '✅ Complete', callback_data: `complete_buy_${newOrder.id}` }, 
-                        { text: '❌ Decline', callback_data: `decline_buy_${newOrder.id}` } 
+                        { text: '✅ Complete', callback_data: `complete_buy_${order.id}` }, 
+                        { text: '❌ Decline', callback_data: `decline_buy_${order.id}` } 
                     ]] 
                 };
+
+                let adminMessage = `🛒 BUY ORDER\n\nOrder ID: ${order.id}\nUser: @${order.username}\nAmount: ${order.amount} USDT\nStars: ${order.stars || 0}`;
                 
                 let adminNotificationSucceeded = false;
                 for (const adminIdTarget of adminIds) {
                     try {
                         const message = await bot.sendMessage(adminIdTarget, adminMessage, { reply_markup: adminKeyboard });
-                        newOrder.adminMessages.push({ 
+                        order.adminMessages.push({ 
                             adminId: adminIdTarget, 
                             messageId: message.message_id, 
                             originalText: adminMessage 
@@ -15960,39 +15696,161 @@ bot.onText(/\/cbo- (.+)/, async (msg, match) => {
                         console.error(`Failed to notify admin ${adminIdTarget}:`, err.message);
                     }
                 }
-                
-                const userMessage = `🎉 Order #${newOrder.id} submitted!\n\nAmount: ${data.amount} USDT\nStars: ${data.stars}\nStatus: Awaiting admin review\n\n⏱️ Processing: Up to 2 hours`;
-                try { 
-                    const sent = await bot.sendMessage(data.telegramId, userMessage);
-                    newOrder.userMessageId = sent?.message_id;
-                } catch {}
-                
-                await newOrder.save();
-                
+
+                await order.save();
+
                 if (adminNotificationSucceeded) {
                     await bot.sendMessage(chatId,
-                        `✅ <b>Buy order created!</b>\n\n` +
-                        `ID: <code>${orderId}</code>\n` +
-                        `User: @${data.username}\n` +
-                        `Amount: ${data.amount} USDT\n` +
-                        `Stars: ${data.stars}\n` +
-                        (data.recipients.length > 0 ? `Recipients: ${data.recipients.length}\n` : '') +
-                        `Created: ${data.dateCreated.toLocaleString()}\n` +
-                        `Status: Pending`,
+                        `✅ Buy order <code>${orderId}</code> recreated!`,
                         { parse_mode: 'HTML' }
                     );
                 } else {
-                    await bot.sendMessage(chatId, `⚠️ Order created but admin notification failed.`);
+                    await bot.sendMessage(chatId, `⚠️ Order recreated but admin notification failed.`);
                 }
-            };
-            
-            // Start dialogue
-            bot.once('message', handleStep1);
+            } else {
+                // Create new order - start dialogue
+                const data = {};
+                
+                await bot.sendMessage(chatId, '📝 <b>Step 2:</b> Enter user\'s Telegram ID:', { parse_mode: 'HTML' });
+                
+                const handleStep1 = async (userMsg) => {
+                    const telegramId = userMsg.text.trim();
+                    if (!telegramId || isNaN(telegramId)) {
+                        return await bot.sendMessage(chatId, '❌ Invalid ID. Try /cbo');
+                    }
+                    data.telegramId = telegramId;
+                    
+                    let dbUser = await User.findOne({ id: telegramId });
+                    if (dbUser && dbUser.username) {
+                        data.username = dbUser.username;
+                        // Get location from user's last login location
+                        if (dbUser.lastLogin && dbUser.lastLogin.location) {
+                            data.userLocation = dbUser.lastLogin.location;
+                        }
+                        await bot.sendMessage(chatId, 
+                            `✅ Found: <b>@${dbUser.username}</b>\n\n📝 <b>Step 3:</b> Enter amount in USDT:`,
+                            { parse_mode: 'HTML' }
+                        );
+                        bot.once('message', handleStep2);
+                    } else {
+                        await bot.sendMessage(chatId,
+                            `📝 <b>Step 3:</b> Enter username:`,
+                            { parse_mode: 'HTML' }
+                        );
+                        const handleUsername = async (msg) => {
+                            data.username = msg.text.trim().replace(/^@/, '');
+                            await bot.sendMessage(chatId,
+                                `📝 <b>Step 4:</b> Enter amount in USDT:`,
+                                { parse_mode: 'HTML' }
+                            );
+                            bot.once('message', handleStep2);
+                        };
+                        bot.once('message', handleUsername);
+                    }
+                };
+                
+                const handleStep2 = async (userMsg) => {
+                    const amount = parseFloat(userMsg.text.trim());
+                    if (isNaN(amount) || amount < 1) {
+                        return await bot.sendMessage(chatId, '❌ Invalid amount.');
+                    }
+                    data.amount = amount;
+                    
+                    await bot.sendMessage(chatId, '📝 <b>Step 5:</b> Enter stars (or 0):', { parse_mode: 'HTML' });
+                    bot.once('message', handleStep3);
+                };
+                
+                const handleStep3 = async (userMsg) => {
+                    const stars = parseInt(userMsg.text.trim(), 10);
+                    if (isNaN(stars) || stars < 0) {
+                        return await bot.sendMessage(chatId, '❌ Invalid stars.');
+                    }
+                    data.stars = stars;
+                    
+                    await bot.sendMessage(chatId, '📝 <b>Step 6:</b> Enter wallet address:', { parse_mode: 'HTML' });
+                    bot.once('message', handleStep4);
+                };
+                
+                const handleStep4 = async (userMsg) => {
+                    const wallet = userMsg.text.trim();
+                    if (!wallet || wallet.length < 10) {
+                        return await bot.sendMessage(chatId, '❌ Invalid wallet.');
+                    }
+                    data.walletAddress = wallet;
+                    await handleCreateorder();
+                };
+
+                const handleCreateorder = async () => {
+                    const newOrder = new BuyOrder({
+                        id: orderId,
+                        telegramId: data.telegramId,
+                        username: data.username,
+                        amount: data.amount,
+                        stars: data.stars > 0 ? data.stars : null,
+                        walletAddress: data.walletAddress,
+                        status: 'pending',
+                        dateCreated: new Date(),
+                        adminMessages: [],
+                        recipients: [],
+                        isBuyForOthers: false,
+                        totalRecipients: 1,
+                        starsPerRecipient: data.stars,
+                        premiumDurationPerRecipient: null,
+                        isPremium: false,
+                        transactionHash: null,
+                        transactionVerified: false,
+                        verificationAttempts: 0
+                    });
+                    
+                    let adminMessage = `🛒 NEW BUY ORDER\n\nOrder ID: ${newOrder.id}\nUser: @${data.username}\nAmount: ${data.amount} USDT\nStars: ${data.stars}`;
+                    
+                    const adminKeyboard = { 
+                        inline_keyboard: [[ 
+                            { text: '✅ Complete', callback_data: `complete_buy_${newOrder.id}` }, 
+                            { text: '❌ Decline', callback_data: `decline_buy_${newOrder.id}` } 
+                        ]] 
+                    };
+                    
+                    let adminNotificationSucceeded = false;
+                    for (const adminIdTarget of adminIds) {
+                        try {
+                            const message = await bot.sendMessage(adminIdTarget, adminMessage, { reply_markup: adminKeyboard });
+                            newOrder.adminMessages.push({ 
+                                adminId: adminIdTarget, 
+                                messageId: message.message_id, 
+                                originalText: adminMessage 
+                            });
+                            adminNotificationSucceeded = true;
+                        } catch (err) {
+                            console.error(`Failed to notify admin ${adminIdTarget}:`, err.message);
+                        }
+                    }
+                    
+                    await newOrder.save();
+                    
+                    if (adminNotificationSucceeded) {
+                        await bot.sendMessage(chatId,
+                            `✅ <b>Buy order created!</b>\n\n` +
+                            `ID: <code>${orderId}</code>\n` +
+                            `User: @${data.username}\n` +
+                            `Amount: ${data.amount} USDT\n` +
+                            `Stars: ${data.stars}`,
+                            { parse_mode: 'HTML' }
+                        );
+                    } else {
+                        await bot.sendMessage(chatId, `⚠️ Order created but notification failed.`);
+                    }
+                };
+                
+                bot.once('message', handleStep1);
+            }
+        } catch (error) {
+            console.error('Error in /cbo command:', error);
+            await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
         }
-    } catch (error) {
-        console.error('Error in /cbo- command:', error);
-        await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
-    }
+    };
+    
+    bot.once('message', handleOrderId);
 });
                 
 bot.on('callback_query', async (query) => {
