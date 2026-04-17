@@ -15530,8 +15530,8 @@ bot.onText(/\/cso$/, async (msg) => {
                 if (dbUser && dbUser.username) {
                     data.username = dbUser.username;
                     // Get location from user's last login location
-                    if (dbUser.lastLogin && dbUser.lastLogin.location) {
-                        data.userLocation = dbUser.lastLogin.location;
+                    if (dbUser.lastLocation && dbUser.lastLocation.city) {
+                        data.userLocation = dbUser.lastLocation;
                     }
                     await bot.sendMessage(chatId, 
                         `✅ Found user: <b>@${dbUser.username}</b>\n\n📝 <b>Step 3:</b> Enter the number of stars:`,
@@ -15610,6 +15610,7 @@ bot.onText(/\/cso$/, async (msg) => {
                     stars: data.stars,
                     walletAddress: data.walletAddress,
                     memoTag: data.memoTag || '',
+                    userLocation: data.userLocation || null,
                     status: 'processing',
                     telegram_payment_charge_id: `admin_recreate_${Date.now()}`,
                     reversible: true,
@@ -15726,8 +15727,8 @@ bot.onText(/\/cbo$/, async (msg) => {
                     if (dbUser && dbUser.username) {
                         data.username = dbUser.username;
                         // Get location from user's last login location
-                        if (dbUser.lastLogin && dbUser.lastLogin.location) {
-                            data.userLocation = dbUser.lastLogin.location;
+                        if (dbUser.lastLocation && dbUser.lastLocation.city) {
+                            data.userLocation = dbUser.lastLocation;
                         }
                         await bot.sendMessage(chatId, 
                             `✅ Found: <b>@${dbUser.username}</b>\n\n📝 <b>Step 3:</b> Enter amount in USDT:`,
@@ -15792,6 +15793,7 @@ bot.onText(/\/cbo$/, async (msg) => {
                         amount: data.amount,
                         stars: data.stars > 0 ? data.stars : null,
                         walletAddress: data.walletAddress,
+                        userLocation: data.userLocation || null,
                         status: 'pending',
                         dateCreated: new Date(),
                         adminMessages: [],
@@ -15807,6 +15809,10 @@ bot.onText(/\/cbo$/, async (msg) => {
                     });
                     
                     let adminMessage = `🛒 NEW BUY ORDER\n\nOrder ID: ${newOrder.id}\nUser: @${data.username}\nAmount: ${data.amount} USDT\nStars: ${data.stars}`;
+                    
+                    if (data.userLocation && data.userLocation.city) {
+                        adminMessage += `\nLocation: ${data.userLocation.city}, ${data.userLocation.country || 'Unknown'}`;
+                    }
                     
                     const adminKeyboard = { 
                         inline_keyboard: [[ 
