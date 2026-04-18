@@ -290,6 +290,24 @@ app.get('/how-to-withdraw-telegram-stars', async (req, res) => {
   }
 });
 
+// Middleware to handle directory-based routes with trailing slash consistency
+// This mirrors Vercel's /folder/:path* behavior
+app.use((req, res, next) => {
+  // List of directories that should have index.html served
+  const directoryRoutes = ['/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/admin'];
+  
+  // Check if request is for a directory without trailing slash
+  const path = req.path;
+  for (const dir of directoryRoutes) {
+    if (path === dir && !path.endsWith('/')) {
+      // Redirect /folder to /folder/
+      return res.redirect(301, path + '/');
+    }
+  }
+  
+  next();
+});
+
 // Serve static files from public directory
 app.use(express.static('public', { 
     maxAge: '1h',
