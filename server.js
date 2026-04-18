@@ -452,9 +452,13 @@ app.get('/referral', async (req, res) => {
       htmlContent = await fs.readFile(abs, 'utf8');
     } catch (readErr) {
       const notFound = path.join(__dirname, 'public', 'errors', '404.html');
-      return res.status(404).sendFile(notFound, (sendErr) => {
-        if (sendErr) return res.status(404).send('Not found');
-      });
+      try {
+        const notFoundContent = await fs.readFile(notFound, 'utf8');
+        res.status(404).type('text/html').send(notFoundContent);
+      } catch (e) {
+        res.status(404).send('Not found');
+      }
+      return;
     }
 
     // Inject user ID as global variable if we have one
@@ -479,17 +483,26 @@ app.get('/referral', async (req, res) => {
   } catch (e) {
     console.error(`Error in /referral:`, e.message);
     const notFound = path.join(__dirname, 'public', 'errors', '404.html');
-    return res.status(404).sendFile(notFound, (sendErr) => {
-      if (sendErr) return res.status(404).send('Not found');
-    });
+    try {
+      const notFoundContent = await fs.readFile(notFound, 'utf8');
+      res.status(404).type('text/html').send(notFoundContent);
+    } catch (e2) {
+      res.status(404).send('Not found');
+    }
   }
 });
 
 // Sitemap.xml with proper headers
-app.get('/sitemap.xml', (req, res) => {
-  res.type('application/xml');
-  res.set('Cache-Control', 'public, max-age=86400');
-  res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const content = await fs.readFile(path.join(__dirname, 'public', 'sitemap.xml'), 'utf8');
+    res.type('application/xml');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.status(200).send(content);
+  } catch (err) {
+    console.error('Error serving sitemap.xml:', err.message);
+    res.status(404).type('text/plain').send('Not found');
+  }
 });
 
 // ========== AMBASSADOR HELPERS ==========
@@ -1103,30 +1116,40 @@ app.get('/sitemap-duplicate-removed', async (req, res) => {
     res.status(500).send('');
   }
 });
-app.get('/admin', (req, res) => {
+app.get('/admin', async (req, res) => {
 	try {
-		return res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
+		const content = await fs.readFile(path.join(__dirname, 'public', 'admin', 'index.html'), 'utf8');
+		res.status(200).type('text/html').send(content);
 	} catch (e) {
-		const notFound = path.join(__dirname, 'public', '404.html');
-		return res.status(404).sendFile(notFound, (err) => {
-			if (err) return res.status(404).send('Not found');
-		});
+		console.error('Error serving /admin:', e.message);
+		const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+		try {
+			const notFoundContent = await fs.readFile(notFound, 'utf8');
+			res.status(404).type('text/html').send(notFoundContent);
+		} catch (e2) {
+			res.status(404).send('Not found');
+		}
 	}
 });
 
 // Catch-all 404 for non-API GET requests
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) {
     const abs = path.join(__dirname, 'public', 'errors', '404.html');
-    return res.status(404).sendFile(abs, (err) => {
-      if (err) return res.status(404).send('Not found');
-    });
+    try {
+      const content = await fs.readFile(abs, 'utf8');
+      res.status(404).type('text/html').send(content);
+    } catch (err) {
+      console.error('Error serving 404 page:', err.message);
+      res.status(404).send('Not found');
+    }
+    return;
   }
   return next();
 });
 
 // Global error handler - JSON for APIs, HTML for pages
-app.use((err, req, res, next) => {
+app.use(async (err, req, res, next) => {
   try { console.error('Unhandled error:', err); } catch (_) {}
   if (res.headersSent) return next(err);
   
@@ -1138,10 +1161,13 @@ app.use((err, req, res, next) => {
   // Serve appropriate error page
   const statusCode = err.status || err.statusCode || 500;
   const errorFile = path.join(__dirname, 'public', 'errors', `${statusCode}.html`);
-  return res.status(statusCode).sendFile(errorFile, (sendErr) => {
-    // Fallback if error page doesn't exist
-    if (sendErr) return res.status(statusCode).send(`Error ${statusCode}`);
-  });
+  try {
+    const content = await fs.readFile(errorFile, 'utf8');
+    res.status(statusCode).type('text/html').send(content);
+  } catch (readErr) {
+    console.error(`Error serving error page ${statusCode}:`, readErr.message);
+    res.status(statusCode).send(`Error ${statusCode}`);
+  }
 });
 // Webhook setup (only when real bot is configured)
 if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'dev_stub') {
