@@ -241,14 +241,29 @@ const authenticateAmbassadorApp = (req, res, next) => {
 // Apply ambassador authentication middleware
 app.use(authenticateAmbassadorApp);
 
+// Request logging middleware for debugging
+app.use((req, res, next) => {
+  if (req.path === '/blog' || req.path === '/knowledge-base' || req.path === '/how-to-withdraw-telegram-stars') {
+    console.log(`[REQUEST] ${req.method} ${req.path} at ${new Date().toISOString()}`);
+  }
+  next();
+});
+
 // Route directory requests to their index.html files (before static middleware)
 app.get('/blog', async (req, res) => {
+  const filePath = path.join(__dirname, 'public/blog/index.html');
+  console.log(`[DEBUG /blog] START - filePath: ${filePath}`);
+  console.log(`[DEBUG /blog] __dirname: ${__dirname}`);
   try {
-    const filePath = path.join(__dirname, 'public/blog/index.html');
+    console.log(`[DEBUG /blog] Attempting to read file...`);
     const content = await fs.readFile(filePath, 'utf8');
+    console.log(`[DEBUG /blog] SUCCESS - file read (${content.length} bytes)`);
     res.status(200).type('text/html').send(content);
   } catch (err) {
-    console.error('Error serving /blog:', err.message);
+    console.error(`[ERROR /blog] ${err.message} (code: ${err.code})`);
+    console.error(`[ERROR /blog] Full error:`, err);
+    console.error(`[ERROR /blog] File path: ${filePath}`);
+    console.error(`[ERROR /blog] __dirname: ${__dirname}`);
     try {
       const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
       res.status(404).type('text/html').send(notFound);
@@ -259,12 +274,19 @@ app.get('/blog', async (req, res) => {
 });
 
 app.get('/knowledge-base', async (req, res) => {
+  const filePath = path.join(__dirname, 'public/knowledge-base/index.html');
+  console.log(`[DEBUG /knowledge-base] START - filePath: ${filePath}`);
+  console.log(`[DEBUG /knowledge-base] __dirname: ${__dirname}`);
   try {
-    const filePath = path.join(__dirname, 'public/knowledge-base/index.html');
+    console.log(`[DEBUG /knowledge-base] Attempting to read file...`);
     const content = await fs.readFile(filePath, 'utf8');
+    console.log(`[DEBUG /knowledge-base] SUCCESS - file read (${content.length} bytes)`);
     res.status(200).type('text/html').send(content);
   } catch (err) {
-    console.error('Error serving /knowledge-base:', err.message);
+    console.error(`[ERROR /knowledge-base] ${err.message} (code: ${err.code})`);
+    console.error(`[ERROR /knowledge-base] Full error:`, err);
+    console.error(`[ERROR /knowledge-base] File path: ${filePath}`);
+    console.error(`[ERROR /knowledge-base] __dirname: ${__dirname}`);
     try {
       const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
       res.status(404).type('text/html').send(notFound);
@@ -275,12 +297,19 @@ app.get('/knowledge-base', async (req, res) => {
 });
 
 app.get('/how-to-withdraw-telegram-stars', async (req, res) => {
+  const filePath = path.join(__dirname, 'public/how-to-withdraw-telegram-stars/index.html');
+  console.log(`[DEBUG /how-to-withdraw-telegram-stars] START - filePath: ${filePath}`);
+  console.log(`[DEBUG /how-to-withdraw-telegram-stars] __dirname: ${__dirname}`);
   try {
-    const filePath = path.join(__dirname, 'public/how-to-withdraw-telegram-stars/index.html');
+    console.log(`[DEBUG /how-to-withdraw-telegram-stars] Attempting to read file...`);
     const content = await fs.readFile(filePath, 'utf8');
+    console.log(`[DEBUG /how-to-withdraw-telegram-stars] SUCCESS - file read (${content.length} bytes)`);
     res.status(200).type('text/html').send(content);
   } catch (err) {
-    console.error('Error serving /how-to-withdraw-telegram-stars:', err.message);
+    console.error(`[ERROR /how-to-withdraw-telegram-stars] ${err.message} (code: ${err.code})`);
+    console.error(`[ERROR /how-to-withdraw-telegram-stars] Full error:`, err);
+    console.error(`[ERROR /how-to-withdraw-telegram-stars] File path: ${filePath}`);
+    console.error(`[ERROR /how-to-withdraw-telegram-stars] __dirname: ${__dirname}`);
     try {
       const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
       res.status(404).type('text/html').send(notFound);
@@ -17367,6 +17396,26 @@ async function runMigrations() {
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // DEBUG: Log directory structure for deployment diagnostics
+  try {
+    const fsSyncModule = require('fs'); // To use existsSync
+    const publicDir = path.join(__dirname, 'public');
+    const blogsExist = fsSyncModule.existsSync(path.join(publicDir, 'blog', 'index.html'));
+    const kbExist = fsSyncModule.existsSync(path.join(publicDir, 'knowledge-base', 'index.html'));
+    const withdrawExist = fsSyncModule.existsSync(path.join(publicDir, 'how-to-withdraw-telegram-stars', 'index.html'));
+    console.log(`[DEBUG] Root directory (__dirname): ${__dirname}`);
+    console.log(`[DEBUG] Public directory: ${publicDir}`);
+    console.log(`[DEBUG] /blog/index.html exists: ${blogsExist}`);
+    console.log(`[DEBUG] /knowledge-base/index.html exists: ${kbExist}`);
+    console.log(`[DEBUG] /how-to-withdraw-telegram-stars/index.html exists: ${withdrawExist}`);
+    if (!blogsExist || !kbExist || !withdrawExist) {
+      console.warn('[WARN] Some expected route files are MISSING!');
+    }
+  } catch (e) {
+    console.error('[DEBUG ERROR] Failed to check file existence:', e.message);
+  }
+  
   console.log(`Webhook set to: ${WEBHOOK_URL}`);
   
   // Run migrations
