@@ -240,83 +240,23 @@ const authenticateAmbassadorApp = (req, res, next) => {
 // Apply ambassador authentication middleware
 app.use(authenticateAmbassadorApp);
 
-// Ensure directories with index.html return 200 (no 302/redirects)
-// This MUST come before express.static so it takes priority
-app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/ambassador'], async (req, res, next) => {
-  try {
-    // Extract user ID from available sources
-    let userId = null;
-    
-    if (req.user && req.user.id) {
-      userId = String(req.user.id).trim();
-    } else if (req.headers['x-telegram-id']) {
-      userId = String(req.headers['x-telegram-id']).trim();
-    } else if (req.telegramInitData?.user?.id) {
-      userId = String(req.telegramInitData.user.id).trim();
-    }
-    
-    // Check if user is banned - deny app access immediately
-    if (userId) {
-      const isBanned = await checkUserBanStatus(userId);
-      if (isBanned) {
-        const banDetails = await getBanDetails(userId);
-        const fs = require('fs').promises;
-        let banAccessDenied = await fs.readFile(path.join(__dirname, 'public', 'errors', 'ban-access-denied.html'), 'utf8');
-        
-        // Inject case ID and appeal deadline into the page
-        if (banDetails) {
-          const appealDeadline = banDetails.appealDeadline ? new Date(banDetails.appealDeadline).toLocaleDateString() : 'N/A';
-          banAccessDenied = banAccessDenied
-            .replace('{{CASE_ID}}', banDetails.caseId || 'N/A')
-            .replace('{{APPEAL_DEADLINE}}', appealDeadline);
-        }
-        
-        res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
-        return res.status(403).send(banAccessDenied);
-      }
-    }
-    
-    const map = {
-      '/': 'index.html',
-      '/about': 'about.html',
-      '/sell': 'sell.html',
-      '/history': 'history.html',
-      '/daily': 'daily.html',
-      '/feedback': 'feedback.html',
-      '/blog': 'blog/index.html',
-      '/knowledge-base': 'knowledge-base/index.html',
-      '/how-to-withdraw-telegram-stars': 'how-to-withdraw-telegram-stars/index.html',
-      '/ambassador': 'apply_ambassador.html'
-    };
-    const file = map[req.path];
-    if (file) {
-      const abs = path.join(__dirname, 'public', file);
-      return res.status(200).sendFile(abs, (err) => {
-        if (err) {
-          // If the mapped file is missing, serve the graceful 404 page
-          const notFound = path.join(__dirname, 'public', 'errors', '404.html');
-          return res.status(404).sendFile(notFound, (sendErr) => {
-            if (sendErr) return res.status(404).send('Not found');
-          });
-        }
-      });
-    }
-    return next();
-  } catch (e) { return next(); }
-});
+// Route directory requests to their index.html files (before static middleware)
+app.get('/blog', (req, res) => res.status(200).sendFile(path.join(__dirname, 'public/blog/index.html')));
+app.get('/knowledge-base', (req, res) => res.status(200).sendFile(path.join(__dirname, 'public/knowledge-base/index.html')));
+app.get('/how-to-withdraw-telegram-stars', (req, res) => res.status(200).sendFile(path.join(__dirname, 'public/how-to-withdraw-telegram-stars/index.html')));
 
 // Serve static files from public directory
 app.use(express.static('public', { 
     maxAge: '1h',
     etag: false,
     lastModified: false,
-    setHeaders: (res, path) => {
-        if (path.endsWith('.html')) {
+    setHeaders: (res, requestPath) => {
+        if (requestPath.endsWith('.html')) {
             res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         }
     }
 }));
+
 
 // Add error handling for body parsing
 app.use(express.json({ 
