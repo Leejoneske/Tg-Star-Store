@@ -318,9 +318,9 @@ function generateTransactionPDF(userId, username, transactions) {
           { text: 'OFFICIAL STATEMENT\n', bold: true, fontSize: 9, color: COLORS.primary },
           { text: 'This is an official StarStore transaction record. Keep this statement for your records.\n', fontSize: 8, color: COLORS.text },
           { text: 'For support: ', fontSize: 8, color: COLORS.text },
-          { text: 'support@starstore.site ', bold: true, fontSize: 8, color: COLORS.info },
+          { text: 'support@starstore.app ', bold: true, fontSize: 8, color: COLORS.info },
           { text: '| ', fontSize: 8, color: COLORS.text },
-          { text: 'https://starstore.site', fontSize: 8, color: COLORS.info }
+          { text: 'https://starstore.app', fontSize: 8, color: COLORS.info }
         ],
         margin: [0, 25, 0, 0],
         border: [true, true, true, true],
@@ -589,9 +589,9 @@ function generateReferralPDF(userId, username, referrals) {
           { text: 'OFFICIAL STATEMENT\n', bold: true, fontSize: 9, color: COLORS.primary },
           { text: 'This is an official StarStore referral earnings record. Keep this statement for your records.\n', fontSize: 8, color: COLORS.text },
           { text: 'For support: ', fontSize: 8, color: COLORS.text },
-          { text: 'support@starstore.site ', bold: true, fontSize: 8, color: COLORS.info },
+          { text: 'support@starstore.app ', bold: true, fontSize: 8, color: COLORS.info },
           { text: '| ', fontSize: 8, color: COLORS.text },
-          { text: 'https://starstore.site', fontSize: 8, color: COLORS.info }
+          { text: 'https://starstore.app', fontSize: 8, color: COLORS.info }
         ],
         margin: [0, 25, 0, 0],
         border: [true, true, true, true],

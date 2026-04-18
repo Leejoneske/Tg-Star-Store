@@ -1,8 +1,8 @@
 {
   "name": "StarStore",
-  "url": "https://starstore.site/",
-  "iconUrl": "https://starstore.site/favicon.png",
-  "termsOfUseUrl": "https://starstore.site/policy.html",
-  "privacyPolicyUrl": "https://starstore.site/policy.html",
+  "url": "https://starstore.app/",
+  "iconUrl": "https://starstore.app/favicon.png",
+  "termsOfUseUrl": "https://starstore.app/policy.html",
+  "privacyPolicyUrl": "https://starstore.app/policy.html",
   "features": ["ton_addr"]
 }

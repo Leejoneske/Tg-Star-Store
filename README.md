@@ -234,7 +234,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🆘 Support
 
 For support and questions:
-- 📧 Contact: [support@starstore.site](mailto:support@starstore.site)
+- 📧 Contact: [support@starstore.app](mailto:support@starstore.app)
 - 💬 Telegram: [@StarStore_app](https://t.me/StarStore_app)
 - 🐛 Issues: [GitHub Issues](https://github.com/yourusername/starstore/issues)
 

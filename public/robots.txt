@@ -1,20 +1,53 @@
+# StarStore robots.txt - Optimized for search engine discoverability
+
+# Default rules for all search engines
 User-agent: *
 Allow: /
+Allow: /public/
+Allow: /blog/
+Allow: /knowledge-base/
+Allow: /how-to-withdraw-telegram-stars/
 
-# Sitemap location
-Sitemap: https://starstore.site/sitemap.xml
-
-# Disallow sensitive API endpoints
-Disallow: /api/admin/
-Disallow: /api/users/
-Disallow: /api/notifications/
-Disallow: /api/orders/
-Disallow: /api/referrals/
-
-# Disallow admin or sensitive areas
+# Disallow sensitive API endpoints and admin areas
+Disallow: /api/
 Disallow: /admin/
 Disallow: /private/
 Disallow: /temp/
+Disallow: /data/
+Disallow: /node_modules/
+Disallow: /tests/
+Disallow: /tools/
+Disallow: /services/
+Disallow: /middleware/
 
-# Crawl delay (optional - be respectful to server)
-Crawl-delay: 1
+# Primary sitemap
+Sitemap: https://starstore.app/sitemap.xml
+
+# Crawl-delay for general crawlers (be respectful - 0.5 seconds between requests)
+Crawl-delay: 0.5
+
+# Request-rate limiting per second
+Request-rate: 2
+
+# Specific optimization for Google
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0.1
+
+# Specific optimization for Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 0.2
+
+# Block bad bots and scrapers
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /

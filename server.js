@@ -187,11 +187,13 @@ app.use(cors({
             /^https?:\/\/localhost(:\d+)?$/,
             /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
             /^https:\/\/.*\.vercel\.app$/,
+            /^https:\/\/(www\.)?starstore\.app$/,
             /^https:\/\/(www\.)?starstore\.site$/,
             /^https:\/\/(www\.)?walletbot\.me$/,
             /^https:\/\/.*\.railway\.app$/,
             // Ambassador app domains
             /^https:\/\/amb-starstore\.vercel\.app$/,
+            /^https:\/\/amb\.starstore\.app$/,
             /^https:\/\/amb\.starstore\.site$/,
             /^https:\/\/.*ambassador.*\.vercel\.app$/
         ];
@@ -1051,8 +1053,8 @@ app.get('/api/check-ambassador', async (req, res) => {
 
 app.get('/sitemap-duplicate-removed', async (req, res) => {
   try {
-    // Derive base from configured server domain; fallback to starstore.site
-    const base = `https://${SERVER_URL || 'starstore.site'}`;
+    // Derive base from configured server domain; fallback to starstore.app
+    const base = `https://${SERVER_URL || 'starstore.app'}`;
     const root = path.join(__dirname, 'public');
 
     // Collect HTML files recursively (bounded)

@@ -81,11 +81,11 @@ async function sendEmail(to, subject, htmlContent) {
 
     try {
         const result = await resend.emails.send({
-            from: process.env.RESEND_FROM_EMAIL || 'StarStore <noreply@starstore.site>',
+            from: process.env.RESEND_FROM_EMAIL || 'StarStore <noreply@starstore.app>',
             to,
             subject,
             html: htmlContent,
-            reply_to: 'support@starstore.site'
+            reply_to: 'support@starstore.app'
         });
 
         if (result.error) {

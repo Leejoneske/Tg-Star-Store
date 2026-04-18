@@ -384,7 +384,7 @@ const translations = {
         applySuccessMsg: "Thank you for applying to the Ambassador Program. We'll contact you soon. If you're on Telegram, a confirmation was sent to your DM.",
         applyErrorInvalidEmail: "Please enter a valid email address.",
         applyErrorNoSocials: "Please add at least one social platform (handle or link).",
-        applyFooterContact: "Questions? Email us at support@starstore.site",
+        applyFooterContact: "Questions? Email us at support@starstore.app",
         applyBackButton: "Back",
         
         dailyCheckIn: "Daily Check-in",
@@ -794,7 +794,7 @@ const translations = {
         applySuccessTitle: "Application received!",
         applySuccessMessage: "Thank you for applying to the Ambassador Program. We'll contact you soon. If you're on Telegram, a confirmation was sent to your DM.",
         applyFooterCopyright: "© 2026 StarStore. All rights reserved.",
-        applyFooterSupport: "Questions? Email us at support@starstore.site",
+        applyFooterSupport: "Questions? Email us at support@starstore.app",
         
         // Ambassador Referral Page (amb_ref.html)
         ambassadorPageTitle: "Ambassador",
@@ -1196,7 +1196,7 @@ const translations = {
         applySuccessMsg: "Спасибо за подачу заявки в программу послов. Мы свяжемся с вами в ближайшее время. Если вы в Telegram, подтверждение было отправлено в ваши личные сообщения.",
         applyErrorInvalidEmail: "Пожалуйста, введите корректный адрес электронной почты.",
         applyErrorNoSocials: "Пожалуйста, добавьте хотя бы одну социальную платформу (имя пользователя или ссылка).",
-        applyFooterContact: "Вопросы? Напишите нам на support@starstore.site",
+        applyFooterContact: "Вопросы? Напишите нам на support@starstore.app",
         applyBackButton: "Назад",
         
         dailyCheckIn: "Ежедневный вход",
@@ -1608,7 +1608,7 @@ const translations = {
         applySuccessTitle: "Заявка получена!",
         applySuccessMessage: "Спасибо за подачу заявки в программу амбассадоров. Мы свяжемся с вами в ближайшее время. Если вы в Telegram, подтверждение было отправлено вам в DM.",
         applyFooterCopyright: "© 2026 StarStore. Все права защищены.",
-        applyFooterSupport: "Есть вопросы? Напишите нам на support@starstore.site",
+        applyFooterSupport: "Есть вопросы? Напишите нам на support@starstore.app",
         
         // Ambassador Referral Page (Russian)
         ambassadorPageTitle: "Амбассадор",
@@ -1808,7 +1808,7 @@ const translations = {
         applySuccessTitle: "आवेदन प्राप्त हुआ!",
         applySuccessMessage: "एम्बेसेडर प्रोग्राम में आवेदन करने के लिए धन्यवाद। हम जल्द ही आपसे संपर्क करेंगे। यदि आप Telegram पर हैं, तो एक पुष्टि आपके DM में भेजी गई है।",
         applyFooterCopyright: "© 2026 StarStore। सर्वाधिकार सुरक्षित।",
-        applyFooterSupport: "प्रश्न हैं? हमें support@starstore.site पर ईमेल करें",
+        applyFooterSupport: "प्रश्न हैं? हमें support@starstore.app पर ईमेल करें",
         
         // Ambassador Referral Page (Hindi)
         ambassadorPageTitle: "एम्बेसेडर",
@@ -2008,7 +2008,7 @@ const translations = {
         applySuccessTitle: "تم استقبال الطلب!",
         applySuccessMessage: "شكراً لك على التقديم لبرنامج السفير. سنتصل بك قريباً. إذا كنت على Telegram، تم إرسال تأكيد إلى رسالتك المباشرة.",
         applyFooterCopyright: "© 2026 StarStore. جميع الحقوق محفوظة.",
-        applyFooterSupport: "أسئلة؟ البريد الإلكترونी لنا على support@starstore.site",
+        applyFooterSupport: "أسئلة؟ البريد الإلكترونी لنا على support@starstore.app",
         
         // Ambassador Referral Page (Arabic)
         ambassadorPageTitle: "السفير",
@@ -2179,7 +2179,7 @@ try {
         applySuccessMsg: "राजदूत कार्यक्रम में आवेदन करने के लिए धन्यवाद। हम जल्द ही आपसे संपर्क करेंगे। अगर आप Telegram पर हैं, तो एक पुष्टिकरण आपके DM को भेजा गया है।",
         applyErrorInvalidEmail: "कृपया एक वैध ईमेल पता दर्ज करें।",
         applyErrorNoSocials: "कृपया कम से कम एक सोशल मीडिया प्लेटफॉर्म जोड़ें (उपयोगकर्ता नाम या लिंक)।",
-        applyFooterContact: "सवाल हैं? हमें support@starstore.site पर लिखें",
+        applyFooterContact: "सवाल हैं? हमें support@starstore.app पर लिखें",
         applyBackButton: "वापस",
         
         dailyCheckIn: "दैनिक चेक-इन",
@@ -2446,7 +2446,7 @@ try {
         applySuccessMsg: "شكراً لتقديم طلبك لبرنامج السفراء. سنتصل بك قريباً. إذا كنت على Telegram، تم إرسال تأكيد إلى رسائلك المباشرة.",
         applyErrorInvalidEmail: "يرجى إدخال عنوان بريد إلكتروني صحيح.",
         applyErrorNoSocials: "يرجى إضافة منصة وسائط اجتماعية واحدة على الأقل (اسم مستخدم أو رابط).",
-        applyFooterContact: "هل لديك أسئلة؟ راسلنا على support@starstore.site",
+        applyFooterContact: "هل لديك أسئلة؟ راسلنا على support@starstore.app",
         applyBackButton: "رجوع",
         
         dailyCheckIn: "تسجيل الدخول اليومي",
