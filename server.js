@@ -15,6 +15,7 @@ const crypto = require('crypto');
 const cors = require('cors');
 const axios = require('axios');
 const fetch = require('node-fetch');
+const fs = require('fs').promises;
 const app = express();
 const path = require('path');  
 const zlib = require('zlib');
@@ -241,9 +242,53 @@ const authenticateAmbassadorApp = (req, res, next) => {
 app.use(authenticateAmbassadorApp);
 
 // Route directory requests to their index.html files (before static middleware)
-app.get('/blog', (req, res) => res.status(200).sendFile(path.join(__dirname, 'public/blog/index.html')));
-app.get('/knowledge-base', (req, res) => res.status(200).sendFile(path.join(__dirname, 'public/knowledge-base/index.html')));
-app.get('/how-to-withdraw-telegram-stars', (req, res) => res.status(200).sendFile(path.join(__dirname, 'public/how-to-withdraw-telegram-stars/index.html')));
+app.get('/blog', async (req, res) => {
+  try {
+    const filePath = path.join(__dirname, 'public/blog/index.html');
+    const content = await fs.readFile(filePath, 'utf8');
+    res.status(200).type('text/html').send(content);
+  } catch (err) {
+    console.error('Error serving /blog:', err.message);
+    try {
+      const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
+      res.status(404).type('text/html').send(notFound);
+    } catch (e2) {
+      res.status(404).send('Not found');
+    }
+  }
+});
+
+app.get('/knowledge-base', async (req, res) => {
+  try {
+    const filePath = path.join(__dirname, 'public/knowledge-base/index.html');
+    const content = await fs.readFile(filePath, 'utf8');
+    res.status(200).type('text/html').send(content);
+  } catch (err) {
+    console.error('Error serving /knowledge-base:', err.message);
+    try {
+      const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
+      res.status(404).type('text/html').send(notFound);
+    } catch (e2) {
+      res.status(404).send('Not found');
+    }
+  }
+});
+
+app.get('/how-to-withdraw-telegram-stars', async (req, res) => {
+  try {
+    const filePath = path.join(__dirname, 'public/how-to-withdraw-telegram-stars/index.html');
+    const content = await fs.readFile(filePath, 'utf8');
+    res.status(200).type('text/html').send(content);
+  } catch (err) {
+    console.error('Error serving /how-to-withdraw-telegram-stars:', err.message);
+    try {
+      const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
+      res.status(404).type('text/html').send(notFound);
+    } catch (e2) {
+      res.status(404).send('Not found');
+    }
+  }
+});
 
 // Serve static files from public directory
 app.use(express.static('public', { 
