@@ -412,6 +412,59 @@ try { app.use(verifyTelegramAuth); } catch (_) {}
 
 // ==================== DYNAMIC ROUTES (BEFORE STATIC MIDDLEWARE) ====================
 
+// Diagnostic endpoint to check file availability
+app.get('/api/debug/file-status', (req, res) => {
+  try {
+    const fsSyncModule = require('fs');
+    const publicDir = path.join(__dirname, 'public');
+    
+    const filesToCheck = [
+      'index.html',
+      'sell.html', 
+      'about.html',
+      'history.html',
+      'daily.html',
+      'referral.html',
+      'support.html',
+      'notification.html',
+      'feedback.html',
+      'apply_ambassador.html',
+      'amb_ref.html',
+      'blog/index.html',
+      'knowledge-base/index.html',
+      'how-to-withdraw-telegram-stars/index.html',
+      'errors/404.html',
+      'errors/500.html'
+    ];
+    
+    const results = {};
+    filesToCheck.forEach(file => {
+      const fullPath = path.join(publicDir, file);
+      results[file] = fsSyncModule.existsSync(fullPath);
+    });
+    
+    // List actual files in public directory
+    let actualFiles = [];
+    try {
+      const readDirSync = fsSyncModule.readdirSync;
+      actualFiles = readDirSync(publicDir);
+    } catch (e) {
+      actualFiles = ['ERROR: Could not read directory'];
+    }
+    
+    res.json({
+      __dirname: __dirname,
+      publicDir: publicDir,
+      publicDirExists: fsSyncModule.existsSync(publicDir),
+      checkedFiles: results,
+      actualFilesInPublic: actualFiles,
+      nodeEnv: process.env.NODE_ENV
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== REFERRAL PAGE ROUTE ====================
 // Must come BEFORE static file middleware so it takes priority
 // Does NOT require middleware auth - extracts userId from available sources
@@ -17399,18 +17452,38 @@ app.listen(PORT, async () => {
   
   // DEBUG: Log directory structure for deployment diagnostics
   try {
-    const fsSyncModule = require('fs'); // To use existsSync
+    const fsSyncModule = require('fs');
     const publicDir = path.join(__dirname, 'public');
+    
+    if (!fsSyncModule.existsSync(publicDir)) {
+      console.error('❌ CRITICAL: /public directory does not exist at:', publicDir);
+      console.error('   This will cause 404 errors for all static files and routes');
+      console.error('   Ensure the public/ folder is committed to git and deployed');
+    } else {
+      console.log(`✅ /public directory found at: ${publicDir}`);
+    }
+    
     const blogsExist = fsSyncModule.existsSync(path.join(publicDir, 'blog', 'index.html'));
     const kbExist = fsSyncModule.existsSync(path.join(publicDir, 'knowledge-base', 'index.html'));
     const withdrawExist = fsSyncModule.existsSync(path.join(publicDir, 'how-to-withdraw-telegram-stars', 'index.html'));
+    const indexExists = fsSyncModule.existsSync(path.join(publicDir, 'index.html'));
+    const sellExists = fsSyncModule.existsSync(path.join(publicDir, 'sell.html'));
+    
     console.log(`[DEBUG] Root directory (__dirname): ${__dirname}`);
     console.log(`[DEBUG] Public directory: ${publicDir}`);
+    console.log(`[DEBUG] index.html exists: ${indexExists}`);
+    console.log(`[DEBUG] sell.html exists: ${sellExists}`);
     console.log(`[DEBUG] /blog/index.html exists: ${blogsExist}`);
     console.log(`[DEBUG] /knowledge-base/index.html exists: ${kbExist}`);
     console.log(`[DEBUG] /how-to-withdraw-telegram-stars/index.html exists: ${withdrawExist}`);
+    
     if (!blogsExist || !kbExist || !withdrawExist) {
       console.warn('[WARN] Some expected route files are MISSING!');
+      console.warn('[WARN] This is likely because the public/ folder is not deployed on Railway');
+      console.warn('[WARN] Verify that:');
+      console.warn('[WARN]   1. public/ folder is NOT in .gitignore');
+      console.warn('[WARN]   2. public/ folder files are committed to git');
+      console.warn('[WARN]   3. Railway is pulling the correct branch');
     }
   } catch (e) {
     console.error('[DEBUG ERROR] Failed to check file existence:', e.message);
