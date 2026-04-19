@@ -330,34 +330,64 @@ app.get(/^\/(sell|about|history|daily|support|notification|feedback|apply_ambass
   const safePage = (pageMap[rawPage] || rawPage).replace(/[^a-zA-Z0-9_-]/g, '');
   const filePath = path.join(__dirname, 'public', `${safePage}.html`);
 
+  console.log(`[ROUTE] Attempting to serve clean URL: ${req.path} → ${filePath}`);
+
   try {
     const content = await fs.readFile(filePath, 'utf8');
+    console.log(`[ROUTE] ✓ Successfully loaded ${safePage}.html (${content.length} bytes)`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     return res.status(200).type('text/html').send(content);
   } catch (err) {
-    console.error(`[ERROR ${req.path}] ${err.message} (code: ${err.code})`);
-    console.error(`[ERROR ${req.path}] Full error:`, err);
-    console.error(`[ERROR ${req.path}] File path: ${filePath}`);
-    try {
-      const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
-      return res.status(404).type('text/html').send(notFound);
-    } catch (e2) {
-      return res.status(404).send('Not found');
-    }
+    console.error(`[ROUTE ERROR] Failed to load ${safePage}.html: ${err.message} (code: ${err.code})`);
+    console.error(`[ROUTE ERROR] File path: ${filePath}`);
+    
+    // Return a simple HTML fallback instead of trying to read a potentially missing 404.html
+    const fallbackHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Page Not Found</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <h1>Page Not Found</h1>
+  <p>The page you requested could not be found.</p>
+  <p><a href="/">← Return to Home</a></p>
+  <script>
+    console.error('Failed to load page: ${safePage}');
+  </script>
+</body>
+</html>`;
+    
+    return res.status(404).type('text/html').send(fallbackHtml);
   }
 });
 
 app.get(/^\/app\/?$/, async (req, res) => {
   try {
     const content = await fs.readFile(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    console.log(`[ROUTE] ✓ Successfully loaded /app → index.html`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     return res.status(200).type('text/html').send(content);
   } catch (err) {
-    console.error(`[ERROR /app] ${err.message} (code: ${err.code})`);
-    try {
-      const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
-      return res.status(404).type('text/html').send(notFound);
-    } catch (e2) {
-      return res.status(404).send('Not found');
-    }
+    console.error(`[ROUTE ERROR] Failed to load /app: ${err.message}`);
+    
+    // Return simple fallback HTML
+    const fallbackHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Error</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <h1>Application Error</h1>
+  <p>Could not load the application.</p>
+  <p><a href="/">← Try again</a></p>
+</body>
+</html>`;
+    
+    return res.status(500).type('text/html').send(fallbackHtml);
   }
 });
 
