@@ -330,19 +330,14 @@ app.get(/^\/(sell|about|history|daily|support|notification|feedback|apply_ambass
   const safePage = (pageMap[rawPage] || rawPage).replace(/[^a-zA-Z0-9_-]/g, '');
   const filePath = path.join(__dirname, 'public', `${safePage}.html`);
 
-  console.log(`[ROUTE] Attempting to serve clean URL: ${req.path} → ${filePath}`);
+  console.log(`[ROUTE /clean] Attempting to serve: ${req.path} → ${filePath}`);
 
-  try {
-    const content = await fs.readFile(filePath, 'utf8');
-    console.log(`[ROUTE] ✓ Successfully loaded ${safePage}.html (${content.length} bytes)`);
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    return res.status(200).type('text/html').send(content);
-  } catch (err) {
-    console.error(`[ROUTE ERROR] Failed to load ${safePage}.html: ${err.message} (code: ${err.code})`);
-    console.error(`[ROUTE ERROR] File path: ${filePath}`);
-    
-    // Return a simple HTML fallback instead of trying to read a potentially missing 404.html
-    const fallbackHtml = `<!DOCTYPE html>
+  // Use sendFile instead of reading/sending to be compatible with Telegram Web App
+  res.sendFile(filePath, (err) => {
+    if (err && err.code === 'ENOENT') {
+      console.error(`[ROUTE ERROR] File not found: ${filePath}`);
+      
+      const fallbackHtml = `<!DOCTYPE html>
 <html>
 <head>
   <title>Page Not Found</title>
@@ -353,27 +348,14 @@ app.get(/^\/(sell|about|history|daily|support|notification|feedback|apply_ambass
   <h1>Page Not Found</h1>
   <p>The page you requested could not be found.</p>
   <p><a href="/">← Return to Home</a></p>
-  <script>
-    console.error('Failed to load page: ${safePage}');
-  </script>
 </body>
 </html>`;
-    
-    return res.status(404).type('text/html').send(fallbackHtml);
-  }
-});
-
-app.get(/^\/app\/?$/, async (req, res) => {
-  try {
-    const content = await fs.readFile(path.join(__dirname, 'public', 'index.html'), 'utf8');
-    console.log(`[ROUTE] ✓ Successfully loaded /app → index.html`);
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    return res.status(200).type('text/html').send(content);
-  } catch (err) {
-    console.error(`[ROUTE ERROR] Failed to load /app: ${err.message}`);
-    
-    // Return simple fallback HTML
-    const fallbackHtml = `<!DOCTYPE html>
+      
+      return res.status(404).type('text/html').send(fallbackHtml);
+    } else if (err) {
+      console.error(`[ROUTE ERROR] Error serving ${safePage}.html:`, err.message);
+      
+      const fallbackHtml = `<!DOCTYPE html>
 <html>
 <head>
   <title>Error</title>
@@ -381,14 +363,44 @@ app.get(/^\/app\/?$/, async (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
-  <h1>Application Error</h1>
-  <p>Could not load the application.</p>
-  <p><a href="/">← Try again</a></p>
+  <h1>Error Loading Page</h1>
+  <p>An error occurred while loading the page.</p>
+  <p><a href="/">← Return to Home</a></p>
 </body>
 </html>`;
+      
+      return res.status(500).type('text/html').send(fallbackHtml);
+    }
     
-    return res.status(500).type('text/html').send(fallbackHtml);
-  }
+    console.log(`[ROUTE /clean] ✓ Successfully sent: ${safePage}.html`);
+  });
+});
+
+app.get(/^\/app\/?$/, (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'index.html');
+  
+  console.log(`[ROUTE /app] Serving /app → index.html`);
+  
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error(`[ROUTE ERROR] Failed to serve /app:`, err.message);
+      res.status(500).type('text/html').send(`<!DOCTYPE html>
+<html>
+<head>
+  <title>Error</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <h1>Error</h1>
+  <p>Could not load application.</p>
+  <p><a href="/">← Home</a></p>
+</body>
+</html>`);
+    } else {
+      console.log(`[ROUTE /app] ✓ Successfully sent index.html`);
+    }
+  });
 });
 
 // Middleware to handle directory-based routes with trailing slash consistency
@@ -407,6 +419,25 @@ app.use((req, res, next) => {
   }
   
   next();
+});
+
+// Diagnostic endpoint to compare clean URL vs static serving
+app.get('/api/debug/compare-routes', async (req, res) => {
+  try {
+    const sellFilePath = path.join(__dirname, 'public', 'sell.html');
+    const content = await fs.readFile(sellFilePath, 'utf8');
+    
+    res.json({
+      method: 'Comparison info',
+      cleanURLSize: content.length,
+      cleanURLFirst200: content.substring(0, 200),
+      staticServeWorks: 'Yes (/sell.html)',
+      cleanURLWorks: 'Testing',
+      note: 'Check /sell vs /sell.html in Telegram Web App'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Serve static files from public directory
