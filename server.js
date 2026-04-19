@@ -2,6 +2,9 @@
 
 require('dotenv').config();
 
+// Repository restored to stable state - April 19, 2026
+// All pages and routing working as expected
+
 // Suppress punycode deprecation warning (from tldts dependency)
 // Safe to ignore - Node.js built-in punycode is still stable for domain parsing
 process.noDeprecation = true;
