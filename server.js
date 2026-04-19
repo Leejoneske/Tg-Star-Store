@@ -320,19 +320,14 @@ app.get('/how-to-withdraw-telegram-stars', async (req, res) => {
 });
 
 // Route clean page URLs like /sell, /about, /referral, etc. to the corresponding .html files.
-app.get([
-  '/sell',
-  '/about',
-  '/history',
-  '/daily',
-  '/referral',
-  '/support',
-  '/notification',
-  '/feedback',
-  '/apply_ambassador',
-  '/amb_ref'
-], async (req, res) => {
-  const safePage = req.path.slice(1).replace(/[^a-zA-Z0-9_-]/g, '');
+app.get(/^\/(sell|about|history|daily|support|notification|feedback|apply_ambassador|amb_ref|ambassador|amb-referral)\/?$/, async (req, res) => {
+  const rawPage = req.path.replace(/^\/+|\/+$/g, '');
+  const pageMap = {
+    ambassador: 'apply_ambassador',
+    'amb-referral': 'amb_ref'
+  };
+
+  const safePage = (pageMap[rawPage] || rawPage).replace(/[^a-zA-Z0-9_-]/g, '');
   const filePath = path.join(__dirname, 'public', `${safePage}.html`);
 
   try {
@@ -342,6 +337,21 @@ app.get([
     console.error(`[ERROR ${req.path}] ${err.message} (code: ${err.code})`);
     console.error(`[ERROR ${req.path}] Full error:`, err);
     console.error(`[ERROR ${req.path}] File path: ${filePath}`);
+    try {
+      const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
+      return res.status(404).type('text/html').send(notFound);
+    } catch (e2) {
+      return res.status(404).send('Not found');
+    }
+  }
+});
+
+app.get(/^\/app\/?$/, async (req, res) => {
+  try {
+    const content = await fs.readFile(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    return res.status(200).type('text/html').send(content);
+  } catch (err) {
+    console.error(`[ERROR /app] ${err.message} (code: ${err.code})`);
     try {
       const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
       return res.status(404).type('text/html').send(notFound);
