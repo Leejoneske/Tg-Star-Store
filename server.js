@@ -241,204 +241,75 @@ const authenticateAmbassadorApp = (req, res, next) => {
 // Apply ambassador authentication middleware
 app.use(authenticateAmbassadorApp);
 
-// Request logging middleware for debugging
-app.use((req, res, next) => {
-  if (req.path === '/blog' || req.path === '/knowledge-base' || req.path === '/how-to-withdraw-telegram-stars') {
-    console.log(`[REQUEST] ${req.method} ${req.path} at ${new Date().toISOString()}`);
-  }
-  next();
-});
-
-// Route directory requests to their index.html files (before static middleware)
-app.get('/blog', async (req, res) => {
-  const filePath = path.join(__dirname, 'public/blog/index.html');
-  console.log(`[DEBUG /blog] START - filePath: ${filePath}`);
-  console.log(`[DEBUG /blog] __dirname: ${__dirname}`);
+// Ensure directories with index.html return 200 (no 302/redirects)
+// This MUST come before express.static so it takes priority
+// Maps clean URLs like /sell to sell.html, /about to about.html, etc.
+app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/ambassador'], async (req, res, next) => {
   try {
-    console.log(`[DEBUG /blog] Attempting to read file...`);
-    const content = await fs.readFile(filePath, 'utf8');
-    console.log(`[DEBUG /blog] SUCCESS - file read (${content.length} bytes)`);
-    res.status(200).type('text/html').send(content);
-  } catch (err) {
-    console.error(`[ERROR /blog] ${err.message} (code: ${err.code})`);
-    console.error(`[ERROR /blog] Full error:`, err);
-    console.error(`[ERROR /blog] File path: ${filePath}`);
-    console.error(`[ERROR /blog] __dirname: ${__dirname}`);
-    try {
-      const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
-      res.status(404).type('text/html').send(notFound);
-    } catch (e2) {
-      res.status(404).send('Not found');
-    }
-  }
-});
-
-app.get('/knowledge-base', async (req, res) => {
-  const filePath = path.join(__dirname, 'public/knowledge-base/index.html');
-  console.log(`[DEBUG /knowledge-base] START - filePath: ${filePath}`);
-  console.log(`[DEBUG /knowledge-base] __dirname: ${__dirname}`);
-  try {
-    console.log(`[DEBUG /knowledge-base] Attempting to read file...`);
-    const content = await fs.readFile(filePath, 'utf8');
-    console.log(`[DEBUG /knowledge-base] SUCCESS - file read (${content.length} bytes)`);
-    res.status(200).type('text/html').send(content);
-  } catch (err) {
-    console.error(`[ERROR /knowledge-base] ${err.message} (code: ${err.code})`);
-    console.error(`[ERROR /knowledge-base] Full error:`, err);
-    console.error(`[ERROR /knowledge-base] File path: ${filePath}`);
-    console.error(`[ERROR /knowledge-base] __dirname: ${__dirname}`);
-    try {
-      const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
-      res.status(404).type('text/html').send(notFound);
-    } catch (e2) {
-      res.status(404).send('Not found');
-    }
-  }
-});
-
-app.get('/how-to-withdraw-telegram-stars', async (req, res) => {
-  const filePath = path.join(__dirname, 'public/how-to-withdraw-telegram-stars/index.html');
-  console.log(`[DEBUG /how-to-withdraw-telegram-stars] START - filePath: ${filePath}`);
-  console.log(`[DEBUG /how-to-withdraw-telegram-stars] __dirname: ${__dirname}`);
-  try {
-    console.log(`[DEBUG /how-to-withdraw-telegram-stars] Attempting to read file...`);
-    const content = await fs.readFile(filePath, 'utf8');
-    console.log(`[DEBUG /how-to-withdraw-telegram-stars] SUCCESS - file read (${content.length} bytes)`);
-    res.status(200).type('text/html').send(content);
-  } catch (err) {
-    console.error(`[ERROR /how-to-withdraw-telegram-stars] ${err.message} (code: ${err.code})`);
-    console.error(`[ERROR /how-to-withdraw-telegram-stars] Full error:`, err);
-    console.error(`[ERROR /how-to-withdraw-telegram-stars] File path: ${filePath}`);
-    console.error(`[ERROR /how-to-withdraw-telegram-stars] __dirname: ${__dirname}`);
-    try {
-      const notFound = await fs.readFile(path.join(__dirname, 'public/errors/404.html'), 'utf8');
-      res.status(404).type('text/html').send(notFound);
-    } catch (e2) {
-      res.status(404).send('Not found');
-    }
-  }
-});
-
-// Route clean page URLs like /sell, /about, /referral, etc. to the corresponding .html files.
-app.get(/^\/(sell|about|history|daily|support|notification|feedback|apply_ambassador|amb_ref|ambassador|amb-referral)\/?$/, async (req, res) => {
-  const rawPage = req.path.replace(/^\/+|\/+$/g, '');
-  const pageMap = {
-    ambassador: 'apply_ambassador',
-    'amb-referral': 'amb_ref'
-  };
-
-  const safePage = (pageMap[rawPage] || rawPage).replace(/[^a-zA-Z0-9_-]/g, '');
-  const filePath = path.join(__dirname, 'public', `${safePage}.html`);
-
-  console.log(`[ROUTE /clean] Attempting to serve: ${req.path} → ${filePath}`);
-
-  // Use sendFile instead of reading/sending to be compatible with Telegram Web App
-  res.sendFile(filePath, (err) => {
-    if (err && err.code === 'ENOENT') {
-      console.error(`[ROUTE ERROR] File not found: ${filePath}`);
-      
-      const fallbackHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <title>Page Not Found</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-<body>
-  <h1>Page Not Found</h1>
-  <p>The page you requested could not be found.</p>
-  <p><a href="/">← Return to Home</a></p>
-</body>
-</html>`;
-      
-      return res.status(404).type('text/html').send(fallbackHtml);
-    } else if (err) {
-      console.error(`[ROUTE ERROR] Error serving ${safePage}.html:`, err.message);
-      
-      const fallbackHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <title>Error</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-<body>
-  <h1>Error Loading Page</h1>
-  <p>An error occurred while loading the page.</p>
-  <p><a href="/">← Return to Home</a></p>
-</body>
-</html>`;
-      
-      return res.status(500).type('text/html').send(fallbackHtml);
+    // Extract user ID from available sources for ban checking
+    let userId = null;
+    
+    if (req.user && req.user.id) {
+      userId = String(req.user.id).trim();
+    } else if (req.headers['x-telegram-id']) {
+      userId = String(req.headers['x-telegram-id']).trim();
+    } else if (req.telegramInitData?.user?.id) {
+      userId = String(req.telegramInitData.user.id).trim();
     }
     
-    console.log(`[ROUTE /clean] ✓ Successfully sent: ${safePage}.html`);
-  });
-});
-
-app.get(/^\/app\/?$/, (req, res) => {
-  const filePath = path.join(__dirname, 'public', 'index.html');
-  
-  console.log(`[ROUTE /app] Serving /app → index.html`);
-  
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      console.error(`[ROUTE ERROR] Failed to serve /app:`, err.message);
-      res.status(500).type('text/html').send(`<!DOCTYPE html>
-<html>
-<head>
-  <title>Error</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-<body>
-  <h1>Error</h1>
-  <p>Could not load application.</p>
-  <p><a href="/">← Home</a></p>
-</body>
-</html>`);
-    } else {
-      console.log(`[ROUTE /app] ✓ Successfully sent index.html`);
+    // Check if user is banned - deny app access immediately
+    if (userId) {
+      const isBanned = await checkUserBanStatus(userId);
+      if (isBanned) {
+        const banDetails = await getBanDetails(userId);
+        let banAccessDenied = await fs.readFile(path.join(__dirname, 'public', 'errors', 'ban-access-denied.html'), 'utf8');
+        
+        // Inject case ID and appeal deadline into the page
+        if (banDetails) {
+          const appealDeadline = banDetails.appealDeadline ? new Date(banDetails.appealDeadline).toLocaleDateString() : 'N/A';
+          banAccessDenied = banAccessDenied
+            .replace('{{CASE_ID}}', banDetails.caseId || 'N/A')
+            .replace('{{APPEAL_DEADLINE}}', appealDeadline);
+        }
+        
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+        return res.status(403).send(banAccessDenied);
+      }
     }
-  });
-});
-
-// Middleware to handle directory-based routes with trailing slash consistency
-// This mirrors Vercel's /folder/:path* behavior
-app.use((req, res, next) => {
-  // List of directories that should have index.html served
-  const directoryRoutes = ['/blog', '/knowledge-base', '/how-to-withdraw-telegram-stars', '/admin'];
-  
-  // Check if request is for a directory without trailing slash
-  const path = req.path;
-  for (const dir of directoryRoutes) {
-    if (path === dir && !path.endsWith('/')) {
-      // Redirect /folder to /folder/
-      return res.redirect(301, path + '/');
-    }
-  }
-  
-  next();
-});
-
-// Diagnostic endpoint to compare clean URL vs static serving
-app.get('/api/debug/compare-routes', async (req, res) => {
-  try {
-    const sellFilePath = path.join(__dirname, 'public', 'sell.html');
-    const content = await fs.readFile(sellFilePath, 'utf8');
     
-    res.json({
-      method: 'Comparison info',
-      cleanURLSize: content.length,
-      cleanURLFirst200: content.substring(0, 200),
-      staticServeWorks: 'Yes (/sell.html)',
-      cleanURLWorks: 'Testing',
-      note: 'Check /sell vs /sell.html in Telegram Web App'
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const map = {
+      '/': 'index.html',
+      '/about': 'about.html',
+      '/sell': 'sell.html',
+      '/history': 'history.html',
+      '/daily': 'daily.html',
+      '/feedback': 'feedback.html',
+      '/ambassador': 'apply_ambassador.html'
+    };
+    const file = map[req.path];
+    if (file) {
+      const abs = path.join(__dirname, 'public', file);
+      console.log(`[ROUTE] Serving ${req.path} → ${file}`);
+      return res.status(200).sendFile(abs, (err) => {
+        if (err) {
+          console.error(`[ROUTE ERROR] Failed to send ${file}: ${err.message}`);
+          // If the mapped file is missing, serve the graceful 404 page
+          const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+          return res.status(404).sendFile(notFound, (sendErr) => {
+            if (sendErr) return res.status(404).send('Not found');
+          });
+        }
+      });
+    }
+    return next();
+  } catch (e) { 
+    console.error(`[ROUTE ERROR] Exception in route handler:`, e.message);
+    return next(); 
   }
 });
+
+// Serve static files from public directory
 
 // Serve static files from public directory
 app.use(express.static('public', { 

@@ -2,8 +2,7 @@
 window.BottomNavUtils = {
     getCurrentPage() {
         const path = window.location.pathname;
-        const cleanedSegments = path.split('/').filter(Boolean);
-        const filename = cleanedSegments.length > 0 ? cleanedSegments[cleanedSegments.length - 1] : '';
+        const filename = path.split('/').pop();
         
         // Handle ambassador referral page as referral page
         if (filename === 'amb_ref.html' || path.includes('amb_ref')) {
