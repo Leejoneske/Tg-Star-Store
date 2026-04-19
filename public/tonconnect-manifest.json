@@ -1,8 +1,8 @@
 {
   "name": "StarStore",
-  "url": "https://tg-star-store-production.up.railway.app/",
-  "iconUrl": "https://tg-star-store-production.up.railway.app/favicon.png",
-  "termsOfUseUrl": "https://tg-star-store-production.up.railway.app/policy.html",
-  "privacyPolicyUrl": "https://tg-star-store-production.up.railway.app/policy.html",
+  "url": "https://starstore.app/",
+  "iconUrl": "https://starstore.app/favicon.png",
+  "termsOfUseUrl": "https://starstore.app/policy.html",
+  "privacyPolicyUrl": "https://starstore.app/policy.html",
   "features": ["ton_addr"]
 }
