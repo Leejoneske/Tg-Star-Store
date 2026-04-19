@@ -309,6 +309,40 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/ambassador
   }
 });
 
+// Also handle requests with .html endings: /sell.html → same as /sell
+app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, res, next) => {
+  try {
+    const pathWithoutHtml = req.path.replace(/\.html$/i, '');
+    
+    const map = {
+      '/about': 'about.html',
+      '/sell': 'sell.html',
+      '/history': 'history.html',
+      '/daily': 'daily.html',
+      '/feedback': 'feedback.html',
+      '/ambassador': 'apply_ambassador.html'
+    };
+    const file = map[pathWithoutHtml];
+    if (file) {
+      const abs = path.join(__dirname, 'public', file);
+      console.log(`[ROUTE] Serving ${req.path} → ${file} (via .html handler)`);
+      return res.status(200).sendFile(abs, (err) => {
+        if (err) {
+          console.error(`[ROUTE ERROR] Failed to send ${file}: ${err.message}`);
+          const notFound = path.join(__dirname, 'public', 'errors', '404.html');
+          return res.status(404).sendFile(notFound, (sendErr) => {
+            if (sendErr) return res.status(404).send('Not found');
+          });
+        }
+      });
+    }
+    return next();
+  } catch (e) { 
+    console.error(`[ROUTE ERROR] Exception in .html handler:`, e.message);
+    return next(); 
+  }
+});
+
 // Serve static files from public directory
 
 // Serve static files from public directory
