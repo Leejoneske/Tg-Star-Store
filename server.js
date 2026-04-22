@@ -19223,3 +19223,4 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
         return res.status(500).json({ success: false, error: 'Something went wrong. Please try again later.' });
     }
 });
+// Webhook fix - 1776877634
