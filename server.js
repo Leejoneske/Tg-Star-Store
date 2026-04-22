@@ -1261,9 +1261,15 @@ async function connectDatabase() {
 connectDatabase();
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
-  if (process.env.WEBHOOK_SECRET && 
-      req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
-    return res.sendStatus(403);
+  // Webhook secret verification (optional - only enforce if secret is explicitly set)
+  if (process.env.WEBHOOK_SECRET) {
+    if (req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+      console.warn('⚠️ Webhook secret mismatch:', {
+        expected: process.env.WEBHOOK_SECRET ? '***set***' : 'not set',
+        received: req.headers['x-telegram-bot-api-secret-token'] ? '***received***' : 'not received'
+      });
+      return res.sendStatus(403);
+    }
   }
   bot.processUpdate(req.body);
   res.sendStatus(200);
