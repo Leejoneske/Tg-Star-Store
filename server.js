@@ -11466,32 +11466,76 @@ bot.on('message', async (msg) => {
         // STAGE 1: Amount of stars
         if (flowState.stage === 'amount') {
             const stars = parseInt(text, 10);
-            if (isNaN(stars) || stars < 50 || stars > 80000) {
+            if (isNaN(stars)) {
+                flowState.errors.amount = (flowState.errors.amount || 0) + 1;
+                if (flowState.errors.amount >= 2) {
+                    sellFlowStates.delete(userId);
+                    return bot.sendMessage(chatId, '❌ Too many errors. Sell session ended. Type /sell to start again.');
+                }
+                return bot.sendMessage(chatId, '❌ Please enter a valid number.');
+            }
+            
+            if (!isUserAdmin && (stars < 50 || stars > 80000)) {
+                flowState.errors.amount = (flowState.errors.amount || 0) + 1;
+                if (flowState.errors.amount >= 2) {
+                    sellFlowStates.delete(userId);
+                    return bot.sendMessage(chatId, '❌ Too many errors. Sell session ended. Type /sell to start again.');
+                }
                 return bot.sendMessage(chatId, '❌ Invalid amount. Please enter a number between 50 and 80,000.');
             }
+            
+            if (isUserAdmin && (stars < 1 || stars > 1000000)) {
+                flowState.errors.amount = (flowState.errors.amount || 0) + 1;
+                if (flowState.errors.amount >= 2) {
+                    sellFlowStates.delete(userId);
+                    return bot.sendMessage(chatId, '❌ Too many errors. Sell session ended. Type /sell to start again.');
+                }
+                return bot.sendMessage(chatId, '❌ Amount must be between 1 and 1,000,000 stars.');
+            }
+            
             flowState.data.stars = stars;
+            flowState.errors.amount = 0;
             flowState.stage = 'wallet';
-            return bot.sendMessage(chatId, `✅ ${stars} stars\n\nNow enter your USDT TON wallet address:`);
+            return bot.sendMessage(chatId, `✅ ${stars} stars
+
+Now enter your USDT TON wallet address:`);
         }
 
         // STAGE 2: Wallet address
         if (flowState.stage === 'wallet') {
             const walletAddress = cleanWalletAddress(text);
             if (!walletAddress || walletAddress.length < 10) {
-                return bot.sendMessage(chatId, '❌ Invalid wallet address. Please enter a valid USDT TON wallet.');
+                flowState.errors.wallet = (flowState.errors.wallet || 0) + 1;
+                if (flowState.errors.wallet >= 2) {
+                    sellFlowStates.delete(userId);
+                    return bot.sendMessage(chatId, '❌ Too many errors. Sell session ended. Type /sell to start again.');
+                }
+                return bot.sendMessage(chatId, '❌ Invalid wallet address. Please enter a valid USDT TON wallet (at least 10 characters).');
             }
             flowState.data.walletAddress = walletAddress;
+            flowState.errors.wallet = 0;
             flowState.stage = 'memo';
-            return bot.sendMessage(chatId, `✅ Wallet: ${walletAddress}\n\nEnter memo/tag if required (or type "skip" to continue):`);
+            return bot.sendMessage(chatId, `✅ Wallet: ${walletAddress}
+
+Enter memo/tag if required (or type "skip" to continue):`);
         }
 
         // STAGE 3: Memo (optional)
         if (flowState.stage === 'memo') {
-            const memoInput = text.toLowerCase() === 'skip' ? '' : cleanWalletAddress(text);
+            const memoInput = text.toLowerCase() === 'skip' ? '' : text.trim();
+            if (memoInput && memoInput.length > 50) {
+                flowState.errors.memo = (flowState.errors.memo || 0) + 1;
+                if (flowState.errors.memo >= 2) {
+                    sellFlowStates.delete(userId);
+                    return bot.sendMessage(chatId, '❌ Too many errors. Sell session ended. Type /sell to start again.');
+                }
+                return bot.sendMessage(chatId, '❌ Memo is too long (max 50 characters). Please try again or type "skip".');
+            }
             flowState.data.memoTag = memoInput;
+            flowState.errors.memo = 0;
             
             // Now create the sell order with the same logic as the API
-            await createSellOrderFromKeyboard(flowState.data, msg);
+            await createSellOrderFromKeyboard(flowState.data, msg, isUserAdmin);
             sellFlowStates.delete(userId);
         }
     } catch (err) {
