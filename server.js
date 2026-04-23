@@ -2716,7 +2716,7 @@ setInterval(() => {
 const walletSelections = new Map();
 
 // Sell flow state tracking for keyboard-based sell orders
-// Map<userId, { stage: 'amount'|'wallet'|'memo', data: {...} }>
+// Map<userId, { stage: 'amount'|'wallet'|'memo', data: {...}, errors: {} (tracks errors per stage), timeout }>
 const sellFlowStates = new Map();
 
 // Clean wallet address by removing special characters and unwanted text
@@ -5271,6 +5271,53 @@ bot.on("successful_payment", async (msg) => {
     
     // === SECURITY: Remove payment link from original message to prevent double-payment ===
     // Edit the original sell order message to remove the payment link
+    
+    // For keyboard-created orders, notify admins after payment is confirmed
+    if (order.createdViaKeyboard) {
+        let userLocationInfo = '';
+        if (order.userLocation) {
+            userLocationInfo = `📍 ${order.userLocation.city}, ${order.userLocation.country}`;
+        }
+
+        const adminMessage = `💰 New Payment Received!\n\n` +
+            `Order ID: ${order.id}\n` +
+            `User: @${order.username} (ID: ${order.telegramId})\n` +
+            (userLocationInfo ? `${userLocationInfo}\n` : '') +
+            `Stars: ${order.stars}\n` +
+            `Wallet: ${order.walletAddress}\n` +
+            `Memo: ${order.memoTag || 'None'}\n\n` +
+            `💱 Generated via Telegram keyboard button`;
+
+        const adminKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                    { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                    { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                ]
+            ]
+        };
+
+        // Send to all admins
+        for (const adminId of adminIds) {
+            try {
+                const adminMsg = await bot.sendMessage(
+                    adminId,
+                    adminMessage,
+                    { reply_markup: adminKeyboard }
+                );
+                order.adminMessages.push({
+                    adminId,
+                    messageId: adminMsg.message_id,
+                    originalText: adminMessage
+                });
+            } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
+            }
+        }
+        await order.save();
+    }
+    
     await updateSellOrderUserMessage(order, 'processing');
     
     // Automatically track stars when sell order payment succeeds (no admin action needed)
@@ -11368,7 +11415,7 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
 });
 
 // Handle keyboard SELL Stars button or /sell command
-bot.onText(/^(🛍️\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
+bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
     try {
         const userId = msg.from.id.toString();
         const chatId = msg.chat.id;
@@ -11385,10 +11432,11 @@ bot.onText(/^(🛍️\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
         sellFlowStates.set(userId, {
             stage: 'amount',
             data: { username, userId, chatId },
-            timeout: Date.now() + 10 * 60 * 1000 // 10 minute timeout
+            errors: { amount: 0, wallet: 0, memo: 0 },
+            timeout: Date.now() + 15 * 60 * 1000 // 15 minute timeout
         });
 
-        await bot.sendMessage(chatId, `💰 How many Telegram Stars do you want to sell?\n\nMinimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:`);
+        await bot.sendMessage(chatId, `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:`);
     } catch (err) {
         console.error('SELL Stars command error:', err);
         await bot.sendMessage(msg.chat.id, '❌ An error occurred. Please try again.');
@@ -11403,7 +11451,7 @@ bot.on('message', async (msg) => {
         const text = msg.text?.trim();
 
         // Skip if not text message or if this is a command
-        if (!text || text.startsWith('/') || text.startsWith('🛍️')) return;
+        if (!text || text.startsWith('/') || text.startsWith('�')) return;
 
         // Check if user is in sell flow
         const flowState = sellFlowStates.get(userId);
@@ -11452,7 +11500,7 @@ bot.on('message', async (msg) => {
 });
 
 // Helper: Create sell order from keyboard with exact same logic as /api/create-sell-order
-async function createSellOrderFromKeyboard(flowData, msg) {
+async function createSellOrderFromKeyboard(flowData, msg, isUserAdmin = false) {
     try {
         const { userId, chatId, username, stars, walletAddress, memoTag } = flowData;
 
@@ -11475,14 +11523,15 @@ async function createSellOrderFromKeyboard(flowData, msg) {
             { status: "expired" }
         );
 
-        // Capture location
+        // Get last known location from user's tracking history
         let userLocation = null;
-        if (msg.from_user?.location) {
-            userLocation = {
-                city: 'Telegram',
-                country: 'Mobile',
-                timestamp: new Date()
-            };
+        try {
+            const userDoc = await User.findOne({ id: userId }).lean();
+            if (userDoc?.lastLocation) {
+                userLocation = userDoc.lastLocation;
+            }
+        } catch (locErr) {
+            console.error('Error fetching user location:', locErr);
         }
 
         // Generate session token
@@ -11577,32 +11626,10 @@ async function createSellOrderFromKeyboard(flowData, msg) {
             ]
         };
 
-        // Send to admins
-        let adminNotificationSucceeded = false;
-        for (const adminId of adminIds) {
-            try {
-                const message = await bot.sendMessage(
-                    adminId,
-                    adminMessage,
-                    { reply_markup: adminKeyboard }
-                );
-                order.adminMessages.push({
-                    adminId,
-                    messageId: message.message_id,
-                    originalText: adminMessage
-                });
-                adminNotificationSucceeded = true;
-            } catch (err) {
-                console.error(`Failed to notify admin ${adminId}:`, err);
-            }
-        }
-
-        if (!adminNotificationSucceeded) {
-            console.error(`❌ CRITICAL: Sell order ${order.id} failed to notify ANY admin`);
-        }
-
+        // DON'T notify admins yet - wait for payment to be verified
+        // The successful_payment handler will notify admins when payment is confirmed
         await order.save();
-        await bot.sendMessage(chatId, `✅ Order created! Waiting for payment...`);
+        await bot.sendMessage(chatId, `✅ Order created! Waiting for your payment...`);
 
     } catch (err) {
         console.error('Error creating sell order from keyboard:', err);
