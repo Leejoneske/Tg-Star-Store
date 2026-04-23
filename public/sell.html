@@ -1166,17 +1166,28 @@ saveWalletDialogBtn.addEventListener('click', saveWalletDetails);
 // Replace the wallet button click handlers
 function setupWalletButtons() {
     // Binance
-    document.querySelector('button[onclick="openWallet(\'binance\')"]').onclick = () => openWalletDialog('binance');
+    const binanceBtn = document.querySelector('button[onclick="openWallet(\'binance\')"]');
+    if (binanceBtn) binanceBtn.onclick = () => openWalletDialog('binance');
+    
     // OKX
-    document.querySelector('button[onclick="openWallet(\'okx\')"]').onclick = () => openWalletDialog('okx');
+    const okxBtn = document.querySelector('button[onclick="openWallet(\'okx\')"]');
+    if (okxBtn) okxBtn.onclick = () => openWalletDialog('okx');
+    
     // Telegram
-    document.querySelector('button[onclick="openWallet(\'telegram\')"]').onclick = () => openWalletDialog('telegram');
+    const telegramBtn = document.querySelector('button[onclick="openWallet(\'telegram\')"]');
+    if (telegramBtn) telegramBtn.onclick = () => openWalletDialog('telegram');
+    
     // TONKeeper
-    document.querySelector('button[onclick="openWallet(\'tonkeeper\')"]').onclick = () => openWalletDialog('tonkeeper');
+    const tonkeeperBtn = document.querySelector('button[onclick="openWallet(\'tonkeeper\')"]');
+    if (tonkeeperBtn) tonkeeperBtn.onclick = () => openWalletDialog('tonkeeper');
+    
     // Bybit
-    document.querySelector('button[onclick="openWallet(\'bybit\')"]').onclick = () => openWalletDialog('bybit');
+    const bybitBtn = document.querySelector('button[onclick="openWallet(\'bybit\')"]');
+    if (bybitBtn) bybitBtn.onclick = () => openWalletDialog('bybit');
+    
     // Cryptomus
-    document.querySelector('button[onclick="openWallet(\'cryptomus\')"]').onclick = () => openWalletDialog('cryptomus');
+    const cryptomusBtn = document.querySelector('button[onclick="openWallet(\'cryptomus\')"]');
+    if (cryptomusBtn) cryptomusBtn.onclick = () => openWalletDialog('cryptomus');
 }
 
 // Update the setupWalletAddressMemory function
