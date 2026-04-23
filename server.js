@@ -1265,8 +1265,32 @@ app.use(async (req, res, next) => {
       const content = await fs.readFile(abs, 'utf8');
       res.status(404).type('text/html').send(content);
     } catch (err) {
-      console.error('Error serving 404 page:', err.message);
-      res.status(404).send('Not found');
+      console.error('Error serving 404 page from file:', err.message);
+      // Fallback inline HTML if file not found
+      res.status(404).type('text/html').send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>404 - Page Not Found</title>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+            .container { text-align: center; padding: 20px; }
+            h1 { font-size: 48px; margin: 0; color: #333; }
+            p { color: #666; margin: 10px 0; }
+            a { color: #007AFF; text-decoration: none; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>404</h1>
+            <p>Page not found</p>
+            <a href="/">← Back to home</a>
+          </div>
+        </body>
+        </html>
+      `);
     }
     return;
   }
