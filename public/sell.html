@@ -22,7 +22,7 @@
     <meta property="og:description" content="Convert your Telegram Stars to USDT securely and fast.">
     <meta property="og:url" content="https://starstore.app/sell">
     <!-- Telegram WebApp Script -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
     
     <!-- Required JavaScript Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -922,7 +922,7 @@
         </div>
     </div>
    
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -1166,17 +1166,28 @@ saveWalletDialogBtn.addEventListener('click', saveWalletDetails);
 // Replace the wallet button click handlers
 function setupWalletButtons() {
     // Binance
-    document.querySelector('button[onclick="openWallet(\'binance\')"]').onclick = () => openWalletDialog('binance');
+    const binanceBtn = document.querySelector('button[onclick="openWallet(\'binance\')"]');
+    if (binanceBtn) binanceBtn.onclick = () => openWalletDialog('binance');
+    
     // OKX
-    document.querySelector('button[onclick="openWallet(\'okx\')"]').onclick = () => openWalletDialog('okx');
+    const okxBtn = document.querySelector('button[onclick="openWallet(\'okx\')"]');
+    if (okxBtn) okxBtn.onclick = () => openWalletDialog('okx');
+    
     // Telegram
-    document.querySelector('button[onclick="openWallet(\'telegram\')"]').onclick = () => openWalletDialog('telegram');
+    const telegramBtn = document.querySelector('button[onclick="openWallet(\'telegram\')"]');
+    if (telegramBtn) telegramBtn.onclick = () => openWalletDialog('telegram');
+    
     // TONKeeper
-    document.querySelector('button[onclick="openWallet(\'tonkeeper\')"]').onclick = () => openWalletDialog('tonkeeper');
+    const tonkeeperBtn = document.querySelector('button[onclick="openWallet(\'tonkeeper\')"]');
+    if (tonkeeperBtn) tonkeeperBtn.onclick = () => openWalletDialog('tonkeeper');
+    
     // Bybit
-    document.querySelector('button[onclick="openWallet(\'bybit\')"]').onclick = () => openWalletDialog('bybit');
+    const bybitBtn = document.querySelector('button[onclick="openWallet(\'bybit\')"]');
+    if (bybitBtn) bybitBtn.onclick = () => openWalletDialog('bybit');
+    
     // Cryptomus
-    document.querySelector('button[onclick="openWallet(\'cryptomus\')"]').onclick = () => openWalletDialog('cryptomus');
+    const cryptomusBtn = document.querySelector('button[onclick="openWallet(\'cryptomus\')"]');
+    if (cryptomusBtn) cryptomusBtn.onclick = () => openWalletDialog('cryptomus');
 }
 
 // Update the setupWalletAddressMemory function
