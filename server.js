@@ -2715,6 +2715,10 @@ setInterval(() => {
 // Wallet multi-select sessions per user: Map<userId, Set<key>> where key is `sell:ORDERID` or `wd:WITHDRAWALID`
 const walletSelections = new Map();
 
+// Sell flow state tracking for keyboard-based sell orders
+// Map<userId, { stage: 'amount'|'wallet'|'memo', data: {...} }>
+const sellFlowStates = new Map();
+
 // Clean wallet address by removing special characters and unwanted text
 function cleanWalletAddress(input) {
     if (!input || typeof input !== 'string') return '';
@@ -11225,7 +11229,8 @@ setInterval(async () => {
 function getMainMenuKeyboard() {
     return {
         keyboard: [
-            [{ text: '💰 Wallet' }, { text: '👥 Referral' }, { text: '💬 Help' }]
+            [{ text: '💰 Wallet' }, { text: '👥 Referral' }],
+            [{ text: '🛍️ SELL Stars' }, { text: '💬 Help' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
@@ -11361,6 +11366,249 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
         console.error('Start command error:', error);
     }
 });
+
+// Handle keyboard SELL Stars button or /sell command
+bot.onText(/^(🛍️\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
+    try {
+        const userId = msg.from.id.toString();
+        const chatId = msg.chat.id;
+        const username = msg.from.username || '';
+
+        // Check ban status
+        const isBanned = await checkUserBanStatus(userId);
+        if (isBanned) {
+            const banDetails = await getBanDetails(userId);
+            return bot.sendMessage(chatId, `❌ Your account is restricted and cannot place orders.\n\nCase ID: ${banDetails?.caseId}\n\nContact support to appeal.`);
+        }
+
+        // Initialize sell flow state
+        sellFlowStates.set(userId, {
+            stage: 'amount',
+            data: { username, userId, chatId },
+            timeout: Date.now() + 10 * 60 * 1000 // 10 minute timeout
+        });
+
+        await bot.sendMessage(chatId, `💰 How many Telegram Stars do you want to sell?\n\nMinimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:`);
+    } catch (err) {
+        console.error('SELL Stars command error:', err);
+        await bot.sendMessage(msg.chat.id, '❌ An error occurred. Please try again.');
+    }
+});
+
+// Handle text input for sell flow (amount, wallet, memo)
+bot.on('message', async (msg) => {
+    try {
+        const userId = msg.from.id.toString();
+        const chatId = msg.chat.id;
+        const text = msg.text?.trim();
+
+        // Skip if not text message or if this is a command
+        if (!text || text.startsWith('/') || text.startsWith('🛍️')) return;
+
+        // Check if user is in sell flow
+        const flowState = sellFlowStates.get(userId);
+        if (!flowState) return; // Not in sell flow
+
+        // Check timeout
+        if (Date.now() > flowState.timeout) {
+            sellFlowStates.delete(userId);
+            return bot.sendMessage(chatId, '⏰ Sell flow expired. Type /sell to start again.');
+        }
+
+        // STAGE 1: Amount of stars
+        if (flowState.stage === 'amount') {
+            const stars = parseInt(text, 10);
+            if (isNaN(stars) || stars < 50 || stars > 80000) {
+                return bot.sendMessage(chatId, '❌ Invalid amount. Please enter a number between 50 and 80,000.');
+            }
+            flowState.data.stars = stars;
+            flowState.stage = 'wallet';
+            return bot.sendMessage(chatId, `✅ ${stars} stars\n\nNow enter your USDT TON wallet address:`);
+        }
+
+        // STAGE 2: Wallet address
+        if (flowState.stage === 'wallet') {
+            const walletAddress = cleanWalletAddress(text);
+            if (!walletAddress || walletAddress.length < 10) {
+                return bot.sendMessage(chatId, '❌ Invalid wallet address. Please enter a valid USDT TON wallet.');
+            }
+            flowState.data.walletAddress = walletAddress;
+            flowState.stage = 'memo';
+            return bot.sendMessage(chatId, `✅ Wallet: ${walletAddress}\n\nEnter memo/tag if required (or type "skip" to continue):`);
+        }
+
+        // STAGE 3: Memo (optional)
+        if (flowState.stage === 'memo') {
+            const memoInput = text.toLowerCase() === 'skip' ? '' : cleanWalletAddress(text);
+            flowState.data.memoTag = memoInput;
+            
+            // Now create the sell order with the same logic as the API
+            await createSellOrderFromKeyboard(flowState.data, msg);
+            sellFlowStates.delete(userId);
+        }
+    } catch (err) {
+        console.error('Sell flow message handler error:', err);
+    }
+});
+
+// Helper: Create sell order from keyboard with exact same logic as /api/create-sell-order
+async function createSellOrderFromKeyboard(flowData, msg) {
+    try {
+        const { userId, chatId, username, stars, walletAddress, memoTag } = flowData;
+
+        // Sync user data
+        await syncUserData(userId, username, 'sell_order_keyboard', msg);
+
+        // Check ban status again
+        const isBanned = await checkUserBanStatus(userId);
+        if (isBanned) {
+            return bot.sendMessage(chatId, '❌ Your account is restricted. Cannot create order.');
+        }
+
+        // Clean up expired orders
+        await SellOrder.updateMany(
+            {
+                telegramId: userId,
+                status: "pending",
+                sessionExpiry: { $lt: new Date() }
+            },
+            { status: "expired" }
+        );
+
+        // Capture location
+        let userLocation = null;
+        if (msg.from_user?.location) {
+            userLocation = {
+                city: 'Telegram',
+                country: 'Mobile',
+                timestamp: new Date()
+            };
+        }
+
+        // Generate session token
+        const sessionToken = generateSessionToken(userId);
+        const sessionExpiry = new Date(Date.now() + 15 * 60 * 1000);
+
+        // Create the order
+        const order = new SellOrder({
+            id: generateSellOrderId(),
+            telegramId: userId,
+            username: sanitizeUsername(username),
+            stars: stars,
+            walletAddress: walletAddress,
+            memoTag: memoTag || undefined,
+            status: "pending",
+            telegram_payment_charge_id: "temp_" + Date.now(),
+            reversible: true,
+            dateCreated: new Date(),
+            adminMessages: [],
+            sessionToken: sessionToken,
+            sessionExpiry: sessionExpiry,
+            userLocked: userId,
+            userLocation: userLocation,
+            createdViaKeyboard: true  // Mark as keyboard-created
+        });
+
+        // Generate payment link
+        let paymentLink = null;
+        try {
+            paymentLink = await createTelegramInvoice(
+                userId,
+                order.id,
+                stars,
+                `Purchase of ${stars} Telegram Stars`,
+                sessionToken
+            );
+        } catch (invoiceErr) {
+            console.error('Failed to create invoice:', invoiceErr);
+            return bot.sendMessage(chatId, '❌ Failed to generate payment link. Please try again.');
+        }
+
+        if (!paymentLink) {
+            return bot.sendMessage(chatId, '❌ Failed to create payment link. Please try again.');
+        }
+
+        // Save order
+        await order.save();
+
+        // Log activity
+        await logActivity(userId, ACTIVITY_TYPES.SELL_ORDER, ACTIVITY_TYPES.SELL_ORDER.points, {
+            orderId: order.id,
+            stars: stars,
+            walletAddress: walletAddress,
+            source: 'keyboard'
+        });
+
+        // Send user message with payment link
+        const userMessage = `🚀 Sell order initialized!\n\nOrder ID: ${order.id}\nStars: ${order.stars}\nStatus: Pending (Waiting for payment)\n\n⏰ Payment link expires in 15 minutes\n\nPay here: ${paymentLink}`;
+        try {
+            const sent = await bot.sendMessage(chatId, userMessage);
+            if (sent?.message_id) {
+                order.userMessageId = sent.message_id;
+                await order.save();
+            }
+        } catch (err) {
+            console.error('Failed to send user message:', err);
+        }
+
+        // Get user location info for admin message
+        let userLocationInfo = '';
+        if (order.userLocation) {
+            userLocationInfo = `📍 ${order.userLocation.city}, ${order.userLocation.country}`;
+        }
+
+        // Send admin notification with keyboard signature
+        const adminMessage = `💰 New Payment Received!\n\n` +
+            `Order ID: ${order.id}\n` +
+            `User: @${order.username} (ID: ${order.telegramId})\n` +
+            (userLocationInfo ? `${userLocationInfo}\n` : '') +
+            `Stars: ${order.stars}\n` +
+            `Wallet: ${order.walletAddress}\n` +
+            `Memo: ${order.memoTag || 'None'}\n\n` +
+            `📱 Generated via Telegram keyboard button`; // Signature
+
+        const adminKeyboard = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Complete", callback_data: `complete_sell_${order.id}` },
+                    { text: "❌ Fail", callback_data: `decline_sell_${order.id}` },
+                    { text: "💸 Refund", callback_data: `refund_sell_${order.id}` }
+                ]
+            ]
+        };
+
+        // Send to admins
+        let adminNotificationSucceeded = false;
+        for (const adminId of adminIds) {
+            try {
+                const message = await bot.sendMessage(
+                    adminId,
+                    adminMessage,
+                    { reply_markup: adminKeyboard }
+                );
+                order.adminMessages.push({
+                    adminId,
+                    messageId: message.message_id,
+                    originalText: adminMessage
+                });
+                adminNotificationSucceeded = true;
+            } catch (err) {
+                console.error(`Failed to notify admin ${adminId}:`, err);
+            }
+        }
+
+        if (!adminNotificationSucceeded) {
+            console.error(`❌ CRITICAL: Sell order ${order.id} failed to notify ANY admin`);
+        }
+
+        await order.save();
+        await bot.sendMessage(chatId, `✅ Order created! Waiting for payment...`);
+
+    } catch (err) {
+        console.error('Error creating sell order from keyboard:', err);
+        await bot.sendMessage(flowData.chatId, '❌ Failed to create order. Please try again.');
+    }
+}
 
 // /wallet and /orders commands: show processing orders and allow wallet update request
 bot.onText(/\/(wallet|withdrawal\-menu|orders)/i, async (msg) => {
