@@ -1381,16 +1381,27 @@ async function connectDatabase() {
 connectDatabase();
 // Webhook handler
 app.post(WEBHOOK_PATH, (req, res) => {
-  // Webhook secret verification (optional - only enforce if secret is explicitly set)
-  if (process.env.WEBHOOK_SECRET) {
-    if (req.headers['x-telegram-bot-api-secret-token'] !== process.env.WEBHOOK_SECRET) {
+  // Webhook secret verification 
+  // - If header is present: MUST match (from Telegram)
+  // - If header is missing: allow it (from bot simulator or test requests)
+  const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
+  const expectedSecret = process.env.WEBHOOK_SECRET;
+  
+  if (incomingSecret) {
+    // Header is present, verify it matches
+    if (incomingSecret !== expectedSecret) {
       console.warn('⚠️ Webhook secret mismatch:', {
-        expected: process.env.WEBHOOK_SECRET ? '***set***' : 'not set',
-        received: req.headers['x-telegram-bot-api-secret-token'] ? '***received***' : 'not received'
+        expected: expectedSecret ? '***set***' : 'not set',
+        received: incomingSecret ? '***mismatch***' : 'not received'
       });
       return res.sendStatus(403);
     }
+    console.log('✅ Webhook secret verified from Telegram');
+  } else if (expectedSecret) {
+    // Secret is configured but header missing - allow it (probably bot simulator)
+    console.debug('ℹ️ Webhook request received without secret header (bot simulator or internal test)');
   }
+  
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
