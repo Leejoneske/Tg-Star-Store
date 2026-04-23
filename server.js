@@ -132,11 +132,24 @@ if (process.env.BOT_TOKEN) {
     processUpdate: () => {}
   };
 }
-const SERVER_URL = (process.env.RAILWAY_STATIC_URL || 
-                   process.env.RAILWAY_PUBLIC_DOMAIN || 
-                   'starstore.site');
+// Webhook domain configuration
+// Priority: explicit WEBHOOK_DOMAIN env var > starstore.site (current production)
+// This ensures webhook always uses starstore.site unless explicitly overridden
+const WEBHOOK_DOMAIN = process.env.WEBHOOK_DOMAIN || 'starstore.site';
+const SERVER_URL = WEBHOOK_DOMAIN;
 const WEBHOOK_PATH = '/telegram-webhook';
 const WEBHOOK_URL = `https://${SERVER_URL}${WEBHOOK_PATH}`;
+
+// Log webhook configuration for debugging
+console.log('🔗 Webhook Configuration:', {
+  domain: WEBHOOK_DOMAIN,
+  url: WEBHOOK_URL,
+  envVars: {
+    WEBHOOK_DOMAIN: process.env.WEBHOOK_DOMAIN || 'not set',
+    RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN || 'not set',
+    RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL || 'not set'
+  }
+});
 // Import Telegram auth middleware (single import only)
 let verifyTelegramAuth = (req, res, next) => next();
 let requireTelegramAuth = (req, res, next) => next();
@@ -1164,8 +1177,8 @@ app.get('/api/check-ambassador', async (req, res) => {
 
 app.get('/sitemap-duplicate-removed', async (req, res) => {
   try {
-    // Derive base from configured server domain; fallback to starstore.app
-    const base = `https://${SERVER_URL || 'starstore.app'}`;
+    // Derive base from configured server domain; fallback to starstore.site
+    const base = `https://${WEBHOOK_DOMAIN || 'starstore.site'}`;
     const root = path.join(__dirname, 'public');
 
     // Collect HTML files recursively (bounded)
