@@ -589,8 +589,8 @@ app.get('/referral', async (req, res) => {
     // Inject user ID as global variable if we have one
     if (userId) {
       htmlContent = htmlContent.replace(
-        '<script src="https://telegram.org/js/telegram-web-app.js"></script>',
-        `<script src="https://telegram.org/js/telegram-web-app.js"></script>
+        '<script src="https://telegram.org/js/telegram-web-app.js" defer></script>',
+        `<script src="https://telegram.org/js/telegram-web-app.js" defer></script>
         <script>
           window.authenticatedUserId = "${userId}";
           window.isAuthenticatedUser = true;
