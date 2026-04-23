@@ -11229,8 +11229,8 @@ setInterval(async () => {
 function getMainMenuKeyboard() {
     return {
         keyboard: [
-            [{ text: '💰 Wallet' }, { text: '👥 Referral' }, { text: '�️ SELL Stars' }],
-            [{ text: '�💬 Help' }]
+            [{ text: '💰 Wallet' }, { text: '👥 Referral' }],
+            [{ text: '🛍️ SELL Stars' }, { text: '💬 Help' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
