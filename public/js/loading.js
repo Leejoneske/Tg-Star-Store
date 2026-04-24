@@ -1,3 +1,4 @@
+
 // Simple Loading Component for StarStore
 const LoadingComponent = {
     // Show loading
