@@ -11277,7 +11277,7 @@ function getMainMenuKeyboard() {
     return {
         keyboard: [
             [{ text: '💰 Wallet' }, { text: '👥 Referral' }],
-            [{ text: '🛍️ SELL Stars' }, { text: '💬 Help' }]
+            [{ text: '� SELL Stars' }, { text: '💬 Help' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
@@ -11433,10 +11433,16 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
             stage: 'amount',
             data: { username, userId, chatId },
             errors: { amount: 0, wallet: 0, memo: 0 },
+            isAdmin: adminIds.includes(userId),
             timeout: Date.now() + 15 * 60 * 1000 // 15 minute timeout
         });
 
-        await bot.sendMessage(chatId, `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:`);
+        const isAdmin = adminIds.includes(userId);
+        const amountPrompt = isAdmin 
+            ? `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 1 star\nNo maximum limit\n\nEnter the amount:` 
+            : `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:`;
+        
+        await bot.sendMessage(chatId, amountPrompt);
     } catch (err) {
         console.error('SELL Stars command error:', err);
         await bot.sendMessage(msg.chat.id, '❌ An error occurred. Please try again.');
@@ -11475,7 +11481,7 @@ bot.on('message', async (msg) => {
                 return bot.sendMessage(chatId, '❌ Please enter a valid number.');
             }
             
-            if (!isUserAdmin && (stars < 50 || stars > 80000)) {
+            if (!flowState.isAdmin && (stars < 50 || stars > 80000)) {
                 flowState.errors.amount = (flowState.errors.amount || 0) + 1;
                 if (flowState.errors.amount >= 2) {
                     sellFlowStates.delete(userId);
@@ -11484,7 +11490,7 @@ bot.on('message', async (msg) => {
                 return bot.sendMessage(chatId, '❌ Invalid amount. Please enter a number between 50 and 80,000.');
             }
             
-            if (isUserAdmin && (stars < 1 || stars > 1000000)) {
+            if (flowState.isAdmin && (stars < 1 || stars > 1000000)) {
                 flowState.errors.amount = (flowState.errors.amount || 0) + 1;
                 if (flowState.errors.amount >= 2) {
                     sellFlowStates.delete(userId);
@@ -11496,9 +11502,7 @@ bot.on('message', async (msg) => {
             flowState.data.stars = stars;
             flowState.errors.amount = 0;
             flowState.stage = 'wallet';
-            return bot.sendMessage(chatId, `✅ ${stars} stars
-
-Now enter your USDT TON wallet address:`);
+            return bot.sendMessage(chatId, `✅ ${stars} stars\n\nNow enter your USDT TON wallet address:`);
         }
 
         // STAGE 2: Wallet address
@@ -11515,9 +11519,20 @@ Now enter your USDT TON wallet address:`);
             flowState.data.walletAddress = walletAddress;
             flowState.errors.wallet = 0;
             flowState.stage = 'memo';
-            return bot.sendMessage(chatId, `✅ Wallet: ${walletAddress}
-
-Enter memo/tag if required (or type "skip" to continue):`);
+            
+            // Store the message ID so we can delete the button after clicking skip
+            const memoMsg = await bot.sendMessage(chatId, `✅ Wallet: ${walletAddress}\n\nEnter memo/tag if required:`, {
+                reply_markup: {
+                    inline_keyboard: [[
+                        { text: '⏭️ Skip Memo', callback_data: `sell_skip_memo_${userId}_${Date.now()}` }
+                    ]]
+                }
+            });
+            
+            if (memoMsg?.message_id) {
+                flowState.memoMessageId = memoMsg.message_id;
+            }
+            return;
         }
 
         // STAGE 3: Memo (optional)
@@ -11527,19 +11542,69 @@ Enter memo/tag if required (or type "skip" to continue):`);
                 flowState.errors.memo = (flowState.errors.memo || 0) + 1;
                 if (flowState.errors.memo >= 2) {
                     sellFlowStates.delete(userId);
+                    // Try to delete skip button if it still exists
+                    if (flowState.memoMessageId) {
+                        try {
+                            await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: flowState.memoMessageId });
+                        } catch (e) { /* ignore */ }
+                    }
                     return bot.sendMessage(chatId, '❌ Too many errors. Sell session ended. Type /sell to start again.');
                 }
-                return bot.sendMessage(chatId, '❌ Memo is too long (max 50 characters). Please try again or type "skip".');
+                return bot.sendMessage(chatId, '❌ Memo is too long (max 50 characters). Please try again.');
             }
             flowState.data.memoTag = memoInput;
             flowState.errors.memo = 0;
             
+            // Delete skip button after user responds
+            if (flowState.memoMessageId) {
+                try {
+                    await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: flowState.memoMessageId });
+                } catch (e) { /* ignore */ }
+            }
+            
             // Now create the sell order with the same logic as the API
-            await createSellOrderFromKeyboard(flowState.data, msg, isUserAdmin);
+            await createSellOrderFromKeyboard(flowState.data, msg, flowState.isAdmin);
             sellFlowStates.delete(userId);
         }
     } catch (err) {
         console.error('Sell flow message handler error:', err);
+    }
+});
+
+// Handle skip memo button for sell flow
+bot.on('callback_query', async (query) => {
+    if (query.data.startsWith('sell_skip_memo_')) {
+        try {
+            const [, , userId] = query.data.split('_');
+            const flowState = sellFlowStates.get(userId);
+            
+            if (!flowState || flowState.stage !== 'memo') {
+                return bot.answerCallbackQuery(query.id, { text: 'Session expired', show_alert: true });
+            }
+            
+            const chatId = query.message.chat.id;
+            
+            // Set empty memo and move to order creation
+            flowState.data.memoTag = '';
+            flowState.errors.memo = 0;
+            
+            // Delete the button
+            try {
+                await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: query.message.message_id });
+            } catch (e) { /* ignore */ }
+            
+            // Send confirmation and create order
+            await bot.sendMessage(chatId, '✅ Memo skipped.\n\n🔄 Creating your sell order...');
+            
+            // Create the sell order
+            await createSellOrderFromKeyboard(flowState.data, query.message, flowState.isAdmin);
+            sellFlowStates.delete(userId);
+            
+            bot.answerCallbackQuery(query.id);
+        } catch (err) {
+            console.error('Skip memo button error:', err);
+            bot.answerCallbackQuery(query.id, { text: 'Error processing request', show_alert: true });
+        }
     }
 });
 
@@ -12014,6 +12079,41 @@ bot.on('message', async (msg) => {
         handleReferralsCommand(msg);
     } else if (text === '💰 Wallet') {
         handleWalletCommand(msg);
+    } else if (text === '� SELL Stars') {
+        // Handle SELL Stars keyboard button
+        try {
+            const userId = msg.from.id.toString();
+            const chatId = msg.chat.id;
+            const username = msg.from.username || '';
+
+            // Check ban status
+            const isBanned = await checkUserBanStatus(userId);
+            if (isBanned) {
+                const banDetails = await getBanDetails(userId);
+                return bot.sendMessage(chatId, `❌ Your account is restricted and cannot place orders.\n\nCase ID: ${banDetails?.caseId}\n\nContact support to appeal.`);
+            }
+
+            // Check if user is admin
+            const isAdmin = adminIds.includes(userId);
+
+            // Initialize sell flow state
+            sellFlowStates.set(userId, {
+                stage: 'amount',
+                data: { username, userId, chatId },
+                errors: { amount: 0, wallet: 0, memo: 0 },
+                isAdmin: isAdmin,
+                timeout: Date.now() + 15 * 60 * 1000 // 15 minute timeout
+            });
+
+            const amountPrompt = isAdmin 
+                ? `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 1 star\nNo maximum limit\n\nEnter the amount:` 
+                : `💱 How many Telegram Stars do you want to sell?\n\nMinimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:`;
+            
+            await bot.sendMessage(chatId, amountPrompt);
+        } catch (err) {
+            console.error('SELL Stars command error:', err);
+            await bot.sendMessage(msg.chat.id, '❌ An error occurred. Please try again.');
+        }
     }
 });
 
