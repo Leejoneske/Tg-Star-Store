@@ -1,243 +1,359 @@
-# StarStore - Telegram Stars Trading Platform
+# StarStore
 
-> A comprehensive Telegram Mini App for buying, selling, and trading Telegram Stars with USDT conversion, referral rewards, and premium subscription management.
+A Telegram Mini App platform for buying, selling, and trading Telegram Stars with USDT conversion, referral rewards, and comprehensive transaction management.
 
-## ✳️ Overview
+## Overview
 
-StarStore is a full-featured Telegram Mini App that enables users to:
-- **Buy & Sell Telegram Stars** with secure payment processing
-- **Convert Stars to USDT** with competitive rates
-- **Purchase Premium Subscriptions** (3, 6, 12 months)
-- **Earn Referral Rewards** (0.5 USDT per successful referral)
-- **Withdraw Earnings** to TON wallets
-- **Track Transaction History** with detailed analytics
+StarStore is a full-featured Telegram Mini App built with Node.js and MongoDB that enables users to:
 
-## 🚀 Key Features
+- Buy and sell Telegram Stars with real-time pricing
+- Convert Stars to USDT via TON blockchain integration
+- Purchase Telegram Premium subscriptions with automatic activation
+- Earn referral rewards through a structured referral system
+- Withdraw earnings directly to TON wallets
+- Track complete transaction history and analytics
 
-### Core Trading
-- **Telegram Stars Marketplace** - Buy/sell with real-time pricing
-- **USDT Conversion** - Seamless Stars ↔ USDT exchange
-- **Premium Subscriptions** - Direct Telegram Premium purchases
-- **TON Wallet Integration** - Native TON blockchain support
+## Key Features
+
+### Trading & Transactions
+- Real-time Telegram Stars marketplace with competitive pricing
+- Seamless Stars to USDT conversion
+- Direct Telegram Premium subscription purchases (3, 6, 12-month plans)
+- TON wallet integration with blockchain verification
+- Sub-second transaction confirmation support
 
 ### User Experience
-- **Telegram Mini App** - Native integration with Telegram
-- **Real-time Notifications** - Instant updates on transactions
-- **Multi-language Support** - Localized interface
-- **Dark/Light Theme** - Adaptive UI design
-- **Mobile Optimized** - Responsive design for all devices
+- Native Telegram Mini App integration
+- Real-time transaction notifications
+- Multi-language interface support
+- Dark and light theme options
+- Fully responsive mobile design
 
-### Business Features
-- **Referral System** - Earn 0.5 USDT per successful referral
-- **Daily Check-ins** - Gamified user engagement
-- **Ambassador Program** - Advanced user rewards
-- **Transaction History** - Comprehensive activity tracking
-- **Knowledge Base** - Built-in help system
+### Revenue & Engagement
+- Referral program with 0.5 USDT per successful referral
+- Daily check-in system for user engagement
+- Ambassador tier program
+- Comprehensive transaction history and analytics
+- Built-in help system and knowledge base
 
-### Admin Dashboard
-- **User Management** - Complete user administration
-- **Order Processing** - Manual order review and approval
-- **Analytics Dashboard** - Real-time business metrics
-- **Notification System** - Broadcast messaging
-- **Financial Controls** - Withdrawal and refund management
+### Administration
+- Complete user and order management dashboard
+- Real-time business analytics and metrics
+- Manual order review and approval workflow
+- Broadcast messaging system
+- Financial controls for withdrawals and refunds
+- User ban and restriction management
 
-## 🛠️ Technology Stack
+## Technology Stack
 
-- **Backend**: Node.js, Express.js
-- **Database**: MongoDB with Mongoose ODM
-- **Bot Framework**: node-telegram-bot-api
-- **Blockchain**: TON Connect integration
-- **Frontend**: Vanilla JavaScript, Modern CSS
-- **Deployment**: Railway, Vercel support
-- **Security**: Helmet.js, rate limiting, CORS protection
+| Component | Technology |
+|-----------|-----------|
+| Backend | Node.js 22.x, Express.js |
+| Database | MongoDB 4.4+ with Mongoose ODM |
+| Bot Framework | node-telegram-bot-api |
+| Blockchain | TON Connect, Toncenter API |
+| Frontend | Vanilla JavaScript, CSS3 |
+| Testing | Jest |
+| Deployment | Railway, Vercel |
+| Analytics | TGAnalytics SDK |
 
-## 📦 Installation
+## Prerequisites
 
-### Prerequisites
-- Node.js 22.x
-- MongoDB 4.4+
-- Telegram Bot Token
+Before you begin, ensure you have:
+
+- Node.js 22.x or higher
+- MongoDB 4.4 or higher (local or cloud instance)
+- Telegram Bot Token (from @BotFather)
 - Telegram Payments Provider Token
+- TON API Key (from toncenter.com)
 
-### Quick Start
+## Installation & Setup
+
+### 1. Clone Repository
 
 ```bash
-# Clone repository
-git clone <repository-url>
-cd starstore
-
-# Install dependencies
-npm install
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your configuration
-
-# Start application
-npm start
+git clone https://github.com/Leejoneske/Tg-Star-Store.git
+cd Tg-Star-Store
 ```
 
-### Environment Configuration
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure Environment
+
+Copy the example configuration:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your credentials:
 
 ```env
 # Telegram Bot
-BOT_TOKEN=your_bot_token_here
-WEBHOOK_URL=https://your-domain.com
-PROVIDER_TOKEN=your_provider_token_here
+BOT_TOKEN=your_telegram_bot_token
+WEBHOOK_URL=https://your-domain.com/webhook
+PROVIDER_TOKEN=your_telegram_payments_provider_token
 
 # Database
-MONGODB_URI=mongodb://localhost:27017/starstore
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/starstore
 
 # Admin Access
 ADMIN_IDS=123456789,987654321
 
-# Security (optional)
-SESSION_SECRET=your_session_secret
+# TON Blockchain
+TON_MAINNET_ENDPOINT=https://toncenter.com/api/v2/
+TON_API_KEY=your_toncenter_api_key
+
+# Session Security
+SESSION_SECRET=your_strong_session_secret
+
+# TGAnalytics
+TGANALYTICS_TOKEN=your_analytics_token
+TGANALYTICS_APP_NAME=starstore_sell_buy_stars
 ```
 
-## 🏗️ Architecture
+### 4. Start Application
 
-### Application Structure
+Development mode with auto-reload:
+```bash
+npm run dev
 ```
-├── server.js                 # Main application server
-├── tools/
-│   ├── data-persistence.js       # Database abstraction layer (development fallback)
-│   ├── audit-users.js            # User database audit script
-│   ├── generate-audit-queries.js # MongoDB audit query generator
-│   ├── generate-railway-version.js # Deployment versioning
-│   └── enable-bot-simulator.js   # Bot simulator test script
+
+Production mode:
+```bash
+npm start
+```
+
+The application will be available at `http://localhost:3000`
+
+## Project Structure
+
+```
+starstore/
+├── server.js                    # Main application entry point
 ├── middleware/
-│   └── telegramAuth.js       # Telegram authentication
+│   └── telegramAuth.js         # Telegram authentication middleware
 ├── services/
-│   └── bot-simulator.js      # Development bot simulator
-├── public/                   # Frontend assets
-│   ├── index.html           # Main trading interface
-│   ├── sell.html            # Sell stars page
-│   ├── admin/               # Admin dashboard
-│   ├── css/                 # Stylesheets
-│   └── js/                  # Client-side scripts
-
+│   ├── bot-simulator.js        # Development bot simulator
+│   ├── ton-transaction-service.js  # Blockchain transaction handler
+│   ├── email-service.js        # Email notifications
+│   └── pdf-generator.js        # Invoice/receipt generation
+├── tools/
+│   ├── data-persistence.js     # Database abstraction (dev fallback)
+│   ├── audit-users.js          # User audit script
+│   └── generate-railway-version.js  # Deployment versioning
+├── tests/
+│   ├── api/                    # API endpoint tests
+│   └── integration/            # Integration tests
+├── public/
+│   ├── index.html              # Main trading interface
+│   ├── sell.html               # Sell stars page
+│   ├── history.html            # Transaction history
+│   ├── referral.html           # Referral program page
+│   ├── admin/                  # Admin dashboard
+│   ├── blog/                   # Blog and knowledge base
+│   ├── css/                    # Stylesheets (theme, dark mode)
+│   ├── js/                     # Client-side scripts
+│   └── errors/                 # Error page templates
+└── data/
+    └── database.json           # Fallback data storage (dev only)
 ```
 
-### Key Components
-- **Payment Processing** - Secure Telegram Payments integration
-- **Order Management** - Complete buy/sell order lifecycle
-- **User Authentication** - Telegram WebApp data verification
-- **Referral Tracking** - Automated referral reward system
-- **Admin Controls** - Comprehensive management interface
+## API Endpoints
 
-## 🔒 Security Features
+### Trading
+- `POST /api/create-order` - Create new buy/sell order
+- `GET /api/orders/:userId` - Get user orders
+- `POST /api/cancel-order/:orderId` - Cancel pending order
 
-- **Rate Limiting** - Protection against abuse
-- **CORS Protection** - Secure cross-origin requests
-- **Input Validation** - Comprehensive data sanitization
-- **Telegram Auth** - WebApp data verification
-- **Admin Access Control** - Role-based permissions
-- **Secure Headers** - Helmet.js security middleware
-
-## 📊 API Endpoints
-
-### Core APIs
-- `GET /api/health` - Application health check
+### Transactions
 - `GET /api/transactions/:userId` - User transaction history
+- `POST /api/verify-transaction` - Verify blockchain transaction
+- `POST /api/transaction-status-poll` - Poll transaction status
+
+### Referrals
 - `GET /api/referrals/:userId` - User referral data
-- `POST /api/create-order` - Create new order
-
-### Admin APIs
-- `POST /api/admin/auth/send-otp` - Admin authentication
-- `GET /api/admin/dashboard/stats` - Admin dashboard metrics
-- `POST /api/admin/broadcast` - Send broadcast messages
-
-### Referral APIs
 - `GET /api/referral-stats/:userId` - Referral statistics
-- `POST /api/referral-withdrawals` - Process withdrawals
+- `POST /api/referral-withdrawals` - Request referral withdrawal
 - `GET /api/withdrawal-history/:userId` - Withdrawal history
 
-### Transaction APIs (TON Sub-Second)
-- `POST /api/verify-transaction` - Verify blockchain transaction with Pending/Confirmed status
-- `POST /api/transaction-status-poll` - Poll for real-time transaction status changes
+### Admin
+- `POST /api/admin/auth/send-otp` - Admin OTP authentication
+- `GET /api/admin/dashboard/stats` - Dashboard metrics
+- `GET /api/admin/users` - Get all users
+- `POST /api/admin/user/:userId/ban` - Ban user
+- `POST /api/admin/broadcast` - Send broadcast message
 
-## 🔄 TON Sub-Second Mainnet Support
+### Health & Status
+- `GET /api/health` - Application health check
+- `GET /api` - API status information
 
-**As of April 2026, the app is fully compatible with TON's Sub-Second mainnet rollout.**
+## Security Features
 
-### Key Improvements
-✅ **Pending/Confirmed Status Tracking** - Follows TON Sub-Second model
-- `pending`: Transaction in mempool, awaiting block inclusion
-- `confirmed`: Transaction finalized on masterchain
-- Real-time UX updates via polling (3-5 second confirmation typical)
+The application implements comprehensive security measures:
 
-✅ **Toncenter Streaming API V2** - Latest API recommendations
-- Optimized transaction queries
-- WebSocket-ready for future enhancements
-- Sub-second block time compatible
+- **Rate Limiting**: Protection against brute force and DDoS attacks
+- **CORS Protection**: Secure cross-origin request handling
+- **Input Validation**: Sanitization of all user inputs
+- **Secure Headers**: Helmet.js security middleware
+- **Authentication**: Telegram WebApp data cryptographic verification
+- **Authorization**: Role-based access control for admin endpoints
+- **Rate Limiting on Sensitive Endpoints**: Stricter limits on payment and withdrawal endpoints
 
-✅ **Near-Instant UX** - Best practices implemented
-- Display "Pending" status immediately after transaction submission
-- Update to "Confirmed" once blockchain finalizes
-- 3-5 second typical confirmation time on Sub-Second network
+For security concerns, please see [SECURITY.md](SECURITY.md).
 
-✅ **Backward Compatible** - Works with existing TON infrastructure
-- Polling fallback mechanism for reliability
-- No breaking changes to existing integrations
-- Automatic status updates
+## Deployment
 
-### Implementation Details
-- **Service**: `services/ton-transaction-service.js` - Manages transaction verification
-- **Endpoints**: `/api/verify-transaction`, `/api/transaction-status-poll`
-- **Frontend**: Real-time Pending→Confirmed UX flow
-- **Configuration**: Automatic via `TON_MAINNET_ENDPOINT` and `TON_API_KEY`
+### Railway
 
-**Reference**: [TON Sub-Second Guidance](https://ton.org/docs/develop/infra/ton-blockchain#sub-second-architecture)
+Deploy directly to Railway with integrated GitHub integration:
 
-### Railway Deployment
 ```bash
-# Build for production
-npm run build
-
-# Deploy to Railway
-railway up
+# Push to main to trigger auto-deployment
+git push origin main
 ```
 
-### Vercel Deployment
+Configure the following in Railway dashboard:
+- Link GitHub repository
+- Set environment variables from `.env.example`
+- Ensure MongoDB connection string is configured
+
+### Vercel
+
+For serverless deployment:
+
 ```bash
-# Deploy to Vercel
+# Deploy to production
 vercel --prod
 ```
 
-### Environment Setup
-1. Configure webhook URL in Telegram
-2. Set up MongoDB connection
-3. Configure payment provider
-4. Set admin user IDs
+**Note**: Full bot functionality requires Railway or equivalent VPS for 24/7 uptime.
 
-## 📈 Performance
+## Development
 
-- **Compression** - Gzip compression for all responses
-- **Caching** - Optimized static file caching
-- **Database Indexing** - Efficient MongoDB queries
-- **Rate Limiting** - Resource abuse prevention
-- **Memory Management** - Optimized resource usage
+### Running Tests
 
-## 🤝 Contributing
+```bash
+# Run all tests
+npm test
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+# Run tests in watch mode
+npm run test:watch
 
-## 📄 License
+# Generate coverage report
+npm run test:coverage
+```
+
+### Bot Simulator (Development)
+
+Enable the development bot simulator for testing without a real Telegram bot:
+
+```bash
+node tools/enable-bot-simulator.js
+```
+
+Then use the test commands in the private chat.
+
+### Database Audit
+
+Audit and verify user data integrity:
+
+```bash
+node tools/audit-users.js
+```
+
+## TON Blockchain Integration
+
+### Sub-Second Support (April 2026+)
+
+The application is fully compatible with TON's Sub-Second network:
+
+- **Pending Status**: Transaction in mempool, awaiting inclusion
+- **Confirmed Status**: Transaction finalized on masterchain
+- **Typical Confirmation**: 3-5 seconds
+- **Real-time Updates**: Polling-based status monitoring
+
+Implementation details are in `services/ton-transaction-service.js`.
+
+### Transaction Verification
+
+All blockchain transactions are verified with:
+- Toncenter API for transaction lookup
+- Cryptographic signature validation
+- Balance verification
+- Duplicate transaction prevention
+
+## Performance Optimization
+
+- HTTP compression (gzip) for all responses
+- Static asset caching with cache headers
+- MongoDB indexing for efficient queries
+- Rate limiting to prevent resource exhaustion
+- Optimized database queries with projection
+- Frontend code splitting and lazy loading
+
+## Configuration
+
+### Environment Variables
+
+See `.env.example` for complete list. Key variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `BOT_TOKEN` | Telegram bot authentication |
+| `MONGODB_URI` | Database connection string |
+| `ADMIN_IDS` | Comma-separated admin user IDs |
+| `TON_API_KEY` | Blockchain API access |
+| `SESSION_SECRET` | Session encryption key |
+
+## Troubleshooting
+
+### Bot not responding
+- Verify `BOT_TOKEN` is correct
+- Check `WEBHOOK_URL` is accessible from Telegram servers
+- Ensure application is running and listening on correct port
+
+### Transaction verification failing
+- Verify `TON_API_KEY` is valid and has sufficient quota
+- Check network connectivity to Toncenter
+- Review transaction hash format
+
+### Database connection errors
+- Verify `MONGODB_URI` connection string
+- Check database credentials and permissions
+- Ensure IP whitelist allows application server
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
+
+## Code of Conduct
+
+This project is committed to providing a welcoming and inclusive environment. Please see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## Support
 
-For support and questions:
-- 📧 Contact: [support@starstore.app](mailto:support@starstore.app)
-- 💬 Telegram: [@StarStore_app](https://t.me/StarStore_app)
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/starstore/issues)
+For issues, questions, or feedback:
+
+- **GitHub Issues**: Report bugs and request features via GitHub Issues
+- **Email**: Contact project maintainers
+- **Documentation**: See the knowledge base at `/blog`
+
+## Acknowledgments
+
+- Built with Node.js, Express.js, and MongoDB
+- Telegram Mini App framework
+- TON blockchain integration
+- Community contributors and testers
 
 ---
 
-**StarStore** - Empowering Telegram Stars trading with security, efficiency, and user-centric design.
+**StarStore** - Professional Telegram Stars trading platform built on blockchain technology.
