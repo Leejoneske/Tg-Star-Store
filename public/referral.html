@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -92,7 +93,7 @@
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="/css/theme.css?v=3">
     <link rel="stylesheet" href="/css/theme-additional.css?v=9">
-    <script src="/js/bottomnav-init.js"></script>
+    <script src="/js/bottomnav-init.js?v=3"></script>
 
     <style>
         * {
@@ -462,6 +463,7 @@
             }
         }
     </style>
+    <script src="/js/global-loader.js?v=1"></script>
 </head>
 <body>
 <div class="app-container">
@@ -604,51 +606,11 @@
         applyTranslations();
     });
 
-    // Load bottom navigation
+    // Bottom nav loading is centralized in /js/bottomnav-init.js?v=3 (BottomNavUtils.loadBottomNav).
     async function loadBottomNav() {
-        return new Promise((resolve) => {
-            const container = document.getElementById('bottomnav-container');
-            if (!container) {
-                console.log('Bottom nav container not found');
-                return resolve();
-            }
-            
-            fetch('/bottomnav.html')
-                .then(r => {
-                    if (!r.ok) {
-                        console.error('Failed to load bottomnav.html:', r.status, r.statusText);
-                        return '';
-                    }
-                    return r.text();
-                })
-                .then(html => {
-                    if (!html) {
-                        console.warn('Bottom nav HTML is empty');
-                        return resolve();
-                    }
-                    
-                    container.innerHTML = html;
-                    console.log('Bottom nav loaded successfully');
-                    
-                    // Initialize bottom nav navigation
-                    if (typeof BottomNavUtils !== 'undefined') {
-                        BottomNavUtils.initBottomNav();
-                        console.log('Bottom nav initialized');
-                    } else {
-                        console.warn('BottomNavUtils not available');
-                    }
-                    
-                    // Apply translations to bottom nav after loading
-                    if (typeof TranslationUtils !== 'undefined' && TranslationUtils.applyTranslations) {
-                        TranslationUtils.applyTranslations();
-                    }
-                    resolve();
-                })
-                .catch((error) => {
-                    console.error('Failed to load bottom nav:', error);
-                    resolve();
-                });
-        });
+        if (window.BottomNavUtils) {
+            return window.BottomNavUtils.loadBottomNav();
+        }
     }
 
     // Load referral statistics and data from API
