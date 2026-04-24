@@ -426,7 +426,21 @@
         .toast.error { background: var(--error); color: var(--surface); }
 
         /* SweetAlert Dark Theme Support */
-        [data-theme="dark"] .swal2-popup,
+        [data-theme="dark"] .swal2-popup {
+            background: var(--surface, #161b22);
+            color: var(--text, #e6edf3);
+        }
+        [data-theme="dark"] .swal2-title {
+            color: var(--text, #e6edf3);
+        }
+        [data-theme="dark"] .swal2-html-container {
+            color: var(--text, #e6edf3);
+        }
+        [data-theme="dark"] .swal2-input {
+            background: var(--surface-elevated, #1c2128);
+            border: 1.5px solid var(--border, #21262d);
+            color: var(--text, #e6edf3);
+        }
         @media (prefers-color-scheme: dark) {
             .swal2-popup {
                 background: var(--surface, #161b22);
