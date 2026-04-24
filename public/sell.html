@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -35,7 +36,7 @@
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/theme-additional.css?v=6">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <script src="/js/bottomnav-init.js"></script>
+    <script src="/js/bottomnav-init.js?v=3"></script>
 
 <style>
     body {
@@ -623,6 +624,7 @@
     z-index: 1;
 }    
 </style>
+    <script src="/js/global-loader.js?v=1"></script>
 </head>
 <body>
     <!-- Notice Modal -->
@@ -714,7 +716,7 @@
                             <span class="text-sm font-medium">Cryptomus</span>
                         </button>
                     </div>
-                
+                </div>
                 
                 <div class="bg-red-50 border-l-4 border-red-400 p-3 mt-3">
                     <div class="flex">
@@ -1250,7 +1252,7 @@ function setStarsAmount(amount) {
 function calculateTonAmount() {
     // Ensure value stays within bounds unless admin
     let stars = parseInt(starsInput.value) || 0;
-    const isAdmin = Boolean(Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
+    const isAdmin = Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user?.id) && window.__isAdmin === true;
     if (!isAdmin) {
         if (stars < 50) { stars = 50; starsInput.value = 50; }
         else if (stars > 80000) { stars = 80000; starsInput.value = 80000; }
@@ -1874,45 +1876,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (_) {}
 
-    // Load shared bottom nav
-    fetch('/bottomnav.html')
-        .then(r => {
-            if (!r.ok) {
-                console.error('Failed to load bottomnav.html:', r.status, r.statusText);
-                return '';
-            }
-            return r.text();
-        })
-        .then(html => {
-            if (!html) {
-                console.warn('Bottom nav HTML is empty');
-                return;
-            }
-            
-            const container = document.getElementById('bottomnav-container');
-            if (!container) {
-                console.log('Bottom nav container not found');
-                return;
-            }
-            
-            container.innerHTML = html;
-            console.log('Bottom nav loaded successfully');
-            
-            // Initialize bottom nav navigation
-            if (typeof BottomNavUtils !== 'undefined') {
-                BottomNavUtils.initBottomNav();
-                console.log('Bottom nav initialized');
-            } else {
-                console.warn('BottomNavUtils not available');
-            }
-            
-            // Apply translations to bottom nav after loading
-            if (typeof TranslationUtils !== 'undefined') {
-                TranslationUtils.applyTranslations();
-            }
-        })
-        .catch(err => console.error('Error loading bottom nav:', err));
-    
+    // Bottom nav is auto-loaded by /js/bottomnav-init.js?v=3 when #bottomnav-container exists.
 });
 
 
