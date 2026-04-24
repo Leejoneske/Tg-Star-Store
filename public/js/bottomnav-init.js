@@ -1,15 +1,17 @@
-// Shared bottom navigation initialization
+
+// Shared bottom navigation utilities + auto-injection.
+// Any page that includes <div id="bottomnav-container"></div> in its markup
+// will automatically have /bottomnav.html fetched, injected, and initialized.
 window.BottomNavUtils = {
     getCurrentPage() {
         const path = window.location.pathname;
         const filename = path.split('/').pop();
-        
-        // Handle ambassador referral page as referral page
+
         if (filename === 'amb_ref.html' || path.includes('amb_ref')) {
             return 'referral';
         }
-        
-        switch(filename) {
+
+        switch (filename) {
             case 'index.html':
             case '':
             case 'app':
@@ -35,12 +37,7 @@ window.BottomNavUtils = {
     setActiveNavigation() {
         const currentPage = this.getCurrentPage();
         const navLinks = document.querySelectorAll('.nav-link');
-        
-        if (navLinks.length === 0) {
-            console.warn('Bottom nav links not found');
-            return;
-        }
-        
+        if (navLinks.length === 0) return;
         navLinks.forEach(link => {
             link.classList.remove('active');
             if (link.getAttribute('data-page') === currentPage) {
@@ -51,5 +48,48 @@ window.BottomNavUtils = {
 
     initBottomNav() {
         this.setActiveNavigation();
+    },
+
+    /**
+     * Fetch /bottomnav.html and inject it into #bottomnav-container.
+     * Idempotent — safe to call multiple times.
+     * Returns a Promise that resolves when injection + init are complete.
+     */
+    async loadBottomNav() {
+        const container = document.getElementById('bottomnav-container');
+        if (!container) return;
+        if (container.dataset.loaded === 'true') return;
+
+        try {
+            const r = await fetch('/bottomnav.html', { cache: 'no-cache' });
+            if (!r.ok) {
+                console.error('Failed to load bottomnav.html:', r.status, r.statusText);
+                return;
+            }
+            const html = await r.text();
+            if (!html.trim()) return;
+
+            container.innerHTML = html;
+            container.dataset.loaded = 'true';
+
+            this.initBottomNav();
+
+            // Apply translations to the freshly injected nav
+            if (window.TranslationUtils && typeof window.TranslationUtils.applyTranslations === 'function') {
+                try { window.TranslationUtils.applyTranslations(); } catch (_) {}
+            }
+        } catch (err) {
+            console.error('Error loading bottom nav:', err);
+        }
     }
 };
+
+// Auto-inject on DOM ready so individual pages don't have to duplicate the loader.
+(function autoInit() {
+    const run = () => window.BottomNavUtils.loadBottomNav();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run, { once: true });
+    } else {
+        run();
+    }
+})();
