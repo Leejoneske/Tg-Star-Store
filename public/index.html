@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,7 +28,7 @@
     <!-- Reconnect Manager Script -->
     <script src="/js/reconnect.js?v=2"></script>
     <!-- Bottom Nav Init Script -->
-    <script src="/js/bottomnav-init.js"></script>
+    <script src="/js/bottomnav-init.js?v=3"></script>
     <!-- SEO Meta Tags -->
     <meta name="description" content="Buy and sell Telegram Stars securely with StarStore. Convert Stars to USDT, purchase Premium subscriptions, and earn rewards. Fast, secure, and reliable platform for Telegram Stars trading.">
     <meta name="keywords" content="Telegram Stars, buy Telegram Stars, sell Telegram Stars, Stars to USDT, Telegram Premium, TON blockchain, digital payments, crypto payments, StarStore">
@@ -1012,6 +1013,7 @@
     }
 </style>
     <script src="/js/theme.js"></script>
+    <script src="/js/global-loader.js?v=1"></script>
 </head>
 <body>
     <main class="app-container">
@@ -1365,7 +1367,7 @@
                 </div>
             </main>
         </div>
-    </div>
+    </main>
 
     <!-- Google tag (gtag.js) -->
 
@@ -2122,7 +2124,7 @@ function initNotificationSystem() {
         });
 
         try {
-            const response = await fetch('notification.html');
+            const response = await fetch('/notification.html');
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
             contentContainer.innerHTML = await response.text();
@@ -2238,45 +2240,11 @@ function initNotificationSystem() {
 }
     
        
+// Bottom nav loading is centralized in /js/bottomnav-init.js?v=3 (BottomNavUtils.loadBottomNav).
 function loadBottomNav() {
-    return new Promise((resolve) => {
-        const container = document.getElementById('bottomnav-container');
-        if (!container) {
-            console.log('Bottom nav container not found');
-            return resolve();
-        }
-        
-        fetch('/bottomnav.html')
-            .then(r => {
-                if (!r.ok) {
-                    console.error('Failed to load bottomnav.html:', r.status, r.statusText);
-                    return '';
-                }
-                return r.text();
-            })
-            .then(html => {
-                if (!html) {
-                    console.warn('Bottom nav HTML is empty');
-                    return resolve();
-                }
-                
-                container.innerHTML = html;
-                console.log('Bottom nav loaded successfully');
-                
-                // Initialize bottom nav navigation
-                if (typeof BottomNavUtils !== 'undefined') {
-                    BottomNavUtils.initBottomNav();
-                    console.log('Bottom nav initialized');
-                } else {
-                    console.warn('BottomNavUtils not available');
-                }
-                resolve(); 
-            })
-            .catch((err) => {
-                console.error('Error loading bottom nav:', err);
-                resolve();
-            });
-    });
+    return window.BottomNavUtils
+        ? window.BottomNavUtils.loadBottomNav()
+        : Promise.resolve();
 }
 
 function showContent() {
