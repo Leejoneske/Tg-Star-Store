@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -85,7 +86,7 @@
     <link rel="icon" href="/favicon.png" type="image/png">
     <link rel="stylesheet" href="/css/theme.css?v=4">
     <link rel="stylesheet" href="/css/theme-additional.css?v=10">
-    <script src="/js/bottomnav-init.js?v=2"></script>
+    <script src="/js/bottomnav-init.js?v=3"></script>
     
     <!-- Missing CSS includes - fonts and icons -->
     <link rel="canonical" href="https://starstore.app/amb_ref.html">
@@ -512,6 +513,7 @@
         .wh-status.paid    { background:rgba(5,150,105,0.12); color:#16a34a; }
         .wh-status.pending { background:rgba(245,158,11,0.12); color:#f59e0b; }
     </style>
+    <script src="/js/global-loader.js?v=1"></script>
 </head>
 <body>
 <div class="app-container">
@@ -913,45 +915,11 @@
         }
     });
 
+    // Bottom nav loading is centralized in /js/bottomnav-init.js?v=3 (BottomNavUtils.loadBottomNav).
     async function loadBottomNav() {
-        return new Promise(resolve => {
-            const el = document.getElementById('bottomnav-container');
-            if (!el) {
-                console.log('Bottom nav container not found');
-                return resolve();
-            }
-            
-            fetch('/bottomnav.html')
-                .then(r => {
-                    if (!r.ok) {
-                        console.error('Failed to load bottomnav.html:', r.status, r.statusText);
-                        return '';
-                    }
-                    return r.text();
-                })
-                .then(html => {
-                    if (!html) {
-                        console.warn('Bottom nav HTML is empty');
-                        return resolve();
-                    }
-                    
-                    el.innerHTML = html;
-                    console.log('Bottom nav loaded successfully');
-                    
-                    // Initialize bottom nav navigation
-                    if (typeof BottomNavUtils !== 'undefined') {
-                        BottomNavUtils.initBottomNav();
-                        console.log('Bottom nav initialized');
-                    } else {
-                        console.warn('BottomNavUtils not available');
-                    }
-                    resolve();
-                })
-                .catch(() => {
-                    console.error('Error loading bottom nav');
-                    resolve();
-                });
-        });
+        if (window.BottomNavUtils) {
+            return window.BottomNavUtils.loadBottomNav();
+        }
     }
 
     async function loadReferralData() {
