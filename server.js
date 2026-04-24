@@ -11277,7 +11277,7 @@ function getMainMenuKeyboard() {
     return {
         keyboard: [
             [{ text: '💰 Wallet' }, { text: '👥 Referral' }],
-            [{ text: '� SELL Stars' }, { text: '💬 Help' }]
+            [{ text: '💱 SELL Stars' }, { text: '💬 Help' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
@@ -12079,7 +12079,7 @@ bot.on('message', async (msg) => {
         handleReferralsCommand(msg);
     } else if (text === '💰 Wallet') {
         handleWalletCommand(msg);
-    } else if (text === '� SELL Stars') {
+    } else if (text === '💱 SELL Stars') {
         // Handle SELL Stars keyboard button
         try {
             const userId = msg.from.id.toString();
