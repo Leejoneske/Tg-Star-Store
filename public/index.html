@@ -12,7 +12,20 @@
       gtag('config', 'G-SX6TDXG0N8');
     </script>
     <!-- TGAnalytics SDK -->
-    <script src="https://tganalytics.xyz/sdk/v1.js"></script>
+    <script 
+        async 
+        src="https://tganalytics.xyz/index.js" 
+        onload="initAnalytics()" 
+        type="text/javascript"
+    ></script>
+    <script>
+        function initAnalytics() {
+          window.telegramAnalytics.init({
+            token: '5ROSzG78E3o3FPHyDybwCKfFsTbkC5J9hcwYYmjaMTY=',
+            appName: 'starstore_sell_buy_stars'
+          });
+        }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -205,9 +218,6 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        margin: 0;
-        padding: 0;
-    }
 
     .app-container {
         display: flex;
