@@ -34,22 +34,23 @@
     
     <!-- Axios fallback and safety wrapper -->
     <script>
-        function ensureAxios() {
-            if (typeof axios === 'undefined') {
-                var script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js';
-                script.setAttribute('data-cfasync', 'false');
-                script.onload = function() { console.log('[OK] Axios loaded via fallback'); };
-                script.onerror = function() { console.error('[ERROR] Failed to load axios'); };
-                document.head.appendChild(script);
+        (function() {
+            function loadAxiosFallback() {
+                if (typeof axios === 'undefined') {
+                    var axiosEl = document.createElement('script');
+                    axiosEl.src = 'https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js';
+                    axiosEl.setAttribute('data-cfasync', 'false');
+                    axiosEl.onload = function() { console.log('[OK] Axios loaded via fallback'); };
+                    axiosEl.onerror = function() { console.error('[ERROR] Failed to load axios'); };
+                    document.head.appendChild(axiosEl);
+                }
             }
-        }
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', ensureAxios);
-        } else {
-            ensureAxios();
-        }
-    </script>
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', loadAxiosFallback);
+            } else {
+                loadAxiosFallback();
+            }
+        })();
     
     <!-- TON Address Utilities -->
     <script src="/js/ton-utils.js?v=1"></script>
@@ -964,13 +965,13 @@
         </div>
     </div>
    
-    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+    <script src="https://telegram.org/js/telegram-web-app.js" data-cfasync="false" defer></script>
     <!-- Axios already loaded in head with fallback - removed duplicate -->
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="/js/translations.js?v=4"></script>
-    <script src="/js/theme.js"></script>
-    <script src="/js/loading.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" data-cfasync="false" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" data-cfasync="false" defer></script>
+    <script src="/js/translations.js?v=5" data-cfasync="false" defer></script>
+    <script src="/js/theme.js" data-cfasync="false" defer></script>
+    <script src="/js/loading.js" data-cfasync="false" defer></script>
     <script>
         // Global variables
         let currentWalletMemo = '';
