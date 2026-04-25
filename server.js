@@ -14201,7 +14201,10 @@ app.post('/api/active-ping', async (req, res) => {
         const userId = authUserId || (headerId || null);
         const username = req.body?.username || '';
         
-        if (!userId) return res.status(400).json({ error: 'Missing user id' });
+        if (!userId) {
+            console.debug('Active-ping missing userId. Auth:', !!authUserId, 'Header:', !!headerId);
+            return res.status(400).json({ error: 'Missing user id' });
+        }
         
         // Detect username change if provided
         if (username) {

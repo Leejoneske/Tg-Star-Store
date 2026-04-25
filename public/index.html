@@ -142,8 +142,8 @@
                 var script = document.createElement('script');
                 script.src = 'https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js';
                 script.setAttribute('data-cfasync', 'false');
-                script.onload = function() { console.log('✅ Axios loaded via fallback'); };
-                script.onerror = function() { console.error('❌ Failed to load axios'); };
+                script.onload = function() { console.log('[OK] Axios loaded via fallback'); };
+                script.onerror = function() { console.error('[ERROR] Failed to load axios'); };
                 document.head.appendChild(script);
             }
         }
@@ -2267,11 +2267,11 @@ function initNotificationSystem() {
         try {
             const headers = { 'Content-Type': 'application/json' };
             const hasTG = !!(window.Telegram?.WebApp?.initData);
-            const hasUser = !!window.currentUserId;
+            const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || currentUserId;
             const username = window.Telegram?.WebApp?.initDataUnsafe?.user?.username || '';
             if (hasTG) headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
-            if (hasUser) headers['x-telegram-id'] = String(window.currentUserId);
-            if (hasTG || hasUser) {
+            if (userId) headers['x-telegram-id'] = String(userId);
+            if (hasTG || userId) {
                 fetch('/api/active-ping', { 
                     method: 'POST', 
                     headers,
