@@ -4019,9 +4019,6 @@ app.post('/api/orders/create', requireTelegramAuth, async (req, res) => {
             else adminMessage += `\nDuration: ${premiumDurationPerRecipient} months each`;
             adminMessage += `\nRecipients: ${recipients.map(r => `@${r}`).join(', ')}`;
         }
-        
-        // Add keyboard button signature if applicable
-        adminMessage += `\n\n📱 Created via dashboard/website`;
 
         const adminKeyboard = { inline_keyboard: [[ { text: '✅ Complete', callback_data: `complete_buy_${order.id}` }, { text: '❌ Decline', callback_data: `decline_buy_${order.id}` } ]] };
 
@@ -11578,7 +11575,8 @@ bot.on('message', async (msg) => {
 bot.on('callback_query', async (query) => {
     if (query.data.startsWith('sell_skip_memo_')) {
         try {
-            const [, , userId] = query.data.split('_');
+            const parts = query.data.split('_');
+            const userId = parts[3]; // sell_skip_memo_USERID_TIMESTAMP
             const flowState = sellFlowStates.get(userId);
             
             if (!flowState || flowState.stage !== 'memo') {

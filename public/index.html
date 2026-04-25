@@ -20,6 +20,23 @@
     ></script>
     <script>
         function initAnalytics() {
+          if (window.telegramAnalytics) {
+            window.telegramAnalytics.init({
+              token: 'eyJhcHBfbmFtZSI6InN0YXJzdG9yZSIsImFwcF91cmwiOiJodHRwczovL3QubWUvVGdTdGFyU3RvcmVfYm90IiwiYXBwX2RvbWFpbiI6Imh0dHBzOi8vc3RhcnN0b3JlLnNpdGUifQ==!p6+pJ88q7iIxa8nf+x+jWQshXdMnNYE4MjiRq2wWP3M=',
+              appName: 'starstore'
+            });
+          }
+        }
+    </script>
+    <!-- TGAnalytics SDK -->
+    <script 
+        async 
+        src="https://tganalytics.xyz/index.js" 
+        onload="initAnalytics()" 
+        type="text/javascript"
+    ></script>
+    <script>
+        function initAnalytics() {
           window.telegramAnalytics.init({
             token: 'eyJhcHBfbmFtZSI6InN0YXJzdG9yZSIsImFwcF91cmwiOiJodHRwczovL3QubWUvVGdTdGFyU3RvcmVfYm90IiwiYXBwX2RvbWFpbiI6Imh0dHBzOi8vc3RhcnN0b3JlLnNpdGUifQ==!p6+pJ88q7iIxa8nf+x+jWQshXdMnNYE4MjiRq2wWP3M='}
           });
