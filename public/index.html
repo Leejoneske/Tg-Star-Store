@@ -53,13 +53,13 @@
     <!-- TON Address Utilities -->
     <script src="/js/ton-utils.js?v=1"></script>
     <!-- Transaction Modal - Auto-verification -->
-    <script src="/js/transaction-modal.js?v=1"></script>
+    <script src="/js/transaction-modal.js?v=1" data-cfasync="false" defer></script>
     <!-- Transaction Verification Service -->
-    <script src="/js/transaction-verify.js?v=1"></script>
+    <script src="/js/transaction-verify.js?v=1" data-cfasync="false" defer></script>
     <!-- Reconnect Manager Script -->
-    <script src="/js/reconnect.js?v=2"></script>
+    <script src="/js/reconnect.js?v=3" data-cfasync="false" defer></script>
     <!-- Bottom Nav Init Script -->
-    <script src="/js/bottomnav-init.js?v=3"></script>
+    <script src="/js/bottomnav-init.js?v=4" data-cfasync="false" defer></script>
     <!-- SEO Meta Tags -->
     <meta name="description" content="Buy and sell Telegram Stars securely with StarStore. Convert Stars to USDT, purchase Premium subscriptions, and earn rewards. Fast, secure, and reliable platform for Telegram Stars trading.">
     <meta name="keywords" content="Telegram Stars, buy Telegram Stars, sell Telegram Stars, Stars to USDT, Telegram Premium, TON blockchain, digital payments, crypto payments, StarStore">
@@ -137,29 +137,30 @@
         }
         
         // Axios fallback loader - ensure axios is available
-        function ensureAxios() {
-            if (typeof axios === 'undefined') {
-                var script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js';
-                script.setAttribute('data-cfasync', 'false');
-                script.onload = function() { console.log('[OK] Axios loaded via fallback'); };
-                script.onerror = function() { console.error('[ERROR] Failed to load axios'); };
-                document.head.appendChild(script);
+        (function() {
+            function loadAxiosFallback() {
+                if (typeof axios === 'undefined') {
+                    var axiosEl = document.createElement('script');
+                    axiosEl.src = 'https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js';
+                    axiosEl.setAttribute('data-cfasync', 'false');
+                    axiosEl.onload = function() { console.log('[OK] Axios loaded via fallback'); };
+                    axiosEl.onerror = function() { console.error('[ERROR] Failed to load axios'); };
+                    document.head.appendChild(axiosEl);
+                }
             }
-        }
-        // Run on document ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', ensureAxios);
-        } else {
-            ensureAxios();
-        }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', loadAxiosFallback);
+            } else {
+                loadAxiosFallback();
+            }
+        })();
     </script>
     
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" data-cfasync="false" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" data-cfasync="false" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" data-cfasync="false" defer></script>
     <link rel="stylesheet" href="/css/theme.css">
-    <link rel="stylesheet" href="/css/theme-additional.css?v=7">
+    <link rel="stylesheet" href="/css/theme-additional.css?v=8">
     
     
 
