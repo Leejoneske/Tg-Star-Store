@@ -11,21 +11,7 @@
 
       gtag('config', 'G-SX6TDXG0N8');
     </script>
-    <!-- TGAnalytics SDK -->
-    <script 
-        async 
-        src="https://tganalytics.xyz/index.js" 
-        onload="initAnalytics()" 
-        type="text/javascript"
-    ></script>
-    <script>
-        function initAnalytics() {
-          window.telegramAnalytics.init({
-            token: '5ROSzG78E3o3FPHyDybwCKfFsTbkC5J9hcwYYmjaMTY=',
-            appName: 'starstore_sell_buy_stars'
-          });
-        }
-    </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
     <title>StarStore - Transaction History</title>
@@ -39,6 +25,12 @@
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/theme-additional.css?v=6">
     <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+    <script>
+        // Protective wrapper for window.Telegram to prevent undefined errors
+        if (typeof window.Telegram === 'undefined') {
+            window.Telegram = { WebApp: null, WebView: null };
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js" data-cfasync="false"></script>
     <script src="/js/translations.js?v=5"></script>
@@ -775,12 +767,18 @@ function loadTransactionHistory() {
         return;
     }
 
+    const headers = {
+        'x-telegram-id': user.id,
+        'Content-Type': 'application/json'
+    };
+    
+    // Add init data if available
+    if (window.Telegram?.WebApp?.initData) {
+        headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+    }
+
     fetch(`${BASE_API_URL}/transactions/${user.id}`, {
-        headers: {
-            'x-telegram-init-data': Telegram.WebApp.initData,
-            'x-telegram-id': user.id,
-            'Content-Type': 'application/json'
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');
@@ -829,12 +827,18 @@ function loadReferralHistory() {
         return;
     }
 
+    const headers = {
+        'x-telegram-id': user.id,
+        'Content-Type': 'application/json'
+    };
+    
+    // Add init data if available
+    if (window.Telegram?.WebApp?.initData) {
+        headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
+    }
+
     fetch(`${BASE_API_URL}/referrals/${user.id}?type=referral`, {
-        headers: {
-            'x-telegram-init-data': Telegram.WebApp.initData,
-            'x-telegram-id': user.id,
-            'Content-Type': 'application/json'
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');

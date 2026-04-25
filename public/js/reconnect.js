@@ -289,7 +289,6 @@ window.ReconnectManager = (() => {
             window.close();
         }
     };
-    };
 
     /**
      * Update reconnect UI with current status
