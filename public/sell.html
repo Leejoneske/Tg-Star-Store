@@ -39,6 +39,8 @@
                 var script = document.createElement('script');
                 script.src = 'https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js';
                 script.setAttribute('data-cfasync', 'false');
+                script.onload = function() { console.log('[OK] Axios loaded via fallback'); };
+                script.onerror = function() { console.error('[ERROR] Failed to load axios'); };
                 document.head.appendChild(script);
             }
         }
