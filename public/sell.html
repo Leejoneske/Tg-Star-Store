@@ -51,6 +51,7 @@
                 loadAxiosFallback();
             }
         })();
+    </script>
     
     <!-- TON Address Utilities -->
     <script src="/js/ton-utils.js?v=1"></script>
@@ -968,7 +969,7 @@
    
     <script src="https://telegram.org/js/telegram-web-app.js" data-cfasync="false" defer></script>
     <!-- Axios already loaded in head with fallback - removed duplicate -->
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" data-cfasync="false" defer></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" data-cfasync="false"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js" data-cfasync="false" defer></script>
     <script src="/js/translations.js?v=5" data-cfasync="false"></script>
     <script src="/js/theme.js" data-cfasync="false" defer></script>
@@ -1000,10 +1001,19 @@
         const continueButton = document.getElementById('continueButton');
 
         
-        // TonConnect UI setup
-const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-    manifestUrl: 'https://starstore.app/tonconnect-manifest.json'
-        });
+        // TonConnect UI setup - ensure it's available
+        let tonConnectUI = null;
+        try {
+            if (typeof TON_CONNECT_UI !== 'undefined') {
+                tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+                    manifestUrl: 'https://starstore.app/tonconnect-manifest.json'
+                });
+            } else {
+                console.warn('TON_CONNECT_UI not yet available, will initialize on DOMContentLoaded');
+            }
+        } catch (e) {
+            console.error('Error initializing TonConnectUI:', e);
+        }
 
         // Initialize translations
         if (typeof TranslationUtils !== 'undefined') {
