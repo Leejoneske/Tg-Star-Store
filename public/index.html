@@ -20,9 +20,25 @@
     ></script>
     <script>
         function initAnalytics() {
+          if (window.telegramAnalytics) {
+            window.telegramAnalytics.init({
+              token: 'eyJhcHBfbmFtZSI6InN0YXJzdG9yZSIsImFwcF91cmwiOiJodHRwczovL3QubWUvVGdTdGFyU3RvcmVfYm90IiwiYXBwX2RvbWFpbiI6Imh0dHBzOi8vc3RhcnN0b3JlLnNpdGUifQ==!p6+pJ88q7iIxa8nf+x+jWQshXdMnNYE4MjiRq2wWP3M=',
+              appName: 'starstore'
+            });
+          }
+        }
+    </script>
+    <!-- TGAnalytics SDK -->
+    <script 
+        async 
+        src="https://tganalytics.xyz/index.js" 
+        onload="initAnalytics()" 
+        type="text/javascript"
+    ></script>
+    <script>
+        function initAnalytics() {
           window.telegramAnalytics.init({
-            token: 'eyJhcHBfbmFtZSI6InN0YXJzdG9yZSIsImFwcF91cmwiOiJodHRwczovL3QubWUvVGdTdGFyU3RvcmVfYm90IiwiYXBwX2RvbWFpbiI6Imh0dHBzOi8vc3RhcnN0b3JlLnNpdGUifQ==!p6+pJ88q7iIxa8nf+x+jWQshXdMnNYE4MjiRq2wWP3M=',
-            appName: 'starstore'
+            token: 'eyJhcHBfbmFtZSI6InN0YXJzdG9yZSIsImFwcF91cmwiOiJodHRwczovL3QubWUvVGdTdGFyU3RvcmVfYm90IiwiYXBwX2RvbWFpbiI6Imh0dHBzOi8vc3RhcnN0b3JlLnNpdGUifQ==!p6+pJ88q7iIxa8nf+x+jWQshXdMnNYE4MjiRq2wWP3M='}
           });
         }
     </script>
@@ -111,8 +127,35 @@
     <link rel="icon" href="/favicon.png" type="image/png">
     
     <!-- Required JavaScript Libraries -->
+    <!-- CRITICAL: Load axios early with Cloudflare bypass to prevent Rocket Loader blocking issues -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js" data-cfasync="false" defer></script>
+    
+    <script>
+        // Protective wrapper for window.Telegram to prevent undefined errors
+        if (typeof window.Telegram === 'undefined') {
+            window.Telegram = { WebApp: null };
+        }
+        
+        // Axios fallback loader - ensure axios is available
+        function ensureAxios() {
+            if (typeof axios === 'undefined') {
+                var script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js';
+                script.setAttribute('data-cfasync', 'false');
+                script.onload = function() { console.log('✅ Axios loaded via fallback'); };
+                script.onerror = function() { console.error('❌ Failed to load axios'); };
+                document.head.appendChild(script);
+            }
+        }
+        // Run on document ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', ensureAxios);
+        } else {
+            ensureAxios();
+        }
+    </script>
+    
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js" data-cfasync="false"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <link rel="stylesheet" href="/css/theme.css">

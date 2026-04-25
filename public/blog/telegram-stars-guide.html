@@ -19,10 +19,12 @@
     ></script>
     <script>
         function initAnalytics() {
-          window.telegramAnalytics.init({
-            token: '5ROSzG78E3o3FPHyDybwCKfFsTbkC5J9hcwYYmjaMTY=',
-            appName: 'starstore_sell_buy_stars'
-          });
+          if (window.telegramAnalytics) {
+            window.telegramAnalytics.init({
+              token: 'eyJhcHBfbmFtZSI6InN0YXJzdG9yZSIsImFwcF91cmwiOiJodHRwczovL3QubWUvVGdTdGFyU3RvcmVfYm90IiwiYXBwX2RvbWFpbiI6Imh0dHBzOi8vc3RhcnN0b3JlLnNpdGUifQ==!p6+pJ88q7iIxa8nf+x+jWQshXdMnNYE4MjiRq2wWP3M=',
+              appName: 'starstore'
+            });
+          }
         }
     </script>
     <meta charset="UTF-8">

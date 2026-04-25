@@ -11575,7 +11575,8 @@ bot.on('message', async (msg) => {
 bot.on('callback_query', async (query) => {
     if (query.data.startsWith('sell_skip_memo_')) {
         try {
-            const [, , userId] = query.data.split('_');
+            const parts = query.data.split('_');
+            const userId = parts[3]; // sell_skip_memo_USERID_TIMESTAMP
             const flowState = sellFlowStates.get(userId);
             
             if (!flowState || flowState.stage !== 'memo') {
