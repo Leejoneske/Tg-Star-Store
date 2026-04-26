@@ -113,7 +113,7 @@ SESSION_SECRET=your_strong_session_secret
 
 # TGAnalytics
 TGANALYTICS_TOKEN=your_analytics_token
-TGANALYTICS_APP_NAME=starstore_sell_buy_stars
+TGANALYTICS_APP_NAME=starstore
 ```
 
 ### 4. Start Application
