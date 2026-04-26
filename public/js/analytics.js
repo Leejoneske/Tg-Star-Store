@@ -1,5 +1,10 @@
 
 (function() {
+    // Only load analytics if running in Telegram WebApp
+    if (!window.Telegram?.WebApp) {
+        return;
+    }
+
     const script = document.createElement('script');
     script.src = 'https://tganalytics.xyz/index.js';
     script.async = true;
