@@ -1,896 +1,703 @@
-// StarStore Admin Dashboard - Modern JavaScript
 
-// Global functions (defined first to be available immediately)
-window.debugInputCapture = function() {
-    const input = document.getElementById('telegram-id');
-    console.log('🔍 Debug Input Capture:', {
-        element: input,
-        value: input ? input.value : 'no element',
-        innerHTML: input ? input.outerHTML : 'no element'
-    });
-    return input ? input.value : null;
+/* StarStore Admin — controller (Bootstrap 5) */
+(() => {
+'use strict';
+
+// ---------------------- Utilities ----------------------
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtNum = (n) => Number(n || 0).toLocaleString();
+const fmtMoney = (n, sym = '$') => `${sym}${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtDate = (d) => {
+    if (!d) return '—';
+    const date = new Date(d); if (isNaN(date)) return '—';
+    return date.toLocaleString();
+};
+const timeAgo = (d) => {
+    if (!d) return '—';
+    const diff = Date.now() - new Date(d).getTime();
+    const s = Math.floor(diff/1000);
+    if (s < 60) return 'just now';
+    const m = Math.floor(s/60); if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m/60); if (h < 24) return `${h}h ago`;
+    const day = Math.floor(h/24); return `${day}d ago`;
+};
+const debounce = (fn, ms = 300) => {
+    let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 };
 
-window.handleSendOTP = function() {
-    console.log('🔍 Global handleSendOTP called');
-    
-    // Debug the input right here
-    const input = document.getElementById('telegram-id');
-    const telegramId = input ? input.value.trim() : '';
-    
-    console.log('🔍 Input debug in handleSendOTP:', {
-        element: !!input,
-        value: telegramId,
-        valueLength: telegramId.length
-    });
-    
-    if (window.adminDashboard) {
-        window.adminDashboard.sendOTP();
-    } else {
-        console.log('⚠️ AdminDashboard not initialized yet, calling sendOTP directly');
-        // Call sendOTP directly as a fallback
-        sendOTPDirect(telegramId);
+// ---------------------- Toasts (Bootstrap) ----------------------
+const Toast = {
+    show(msg, type = 'info') {
+        const c = $('#toast-container'); if (!c) return;
+        const styles = {
+            success: 'text-bg-success',
+            error:   'text-bg-danger',
+            warning: 'text-bg-warning',
+            info:    'text-bg-primary'
+        };
+        const el = document.createElement('div');
+        el.className = `toast align-items-center border-0 ${styles[type] || styles.info}`;
+        el.setAttribute('role', 'alert');
+        el.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${escapeHtml(msg)}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>`;
+        c.appendChild(el);
+        const t = new bootstrap.Toast(el, { delay: 4000 });
+        el.addEventListener('hidden.bs.toast', () => el.remove());
+        t.show();
     }
 };
 
-// Direct OTP sending function as fallback
-async function sendOTPDirect(telegramId) {
-    if (!telegramId) {
-        console.error('❌ No Telegram ID provided');
-        return;
+// ---------------------- Confirm modal ----------------------
+const Confirm = {
+    open({ title = 'Confirm', body = 'Are you sure?', okText = 'Confirm', okVariant = 'primary', withInput = false, inputLabel = 'Reason' } = {}) {
+        return new Promise(resolve => {
+            const el = $('#confirm-modal'); if (!el || !window.bootstrap) return resolve(null);
+            $('#confirm-title').textContent = title;
+            $('#confirm-body').textContent = body;
+            const wrap = $('#confirm-input-wrap');
+            const input = $('#confirm-input');
+            input.value = '';
+            wrap.classList.toggle('d-none', !withInput);
+            const ok = $('#confirm-ok');
+            ok.className = 'btn btn-' + okVariant;
+            ok.textContent = okText;
+            const modal = bootstrap.Modal.getOrCreateInstance(el);
+            let done = false;
+            const finish = (val) => { if (done) return; done = true; modal.hide(); resolve(val); };
+            const onOk = () => finish(withInput ? (input.value || '') : true);
+            const onHide = () => { if (!done) finish(null); cleanup(); };
+            const cleanup = () => {
+                ok.removeEventListener('click', onOk);
+                el.removeEventListener('hidden.bs.modal', onHide);
+            };
+            ok.addEventListener('click', onOk);
+            el.addEventListener('hidden.bs.modal', onHide);
+            modal.show();
+        });
     }
-    
-    if (!/^\d+$/.test(telegramId)) {
-        console.error('❌ Telegram ID must contain only numbers');
-        return;
+};
+
+// ---------------------- API ----------------------
+let TOKEN = localStorage.getItem('admin_token') || null;
+
+async function api(path, opts = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (TOKEN) headers['x-telegram-id'] = TOKEN;
+    const res = await fetch(path, { ...opts, headers });
+    let data = null;
+    try { data = await res.json(); } catch { data = null; }
+    if (!res.ok) {
+        const msg = (data && (data.error || data.message)) || `HTTP ${res.status}`;
+        const err = new Error(msg); err.status = res.status; err.data = data; throw err;
     }
-    
+    return data;
+}
+
+// ---------------------- Auth flow ----------------------
+const Auth = {
+    async verify() {
+        if (!TOKEN) return false;
+        try {
+            const r = await api('/api/admin/auth/verify');
+            return !!(r && r.success && r.user && r.user.isAdmin);
+        } catch { return false; }
+    },
+    async sendOTP(tgId) {
+        return api('/api/admin/auth/send-otp', { method: 'POST', body: JSON.stringify({ tgId }) });
+    },
+    async verifyOTP(tgId, code) {
+        return api('/api/admin/auth/verify-otp', { method: 'POST', body: JSON.stringify({ tgId, code }) });
+    },
+    setToken(t) { TOKEN = t; localStorage.setItem('admin_token', t); },
+    clear() { TOKEN = null; localStorage.removeItem('admin_token'); }
+};
+
+function showLoginMessage(msg, type = 'info') {
+    const el = $('#login-message'); if (!el) return;
+    el.className = 'alert small mb-0 ' + (type === 'success' ? 'alert-success' : type === 'error' ? 'alert-danger' : 'alert-info');
+    el.textContent = msg;
+    el.classList.remove('d-none');
+}
+
+let otpTimerId = null;
+function startOtpTimer(seconds) {
+    const el = $('#otp-timer'); if (!el) return;
+    el.classList.remove('d-none');
+    clearInterval(otpTimerId);
+    const tick = () => {
+        const m = Math.floor(seconds / 60);
+        const s = (seconds % 60).toString().padStart(2, '0');
+        el.textContent = seconds > 0 ? `Code expires in ${m}:${s}` : 'Code expired — request a new one.';
+        if (seconds <= 0) { clearInterval(otpTimerId); return; }
+        seconds--;
+    };
+    tick();
+    otpTimerId = setInterval(tick, 1000);
+}
+
+async function handleSendOTP() {
+    const input = $('#telegram-id');
+    const tgId = (input?.value || '').trim();
+    if (!tgId) { showLoginMessage('Enter your Telegram ID.', 'error'); input?.focus(); return; }
+    if (!/^\d+$/.test(tgId)) { showLoginMessage('Telegram ID must be numeric.', 'error'); return; }
+
+    const btn = $('#send-otp-btn');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending…';
     try {
-        const requestBody = { tgId: telegramId };
-        console.log('🔍 Direct sending request:', requestBody);
-        
-        const response = await fetch('/api/admin/auth/send-otp', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        console.log('🔍 Direct response status:', response.status);
-        const data = await response.json();
-        console.log('🔍 Direct response data:', data);
-        
-        if (response.ok) {
-            console.log('✅ OTP sent successfully');
-            // Show OTP section
-            const otpSection = document.getElementById('otp-section');
-            if (otpSection) {
-                otpSection.classList.remove('hidden');
-                otpSection.classList.add('animate-slide-down');
-            }
-        } else {
-            console.error('❌ OTP send failed:', data.error);
-        }
-    } catch (error) {
-        console.error('❌ Network error:', error);
+        await Auth.sendOTP(tgId);
+        $('#otp-section').classList.remove('d-none');
+        $('#otp-input')?.focus();
+        showLoginMessage('Code sent. Check your Telegram.', 'success');
+        startOtpTimer(300);
+        btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Resend code';
+    } catch (e) {
+        showLoginMessage(e.message || 'Failed to send code.', 'error');
+        btn.innerHTML = original;
+    } finally {
+        btn.disabled = false;
     }
 }
 
-window.handleVerifyOTP = function() {
-    console.log('🔍 Global handleVerifyOTP called');
-    if (window.adminDashboard) {
-        window.adminDashboard.verifyOTP();
-    } else {
-        console.error('❌ AdminDashboard not initialized');
+async function handleVerifyOTP() {
+    const tgId = ($('#telegram-id')?.value || '').trim();
+    const code = ($('#otp-input')?.value || '').trim();
+    if (!tgId || !/^\d{6}$/.test(code)) { showLoginMessage('Enter your 6-digit code.', 'error'); return; }
+
+    const btn = $('#verify-otp-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    try {
+        const r = await Auth.verifyOTP(tgId, code);
+        if (!r || !r.success) throw new Error(r?.error || 'Invalid code');
+        Auth.setToken(tgId);
+        showLoginMessage('Signed in. Loading…', 'success');
+        clearInterval(otpTimerId);
+        setTimeout(enterApp, 400);
+    } catch (e) {
+        showLoginMessage(e.message || 'Verification failed.', 'error');
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i>';
     }
+}
+
+// ---------------------- App shell ----------------------
+function showLoading(show) { $('#loading-screen')?.classList.toggle('d-none', !show); }
+function showLogin() { $('#login-screen')?.classList.remove('d-none'); $('#app')?.classList.add('d-none'); }
+function hideLogin() { $('#login-screen')?.classList.add('d-none'); $('#app')?.classList.remove('d-none'); }
+
+const VIEW_TITLES = {
+    dashboard: 'Dashboard',
+    performance: 'Performance',
+    orders: 'Orders',
+    withdrawals: 'Withdrawals',
+    users: 'Users',
+    notifications: 'Notifications',
+    bots: 'Bot Simulator'
 };
 
-class AdminDashboard {
-    constructor() {
-        this.token = localStorage.getItem('admin_token');
-        this.user = null;
-        this.charts = {};
-        this.currentSection = 'dashboard';
-        
-        this.init();
-    }
-    
-    async init() {
-        this.showLoading(true);
-        
-        // Check authentication using existing admin auth system
-        if (this.token) {
-            const isValid = await this.verifyToken();
-            if (isValid) {
-                await this.showDashboard();
-            } else {
-                this.showLogin();
-            }
-        } else {
-            this.showLogin();
-        }
-        
-        this.bindEvents();
-        this.showLoading(false);
-    }
-    
-    showLoading(show) {
-        const loadingScreen = document.getElementById('loading-screen');
-        if (show) {
-            loadingScreen.classList.remove('hidden');
-        } else {
-            loadingScreen.classList.add('hidden');
-        }
-    }
-    
-    showLogin() {
-        document.getElementById('login-modal').classList.remove('hidden');
-        document.getElementById('app').classList.add('hidden');
-    }
-    
-    hideLogin() {
-        document.getElementById('login-modal').classList.add('hidden');
-        document.getElementById('app').classList.remove('hidden');
-    }
-    
-    async verifyToken() {
-        try {
-            // Use correct admin verification endpoint
-            const response = await fetch('/api/admin/auth/verify', {
-                headers: {
-                    'x-telegram-id': this.token
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.user && data.user.isAdmin) {
-                    this.user = data.user;
-                    return true;
-                }
-            }
-            
-            return false;
-        } catch (error) {
-            console.error('Token verification failed:', error);
-            return false;
-        }
-    }
-    
-    async showDashboard() {
-        this.hideLogin();
-        this.updateUserInfo();
-        await this.loadDashboardData();
-        this.initCharts();
-    }
-    
-    updateUserInfo() {
-        if (this.user) {
-            document.getElementById('admin-name').textContent = `Admin ${this.user.id}`;
-        }
-    }
-    
-    bindEvents() {
-        // Login form events
-        const sendOtpBtn = document.getElementById('send-otp-btn');
-        const verifyOtpBtn = document.getElementById('verify-otp-btn');
-        
-        console.log('🔍 Binding events:', {
-            sendOtpBtn: !!sendOtpBtn,
-            verifyOtpBtn: !!verifyOtpBtn
-        });
-        
-        if (sendOtpBtn) {
-            sendOtpBtn.addEventListener('click', () => {
-                console.log('🔍 Send OTP button clicked');
-                this.sendOTP();
-            });
-        }
-        
-        if (verifyOtpBtn) {
-            verifyOtpBtn.addEventListener('click', () => {
-                console.log('🔍 Verify OTP button clicked');
-                this.verifyOTP();
-            });
-        }
-        
-        // Navigation events
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const section = link.dataset.section;
-                this.showSection(section);
-            });
-        });
-        
-        // Sidebar toggle for mobile
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', () => {
-                this.toggleSidebar();
-            });
-        }
-        
-        // Logout
-        const logoutBtn = document.getElementById('logout-btn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
-                this.logout();
-            });
-        }
-        
-        // Refresh activity
-        const refreshActivity = document.getElementById('refresh-activity');
-        if (refreshActivity) {
-            refreshActivity.addEventListener('click', () => {
-                this.loadRecentActivity();
-            });
-        }
-        
-        // Revenue period change
-        const revenuePeriod = document.getElementById('revenue-period');
-        if (revenuePeriod) {
-            revenuePeriod.addEventListener('change', (e) => {
-                this.updateRevenueChart(e.target.value);
-            });
-        }
-        
-        // Sidebar overlay click
-        const sidebarOverlay = document.getElementById('sidebar-overlay');
-        if (sidebarOverlay) {
-            sidebarOverlay.addEventListener('click', () => {
-                this.toggleSidebar();
-            });
-        }
-    }
-    
-    async sendOTP() {
-        // Try multiple ways to get the input
-        const telegramIdInput = document.getElementById('telegram-id');
-        const telegramIdByQuery = document.querySelector('#telegram-id');
-        const telegramIdByName = document.querySelector('input[placeholder*="Telegram ID"]');
-        
-        console.log('🔍 SendOTP Debug - All Methods:', {
-            getElementById: !!telegramIdInput,
-            querySelector: !!telegramIdByQuery,
-            byPlaceholder: !!telegramIdByName,
-            inputValue1: telegramIdInput ? telegramIdInput.value : 'no element',
-            inputValue2: telegramIdByQuery ? telegramIdByQuery.value : 'no element',
-            inputValue3: telegramIdByName ? telegramIdByName.value : 'no element',
-            allInputs: Array.from(document.querySelectorAll('input')).map(inp => ({
-                id: inp.id,
-                value: inp.value,
-                placeholder: inp.placeholder
-            }))
-        });
-        
-        // Use the first available input
-        const input = telegramIdInput || telegramIdByQuery || telegramIdByName;
-        const telegramId = input ? input.value.trim() : '';
-        
-        console.log('🔍 Final value captured:', telegramId);
-        
-        if (!telegramId) {
-            this.showMessage('Please enter your Telegram ID', 'error');
-            console.log('❌ No Telegram ID entered');
-            return;
-        }
-        
-        if (!/^\d+$/.test(telegramId)) {
-            this.showMessage('Telegram ID must contain only numbers', 'error');
-            return;
-        }
-        
-        try {
-            const requestBody = { tgId: telegramId };
-            console.log('🔍 Sending request:', requestBody);
-            
-            // Use existing admin OTP system with correct parameter name
-            const response = await fetch('/api/admin/auth/send-otp', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody)
-            });
-            
-            console.log('🔍 Response status:', response.status);
-            
-            const data = await response.json();
-            
-            if (response.ok) {
-                document.getElementById('otp-section').classList.remove('hidden');
-                document.getElementById('otp-section').classList.add('animate-slide-down');
-                this.showMessage('Verification code sent to your Telegram', 'success');
-                this.startOTPTimer(300); // 5 minutes
-            } else {
-                this.showMessage(data.error || 'Failed to send OTP', 'error');
-            }
-        } catch (error) {
-            console.error('Send OTP error:', error);
-            this.showMessage('Network error. Please try again.', 'error');
-        }
-    }
-    
-    async verifyOTP() {
-        const telegramId = document.getElementById('telegram-id').value.trim();
-        const otp = document.getElementById('otp-input').value.trim();
-        
-        if (!telegramId || !otp) {
-            this.showMessage('Please enter both Telegram ID and OTP', 'error');
-            return;
-        }
-        
-        if (!/^\d{6}$/.test(otp)) {
-            this.showMessage('OTP must be 6 digits', 'error');
-            return;
-        }
-        
-        try {
-            // Use existing admin OTP verification with correct parameter names
-            const response = await fetch('/api/admin/auth/verify-otp', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ tgId: telegramId, code: otp })
-            });
-            
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                this.token = telegramId; // Store telegram ID as token for existing system compatibility
-                this.user = { id: telegramId, telegramId: telegramId, isAdmin: true };
-                localStorage.setItem('admin_token', this.token);
-                
-                this.showMessage('Login successful! Redirecting...', 'success');
-                
-                // Add success animation
-                const verifyBtn = document.getElementById('verify-otp-btn');
-                verifyBtn.classList.add('animate-pulse-success');
-                
-                setTimeout(() => {
-                    this.showDashboard();
-                }, 1500);
-            } else {
-                this.showMessage(data.error || 'Invalid verification code', 'error');
-                
-                // Add error animation
-                const otpInput = document.getElementById('otp-input');
-                otpInput.style.borderColor = '#ef4444';
-                setTimeout(() => {
-                    otpInput.style.borderColor = '';
-                }, 2000);
-            }
-        } catch (error) {
-            console.error('Verify OTP error:', error);
-            this.showMessage('Network error. Please try again.', 'error');
-        }
-    }
-    
-    startOTPTimer(seconds) {
-        const timerElement = document.getElementById('otp-timer');
-        const timerText = document.getElementById('timer-text');
-        
-        timerElement.classList.remove('hidden');
-        
-        const updateTimer = () => {
-            const minutes = Math.floor(seconds / 60);
-            const remainingSeconds = seconds % 60;
-            const timeString = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-            
-            if (timerText) {
-                if (seconds <= 0) {
-                    timerText.textContent = 'Code expired. Please request a new one.';
-                    timerElement.className = 'text-sm text-red-600 mt-3 font-medium';
-                } else {
-                    timerText.textContent = `Code expires in ${timeString}`;
-                    // Change color as time runs out
-                    if (seconds <= 60) {
-                        timerElement.className = 'text-sm text-red-600 mt-3 font-medium';
-                    } else if (seconds <= 120) {
-                        timerElement.className = 'text-sm text-yellow-600 mt-3 font-medium';
-                    } else {
-                        timerElement.className = 'text-sm text-blue-600 mt-3 font-medium';
-                    }
-                }
-            }
-            
-            if (seconds <= 0) {
-                return;
-            }
-            
-            seconds--;
-            setTimeout(updateTimer, 1000);
-        };
-        
-        updateTimer();
-    }
-    
-    showMessage(message, type = 'info') {
-        const messageElement = document.getElementById('login-message');
-        const messageText = document.getElementById('message-text');
-        const messageContainer = messageElement.querySelector('div');
-        
-        // Set message text
-        if (messageText) {
-            messageText.textContent = message;
-        } else {
-            messageElement.innerHTML = `
-                <div class="inline-flex items-center px-4 py-2 rounded-lg">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    <span>${message}</span>
-                </div>
-            `;
-        }
-        
-        // Set styling based on type
-        const container = messageElement.querySelector('div');
-        if (container) {
-            container.className = `inline-flex items-center px-4 py-2 rounded-lg ${
-                type === 'error' ? 'bg-red-100 text-red-700 border border-red-200' : 
-                type === 'success' ? 'bg-green-100 text-green-700 border border-green-200' : 
-                'bg-blue-100 text-blue-700 border border-blue-200'
-            }`;
-            
-            // Update icon
-            const icon = container.querySelector('i');
-            if (icon) {
-                icon.className = `fas ${
-                    type === 'error' ? 'fa-exclamation-triangle' : 
-                    type === 'success' ? 'fa-check-circle' : 
-                    'fa-info-circle'
-                } mr-2`;
-            }
-        }
-        
-        messageElement.classList.remove('hidden');
-        
-        // Auto-hide after 5 seconds unless it's a success message
-        if (type !== 'success') {
-            setTimeout(() => {
-                messageElement.classList.add('hidden');
-            }, 5000);
-        }
-    }
-    
-    showSection(section) {
-        // Update navigation
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.toggle('active', link.dataset.section === section);
-        });
-        
-        // Update sections
-        document.querySelectorAll('.section').forEach(sec => {
-            sec.classList.toggle('active', sec.id === `${section}-section`);
-        });
-        
-        // Update page title
-        const titles = {
-            dashboard: 'Dashboard',
-            orders: 'Order Management',
-            users: 'User Management',
-            analytics: 'Analytics & Reports',
-            notifications: 'Notification Center',
-            system: 'System Management'
-        };
-        
-        const pageTitle = document.getElementById('page-title');
-        if (pageTitle) {
-            pageTitle.textContent = titles[section] || 'Dashboard';
-        }
-        this.currentSection = section;
-        
-        // Load section-specific data
-        this.loadSectionData(section);
-    }
-    
-    async loadSectionData(section) {
-        switch (section) {
-            case 'dashboard':
-                await this.loadDashboardData();
-                break;
-            case 'orders':
-                await this.loadOrdersData();
-                break;
-            case 'users':
-                await this.loadUsersData();
-                break;
-            case 'analytics':
-                await this.loadAnalyticsData();
-                break;
-            case 'notifications':
-                await this.loadNotificationsData();
-                break;
-            case 'system':
-                await this.loadSystemData();
-                break;
-        }
-    }
-    
-    async loadDashboardData() {
-        try {
-            const [statsResponse, activityResponse] = await Promise.all([
-                fetch('/api/admin/stats', {
-                    headers: { 'x-telegram-id': this.token }
-                }),
-                fetch('/api/admin/activity/recent', {
-                    headers: { 'x-telegram-id': this.token }
-                })
-            ]);
-            
-            if (statsResponse.ok) {
-                const statsData = await statsResponse.json();
-                this.updateDashboardStats(statsData);
-            }
-            
-            if (activityResponse.ok) {
-                const activityData = await activityResponse.json();
-                this.updateRecentActivity(activityData.data || []);
-            }
-            
-            // Load revenue chart with mock data
-            this.updateRevenueChart('7d');
-            
-        } catch (error) {
-            console.error('Failed to load dashboard data:', error);
-            this.showToast('Failed to load dashboard data', 'error');
-        }
-    }
-    
-    updateDashboardStats(stats) {
-        const totalUsers = document.getElementById('total-users');
-        const totalOrders = document.getElementById('total-orders');
-        const totalRevenue = document.getElementById('total-revenue');
-        const pendingOrders = document.getElementById('pending-orders');
-        
-        if (totalUsers) totalUsers.textContent = (stats.totalUsers || 15420).toLocaleString();
-        if (totalOrders) totalOrders.textContent = (stats.totalOrders || 3847).toLocaleString();
-        if (totalRevenue) totalRevenue.textContent = `$${(stats.totalRevenue || 89650.75).toLocaleString()}`;
-        if (pendingOrders) pendingOrders.textContent = (stats.pendingOrders || 23).toLocaleString();
-    }
-    
-    updateRecentActivity(activities) {
-        const activityList = document.getElementById('activity-list');
-        if (!activityList) return;
-        
-        activityList.innerHTML = '';
-        
-        // Use mock data if no activities provided
-        const mockActivities = activities.length > 0 ? activities : [
-            { id: 1, type: 'order', user: 'user_12345', amount: 50.00, status: 'completed', timestamp: new Date(Date.now() - 1000 * 60 * 5) },
-            { id: 2, type: 'withdrawal', user: 'user_67890', amount: 25.50, status: 'pending', timestamp: new Date(Date.now() - 1000 * 60 * 15) },
-            { id: 3, type: 'signup', user: 'user_54321', amount: 0, status: 'active', timestamp: new Date(Date.now() - 1000 * 60 * 30) },
-            { id: 4, type: 'order', user: 'user_98765', amount: 100.00, status: 'completed', timestamp: new Date(Date.now() - 1000 * 60 * 45) }
-        ];
-        
-        mockActivities.forEach(activity => {
-            const activityItem = this.createActivityItem(activity);
-            activityList.appendChild(activityItem);
-        });
-    }
-    
-    createActivityItem(activity) {
-        const item = document.createElement('div');
-        item.className = 'activity-item';
-        
-        const iconColors = {
-            order: 'bg-blue-500',
-            withdrawal: 'bg-green-500',
-            signup: 'bg-purple-500',
-            login: 'bg-orange-500'
-        };
-        
-        const icons = {
-            order: 'fas fa-shopping-cart',
-            withdrawal: 'fas fa-money-bill-wave',
-            signup: 'fas fa-user-plus',
-            login: 'fas fa-sign-in-alt'
-        };
-        
-        item.innerHTML = `
-            <div class="activity-icon ${iconColors[activity.type] || 'bg-gray-500'}">
-                <i class="${icons[activity.type] || 'fas fa-circle'} text-white"></i>
-            </div>
-            <div class="activity-content">
-                <div class="activity-title">${this.getActivityTitle(activity)}</div>
-                <div class="activity-description">${this.getActivityDescription(activity)}</div>
-            </div>
-            <div class="activity-time">${this.formatTime(activity.timestamp)}</div>
-        `;
-        
-        return item;
-    }
-    
-    getActivityTitle(activity) {
-        const titles = {
-            order: 'New Order',
-            withdrawal: 'Withdrawal Request',
-            signup: 'New User Registration',
-            login: 'User Login'
-        };
-        return titles[activity.type] || 'Activity';
-    }
-    
-    getActivityDescription(activity) {
-        switch (activity.type) {
-            case 'order':
-                return `${activity.user} placed an order for $${activity.amount}`;
-            case 'withdrawal':
-                return `${activity.user} requested withdrawal of $${activity.amount}`;
-            case 'signup':
-                return `${activity.user} joined the platform`;
-            case 'login':
-                return `${activity.user} logged in`;
-            default:
-                return `${activity.user} performed an action`;
-        }
-    }
-    
-    formatTime(timestamp) {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diff = now - date;
-        
-        const minutes = Math.floor(diff / 60000);
-        const hours = Math.floor(minutes / 60);
-        const days = Math.floor(hours / 24);
-        
-        if (minutes < 1) return 'Just now';
-        if (minutes < 60) return `${minutes}m ago`;
-        if (hours < 24) return `${hours}h ago`;
-        return `${days}d ago`;
-    }
-    
-    async updateRevenueChart(period) {
-        // Mock revenue data for chart
-        const mockData = [
-            { date: '2024-01-15', revenue: 1250.75 },
-            { date: '2024-01-16', revenue: 980.50 },
-            { date: '2024-01-17', revenue: 1450.25 },
-            { date: '2024-01-18', revenue: 1120.00 },
-            { date: '2024-01-19', revenue: 1680.75 },
-            { date: '2024-01-20', revenue: 1340.50 },
-            { date: '2024-01-21', revenue: 1890.25 }
-        ];
-        
-        this.renderRevenueChart(mockData);
-    }
-    
-    initCharts() {
-        this.renderOrdersChart();
-    }
-    
-    renderRevenueChart(data) {
-        const canvas = document.getElementById('revenue-chart');
-        if (!canvas) return;
-        
-        const ctx = canvas.getContext('2d');
-        
-        if (this.charts.revenue) {
-            this.charts.revenue.destroy();
-        }
-        
-        this.charts.revenue = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.map(item => new Date(item.date).toLocaleDateString()),
-                datasets: [{
-                    label: 'Revenue',
-                    data: data.map(item => item.revenue),
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return '$' + value.toLocaleString();
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
-    renderOrdersChart() {
-        const canvas = document.getElementById('orders-chart');
-        if (!canvas) return;
-        
-        const ctx = canvas.getContext('2d');
-        
-        this.charts.orders = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Completed', 'Pending', 'Cancelled'],
-                datasets: [{
-                    data: [3824, 23, 15],
-                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-    }
-    
-    toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        
-        if (sidebar) sidebar.classList.toggle('-translate-x-full');
-        if (overlay) overlay.classList.toggle('hidden');
-    }
-    
-    logout() {
-        localStorage.removeItem('admin_token');
-        this.token = null;
-        this.user = null;
-        
-        // Clear all charts
-        Object.values(this.charts).forEach(chart => {
-            if (chart) chart.destroy();
-        });
-        this.charts = {};
-        
-        this.showLogin();
-        this.showToast('Logged out successfully', 'info');
-    }
-    
-    showToast(message, type = 'info') {
-        // Simple toast implementation
-        const toast = document.createElement('div');
-        toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg text-white ${
-            type === 'error' ? 'bg-red-500' : 
-            type === 'success' ? 'bg-green-500' : 
-            type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
-        }`;
-        toast.textContent = message;
-        
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.remove();
-        }, 5000);
-    }
-    
-    showSection(section) {
-        // Update navigation
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.toggle('active', link.dataset.section === section);
-        });
-        
-        // Update sections
-        document.querySelectorAll('.section').forEach(sec => {
-            sec.classList.toggle('active', sec.id === `${section}-section`);
-        });
-        
-        // Update page title
-        const titles = {
-            dashboard: 'Dashboard',
-            orders: 'Order Management',
-            users: 'User Management',
-            analytics: 'Analytics & Reports',
-            notifications: 'Notification Center',
-            system: 'System Management'
-        };
-        
-        const pageTitle = document.getElementById('page-title');
-        if (pageTitle) {
-            pageTitle.textContent = titles[section] || 'Dashboard';
-        }
-        this.currentSection = section;
-        
-        // Load section-specific data
-        this.loadSectionData(section);
-    }
-    
-    async loadSectionData(section) {
-        switch (section) {
-            case 'dashboard':
-                await this.loadDashboardData();
-                break;
-            case 'orders':
-                await this.loadOrdersData();
-                break;
-            case 'users':
-                await this.loadUsersData();
-                break;
-            case 'analytics':
-                await this.loadAnalyticsData();
-                break;
-            case 'notifications':
-                await this.loadNotificationsData();
-                break;
-            case 'system':
-                await this.loadSystemData();
-                break;
-        }
-    }
-    
-    // Placeholder methods for other sections
-    async loadOrdersData() {
-        console.log('Loading orders data...');
-        this.showToast('Orders section loaded', 'info');
-    }
-    
-    async loadUsersData() {
-        console.log('Loading users data...');
-        this.showToast('Users section loaded', 'info');
-    }
-    
-    async loadAnalyticsData() {
-        console.log('Loading analytics data...');
-        this.showToast('Analytics section loaded', 'info');
-    }
-    
-    async loadNotificationsData() {
-        console.log('Loading notifications data...');
-        this.showToast('Notifications section loaded', 'info');
-    }
-    
-    async loadSystemData() {
-        console.log('Loading system data...');
-        this.showToast('System section loaded', 'info');
-    }
-    
-    async loadRecentActivity() {
-        await this.loadDashboardData();
-        this.showToast('Activity refreshed', 'success');
+let currentView = 'dashboard';
+function switchView(view) {
+    if (!VIEW_TITLES[view]) view = 'dashboard';
+    currentView = view;
+    $$('.view').forEach(v => v.classList.add('d-none'));
+    $('#view-' + view)?.classList.remove('d-none');
+    $$('.nav-link.admin-nav').forEach(l => l.classList.toggle('active', l.dataset.view === view));
+    $('#page-title').textContent = VIEW_TITLES[view];
+    closeOffcanvas();
+    loadView(view);
+}
+
+function closeOffcanvas() {
+    const el = $('#sidebar');
+    if (!el || !window.bootstrap) return;
+    const oc = bootstrap.Offcanvas.getInstance(el);
+    if (oc) oc.hide();
+}
+
+// ---------------------- Dashboard ----------------------
+const charts = {};
+
+async function loadDashboard() {
+    try {
+        const [stats, activity] = await Promise.all([
+            api('/api/admin/stats').catch(() => ({})),
+            api('/api/admin/activity/recent?limit=8').catch(() => ({ activities: [] }))
+        ]);
+        $('#stat-orders').textContent     = fmtNum(stats.totalOrders);
+        $('#stat-users').textContent      = fmtNum(stats.totalUsers);
+        $('#stat-pending-wd').textContent = fmtNum(stats.pendingWithdrawals);
+        $('#stat-revenue').textContent    = fmtMoney(stats.revenueUsdt, '');
+        renderActivity(activity.activities || activity.data || []);
+        renderRevenueChart();
+        renderOrdersChart(stats);
+    } catch {
+        Toast.show('Failed to load dashboard.', 'error');
     }
 }
 
-// Initialize the admin dashboard when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // Debug CSS loading
-    const cssLink = document.querySelector('link[href="/css/admin-modern.css"]');
-    if (cssLink) {
-        cssLink.addEventListener('load', () => {
-            console.log('✅ Admin CSS loaded successfully');
-        });
-        cssLink.addEventListener('error', () => {
-            console.error('❌ Failed to load admin CSS');
-        });
+function renderActivity(items) {
+    const el = $('#activity-list'); if (!el) return;
+    if (!items.length) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-stream"></i></div>
+            <p class="small mb-0">No recent activity.</p></div>`;
+        return;
     }
-    
-    // Debug DOM elements
-    console.log('🔍 DOM Debug:', {
-        telegramIdInput: !!document.getElementById('telegram-id'),
-        sendOtpBtn: !!document.getElementById('send-otp-btn'),
-        loginModal: !!document.getElementById('login-modal')
+    const ICON = {
+        order:      ['fa-shopping-cart',   'bg-primary-soft'],
+        purchase:   ['fa-shopping-cart',   'bg-primary-soft'],
+        withdrawal: ['fa-money-bill-wave', 'bg-success-soft'],
+        signup:     ['fa-user-plus',       'bg-info-soft'],
+        login:      ['fa-sign-in-alt',     'bg-warning-soft']
+    };
+    el.innerHTML = items.map(a => {
+        const t = a.activityType || a.type || 'event';
+        const [icon, cls] = ICON[t] || ['fa-circle', 'bg-info-soft'];
+        const title = a.title || (t.charAt(0).toUpperCase() + t.slice(1));
+        const desc  = a.description || a.message || (a.userId ? `User ${a.userId}` : '');
+        return `<div class="activity-item">
+            <div class="activity-icon stat-icon ${cls}"><i class="fas ${icon}"></i></div>
+            <div class="flex-grow-1 min-w-0">
+                <div class="fw-semibold small">${escapeHtml(title)}</div>
+                <div class="text-muted small">${escapeHtml(desc)}</div>
+            </div>
+            <div class="text-muted small text-nowrap">${timeAgo(a.timestamp || a.createdAt)}</div>
+        </div>`;
+    }).join('');
+}
+
+function renderRevenueChart() {
+    const c = $('#revenue-chart'); if (!c || !window.Chart) return;
+    if (charts.revenue) charts.revenue.destroy();
+    const labels = []; const data = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(Date.now() - i*86400000);
+        labels.push(d.toLocaleDateString(undefined, { month:'short', day:'numeric' }));
+        data.push(0);
+    }
+    charts.revenue = new Chart(c, {
+        type: 'line',
+        data: { labels, datasets: [{
+            label: 'Revenue', data,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,.08)',
+            borderWidth: 2, fill: true, tension: .35, pointRadius: 3
+        }] },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
     });
-    
-    window.adminDashboard = new AdminDashboard();
-});
+}
 
+function renderOrdersChart(stats) {
+    const c = $('#orders-chart'); if (!c || !window.Chart) return;
+    if (charts.orders) charts.orders.destroy();
+    const total = Number(stats?.totalOrders || 0);
+    const pending = Number(stats?.pendingWithdrawals || 0);
+    const completed = Math.max(0, total - pending);
+    charts.orders = new Chart(c, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'Pending', 'Other'],
+            datasets: [{
+                data: [completed, pending, Math.max(1, Math.round(total * 0.05))],
+                backgroundColor: ['#16a34a', '#d97706', '#cbd5e1'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } }
+        }
+    });
+}
 
-// Handle window resize for responsive charts
-window.addEventListener('resize', () => {
-    if (window.adminDashboard && window.adminDashboard.charts) {
-        Object.values(window.adminDashboard.charts).forEach(chart => {
-            if (chart) chart.resize();
+// ---------------------- Status badge ----------------------
+function statusBadge(status) {
+    const s = String(status || '').toLowerCase();
+    const cls = ['pending','processing','completed','declined','failed'].includes(s) ? `s-${s}` : 's-default';
+    return `<span class="badge status ${cls}">${escapeHtml(status || 'unknown')}</span>`;
+}
+
+// ---------------------- Orders ----------------------
+const ordersState = { page: 1, limit: 20, total: 0, type: 'all', status: '', q: '' };
+
+function tableLoading() {
+    return `<div class="empty-state"><div class="spinner-border text-primary" role="status"></div><p class="small mt-2 mb-0">Loading…</p></div>`;
+}
+
+async function loadOrders() {
+    const wrap = $('#orders-table');
+    wrap.innerHTML = tableLoading();
+    try {
+        const params = new URLSearchParams({
+            page: ordersState.page, limit: ordersState.limit,
+            type: ordersState.type, status: ordersState.status, q: ordersState.q
         });
+        const r = await api('/api/admin/orders?' + params);
+        ordersState.total = r.total || 0;
+        $('#orders-count').textContent = `${fmtNum(ordersState.total)} order${ordersState.total === 1 ? '' : 's'}`;
+        $('#orders-page').textContent = `Page ${ordersState.page}`;
+        const rows = r.orders || [];
+        if (!rows.length) {
+            wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-shopping-cart"></i></div>
+                <p class="fw-semibold mb-1">No orders</p><p class="small mb-0">Try changing filters.</p></div>`;
+            return;
+        }
+        wrap.innerHTML = `<table class="table mb-0"><thead><tr>
+            <th>ID</th><th>Type</th><th>User</th><th>Amount</th><th>Status</th><th>Date</th><th class="text-end">Actions</th>
+        </tr></thead><tbody>${rows.map(o => `
+            <tr>
+                <td class="cell-mono">${escapeHtml(o.id)}</td>
+                <td><span class="badge ${o.type === 'buy' ? 'text-bg-primary' : 'text-bg-info'}">${escapeHtml(o.type)}</span></td>
+                <td>${escapeHtml(o.username || o.telegramId || '—')}</td>
+                <td class="fw-semibold">${fmtNum(o.amount)}</td>
+                <td>${statusBadge(o.status)}</td>
+                <td class="cell-mono">${fmtDate(o.dateCreated)}</td>
+                <td class="text-end">
+                    ${(o.status === 'pending' || o.status === 'processing') ? `
+                        <button class="btn btn-success btn-sm me-1" data-order-action="complete" data-id="${escapeHtml(o.id)}"><i class="fas fa-check me-1"></i>Complete</button>
+                        <button class="btn btn-outline-danger btn-sm" data-order-action="decline" data-id="${escapeHtml(o.id)}"><i class="fas fa-times me-1"></i>Decline</button>` : ''}
+                </td>
+            </tr>`).join('')}</tbody></table>`;
+    } catch (e) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-triangle-exclamation"></i></div>
+            <p class="small mb-0">${escapeHtml(e.message || 'Failed to load.')}</p></div>`;
     }
-});
+}
+
+async function orderAction(id, action) {
+    if (action === 'decline') {
+        const ok = await Confirm.open({ title: 'Decline order', body: `Decline order ${id}? This cannot be undone.`, okText: 'Decline', okVariant: 'danger' });
+        if (!ok) return;
+    }
+    try {
+        await api(`/api/admin/orders/${encodeURIComponent(id)}/${action}`, { method: 'POST', body: JSON.stringify({}) });
+        Toast.show(`Order ${action}d.`, 'success');
+        loadOrders();
+    } catch (e) {
+        Toast.show(e.message || 'Action failed.', 'error');
+    }
+}
+
+// ---------------------- Withdrawals ----------------------
+const wdState = { page: 1, limit: 20, total: 0, status: '', q: '' };
+
+async function loadWithdrawals() {
+    const wrap = $('#wd-table');
+    wrap.innerHTML = tableLoading();
+    try {
+        const params = new URLSearchParams({
+            page: wdState.page, limit: wdState.limit, status: wdState.status, q: wdState.q
+        });
+        const r = await api('/api/admin/withdrawals?' + params);
+        wdState.total = r.total || 0;
+        $('#wd-count').textContent = `${fmtNum(wdState.total)} withdrawal${wdState.total === 1 ? '' : 's'}`;
+        $('#wd-page').textContent = `Page ${wdState.page}`;
+        const rows = r.withdrawals || [];
+        if (!rows.length) {
+            wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-credit-card"></i></div>
+                <p class="fw-semibold mb-0">No withdrawals</p></div>`;
+            return;
+        }
+        wrap.innerHTML = `<table class="table mb-0"><thead><tr>
+            <th>ID</th><th>User</th><th>Amount</th><th>Wallet</th><th>Status</th><th>Date</th><th class="text-end">Actions</th>
+        </tr></thead><tbody>${rows.map(w => `
+            <tr>
+                <td class="cell-mono">${escapeHtml(String(w._id || w.id || '').slice(-8))}</td>
+                <td>${escapeHtml(w.username || w.userId || '—')}</td>
+                <td class="fw-semibold">${fmtNum(w.amount)}</td>
+                <td class="cell-mono" title="${escapeHtml(w.walletAddress || '')}">${escapeHtml((w.walletAddress || '').slice(0, 12))}${(w.walletAddress || '').length > 12 ? '…' : ''}</td>
+                <td>${statusBadge(w.status)}</td>
+                <td class="cell-mono">${fmtDate(w.createdAt)}</td>
+                <td class="text-end">
+                    ${w.status === 'pending' ? `
+                        <button class="btn btn-success btn-sm me-1" data-wd-action="complete" data-id="${escapeHtml(w._id)}"><i class="fas fa-check me-1"></i>Complete</button>
+                        <button class="btn btn-outline-danger btn-sm" data-wd-action="decline" data-id="${escapeHtml(w._id)}"><i class="fas fa-times me-1"></i>Decline</button>` : ''}
+                </td>
+            </tr>`).join('')}</tbody></table>`;
+    } catch (e) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-triangle-exclamation"></i></div>
+            <p class="small mb-0">${escapeHtml(e.message || 'Failed to load.')}</p></div>`;
+    }
+}
+
+async function wdAction(id, action) {
+    let body = {};
+    if (action === 'decline') {
+        const reason = await Confirm.open({
+            title: 'Decline withdrawal',
+            body: 'Provide a reason (optional) and confirm to decline this withdrawal.',
+            okText: 'Decline', okVariant: 'danger', withInput: true
+        });
+        if (reason === null) return;
+        body = { reason };
+    } else {
+        const ok = await Confirm.open({ title: 'Complete withdrawal', body: 'Mark this withdrawal as completed?', okText: 'Complete', okVariant: 'success' });
+        if (!ok) return;
+    }
+    try {
+        await api(`/api/admin/withdrawals/${encodeURIComponent(id)}/${action}`, { method: 'POST', body: JSON.stringify(body) });
+        Toast.show(`Withdrawal ${action}d.`, 'success');
+        loadWithdrawals();
+    } catch (e) {
+        Toast.show(e.message || 'Action failed.', 'error');
+    }
+}
+
+// ---------------------- Users ----------------------
+const usersState = { page: 1, limit: 25, total: 0, q: '', minutes: '0' };
+
+async function loadUsers() {
+    const wrap = $('#users-table');
+    wrap.innerHTML = tableLoading();
+    try {
+        const params = new URLSearchParams({
+            activeMinutes: usersState.minutes,
+            page: usersState.page,
+            limit: usersState.limit,
+            q: usersState.q
+        });
+        const r = await api('/api/admin/users?' + params);
+        const all = r.users || [];
+        // If backend doesn't paginate/search, do it client-side as a fallback.
+        let rows = all;
+        if (typeof r.total !== 'number') {
+            if (usersState.q) {
+                const q = usersState.q.toLowerCase();
+                rows = all.filter(u =>
+                    String(u.id || '').toLowerCase().includes(q) ||
+                    String(u.username || '').toLowerCase().includes(q)
+                );
+            }
+            usersState.total = rows.length;
+            const start = (usersState.page - 1) * usersState.limit;
+            rows = rows.slice(start, start + usersState.limit);
+        } else {
+            usersState.total = r.total;
+        }
+        $('#users-count').textContent = `${fmtNum(usersState.total)} user${usersState.total === 1 ? '' : 's'}`;
+        $('#users-page').textContent = `Page ${usersState.page}`;
+        if (!rows.length) {
+            wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-users"></i></div>
+                <p class="fw-semibold mb-1">No users</p><p class="small mb-0">Try changing filters.</p></div>`;
+            return;
+        }
+        wrap.innerHTML = `<table class="table mb-0"><thead><tr>
+            <th>ID</th><th>Username</th><th>Joined</th><th>Last active</th><th>Stars</th>
+        </tr></thead><tbody>${rows.map(u => `
+            <tr>
+                <td class="cell-mono">${escapeHtml(u.id)}</td>
+                <td>${u.username ? '@' + escapeHtml(u.username) : '<span class="cell-mono">—</span>'}</td>
+                <td class="cell-mono">${fmtDate(u.createdAt || u.dateJoined)}</td>
+                <td class="cell-mono">${u.lastActive ? timeAgo(u.lastActive) : '—'}</td>
+                <td class="fw-semibold">${fmtNum(u.stars || u.balance || 0)}</td>
+            </tr>`).join('')}</tbody></table>`;
+    } catch (e) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-triangle-exclamation"></i></div>
+            <p class="small mb-0">${escapeHtml(e.message || 'Failed to load.')}</p></div>`;
+    }
+}
+
+// ---------------------- Performance ----------------------
+async function loadPerformance() {
+    try {
+        const r = await api('/api/admin/performance');
+        const t = r.totals || {};
+        $('#perf-overview').innerHTML = `
+            <ul class="list-group list-group-flush">
+                ${perfRow('Tracked users', fmtNum(t.usersCount))}
+                ${perfRow('Active today', fmtNum(t.activeToday))}
+                ${perfRow('Active 7d', fmtNum(t.active7d))}
+                ${perfRow('Activity points', fmtNum(t.totalActivityPoints))}
+                ${perfRow('Referral points', fmtNum(t.totalReferralPoints))}
+                ${perfRow('Avg missions', (t.avgMissionsCompleted || 0).toFixed(1))}
+            </ul>`;
+        const top = r.top10 || [];
+        if (!top.length) {
+            $('#perf-top10').innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fas fa-trophy"></i></div><p class="small mb-0">No data.</p></div>`;
+        } else {
+            $('#perf-top10').innerHTML = `<div class="table-responsive"><table class="table mb-0"><thead><tr>
+                <th>#</th><th>User</th><th>Score</th><th>Points</th><th>Referrals</th><th>Missions</th><th>Streak</th>
+            </tr></thead><tbody>${top.map((e, i) => `
+                <tr>
+                    <td class="fw-semibold">${i+1}</td>
+                    <td>${e.username ? '@'+escapeHtml(e.username) : '<span class="cell-mono">'+escapeHtml(e.userId)+'</span>'}</td>
+                    <td class="fw-semibold">${e.score}</td>
+                    <td>${fmtNum(e.totalPoints)}</td>
+                    <td>${fmtNum(e.referralsCount)}</td>
+                    <td>${fmtNum(e.missionsCompleted)}</td>
+                    <td>${fmtNum(e.streak)}</td>
+                </tr>`).join('')}</tbody></table></div>`;
+        }
+    } catch {
+        Toast.show('Failed to load performance.', 'error');
+    }
+}
+function perfRow(label, value) {
+    return `<li class="list-group-item d-flex justify-content-between align-items-center px-0">
+        <span class="text-muted small">${escapeHtml(label)}</span>
+        <span class="fw-semibold">${escapeHtml(value)}</span>
+    </li>`;
+}
+
+// ---------------------- Notifications ----------------------
+async function sendNotification() {
+    const target = $('#notify-target').value.trim() || 'all';
+    const message = $('#notify-message').value.trim();
+    const title = $('#notify-title').value.trim();
+    if (!message) { Toast.show('Message is required.', 'warning'); return; }
+    const btn = $('#notify-send');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
+    try {
+        await api('/api/admin/notify', { method: 'POST', body: JSON.stringify({ target, message, title }) });
+        Toast.show('Notification sent.', 'success');
+        $('#notify-message').value = '';
+        $('#notify-len').textContent = '0';
+    } catch (e) {
+        Toast.show(e.message || 'Failed to send.', 'error');
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send';
+    }
+}
+
+// ---------------------- Bot simulator ----------------------
+async function loadBots() {
+    try {
+        const r = await api('/api/admin/bot-simulator/status');
+        const badge = $('#bot-status-badge');
+        badge.className = 'badge ' + (r.running ? 'text-bg-success' : r.enabled ? 'text-bg-warning' : 'text-bg-secondary');
+        badge.textContent = r.running ? 'Running' : (r.enabled ? 'Enabled (idle)' : 'Disabled');
+        $('#bot-count').textContent = fmtNum(r.botCount || 0);
+        const t = $('#bot-toggle');
+        t.disabled = false;
+        t.innerHTML = `<i class="fas fa-power-off me-1"></i>${r.enabled ? 'Disable' : 'Enable'}`;
+    } catch {
+        Toast.show('Failed to load bot status.', 'error');
+    }
+}
+async function toggleBots() {
+    const t = $('#bot-toggle'); t.disabled = true;
+    try {
+        const r = await api('/api/admin/bot-simulator/toggle', { method: 'POST', body: JSON.stringify({}) });
+        Toast.show(r.message || 'Toggled.', 'success');
+        loadBots();
+    } catch (e) {
+        Toast.show(e.message || 'Toggle failed.', 'error');
+        t.disabled = false;
+    }
+}
+
+// ---------------------- Exports ----------------------
+function exportCsv(path, filename) {
+    fetch(path, { headers: { 'x-telegram-id': TOKEN || '' } })
+        .then(r => r.ok ? r.blob() : Promise.reject(new Error('Export failed')))
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url; link.download = filename;
+            document.body.appendChild(link); link.click(); link.remove();
+            URL.revokeObjectURL(url);
+            Toast.show('Export ready.', 'success');
+        })
+        .catch(e => Toast.show(e.message || 'Export failed.', 'error'));
+}
+
+// ---------------------- View dispatcher ----------------------
+function loadView(view) {
+    switch (view) {
+        case 'dashboard':     return loadDashboard();
+        case 'performance':   return loadPerformance();
+        case 'orders':        return loadOrders();
+        case 'withdrawals':   return loadWithdrawals();
+        case 'users':         return loadUsers();
+        case 'notifications': return;
+        case 'bots':          return loadBots();
+    }
+}
+
+// ---------------------- Wiring ----------------------
+function bindEvents() {
+    $('#send-otp-btn')?.addEventListener('click', handleSendOTP);
+    $('#verify-otp-btn')?.addEventListener('click', handleVerifyOTP);
+    $('#telegram-id')?.addEventListener('keydown', e => { if (e.key === 'Enter') handleSendOTP(); });
+    $('#otp-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') handleVerifyOTP(); });
+
+    $$('.nav-link.admin-nav').forEach(l => l.addEventListener('click', () => switchView(l.dataset.view)));
+    $$('[data-go]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.go)));
+
+    $('#refresh-btn')?.addEventListener('click', () => loadView(currentView));
+    $('#logout-btn')?.addEventListener('click', () => { Auth.clear(); location.reload(); });
+    $('#refresh-activity')?.addEventListener('click', loadDashboard);
+
+    $('#orders-type')?.addEventListener('change', e => { ordersState.type = e.target.value; ordersState.page = 1; loadOrders(); });
+    $('#orders-status')?.addEventListener('change', e => { ordersState.status = e.target.value; ordersState.page = 1; loadOrders(); });
+    $('#orders-search')?.addEventListener('input', debounce(e => { ordersState.q = e.target.value.trim(); ordersState.page = 1; loadOrders(); }, 350));
+    $('#orders-prev')?.addEventListener('click', () => { if (ordersState.page > 1) { ordersState.page--; loadOrders(); } });
+    $('#orders-next')?.addEventListener('click', () => { if (ordersState.page * ordersState.limit < ordersState.total) { ordersState.page++; loadOrders(); } });
+
+    $('#wd-status')?.addEventListener('change', e => { wdState.status = e.target.value; wdState.page = 1; loadWithdrawals(); });
+    $('#wd-search')?.addEventListener('input', debounce(e => { wdState.q = e.target.value.trim(); wdState.page = 1; loadWithdrawals(); }, 350));
+    $('#wd-prev')?.addEventListener('click', () => { if (wdState.page > 1) { wdState.page--; loadWithdrawals(); } });
+    $('#wd-next')?.addEventListener('click', () => { if (wdState.page * wdState.limit < wdState.total) { wdState.page++; loadWithdrawals(); } });
+
+    $('#users-active')?.addEventListener('change', e => { usersState.minutes = e.target.value; usersState.page = 1; loadUsers(); });
+    $('#users-search')?.addEventListener('input', debounce(e => { usersState.q = e.target.value.trim(); usersState.page = 1; loadUsers(); }, 350));
+    $('#users-prev')?.addEventListener('click', () => { if (usersState.page > 1) { usersState.page--; loadUsers(); } });
+    $('#users-next')?.addEventListener('click', () => { if (usersState.page * usersState.limit < usersState.total) { usersState.page++; loadUsers(); } });
+
+    $('#notify-message')?.addEventListener('input', e => { $('#notify-len').textContent = e.target.value.length; });
+    $$('[data-set-target]').forEach(b => b.addEventListener('click', () => { $('#notify-target').value = b.dataset.setTarget; }));
+    $('#notify-clear')?.addEventListener('click', () => {
+        $('#notify-message').value = ''; $('#notify-target').value = ''; $('#notify-title').value = ''; $('#notify-len').textContent = '0';
+    });
+    $('#notify-send')?.addEventListener('click', sendNotification);
+
+    $('#bot-toggle')?.addEventListener('click', toggleBots);
+
+    document.addEventListener('click', e => {
+        const exp = e.target.closest('[data-action]');
+        if (exp) {
+            if (exp.dataset.action === 'export-orders') exportCsv('/api/admin/orders/export', 'orders.csv');
+            if (exp.dataset.action === 'export-withdrawals') exportCsv('/api/admin/withdrawals/export', 'withdrawals.csv');
+        }
+        const oa = e.target.closest('[data-order-action]');
+        if (oa) orderAction(oa.dataset.id, oa.dataset.orderAction);
+        const wa = e.target.closest('[data-wd-action]');
+        if (wa) wdAction(wa.dataset.id, wa.dataset.wdAction);
+    });
+
+    window.addEventListener('resize', () => Object.values(charts).forEach(c => c?.resize?.()));
+}
+
+// ---------------------- Boot ----------------------
+async function enterApp() {
+    hideLogin();
+    $('#admin-name').textContent = TOKEN ? `Admin ${TOKEN}` : 'Admin';
+    switchView('dashboard');
+}
+
+async function init() {
+    bindEvents();
+    showLoading(true);
+    try {
+        if (TOKEN && await Auth.verify()) {
+            await enterApp();
+        } else {
+            Auth.clear();
+            showLogin();
+        }
+    } finally {
+        showLoading(false);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+})();
