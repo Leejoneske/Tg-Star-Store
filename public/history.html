@@ -678,7 +678,36 @@ function safeSetText(id, text) {
     if (el) el.textContent = text;
 }
 
-const user = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) ? window.Telegram.WebApp.initDataUnsafe.user : null;
+// Helper function to get valid user ID
+function getValidUserId() {
+    // Try Telegram WebApp first
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (tgUser?.id) {
+        const tgUserId = tgUser.id.toString();
+        if (tgUserId !== 'undefined' && tgUserId !== 'null' && !isNaN(tgUserId)) {
+            return tgUserId;
+        }
+    }
+    
+    // Try authenticated user ID from window
+    if (window.authenticatedUserId && window.authenticatedUserId !== 'undefined' && window.authenticatedUserId !== 'null') {
+        return window.authenticatedUserId.toString();
+    }
+    
+    // Try localStorage (set during previous login)
+    try {
+        const stored = localStorage.getItem('userId');
+        if (stored && stored !== 'undefined' && stored !== 'null' && stored !== 'dev-user') {
+            return stored;
+        }
+    } catch (e) {
+        // localStorage not available
+    }
+    
+    return null; // No valid user ID found
+}
+
+const userId = getValidUserId();
 const BASE_API_URL = window.location.origin + '/api';
 
 let transactionHistory = [];
@@ -691,6 +720,7 @@ let currentTransactionSearch = '';
 let currentReferralSearch = '';
 const itemsPerPage = 5;
 let currentLanguage = TranslationUtils.getCurrentLanguage();
+let authError = !userId; // Track if there was an auth error
 
 // Initialize translations
 if (typeof TranslationUtils !== 'undefined') {
@@ -718,7 +748,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function initApp() {
-
+    if (!userId) {
+        console.error('❌ No valid user ID found - authentication required');
+        authError = true;
+        showAuthenticationError();
+        return;
+    }
     
     updateLanguage();
     setupEventListeners();
@@ -731,6 +766,24 @@ function initApp() {
         }
     });
     // Bottom nav is auto-loaded by /js/bottomnav-init.js?v=3 when #bottomnav-container exists.
+}
+
+// Show authentication error
+function showAuthenticationError() {
+    const container = document.querySelector('.app-container') || document.body;
+    if (container) {
+        container.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #d32f2f;">
+                <h2>Authentication Required</h2>
+                <p style="margin-top: 10px; color: #666;">
+                    This page must be accessed through Telegram. Please open this link in Telegram:
+                </p>
+                <a href="https://t.me/TgStarStore_bot" style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #0088cc; color: white; text-decoration: none; border-radius: 5px;">
+                    Open Telegram Bot
+                </a>
+            </div>
+        `;
+    }
 }
 
 function setupEventListeners() {
@@ -794,19 +847,21 @@ function updateLanguage() {
 }
 
 function loadTransactionHistory() {
-            LoadingComponent.show('transactionsLoading', 'cards', { count: 3 });
+    LoadingComponent.show('transactionsLoading', 'cards', { count: 3 });
     safeSetDisplay('transactionsList', 'none');
     safeSetDisplay('transactionsEmpty', 'none');
 
-    if (!user || !user.id) {
+    if (!userId) {
+        console.error('❌ Cannot load transactions: No valid user ID');
         LoadingComponent.hide('transactionsLoading');
         safeSetDisplay('transactionsEmpty', 'flex');
         transactionHistory = [];
+        authError = true;
         return;
     }
 
     const headers = {
-        'x-telegram-id': user.id,
+        'x-telegram-id': userId,
         'Content-Type': 'application/json'
     };
     
@@ -815,11 +870,17 @@ function loadTransactionHistory() {
         headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
     }
 
-    fetch(`${BASE_API_URL}/transactions/${user.id}`, {
+    fetch(`${BASE_API_URL}/transactions/${userId}`, {
         headers: headers
     })
     .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 404) {
+                console.error(`❌ Authentication error (${response.status}): User not found or unauthorized`);
+                authError = true;
+            }
+            throw new Error('Network response was not ok');
+        }
         return response.json();
     })
     .then(data => {
@@ -859,14 +920,16 @@ function loadReferralHistory() {
     safeSetDisplay('referralsList', 'none');
     safeSetDisplay('referralsEmpty', 'none');
 
-    if (!user || !user.id) {
+    if (!userId) {
+        console.error('❌ Cannot load referrals: No valid user ID');
         LoadingComponent.hide('referralsLoading');
         safeSetDisplay('referralsEmpty', 'flex');
+        authError = true;
         return;
     }
 
     const headers = {
-        'x-telegram-id': user.id,
+        'x-telegram-id': userId,
         'Content-Type': 'application/json'
     };
     
@@ -875,16 +938,20 @@ function loadReferralHistory() {
         headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
     }
 
-    fetch(`${BASE_API_URL}/referrals/${user.id}?type=referral`, {
+    fetch(`${BASE_API_URL}/referrals/${userId}?type=referral`, {
         headers: headers
     })
     .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 404) {
+                console.error(`❌ Authentication error (${response.status}): User not found or unauthorized`);
+                authError = true;
+            }
+            throw new Error('Network response was not ok');
+        }
         return response.json();
     })
     .then(data => {
-
-        
         referralHistory = data.map(ref => {
             return {
                 ...ref,
@@ -893,11 +960,10 @@ function loadReferralHistory() {
             };
         });
         
-
-        
         updateReferralList();
     })
     .catch(error => {
+        console.error('❌ [Frontend] Error loading referrals:', error);
         LoadingComponent.hide('referralsLoading');
         safeSetDisplay('referralsEmpty', 'flex');
     });
@@ -1358,15 +1424,12 @@ async function doExportTransactions(format) {
         if (window.Telegram?.WebApp?.initData) {
             headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
             console.log('Using x-telegram-init-data header');
-        } else if (user?.id && user.id !== undefined && user.id !== null && user.id !== 'undefined') {
-            headers['x-telegram-id'] = user.id.toString();
-            console.log('Using x-telegram-id header from user object:', user.id);
+        } else if (userId) {
+            headers['x-telegram-id'] = userId.toString();
+            console.log('Using x-telegram-id header from userId:', userId);
         } else {
-            const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-            if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null && telegramUserId !== 'undefined') {
-                headers['x-telegram-id'] = telegramUserId.toString();
-                console.log('Using x-telegram-id header from initDataUnsafe:', telegramUserId);
-            }
+            console.error('❌ No valid user ID for export');
+            throw new Error('User authentication required');
         }
 
         const response = await fetch(`${BASE_API_URL}/api/export-transactions-pdf?t=${Date.now()}`, {
@@ -1415,7 +1478,7 @@ async function doExportTransactions(format) {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `transactions_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.pdf`;
+        a.download = `transactions_${userId || 'user'}_${new Date().toISOString().slice(0, 10)}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1491,13 +1554,11 @@ async function doExportReferrals(format) {
         
         if (window.Telegram?.WebApp?.initData) {
             headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
-        } else if (user?.id && user.id !== undefined && user.id !== null && user.id !== 'undefined') {
-            headers['x-telegram-id'] = user.id.toString();
+        } else if (userId) {
+            headers['x-telegram-id'] = userId.toString();
         } else {
-            const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-            if (telegramUserId && telegramUserId !== undefined && telegramUserId !== null && telegramUserId !== 'undefined') {
-                headers['x-telegram-id'] = telegramUserId.toString();
-            }
+            console.error('❌ No valid user ID for export');
+            throw new Error('User authentication required');
         }
 
         const response = await fetch(`${BASE_API_URL}/api/export-referrals-pdf?t=${Date.now()}`, {
@@ -1543,7 +1604,7 @@ async function doExportReferrals(format) {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `referrals_${user?.id || 'user'}_${new Date().toISOString().slice(0, 10)}.pdf`;
+        a.download = `referrals_${userId || 'user'}_${new Date().toISOString().slice(0, 10)}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
