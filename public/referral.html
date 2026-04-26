@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -578,89 +579,97 @@
 </div>
 
 <script>
-    // Initialize Telegram WebApp
-    if (window.Telegram?.WebApp) {
-        const webApp = window.Telegram.WebApp;
-        webApp.ready();
-        webApp.expand();
-        document.body.classList.add('telegram-fullscreen');
-        
-        // Apply Telegram theme colors if available
-        if (webApp.themeParams) {
-            const theme = webApp.themeParams;
-            if (theme.isDark) {
-                document.body.setAttribute('data-theme', 'dark');
-            }
-        }
+    // Wait for Telegram WebApp to be ready (telegram-web-app.js is loaded with `defer`).
+    function waitForTelegramReady(maxWaitMs = 2500) {
+        return new Promise((resolve) => {
+            const start = Date.now();
+            (function check() {
+                const wa = window.Telegram?.WebApp;
+                if (wa && wa.initDataUnsafe) {
+                    try { wa.ready && wa.ready(); } catch (_) {}
+                    try { wa.expand && wa.expand(); } catch (_) {}
+                    return resolve(true);
+                }
+                if (Date.now() - start >= maxWaitMs) return resolve(false);
+                setTimeout(check, 50);
+            })();
+        });
     }
 
     // Cache buster token with timestamp
     const CACHE_BUSTER = `v${Date.now().toString().slice(-8)}`;
-    
-    const tgWebApp = window.Telegram?.WebApp;
-    const tgUser = tgWebApp?.initDataUnsafe?.user;
+
     const BASE_API_URL = window.location.origin + '/api';
-    
-    // Helper function to get valid user ID
+
+    // Helper function to get valid user ID (resolved AFTER Telegram WebApp is ready)
     function getValidUserId() {
-        // Try Telegram WebApp first
+        const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
         const tgUserId = tgUser?.id?.toString();
         if (tgUserId && tgUserId !== 'undefined' && tgUserId !== 'null' && !isNaN(tgUserId)) {
             return tgUserId;
         }
-        
-        // Try authenticated user ID from window
+
         if (window.authenticatedUserId && window.authenticatedUserId !== 'undefined' && window.authenticatedUserId !== 'null') {
             return window.authenticatedUserId.toString();
         }
-        
-        // Try localStorage (set during previous login)
+
         try {
             const stored = localStorage.getItem('userId');
             if (stored && stored !== 'undefined' && stored !== 'null' && stored !== 'dev-user') {
                 return stored;
             }
-        } catch (e) {
-            // localStorage not available
-        }
-        
-        return null; // No valid user ID found
+        } catch (e) { /* localStorage not available */ }
+
+        return null;
     }
-    
-    let userId = getValidUserId();
 
     const state = {
-        userId,
+        userId: null,
         referralLink: null,
         newReferralLink: null,
-        stats: { 
-            availableBalance: 0, 
-            totalEarned: 0, 
-            referralsCount: 0, 
-            pendingAmount: 0 
+        stats: {
+            availableBalance: 0,
+            totalEarned: 0,
+            referralsCount: 0,
+            pendingAmount: 0
         },
         referrals: [],
         isWithdrawInProgress: false,
         lastRefresh: 0,
-        authError: !userId // Track if there was an auth error
+        authError: false
     };
+
+    // Theme/init for Telegram WebApp (after it's available)
+    function applyTelegramTheme() {
+        const webApp = window.Telegram?.WebApp;
+        if (!webApp) return;
+        document.body.classList.add('telegram-fullscreen');
+        if (webApp.themeParams && webApp.themeParams.isDark) {
+            document.body.setAttribute('data-theme', 'dark');
+        }
+    }
 
     // Initialize on DOM ready
     document.addEventListener('DOMContentLoaded', async () => {
+        await waitForTelegramReady();
+        applyTelegramTheme();
+
+        state.userId = getValidUserId();
+        state.authError = !state.userId;
+
         if (!state.userId) {
             console.error('❌ No valid user ID found - authentication required');
-            state.authError = true;
             showAuthenticationError();
             return;
         }
-        
+
         console.log('Initializing referral page for user:', state.userId);
         await loadBottomNav();
         await loadReferralData();
         setupEventListeners();
         applyTranslations();
     });
-    
+
     // Show authentication error
     function showAuthenticationError() {
         const container = document.getElementById('referralContainer') || document.querySelector('main');
@@ -697,7 +706,7 @@
         try {
             const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`, {
                 headers: {
-                    'x-telegram-init-data': tgWebApp?.initData || '',
+                    'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
                     'x-telegram-id': state.userId
                 }
             });
@@ -967,7 +976,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-telegram-init-data': tgWebApp?.initData || '',
+                    'x-telegram-init-data': window.Telegram?.WebApp?.initData || '',
                     'x-telegram-id': state.userId
                 },
                 body: JSON.stringify({
