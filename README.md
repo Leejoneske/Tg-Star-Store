@@ -356,4 +356,4 @@ For issues, questions, or feedback:
 
 ---
 
-**StarStore** - Professional Telegram Stars trading platform built on blockchain technology.
+**StarStore** - A Telegram platform for stars—buy and sell stars with ease https://t.me/TgStarStore_bot
