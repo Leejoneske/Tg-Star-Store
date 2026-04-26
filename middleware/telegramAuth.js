@@ -1,3 +1,4 @@
+
 const crypto = require('crypto');
 
 function parseInitData(initData) {
