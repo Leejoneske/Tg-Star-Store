@@ -1616,11 +1616,11 @@ app.get('/api/version', (req, res) => {
     }
 });
 
-// Analytics endpoint (disabled - TGAnalytics service returning 400 errors)
+// Analytics configuration endpoint
 app.get('/api/analytics/config', (req, res) => {
     res.json({
-        enabled: false,
-        reason: 'TGAnalytics service token invalid/expired - re-registration required'
+        token: process.env.TGANALYTICS_TOKEN || 'eyJhcHBfbmFtZSI6InN0YXJzdG9yZSIsImFwcF91cmwiOiJodHRwczovL3QubWUvVGdTdGFyU3RvcmVfYm90IiwiYXBwX2RvbWFpbiI6Imh0dHBzOi8vc3RhcnN0b3JlLnNpdGUifQ==!p6+pJ88q7iIxa8nf+x+jWQshXdMnNYE4MjiRq2wWP3M=',
+        appName: process.env.TGANALYTICS_APP_NAME || 'starstore'
     });
 });
 

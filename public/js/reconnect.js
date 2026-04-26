@@ -89,6 +89,13 @@ window.ReconnectManager = (() => {
         // Handle fetch errors
         const originalFetch = window.fetch;
         window.fetch = async (...args) => {
+            const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
+            
+            // Exclude analytics services from reconnection logic
+            if (url && (url.includes('tganalytics.xyz') || url.includes('/api/analytics'))) {
+                return originalFetch.apply(this, args);
+            }
+            
             try {
                 const response = await originalFetch.apply(this, args);
                 
