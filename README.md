@@ -112,8 +112,10 @@ TON_API_KEY=your_toncenter_api_key
 SESSION_SECRET=your_strong_session_secret
 
 # TGAnalytics
-TGANALYTICS_TOKEN=your_analytics_token
-TGANALYTICS_APP_NAME=starstore
+# Note: Currently disabled - token validation failing with 400 errors
+# To re-enable: Contact TGAnalytics service for valid token/re-registration
+# TGANALYTICS_TOKEN=your_analytics_token
+# TGANALYTICS_APP_NAME=starstore
 ```
 
 ### 4. Start Application
