@@ -600,8 +600,34 @@
     const tgWebApp = window.Telegram?.WebApp;
     const tgUser = tgWebApp?.initDataUnsafe?.user;
     const BASE_API_URL = window.location.origin + '/api';
-    // Use authenticated user ID if available, otherwise fallback to Telegram WebApp
-    let userId = window.authenticatedUserId || tgUser?.id?.toString() || 'default_user_id';
+    
+    // Helper function to get valid user ID
+    function getValidUserId() {
+        // Try Telegram WebApp first
+        const tgUserId = tgUser?.id?.toString();
+        if (tgUserId && tgUserId !== 'undefined' && tgUserId !== 'null' && !isNaN(tgUserId)) {
+            return tgUserId;
+        }
+        
+        // Try authenticated user ID from window
+        if (window.authenticatedUserId && window.authenticatedUserId !== 'undefined' && window.authenticatedUserId !== 'null') {
+            return window.authenticatedUserId.toString();
+        }
+        
+        // Try localStorage (set during previous login)
+        try {
+            const stored = localStorage.getItem('userId');
+            if (stored && stored !== 'undefined' && stored !== 'null' && stored !== 'dev-user') {
+                return stored;
+            }
+        } catch (e) {
+            // localStorage not available
+        }
+        
+        return null; // No valid user ID found
+    }
+    
+    let userId = getValidUserId();
 
     const state = {
         userId,
@@ -615,17 +641,43 @@
         },
         referrals: [],
         isWithdrawInProgress: false,
-        lastRefresh: 0
+        lastRefresh: 0,
+        authError: !userId // Track if there was an auth error
     };
 
     // Initialize on DOM ready
     document.addEventListener('DOMContentLoaded', async () => {
+        if (!state.userId) {
+            console.error('❌ No valid user ID found - authentication required');
+            state.authError = true;
+            showAuthenticationError();
+            return;
+        }
+        
         console.log('Initializing referral page for user:', state.userId);
         await loadBottomNav();
         await loadReferralData();
         setupEventListeners();
         applyTranslations();
     });
+    
+    // Show authentication error
+    function showAuthenticationError() {
+        const container = document.getElementById('referralContainer') || document.querySelector('main');
+        if (container) {
+            container.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #d32f2f;">
+                    <h2>Authentication Required</h2>
+                    <p style="margin-top: 10px; color: #666;">
+                        This page must be accessed through Telegram. Please open this link in Telegram:
+                    </p>
+                    <a href="https://t.me/TgStarStore_bot" style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #0088cc; color: white; text-decoration: none; border-radius: 5px;">
+                        Open Telegram Bot
+                    </a>
+                </div>
+            `;
+        }
+    }
 
     // Bottom nav loading is centralized in /js/bottomnav-init.js?v=3 (BottomNavUtils.loadBottomNav).
     async function loadBottomNav() {
@@ -636,6 +688,12 @@
 
     // Load referral statistics and data from API
     async function loadReferralData() {
+        if (!state.userId) {
+            console.error('❌ Cannot load referral data: No valid user ID');
+            state.authError = true;
+            return;
+        }
+        
         try {
             const response = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}`, {
                 headers: {
@@ -645,6 +703,12 @@
             });
             
             if (!response.ok) {
+                if (response.status === 401 || response.status === 404) {
+                    console.error(`❌ Authentication error (${response.status}): User not found or unauthorized`);
+                    state.authError = true;
+                    showAuthenticationError();
+                    return;
+                }
                 throw new Error(`API error: ${response.status}`);
             }
             
@@ -664,6 +728,7 @@
                 
                 state.referrals = data.referrals || [];
                 state.lastRefresh = Date.now();
+                state.authError = false;
                 console.log('Referral data updated successfully');
             }
         } catch (error) {

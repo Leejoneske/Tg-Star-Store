@@ -847,8 +847,34 @@
     const tgWebApp = window.Telegram?.WebApp;
     const tgUser   = tgWebApp?.initDataUnsafe?.user;
     const BASE_API_URL = window.location.origin + '/api';
-    // Use authenticated user ID if available, otherwise fallback to Telegram WebApp
-    const userId = window.authenticatedUserId || tgUser?.id?.toString() || 'default_user_id';
+    
+    // Helper function to get valid user ID
+    function getValidUserId() {
+        // Try Telegram WebApp first
+        const tgUserId = tgUser?.id?.toString();
+        if (tgUserId && tgUserId !== 'undefined' && tgUserId !== 'null' && !isNaN(tgUserId)) {
+            return tgUserId;
+        }
+        
+        // Try authenticated user ID from window
+        if (window.authenticatedUserId && window.authenticatedUserId !== 'undefined' && window.authenticatedUserId !== 'null') {
+            return window.authenticatedUserId.toString();
+        }
+        
+        // Try localStorage (set during previous login)
+        try {
+            const stored = localStorage.getItem('userId');
+            if (stored && stored !== 'undefined' && stored !== 'null' && stored !== 'dev-user') {
+                return stored;
+            }
+        } catch (e) {
+            // localStorage not available
+        }
+        
+        return null; // No valid user ID found
+    }
+    
+    const userId = getValidUserId();
 
     // Ambassador level config
     const LEVELS = [
@@ -860,6 +886,7 @@
     ];
 
     const state = {
+        userId,
         referralLink: null,
         walletAddress: null,
         stats: {
@@ -873,10 +900,19 @@
         referrals: [],
         withdrawHistory: [],
         filterMode: 'all',
-        lastRefresh: 0
+        lastRefresh: 0,
+        authError: !userId // Track if there was an auth error
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
+        // Check for valid user ID first
+        if (!state.userId) {
+            console.error('❌ No valid user ID found - authentication required');
+            state.authError = true;
+            showAuthenticationError();
+            return;
+        }
+        
         // Wait for TranslationUtils to be available before applying
         const waitForTranslations = () => {
             return new Promise(resolve => {
@@ -914,6 +950,24 @@
             console.error('Error loading page data:', e);
         }
     });
+    
+    // Show authentication error
+    function showAuthenticationError() {
+        const container = document.querySelector('main') || document.body;
+        if (container) {
+            container.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #d32f2f;">
+                    <h2>Authentication Required</h2>
+                    <p style="margin-top: 10px; color: #666;">
+                        This page must be accessed through Telegram. Please open this link in Telegram:
+                    </p>
+                    <a href="https://t.me/TgStarStore_bot" style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #0088cc; color: white; text-decoration: none; border-radius: 5px;">
+                        Open Telegram Bot
+                    </a>
+                </div>
+            `;
+        }
+    }
 
     // Bottom nav loading is centralized in /js/bottomnav-init.js?v=3 (BottomNavUtils.loadBottomNav).
     async function loadBottomNav() {
@@ -923,16 +977,32 @@
     }
 
     async function loadReferralData() {
+        if (!state.userId) {
+            console.error('❌ Cannot load referral data: No valid user ID');
+            state.authError = true;
+            return;
+        }
+        
         try {
             const headers = {
                 'x-telegram-init-data': tgWebApp?.initData || '',
-                'x-telegram-id': userId
+                'x-telegram-id': state.userId
             };
 
-            const res = await fetch(`${BASE_API_URL}/referral-stats/${userId}?type=ambassador`, {
+            const res = await fetch(`${BASE_API_URL}/referral-stats/${state.userId}?type=ambassador`, {
                 headers
             });
-            if (!res.ok) throw new Error(res.status);
+            
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 404) {
+                    console.error(`❌ Authentication error (${res.status}): User not found or unauthorized`);
+                    state.authError = true;
+                    showAuthenticationError();
+                    return;
+                }
+                throw new Error(res.status);
+            }
+            
             const data = await res.json();
             if (data.success) {
                 state.referralLink   = data.referralLink || fallbackLink();
@@ -954,6 +1024,7 @@
                     avgTransaction:  parseInt(data.avgTransaction   || 0)
                 };
                 state.lastRefresh = Date.now();
+                state.authError = false;
             }
         } catch (e) {
             console.error('Load error:', e);
@@ -963,7 +1034,7 @@
     }
 
     function fallbackLink() {
-        return `https://t.me/TgStarStore_bot?start=amb_${userId}`;
+        return `https://t.me/TgStarStore_bot?start=amb_${state.userId || 'unknown'}`;
     }
 
     function updateUI() {
