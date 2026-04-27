@@ -11422,6 +11422,51 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     }
 });
 
+// Helper: Initialize user entry in database if needed
+async function ensureUserExists(userId) {
+    try {
+        if (!db.data.users) {
+            db.data.users = {};
+        }
+        if (!db.data.users[userId]) {
+            db.data.users[userId] = {
+                userId: userId,
+                hasAccepted21DayNotice: false,
+                acceptedAt: null
+            };
+        }
+        return db.data.users[userId];
+    } catch (err) {
+        console.error('Error ensuring user exists:', err);
+        return null;
+    }
+}
+
+// Helper: Check if user has accepted 21-day hold notice
+async function hasUserAccepted21DayNotice(userId) {
+    try {
+        await ensureUserExists(userId);
+        const user = db.data.users?.[userId];
+        return user?.hasAccepted21DayNotice === true;
+    } catch (err) {
+        console.error('Error checking 21-day notice acceptance:', err);
+        return false;
+    }
+}
+
+// Helper: Mark user as accepted 21-day hold notice
+async function setUser21DayNoticeAccepted(userId) {
+    try {
+        await ensureUserExists(userId);
+        db.data.users[userId].hasAccepted21DayNotice = true;
+        db.data.users[userId].acceptedAt = new Date().toISOString();
+        return true;
+    } catch (err) {
+        console.error('Error setting 21-day notice acceptance:', err);
+        return false;
+    }
+}
+
 // Handle keyboard SELL Stars button or /sell command
 bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
     try {
@@ -11570,9 +11615,37 @@ bot.on('message', async (msg) => {
                 } catch (e) { /* ignore */ }
             }
             
-            // Now create the sell order with the same logic as the API
-            await createSellOrderFromKeyboard(flowState.data, msg, flowState.isAdmin);
-            sellFlowStates.delete(userId);
+            // Check if user has accepted 21-day hold notice
+            const hasAccepted = await hasUserAccepted21DayNotice(userId);
+            if (!hasAccepted) {
+                // Show 21-day hold agreement notice
+                flowState.stage = 'agreement_pending';
+                const noticeMsg = await bot.sendMessage(chatId, 
+                    '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
+                    'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
+                    'This period is required for:\n' +
+                    '• Security verification\n' +
+                    '• Compliance purposes\n' +
+                    '• Fraud prevention\n\n' +
+                    '🔗 <a href="https://starstore.site/knowledge-base/#why-21-day">Read More</a>\n\n' +
+                    'By clicking "Continue", you acknowledge and agree to these terms.',
+                    {
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [[
+                                { text: '✅ Continue', callback_data: `sell_accept_agreement_${userId}_${Date.now()}` }
+                            ]]
+                        }
+                    }
+                );
+                if (noticeMsg?.message_id) {
+                    flowState.agreementMessageId = noticeMsg.message_id;
+                }
+            } else {
+                // User already accepted, create order directly
+                await createSellOrderFromKeyboard(flowState.data, msg, flowState.isAdmin);
+                sellFlowStates.delete(userId);
+            }
         }
     } catch (err) {
         console.error('Sell flow message handler error:', err);
@@ -11602,8 +11675,71 @@ bot.on('callback_query', async (query) => {
                 await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: query.message.message_id });
             } catch (e) { /* ignore */ }
             
+            // Check if user has accepted 21-day hold notice
+            const hasAccepted = await hasUserAccepted21DayNotice(userId);
+            if (!hasAccepted) {
+                // Show 21-day hold agreement notice
+                flowState.stage = 'agreement_pending';
+                const noticeMsg = await bot.sendMessage(chatId, 
+                    '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
+                    'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
+                    'This period is required for:\n' +
+                    '• Security verification\n' +
+                    '• Compliance purposes\n' +
+                    '• Fraud prevention\n\n' +
+                    '🔗 <a href="https://starstore.site/knowledge-base/#why-21-day">Read More</a>\n\n' +
+                    'By clicking "Continue", you acknowledge and agree to these terms.',
+                    {
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [[
+                                { text: '✅ Continue', callback_data: `sell_accept_agreement_${userId}_${Date.now()}` }
+                            ]]
+                        }
+                    }
+                );
+                if (noticeMsg?.message_id) {
+                    flowState.agreementMessageId = noticeMsg.message_id;
+                }
+            } else {
+                // User already accepted, create order directly
+                await bot.sendMessage(chatId, '✅ Memo skipped.\n\n🔄 Creating your sell order...');
+                await createSellOrderFromKeyboard(flowState.data, query.message, flowState.isAdmin);
+                sellFlowStates.delete(userId);
+            }
+            
+            bot.answerCallbackQuery(query.id);
+        } catch (err) {
+            console.error('Skip memo button error:', err);
+            bot.answerCallbackQuery(query.id, { text: 'Error processing request', show_alert: true });
+        }
+    }
+});
+
+// Handle 21-day agreement acceptance for sell orders
+bot.on('callback_query', async (query) => {
+    if (query.data.startsWith('sell_accept_agreement_')) {
+        try {
+            const parts = query.data.split('_');
+            const userId = parts[4]; // sell_accept_agreement_USERID_TIMESTAMP
+            const flowState = sellFlowStates.get(userId);
+            
+            if (!flowState || flowState.stage !== 'agreement_pending') {
+                return bot.answerCallbackQuery(query.id, { text: 'Session expired', show_alert: true });
+            }
+            
+            const chatId = query.message.chat.id;
+            
+            // Mark user as accepted 21-day hold notice
+            await setUser21DayNoticeAccepted(userId);
+            
+            // Delete the agreement button message
+            try {
+                await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: query.message.message_id });
+            } catch (e) { /* ignore */ }
+            
             // Send confirmation and create order
-            await bot.sendMessage(chatId, '✅ Memo skipped.\n\n🔄 Creating your sell order...');
+            await bot.sendMessage(chatId, '✅ Agreement accepted.\n\n🔄 Creating your sell order...');
             
             // Create the sell order
             await createSellOrderFromKeyboard(flowState.data, query.message, flowState.isAdmin);
@@ -11611,7 +11747,7 @@ bot.on('callback_query', async (query) => {
             
             bot.answerCallbackQuery(query.id);
         } catch (err) {
-            console.error('Skip memo button error:', err);
+            console.error('Agreement acceptance button error:', err);
             bot.answerCallbackQuery(query.id, { text: 'Error processing request', show_alert: true });
         }
     }
