@@ -11425,6 +11425,13 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
 // Helper: Initialize user entry in database if needed
 async function ensureUserExists(userId) {
     try {
+        if (!db) {
+            const DataPersistence = require('./tools/data-persistence');
+            db = new DataPersistence();
+        }
+        if (!db.data) {
+            db.data = { users: {} };
+        }
         if (!db.data.users) {
             db.data.users = {};
         }
@@ -11493,6 +11500,7 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
                 'By clicking "Continue", you acknowledge and agree to these terms.',
                 {
                     parse_mode: 'HTML',
+                    disable_web_page_preview: true,
                     reply_markup: {
                         inline_keyboard: [[
                             { text: '✅ Continue', callback_data: `sell_accept_agreement_${userId}_${Date.now()}` }
@@ -12229,6 +12237,7 @@ bot.on('message', async (msg) => {
                     'By clicking "Continue", you acknowledge and agree to these terms.',
                     {
                         parse_mode: 'HTML',
+                        disable_web_page_preview: true,
                         reply_markup: {
                             inline_keyboard: [[
                                 { text: '✅ Continue', callback_data: `sell_accept_agreement_${userId}_${Date.now()}` }
