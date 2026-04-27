@@ -11639,7 +11639,7 @@ bot.on('message', async (msg) => {
                     // Try to delete skip button if it still exists
                     if (flowState.memoMessageId) {
                         try {
-                            await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: flowState.memoMessageId });
+                            await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: flowState.memoMessageId });
                         } catch (e) { /* ignore */ }
                     }
                     return bot.sendMessage(chatId, '❌ Too many errors. Sell session ended. Type /sell to start again.');
@@ -11652,7 +11652,7 @@ bot.on('message', async (msg) => {
             // Delete skip button after user responds
             if (flowState.memoMessageId) {
                 try {
-                    await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: flowState.memoMessageId });
+                    await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: flowState.memoMessageId });
                 } catch (e) { /* ignore */ }
             }
             
@@ -11685,7 +11685,7 @@ bot.on('callback_query', async (query) => {
             
             // Delete the button
             try {
-                await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: query.message.message_id });
+                await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id });
             } catch (e) { /* ignore */ }
             
             // User has already accepted agreement at start, create order directly
@@ -11720,7 +11720,7 @@ bot.on('callback_query', async (query) => {
             
             // Delete the agreement button message
             try {
-                await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: query.message.message_id });
+                await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id });
             } catch (e) { /* ignore */ }
             
             // Send confirmation and proceed to amount input
