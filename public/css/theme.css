@@ -1,123 +1,225 @@
+
+/* ==========================================================================
+   StarStore Theme System
+   Light: clean neutrals + indigo brand
+   Dark:  true canvas blacks, cool grays, vivid blue
+   ========================================================================== */
+
 :root {
-	--surface: #ffffff;
-	--surface-muted: #f8fafc; /* light gray background */
-	--surface-elevated: #ffffff; /* elevated surfaces like cards */
-	--text: #0f172a; /* slate-900 */
-	--text-muted: #475569; /* slate-600 */
-	--text-secondary: #64748b; /* slate-500 */
-	--border: #e5e7eb; /* gray-200 */
-	--border-muted: #f1f5f9; /* gray-100 */
-	--brand: #4f46e5; /* indigo-600 */
-	--brand-hover: #3730a3; /* indigo-800 */
-	--success: #059669; /* emerald-600 */
-	--warning: #d97706; /* amber-600 */
-	--error: #dc2626; /* red-600 */
-	--info: #2563eb; /* blue-600 */
+	/* Surfaces */
+	--surface: #ffffff;            /* default card / panel */
+	--surface-muted: #f6f8fa;      /* page / canvas background */
+	--surface-elevated: #ffffff;   /* raised cards, modals */
+	--surface-subtle: #f0f3f6;     /* inset wells, code blocks */
+	--surface-overlay: #ffffff;    /* popovers, menus */
+
+	/* Text */
+	--text: #1f2328;               /* primary */
+	--text-muted: #59636e;         /* secondary */
+	--text-secondary: #6e7781;     /* tertiary / placeholder */
+	--text-on-brand: #ffffff;      /* foreground on brand surfaces */
+
+	/* Borders */
+	--border: #d1d9e0;             /* default */
+	--border-muted: #d1d9e0b3;     /* softer divider */
+	--border-strong: #afb8c1;      /* emphasized */
+
+	/* Brand */
+	--brand: #4f46e5;              /* indigo-600 */
+	--brand-hover: #4338ca;        /* indigo-700 */
+	--brand-subtle: #eef2ff;       /* tinted brand surface */
+
+	/* Status */
+	--success: #1a7f37;
+	--success-bg: #dafbe1;
+	--warning: #9a6700;
+	--warning-bg: #fff8c5;
+	--error: #cf222e;
+	--error-bg: #ffebe9;
+	--info: #0969da;
+	--info-bg: #ddf4ff;
+
+	/* Effects */
+	--ring: 0 0 0 3px rgba(79, 70, 229, 0.25);
+	--shadow-sm: 0 1px 2px rgba(31, 35, 40, 0.06);
+	--shadow-md: 0 4px 12px rgba(31, 35, 40, 0.08);
+	--shadow-lg: 0 12px 28px rgba(31, 35, 40, 0.12);
+	--shadow-overlay: 0 8px 24px rgba(31, 35, 40, 0.12);
 }
 
 html { color-scheme: light dark; }
 
+/* ==========================================================================
+   Dark Theme — GitHub Primer dark palette
+   Applied via system preference OR [data-theme="dark"] attribute
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--surface: #151b23;
+		--surface-muted: #0d1117;
+		--surface-elevated: #1c2128;
+		--surface-subtle: #010409;
+		--surface-overlay: #1c2128;
+
+		--text: #f0f6fc;
+		--text-muted: #9198a1;
+		--text-secondary: #7d8590;
+		--text-on-brand: #ffffff;
+
+		--border: #3d444d;
+		--border-muted: #3d444db3;
+		--border-strong: #656c76;
+
+		--brand: #4493f8;
+		--brand-hover: #58a6ff;
+		--brand-subtle: rgba(56, 139, 253, 0.15);
+
+		--success: #3fb950;
+		--success-bg: rgba(46, 160, 67, 0.15);
+		--warning: #d29922;
+		--warning-bg: rgba(187, 128, 9, 0.15);
+		--error: #f85149;
+		--error-bg: rgba(248, 81, 73, 0.15);
+		--info: #58a6ff;
+		--info-bg: rgba(56, 139, 253, 0.15);
+
+		--ring: 0 0 0 3px rgba(56, 139, 253, 0.4);
+		--shadow-sm: 0 1px 2px rgba(1, 4, 9, 0.4);
+		--shadow-md: 0 4px 12px rgba(1, 4, 9, 0.5);
+		--shadow-lg: 0 12px 28px rgba(1, 4, 9, 0.6);
+		--shadow-overlay: 0 8px 24px rgba(1, 4, 9, 0.7);
+
+		color-scheme: dark;
+	}
+}
+
+[data-theme="dark"] {
+	--surface: #151b23;
+	--surface-muted: #0d1117;
+	--surface-elevated: #1c2128;
+	--surface-subtle: #010409;
+	--surface-overlay: #1c2128;
+
+	--text: #f0f6fc;
+	--text-muted: #9198a1;
+	--text-secondary: #7d8590;
+	--text-on-brand: #ffffff;
+
+	--border: #3d444d;
+	--border-muted: #3d444db3;
+	--border-strong: #656c76;
+
+	--brand: #4493f8;
+	--brand-hover: #58a6ff;
+	--brand-subtle: rgba(56, 139, 253, 0.15);
+
+	--success: #3fb950;
+	--success-bg: rgba(46, 160, 67, 0.15);
+	--warning: #d29922;
+	--warning-bg: rgba(187, 128, 9, 0.15);
+	--error: #f85149;
+	--error-bg: rgba(248, 81, 73, 0.15);
+	--info: #58a6ff;
+	--info-bg: rgba(56, 139, 253, 0.15);
+
+	--ring: 0 0 0 3px rgba(56, 139, 253, 0.4);
+	--shadow-sm: 0 1px 2px rgba(1, 4, 9, 0.4);
+	--shadow-md: 0 4px 12px rgba(1, 4, 9, 0.5);
+	--shadow-lg: 0 12px 28px rgba(1, 4, 9, 0.6);
+	--shadow-overlay: 0 8px 24px rgba(1, 4, 9, 0.7);
+
+	color-scheme: dark;
+}
+
+/* ==========================================================================
+   Base elements
+   ========================================================================== */
+
 body {
 	background: var(--surface-muted);
 	color: var(--text);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	transition: background-color .2s ease, color .2s ease;
 }
 
-/* Subtle defaults for common elements */
+::selection { background: var(--brand-subtle); color: var(--text); }
+
+/* Scrollbars (WebKit) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--surface-muted); }
+::-webkit-scrollbar-thumb {
+	background: var(--border);
+	border-radius: 6px;
+	border: 2px solid var(--surface-muted);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+html { scrollbar-color: var(--border) var(--surface-muted); scrollbar-width: thin; }
+
 header, footer {
 	background: var(--surface);
 	color: var(--text);
 	border-color: var(--border);
 }
 
-/* Basic link color alignment */
-a { color: var(--brand); }
+a { color: var(--brand); text-decoration: none; }
+a:hover { color: var(--brand-hover); text-decoration: underline; }
 
-/* Dark theme via system and explicit data attribute - GitHub-inspired pure dark */
+hr { border-color: var(--border); }
+
+h1, h2, h3, h4, h5, h6 { color: var(--text); }
+
+code, pre {
+	background: var(--surface-subtle);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+}
+
+/* ==========================================================================
+   Tailwind-ish utility overrides for both schemes
+   ========================================================================== */
+
 @media (prefers-color-scheme: dark) {
-	:root {
-		--surface: #161b22; /* Card/elevated surface - GitHub card background */
-		--surface-muted: #0d1117; /* Main background - pure GitHub dark */
-		--surface-elevated: #1c2128; /* Slightly elevated */
-		--surface-subtle: #010409; /* Darkest background */
-		--text: #e6edf3; /* Light text - better contrast */
-		--text-muted: #8b949e; /* Muted text */
-		--text-secondary: #6e7681; /* Secondary text - darker muted */
-		--border: #21262d; /* Subtle borders - GitHub border color */
-		--border-muted: #161b22; /* Very subtle borders */
-		--brand: #58a6ff; /* Bright brand - GitHub blue */
-		--brand-hover: #79c0ff; /* Lighter on hover */
-		--success: #3fb950; /* GitHub green */
-		--warning: #d29922; /* GitHub orange */
-		--error: #f85149; /* GitHub red */
-		--info: #58a6ff; /* GitHub blue */
-		--shadow-subtle: rgba(0, 0, 0, 0.3);
-		--shadow-medium: rgba(0, 0, 0, 0.5);
-		--shadow-strong: rgba(0, 0, 0, 0.8);
-	}
-	body { 
-		background: var(--surface-muted); 
-		color: var(--text);
-		transition: background-color 0.3s ease, color 0.3s ease;
-	}
+	:root:not([data-theme="light"]) .bg-white { background-color: var(--surface) !important; }
+	:root:not([data-theme="light"]) .bg-gray-50 { background-color: var(--surface-muted) !important; }
+	:root:not([data-theme="light"]) .bg-gray-100 { background-color: var(--surface-elevated) !important; }
+	:root:not([data-theme="light"]) .bg-gray-200 { background-color: var(--border-muted) !important; }
+	:root:not([data-theme="light"]) .text-black,
+	:root:not([data-theme="light"]) .text-gray-900,
+	:root:not([data-theme="light"]) .text-gray-800 { color: var(--text) !important; }
+	:root:not([data-theme="light"]) .text-gray-700 { color: var(--text) !important; }
+	:root:not([data-theme="light"]) .text-gray-600 { color: var(--text-muted) !important; }
+	:root:not([data-theme="light"]) .text-gray-500,
+	:root:not([data-theme="light"]) .text-gray-400 { color: var(--text-secondary) !important; }
+	:root:not([data-theme="light"]) .border-gray-200 { border-color: var(--border) !important; }
+	:root:not([data-theme="light"]) .border-gray-300 { border-color: var(--border-strong) !important; }
+	:root:not([data-theme="light"]) .hover\:bg-gray-100:hover { background-color: var(--surface-elevated) !important; }
+	:root:not([data-theme="light"]) .hover\:bg-gray-50:hover { background-color: var(--surface-elevated) !important; }
 }
 
-[data-theme="dark"] {
-	/* Force dark regardless of system - GitHub-inspired pure dark */
-	--surface: #161b22; /* Card/elevated surface - GitHub card background */
-	--surface-muted: #0d1117; /* Main background - pure GitHub dark */
-	--surface-elevated: #1c2128; /* Slightly elevated */
-	--surface-subtle: #010409; /* Darkest background */
-	--text: #e6edf3; /* Light text - better contrast */
-	--text-muted: #8b949e; /* Muted text */
-	--text-secondary: #6e7681; /* Secondary text - darker muted */
-	--border: #21262d; /* Subtle borders - GitHub border color */
-	--border-muted: #161b22; /* Very subtle borders */
-	--brand: #58a6ff; /* Bright brand - GitHub blue */
-	--brand-hover: #79c0ff; /* Lighter on hover */
-	--success: #3fb950; /* GitHub green */
-	--warning: #d29922; /* GitHub orange */
-	--error: #f85149; /* GitHub red */
-	--info: #58a6ff; /* GitHub blue */
-	--shadow-subtle: rgba(0, 0, 0, 0.3);
-	--shadow-medium: rgba(0, 0, 0, 0.5);
-	--shadow-strong: rgba(0, 0, 0, 0.8);
-}
+[data-theme="dark"] .bg-white { background-color: var(--surface) !important; }
+[data-theme="dark"] .bg-gray-50 { background-color: var(--surface-muted) !important; }
+[data-theme="dark"] .bg-gray-100 { background-color: var(--surface-elevated) !important; }
+[data-theme="dark"] .bg-gray-200 { background-color: var(--border-muted) !important; }
+[data-theme="dark"] .text-black,
+[data-theme="dark"] .text-gray-900,
+[data-theme="dark"] .text-gray-800 { color: var(--text) !important; }
+[data-theme="dark"] .text-gray-700 { color: var(--text) !important; }
+[data-theme="dark"] .text-gray-600 { color: var(--text-muted) !important; }
+[data-theme="dark"] .text-gray-500,
+[data-theme="dark"] .text-gray-400 { color: var(--text-secondary) !important; }
+[data-theme="dark"] .border-gray-200 { border-color: var(--border) !important; }
+[data-theme="dark"] .border-gray-300 { border-color: var(--border-strong) !important; }
+[data-theme="dark"] .bg-gray-200 { background-color: var(--border-muted) !important; }
+[data-theme="dark"] .hover\:bg-gray-100:hover { background-color: var(--surface-elevated) !important; }
+[data-theme="dark"] .hover\:bg-gray-50:hover { background-color: var(--surface-elevated) !important; }
 
-/* Utility overrides to adapt Tailwind-ish classes in dark - GitHub-inspired */
-@media (prefers-color-scheme: dark) {
-	.bg-white { background-color: #161b22 !important; }
-	.bg-gray-50 { background-color: #0d1117 !important; }
-	.bg-gray-100 { background-color: #161b22 !important; }
-	.text-black, .text-gray-900 { color: #e6edf3 !important; }
-	.text-gray-800 { color: #e6edf3 !important; }
-	.text-gray-700 { color: #d0d4da !important; }
-	.text-gray-600 { color: #8b949e !important; }
-	.text-gray-500 { color: #6e7681 !important; }
-	.text-gray-400 { color: #6e7681 !important; }
-	.border-gray-200 { border-color: #21262d !important; }
-	.border-gray-300 { border-color: #30363d !important; }
-	.bg-gray-200 { background-color: #21262d !important; }
-	.hover\:bg-gray-100:hover { background-color: #1c2128 !important; }
-	.hover\:bg-gray-50:hover { background-color: #21262d !important; }
-}
+/* ==========================================================================
+   Components
+   ========================================================================== */
 
-[data-theme="dark"] .bg-white { background-color: #161b22 !important; }
-[data-theme="dark"] .bg-gray-50 { background-color: #0d1117 !important; }
-[data-theme="dark"] .bg-gray-100 { background-color: #161b22 !important; }
-[data-theme="dark"] .text-black, 
-[data-theme="dark"] .text-gray-900 { color: #e6edf3 !important; }
-[data-theme="dark"] .text-gray-800 { color: #e6edf3 !important; }
-[data-theme="dark"] .text-gray-700 { color: #d0d4da !important; }
-[data-theme="dark"] .text-gray-600 { color: #8b949e !important; }
-[data-theme="dark"] .text-gray-500 { color: #6e7681 !important; }
-[data-theme="dark"] .text-gray-400 { color: #6e7681 !important; }
-[data-theme="dark"] .border-gray-200 { border-color: #21262d !important; }
-[data-theme="dark"] .border-gray-300 { border-color: #30363d !important; }
-[data-theme="dark"] .bg-gray-200 { background-color: #21262d !important; }
-[data-theme="dark"] .hover\:bg-gray-100:hover { background-color: #1c2128 !important; }
-[data-theme="dark"] .hover\:bg-gray-50:hover { background-color: #21262d !important; }
-
-/* Layout containers commonly used */
 .card,
 .container,
 .content-surface,
@@ -127,157 +229,102 @@ a { color: var(--brand); }
 	border: 1px solid var(--border);
 }
 
-/* Common component styles */
 .btn-primary {
 	background: var(--brand);
-	color: white;
+	color: var(--text-on-brand);
 	border: 1px solid var(--brand);
 }
-
-.btn-primary:hover {
-	background: var(--brand-hover);
-	border-color: var(--brand-hover);
-}
+.btn-primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
 
 .btn-secondary {
 	background: var(--surface-elevated);
 	color: var(--text);
 	border: 1px solid var(--border);
 }
-
-.btn-secondary:hover {
-	background: var(--border-muted);
-}
+.btn-secondary:hover { background: var(--surface-subtle); border-color: var(--border-strong); }
 
 /* Status colors */
 .text-success { color: var(--success) !important; }
 .text-warning { color: var(--warning) !important; }
-.text-error { color: var(--error) !important; }
-.text-info { color: var(--info) !important; }
+.text-error   { color: var(--error)   !important; }
+.text-info    { color: var(--info)    !important; }
 
-.bg-success { background-color: var(--success) !important; }
-.bg-warning { background-color: var(--warning) !important; }
-.bg-error { background-color: var(--error) !important; }
-.bg-info { background-color: var(--info) !important; }
+.bg-success { background-color: var(--success) !important; color: var(--text-on-brand) !important; }
+.bg-warning { background-color: var(--warning) !important; color: var(--text-on-brand) !important; }
+.bg-error   { background-color: var(--error)   !important; color: var(--text-on-brand) !important; }
+.bg-info    { background-color: var(--info)    !important; color: var(--text-on-brand) !important; }
 
 /* Form elements */
 input, textarea, select {
 	background: var(--surface);
 	color: var(--text);
 	border: 1px solid var(--border);
-	transition: all 0.3s ease;
+	transition: border-color .15s ease, box-shadow .15s ease;
 }
-
+input::placeholder, textarea::placeholder { color: var(--text-secondary); }
 input:focus, textarea:focus, select:focus {
 	border-color: var(--brand);
 	outline: none;
-	box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-input:focus, textarea:focus, select:focus {
-	border-color: var(--brand);
-	outline: none;
-	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+	box-shadow: var(--ring);
 }
 
 /* Tables */
-table {
-	background: var(--surface);
-	color: var(--text);
-	border: 1px solid var(--border);
-}
-
-th {
-	background: var(--surface-elevated);
-	color: var(--text);
-	border-bottom: 1px solid var(--border);
-}
-
-td {
-	border-bottom: 1px solid var(--border-muted);
-}
+table { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+th    { background: var(--surface-elevated); color: var(--text); border-bottom: 1px solid var(--border); }
+td    { border-bottom: 1px solid var(--border-muted); }
 
 /* Navigation */
-nav {
-	background: var(--surface);
-	border-bottom: 1px solid var(--border);
-}
+nav { background: var(--surface); border-bottom: 1px solid var(--border); }
+nav a { color: var(--text-muted); }
+nav a:hover, nav a.active { color: var(--brand); }
 
-nav a {
-	color: var(--text-muted);
-}
-
-nav a:hover, nav a.active {
-	color: var(--brand);
-}
-
-/* Modals and overlays */
-.modal, .overlay {
-	background: rgba(0, 0, 0, 0.5);
-}
-
+/* Modals & overlays */
+.modal, .overlay { background: rgba(0, 0, 0, 0.6); }
 .modal-content {
-	background: var(--surface);
+	background: var(--surface-overlay);
 	color: var(--text);
 	border: 1px solid var(--border);
+	box-shadow: var(--shadow-overlay);
 }
 
-/* Notifications */
 .notification {
-	background: var(--surface);
+	background: var(--surface-overlay);
 	color: var(--text);
 	border: 1px solid var(--border);
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	box-shadow: var(--shadow-md);
 }
 
-/* Loading states */
-.loading {
-	background: var(--border-muted);
-}
+.loading { background: var(--border-muted); }
 
-/* Ensure all text elements inherit theme colors */
-h1, h2, h3, h4, h5, h6 {
-	color: var(--text);
-}
+* { box-sizing: border-box; }
 
-p, span, div {
-	color: inherit;
-}
-
-/* Links */
-a {
-	color: var(--brand);
-	text-decoration: none;
-}
-
-a:hover {
-	color: var(--brand-hover);
-	text-decoration: underline;
-}
-
-/* Code blocks */
-code, pre {
-	background: var(--surface-elevated);
-	color: var(--text);
-	border: 1px solid var(--border);
-}
-
-/* Dividers */
-hr {
-	border-color: var(--border);
-}
-
-/* Ensure proper contrast for all elements */
-* {
-	box-sizing: border-box;
-}
-
-/* Override hardcoded colors with higher specificity */
-[data-theme="dark"] * {
-	color: inherit !important;
-}
+/* ==========================================================================
+   Dark-specific component nudges (kept narrow, non-destructive)
+   ========================================================================== */
 
 [data-theme="dark"] body {
+	background: var(--surface-muted) !important;
+	color: var(--text) !important;
+}
+
+[data-theme="dark"] .app-container {
+	background: var(--surface-muted) !important;
+}
+
+[data-theme="dark"] .clean-card {
+	background: var(--surface) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .stat-box {
+	background: var(--surface-elevated) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] header {
 	background: var(--surface-muted) !important;
 	color: var(--text) !important;
 }
@@ -1007,14 +1054,9 @@ hr {
 	color: var(--text-muted) !important;
 }
 
-/* Ensure all text elements inherit proper colors */
-[data-theme="dark"] * {
-	color: inherit;
-}
+/* (Removed: destructive [data-theme="dark"] * { color: inherit } rules
+   that stripped semantic text colors from buttons/badges/links.) */
 
-[data-theme="dark"] body * {
-	color: inherit;
-}
 
 /* Override any remaining white backgrounds */
 [data-theme="dark"] [style*="background-color: white"],
