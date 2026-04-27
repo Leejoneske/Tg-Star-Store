@@ -2044,7 +2044,10 @@ const userSchema = new mongoose.Schema({
         level: Number,
         earnedAmount: Number,
         reason: String // 'referral_added', 'level_upgrade', etc.
-    }]
+    }],
+    // 21-day hold notice acceptance
+    hasAccepted21DayNotice: { type: Boolean, default: false },
+    acceptedAt: Date
 });
 
 const bannedUserSchema = new mongoose.Schema({
@@ -11464,6 +11467,17 @@ async function hasUserAccepted21DayNotice(userId) {
 // Helper: Mark user as accepted 21-day hold notice
 async function setUser21DayNoticeAccepted(userId) {
     try {
+        // Update MongoDB
+        await User.findOneAndUpdate(
+            { id: userId },
+            {
+                hasAccepted21DayNotice: true,
+                acceptedAt: new Date()
+            },
+            { upsert: false, new: true }
+        );
+        
+        // Also update local data cache
         await ensureUserExists(userId);
         db.data.users[userId].hasAccepted21DayNotice = true;
         db.data.users[userId].acceptedAt = new Date().toISOString();
@@ -11706,7 +11720,7 @@ bot.on('callback_query', async (query) => {
     if (query.data.startsWith('sell_accept_agreement_')) {
         try {
             const parts = query.data.split('_');
-            const userId = parts[4]; // sell_accept_agreement_USERID_TIMESTAMP
+            const userId = parts[3]; // sell_accept_agreement_USERID_TIMESTAMP - index 3 is the userId
             const flowState = sellFlowStates.get(userId);
             
             if (!flowState || flowState.stage !== 'agreement_pending') {
