@@ -11481,6 +11481,39 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
             return bot.sendMessage(chatId, `❌ Your account is restricted and cannot place orders.\n\nCase ID: ${banDetails?.caseId}\n\nContact support to appeal.`);
         }
 
+        // Check if user has accepted 21-day hold notice
+        const hasAccepted = await hasUserAccepted21DayNotice(userId);
+        if (!hasAccepted) {
+            // Show 21-day hold agreement notice first
+            const noticeMsg = await bot.sendMessage(chatId, 
+                '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
+                'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
+                'This period is required for security verification and compliance purposes. By clicking "Continue", you acknowledge and agree to these terms.\n' +					
+                '🔗 <a href="https://t.me/StarStore_app/82">Read More</a>\n\n' +
+                'By clicking "Continue", you acknowledge and agree to these terms.',
+                {
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [[
+                            { text: '✅ Continue', callback_data: `sell_accept_agreement_${userId}_${Date.now()}` }
+                        ]]
+                    }
+                }
+            );
+
+            // Initialize sell flow state in agreement_pending stage
+            sellFlowStates.set(userId, {
+                stage: 'agreement_pending',
+                data: { username, userId, chatId },
+                errors: { amount: 0, wallet: 0, memo: 0 },
+                isAdmin: adminIds.includes(userId),
+                timeout: Date.now() + 15 * 60 * 1000, // 15 minute timeout
+                agreementMessageId: noticeMsg?.message_id
+            });
+            return;
+        }
+
+        // User already accepted, proceed with sell flow
         // Initialize sell flow state
         sellFlowStates.set(userId, {
             stage: 'amount',
@@ -11615,35 +11648,9 @@ bot.on('message', async (msg) => {
                 } catch (e) { /* ignore */ }
             }
             
-            // Check if user has accepted 21-day hold notice
-            const hasAccepted = await hasUserAccepted21DayNotice(userId);
-            if (!hasAccepted) {
-                // Show 21-day hold agreement notice
-                flowState.stage = 'agreement_pending';
-                const noticeMsg = await bot.sendMessage(chatId, 
-                    '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
-                    'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
-                   
-					'This period is required for security verification and compliance purposes. By clicking "Continue", you acknowledge and agree to these terms.\n' +					
-                    '🔗 <a href="https://t.me/StarStore_app/82">Read More</a>\n\n' +
-                    'By clicking "Continue", you acknowledge and agree to these terms.',
-                    {
-                        parse_mode: 'HTML',
-                        reply_markup: {
-                            inline_keyboard: [[
-                                { text: '✅ Continue', callback_data: `sell_accept_agreement_${userId}_${Date.now()}` }
-                            ]]
-                        }
-                    }
-                );
-                if (noticeMsg?.message_id) {
-                    flowState.agreementMessageId = noticeMsg.message_id;
-                }
-            } else {
-                // User already accepted, create order directly
-                await createSellOrderFromKeyboard(flowState.data, msg, flowState.isAdmin);
-                sellFlowStates.delete(userId);
-            }
+            // User has already accepted agreement at start, create order directly
+            await createSellOrderFromKeyboard(flowState.data, msg, flowState.isAdmin);
+            sellFlowStates.delete(userId);
         }
     } catch (err) {
         console.error('Sell flow message handler error:', err);
@@ -11673,38 +11680,10 @@ bot.on('callback_query', async (query) => {
                 await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: query.message.message_id });
             } catch (e) { /* ignore */ }
             
-            // Check if user has accepted 21-day hold notice
-            const hasAccepted = await hasUserAccepted21DayNotice(userId);
-            if (!hasAccepted) {
-                // Show 21-day hold agreement notice
-                flowState.stage = 'agreement_pending';
-                const noticeMsg = await bot.sendMessage(chatId, 
-                    '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
-                    'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
-                    'This period is required for:\n' +
-                    '• Security verification\n' +
-                    '• Compliance purposes\n' +
-                    '• Fraud prevention\n\n' +
-                    '🔗 <a href="https://starstore.site/knowledge-base/#why-21-day">Read More</a>\n\n' +
-                    'By clicking "Continue", you acknowledge and agree to these terms.',
-                    {
-                        parse_mode: 'HTML',
-                        reply_markup: {
-                            inline_keyboard: [[
-                                { text: '✅ Continue', callback_data: `sell_accept_agreement_${userId}_${Date.now()}` }
-                            ]]
-                        }
-                    }
-                );
-                if (noticeMsg?.message_id) {
-                    flowState.agreementMessageId = noticeMsg.message_id;
-                }
-            } else {
-                // User already accepted, create order directly
-                await bot.sendMessage(chatId, '✅ Memo skipped.\n\n🔄 Creating your sell order...');
-                await createSellOrderFromKeyboard(flowState.data, query.message, flowState.isAdmin);
-                sellFlowStates.delete(userId);
-            }
+            // User has already accepted agreement at start, create order directly
+            await bot.sendMessage(chatId, '✅ Memo skipped.\n\n🔄 Creating your sell order...');
+            await createSellOrderFromKeyboard(flowState.data, query.message, flowState.isAdmin);
+            sellFlowStates.delete(userId);
             
             bot.answerCallbackQuery(query.id);
         } catch (err) {
@@ -11736,12 +11715,14 @@ bot.on('callback_query', async (query) => {
                 await bot.editMessageReplyMarkup(null, { chat_id: chatId, message_id: query.message.message_id });
             } catch (e) { /* ignore */ }
             
-            // Send confirmation and create order
-            await bot.sendMessage(chatId, '✅ Agreement accepted.\n\n🔄 Creating your sell order...');
+            // Send confirmation and proceed to amount input
+            await bot.sendMessage(chatId, '✅ Agreement accepted.\n\n💱 How many Telegram Stars do you want to sell?\n\n' + 
+                (flowState.isAdmin 
+                    ? 'Minimum: 1 star\nNo maximum limit\n\nEnter the amount:'
+                    : 'Minimum: 50 stars\nMaximum: 80,000 stars\n\nEnter the amount:'));
             
-            // Create the sell order
-            await createSellOrderFromKeyboard(flowState.data, query.message, flowState.isAdmin);
-            sellFlowStates.delete(userId);
+            // Move to amount stage
+            flowState.stage = 'amount';
             
             bot.answerCallbackQuery(query.id);
         } catch (err) {
@@ -12234,6 +12215,38 @@ bot.on('message', async (msg) => {
             if (isBanned) {
                 const banDetails = await getBanDetails(userId);
                 return bot.sendMessage(chatId, `❌ Your account is restricted and cannot place orders.\n\nCase ID: ${banDetails?.caseId}\n\nContact support to appeal.`);
+            }
+
+            // Check if user has accepted 21-day hold notice
+            const hasAccepted = await hasUserAccepted21DayNotice(userId);
+            if (!hasAccepted) {
+                // Show 21-day hold agreement notice first
+                const noticeMsg = await bot.sendMessage(chatId, 
+                    '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
+                    'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
+                    'This period is required for security verification and compliance purposes. By clicking "Continue", you acknowledge and agree to these terms.\n' +					
+                    '🔗 <a href="https://t.me/StarStore_app/82">Read More</a>\n\n' +
+                    'By clicking "Continue", you acknowledge and agree to these terms.',
+                    {
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [[
+                                { text: '✅ Continue', callback_data: `sell_accept_agreement_${userId}_${Date.now()}` }
+                            ]]
+                        }
+                    }
+                );
+
+                // Initialize sell flow state in agreement_pending stage
+                sellFlowStates.set(userId, {
+                    stage: 'agreement_pending',
+                    data: { username, userId, chatId },
+                    errors: { amount: 0, wallet: 0, memo: 0 },
+                    isAdmin: adminIds.includes(userId),
+                    timeout: Date.now() + 15 * 60 * 1000, // 15 minute timeout
+                    agreementMessageId: noticeMsg?.message_id
+                });
+                return;
             }
 
             // Check if user is admin
