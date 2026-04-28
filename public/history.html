@@ -757,11 +757,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 function initApp() {
+    // Load page content regardless of userId
+    // If userId is not available, API calls will handle it gracefully
     if (!userId) {
-        console.error('❌ No valid user ID found - authentication required');
+        console.warn('⚠️ No valid user ID detected - history will be empty');
         authError = true;
-        showAuthenticationError();
-        return;
     }
     
     updateLanguage();
