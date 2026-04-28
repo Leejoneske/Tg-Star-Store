@@ -307,7 +307,6 @@ app.get(['/', '/about', '/sell', '/history', '/daily', '/feedback', '/ambassador
     const file = map[req.path];
     if (file) {
       const abs = path.join(__dirname, 'public', file);
-      console.log(`[ROUTE] Serving ${req.path} → ${file}`);
       return res.status(200).sendFile(abs, (err) => {
         if (err) {
           console.error(`[ROUTE ERROR] Failed to send ${file}: ${err.message}`);
@@ -342,7 +341,6 @@ app.get(/\/(about|sell|history|daily|feedback|ambassador)\.html$/i, async (req, 
     const file = map[pathWithoutHtml];
     if (file) {
       const abs = path.join(__dirname, 'public', file);
-      console.log(`[ROUTE] Serving ${req.path} → ${file} (via .html handler)`);
       return res.status(200).sendFile(abs, (err) => {
         if (err) {
           console.error(`[ROUTE ERROR] Failed to send ${file}: ${err.message}`);
@@ -18117,7 +18115,7 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   
-  // DEBUG: Log directory structure for deployment diagnostics
+  // Minimal startup validation
   try {
     const fsSyncModule = require('fs');
     const publicDir = path.join(__dirname, 'public');
@@ -18126,37 +18124,10 @@ app.listen(PORT, async () => {
       console.error('❌ CRITICAL: /public directory does not exist at:', publicDir);
       console.error('   This will cause 404 errors for all static files and routes');
       console.error('   Ensure the public/ folder is committed to git and deployed');
-    } else {
-      console.log(`✅ /public directory found at: ${publicDir}`);
-    }
-    
-    const blogsExist = fsSyncModule.existsSync(path.join(publicDir, 'blog', 'index.html'));
-    const kbExist = fsSyncModule.existsSync(path.join(publicDir, 'knowledge-base', 'index.html'));
-    const withdrawExist = fsSyncModule.existsSync(path.join(publicDir, 'how-to-withdraw-telegram-stars', 'index.html'));
-    const indexExists = fsSyncModule.existsSync(path.join(publicDir, 'index.html'));
-    const sellExists = fsSyncModule.existsSync(path.join(publicDir, 'sell.html'));
-    
-    console.log(`[DEBUG] Root directory (__dirname): ${__dirname}`);
-    console.log(`[DEBUG] Public directory: ${publicDir}`);
-    console.log(`[DEBUG] index.html exists: ${indexExists}`);
-    console.log(`[DEBUG] sell.html exists: ${sellExists}`);
-    console.log(`[DEBUG] /blog/index.html exists: ${blogsExist}`);
-    console.log(`[DEBUG] /knowledge-base/index.html exists: ${kbExist}`);
-    console.log(`[DEBUG] /how-to-withdraw-telegram-stars/index.html exists: ${withdrawExist}`);
-    
-    if (!blogsExist || !kbExist || !withdrawExist) {
-      console.warn('[WARN] Some expected route files are MISSING!');
-      console.warn('[WARN] This is likely because the public/ folder is not deployed on Railway');
-      console.warn('[WARN] Verify that:');
-      console.warn('[WARN]   1. public/ folder is NOT in .gitignore');
-      console.warn('[WARN]   2. public/ folder files are committed to git');
-      console.warn('[WARN]   3. Railway is pulling the correct branch');
     }
   } catch (e) {
-    console.error('[DEBUG ERROR] Failed to check file existence:', e.message);
+    // Silently continue
   }
-  
-  console.log(`Webhook set to: ${WEBHOOK_URL}`);
   
   // Run migrations
   await runMigrations();
