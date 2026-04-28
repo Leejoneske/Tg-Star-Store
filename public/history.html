@@ -948,7 +948,7 @@ function loadReferralHistory() {
         headers['x-telegram-init-data'] = window.Telegram.WebApp.initData;
     }
 
-    fetch(`${BASE_API_URL}/referrals/${userId}?type=referral`, {
+    fetch(`${BASE_API_URL}/api/referrals/${userId}?type=referral`, {
         headers: headers
     })
     .then(response => {
@@ -962,7 +962,9 @@ function loadReferralHistory() {
         return response.json();
     })
     .then(data => {
-        referralHistory = data.map(ref => {
+        // Handle both direct array response and paginated response
+        const referralsData = Array.isArray(data) ? data : (data.data || []);
+        referralHistory = referralsData.map(ref => {
             return {
                 ...ref,
                 status: mapReferralStatus(ref.status),
