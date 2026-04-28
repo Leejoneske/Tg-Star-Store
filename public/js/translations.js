@@ -147,7 +147,7 @@ const translations = {
         referral_details: "Referral Details",
         days_ago: "days ago",
         importantNotice: "Important Notice",
-        noticeText: "Please note that we will hold your Stars for a mandatory 21-day period before processing a payout. This period is required for security verification and compliance purposes. By clicking \"Continue\", you acknowledge and agree to these terms.",
+        noticeText: "Please note that we will hold your Stars for a mandatory 21-day period before processing a payout. By clicking \"Continue\", you acknowledge and agree to these terms.",
         continue: "Continue",
         enterManualAddress: "Enter Manual Address",
         enterWalletAddress: "Enter USDT TON wallet address",

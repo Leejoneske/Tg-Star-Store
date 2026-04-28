@@ -11507,8 +11507,8 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
             const noticeMsg = await bot.sendMessage(chatId, 
                 '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
                 'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
-                'This period is required for security verification and compliance purposes. By clicking "Continue", you acknowledge and agree to these terms.\n' +					
-                '🔗 <a href="https://t.me/StarStore_app/82">Read More</a>\n\n' +
+                'By clicking "Continue", you acknowledge and agree to these terms.\n' +				
+                '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>\n\n' +
                 'By clicking "Continue", you acknowledge and agree to these terms.',
                 {
                     parse_mode: 'HTML',
@@ -12244,8 +12244,8 @@ bot.on('message', async (msg) => {
                 const noticeMsg = await bot.sendMessage(chatId, 
                     '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
                     'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
-                    'This period is required for security verification and compliance purposes. By clicking "Continue", you acknowledge and agree to these terms.\n' +					
-                    '🔗 <a href="https://t.me/StarStore_app/82">Read More</a>\n\n' +
+                    'By clicking "Continue", you acknowledge and agree to these terms.\n' +				
+                    '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>\n\n' +
                     'By clicking "Continue", you acknowledge and agree to these terms.',
                     {
                         parse_mode: 'HTML',
