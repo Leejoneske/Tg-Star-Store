@@ -15552,7 +15552,12 @@ app.get('/api/referrals/:userId', async (req, res) => {
             }
         };
         
-        console.log(`[Referrals API] Returning ${formattedReferrals.length} formatted referrals`);
+        console.log(`[Referrals API] Returning ${formattedReferrals.length} formatted referrals with pagination`);
+        console.log(`[Referrals API] Response structure:`, { 
+            dataCount: response.data.length, 
+            totalCount: response.pagination.total,
+            pages: response.pagination.pages 
+        });
         res.json(response);
     } catch (error) {
         console.error('[Referrals API] Error fetching referrals:', error);
