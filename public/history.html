@@ -952,18 +952,21 @@ function loadReferralHistory() {
         headers: headers
     })
     .then(response => {
+        console.log(`✅ Referral API response status: ${response.status}`);
         if (!response.ok) {
             if (response.status === 401 || response.status === 404) {
                 console.error(`❌ Authentication error (${response.status}): User not found or unauthorized`);
                 authError = true;
             }
-            throw new Error('Network response was not ok');
+            throw new Error(`Network response ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
+        console.log('✅ Referral data received:', data);
         // Handle both direct array response and paginated response
         const referralsData = Array.isArray(data) ? data : (data.data || []);
+        console.log('📊 Formatted referrals:', referralsData);
         referralHistory = referralsData.map(ref => {
             return {
                 ...ref,
@@ -972,6 +975,8 @@ function loadReferralHistory() {
             };
         });
         
+        console.log('📝 Referral history loaded:', referralHistory);
+        LoadingComponent.hide('referralsLoading');
         updateReferralList();
     })
     .catch(error => {

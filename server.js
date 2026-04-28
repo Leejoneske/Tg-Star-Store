@@ -14991,8 +14991,11 @@ app.get('/api/export-transactions-download', async (req, res) => {
 // Export transactions as PDF (professional formatted statement)
 app.post('/api/export-transactions-pdf', requireTelegramAuth, async (req, res) => {
     try {
+        console.log('[PDF Export] Transaction PDF export requested by user:', req.user?.id);
+        console.log('[PDF Export] pdfGenerator available:', !!pdfGenerator);
+        
         if (!pdfGenerator) {
-            console.error('PDF Generator not available');
+            console.error('❌ PDF Generator not available - module is null or undefined');
             return res.status(501).json({ error: 'PDF export service not available. Please try again later.' });
         }
 
@@ -15357,8 +15360,13 @@ app.get('/api/export-referrals-download', async (req, res) => {
 // Export referrals as PDF (professional formatted statement)
 app.post('/api/export-referrals-pdf', requireTelegramAuth, async (req, res) => {
     try {
+        console.log('[PDF Export] Referral PDF export requested by user:', req.user?.id);
+        console.log('[PDF Export] pdfGenerator available:', !!pdfGenerator);
+        console.log('[PDF Export] pdfGenerator type:', typeof pdfGenerator);
+        console.log('[PDF Export] pdfGenerator functions:', pdfGenerator ? Object.keys(pdfGenerator) : 'N/A');
+        
         if (!pdfGenerator) {
-            console.error('PDF Generator not available');
+            console.error('❌ PDF Generator not available - module is null or undefined');
             return res.status(501).json({ error: 'PDF export service not available. Please try again later.' });
         }
 
@@ -15484,6 +15492,7 @@ app.get('/api/export-referrals-pdf-download', async (req, res) => {
 app.get('/api/referrals/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
+        console.log(`[Referrals API] Fetching referrals for userId: ${userId}`);
         
         // Check if user is banned
         const isBanned = await checkUserBanStatus(userId);
@@ -15500,12 +15509,15 @@ app.get('/api/referrals/:userId', async (req, res) => {
         
         // Get total count for pagination metadata
         const totalCount = await Referral.countDocuments({ referrerUserId: userId });
+        console.log(`[Referrals API] Found ${totalCount} total referrals for user ${userId}`);
         
         const referrals = await Referral.find({ referrerUserId: userId })
             .sort({ dateReferred: -1 })
             .skip(skip)
             .limit(limit)
             .lean();
+        
+        console.log(`[Referrals API] Fetched ${referrals.length} referrals for this page`);
         
         // Optimize: Batch fetch all referred users at once instead of N+1 queries
         const referredUserIds = referrals.map(r => r.referredUserId);
@@ -15530,7 +15542,7 @@ app.get('/api/referrals/:userId', async (req, res) => {
             };
         });
 
-        res.json({
+        const response = {
             data: formattedReferrals,
             pagination: {
                 page,
@@ -15538,9 +15550,12 @@ app.get('/api/referrals/:userId', async (req, res) => {
                 total: totalCount,
                 pages: Math.ceil(totalCount / limit)
             }
-        });
+        };
+        
+        console.log(`[Referrals API] Returning ${formattedReferrals.length} formatted referrals`);
+        res.json(response);
     } catch (error) {
-        console.error('Error fetching referrals:', error);
+        console.error('[Referrals API] Error fetching referrals:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
