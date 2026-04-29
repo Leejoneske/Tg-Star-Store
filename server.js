@@ -11561,11 +11561,33 @@ async function ensureUserExists(userId) {
             db.data.users = {};
         }
         if (!db.data.users[userId]) {
-            db.data.users[userId] = {
-                userId: userId,
-                hasAccepted21DayNotice: false,
-                acceptedAt: null
-            };
+            // Try to load from MongoDB first
+            try {
+                const mongoUser = await User.findOne({ id: userId }).lean();
+                if (mongoUser) {
+                    db.data.users[userId] = {
+                        userId: userId,
+                        hasAccepted21DayNotice: mongoUser.hasAccepted21DayNotice || false,
+                        acceptedAt: mongoUser.acceptedAt || null,
+                        ...mongoUser
+                    };
+                } else {
+                    // User doesn't exist in MongoDB, create default
+                    db.data.users[userId] = {
+                        userId: userId,
+                        hasAccepted21DayNotice: false,
+                        acceptedAt: null
+                    };
+                }
+            } catch (mongoErr) {
+                console.error('Error loading user from MongoDB:', mongoErr);
+                // Fallback to default
+                db.data.users[userId] = {
+                    userId: userId,
+                    hasAccepted21DayNotice: false,
+                    acceptedAt: null
+                };
+            }
         }
         return db.data.users[userId];
     } catch (err) {
@@ -11632,8 +11654,7 @@ bot.onText(/^(�\s*SELL\s*Stars|\/sell)$/i, async (msg) => {
                 '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
                 'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
                 'By clicking "Continue", you acknowledge and agree to these terms.\n' +				
-                '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>\n\n' +
-                'By clicking "Continue", you acknowledge and agree to these terms.',
+                '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>',
                 {
                     parse_mode: 'HTML',
                     disable_web_page_preview: true,
@@ -12369,8 +12390,7 @@ bot.on('message', async (msg) => {
                     '📋 <b>Important Notice - 21-Day Hold</b>\n\n' +
                     'Please note that we will hold your Stars for a mandatory <b>21-day period</b> before processing a payout.\n\n' +
                     'By clicking "Continue", you acknowledge and agree to these terms.\n' +				
-                    '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>\n\n' +
-                    'By clicking "Continue", you acknowledge and agree to these terms.',
+                    '🔗 <a href="https://t.me/StarStore_Chat/19566">Read More</a>',
                     {
                         parse_mode: 'HTML',
                         disable_web_page_preview: true,
