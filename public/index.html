@@ -2633,7 +2633,11 @@ function updateUserInterface(user) {
 function restoreWalletState() {
     const savedWalletConnected = localStorage.getItem('walletConnected');
     const savedWalletAddress = localStorage.getItem('walletAddress');
-    const normalizedWalletAddress = TonUtils?.normalizeAddress(savedWalletAddress) || '';
+    const normalizedWalletAddress = (typeof TonUtils !== 'undefined' && typeof TonUtils.normalizeAddress === 'function')
+        ? TonUtils.normalizeAddress(savedWalletAddress)
+        : (typeof TonUtils !== 'undefined' && typeof TonUtils.formatAddress === 'function')
+            ? TonUtils.formatAddress(savedWalletAddress)
+            : savedWalletAddress || '';
 
     if (savedWalletConnected === 'true' && normalizedWalletAddress) {
         walletConnected = true;
@@ -2697,7 +2701,11 @@ function initWalletConnection() {
 
     tonConnectUI.onStatusChange(wallet => {
         if (wallet?.account) {
-            const normalizedAddress = TonUtils.normalizeAddress(wallet.account.address);
+            const normalizedAddress = (typeof TonUtils !== 'undefined' && typeof TonUtils.normalizeAddress === 'function')
+                ? TonUtils.normalizeAddress(wallet.account.address)
+                : (typeof TonUtils !== 'undefined' && typeof TonUtils.formatAddress === 'function')
+                    ? TonUtils.formatAddress(wallet.account.address)
+                    : wallet.account.address || '';
             if (normalizedAddress) {
                 currentWalletAddress = normalizedAddress;
                 walletConnected = true;
@@ -2786,7 +2794,11 @@ function updateWalletButton() {
         // Normalize the address before display
         let normalizedAddress = currentWalletAddress;
         if (typeof TonUtils !== 'undefined') {
-            normalizedAddress = TonUtils.normalizeAddress(currentWalletAddress) || currentWalletAddress;
+            normalizedAddress = (typeof TonUtils.normalizeAddress === 'function')
+                ? TonUtils.normalizeAddress(currentWalletAddress) || currentWalletAddress
+                : (typeof TonUtils.formatAddress === 'function')
+                    ? TonUtils.formatAddress(currentWalletAddress)
+                    : currentWalletAddress;
         }
 
         if (!normalizedAddress || (typeof TonUtils !== 'undefined' && !TonUtils.isValidAddress(normalizedAddress))) {
