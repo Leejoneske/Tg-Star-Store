@@ -37,6 +37,15 @@
                     // Telegram not ready yet
                 }
                 
+                // Fallback to authenticated user ID from server
+                try {
+                    if (window.authenticatedUserId && window.authenticatedUserId !== 'undefined' && window.authenticatedUserId !== 'null') {
+                        return window.authenticatedUserId.toString();
+                    }
+                } catch (e) {
+                    // Not available
+                }
+                
                 // Fallback to localStorage (set during previous login on index.html)
                 try {
                     const stored = localStorage.getItem('userId');
@@ -658,12 +667,11 @@
         state.authError = !state.userId;
 
         if (!state.userId) {
-            console.error('❌ No valid user ID found - authentication required');
-            showAuthenticationError();
-            return;
+            console.warn('⚠️ No valid user ID found - showing page with empty data');
+            // Continue with empty data instead of showing error
         }
 
-        console.log('Initializing referral page for user:', state.userId);
+        console.log('Initializing referral page for user:', state.userId || 'unknown');
         await loadBottomNav();
         await loadReferralData();
         setupEventListeners();
@@ -671,22 +679,7 @@
     });
 
     // Show authentication error
-    function showAuthenticationError() {
-        const container = document.getElementById('referralContainer') || document.querySelector('main');
-        if (container) {
-            container.innerHTML = `
-                <div style="padding: 20px; text-align: center; color: #d32f2f;">
-                    <h2>Authentication Required</h2>
-                    <p style="margin-top: 10px; color: #666;">
-                        This page must be accessed through Telegram. Please open this link in Telegram:
-                    </p>
-                    <a href="https://t.me/TgStarStore_bot" style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #0088cc; color: white; text-decoration: none; border-radius: 5px;">
-                        Open Telegram Bot
-                    </a>
-                </div>
-            `;
-        }
-    }
+
 
     // Bottom nav loading is centralized in /js/bottomnav-init.js?v=3 (BottomNavUtils.loadBottomNav).
     async function loadBottomNav() {
@@ -700,6 +693,8 @@
         if (!state.userId) {
             console.error('❌ Cannot load referral data: No valid user ID');
             state.authError = true;
+            // Still update UI with fallback data
+            updateUI();
             return;
         }
         
@@ -715,7 +710,8 @@
                 if (response.status === 401 || response.status === 404) {
                     console.error(`❌ Authentication error (${response.status}): User not found or unauthorized`);
                     state.authError = true;
-                    showAuthenticationError();
+                    // Still update UI with fallback data instead of showing error
+                    updateUI();
                     return;
                 }
                 throw new Error(`API error: ${response.status}`);
