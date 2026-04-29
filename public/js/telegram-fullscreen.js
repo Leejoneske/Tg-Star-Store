@@ -197,9 +197,21 @@ class TelegramFullscreenManager {
     }
 
     handleThemeChange() {
-        // Handle theme changes
-        const isDark = this.webApp.colorScheme === 'dark';
-        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        // Handle theme changes - but respect user's saved theme preference
+        // Only apply Telegram theme if user hasn't set a custom preference
+        try {
+            var userThemePref = localStorage.getItem('theme_preference');
+            if (!userThemePref || userThemePref === 'system') {
+                const isDark = this.webApp.colorScheme === 'dark';
+                document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+                document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            }
+        } catch(_) {
+            // Fall back to Telegram theme if localStorage is unavailable
+            const isDark = this.webApp.colorScheme === 'dark';
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        }
     }
 
     handleBackButton() {
