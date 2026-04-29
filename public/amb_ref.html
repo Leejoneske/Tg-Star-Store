@@ -30,6 +30,15 @@
                     // Telegram not ready yet
                 }
                 
+                // Fallback to authenticated user ID from server
+                try {
+                    if (window.authenticatedUserId && window.authenticatedUserId !== 'undefined' && window.authenticatedUserId !== 'null') {
+                        return window.authenticatedUserId.toString();
+                    }
+                } catch (e) {
+                    // Not available
+                }
+                
                 // Fallback to localStorage (set during previous login on index.html)
                 try {
                     const stored = localStorage.getItem('userId');
@@ -949,23 +958,7 @@
         }
     });
     
-    // Show authentication error
-    function showAuthenticationError() {
-        const container = document.querySelector('main') || document.body;
-        if (container) {
-            container.innerHTML = `
-                <div style="padding: 20px; text-align: center; color: #d32f2f;">
-                    <h2>Authentication Required</h2>
-                    <p style="margin-top: 10px; color: #666;">
-                        This page must be accessed through Telegram. Please open this link in Telegram:
-                    </p>
-                    <a href="https://t.me/TgStarStore_bot" style="margin-top: 15px; display: inline-block; padding: 10px 20px; background: #0088cc; color: white; text-decoration: none; border-radius: 5px;">
-                        Open Telegram Bot
-                    </a>
-                </div>
-            `;
-        }
-    }
+
 
     // Bottom nav loading is centralized in /js/bottomnav-init.js?v=3 (BottomNavUtils.loadBottomNav).
     async function loadBottomNav() {
@@ -978,6 +971,8 @@
         if (!state.userId) {
             console.warn('⚠️ Cannot load referral data: No valid user ID');
             state.authError = true;
+            // Still update UI with fallback data
+            updateUI();
             return;
         }
         
