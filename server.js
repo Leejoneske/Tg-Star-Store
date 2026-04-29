@@ -2295,6 +2295,21 @@ const banAuditLogSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now, index: true }
 });
 
+// 🔐 SECURITY: Admin Action Audit Log - tracks all admin actions for security audit trail
+const adminActionAuditLogSchema = new mongoose.Schema({
+    adminId: { type: String, required: true, index: true },
+    adminUsername: String,
+    action: { type: String, required: true, index: true },
+    actionType: { type: String, enum: ['order_completion', 'order_decline', 'order_refund', 'username_update', 'ambassador_status', 'ban_action'], required: true, index: true },
+    targetUserId: { type: String, index: true },
+    targetOrderId: String,
+    status: String,
+    details: mongoose.Schema.Types.Mixed,
+    sourceType: { type: String, enum: ['callback_query', 'api_call', 'direct_command'], default: 'callback_query' },
+    verified: { type: Boolean, default: false },
+    timestamp: { type: Date, default: Date.now, index: true }
+});
+
 // New notification template (content & targeting)
 const notificationTemplateSchema = new mongoose.Schema({
     title: { type: String, required: true, default: 'Notification' },
@@ -2349,6 +2364,7 @@ const UserNotification = mongoose.model('UserNotification', userNotificationSche
 const Warning = mongoose.model('Warning', warningSchema);
 const BanAppeal = mongoose.model('BanAppeal', banAppealSchema);
 const BanAuditLog = mongoose.model('BanAuditLog', banAuditLogSchema);
+const AdminActionAuditLog = mongoose.model('AdminActionAuditLog', adminActionAuditLogSchema);
 const Reversal = mongoose.model('Reversal', reversalSchema);
 const Feedback = mongoose.model('Feedback', feedbackSchema);
 const GeneralFeedback = mongoose.model('GeneralFeedback', generalFeedbackSchema);
@@ -2546,6 +2562,55 @@ if (adminIds.length > 0) {
 } else {
   console.warn('[ADMIN INIT] No admin IDs found. Set ADMIN_TELEGRAM_IDS or ADMIN_IDS env variable.');
 }
+
+// 🔐 SECURITY: Admin verification and audit logging helpers
+function isUserAdmin(userId) {
+    return Array.isArray(adminIds) && adminIds.includes(String(userId).trim());
+}
+
+async function logAdminAction(adminId, action, actionType, targetUserId, details = {}) {
+    try {
+        const auditEntry = new AdminActionAuditLog({
+            adminId: String(adminId),
+            adminUsername: details.adminUsername || 'unknown',
+            action,
+            actionType,
+            targetUserId: targetUserId ? String(targetUserId) : null,
+            targetOrderId: details.targetOrderId || null,
+            status: details.status || 'executed',
+            details,
+            sourceType: 'callback_query',
+            verified: true,
+            timestamp: new Date()
+        });
+        await auditEntry.save();
+        console.log(`[AUDIT] Admin action logged: ${action} by ${adminId}`);
+    } catch (error) {
+        console.error('[AUDIT] Failed to log admin action:', error.message);
+    }
+}
+
+// 🔐 SECURITY: Rate limit tracking for admin actions
+const adminActionRateLimit = new Map();
+const ADMIN_ACTION_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const MAX_ADMIN_ACTIONS_PER_MINUTE = 30;
+
+function checkAdminRateLimit(adminId) {
+    const now = Date.now();
+    const key = String(adminId);
+    let timestamps = adminActionRateLimit.get(key) || [];
+    timestamps = timestamps.filter(t => now - t < ADMIN_ACTION_RATE_LIMIT_WINDOW_MS);
+    
+    if (timestamps.length >= MAX_ADMIN_ACTIONS_PER_MINUTE) {
+        console.warn(`[RATE_LIMIT] Admin ${adminId} exceeded (${timestamps.length}/${MAX_ADMIN_ACTIONS_PER_MINUTE})`);
+        return { allowed: false, remaining: 0, resetIn: ADMIN_ACTION_RATE_LIMIT_WINDOW_MS / 1000 };
+    }
+    
+    timestamps.push(now);
+    adminActionRateLimit.set(key, timestamps);
+    return { allowed: true, remaining: MAX_ADMIN_ACTIONS_PER_MINUTE - timestamps.length };
+}
+
 const REPLY_MAX_RECIPIENTS = parseInt(process.env.REPLY_MAX_RECIPIENTS || '30', 10);
 
 // Initialize rate limit functions (now adminIds is available)
@@ -5496,6 +5561,20 @@ async function handleConfirmedAction(query, data, adminUsername) {
         // Execute the confirmed action
         await executeAdminAction(order, actionType, orderType, adminUsername);
         
+        // 🔐 AUDIT LOG: Log the admin action
+        await logAdminAction(
+            query.from.id,
+            `${actionType}_${orderType}_${orderId}`,
+            actionType === 'complete' ? 'order_completion' : actionType === 'decline' ? 'order_decline' : 'order_refund',
+            order.telegramId,
+            {
+                adminUsername,
+                targetOrderId: orderId,
+                orderType,
+                orderStatus: order.status
+            }
+        );
+        
         // Update the message with the result
         const statusText = order.status === 'completed' ? '✅ Completed' : 
                           order.status === 'failed' ? '❌ Failed' : 
@@ -5703,6 +5782,10 @@ bot.on('callback_query', async (query) => {
         const userId = query.from.id.toString();
         const username = query.from.username || '';
         const adminUsername = query.from.username ? query.from.username : `User_${query.from.id}`;
+        
+        // 🔐 SECURITY: Track admin action attempts
+        const isAdmin = isUserAdmin(userId);
+        const adminRateLimitCheck = isAdmin ? checkAdminRateLimit(userId) : { allowed: true, remaining: 0 };
 
         // Auto-detect and update username in real-time on ANY button interaction
         if (username) {
@@ -6073,8 +6156,18 @@ bot.on('callback_query', async (query) => {
             return;
         }
 
-        // Handle confirmation callbacks first
+        // 🔐 SECURITY: Admin verify for confirmed admin actions
         if (data.startsWith('confirm_')) {
+            if (!isAdmin) {
+                console.warn(`[SECURITY] Non-admin ${userId} attempted admin action: ${data}`);
+                await bot.answerCallbackQuery(query.id, { text: '❌ Only admins can perform this action', show_alert: true });
+                return;
+            }
+            if (!adminRateLimitCheck.allowed) {
+                console.warn(`[SECURITY] Admin rate limit exceeded for ${userId}`);
+                await bot.answerCallbackQuery(query.id, { text: `⏳ Rate limited. Try again later`, show_alert: true });
+                return;
+            }
             return await handleConfirmedAction(query, data, adminUsername);
         }
 
@@ -6121,16 +6214,36 @@ bot.on('callback_query', async (query) => {
 
         let order, actionType, orderType;
 
-        // Check if this is an admin action that needs confirmation
+        // 🔐 SECURITY: Admin verify for order completion actions
         const adminActions = ['complete_sell_', 'decline_sell_', 'refund_sell_', 'complete_buy_', 'decline_buy_'];
         const needsConfirmation = adminActions.some(action => data.startsWith(action));
         
         if (needsConfirmation) {
+            if (!isAdmin) {
+                console.warn(`[SECURITY] Non-admin ${userId} attempted admin action: ${data}`);
+                await bot.answerCallbackQuery(query.id, { text: '❌ Only admins can perform this action', show_alert: true });
+                return;
+            }
+            if (!adminRateLimitCheck.allowed) {
+                console.warn(`[SECURITY] Admin rate limit exceeded for ${userId}`);
+                await bot.answerCallbackQuery(query.id, { text: `⏳ Rate limited. Try again later`, show_alert: true });
+                return;
+            }
             return await showConfirmationButtons(query, data);
         }
 
-        // Admin approve/reject handlers for username update requests
+        // 🔐 SECURITY: Admin verify for username update requests
         if (data.startsWith('username_approve_') || data.startsWith('username_reject_')) {
+            if (!isAdmin) {
+                console.warn(`[SECURITY] Non-admin ${userId} attempted admin action: ${data}`);
+                await bot.answerCallbackQuery(query.id, { text: '❌ Only admins can perform this action', show_alert: true });
+                return;
+            }
+            if (!adminRateLimitCheck.allowed) {
+                console.warn(`[SECURITY] Admin rate limit exceeded for ${userId}`);
+                await bot.answerCallbackQuery(query.id, { text: `⏳ Rate limited. Try again later`, show_alert: true });
+                return;
+            }
             const approve = data.startsWith('username_approve_');
             const requestId = data.replace('username_approve_', '').replace('username_reject_', '');
             const adminChatId = query.from.id.toString();
@@ -6455,8 +6568,19 @@ bot.on('callback_query', async (query) => {
             return;
         }
 
-        // Ambassador application approval/rejection handlers
+        // 🔐 SECURITY: Admin verify for ambassador approval actions
         if (data.startsWith('ambassador_approve_') || data.startsWith('ambassador_decline_')) {
+            if (!isAdmin) {
+                console.warn(`[SECURITY] Non-admin ${userId} attempted admin action: ${data}`);
+                await bot.answerCallbackQuery(query.id, { text: '❌ Only admins can perform this action', show_alert: true });
+                return;
+            }
+            if (!adminRateLimitCheck.allowed) {
+                console.warn(`[SECURITY] Admin rate limit exceeded for ${userId}`);
+                await bot.answerCallbackQuery(query.id, { text: `⏳ Rate limited. Try again later`, show_alert: true });
+                return;
+            }
+            
             console.log(`\n🔔 AMBASSADOR CALLBACK RECEIVED: ${data}`);
             const approve = data.startsWith('ambassador_approve_');
             const entryId = data.replace('ambassador_approve_', '').replace('ambassador_decline_', '');

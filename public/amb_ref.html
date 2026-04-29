@@ -48,8 +48,8 @@
                 const userId = getUserId();
                 
                 if (!userId || userId === 'dev-user' || userId === 'default_user_id') {
-                    console.log('No valid user ID, redirecting to regular referral');
-                    window.location.href = '/referral';
+                    console.log('⚠️ No valid user ID - loading ambassador page without authentication');
+                    // Allow page to load gracefully without userId (like history.html does)
                     return;
                 }
                 
@@ -905,12 +905,10 @@
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
-        // Check for valid user ID first
+        // Load page content regardless of userId - graceful handling like history.html
         if (!state.userId) {
-            console.error('❌ No valid user ID found - authentication required');
+            console.warn('⚠️ No valid user ID detected - ambassador data will be empty');
             state.authError = true;
-            showAuthenticationError();
-            return;
         }
         
         // Wait for TranslationUtils to be available before applying
@@ -978,7 +976,7 @@
 
     async function loadReferralData() {
         if (!state.userId) {
-            console.error('❌ Cannot load referral data: No valid user ID');
+            console.warn('⚠️ Cannot load referral data: No valid user ID');
             state.authError = true;
             return;
         }
@@ -995,9 +993,8 @@
             
             if (!res.ok) {
                 if (res.status === 401 || res.status === 404) {
-                    console.error(`❌ Authentication error (${res.status}): User not found or unauthorized`);
+                    console.warn(`⚠️ Could not load ambassador data (${res.status}): showing empty state`);
                     state.authError = true;
-                    showAuthenticationError();
                     return;
                 }
                 throw new Error(res.status);

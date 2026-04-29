@@ -77,10 +77,15 @@ function requireTelegramAuth(req, res, next) {
   let authMethod = 'none';
 
   // First, try to extract user ID from x-telegram-id header
+  // 🔐 SECURITY: In production, NEVER trust x-telegram-id header alone
+  // It can be spoofed by attacker. Only accept x-telegram-init-data with valid signature.
   const telegramIdHeader = req.headers['x-telegram-id'];
-  if (isValidUserId(telegramIdHeader)) {
+  
+  // Only use x-telegram-id in development/local mode, NOT in production
+  if (isValidUserId(telegramIdHeader) && process.env.NODE_ENV !== 'production') {
     userId = telegramIdHeader.toString();
-    authMethod = 'header';
+    authMethod = 'header-dev-only';
+    console.log(`[DEV] Using x-telegram-id header (development only): ${userId}`);
   }
 
   // If no valid header ID, try to extract from initData
@@ -99,10 +104,8 @@ function requireTelegramAuth(req, res, next) {
               hasInitData: !!initDataHeader, 
               hasBotToken: !!botToken,
               initDataLength: initDataHeader.length,
-              telegramIdHeader: telegramIdHeader || 'undefined',
               extractedUserId: parsed.user?.id || 'undefined',
-              authMethod,
-              initDataSample: initDataHeader.substring(0, 100) + '...'
+              authMethod
             });
             
             // For now, allow the request to proceed with a warning in production
@@ -121,7 +124,6 @@ function requireTelegramAuth(req, res, next) {
     console.log('❌ No valid authentication found:', {
       hasInitData: !!initDataHeader,
       hasBotToken: !!botToken,
-      telegramIdHeader: telegramIdHeader || 'undefined',
       authMethod
     });
     return res.status(401).json({ error: 'Unauthorized - No valid Telegram authentication' });
